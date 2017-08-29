@@ -1,0 +1,66 @@
+<div ng-cloak>
+  <p>
+    <search project="project.name" repository="repository.name" revision="revision" term="term"></search>
+  </p>
+
+  <hr />
+
+  <form name="fileForm" ng-submit="createFile()" novalidate>
+    <div class="form-group">
+      <label class="control-label" translate>entities.repository</label>
+
+      <p class="form-control-static">
+        <span>
+          <a ng-href="#/{{project.name}}">{{project.name}}</a> /
+        </span>
+        <span>
+          <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}/">
+            <strong>{{repository.name}}</strong>
+          </a>
+        </span>
+        <span>
+          @ <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}/">{{revision}}</a>
+        </span>
+      </p>
+    </div>
+
+    <div class="form-group"
+         ng-class="{ 'has-error': fileForm.fileName.$invalid && !fileForm.fileName.$pristine }">
+      <label for="fileName" class="control-label" translate>entities.path</label>
+
+      <div class="input-group">
+        <span class="input-group-addon">{{newPath}}/</span>
+        <input id="fileName" name="fileName" type="text" class="form-control" ng-model="file.name"
+               data-ng-keyUp="keyUp($event)" placeholder="{{ 'entities.new_file_name_placeholder' | translate }}" />
+      </div>
+      <p ng-show="fileForm.fileName.$invalid && !fileForm.fileName.$pristine" class="help-block" translate>
+        entities.invalid_file_path
+      </p>
+    </div>
+
+    <div class="form-group">
+      <ace-editor class="file-area" path-ng-model="file.name" content-ng-model="file.content"
+                  callback="aceLoaded"></ace-editor>
+    </div>
+
+    <fieldset>
+      <legend translate>entities.commit_message</legend>
+      <div class="form-group"
+           ng-class="{ 'has-error': fileForm.messageSummary.$invalid && !fileForm.messageSummary.$pristine }">
+        <label for="messageSummary" class="control-label" translate>entities.commit_summary</label>
+        <input id="messageSummary" name="messageSummary" type="text" class="form-control"
+               ng-model="message.summary" placeholder="Add {{file.name || 'a new file'}}" />
+      </div>
+      <div class="form-group">
+        <label for="messageDetail" class="control-label" translate>entities.commit_detail</label>
+        <textarea id="messageDetail" class="form-control" data-ng-model="message.detail.content"></textarea>
+      </div>
+    </fieldset>
+
+    <div class="form-group">
+      <button type="submit" class="btn btn-primary" data-ng-disabled="fileForm.$invalid">
+        <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_commit' | translate }}
+      </button>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,117 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.craigburke.gradle:client-dependencies:1.4.0'
+    }
+}
+
+apply plugin: 'com.craigburke.client-dependencies'
+
+managedDependencies {
+    // Armeria
+    [ 'armeria-shaded', 'armeria-jetty-shaded', 'armeria-thrift0.9-shaded' ].each {
+        compile "com.linecorp.armeria:$it"
+    }
+
+    // AspectJ
+    [ 'rt', 'weaver' ].each {
+        compile "org.aspectj:aspectj$it"
+    }
+
+    // Caffeine
+    compile 'com.github.ben-manes.caffeine:caffeine'
+
+    // Commons Daemon
+    compile 'commons-daemon:commons-daemon'
+
+    // cron-utils
+    compile 'com.cronutils:cron-utils'
+
+    // Curator
+    compile 'org.apache.curator:curator-recipes'
+    testCompile 'org.apache.curator:curator-test'
+
+    // Hibernate Validator
+    compile 'org.hibernate:hibernate-validator'
+    runtime 'javax.el:javax.el-api'
+    runtime 'org.glassfish.web:javax.el'
+
+    // Jackson
+    compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda'
+
+    // jCommander
+    compile 'com.beust:jcommander'
+
+    // Jetty
+    [ 'server', 'webapp', 'annotations' ].each {
+        compile "org.eclipse.jetty:jetty-$it"
+    }
+
+    // jGit
+    compile 'org.eclipse.jgit:org.eclipse.jgit'
+
+    // JSch
+    compile 'com.jcraft:jsch'
+
+    // Additional dependencies required for logging configuration
+    runtime 'com.linecorp.armeria:armeria-logback-shaded'
+    runtime 'ch.qos.logback:logback-classic'
+    ['jcl-over-slf4j', 'log4j-over-slf4j'].each {
+        runtime "org.slf4j:$it"
+    }
+}
+
+clientDependencies {
+    installDir = "${project.projectDir}/src/main/resources/webapp/vendor"
+    copyExcludes = ['**/Gruntfile.js', 'gulpfile.js', 'source/**', 'test', 'karma.conf.js', 'index.js']
+    npm {
+        'ace-builds'('1.2.5', from: 'src-min-noconflict')
+        'angular'('1.5.8', )
+        'angular-cache-buster'('0.4.3')
+        'angular-cookies'('1.5.8')
+        'angular-dynamic-locale'('0.1.32')
+        'angular-i18n'('1.5.8')
+        'angular-local-storage'('0.5.0')
+        'angular-resource'('1.5.8')
+        'angular-sanitize'('1.5.8')
+        'angular-translate'('2.13.0', transitive: false)
+        'angular-translate-loader-partial'('2.13.0')
+        'angular-translate-storage-cookie'('2.13.0')
+        'angular-ui-ace'('0.2.3', from: 'src')
+        'angular-ui-bootstrap'('2.2.0')
+        'angular-ui-notification'('0.2.0')
+        'angular-ui-router'('0.3.2')
+        'bootstrap'('3.3.7')
+        'bootswatch'('3.3.7')
+        'diff'('3.0.1')
+        'fast-json-patch'('1.1.1')
+        'jquery'('2.2.4')
+        'json3'('3.3.2', from: 'lib')
+        'moment'('2.16.0', from: 'min')
+    }
+}
+
+tasks.clean.dependsOn(tasks.clientClean)
+tasks.processResources.dependsOn(tasks.clientInstall)
+
+task copyDistDeps(type: Copy) {
+    from jar
+    from configurations.runtime
+    into "${project.buildDir}/dist/lib"
+}
+
+task copyDistOthers(type: Copy) {
+    from "${rootProject.projectDir}/gradle/dist"
+    from "${project.projectDir}/src/dist"
+    into "${project.buildDir}/dist"
+
+    doLast {
+        ant.chmod(dir:"${project.buildDir}/dist/bin", perm:'+x',
+                  includes:"*", excludes:"common.sh,common.*.sh")
+    }
+}
+
+task dist(dependsOn: [ tasks.copyDistDeps, tasks.copyDistOthers ])
+tasks.assemble.dependsOn(tasks.dist)

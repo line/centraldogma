@@ -1,0 +1,27 @@
+{
+  "dataDir": "./data",
+  "ports": [
+    {
+      "localAddress": {
+        "host": "*",
+        "port": 36462
+      },
+      "protocol": "http"
+    }
+  ],
+  "numWorkers": null,
+  "maxNumConnections": null,
+  "requestTimeoutMillis": null,
+  "idleTimeoutMillis": null,
+  "maxFrameLength": null,
+  "numRepositoryWorkers": 16,
+  "cacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+  "webAppEnabled": true,
+  "gracefulShutdownTimeout": {
+    "quietPeriodMillis": 1000,
+    "timeoutMillis": 10000
+  },
+  "replication": {
+    "method": "NONE"
+  }
+}

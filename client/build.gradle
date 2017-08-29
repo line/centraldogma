@@ -1,0 +1,5 @@
+managedDependencies {
+    // Armeria
+    compile 'com.linecorp.armeria:armeria-shaded'
+    compile 'com.linecorp.armeria:armeria-thrift0.9-shaded'
+}

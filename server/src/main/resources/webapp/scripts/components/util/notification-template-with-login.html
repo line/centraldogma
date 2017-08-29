@@ -1,0 +1,11 @@
+<div class="ui-notification">
+  <h3 ng-show="title" ng-bind-html="title"></h3>
+  <div class="message">
+    <div class="pull-right">
+      <button class="btn btn-default btn-xs" ng-click="$root.showLoginDialog()" translate>
+        login.button_login
+      </button>
+    </div>
+    <span ng-bind-html="message"></span>
+  </div>
+</div>

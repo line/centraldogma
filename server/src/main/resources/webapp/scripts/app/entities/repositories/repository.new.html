@@ -1,0 +1,34 @@
+<div ng-cloak>
+  <h2 translate>entities.title_create_repository</h2>
+
+  <hr />
+
+  <form name="repositoryForm" ng-submit="createRepository()" novalidate>
+    <div class="form-group">
+      <label class="control-label" translate>entities.project_name</label>
+
+      <p class="form-control-static">
+        <a ng-href="#/{{project.name}}">{{project.name}}</a>
+      </p>
+    </div>
+
+    <div class="form-group"
+         ng-class="{ 'has-error': repositoryForm.repositoryName.$invalid && !repositoryForm.repositoryName.$pristine }">
+      <label for="repositoryName" class="control-label" translate>entities.repository_name</label>
+      <input id="repositoryName" name="repositoryName" type="text" class="form-control"
+             ng-model="repository.name"
+             ng-pattern="/^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/" required />
+
+      <p class="help-block"
+         ng-show="repositoryForm.repositoryName.$invalid && !repositoryForm.repositoryName.$pristine" translate>
+        entities.invalid_repository_name
+      </p>
+    </div>
+
+    <div class="form-group">
+      <button type="submit" class="btn btn-primary" data-ng-disabled="repositoryForm.$invalid">
+        <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_create' | translate }}
+      </button>
+    </div>
+  </form>
+</div>

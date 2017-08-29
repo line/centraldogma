@@ -1,0 +1,282 @@
+Central Dogma
+=============
+
+Please visit the official web site for more information:
+
+  * https://line.github.io/centraldogma/
+
+Copyright 2017 LINE Corporation
+
+LINE Corporation licenses this file to you under the Apache License,
+version 2.0 (the "License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at:
+
+  https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+
+Also, please refer to each LICENSE.<component>.<licenseType>.txt file, which
+is located in the 'licenses' directory of the distribution file, for the 
+license terms of the components that this product depends on.
+
+
+Redistributed binaries
+======================
+
+This produce contains Ace (Ajax.org Cloud9 Editor), distributed by Ajax.org B.V.:
+
+  * License: license/LICENSE.ace.bsd.txt (New BSD License)
+  * Homepage: https://ace.c9.io/
+
+This product contains AngularJS, distributed by Google, Inc:
+
+  * License: license/LICENSE.angularjs.mit.txt (MIT License)
+  * Homepage: https://angularjs.org/
+
+This product contains Angular Cache Buster, distributed by Martin Saint-Macary:
+
+  * License: license/LICENSE.angular-cache-buster.mit.txt (MIT License)
+  * Homepage: https://github.com/saintmac/angular-cache-buster
+
+This product contains Angular Dynamic Locale, distributed by Lucas Galfasó
+
+  * License: license/LICENSE.angular-dynamic-locale.mit.txt (MIT License)
+  * Homepage: https://lgalfaso.github.io/angular-dynamic-locale/
+
+This product contains Angular Local Storage, distributed by Gregory Pike
+
+  * License: license/LICENSE.angular-local-storage.mit.txt (MIT License)
+  * Homepage: http://gregpike.net/demos/angular-local-storage/demo/demo.html
+
+This product contains Angular Translate, distributed by the angular-translate team and Pascal Precht:
+
+  * License: license/LICENSE.angular-translate.mit.txt (MIT License)
+  * Homepage: https://angular-translate.github.io/
+
+This product contains Angular UI, distributed by the AngularUI Team:
+
+  * License: license/LICENSE.angular-ui.mit.txt (MIT License)
+  * Homepage: https://angular-ui.github.io/
+
+This product contains Angular UI Notification, distributed by Alexey Avramchik:
+
+  * License: license/LICENSE.angular-ui-notification.mit.txt (MIT License)
+  * Homepage: https://github.com/alexcrack/angular-ui-notification
+
+This product contains Bootstrap, distributed by Twitter, Inc:
+
+  * License: license/LICENSE.bootstrap.mit.txt (MIT License)
+  * Homepage: https://getbootstrap.com/
+
+This product contains Bootswatch, distributed by Thomas Park:
+
+  * License: licenses/LICENSE.bootswatch.mit.txt (MIT License)
+  * Homepage: https://bootswatch.com
+
+This product contains fast-json-Patch, distributed by Joachim Wester:
+
+  * License: licenses/LICENSE.fast-json-patch.mit.txt (MIT License)
+  * Homepage: https://github.com/Starcounter-Jack/JSON-Patch
+
+This product contains Font Awesome, distributed by Dave Gandy:
+
+  * License: license/LICENSE.fontawesome.ofl11.txt (SIL Open Font License v1.1)
+             license/LICENSE.fontawesome.mit.txt (MIT License)
+  * Homepage: http://fontawesome.io/
+
+This product contains jQuery, distributed by jQuery Foundation and other contributors:
+
+  * License: licenses/LICENSE.jquery.mit.txt (MIT License)
+  * Homepage: https://jquery.org/
+
+This product contains jsdiff, distributed by Kevin Decker:
+
+  * License: licenses/LICENSE.jsdiff.bsd.txt (New BSD License)
+  * Homepage: https://github.com/kpdecker/jsdiff
+
+This product contains JSON3, distributed by Kit Cambridge and Benjamin Tan:
+
+  * License: licenses/LICENSE.json3.mit.txt (MIT License)
+  * Homepage: https://bestiejs.github.io/json3/
+
+This product contains Moment.js, distributed by JS Foundation and other contributors:
+
+  * License: licenses/LICENSE.momentjs.mit.txt (MIT License)
+  * Homepage: https://momentjs.com/
+
+This product contains ReadTheDocs.org Sphinx Theme, distributed by Dave Snider:
+
+  * License: license/LICENSE.rtdtheme.mit.txt (MIT License)
+  * Homepage: https://github.com/snide/sphinx_rtd_theme
+
+
+Modified redistributions
+========================
+
+This product contains a modified part of java-json-tools/json-patch, distributed by Francis Galiegue:
+
+  * License: licenses/LICENSE.fge-json-patch.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/java-json-tools/json-patch
+
+
+Dependencies
+============
+
+This product depends on Armeria, distributed by LINE Corporation:
+
+  * License: licenses/LICENSE.armeria.al20.txt (Apache License v2.0)
+  * Homepage: https://line.github.io/armeria/
+
+This product depends on AspectJ, distributed by Eclipse Foundation:
+
+  * License: licenses/LICENSE.aspectj.epl10.html (Eclipse Public License v1.0)
+  * Homepage: https://eclipse.org/aspectj/
+
+This product depends on AssertJ, distributed by the AssertJ authors:
+
+  * License: licenses/LICENSE.assertj.al20.txt (Apache License v2.0)
+  * Homepage: https://joel-costigliola.github.io/assertj/
+
+This product depends on Awaitility, distributed by the Awaitility authors:
+
+  * License: licenses/LICENSE.awaitility.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/awaitility/awaitility
+
+This product depends on Caffeine, distributed by Ben Manes:
+
+  * License: licenses/LICENSE.caffeine.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/ben-manes/caffeine
+
+This product depends on Commons Daemon, distributed by Apache Software Foundation:
+
+  * License: licenses/LICENSE.commons-daemon.al20.txt (Apache License v2.0)
+  * Homepage: https://commons.apache.org/proper/commons-daemon/
+
+This product depends on completable-futures, distributed by Spotify AB:
+
+  * License: license/LICENSE.completable-futures.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/spotify/completable-futures
+
+This product depends on cron-utils, distributed by Jose Rozanec:
+
+  * License: licenses/LICENSE.cron-utils.al20.txt (Apache License v2.0)
+  * Homepage: http://cron-parser.com/
+
+This product depends on Apache Curator, distributed by Apache Software Foundation:
+
+  * License: licenses/LICENSE.curator.al20.txt (Apache License v2.0)
+  * Homepage: https://curator.apache.org/
+
+This product depends on FindBugs-JSR305, distributed by
+
+  * License: licenses/LICENSE.jsr305.al20.txt (Apache License v2.0)
+  * Homepage: http://findbugs.sourceforge.net/
+
+This product depends on futures-extra, distributed by Spotify AB:
+
+  * License: license/LICENSE.futures-extra.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/spotify/futures-extra
+
+This product depends on Guava, distributed by Google:
+
+  * License: licenses/LICENSE.guava.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/google/guava
+
+This product depends on Hamcrest, distributed by hamcrest.org:
+
+  * License: licenses/LICENSE.hamcrest.bsd.txt (BSD License)
+  * Homepage: http://hamcrest.org/
+
+This product depends on Hibernate Validator, distributed by Red Hat, Inc:
+
+  * License: licenses/LICENSE.hibernate-validator.al20.txt (Apache License v2.0)
+  * Homepage: http://hibernate.org/validator/
+
+This product depends on Jackson, distributed by FasterXML, LLC:
+
+  * License: licenses/LICENSE.jackson.al20.txt (Apache License v2.0)
+  * Homepage: http://wiki.fasterxml.com/JacksonHome
+
+This product depends on Java Diff Utils, distributed by Dmitry Naumenko:
+
+  * License: licenses/LICENSE.java-diff-utils.al11.txt (Apache License v1.1)
+  * Homepage: https://github.com/dnaumenko/java-diff-utils
+
+This product depends on Java Expression Language API and implementation, distributed by Oracle and/or its affiliates:
+
+  * License: licenses/LICENSE.javax-el.cddl11.txt (Common Development and Distribution License v1.1)
+  * Homepage: http://glassfish.org/
+
+This product depends on javax.inject API, distributed by the JSR-330 Expert Group:
+
+  * License: licenses/LICENSE.javax-inject.al20.txt (Apache License v2.0)
+  * Homepage: https://javax-inject.github.io/javax-inject/
+
+This product depends on Jayway JsonPath, distributed by Jayway and other contributors:
+
+  * License: licenses/LICENSE.jayway-jsonpath.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/json-path/JsonPath
+
+This product depends on jCommander, distributed by Cédric Beust:
+
+  * License: licenses/LICENSE.jcommander.al20.txt (Apache License v2.0)
+  * Homepage: http://jcommander.org/
+
+This product depends on Jetty, distributed by Eclipse Foundation:
+
+  * License: licenses/LICENSE.jetty.al20.txt (Apache License v2.0)
+  * Homepage: https://www.eclipse.org/jetty/
+
+This product depends on jGit, distributed by Eclipse Foundation:
+
+  * License: licenses/LICENSE.jgit.epl10.html (Eclipse Public License v1.0)
+  * Homepage: https://eclipse.org/jgit/
+
+This product depends on JSch, distributed by JCraft, Inc:
+
+  * License: licenses/LICENSE.jsch.bsd.txt (New BSD License)
+  * Homepage: http://www.jcraft.com/jsch/
+
+This product depends on JsonUnit, distributed by Lukáš Křečan:
+
+  * License: licenses/LICENSE.jsonunit.al20.txt (Apache License v2.0)
+  * Homepage: https://github.com/lukas-krecan/JsonUnit
+
+This product depends on jUnit, distributed by jUnit.org:
+
+  * License: licenses/LICENSE.junit.epl10.html (Eclipse Public License v1.0)
+  * Homepage: http://junit.org/
+
+This product depends on Logback, distributed by QOS.ch:
+
+  * License: licenses/LICENSE.logback.epl10.html (Eclipse Public License v1.0)
+  * Homepage: https://logback.qos.ch/
+
+This product depends on Mockito, distributed by Mockito contributors:
+
+  * License: licenses/LICENSE.mockito.mit.txt (MIT License)
+  * Homepage: http://mockito.org/
+
+This product depends on SLF4J, distributed by QOS.ch:
+
+  * License: licenses/LICENSE.slf4j.mit.txt (MIT License)
+  * Homepage: https://www.slf4j.org/
+
+This product depends on Spring Framework, distributed by Pivotal Software, Inc:
+
+  * License: licenses/LICENSE.spring.al20.txt (Apache License v2.0)
+  * Homepage: https://spring.io/
+
+This product depends on TestNG, distributed by Cédric Beust:
+
+  * License: licenses/LICENSE.testng.al20.txt (Apache License v2.0)
+  * Homepage: http://testng.org/doc/
+
+This product depends on Apache Thrift, distributed by Apache Software Foundation:
+
+  * License: licenses/LICENSE.thrift.al20.txt (Apache License v2.0)
+  * Homepage: https://thrift.apache.org/

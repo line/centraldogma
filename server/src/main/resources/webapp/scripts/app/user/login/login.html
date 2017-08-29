@@ -1,0 +1,29 @@
+<form name="loginForm" ng-submit="login()">
+  <div class="modal-header">
+    <h4 class="modal-title" translate>login.title</h4>
+  </div>
+  <div class="modal-body">
+    <div class="form-group">
+      <label for="username" translate>login.username</label>
+      <input type="text" class="form-control" id="username"
+             placeholder="{{ 'login.username.placeholder' | translate }}" ng-model="username" required>
+    </div>
+    <div class="form-group">
+      <label for="password" translate>login.password</label>
+      <input type="password" class="form-control" id="password"
+             placeholder="{{ 'login.password.placeholder' | translate }}" ng-model="password" required>
+    </div>
+    <div class="form-group">
+      <label for="rememberMe">
+        <input type="checkbox" id="rememberMe" ng-model="rememberMe" checked>
+        {{ "login.rememberme" | translate }}
+      </label>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="submit" class="btn btn-primary" ng-disabled="loginForm.$invalid" translate>
+      login.button_login
+    </button>
+    <button type="button" class="btn" ng-click="cancel()" translate>login.button_cancel</button>
+  </div>
+</form>

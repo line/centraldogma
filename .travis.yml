@@ -1,0 +1,44 @@
+---
+language: java
+sudo: false
+
+os:
+  - linux
+
+branches:
+  only:
+    - master
+    - '0.46'
+
+notifications:
+  email: false
+  #slack: central-dogma:vLZppggTRH02hwY2eOACIzCG
+
+cache:
+  directories:
+    - $HOME/.gradle/wrapper/dists
+    - $HOME/.gradle/caches/jars-3
+    - $HOME/.gradle/caches/modules-2
+    - $HOME/.jdk
+
+env:
+  global:
+    - JAVA_HOME=$HOME/.jdk/default
+    - PATH=$JAVA_HOME/bin:$PATH
+    - GRADLE_OPTS=-Xmx1024m
+
+before_install:
+  - .travis/install-jdk.sh
+  - ./gradlew --version
+
+install:
+  - true
+
+script:
+  - ./gradlew --no-daemon --stacktrace -Pcoverage checkstyle test build
+
+before_cache:
+  - find $HOME/.gradle/caches -name '*.lock' -delete
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

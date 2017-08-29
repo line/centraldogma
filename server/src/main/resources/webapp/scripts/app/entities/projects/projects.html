@@ -1,0 +1,23 @@
+<div ng-cloak>
+  <h2>Projects</h2>
+
+  <hr />
+
+  <table class="table table-hover table-responsive">
+    <tbody>
+    <tr ng-repeat="project in projects">
+      <td><a ng-href="#/{{project.name}}">{{project.name}}</a></td>
+    </tr>
+    </tbody>
+  </table>
+
+  <hr />
+
+  <div class="row">
+    <div class="pull-right" has-role="ROLE_USER">
+      <a ng-href="#/project/new" type="button" class="btn btn-primary">
+        <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_create_project' | translate }}
+      </a>
+    </div>
+  </div>
+</div>

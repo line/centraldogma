@@ -1,0 +1,46 @@
+{
+  "errors": [
+    {
+      "op": { "op": "safeReplace", "path": "/x/y", "oldValue": { }, "value": 42 },
+      "node": { "x": { } },
+      "message": "non-existent path: /x/y"
+    },
+    {
+      "op": { "op": "safeReplace", "path": "/x", "oldValue": 2, "value": 3 },
+      "node": { "x": 1 },
+      "message": "mismatching value: 1 (expected: 2)"
+    },
+    {
+      "op": { "op": "safeReplace", "path": "/x/z", "oldValue": null, "value": "hello" },
+      "node": { "x": { "a": "b", "y": { } } },
+      "message": "non-existent path: /x/z"
+    }
+  ],
+  "ops": [
+    {
+      "op": { "op": "safeReplace", "path": "", "oldValue": { "x": { "a": "b", "y": { } } }, "value": false },
+      "node": { "x": { "a": "b", "y": { } } },
+      "expected": false
+    },
+    {
+      "op": { "op": "safeReplace", "path": "/x/y", "oldValue": { }, "value": "hello" },
+      "node": { "x": { "a": "b", "y": { } } },
+      "expected": { "x": { "a": "b", "y": "hello" } }
+    },
+    {
+      "op": { "op": "safeReplace", "path": "/0/2", "oldValue": "c", "value": "x" },
+      "node": [ [ "a", "b", "c" ], "d", "e" ],
+      "expected": [ [ "a", "b", "x" ], "d", "e" ]
+    },
+    {
+      "op": { "op": "safeReplace", "path": "/x/0", "oldValue": "y", "value": null },
+      "node": { "x": [ "y", "z" ], "foo": "bar" },
+      "expected": { "x": [ null, "z" ], "foo": "bar" }
+    },
+    {
+      "op": { "op": "safeReplace", "path": "/x/y", "oldValue": null, "value": "hello" },
+      "node": { "x": { "a": "b", "y": null } },
+      "expected": { "x": { "a": "b", "y": "hello" } }
+    }
+  ]
+}

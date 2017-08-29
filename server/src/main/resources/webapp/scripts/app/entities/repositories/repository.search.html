@@ -1,0 +1,49 @@
+<div ng-cloak>
+  <p>
+    <search project="project.name" repository="repository.name" revision="revision" term="term"></search>
+  </p>
+
+  <hr />
+
+  <div class="row">
+    <div class="col-xs-6">
+      <p style="font-size: large;">
+        <a ng-href="#/{{project.name}}">{{project.name}}</a> /
+        <a ng-href="#/{{project.name}}/{{repository.name}}"><b>{{repository.name}}</b></a>
+      </p>
+    </div>
+    <div class="col-xs-6">
+      <p class="pull-right">
+        <revision project="project.name" repository="repository.name" revision="revision"
+                  show-initial-commit="true" callback="setRevision"></revision>
+      </p>
+    </div>
+  </div>
+
+  <hr />
+
+  <table class="table table-hover table-responsive">
+    <tbody>
+    <tr ng-if="files.length == 0">
+      <td style="width: 20px;"></td>
+      <td translate>entities.entries_not_found</td>
+    </tr>
+    <tr ng-repeat="file in files">
+      <td style="width: 20px;">
+        <span ng-if="file.type === 'DIRECTORY'" class="glyphicon glyphicon-folder-open"></span>
+        <span ng-if="file.type !== 'DIRECTORY'" class="glyphicon glyphicon-file"></span>
+      </td>
+      <td>
+        <a ng-if="file.type === 'DIRECTORY'"
+           ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{file.path}}">
+          {{file.path}}
+        </a>
+        <a ng-if="file.type !== 'DIRECTORY'"
+           ng-href="#/{{project.name}}/{{repository.name}}/files/{{revision}}{{file.path}}">
+          {{file.path}}
+        </a>
+      </td>
+    </tr>
+    </tbody>
+  </table>
+</div>

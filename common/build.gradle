@@ -1,0 +1,126 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.sf.proguard:proguard-gradle:5.3.3'
+    }
+}
+
+managedDependencies {
+    // DiffUtils
+    compile 'com.googlecode.java-diff-utils:diffutils'
+
+    // Guava
+    compile 'com.google.guava:guava'
+
+    // Jackson
+    [ 'core', 'annotations', 'databind' ].each {
+        compile "com.fasterxml.jackson.core:jackson-$it"
+    }
+
+    // JSON-path
+    compile 'com.jayway.jsonpath:json-path'
+
+    // Thrift
+    compile 'org.apache.thrift:libthrift'
+
+    // TestNG (for JSON patch tests)
+    testCompile 'org.testng:testng'
+}
+
+// Run the test cases based on reactive-streams-tck
+task testNg(type: Test,
+        group: 'Verification',
+        description: 'Runs the TestNG unit tests.') {
+    useTestNG()
+    testClassesDirs = tasks.test.testClassesDirs
+    classpath = tasks.test.classpath
+    scanForTestClasses = false
+}
+tasks.test.finalizedBy tasks.testNg
+tasks.check.dependsOn tasks.testNg
+
+jacocoTestReport {
+    // Include the coverage data from the TestNG test cases.
+    executionData file("${project.buildDir}/jacoco/testNg.exec")
+}
+
+// Task 'shadedJar' produces a very large JAR. Rename it to '*-untrimmed-*.jar' and
+// let the task 'trimShadedJar' produce the trimmed JAR from it.
+tasks.shadedJar.baseName = "${tasks.jar.baseName}-untrimmed"
+
+task trimShadedJar(type: ProGuardTask,
+                   group: 'Build',
+                   description: 'Shrinks the shaded JAR by removing unused classes.') {
+
+    javaProjects.each {
+        dependsOn it.tasks.shadedJar
+        dependsOn it.tasks.shadedTestJar
+    }
+
+    def shadedFile = tasks.shadedJar.archivePath
+    def shadedAndTrimmedFile = file(shadedFile.path.replaceFirst('-untrimmed-', '-shaded-'))
+
+    injars shadedFile
+    // NB: By specifying 'outjar' *before* other 'injars' below, ProGuard will put only the classes
+    //     from 'shadedFile' into 'shadedAndTrimmedFile'. See 'restructuring the output archives'
+    //     for more information: https://www.guardsquare.com/en/proguard/manual/examples#restructuring
+    outjars shadedAndTrimmedFile
+
+    // Include the shaded JARs from other modules as well
+    // so that ProGuard does not trim the classes and methods that are used actually.
+    injars tasks.shadedTestJar.archivePath
+    javaProjects.each {
+        if (it != project) {
+            injars it.tasks.shadedJar.archivePath
+            injars it.tasks.shadedTestJar.archivePath,
+                   filter: '!META-INF/**,' +
+                           '!com/linecorp/centraldogma/internal/shaded/**'
+        }
+    }
+
+    def dependencyJars = []
+    javaProjects.each {
+        // NB: ProGuardTask picks the dependencies added *after* evaluation correctly
+        //     because libraryjar() intentionally keeps the specified dependencies as-is.
+        //     See ProGuardTask.libraryjar() for more information.
+        it.afterEvaluate {
+            dependencyJars.addAll(it.configurations.runtime.collect())
+        }
+    }
+    libraryjars files(dependencyJars)
+    libraryjars file("${System.getProperty('java.home')}/lib/rt.jar")
+
+    dontoptimize
+    dontobfuscate
+    dontwarn // Ignore the harmless 'missing classes' warnings related with the optional dependencies.
+
+    keepattributes 'Signature, InnerClasses, Annotation'
+    keep "class !${shadedPackage}.**,com.linecorp.centraldogma.** { *; }"
+    keep "class ${shadedPackage}.caffeine.** { *; }" // To make the unsafe field access work.
+    // Prevent ProGuard from removing all enum values from Option because otherwise it becomes a non-enum class.
+    keep "class ${shadedPackage}.jsonpath.Option { *; }"
+}
+
+tasks.assemble.dependsOn tasks.trimShadedJar
+
+// Add the trimmed JAR to archives so that the 'signArchives' task signs it.
+artifacts {
+    trimShadedJar.outJarFiles.each {
+        archives it
+    }
+}
+
+// Make sure trimShadedJar task is executed before signing.
+model {
+    tasks.signArchives {
+        dependsOn tasks.trimShadedJar
+    }
+}
+
+class ProGuardTask extends proguard.gradle.ProGuardTask {
+    def keepclass(String className) {
+        keep "class ${className},${className}\$* { *; }"
+    }
+}

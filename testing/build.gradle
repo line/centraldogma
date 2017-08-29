@@ -1,0 +1,8 @@
+dependencies {
+    compile project(':client')
+    compile project(':server')
+}
+
+managedDependencies {
+    compile 'junit:junit'
+}

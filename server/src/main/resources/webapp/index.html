@@ -1,0 +1,101 @@
+<!doctype html>
+<!--[if lt IE 7]>
+<html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>
+<html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>
+<html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js"> <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>centraldogma-admin</title>
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width">
+  <link rel="stylesheet" href="vendor/angular-ui-notification/angular-ui-notification.min.css">
+  <link rel="stylesheet" href="vendor/bootstrap/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="vendor/bootswatch/cerulean/bootstrap.min.css">
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body ng-app="CentralDogmaAdmin">
+<!--[if lt IE 10]>
+<p class="browserupgrade">
+  You are using an <strong>outdated</strong> browser.
+  Please <a href="http://browsehappy.com/?locale=en">upgrade your browser</a> to improve your experience.
+</p>
+<![endif]-->
+<div ng-cloak>
+  <div ui-view="navbar"></div>
+  <div class="container">
+    <div class="theme-showcase" ui-view="content"></div>
+  </div>
+</div>
+<script src="vendor/jquery/jquery.min.js"></script>
+<script src="vendor/bootstrap/js/bootstrap.min.js"></script>
+<script src="vendor/json3/json3.min.js"></script>
+<script src="vendor/ace-builds/ace.js"></script>
+<script src="vendor/ace-builds/ext-language_tools.js"></script>
+<script src="vendor/ace-builds/ext-modelist.js"></script>
+<script src="vendor/ace-builds/ext-themelist.js"></script>
+<script src="vendor/angular/angular.min.js"></script>
+<script src="vendor/angular-ui-ace/ui-ace.js"></script>
+<script src="vendor/angular-ui-router/angular-ui-router.min.js"></script>
+<script src="vendor/angular-resource/angular-resource.min.js"></script>
+<script src="vendor/angular-cookies/angular-cookies.min.js"></script>
+<script src="vendor/angular-sanitize/angular-sanitize.min.js"></script>
+<script src="vendor/angular-translate/angular-translate.min.js"></script>
+<script src="vendor/angular-translate-storage-cookie/angular-translate-storage-cookie.min.js"></script>
+<script src="vendor/angular-translate-loader-partial/angular-translate-loader-partial.min.js"></script>
+<script src="vendor/angular-dynamic-locale/tmhDynamicLocale.js"></script>
+<script src="vendor/angular-local-storage/angular-local-storage.min.js"></script>
+<script src="vendor/angular-cache-buster/angular-cache-buster.js"></script>
+<script src="vendor/angular-ui-notification/angular-ui-notification.min.js"></script>
+<script src="vendor/angular-ui-bootstrap/ui-bootstrap-tpls.js"></script>
+<script src="vendor/fast-json-patch/json-patch-duplex.min.js"></script>
+<script src="vendor/diff/diff.min.js"></script>
+<script src="vendor/moment/moment.min.js"></script>
+
+<script src="scripts/app/app.js"></script>
+<script src="scripts/components/auth/auth.service.js"></script>
+<script src="scripts/components/auth/principal.service.js"></script>
+<script src="scripts/components/auth/authority.directive.js"></script>
+<script src="scripts/components/auth/provider/auth.session.service.js"></script>
+<script src="scripts/components/entities/project.service.js"></script>
+<script src="scripts/components/entities/repository.service.js"></script>
+<script src="scripts/components/hostname/hostname.service.js"></script>
+<script src="scripts/components/language/language.service.js"></script>
+<script src="scripts/components/language/language.controller.js"></script>
+<script src="scripts/components/navbar/navbar.directive.js"></script>
+<script src="scripts/components/navbar/navbar.controller.js"></script>
+<script src="scripts/components/user/user.service.js"></script>
+<script src="scripts/components/util/ace-editor.directive.js"></script>
+<script src="scripts/components/util/api.service.js"></script>
+<script src="scripts/components/util/notification-util.service.js"></script>
+<script src="scripts/components/util/revision.directive.js"></script>
+<script src="scripts/components/util/search.directive.js"></script>
+<script src="scripts/components/util/string-util.service.js"></script>
+<script src="scripts/components/util/truncate.filter.js"></script>
+
+<script src="scripts/app/user/login/login.js"></script>
+<script src="scripts/app/user/login/login.controller.js"></script>
+<script src="scripts/app/user/logout/logout.js"></script>
+<script src="scripts/app/user/logout/logout.controller.js"></script>
+<script src="scripts/app/user/user.js"></script>
+<script src="scripts/app/entities/entity.js"></script>
+<script src="scripts/app/entities/projects/project.controller.js"></script>
+<script src="scripts/app/entities/projects/project.new.controller.js"></script>
+<script src="scripts/app/entities/projects/projects.js"></script>
+<script src="scripts/app/entities/projects/projects.controller.js"></script>
+<script src="scripts/app/entities/repositories/repository.new.controller.js"></script>
+<script src="scripts/app/entities/repositories/repository.tree.controller.js"></script>
+<script src="scripts/app/entities/repositories/repository.file.controller.js"></script>
+<script src="scripts/app/entities/repositories/repository.file.new.controller.js"></script>
+<script src="scripts/app/entities/repositories/repository.file.edit.controller.js"></script>
+<script src="scripts/app/entities/repositories/repository.file.delete.controller.js"></script>
+<script src="scripts/app/entities/repositories/repository.history.controller.js"></script>
+<script src="scripts/app/entities/repositories/repository.search.controller.js"></script>
+<script src="scripts/app/entities/repositories/repository.query.controller.js"></script>
+<script src="scripts/app/entities/repositories/repositories.js"></script>
+</body>
+</html>

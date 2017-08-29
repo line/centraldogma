@@ -1,0 +1,68 @@
+<div ng-cloak>
+  <p>
+    <search project="project.name" repository="repository.name" revision="revision" term="term"></search>
+  </p>
+
+  <hr />
+
+  <div class="row">
+    <div class="col-xs-6">
+      <p style="font-size: large;">
+        <a ng-href="#/{{project.name}}">{{project.name}}</a> /
+        <a ng-href="#/{{project.name}}/{{repository.name}}"><b>{{repository.name}}</b></a>
+      </p>
+    </div>
+    <div class="col-xs-6">
+      <p class="pull-right">
+        <revision project="project.name" repository="repository.name" path="path" revision="revision"
+                  show-initial-commit="false" callback="setRevision"></revision>
+      </p>
+    </div>
+  </div>
+
+  <hr />
+
+  <p>
+    <span>
+      <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}/">
+        <strong>{{repository.name}}</strong>
+      </a>
+    </span>
+    <span ng-repeat="parsedPath in parsedPaths" ng-if="!$first && !$last">
+      /
+      <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{parsedPath.path}}">
+        {{parsedPath.name}}
+      </a>
+    </span>
+    <span> / <strong>{{file.name}}</strong></span>
+  </p>
+
+  <hr />
+
+  <div>
+    <form ng-submit="query()">
+      <div ng-repeat="expression in expressions" class="form-group">
+        <div class="input-group">
+          <span class="input-group-addon">{{queryType}}[{{$index}}]</span>
+          <input type="text" class="form-control" ng-model="expression.value" />
+          <span class="input-group-btn">
+            <button ng-if="$first" type="button" class="btn btn-default" ng-click="addNewExpression()">
+              <span class="glyphicon glyphicon-plus"></span>
+            </button>
+            <button ng-if="!$first" type="button" class="btn btn-default" ng-click="removeExpression($index)">
+              <span class="glyphicon glyphicon-minus"></span>
+            </button>
+          </span>
+        </div>
+      </div>
+      <div class="form-group">
+        <button type="submit" class="form-control btn btn-block btn-primary" translate>
+          entities.button_query
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <ace-editor class="file-area" readonly="true"
+              path-ng-model="'query-result.json'" content-ng-model="queryResult"></ace-editor>
+</div>

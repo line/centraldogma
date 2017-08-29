@@ -1,0 +1,76 @@
+{
+  "window": {
+    "title": "Central Dogma",
+    "title_with_hostname": "Central Dogma at {{hostname}}"
+  },
+
+  "navbar": {
+    "entities": "Entities",
+    "home": "Home",
+    "language": "Language",
+    "login": "Log in",
+    "logout": "Log out",
+    "projects": "Projects",
+    "user": "User"
+  },
+
+  "login": {
+    "auth_failed": "<strong>Authentication failed!</strong> Please check your credentials and try again.",
+    "button_login": "Log in",
+    "button_cancel": "Cancel",
+    "logged_in": "Welcome to Central Dogma, {{username}}.",
+    "logged_out": "Logged out successfully",
+    "password": "Password",
+    "password.placeholder": "Your password",
+    "rememberme": "Remember me",
+    "title": "Log in",
+    "username": "Username",
+    "username.placeholder": "Your username"
+  },
+
+  "entities": {
+    "auto_merge_failed": "Failed to auto-merge due to conflicting changes",
+    "button_cancel": "Cancel",
+    "button_commit": "Commit",
+    "button_create": "Create",
+    "button_create_project": "Create a project",
+    "button_create_repository": "Create a repository",
+    "button_delete": "Delete",
+    "button_edit": "Edit",
+    "button_fetch_again": "Fetch again",
+    "button_history": "History",
+    "button_query": "Query",
+    "button_runspaces": "Runspaces",
+    "commit_author": "Author",
+    "commit_detail": "Detail",
+    "commit_message": "Message",
+    "commit_summary": "Summary",
+    "commit_timestamp": "Timestamp",
+    "conflict_occurred": "Someone else pushed a commit while you edit. Fetch and edit again.",
+    "created_project": "Project '{{name}}' has been created.",
+    "created_repository": "Repository '{{projectName}}/{{repositoryName}}' has been created.",
+    "dark_themes": "Dark themes",
+    "default_theme": "Default",
+    "deleted_file": "File '{{path}}' has been deleted.",
+    "empty_directory": "Directory contains no file.",
+    "entries_not_found": "Entries not found",
+    "go_to_head_revision": "Go to HEAD",
+    "invalid_file_path": "Enter a valid file name.",
+    "invalid_json": "Enter a valid JSON value.",
+    "invalid_repository_name": "Enter a valid repository name.",
+    "light_themes": "Light themes",
+    "new_file_name_placeholder": "Type 1) a file name 2) a directory name and '/' key or 3) 'backspace' key to go one directory up.",
+    "path": "Path",
+    "project_name": "Project name",
+    "recent_commits": "Recent commits",
+    "repository": "Repository",
+    "repository_name": "Repository name",
+    "resolved_conflicts": "Latest content is fetched and merged with your previous changes. Please check the content again.",
+    "revision": "Revision",
+    "revision_placeholder": "e.g. HEAD, 42, -3",
+    "saved_file": "File '{{path}}' has been saved.",
+    "title_create_repository": "Create a repository",
+    "title_delete_file": "Delete {{path}}?",
+    "unsupported_file_type": "Unsupported file type: {{type}}"
+  }
+}

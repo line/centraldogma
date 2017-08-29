@@ -1,0 +1,69 @@
+<div ng-cloak>
+  <p>
+    <search project="project.name" repository="repository.name" revision="revision" term="term"></search>
+  </p>
+
+  <hr />
+
+  <div class="row">
+    <div class="col-xs-6">
+      <p style="font-size: large;">
+        <a ng-href="#/{{project.name}}">{{project.name}}</a> /
+        <a ng-href="#/{{project.name}}/{{repository.name}}"><strong>{{repository.name}}</strong></a>
+      </p>
+    </div>
+    <div class="col-xs-6">
+      <div class="pull-right">
+        <revision project="project.name" repository="repository.name" path="path" revision="revision"
+                  show-initial-commit="true" callback="setRevision"></revision>
+      </div>
+    </div>
+  </div>
+
+  <hr />
+
+  <p>
+    <span>
+      <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}/">
+        <strong>{{repository.name}}</strong>
+      </a>
+    </span>
+    <span ng-repeat="parsedPath in parsedPaths" ng-if="!$first">
+      /
+      <a ng-if="!$last" ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{parsedPath.path}}">
+        {{parsedPath.name}}
+      </a>
+      <a ng-if="$last && file.type !== 'DIRECTORY'"
+         ng-href="#/{{project.name}}/{{repository.name}}/files/{{revision}}{{parsedPath.path}}">
+        {{parsedPath.name}}
+      </a>
+      <a ng-if="$last && file.type === 'DIRECTORY'"
+         ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{parsedPath.path}}">
+        {{parsedPath.name}}
+      </a>
+    </span>
+  </p>
+
+  <table class="table table-hover table-responsive">
+    <thead>
+    <tr>
+      <th translate>entities.revision</th>
+      <th translate>entities.commit_summary</th>
+      <th translate>entities.commit_author</th>
+      <th translate>entities.commit_timestamp</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr ng-repeat="commit in commits">
+      <td>
+        <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{commit.revision.revisionNumber}}{{path}}">
+          {{commit.revision.revisionNumber}}
+        </a>
+      </td>
+      <td>{{commit.summary}}</td>
+      <td>{{commit.author.name}}</td>
+      <td title="{{commit.timestamp}}">{{commit.timestampStr}}</td>
+    </tr>
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,130 @@
+#
+# NB: Update NOTICE.txt and add/remove LICENSE.*.txt when adding/removing a dependency.
+#     If its classes are exposed in Javadoc, update offline links as well.
+#
+
+ch.qos.logback:
+  logback-classic: { version: '1.2.3' }
+
+com.beust:
+  jcommander: { version: '1.72' }
+
+com.cronutils:
+  cron-utils: { version: '5.0.5' }
+
+com.fasterxml.jackson.core:
+  jackson-annotations: { version: &JACKSON_VERSION '2.8.9' }
+  jackson-core: { version: *JACKSON_VERSION }
+  jackson-databind: { version: *JACKSON_VERSION }
+
+com.fasterxml.jackson.datatype:
+  jackson-datatype-joda: { version: *JACKSON_VERSION }
+
+com.github.ben-manes.caffeine:
+  caffeine: { version: '2.5.5' }
+
+com.google.code.findbugs:
+  jsr305: { version: '3.0.2' }
+
+com.google.guava:
+  guava:
+    version: '23.0'
+    exclusions:
+    - com.google.code.findbugs:jsr305
+    - com.google.errorprone:error_prone_annotations
+    - com.google.j2objc:j2objc-annotations
+    - org.codehaus.mojo:animal-sniffer-annotations
+
+com.googlecode.java-diff-utils:
+  diffutils: { version: '1.3.0' }
+
+com.jayway.jsonpath:
+  json-path: 
+    version: '2.2.0'
+    exclusions:
+    - net.minidev:json-smart
+
+com.jcraft:
+  jsch: { version: '0.1.54' }
+
+com.linecorp.armeria:
+  armeria-shaded: { version: &ARMERIA_VERSION '0.53.0' }
+  armeria-jetty-shaded: { version: *ARMERIA_VERSION }
+  armeria-logback-shaded: { version: *ARMERIA_VERSION }
+  armeria-thrift0.9-shaded: { version: *ARMERIA_VERSION }
+
+com.puppycrawl.tools:
+  checkstyle: { version: '8.2' }
+
+com.spotify:
+  completable-futures: { version: '0.3.1' }
+  futures-extra: { version: '3.0.0' }
+
+commons-daemon:
+  commons-daemon: { version: '1.0.15' }
+
+javax.el:
+  javax.el-api: { version: '2.2.5' }
+
+javax.inject:
+  javax.inject: { version: '1' }
+
+junit:
+  junit: { version: '4.12' }
+
+net.javacrumbs.json-unit:
+  json-unit-fluent: { version: '1.25.0' }
+
+org.apache.curator:
+  curator-recipes: { version: &CURATOR_VERSION '2.12.0' }
+  curator-test: { version: *CURATOR_VERSION }
+
+org.apache.thrift:
+  libthrift: { version: '0.9.3' }
+
+org.aspectj:
+  aspectjrt: { version: &ASPECTJ_VERSION '1.8.10' }
+  aspectjweaver: { version: *ASPECTJ_VERSION }
+
+org.assertj:
+  assertj-core: { version: '3.8.0' }
+
+org.awaitility:
+  awaitility: { version: '3.0.0' }
+
+org.eclipse.jetty:
+  apache-jsp: { version: &JETTY_VERSION '9.4.6.v20170531' }
+  apache-jstl: { version: *JETTY_VERSION }
+  jetty-annotations: { version: *JETTY_VERSION }
+  jetty-server: { version: *JETTY_VERSION  }
+  jetty-webapp: { version: *JETTY_VERSION }
+
+org.eclipse.jetty.alpn:
+  alpn-api: { version: '1.1.3.v20160715' }
+
+org.eclipse.jgit:
+  org.eclipse.jgit: { version: '4.8.0.201706111038-r' }
+
+org.glassfish.web:
+  javax.el: { version: '2.2.6' }
+
+org.hamcrest:
+  hamcrest-library: { version: '1.3' }
+
+org.hibernate:
+  hibernate-validator: { version: '5.4.1.Final' }
+
+org.mockito:
+  mockito-core: { version: '2.8.47' }
+
+org.mortbay.jetty.alpn:
+  jetty-alpn-agent: { version: '2.0.6' }
+
+org.slf4j:
+  jcl-over-slf4j: { version: &SLF4J_VERSION '1.7.25' }
+  jul-to-slf4j: { version: *SLF4J_VERSION }
+  log4j-over-slf4j: { version: *SLF4J_VERSION }
+  slf4j-api: { version: *SLF4J_VERSION }
+
+org.testng:
+  testng: { version: '6.11' }

@@ -1,0 +1,15 @@
+rootProject.name = 'centraldogma'
+
+// Published Java projects
+include 'client'
+include 'common'
+include 'server'
+include 'testing'
+
+// Unpublished Java projects
+include 'it'
+include 'shaded-test'
+include 'testing-internal'
+
+// Site generation project
+include 'site'
