@@ -402,6 +402,20 @@ configure(javaProjects) {
                                     sourceFile.absolutePath
                         }
                     }
+
+                    // Replace 'fromRevision' with 'from' (and 'toRevision' with 'to') because Thrift compiler
+                    // does not let us use the parameter name 'from' complaining it's a reserved keyword.
+                    // We can't rename it because renaming a field or a parameter is a backward-incompatible
+                    // change in TText protocol.
+                    project.fileTree(outputDir) {
+                        include '**/*.java'
+                    }.each { sourceFile ->
+                        def encoding = 'UTF-8'
+                        def content = sourceFile.getText(encoding)
+                                                .replaceAll('fromRevision', 'from')
+                                                .replaceAll('toRevision', 'to')
+                        sourceFile.write(content, encoding)
+                    }
                 }
             }
         }
