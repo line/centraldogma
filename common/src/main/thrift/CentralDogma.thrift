@@ -304,13 +304,15 @@ service CentralDogmaService {
     /**
      * Retrieves the history of the repository.
      */
-    list<Commit> getHistory(1: string projectName, 2: string repositoryName, 3: Revision from, 4: Revision to,
+    list<Commit> getHistory(1: string projectName, 2: string repositoryName,
+                            3: Revision fromRevision, 4: Revision toRevision,
                             5: string pathPattern) throws (1: CentralDogmaException e),
 
     /**
      * Retrieves the diffs matched by the path pattern from {@code from} to {@code to}.
      */
-    list<Change> getDiffs(1: string projectName, 2: string repositoryName, 3: Revision from, 4: Revision to,
+    list<Change> getDiffs(1: string projectName, 2: string repositoryName,
+                          3: Revision fromRevision, 4: Revision toRevision,
                           5: string pathPattern) throws (1: CentralDogmaException e),
 
     /**
@@ -336,7 +338,8 @@ service CentralDogmaService {
     /**
      * Queries a file at two different revisions and return the diff of the two query results.
      */
-    DiffFileResult diffFile(1: string projectName, 2: string repositoryName, 3: Revision from, 4: Revision to,
+    DiffFileResult diffFile(1: string projectName, 2: string repositoryName,
+                            3: Revision fromRevision, 4: Revision toRevision,
                             5: Query query) throws (1: CentralDogmaException e),
 
     /**
