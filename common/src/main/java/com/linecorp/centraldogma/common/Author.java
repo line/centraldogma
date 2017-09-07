@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class Author {
 
     public static final Author SYSTEM = new Author("System", "system@localhost.localdomain");
+    public static final Author DEFAULT = new Author("User", "user@localhost.localdomain");
     public static final Author UNKNOWN = new Author("Unknown", "nobody@no.where");
 
     private final String name;

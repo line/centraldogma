@@ -23,5 +23,6 @@
   },
   "replication": {
     "method": "NONE"
-  }
+  },
+  "securityEnabled": false
 }

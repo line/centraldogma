@@ -90,6 +90,9 @@ final class CentralDogmaConfig {
     // Replication
     private final ReplicationConfig replicationConfig;
 
+    // Security
+    private final boolean securityEnabled;
+
     CentralDogmaConfig(@JsonProperty(value = "dataDir", required = true) File dataDir,
                        @JsonProperty(value = "ports", required = true)
                        @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
@@ -108,7 +111,8 @@ final class CentralDogmaConfig {
                        @JsonProperty("numMirroringThreads") Integer numMirroringThreads,
                        @JsonProperty("maxNumFilesPerMirror") Integer maxNumFilesPerMirror,
                        @JsonProperty("maxNumBytesPerMirror") Long maxNumBytesPerMirror,
-                       @JsonProperty("replication") ReplicationConfig replicationConfig) {
+                       @JsonProperty("replication") ReplicationConfig replicationConfig,
+                       @JsonProperty("securityEnabled") Boolean securityEnabled) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -136,6 +140,7 @@ final class CentralDogmaConfig {
                       "maxNumBytesPerMirror: %s (expected: > 0)", this.maxNumBytesPerMirror);
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
         this.replicationConfig = firstNonNull(replicationConfig, ReplicationConfig.NONE);
+        this.securityEnabled = firstNonNull(securityEnabled, false);
     }
 
     @JsonProperty
@@ -223,6 +228,11 @@ final class CentralDogmaConfig {
     @JsonProperty("replication")
     ReplicationConfig replicationConfig() {
         return replicationConfig;
+    }
+
+    @JsonProperty
+    boolean isSecurityEnabled() {
+        return securityEnabled;
     }
 
     @Override

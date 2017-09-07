@@ -76,6 +76,9 @@ org.apache.curator:
   curator-recipes: { version: &CURATOR_VERSION '2.12.0' }
   curator-test: { version: *CURATOR_VERSION }
 
+org.apache.shiro:
+  shiro-core: { version: '1.3.2' }
+
 org.apache.thrift:
   libthrift: { version: '0.9.3' }
 

@@ -16,7 +16,8 @@ angular.module(
       HEAD: 'head',
       ROLE_USER: 'ROLE_USER',
       ROLE_ADMIN: 'ROLE_ADMIN',
-      ENTITY_NAME_PATTERN: /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/
+      ENTITY_NAME_PATTERN: /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/,
+      API_PREFIX: 'api/v0/'
     })
     .run(function ($rootScope, $location, $window, $http, $state, $translate, $uibModal,
                    Auth, Principal, Language, NotificationUtil) {

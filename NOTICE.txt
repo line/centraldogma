@@ -246,6 +246,11 @@ This product depends on Mockito, distributed by Mockito contributors:
   * License: licenses/LICENSE.mockito.mit.txt (MIT License)
   * Homepage: http://mockito.org/
 
+This product depends on Apache Shiro, distributed by Apache Software Foundation:
+
+  * License: licenses/LICENSE.shiro.al20.txt (Apache License v2.0)
+  * Homepage: https://shiro.apache.org/
+
 This product depends on SLF4J, distributed by QOS.ch:
 
   * License: licenses/LICENSE.slf4j.mit.txt (MIT License)

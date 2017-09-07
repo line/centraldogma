@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.shiro.config.Ini;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import com.linecorp.armeria.common.SessionProtocol;
@@ -66,6 +68,9 @@ public final class CentralDogmaBuilder {
     private long maxNumBytesPerMirror = DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
     private GracefulShutdownTimeout gracefulShutdownTimeout;
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
+    private boolean securityEnabled = false;
+
+    private Ini securityConfig;
 
     public CentralDogmaBuilder(File dataDir) {
         this.dataDir = requireNonNull(dataDir, "dataDir");
@@ -165,8 +170,18 @@ public final class CentralDogmaBuilder {
         return this;
     }
 
+    public CentralDogmaBuilder securityEnabled(boolean securityEnabled) {
+        this.securityEnabled = securityEnabled;
+        return this;
+    }
+
+    public CentralDogmaBuilder securityConfig(Ini securityConfig) {
+        this.securityConfig = requireNonNull(securityConfig, "securityConfig");
+        return this;
+    }
+
     public CentralDogma build() {
-        return new CentralDogma(buildConfig());
+        return new CentralDogma(buildConfig(), securityConfig);
     }
 
     public String toJson() {
@@ -186,7 +201,8 @@ public final class CentralDogmaBuilder {
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, cacheSpec, gracefulShutdownTimeout,
                                       webAppEnabled, mirroringEnabled, numMirroringThreads,
-                                      maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig
+                                      maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
+                                      securityEnabled
         );
     }
 }

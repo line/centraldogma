@@ -8,7 +8,7 @@ angular.module('CentralDogmaAdmin')
                    projectName = StringUtil.requireNotEmpty(projectName, 'projectName');
 
                    return ApiService.post(
-                       'api/projects/' + StringUtil.encodeParam(projectName) + '/repositories',
+                       'projects/' + StringUtil.encodeParam(projectName) + '/repositories',
                        {'name': repositoryName}
                    );
                  },
@@ -17,7 +17,7 @@ angular.module('CentralDogmaAdmin')
                    projectName = StringUtil.requireNotEmpty(projectName, 'projectName');
 
                    return ApiService.get(
-                       'api/projects/' + StringUtil.encodeParam(projectName) + '/repositories'
+                       'projects/' + StringUtil.encodeParam(projectName) + '/repositories'
                    );
                  },
 
@@ -29,7 +29,7 @@ angular.module('CentralDogmaAdmin')
                    }
 
                    var sb = [];
-                   sb.push('api/projects/');
+                   sb.push('projects/');
                    sb.push(StringUtil.encodeParam(projectName));
                    sb.push('/repositories/');
                    sb.push(StringUtil.encodeParam(repositoryName));
@@ -46,7 +46,7 @@ angular.module('CentralDogmaAdmin')
                    path = StringUtil.requireNotEmpty(path, 'path');
 
                    var sb = [];
-                   sb.push('api/projects/');
+                   sb.push('projects/');
                    sb.push(StringUtil.encodeParam(projectName));
                    sb.push('/repositories/');
                    sb.push(StringUtil.encodeParam(repositoryName));
@@ -67,7 +67,7 @@ angular.module('CentralDogmaAdmin')
                    var queryExpressions = angular.isArray(query.expressions) ? query.expressions : [];
 
                    var sb = [];
-                   sb.push('api/projects/');
+                   sb.push('projects/');
                    sb.push(StringUtil.encodeParam(projectName));
                    sb.push('/repositories/');
                    sb.push(StringUtil.encodeParam(repositoryName));
@@ -112,7 +112,7 @@ angular.module('CentralDogmaAdmin')
                    }
 
                    var sb = [];
-                   sb.push('api/projects/');
+                   sb.push('projects/');
                    sb.push(StringUtil.encodeParam(projectName));
                    sb.push('/repositories/');
                    sb.push(StringUtil.encodeParam(repositoryName));
@@ -148,7 +148,7 @@ angular.module('CentralDogmaAdmin')
                    }
 
                    var sb = [];
-                   sb.push('api/projects/');
+                   sb.push('projects/');
                    sb.push(StringUtil.encodeParam(projectName));
                    sb.push('/repositories/');
                    sb.push(StringUtil.encodeParam(repositoryName));
@@ -174,7 +174,7 @@ angular.module('CentralDogmaAdmin')
                    }
 
                    var sb = [];
-                   sb.push('api/projects/');
+                   sb.push('projects/');
                    sb.push(StringUtil.encodeParam(projectName));
                    sb.push('/repositories/');
                    sb.push(StringUtil.encodeParam(repositoryName));
@@ -195,7 +195,7 @@ angular.module('CentralDogmaAdmin')
                    term = StringUtil.requireNotEmpty(term, 'term');
 
                    var sb = [];
-                   sb.push('api/projects/');
+                   sb.push('projects/');
                    sb.push(StringUtil.encodeParam(projectName));
                    sb.push('/repositories/');
                    sb.push(StringUtil.encodeParam(repositoryName));
