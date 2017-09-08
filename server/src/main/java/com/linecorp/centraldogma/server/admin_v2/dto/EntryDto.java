@@ -18,11 +18,6 @@ package com.linecorp.centraldogma.server.admin_v2.dto;
 
 import static java.util.Objects.requireNonNull;
 
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Pattern;
-
-import org.hibernate.validator.constraints.NotEmpty;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.MoreObjects;
 
@@ -31,13 +26,8 @@ import com.linecorp.centraldogma.internal.thrift.Entry;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EntryDto {
 
-    @NotEmpty
     private String path;
-
-    @Pattern(regexp = "^JSON|TEXT$")
     private String type;
-
-    @NotNull
     private String content;
 
     public EntryDto() {}

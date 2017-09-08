@@ -16,14 +16,11 @@
 
 package com.linecorp.centraldogma.server.admin_v2.dto;
 
-import javax.validation.constraints.Pattern;
-
 import com.linecorp.centraldogma.internal.thrift.Repository;
 
 public class RepositoryDto {
-    @Pattern(regexp = "^[0-9A-Za-z](?:[-+_0-9A-Za-z\\.]*[0-9A-Za-z])?$")
-    private String name;
 
+    private String name;
     private CommitDto head;
 
     public RepositoryDto() {}

@@ -16,13 +16,10 @@
 
 package com.linecorp.centraldogma.server.admin_v2.dto;
 
-import javax.validation.constraints.Pattern;
-
 import com.linecorp.centraldogma.internal.thrift.PropertyFilter;
 
 public class PropertyFilterDto {
 
-    @Pattern(regexp = "^JSON_PATH$")
     private String type;
     private String content;
 

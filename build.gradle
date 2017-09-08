@@ -44,6 +44,9 @@ ext {
     shadedPackage = 'com.linecorp.centraldogma.internal.shaded'
     relocations = [
             // "groupId:artifactId", "original package name", "relocated package name"
+            ['com.cronutils:cron-utils', 'com.cronutils', "${shadedPackage}.cronutils"],
+            // TODO(trustin): Uncomment this after hiding CacheStats from the public API.
+            //['com.github.ben-manes.caffeine:caffeine', 'com.github.benmanes.caffeine', "${shadedPackage}.caffeine"],
             ['com.google.guava:guava', 'com.google.common', "${shadedPackage}.guava"],
             ['com.google.guava:guava', 'com.google.thirdparty.publicsuffix', "${shadedPackage}.publicsuffix"],
             ['com.googlecode.java-diff-utils:diffutils', 'difflib', "${shadedPackage}.difflib"],
@@ -188,9 +191,16 @@ configure(javaProjects) {
     }
 
     managedDependencies {
+
+        // Caffeine
+        compile 'com.github.ben-manes.caffeine:caffeine'
+
         // completable-futures & futures-extra
         compile 'com.spotify:completable-futures'
         compile 'com.spotify:futures-extra'
+
+        // cron-utils
+        compile 'com.cronutils:cron-utils'
 
         // Guava
         compile 'com.google.guava:guava'

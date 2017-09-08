@@ -18,19 +18,13 @@ package com.linecorp.centraldogma.server.admin_v2.dto;
 
 import static java.util.Objects.requireNonNull;
 
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Pattern;
-
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.thrift.Comment;
 
 public class CommentDto {
 
-    @NotNull
     private String content;
-
-    @Pattern(regexp = "^UNKNOWN|PLAINTEXT|MARKDOWN$")
     private String markup;
 
     public CommentDto() {}

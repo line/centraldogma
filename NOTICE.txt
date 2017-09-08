@@ -131,11 +131,6 @@ This product depends on Armeria, distributed by LINE Corporation:
   * License: licenses/LICENSE.armeria.al20.txt (Apache License v2.0)
   * Homepage: https://line.github.io/armeria/
 
-This product depends on AspectJ, distributed by Eclipse Foundation:
-
-  * License: licenses/LICENSE.aspectj.epl10.html (Eclipse Public License v1.0)
-  * Homepage: https://eclipse.org/aspectj/
-
 This product depends on AssertJ, distributed by the AssertJ authors:
 
   * License: licenses/LICENSE.assertj.al20.txt (Apache License v2.0)
@@ -191,11 +186,6 @@ This product depends on Hamcrest, distributed by hamcrest.org:
   * License: licenses/LICENSE.hamcrest.bsd.txt (BSD License)
   * Homepage: http://hamcrest.org/
 
-This product depends on Hibernate Validator, distributed by Red Hat, Inc:
-
-  * License: licenses/LICENSE.hibernate-validator.al20.txt (Apache License v2.0)
-  * Homepage: http://hibernate.org/validator/
-
 This product depends on Jackson, distributed by FasterXML, LLC:
 
   * License: licenses/LICENSE.jackson.al20.txt (Apache License v2.0)
@@ -205,11 +195,6 @@ This product depends on Java Diff Utils, distributed by Dmitry Naumenko:
 
   * License: licenses/LICENSE.java-diff-utils.al11.txt (Apache License v1.1)
   * Homepage: https://github.com/dnaumenko/java-diff-utils
-
-This product depends on Java Expression Language API and implementation, distributed by Oracle and/or its affiliates:
-
-  * License: licenses/LICENSE.javax-el.cddl11.txt (Common Development and Distribution License v1.1)
-  * Homepage: http://glassfish.org/
 
 This product depends on javax.inject API, distributed by the JSR-330 Expert Group:
 
@@ -226,7 +211,7 @@ This product depends on jCommander, distributed by Cédric Beust:
   * License: licenses/LICENSE.jcommander.al20.txt (Apache License v2.0)
   * Homepage: http://jcommander.org/
 
-This product depends on Jetty, distributed by Eclipse Foundation:
+This product depends on Jetty ALPN, distributed by Eclipse Foundation:
 
   * License: licenses/LICENSE.jetty.al20.txt (Apache License v2.0)
   * Homepage: https://www.eclipse.org/jetty/

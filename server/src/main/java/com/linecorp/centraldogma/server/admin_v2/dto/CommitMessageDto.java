@@ -16,18 +16,11 @@
 
 package com.linecorp.centraldogma.server.admin_v2.dto;
 
-import javax.validation.constraints.NotNull;
-
-import org.hibernate.validator.constraints.NotEmpty;
-
 import com.google.common.base.MoreObjects;
 
 public class CommitMessageDto {
 
-    @NotEmpty
     private String summary;
-
-    @NotNull
     private CommentDto detail;
 
     public String getSummary() {

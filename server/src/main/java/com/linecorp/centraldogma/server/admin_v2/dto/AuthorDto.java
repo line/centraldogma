@@ -18,20 +18,13 @@ package com.linecorp.centraldogma.server.admin_v2.dto;
 
 import static java.util.Objects.requireNonNull;
 
-import javax.validation.constraints.NotNull;
-
-import org.hibernate.validator.constraints.Email;
-
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.thrift.Author;
 
 public class AuthorDto {
 
-    @NotNull
     private String name;
-
-    @Email
     private String email;
 
     public AuthorDto() {}
