@@ -13,3 +13,7 @@ include 'testing-internal'
 
 // Site generation project
 include 'site'
+
+// Distribution
+include 'dist'
+

@@ -27,11 +27,11 @@ ext {
     repoStatus = getRepoStatus()
 
     // The list of Java projects
-    javaProjects = subprojects.findAll { it.name != 'site' }
+    javaProjects = subprojects.findAll { !(it.name in ['site']) }
 
     // The list of Java projects whose artifacts are published to the Maven repository
     publishedJavaProjects = javaProjects.findAll {
-        !(it.name in ['it', 'shaded-test', 'testing-internal'])
+        !(it.name in ['it', 'shaded-test', 'dist', 'testing-internal'])
     }
 
     // The list of Gradle task names specified in the startup parameters.
@@ -204,6 +204,11 @@ configure(javaProjects) {
 
         // Guava
         compile 'com.google.guava:guava'
+
+        // Jackson
+        ['annotations', 'core', 'databind'].each {
+            compile "com.fasterxml.jackson.core:jackson-$it"
+        }
 
         // javax.inject (Can't use compileOnly due to Javadoc errors)
         compile 'javax.inject:javax.inject'

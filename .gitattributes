@@ -4,3 +4,5 @@
 
 /gradlew text eol=lf
 
+/dist/src/bin/*.sh text eol=lf
+/dist/src/bin/jsvc.* binary

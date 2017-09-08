@@ -1,0 +1,178 @@
+import com.google.common.base.CaseFormat
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.boazj.gradle:gradle-log-plugin:0.1.0'
+    }
+}
+
+apply plugin: 'com.boazj.log'
+
+evaluationDependsOn(':client')
+evaluationDependsOn(':server')
+
+ext {
+    distDir = "${project.buildDir}/dist"
+    relativeDistDir = distDir.substring("${rootProject.projectDir}/".length())
+}
+
+managedDependencies {
+    // Logging
+    runtime 'ch.qos.logback:logback-classic'
+    runtime 'com.linecorp.armeria:armeria-logback-shaded'
+    ['jcl-over-slf4j', 'jul-to-slf4j', 'log4j-over-slf4j'].each {
+        runtime "org.slf4j:$it"
+    }
+}
+
+// Do not generate a JAR for this project.
+tasks.jar.enabled = false
+tasks.shadedJar.enabled = false
+
+task copyLicenses(group: 'Build',
+                  description: "Copies license information into ${project.ext.relativeDistDir}/licenses",
+                  type: Copy) {
+
+    from "${rootProject.projectDir}"
+    into "${project.ext.distDir}"
+    include '/NOTICE.txt'
+    include '/LICENSE.txt'
+    include '/README.md'
+    include "/licenses/**"
+}
+
+task copyLib(group: 'Build',
+             description: "Copies JARs into ${project.ext.relativeDistDir}/lib",
+             dependsOn: [project(':client').tasks.jar, project(':server').tasks.jar],
+             type: Copy) {
+
+    from project(':client').configurations.runtime
+    from project(':client').tasks.jar
+    from project(':server').configurations.runtime
+    from project(':server').tasks.jar
+    from project.configurations.runtime
+    into "${project.ext.distDir}/lib"
+
+    doLast {
+        // Create an empty directory for keeping external JARs such as authentication module.
+        project.mkdir("${project.ext.distDir}/lib/ext")
+    }
+}
+
+task distDir(group: 'Build',
+             description: "Builds a distribution directory (${project.ext.relativeDistDir})",
+             dependsOn: [tasks.copyLicenses, tasks.copyLib])
+
+// Create the tasks that copy each directory under src/ into dist/
+['bin', 'conf'].each { dirName ->
+    def taskName = "copy${CaseFormat.LOWER_HYPHEN.to(CaseFormat.UPPER_CAMEL, dirName)}"
+    tasks.distDir.dependsOn(tasks.create(taskName, Copy) {
+        group = 'Build'
+        description = "Copies src/$dirName into ${project.ext.relativeDistDir}/$dirName"
+        from "${project.projectDir}/src/$dirName"
+        into "${project.ext.distDir}/$dirName"
+    })
+}
+
+task tarball(group: 'Build',
+             description: "Builds a tarball from the distribution directory (${project.ext.relativeDistDir})",
+             dependsOn: tasks.distDir,
+             type: Tar) {
+
+    baseName = rootProject.name
+    destinationDir = project.file("${project.buildDir}")
+    compression = Compression.GZIP
+    includeEmptyDirs = true
+
+    from "${project.ext.distDir}"
+    into baseName + '-' + project.version
+}
+
+tasks.assemble.dependsOn(tasks.tarball)
+
+// Tasks for running Central Dogma conveniently.
+task startup(group: 'Execution',
+             description: "Starts up Central Dogma at ${project.ext.relativeDistDir}",
+             dependsOn: tasks.distDir,
+             type: Exec) {
+
+    commandLine "${project.ext.distDir}/bin/startup.sh"
+}
+
+task shutdown(group: 'Execution',
+              description: "Shuts down Central Dogma at ${project.ext.relativeDistDir}",
+              type: Exec) {
+
+    commandLine "${project.ext.distDir}/bin/shutdown.sh"
+}
+
+tasks.startup.mustRunAfter(tasks.shutdown)
+
+task restart(group: 'Execution',
+             description: "Restarts Central Dogma at ${project.ext.relativeDistDir}",
+             dependsOn: [tasks.shutdown, tasks.startup])
+
+tail {
+    log = files("${project.ext.distDir}/log/centraldogma.log")
+}
+
+tasks.tail.configure {
+    group = 'Execution'
+    description = "Tails the log file at ${project.ext.relativeDistDir}/log/centraldogma.log"
+
+    doFirst {
+        // Print the last 8KiB of the log file before tailing, because gradle-tail-plugin does not.
+        logger.info("Tailing ${project.ext.relativeDistDir}/log/centraldogma.log ..")
+        def path = "${project.ext.distDir}/log/centraldogma.log"
+        if (new File(path).exists()) {
+            def file = new RandomAccessFile(path, 'r')
+            def startPos = Math.max(0, file.length() - 8192)
+            if (startPos != 0) {
+                file.seek(startPos)
+                // Skip the first line which may be partial.
+                file.readLine()
+            }
+
+            for (;;) {
+                def line = file.readLine()
+                if (line == null) {
+                    break
+                }
+                logger.quiet(line)
+            }
+        }
+
+        if (!new File("${project.ext.distDir}/centraldogma.pid").exists()) {
+            logger.warn("> PID file does not exist at ${project.ext.relativeDistDir}/centraldogma.pid; " +
+                        "is Central Dogma running?")
+        }
+
+        logger.quiet("> Enter 'q', 'quit' or 'exit' to stop tailing.")
+    }
+}
+
+tasks.tail.doLast {
+    killTailerThreads()
+}
+
+afterEvaluate {
+    killTailerThreads()
+}
+
+// Terminates the Tailer threads created by gradle-log-plugin, which may linger
+// when Gradle daemons are reused.
+private static def killTailerThreads() {
+    Thread.allStackTraces.forEach({ thread, trace ->
+        for (StackTraceElement e : trace) {
+            if (e.className == 'org.apache.commons.io.input.Tailer') {
+                // Thread.stop() is not a great way to terminate a thread in general,
+                // but Tailer does not respect Thread.interrupt().
+                thread.stop()
+                break
+            }
+        }
+    })
+}
