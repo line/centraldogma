@@ -21,8 +21,6 @@ import static java.util.Objects.requireNonNull;
 import java.io.Serializable;
 import java.util.List;
 
-import org.hibernate.validator.constraints.NotBlank;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 
@@ -32,7 +30,6 @@ public class User implements Serializable {
 
     private static final long serialVersionUID = -5429782019985526549L;
 
-    @NotBlank
     private String login;
     private String name;
     private String email;

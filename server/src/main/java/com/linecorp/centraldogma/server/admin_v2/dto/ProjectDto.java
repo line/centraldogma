@@ -21,19 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import javax.validation.constraints.Pattern;
-
 import com.linecorp.centraldogma.internal.thrift.Project;
 
 public class ProjectDto implements Serializable {
 
     private static final long serialVersionUID = -537677643104565582L;
 
-    @Pattern(regexp = "^[0-9A-Za-z](?:[-+_0-9A-Za-z\\.]*[0-9A-Za-z])?$")
     private String name;
-
     private SchemaDto schema;
-
     private List<PluginDto> plugins = new ArrayList<>();
 
     public ProjectDto() {}

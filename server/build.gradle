@@ -15,39 +15,18 @@ managedDependencies {
         compile "com.linecorp.armeria:$it"
     }
 
-    // AspectJ
-    [ 'rt', 'weaver' ].each {
-        compile "org.aspectj:aspectj$it"
-    }
-
-    // Caffeine
-    compile 'com.github.ben-manes.caffeine:caffeine'
-
     // Commons Daemon
     compile 'commons-daemon:commons-daemon'
-
-    // cron-utils
-    compile 'com.cronutils:cron-utils'
 
     // Curator
     compile 'org.apache.curator:curator-recipes'
     testCompile 'org.apache.curator:curator-test'
-
-    // Hibernate Validator
-    compile 'org.hibernate:hibernate-validator'
-    runtime 'javax.el:javax.el-api'
-    runtime 'org.glassfish.web:javax.el'
 
     // Jackson
     compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda'
 
     // jCommander
     compile 'com.beust:jcommander'
-
-    // Jetty
-    [ 'server', 'webapp', 'annotations' ].each {
-        compile "org.eclipse.jetty:jetty-$it"
-    }
 
     // jGit
     compile 'org.eclipse.jgit:org.eclipse.jgit'

@@ -119,6 +119,7 @@ public class CentralDogma {
         return Optional.ofNullable(mirroringService);
     }
 
+    // FIXME(trustin): Remove this from the public API.
     public Optional<CacheStats> cacheStats() {
         final ProjectManager pm = this.pm;
         if (pm == null) {
