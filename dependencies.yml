@@ -17,9 +17,6 @@ com.fasterxml.jackson.core:
   jackson-core: { version: *JACKSON_VERSION }
   jackson-databind: { version: *JACKSON_VERSION }
 
-com.fasterxml.jackson.datatype:
-  jackson-datatype-joda: { version: *JACKSON_VERSION }
-
 com.github.ben-manes.caffeine:
   caffeine: { version: '2.5.5' }
 
@@ -49,7 +46,6 @@ com.jcraft:
 
 com.linecorp.armeria:
   armeria-shaded: { version: &ARMERIA_VERSION '0.53.0' }
-  armeria-jetty-shaded: { version: *ARMERIA_VERSION }
   armeria-logback-shaded: { version: *ARMERIA_VERSION }
   armeria-thrift0.9-shaded: { version: *ARMERIA_VERSION }
 

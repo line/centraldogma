@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${APP_LOG_DIR:-.}/${APP_NAME:-logback}.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>${APP_LOG_DIR:-.}/${APP_NAME:-logback}.%d{yyyy-MM-dd}.log</fileNamePattern>
+      <maxHistory>7</maxHistory>
+      <totalSizeCap>32GB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%date{yyyy-MM-dd HH:mm:ss.SSS} [%-5level]\(%logger{1}\) [%thread] %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="RCEA" class="com.linecorp.armeria.common.logback.RequestContextExportingAppender">
+    <appender-ref ref="FILE" />
+    <export>elapsed_nanos</export>
+    <export>local.host</export>
+    <export>local.port</export>
+    <export>remote.host</export>
+    <export>remote.port</export>
+    <export>req.authority</export>
+    <export>req.content_length</export>
+    <export>req.direction</export>
+    <export>req.method</export>
+    <export>req.path</export>
+    <export>req.rpc_method</export>
+    <export>req.rpc_params</export>
+    <export>res.content_length</export>
+    <export>res.rpc_result</export>
+    <export>res.status_code</export>
+    <export>scheme</export>
+    <export>tls.cipher</export>
+    <export>tls.proto</export>
+    <export>tls.session_id</export>
+    <export>req.http_headers.user-agent</export>
+    <export>req.http_headers.x-forwarded-for</export>
+  </appender>
+
+  <logger name="com.linecorp" level="INFO" />
+  <logger name="com.linecorp.centraldogma" level="DEBUG" />
+  <logger name="io.netty" level="INFO" />
+
+  <root level="WARN">
+    <appender-ref ref="RCEA" />
+  </root>
+</configuration>

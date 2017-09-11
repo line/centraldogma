@@ -11,7 +11,7 @@ apply plugin: 'com.craigburke.client-dependencies'
 
 managedDependencies {
     // Armeria
-    [ 'armeria-shaded', 'armeria-jetty-shaded', 'armeria-thrift0.9-shaded' ].each {
+    [ 'armeria-shaded', 'armeria-thrift0.9-shaded' ].each {
         compile "com.linecorp.armeria:$it"
     }
 
@@ -21,9 +21,6 @@ managedDependencies {
     // Curator
     compile 'org.apache.curator:curator-recipes'
     testCompile 'org.apache.curator:curator-test'
-
-    // Jackson
-    compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda'
 
     // jCommander
     compile 'com.beust:jcommander'
@@ -36,13 +33,6 @@ managedDependencies {
 
     // Shiro
     compile 'org.apache.shiro:shiro-core'
-
-    // Additional dependencies required for logging configuration
-    runtime 'com.linecorp.armeria:armeria-logback-shaded'
-    runtime 'ch.qos.logback:logback-classic'
-    ['jcl-over-slf4j', 'log4j-over-slf4j'].each {
-        runtime "org.slf4j:$it"
-    }
 }
 
 clientDependencies {
