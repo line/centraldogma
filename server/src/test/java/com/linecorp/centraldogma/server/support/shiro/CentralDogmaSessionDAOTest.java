@@ -42,26 +42,35 @@ import org.junit.rules.TemporaryFolder;
 
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.centraldogma.server.admin.authentication.AuthenticationUtil;
+import com.linecorp.centraldogma.server.admin.authentication.User;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.project.ProjectManager;
 
 import io.netty.channel.EventLoop;
+import io.netty.util.Attribute;
 
 public class CentralDogmaSessionDAOTest {
 
     @ClassRule
     public static final TemporaryFolder rootDir = new TemporaryFolder();
 
-    private static RequestContext ctx;
+    private static ServiceRequestContext ctx;
 
+    @SuppressWarnings("unchecked")
     @BeforeClass
     public static void setup() {
         // Need to setup RequestContext and EventLoop for CentralDogmaSessionDAO#ensureNotInEventLoop.
         final EventLoop eventLoop = mock(EventLoop.class);
-        ctx = mock(RequestContext.class);
+        ctx = mock(ServiceRequestContext.class);
         when(ctx.eventLoop()).thenReturn(eventLoop);
+
+        final Attribute<User> userAttribute = mock(Attribute.class);
+        when(ctx.attr(AuthenticationUtil.CURRENT_USER_KEY)).thenReturn(userAttribute);
+        when(userAttribute.get()).thenReturn(User.DEFAULT);
     }
 
     @Test

@@ -68,7 +68,7 @@ public final class CentralDogmaBuilder {
     private long maxNumBytesPerMirror = DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
     private GracefulShutdownTimeout gracefulShutdownTimeout;
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
-    private boolean securityEnabled = false;
+    private boolean securityEnabled;
 
     private Ini securityConfig;
 
@@ -170,14 +170,26 @@ public final class CentralDogmaBuilder {
         return this;
     }
 
+    /**
+     * Sets whether to enable the security service. If the security service is turned on,
+     * {@link CentralDogma} requires an {@link Ini} security configuration which is set via
+     * {@link CentralDogmaBuilder#securityConfig(Ini)}.
+     */
     public CentralDogmaBuilder securityEnabled(boolean securityEnabled) {
         this.securityEnabled = securityEnabled;
         return this;
     }
 
+    /**
+     * Sets an {@link Ini} configuration for <a href="https://shiro.apache.org">Apache Shiro</a>.
+     * An {@link Ini} object would be created by {@link Ini#fromResourcePath(String)} with the INI file path.
+     */
     public CentralDogmaBuilder securityConfig(Ini securityConfig) {
-        this.securityConfig = requireNonNull(securityConfig, "securityConfig");
-        return this;
+        requireNonNull(securityConfig, "securityConfig");
+        final Ini iniCopy = new Ini();
+        iniCopy.putAll(securityConfig);
+        this.securityConfig = iniCopy;
+        return securityEnabled(true);
     }
 
     public CentralDogma build() {
