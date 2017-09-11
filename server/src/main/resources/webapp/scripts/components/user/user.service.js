@@ -5,7 +5,7 @@ angular.module('CentralDogmaAdmin')
              function (ApiService) {
                return {
                  get: function () {
-                   return ApiService.get('api/users/me');
+                   return ApiService.get('users/me');
                  }
                };
              });

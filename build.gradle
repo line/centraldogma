@@ -912,7 +912,7 @@ allprojects {
             // Exclude the machine-generated or internal-only classes
             exclude '**/internal/**'
             exclude '**/thrift/**'
-            exclude '**/server/admin_v2/**'
+            exclude '**/server/admin/**'
             exclude '**/server/command/**'
             exclude '**/server/common/**'
             exclude '**/server/mirror/**'

@@ -34,6 +34,9 @@ managedDependencies {
     // JSch
     compile 'com.jcraft:jsch'
 
+    // Shiro
+    compile 'org.apache.shiro:shiro-core'
+
     // Additional dependencies required for logging configuration
     runtime 'com.linecorp.armeria:armeria-logback-shaded'
     runtime 'ch.qos.logback:logback-classic'

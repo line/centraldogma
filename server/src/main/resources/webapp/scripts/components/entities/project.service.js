@@ -7,11 +7,11 @@ angular.module('CentralDogmaAdmin')
                  createProject: function (projectName) {
                    projectName = StringUtil.requireNotEmpty(projectName, 'projectName');
 
-                   return ApiService.post('api/projects', {'name': projectName});
+                   return ApiService.post('projects', {'name': projectName});
                  },
 
                  listProjects: function () {
-                   return ApiService.get('api/projects');
+                   return ApiService.get('projects');
                  }
                };
              });

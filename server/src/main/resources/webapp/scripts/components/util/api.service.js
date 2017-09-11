@@ -1,23 +1,26 @@
 'use strict';
 
 angular.module('CentralDogmaAdmin')
-    .factory('ApiService', function ($http, $q, $window, StringUtil, NotificationUtil) {
-               function makeRequest(verb, uri, data) {
+    .factory('ApiService', function ($http, $q, $window, StringUtil, NotificationUtil, CentralDogmaConstant) {
+               function makeRequest(verb, uri, config, data) {
                  var defer = $q.defer();
 
-                 var config = {
-                   method: verb,
-                   url: uri
-                 };
-
-                 var token = $window.sessionStorage.getItem('token');
-                 if (token !== null) {
-                   config.headers = {
-                     'x-cd-token': token
-                   };
+                 if (angular.isUndefined(config)) {
+                   config = {}
                  }
 
-                 if (verb.match(/post|put/)) {
+                 config.method = verb;
+                 config.url = rewriteUri(uri);
+
+                 var sessionId = $window.sessionStorage.getItem('sessionId');
+                 if (sessionId !== null) {
+                   if (angular.isUndefined(config.headers)) {
+                     config.headers = {};
+                   }
+                   config.headers.authorization = 'bearer ' + sessionId;
+                 }
+
+                 if (angular.isDefined(data) && verb.match(/post|put/)) {
                    config.data = data;
                  }
 
@@ -42,21 +45,29 @@ angular.module('CentralDogmaAdmin')
                  return defer.promise;
                }
 
+               function rewriteUri(uri) {
+                 if (uri.startsWith('/')) {
+                   return uri;
+                 } else {
+                   return CentralDogmaConstant.API_PREFIX + uri;
+                 }
+               }
+
                return {
-                 'get': function (uri) {
-                   return makeRequest('get', uri);
+                 get: function (uri, config) {
+                   return makeRequest('get', uri, config);
                  },
 
-                 post: function (uri, data) {
-                   return makeRequest('post', uri, data);
+                 post: function (uri, data, config) {
+                   return makeRequest('post', uri, config, data);
                  },
 
-                 put: function (uri, data) {
-                   return makeRequest('put', uri, data);
+                 put: function (uri, data, config) {
+                   return makeRequest('put', uri, config, data);
                  },
 
-                 'delete': function (uri) {
-                   return makeRequest('delete', uri);
+                 delete: function (uri, config) {
+                   return makeRequest('delete', uri, config);
                  }
                };
              });

@@ -22,6 +22,7 @@ import java.util.Optional;
 import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
 import org.apache.commons.daemon.DaemonController;
+import org.apache.shiro.config.Ini;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,10 +52,19 @@ public final class Main implements Daemon {
                      File.separatorChar + "conf" +
                      File.separatorChar + "dogma.json");
 
+    private static final File DEFAULT_SECURITY_CONFIG_FILE =
+            new File(System.getProperty("user.dir", ".") +
+                     File.separatorChar + "conf" +
+                     File.separatorChar + "security.ini");
+
     private static Main current;
 
     @Parameter(names = "-config", description = "The path to the config file", converter = FileConverter.class)
     private File configFile;
+
+    @Parameter(names = "-securityConfig", description = "The path to the security config file",
+            converter = FileConverter.class)
+    private File securityConfigFile;
 
     /**
      * Note that {@link Boolean} was used in lieu of {@code boolean} so that JCommander does not print the
@@ -72,7 +82,7 @@ public final class Main implements Daemon {
             throw new IllegalStateException("initialized already");
         }
 
-        final JCommander commander = new JCommander();
+        final JCommander commander = new JCommander(this);
         commander.setProgramName(getClass().getName());
         commander.parse(context.getArguments());
 
@@ -102,25 +112,33 @@ public final class Main implements Daemon {
             break;
         }
 
-        File configFile = this.configFile;
-        if (configFile == null) {
-            // Try to use the default config file if not specified.
-            if (DEFAULT_CONFIG_FILE.isFile() && DEFAULT_CONFIG_FILE.canRead()) {
-                configFile = DEFAULT_CONFIG_FILE;
-            }
-        }
+        final File configFile = findConfigFile(this.configFile, DEFAULT_CONFIG_FILE);
+        final File securityConfigFile = findConfigFile(this.securityConfigFile, DEFAULT_SECURITY_CONFIG_FILE);
+        final Ini securityConfig =
+                securityConfigFile != null ? Ini.fromResourcePath(securityConfigFile.getPath()) : null;
 
         final CentralDogma dogma;
         if (configFile == null) {
             dogma = new CentralDogmaBuilder(DEFAULT_DATA_DIR).build();
         } else {
-            dogma = CentralDogma.forConfig(configFile);
+            dogma = CentralDogma.forConfig(configFile, securityConfig);
         }
 
         dogma.start();
 
         this.dogma = dogma;
         state = State.STARTED;
+    }
+
+    private static File findConfigFile(File file, File defaultFile) {
+        if (file != null && file.isFile() && file.canRead()) {
+            return file;
+        }
+        // Try to use the default config file if not specified.
+        if (defaultFile.isFile() && defaultFile.canRead()) {
+            return defaultFile;
+        }
+        return null;
     }
 
     @Override
@@ -132,7 +150,6 @@ public final class Main implements Daemon {
             return;
         case DESTROYED:
             throw new IllegalStateException("can't stop after destruction");
-
         }
 
         final CentralDogma dogma = this.dogma;

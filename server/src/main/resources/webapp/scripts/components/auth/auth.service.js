@@ -2,7 +2,7 @@
 
 angular.module('CentralDogmaAdmin')
     .factory('Auth',
-             function Auth($rootScope, $state, $q, Principal, AuthServerProvider, NotificationUtil) {
+             function Auth($rootScope, $state, $q, Principal, AuthServerProvider, NotificationUtil, ApiService) {
                return {
                  login: function (credentials, callback) {
                    var cb = callback || angular.noop;
@@ -28,6 +28,10 @@ angular.module('CentralDogmaAdmin')
                    if (Principal.clear()) {
                      NotificationUtil.success("login.logged_out");
                    }
+                 },
+
+                 isEnabled: function () {
+                   return ApiService.get('/security_enabled');
                  }
                };
              });

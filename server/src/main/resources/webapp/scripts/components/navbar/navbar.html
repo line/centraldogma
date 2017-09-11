@@ -35,14 +35,13 @@
             </li>
           </ul>
         </li>
-        <!-- FIXME(trustin): Implement authentication.
-        <li ng-hide="$root.user">
+        <li ng-switch-when="false" ng-show="isSecurityEnabled">
           <a href="" ng-click="$root.showLoginDialog()">
             <span class="glyphicon glyphicon-log-in"></span>&#xA0;
             <span translate>navbar.login</span>
           </a>
         </li>
-        <li class="dropdown pointer" ng-show="$root.user">
+        <li class="dropdown pointer" ng-show="$root.user && isSecurityEnabled">
           <a href="" class="dropdown-toggle" data-toggle="dropdown">
             <span>
               <span class="glyphicon glyphicon-user"></span>
@@ -59,7 +58,6 @@
             </li>
           </ul>
         </li>
-        -->
       </ul>
     </div>
   </div>

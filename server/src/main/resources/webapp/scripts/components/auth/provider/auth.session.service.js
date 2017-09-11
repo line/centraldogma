@@ -5,24 +5,23 @@ angular.module('CentralDogmaAdmin')
              function loginService($http, $window, Principal, ApiService) {
                return {
                  login: function (credentials) {
-                   var data = 'j_username=' + encodeURIComponent(credentials.username) +
-                              '&j_password=' + encodeURIComponent(credentials.password) +
-                              '&_spring_security_remember_me=' + credentials.rememberMe + '&submit=Login';
-                   return $http.post('api/authentication', data, {
+                   var data = 'username=' + encodeURIComponent(credentials.username) +
+                              '&password=' + encodeURIComponent(credentials.password) +
+                              '&remember_me=' + credentials.rememberMe + '&submit=Login';
+                   return ApiService.post('authenticate', data, {
                      headers: {
                        'Content-Type': 'application/x-www-form-urlencoded'
                      }
-                   }).then(function (response) {
-                     var token = response.headers('x-cd-token');
-                     if (token !== null) {
-                       $window.sessionStorage.setItem('token', token);
+                   }).then(function (sessionId) {
+                     if (sessionId !== null) {
+                       $window.sessionStorage.setItem('sessionId', sessionId);
                      }
-                     return response;
+                     return sessionId;
                    });
                  },
 
                  logout: function () {
-                   ApiService.post('api/logout', '').then(function (data) {
+                   ApiService.post('logout', '').then(function (data) {
                      $window.sessionStorage.clear();
                      Principal.refresh(); // Clear user info.
                      return data;
