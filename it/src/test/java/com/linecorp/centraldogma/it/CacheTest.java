@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.it;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
-import static com.linecorp.centraldogma.server.project.Project.REPO_MAIN;
+import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_MAIN;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;

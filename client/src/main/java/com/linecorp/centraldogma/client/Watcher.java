@@ -124,5 +124,4 @@ public interface Watcher<T> extends SafeCloseable {
         requireNonNull(listener, "listener");
         watch((revision, value) -> listener.accept(value));
     }
-
 }

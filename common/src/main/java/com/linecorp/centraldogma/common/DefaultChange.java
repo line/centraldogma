@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.linecorp.centraldogma.common.Util.validateFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -26,6 +26,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
+
+import com.linecorp.centraldogma.internal.Jackson;
 
 final class DefaultChange<T> implements Change<T> {
 

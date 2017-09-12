@@ -16,7 +16,8 @@
 
 package com.linecorp.centraldogma.internal.thrift;
 
-import org.assertj.core.api.Assertions;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.Test;
 
 public class AuthorConverterTest {
@@ -26,10 +27,8 @@ public class AuthorConverterTest {
 
     @Test
     public void test() throws Exception {
-        Assertions.assertThat(AuthorConverter.TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
-        Assertions.assertThat(AuthorConverter.TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
-        Assertions.assertThat(AuthorConverter.TO_DATA.convert(AuthorConverter.TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);
+        assertThat(AuthorConverter.TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
+        assertThat(AuthorConverter.TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
+        assertThat(AuthorConverter.TO_DATA.convert(AuthorConverter.TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);
     }
-
 }
-

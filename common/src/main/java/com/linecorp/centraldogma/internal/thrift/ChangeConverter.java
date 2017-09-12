@@ -20,7 +20,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Converter;
 
 import com.linecorp.centraldogma.common.ChangeFormatException;
-import com.linecorp.centraldogma.common.Jackson;
+import com.linecorp.centraldogma.internal.Jackson;
 
 /**
  * Provides a function converting back and forth between {@link Change} and

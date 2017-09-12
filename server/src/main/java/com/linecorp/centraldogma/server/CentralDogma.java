@@ -72,29 +72,27 @@ import com.linecorp.armeria.server.file.HttpVfs.ByteArrayEntry;
 import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
-import com.linecorp.centraldogma.common.Jackson;
-import com.linecorp.centraldogma.server.admin.authentication.AuthenticationUtil;
-import com.linecorp.centraldogma.server.admin.authentication.CentralDogmaTokenAuthorizer;
-import com.linecorp.centraldogma.server.admin.authentication.LoginService;
-import com.linecorp.centraldogma.server.admin.authentication.LogoutService;
-import com.linecorp.centraldogma.server.admin.authentication.User;
-import com.linecorp.centraldogma.server.admin.service.ProjectService;
-import com.linecorp.centraldogma.server.admin.service.RepositoryService;
-import com.linecorp.centraldogma.server.admin.service.UserService;
-import com.linecorp.centraldogma.server.admin.util.RestfulJsonResponseConverter;
-import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.ProjectInitializingCommandExecutor;
-import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
+import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSessionDAO;
+import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.authentication.LoginService;
+import com.linecorp.centraldogma.server.internal.admin.authentication.LogoutService;
+import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.service.ProjectService;
+import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
+import com.linecorp.centraldogma.server.internal.admin.service.UserService;
+import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
+import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
+import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringService;
+import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
+import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
-import com.linecorp.centraldogma.server.mirror.MirroringService;
-import com.linecorp.centraldogma.server.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.project.ProjectManager;
-import com.linecorp.centraldogma.server.replication.ReplicationMethod;
-import com.linecorp.centraldogma.server.replication.ZooKeeperCommandExecutor;
-import com.linecorp.centraldogma.server.replication.ZooKeeperReplicationConfig;
-import com.linecorp.centraldogma.server.support.shiro.CentralDogmaSessionDAO;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -106,7 +104,7 @@ public class CentralDogma {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
     }
 
-    public static CentralDogma forConfig(File configFile, Ini securityConfig) throws IOException {
+    public static CentralDogma forConfig(File configFile, @Nullable Ini securityConfig) throws IOException {
         requireNonNull(configFile, "configFile");
         return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class),
                                 securityConfig);
@@ -121,13 +119,21 @@ public class CentralDogma {
     private volatile Server server;
     private ExecutorService repositoryWorker;
     private CommandExecutor executor;
-    private MirroringService mirroringService;
+    private DefaultMirroringService mirroringService;
     private CentralDogmaSessionManager sessionManager;
     private SecurityManager securityManager;
 
-    CentralDogma(CentralDogmaConfig cfg, Ini securityConfig) {
+    CentralDogma(CentralDogmaConfig cfg, @Nullable Ini securityConfig) {
         this.cfg = requireNonNull(cfg, "cfg");
-        this.securityConfig = cfg.isSecurityEnabled() ? requireNonNull(securityConfig, "securityConfig") : null;
+
+        if (cfg.isSecurityEnabled()) {
+            requireNonNull(securityConfig, "securityConfig (must be non-null if securityEnabled is true)");
+            final Ini iniCopy = new Ini();
+            iniCopy.putAll(securityConfig);
+            this.securityConfig = iniCopy;
+        } else {
+            this.securityConfig = null;
+        }
     }
 
     public Optional<ServerPort> activePort() {
@@ -162,7 +168,7 @@ public class CentralDogma {
         boolean success = false;
         ThreadPoolExecutor repositoryWorker = null;
         ProjectManager pm = null;
-        MirroringService mirroringService = null;
+        DefaultMirroringService mirroringService = null;
         CommandExecutor executor = null;
         Server server = null;
         CentralDogmaSessionManager sessionManager = null;
@@ -182,11 +188,11 @@ public class CentralDogma {
 
             logger.info("Current settings:\n{}", cfg);
 
-            mirroringService = new MirroringService(new File(cfg.dataDir(), "_mirrors"),
-                                                    pm,
-                                                    cfg.numMirroringThreads(),
-                                                    cfg.maxNumFilesPerMirror(),
-                                                    cfg.maxNumBytesPerMirror());
+            mirroringService = new DefaultMirroringService(new File(cfg.dataDir(), "_mirrors"),
+                                                           pm,
+                                                           cfg.numMirroringThreads(),
+                                                           cfg.maxNumFilesPerMirror(),
+                                                           cfg.maxNumBytesPerMirror());
 
             if (cfg.isSecurityEnabled()) {
                 sessionManager = new CentralDogmaSessionManager();
@@ -223,7 +229,7 @@ public class CentralDogma {
     }
 
     private CommandExecutor startCommandExecutor(
-            ProjectManager pm, MirroringService mirroringService, Executor repositoryWorker,
+            ProjectManager pm, DefaultMirroringService mirroringService, Executor repositoryWorker,
             CentralDogmaSessionManager sessionManager) {
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
@@ -419,7 +425,7 @@ public class CentralDogma {
 
         final Server server = this.server;
         final CommandExecutor executor = this.executor;
-        final MirroringService mirroringService = this.mirroringService;
+        final DefaultMirroringService mirroringService = this.mirroringService;
         final ProjectManager pm = this.pm;
         final ExecutorService repositoryWorker = this.repositoryWorker;
 
@@ -440,7 +446,7 @@ public class CentralDogma {
     }
 
     private static boolean stop(
-            Server server, CommandExecutor executor, MirroringService mirroringService,
+            Server server, CommandExecutor executor, DefaultMirroringService mirroringService,
             ProjectManager pm, ExecutorService repositoryWorker) {
 
         boolean success = true;
@@ -511,8 +517,9 @@ public class CentralDogma {
     }
 
     /**
-     * A {@link SessionManager} which makes it possible to call {@link DefaultSessionManager#enableSessionValidation()}
-     * and {@link DefaultSessionManager#disableSessionValidation()} according to this server's leadership.
+     * A {@link SessionManager} which makes it possible to call
+     * {@link DefaultSessionManager#enableSessionValidation()} and
+     * {@link DefaultSessionManager#disableSessionValidation()} according to this server's leadership.
      */
     static final class CentralDogmaSessionManager extends DefaultSessionManager {
 

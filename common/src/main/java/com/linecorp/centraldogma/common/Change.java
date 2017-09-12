@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.linecorp.centraldogma.common.Util.validateDirPath;
-import static com.linecorp.centraldogma.common.Util.validateFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateDirPath;
+import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -35,6 +35,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 import com.linecorp.centraldogma.internal.jsonpatch.diff.JsonDiff;
 

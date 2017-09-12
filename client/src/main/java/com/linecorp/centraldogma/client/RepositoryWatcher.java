@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.client;
 
-import static com.linecorp.centraldogma.common.Util.unsafeCast;
+import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;

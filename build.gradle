@@ -919,29 +919,21 @@ allprojects {
             addBooleanOption('Xdoclint:all').value = true
             addBooleanOption('Xdoclint:-missing').value = true
 
-            // Groups
-            group 'Client', 'com.linecorp.centraldogma.client*'
-            group 'Common', 'com.linecorp.centraldogma.common*'
-            group 'Server', 'com.linecorp.centraldogma.server*'
-
             // Exclude the machine-generated or internal-only classes
             exclude '**/internal/**'
             exclude '**/thrift/**'
-            exclude '**/server/admin/**'
-            exclude '**/server/command/**'
-            exclude '**/server/common/**'
-            exclude '**/server/mirror/**'
-            exclude '**/server/plugin/**'
-            exclude '**/server/project/**'
-            exclude '**/server/replication/ReplicationException*'
-            exclude '**/server/replication/ReplicationLog*'
-            exclude '**/server/replication/ZooKeeperCommandExecutor*'
-            exclude '**/server/repository/**'
 
             // External Javadoc links
             def addOfflineLink = { String name, String url ->
                 linksOffline url, "${rootProject.projectDir}/site/src/apidocs/package-lists/${name}"
             }
+
+            addOfflineLink 'armeria', 'https://line.github.io/armeria/apidocs/'
+            addOfflineLink 'commons-daemon', 'https://commons.apache.org/proper/commons-daemon/apidocs/'
+            addOfflineLink 'jackson-databind', 'https://fasterxml.github.io/jackson-databind/javadoc/2.8/'
+            addOfflineLink 'java', 'https://docs.oracle.com/javase/8/docs/api/'
+            addOfflineLink 'junit', 'http://junit.org/junit4/javadoc/4.12/'
+            addOfflineLink 'shiro', 'https://shiro.apache.org/static/1.3.2/apidocs/'
 
             // Add --allow-script-in-comments if available (since 1.8.0_121)
             try {

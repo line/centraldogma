@@ -46,8 +46,8 @@ public class CentralDogmaBeanTest {
     public static final CentralDogmaRule dogma = new CentralDogmaRule() {
         @Override
         protected void scaffold(CentralDogma client) {
-            client.createProject("foo").join();
-            client.createRepository("foo", "bar").join();
+            client.createProject("a").join();
+            client.createRepository("a", "b").join();
             client.createProject("alice").join();
             client.createRepository("alice", "bob").join();
         }
@@ -67,61 +67,70 @@ public class CentralDogmaBeanTest {
         final CentralDogma client = dogma.client();
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class);
 
-        assertThat(property.getX()).isEqualTo(10);
-        assertThat(property.getY()).isEqualTo("20");
-        assertThat(property.getZ()).containsExactly("a", "b", "c");
+        assertThat(property.getFoo()).isEqualTo(10);
+        assertThat(property.getBar()).isEqualTo("20");
+        assertThat(property.getQux()).containsExactly("x", "y", "z");
 
-        client.push("foo", "bar", Revision.HEAD, Author.SYSTEM, "Add a.json",
-                    Change.ofJsonUpsert("/a.json", "{\"x\" : 20,  \"y\" : \"Y\",  \"z\" : [\"0\", \"1\"]}"))
+        client.push("a", "b", Revision.HEAD, Author.SYSTEM, "Add a.json",
+                    Change.ofJsonUpsert("/c.json",
+                                        '{' +
+                                        "  \"foo\": 20," +
+                                        "  \"bar\": \"Y\"," +
+                                        "  \"qux\": [\"0\", \"1\"]" +
+                                        '}'))
               .join();
 
-        client.watchFile("foo", "bar", Revision.INIT, Query.identity("/a.json"), 5000).join();
+        client.watchFile("a", "b", Revision.INIT, Query.identity("/a.json"), 5000).join();
 
         // Wait until the changes are handled.
-        await().atMost(5, TimeUnit.SECONDS).until(() -> property.getX() == 20);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> property.getFoo() == 20);
 
-        assertThat(property.getY()).isEqualTo("Y");
-        assertThat(property.getZ()).containsExactly("0", "1");
+        assertThat(property.getBar()).isEqualTo("Y");
+        assertThat(property.getQux()).containsExactly("0", "1");
     }
 
     @Test
     public void overrideSettings() throws Exception {
         final CentralDogma client = dogma.client();
 
-        client.push("alice", "bob", Revision.HEAD, Author.SYSTEM, "Add z.json",
-                    Change.ofJsonUpsert("/z.json",
-                                        "[{\"x\" : 200,  \"y\" : \"YY\",  \"z\" : [\"100\", \"200\"]}]"))
+        client.push("alice", "bob", Revision.HEAD, Author.SYSTEM, "Add charlie.json",
+                    Change.ofJsonUpsert("/charlie.json",
+                                        "[{" +
+                                        "  \"foo\": 200," +
+                                        "  \"bar\": \"YY\"," +
+                                        "  \"qux\": [\"100\", \"200\"]" +
+                                        "}]"))
               .join();
 
         TestProperty property = factory.get(new TestProperty(), TestProperty.class,
                                             new CentralDogmaBeanConfigBuilder()
                                                     .project("alice")
                                                     .repository("bob")
-                                                    .path("/z.json")
+                                                    .path("/charlie.json")
                                                     .jsonPath("$[0]")
                                                     .build());
 
-        await().atMost(5, TimeUnit.SECONDS).until(() -> property.getX() == 200);
-        assertThat(property.getY()).isEqualTo("YY");
-        assertThat(property.getZ()).containsExactly("100", "200");
+        await().atMost(5, TimeUnit.SECONDS).until(() -> property.getFoo() == 200);
+        assertThat(property.getBar()).isEqualTo("YY");
+        assertThat(property.getQux()).containsExactly("100", "200");
     }
 
-    @CentralDogmaBean(project = "foo", repository = "bar", path = "/a.json")
+    @CentralDogmaBean(project = "a", repository = "b", path = "/c.json")
     static class TestProperty {
-        int x = 10;
-        String y = "20";
-        List<String> z = ImmutableList.of("a", "b", "c");
+        int foo = 10;
+        String bar = "20";
+        List<String> qux = ImmutableList.of("x", "y", "z");
 
-        public int getX() {
-            return x;
+        public int getFoo() {
+            return foo;
         }
 
-        public String getY() {
-            return y;
+        public String getBar() {
+            return bar;
         }
 
-        public List<String> getZ() {
-            return z;
+        public List<String> getQux() {
+            return qux;
         }
     }
 }

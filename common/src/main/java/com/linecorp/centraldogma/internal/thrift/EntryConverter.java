@@ -23,7 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Converter;
 
-import com.linecorp.centraldogma.common.Jackson;
+import com.linecorp.centraldogma.internal.Jackson;
 
 /**
  * Provides a function converting back and forth between {@link Entry} and

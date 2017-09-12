@@ -16,11 +16,11 @@
 
 package com.linecorp.centraldogma.internal.thrift;
 
-import org.assertj.core.api.Assertions;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.Test;
 
 public class ChangeConverterTest {
-    private static final String TIMESTAMP = "2016-01-02T03:04:05Z";
 
     private static final com.linecorp.centraldogma.common.Change<String> COMMON =
             com.linecorp.centraldogma.common.Change.ofTextUpsert("/a.txt", "hello");
@@ -31,8 +31,8 @@ public class ChangeConverterTest {
 
     @Test
     public void test() throws Exception {
-        Assertions.assertThat(ChangeConverter.TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
-        Assertions.assertThat(ChangeConverter.TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
-        Assertions.assertThat(ChangeConverter.TO_DATA.convert(ChangeConverter.TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);
+        assertThat(ChangeConverter.TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
+        assertThat(ChangeConverter.TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
+        assertThat(ChangeConverter.TO_DATA.convert(ChangeConverter.TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);
     }
 }

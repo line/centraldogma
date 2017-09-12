@@ -42,7 +42,7 @@ import org.apache.shiro.realm.ldap.LdapUtils;
  * it binds to the active directory LDAP server again with the searched DN and the user password
  * to authenticate the user. The INI configuration might be specified as follows:
  *
- * <p>
+ * <pre>{@code
  * [main]
  * adRealm = com.linecorp.centraldogma.server.support.shiro.SearchFirstActiveDirectoryRealm
  * adRealm.url = ldap://hostname:port
@@ -51,12 +51,13 @@ import org.apache.shiro.realm.ldap.LdapUtils;
  * adRealm.searchBase = ...
  * adRealm.searchFilter = cn={0}
  * adRealm.searchTimeoutMillis = 10000
+ * }</pre>
  */
 public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
 
     private static final Pattern USERNAME_PLACEHOLDER = Pattern.compile("\\{0\\}");
     private static final String DEFAULT_SEARCH_FILTER = "cn={0}";
-    private static int DEFAULT_SEARCH_TIMEOUT_MILLIS = (int) Duration.ofSeconds(10).toMillis();
+    private static final int DEFAULT_SEARCH_TIMEOUT_MILLIS = (int) Duration.ofSeconds(10).toMillis();
 
     private String searchFilter = DEFAULT_SEARCH_FILTER;
     private int searchTimeoutMillis = DEFAULT_SEARCH_TIMEOUT_MILLIS;

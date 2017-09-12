@@ -20,6 +20,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import com.linecorp.centraldogma.internal.Util;
+
 class DefaultEntry<T> implements Entry<T> {
 
     static final Entry<Void> ROOT_DIR = new DefaultEntry<>("/", null, EntryType.DIRECTORY);

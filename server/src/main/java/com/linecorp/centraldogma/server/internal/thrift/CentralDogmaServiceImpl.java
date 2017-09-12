@@ -59,10 +59,10 @@ import com.linecorp.centraldogma.internal.thrift.Revision;
 import com.linecorp.centraldogma.internal.thrift.Schema;
 import com.linecorp.centraldogma.internal.thrift.WatchFileResult;
 import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
-import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.project.ProjectManager;
-import com.linecorp.centraldogma.server.repository.Repository;
+import com.linecorp.centraldogma.server.internal.command.Command;
+import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 import io.netty.channel.EventLoop;
 
@@ -136,11 +136,10 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void listProjects(AsyncMethodCallback resultHandler) {
         handle(() -> {
-            Map<String, com.linecorp.centraldogma.server.project.Project> projects = projectManager.list();
-            List<Project> ret = new ArrayList<>(projects.size());
-            for (Map.Entry<String, com.linecorp.centraldogma.server.project.Project> e : projects.entrySet()) {
-                ret.add(convert(e.getKey(), e.getValue()));
-            }
+            final Map<String, com.linecorp.centraldogma.server.internal.storage.project.Project> projects =
+                    projectManager.list();
+            final List<Project> ret = new ArrayList<>(projects.size());
+            projects.forEach((key, value) -> ret.add(convert(key, value)));
             return ret;
         }, resultHandler);
     }

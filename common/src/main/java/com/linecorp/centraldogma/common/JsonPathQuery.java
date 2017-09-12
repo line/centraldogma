@@ -28,6 +28,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Streams;
 import com.jayway.jsonpath.JsonPath;
 
+import com.linecorp.centraldogma.internal.Jackson;
+
 final class JsonPathQuery implements Query<JsonNode> {
 
     private final String path;
@@ -51,7 +53,9 @@ final class JsonPathQuery implements Query<JsonNode> {
         requireNonNull(jsonPaths, "jsonPaths");
 
         this.path = path;
-        this.jsonPaths = Streams.stream(jsonPaths).peek(JsonPathQuery::validateJsonPath).collect(toImmutableList());
+        this.jsonPaths = Streams.stream(jsonPaths)
+                                .peek(JsonPathQuery::validateJsonPath)
+                                .collect(toImmutableList());
     }
 
     private static void validateJsonPath(String expr) {

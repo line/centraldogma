@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
+import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 
 import difflib.DiffUtils;

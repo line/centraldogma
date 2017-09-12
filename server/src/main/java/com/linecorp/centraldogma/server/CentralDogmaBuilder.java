@@ -31,9 +31,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.common.Jackson;
-import com.linecorp.centraldogma.server.replication.ReplicationConfig;
-import com.linecorp.centraldogma.server.repository.cache.RepositoryCache;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache;
 
 public final class CentralDogmaBuilder {
 
@@ -68,8 +67,6 @@ public final class CentralDogmaBuilder {
     private long maxNumBytesPerMirror = DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
     private GracefulShutdownTimeout gracefulShutdownTimeout;
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
-    private boolean securityEnabled;
-
     private Ini securityConfig;
 
     public CentralDogmaBuilder(File dataDir) {
@@ -171,16 +168,6 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets whether to enable the security service. If the security service is turned on,
-     * {@link CentralDogma} requires an {@link Ini} security configuration which is set via
-     * {@link CentralDogmaBuilder#securityConfig(Ini)}.
-     */
-    public CentralDogmaBuilder securityEnabled(boolean securityEnabled) {
-        this.securityEnabled = securityEnabled;
-        return this;
-    }
-
-    /**
      * Sets an {@link Ini} configuration for <a href="https://shiro.apache.org">Apache Shiro</a>.
      * An {@link Ini} object would be created by {@link Ini#fromResourcePath(String)} with the INI file path.
      */
@@ -189,7 +176,7 @@ public final class CentralDogmaBuilder {
         final Ini iniCopy = new Ini();
         iniCopy.putAll(securityConfig);
         this.securityConfig = iniCopy;
-        return securityEnabled(true);
+        return this;
     }
 
     public CentralDogma build() {
@@ -214,7 +201,6 @@ public final class CentralDogmaBuilder {
                                       numRepositoryWorkers, cacheSpec, gracefulShutdownTimeout,
                                       webAppEnabled, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      securityEnabled
-        );
+                                      securityConfig != null);
     }
 }

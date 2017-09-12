@@ -16,20 +16,20 @@
 
 package com.linecorp.centraldogma.internal.thrift;
 
-import org.assertj.core.api.Assertions;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.Test;
 
 public class EntryConverterTest {
+
     private static final com.linecorp.centraldogma.common.Entry<String> COMMON =
             com.linecorp.centraldogma.common.Entry.ofText("/a.txt", "hello");
     private static final Entry THRIFT = new Entry("/a.txt", EntryType.TEXT).setContent("hello");
 
     @Test
     public void test() throws Exception {
-        Assertions.assertThat(EntryConverter.TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
-        Assertions.assertThat(EntryConverter.TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
-        Assertions.assertThat(EntryConverter.TO_DATA.convert(EntryConverter.TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);
+        assertThat(EntryConverter.TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
+        assertThat(EntryConverter.TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
+        assertThat(EntryConverter.TO_DATA.convert(EntryConverter.TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);
     }
-
 }
-

@@ -83,7 +83,7 @@ task test(group: 'Verification',
         ]
         def whitelistedPrefixes = ['java.', 'javax.']
         def blacklistedPrefixes = ['com.linecorp.centraldogma.internal.',
-                                   'com.linecorp.centraldogma.server.internal'] +
+                                   'com.linecorp.centraldogma.server.internal.'] +
                                   rootProject.ext.relocations.collect { it[1] + '.' }
         def errors = []
 

@@ -22,6 +22,8 @@ import java.util.Date;
 
 import com.fasterxml.jackson.databind.util.ISO8601Utils;
 
+import com.linecorp.centraldogma.internal.Util;
+
 public class Commit {
 
     private final Revision revision;

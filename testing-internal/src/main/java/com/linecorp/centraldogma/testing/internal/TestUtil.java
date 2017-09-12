@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOError;
 import java.io.IOException;
 
-import com.linecorp.centraldogma.common.Jackson;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public final class TestUtil {
 
