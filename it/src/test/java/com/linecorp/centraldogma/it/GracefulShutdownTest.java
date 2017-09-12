@@ -53,7 +53,6 @@ public class GracefulShutdownTest {
     public void testWatchRepositoryGracefulShutdown() throws Exception {
         testGracefulShutdown(rule.client().watchRepository(
                 rule.project(), rule.repo1(), Revision.HEAD, "/**", 60000));
-
     }
 
     @Test(timeout = 10000)

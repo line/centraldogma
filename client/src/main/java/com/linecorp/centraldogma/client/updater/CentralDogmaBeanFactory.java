@@ -66,21 +66,22 @@ public class CentralDogmaBeanFactory {
      * Create a new bean instance with {@code override} settings.
      *
      * @param bean an instance of {@link T} which may be initialized its fields with default values.
-     * @param beanClass an {@link Class} instance which points a class used for deserializing value.
-     * @param override an {@link CentralDogmaBeanConfig} which can be used to override config supplied through
-     * annotation.
+     * @param beanClass a {@link Class} instance which points a class used for deserializing value.
+     * @param override a {@link CentralDogmaBeanConfig} which can be used to override config supplied through
+     *                 annotation.
      * @param initialValueTimeout when a value larger than zero given to this argument this method
-     * tries to wait the initial value to be fetched up to {@code initialValueTimeoutMillis} milliseconds.
+     *                            tries to wait the initial value to be fetched up to
+     *                            {@code initialValueTimeoutMillis} milliseconds.
      * @param initialValueTimeoutUnit a {@link TimeUnit} which qualifies {@code initialValueTimeout}
-     * @param <T> an representation class of target parameters.
+     * @param <T> a representation class of target parameters.
      *
      * @return an instance of {@link T} which has proxied getters for obtaining latest values configured on
-     * Central Dogma server.
+     *         Central Dogma server.
      *
      * @throws TimeoutException thrown when {@code initialValueTimeoutMillis} set to more than zero and it
-     * fails to obtain the initial value within configured timeout.
+     *                          fails to obtain the initial value within configured timeout.
      * @throws InterruptedException thrown when {@code initialValueTimeoutMillis} set to more than zero and it
-     * got interrupted while waiting initial value to be fetched.
+     *                              got interrupted while waiting initial value to be fetched.
      */
     @SuppressWarnings("unchecked")
     public <T> T get(T bean, Class<T> beanClass, CentralDogmaBeanConfig override,
@@ -144,13 +145,13 @@ public class CentralDogmaBeanFactory {
      * Create a new bean instance with {@code override} settings.
      *
      * @param bean an instance of {@link T} which may be initialized its fields with default values.
-     * @param beanClass an {@link Class} instance which points a class used for deserializing value.
-     * @param override an {@link CentralDogmaBeanConfig} which can be used to override config supplied through
-     * annotation.
-     * @param <T> an representation class of target parameters.
+     * @param beanClass a {@link Class} instance which points a class used for deserializing value.
+     * @param override a {@link CentralDogmaBeanConfig} which can be used to override config supplied through
+     *                 annotation.
+     * @param <T> a representation class of target parameters.
      *
      * @return an instance of {@link T} which has proxied getters for obtaining latest values configured on
-     * Central Dogma server.
+     *         Central Dogma server.
      */
     public <T> T get(T bean, Class<T> beanClass, CentralDogmaBeanConfig override) {
         try {
@@ -165,20 +166,21 @@ public class CentralDogmaBeanFactory {
      * Create a new bean instance with default settings.
      *
      * @param bean an instance of {@link T} which may be initialized its fields with default values.
-     * @param beanClass an {@link Class} instance which points a class used for deserializing value.
-     * annotation.
+     * @param beanClass a {@link Class} instance which points a class used for deserializing value.
+     *                  annotation.
      * @param initialValueTimeout when a value larger than zero given to this argument this method
-     * tries to wait the initial value to be fetched up to {@code initialValueTimeoutMillis} milliseconds.
+     *                            tries to wait the initial value to be fetched up to
+     *                            {@code initialValueTimeoutMillis} milliseconds.
      * @param initialValueTimeoutUnit a {@link TimeUnit} which qualifies {@code initialValueTimeout}
-     * @param <T> an representation class of target parameters.
+     * @param <T> a representation class of target parameters.
      *
      * @return an instance of {@link T} which has proxied getters for obtaining latest values configured on
-     * Central Dogma server.
+     *         Central Dogma server.
      *
      * @throws TimeoutException thrown when {@code initialValueTimeoutMillis} set to more than zero and it
-     * fails to obtain the initial value within configured timeout.
+     *                          fails to obtain the initial value within configured timeout.
      * @throws InterruptedException thrown when {@code initialValueTimeoutMillis} set to more than zero and it
-     * got interrupted while waiting initial value to be fetched.
+     *                              got interrupted while waiting initial value to be fetched.
      */
     public <T> T get(T bean, Class<T> beanClass, long initialValueTimeout, TimeUnit initialValueTimeoutUnit)
             throws TimeoutException, InterruptedException {

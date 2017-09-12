@@ -50,9 +50,8 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.common.Jackson;
-import com.linecorp.centraldogma.server.replication.ReplicationConfig;
-import com.linecorp.centraldogma.server.repository.cache.RepositoryCache;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache;
 
 import io.netty.util.NetUtil;
 

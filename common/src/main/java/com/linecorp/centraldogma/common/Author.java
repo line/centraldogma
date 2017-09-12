@@ -21,6 +21,8 @@ import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import com.linecorp.centraldogma.internal.Util;
+
 public class Author {
 
     public static final Author SYSTEM = new Author("System", "system@localhost.localdomain");

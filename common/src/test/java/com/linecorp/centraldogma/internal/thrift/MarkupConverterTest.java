@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 
 public class MarkupConverterTest {
+
     private static final com.linecorp.centraldogma.common.Markup COMMON =
             com.linecorp.centraldogma.common.Markup.PLAINTEXT;
     private static final Markup THRIFT = Markup.PLAINTEXT;
@@ -47,6 +48,4 @@ public class MarkupConverterTest {
         assertThat(TO_MODEL.convert(Markup.UNKNOWN))
                 .isEqualTo(com.linecorp.centraldogma.common.Markup.UNKNOWN);
     }
-
 }
-

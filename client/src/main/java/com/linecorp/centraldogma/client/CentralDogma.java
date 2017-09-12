@@ -158,6 +158,8 @@ public interface CentralDogma {
                                              Revision from, Revision to, Query<T> query);
 
     /**
+     * Queries a file at two different revisions and return the diff of the two query results.
+     *
      * @deprecated Use {@link #getDiff(String, String, Revision, Revision, Query)} instead.
      */
     @Deprecated

@@ -7,6 +7,8 @@
   <!-- Suppress Javadoc-related checks in test directories -->
   <suppress checks="JavadocPackage" files="[\\/](test|internal)[\\/]" />
   <suppress checks="JavadocMethod" files="[\\/](test|internal)[\\/]" />
+  <!-- Suppress UncommentedMain for the server entry point -->
+  <suppress checks="UncommentedMain" files="[\\/]Main\.java$" />
   <!-- Suppress all checks in generated sources -->
   <suppress checks=".*" files="[\\/]gen-java[\\/]" />
   <!-- Suppress all checks in json-patch sources, which were forked. -->

@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 
 public class RevisionConverterTest {
+
     private static final com.linecorp.centraldogma.common.Revision COMMON =
             new com.linecorp.centraldogma.common.Revision(1, 2);
     private static final Revision THRIFT = new Revision(1, 2);
@@ -33,5 +34,4 @@ public class RevisionConverterTest {
         assertThat(TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
         assertThat(TO_DATA.convert(TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);
     }
-
 }

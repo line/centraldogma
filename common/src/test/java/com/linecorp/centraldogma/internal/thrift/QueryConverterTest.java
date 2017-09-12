@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 
 public class QueryConverterTest {
+
     private static final com.linecorp.centraldogma.common.Query<Object> IDENTITY_MODEL =
             com.linecorp.centraldogma.common.Query.identity("/a.txt");
     private static final Query IDENTITY_DATA = new Query().setPath("/a.txt").setType(QueryType.IDENTITY)
@@ -49,6 +50,5 @@ public class QueryConverterTest {
         assertThat(TO_MODEL.convert(JSON_PATH_DATA)).isEqualTo(JSON_PATH_MODEL);
         assertThat(TO_DATA.convert(TO_MODEL.convert(JSON_PATH_DATA))).isEqualTo(JSON_PATH_DATA);
     }
-
 }
 

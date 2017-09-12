@@ -192,6 +192,9 @@ public final class Main implements Daemon {
         return dogma.activePort();
     }
 
+    /**
+     * Starts a new Central Dogma server.
+     */
     public static void main(String[] args) throws Exception {
         final Main main = new Main();
 

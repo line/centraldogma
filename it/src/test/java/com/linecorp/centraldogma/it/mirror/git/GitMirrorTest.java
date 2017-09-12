@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.server.project.Project.REPO_MAIN;
+import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_MAIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -57,9 +57,9 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.it.TestConstants;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.mirror.MirrorException;
-import com.linecorp.centraldogma.server.mirror.MirroringService;
-import com.linecorp.centraldogma.server.project.Project;
+import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class GitMirrorTest {
@@ -135,7 +135,7 @@ public class GitMirrorTest {
         // Mirror an empty git repository, which will;
         // - Create /mirror_state.json
         // - Remove the sample files created by createProject().
-        mirroringService.runOnce();
+        mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
         final Revision rev1 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
@@ -146,7 +146,7 @@ public class GitMirrorTest {
                 .containsExactly(expectedInitialMirrorState);
 
         // Try to mirror again with no changes in the git repository.
-        mirroringService.runOnce();
+        mirroringService.mirror().join();
 
         //// Make sure it does not try to produce an empty commit.
         final Revision rev2 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
@@ -160,7 +160,7 @@ public class GitMirrorTest {
         git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
 
         final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState("/");
-        mirroringService.runOnce();
+        mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
         final Revision rev3 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
@@ -181,7 +181,7 @@ public class GitMirrorTest {
         git.commit().setMessage("Add the release date of the 'Final Fantasy XV'").call();
 
         final Entry<JsonNode> expectedThirdMirrorState = expectedMirrorState("/");
-        mirroringService.runOnce();
+        mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
         final Revision rev4 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
@@ -204,7 +204,7 @@ public class GitMirrorTest {
         // Mirror an empty git repository, which will;
         // - Create /target/mirror_state.json
         // - NOT remove the sample files created by createProject(), because they are not under /target.
-        mirroringService.runOnce();
+        mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
         final Revision rev1 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
@@ -221,7 +221,7 @@ public class GitMirrorTest {
         git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
 
         final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState("/target/");
-        mirroringService.runOnce();
+        mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
         final Revision rev2 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
@@ -245,7 +245,7 @@ public class GitMirrorTest {
         // Mirror an empty git repository, which will;
         // - Create /mirror_state.json
         // - Remove the sample files created by createProject().
-        mirroringService.runOnce();
+        mirroringService.mirror().join();
 
         // Create a text file, modify it in two branches ('master' and 'fork') and merge 'fork' into 'master'.
         addToGitIndex("alphabets.txt", // 'c' and 'x' are missing.
@@ -277,7 +277,7 @@ public class GitMirrorTest {
         assertThat(lastCommit.getParents()).containsExactlyInAnyOrder(commit1, commit2);
 
         // Run the mirror and ensure alphabets.txt contains all alphabets.
-        mirroringService.runOnce();
+        mirroringService.mirror().join();
 
         final Entry<JsonNode> expectedMirrorState = expectedMirrorState("/");
         final Entry<String> expectedAlphabets = Entry.ofText(
@@ -299,8 +299,8 @@ public class GitMirrorTest {
         git.commit().setMessage("Add a bunch of numbered files").call();
 
         // Perform mirroring, which should fail.
-        assertThatThrownBy(() -> mirroringService.runOnce())
-                .isInstanceOf(MirrorException.class)
+        assertThatThrownBy(() -> mirroringService.mirror().join())
+                .hasCauseInstanceOf(MirrorException.class)
                 .hasMessageContaining("contains more than")
                 .hasMessageContaining("file");
     }
@@ -331,8 +331,8 @@ public class GitMirrorTest {
         git.commit().setMessage("Add a bunch of numbered asterisks").call();
 
         // Perform mirroring, which should fail.
-        assertThatThrownBy(() -> mirroringService.runOnce())
-                .isInstanceOf(MirrorException.class)
+        assertThatThrownBy(() -> mirroringService.mirror().join())
+                .hasCauseInstanceOf(MirrorException.class)
                 .hasMessageContaining("contains more than")
                 .hasMessageContaining("byte");
     }
@@ -360,7 +360,7 @@ public class GitMirrorTest {
     private void addToGitIndex(String path, String content) throws IOException, GitAPIException {
         final File file = Paths.get(gitWorkTree.getAbsolutePath(), path.split("/")).toFile();
         file.getParentFile().mkdirs();
-        Files.write(content, file, StandardCharsets.UTF_8);
+        Files.asCharSink(file, StandardCharsets.UTF_8).write(content);
         git.add().addFilepattern(path).call();
     }
 }

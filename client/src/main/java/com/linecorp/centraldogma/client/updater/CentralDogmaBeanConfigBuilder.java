@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.client.updater;
 
-import static com.linecorp.centraldogma.common.Util.validateFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
 
 public class CentralDogmaBeanConfigBuilder {

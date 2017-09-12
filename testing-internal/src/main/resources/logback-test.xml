@@ -32,7 +32,7 @@
   </appender>
 
   <logger name="com.linecorp" level="DEBUG" />
-  <logger name="com.linecorp.centraldogma.server.admin.logging.LoggingAspect" level="INFO" />
+  <logger name="com.linecorp.centraldogma.server.internal.admin.logging.LoggingAspect" level="INFO" />
 
   <logger name="io.netty" level="INFO" />
 

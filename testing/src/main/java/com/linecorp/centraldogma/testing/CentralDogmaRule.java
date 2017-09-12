@@ -25,7 +25,7 @@ import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
-import com.linecorp.centraldogma.server.mirror.MirroringService;
+import com.linecorp.centraldogma.server.MirroringService;
 
 import io.netty.util.NetUtil;
 

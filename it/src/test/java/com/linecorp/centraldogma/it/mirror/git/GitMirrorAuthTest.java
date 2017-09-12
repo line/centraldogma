@@ -42,11 +42,11 @@ import com.jcraft.jsch.KeyPair;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Jackson;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.it.TestConstants;
-import com.linecorp.centraldogma.server.mirror.MirroringService;
-import com.linecorp.centraldogma.server.project.Project;
+import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 @RunWith(Parameterized.class)
@@ -230,6 +230,6 @@ public class GitMirrorAuthTest {
                                         "}]")).join();
 
         // Try to perform mirroring to see if authentication works as expected.
-        mirroringService.runOnce();
+        mirroringService.mirror().join();
     }
 }

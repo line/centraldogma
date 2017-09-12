@@ -20,6 +20,8 @@ import java.io.IOException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import com.linecorp.centraldogma.internal.Jackson;
+
 public interface Entry<T> {
 
     static Entry<Void> rootDir() {

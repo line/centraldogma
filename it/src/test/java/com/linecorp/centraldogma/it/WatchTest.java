@@ -35,10 +35,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.EntryType;
-import com.linecorp.centraldogma.common.Jackson;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public class WatchTest {
 

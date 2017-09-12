@@ -49,7 +49,6 @@ final class CentralDogmaExceptions {
                     if (ctx != null) {
                         logger.debug("{} Exception with error code {} ({}) from: {}()",
                                      ctx, errorCode, errorCode.getValue(), operationName, e);
-
                     } else {
                         logger.debug("Exception with error code {} ({}) from: {}()",
                                      errorCode, errorCode.getValue(), operationName, e);
@@ -64,7 +63,6 @@ final class CentralDogmaExceptions {
                     if (ctx != null) {
                         logger.debug("{} Exception with error code {} ({}) from: {}()",
                                      ctx, errorCode, errorCode.getValue(), operationName);
-
                     } else {
                         logger.debug("Exception with error code {} ({}) from: {}()",
                                      errorCode, errorCode.getValue(), operationName);
