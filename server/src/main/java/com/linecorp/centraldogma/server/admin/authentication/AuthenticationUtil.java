@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.admin.authentication;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
@@ -29,7 +31,8 @@ import io.netty.util.AttributeKey;
  */
 public final class AuthenticationUtil {
 
-    private static final AttributeKey<User> CURRENT_USER_KEY =
+    @VisibleForTesting
+    public static final AttributeKey<User> CURRENT_USER_KEY =
             AttributeKey.valueOf(AuthenticationUtil.class, "CURRENT_USER");
 
     public static Author currentAuthor(ServiceRequestContext ctx) {
