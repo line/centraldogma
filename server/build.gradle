@@ -67,23 +67,3 @@ clientDependencies {
 
 tasks.clean.dependsOn(tasks.clientClean)
 tasks.processResources.dependsOn(tasks.clientInstall)
-
-task copyDistDeps(type: Copy) {
-    from jar
-    from configurations.runtime
-    into "${project.buildDir}/dist/lib"
-}
-
-task copyDistOthers(type: Copy) {
-    from "${rootProject.projectDir}/gradle/dist"
-    from "${project.projectDir}/src/dist"
-    into "${project.buildDir}/dist"
-
-    doLast {
-        ant.chmod(dir:"${project.buildDir}/dist/bin", perm:'+x',
-                  includes:"*", excludes:"common.sh,common.*.sh")
-    }
-}
-
-task dist(dependsOn: [ tasks.copyDistDeps, tasks.copyDistOthers ])
-tasks.assemble.dependsOn(tasks.dist)
