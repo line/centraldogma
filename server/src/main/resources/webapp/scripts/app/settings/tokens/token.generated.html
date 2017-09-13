@@ -1,0 +1,32 @@
+<div id="openModal" class="modal-dialog">
+  <div class="modal-header">
+    <h4 class="modal-title" translate>settings.title_token_generated</h4>
+  </div>
+  <div class="modal-body">
+    <table class="table table-hover table-responsive">
+      <tbody>
+      <tr>
+        <td><span translate>settings.token_application_id</span></td>
+        <td>{{newToken.appId}}</td>
+      </tr>
+      <tr>
+        <td><span translate>settings.token_secret</span></td>
+        <td>{{newToken.secret}}</td>
+      </tr>
+      <tr>
+        <td><span translate>settings.token_creator</span></td>
+        <td>{{newToken.creator.email}}</td>
+      </tr>
+      <tr>
+        <td><span translate>settings.token_created_time</span></td>
+        <td>{{newToken.creationTimeStr}}</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="modal-footer">
+    <button ng-click="close()" class="btn btn-primary" translate>
+      settings.button_close
+    </button>
+  </div>
+</div>

@@ -1,0 +1,34 @@
+<div ng-cloak>
+  <h2>Application Tokens</h2>
+
+  <table class="table table-hover table-responsive">
+    <thead>
+    <tr>
+      <th><span translate>settings.token_application_id</span></th>
+      <th><span translate>settings.token_creator</span></th>
+      <th><span translate>settings.token_creation_time</span></th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr ng-repeat="token in tokens" ng-click="selectToken(token)" ng-class="{info: token === selectedToken}">
+      <td>{{token.appId}}</td>
+      <td>{{token.creator.email}}</td>
+      <td>{{token.creationTimeStr}}</td>
+    </tr>
+    </tbody>
+  </table>
+
+  <hr />
+
+  <div class="row">
+    <div class="pull-right" has-role="ROLE_USER">
+      <a ng-click="showGenerateTokenDialog()" type="button" class="btn btn-primary">
+        <span class="glyphicon glyphicon-plus"></span> {{ 'settings.button_create_token' | translate }}
+      </a>
+      <button class="btn btn-danger"
+              data-ng-disabled="selectedToken == null" ng-click="showDeleteTokenDialog()">
+        <span class="glyphicon glyphicon-remove"></span> {{ 'settings.button_delete_token' | translate }}
+      </button>
+    </div>
+  </div>
+</div>

@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.admin.authentication;
 
 import static com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSessionDAO.CACHE_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -77,6 +78,7 @@ public class CentralDogmaSessionDAOTest {
                 rootDir.newFolder(), ForkJoinPool.commonPool(), null);
         final CommandExecutor executor = new StandaloneCommandExecutor(pm, ForkJoinPool.commonPool());
         executor.start(null, null);
+        initializeInternalProject(executor);
 
         final CentralDogmaSessionDAO dao = new CentralDogmaSessionDAO(pm, executor);
         try (SafeCloseable ignored = RequestContext.push(ctx, false)) {
@@ -123,6 +125,7 @@ public class CentralDogmaSessionDAOTest {
                 rootDir.newFolder(), ForkJoinPool.commonPool(), null);
         final CommandExecutor executor = new StandaloneCommandExecutor(pm, ForkJoinPool.commonPool());
         executor.start(null, null);
+        initializeInternalProject(executor);
 
         final CentralDogmaSessionDAO dao = spy(new CentralDogmaSessionDAO(pm, executor));
         final MemoryConstrainedCacheManager cacheManager = new MemoryConstrainedCacheManager();

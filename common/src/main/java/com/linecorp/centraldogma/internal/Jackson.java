@@ -161,6 +161,10 @@ public final class Jackson {
         return compactMapper.convertValue(fromValue, toValueType);
     }
 
+    public static <T> T convertValue(Object fromValue, TypeReference<?> toValueTypeRef) {
+        return compactMapper.convertValue(fromValue, toValueTypeRef);
+    }
+
     public static JsonGenerator createGenerator(Writer writer) throws IOException {
         return compactFactory.createGenerator(writer);
     }

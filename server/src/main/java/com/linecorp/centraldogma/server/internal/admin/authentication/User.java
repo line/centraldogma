@@ -21,6 +21,8 @@ import static java.util.Objects.requireNonNull;
 import java.io.Serializable;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -60,36 +62,35 @@ public class User implements Serializable {
         this.roles = roles;
     }
 
-    public String getLogin() {
+    @JsonCreator
+    public User(@JsonProperty("login") String login,
+                @JsonProperty("name") String name,
+                @JsonProperty("email") String email,
+                @JsonProperty("roles") List<String> roles) {
+        this.login = requireNonNull(login, "login");
+        this.name = requireNonNull(name, "name");
+        this.email = requireNonNull(email, "email");
+        this.roles = ImmutableList.copyOf(requireNonNull(roles, "roles"));
+    }
+
+    @JsonProperty
+    public String login() {
         return login;
     }
 
-    public void setLogin(String login) {
-        this.login = login;
-    }
-
-    public List<String> getRoles() {
-        return roles;
-    }
-
-    public void setRoles(List<String> roles) {
-        this.roles = roles;
-    }
-
-    public String getName() {
+    @JsonProperty
+    public String name() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
+    @JsonProperty
+    public String email() {
         return email;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    @JsonProperty
+    public List<String> roles() {
+        return roles;
     }
 
     @Override

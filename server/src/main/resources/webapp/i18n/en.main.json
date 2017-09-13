@@ -5,13 +5,12 @@
   },
 
   "navbar": {
-    "entities": "Entities",
     "home": "Home",
     "language": "Language",
     "login": "Log in",
     "logout": "Log out",
-    "projects": "Projects",
-    "user": "User"
+    "user": "User",
+    "tokens": "Application Tokens"
   },
 
   "login": {
@@ -72,5 +71,25 @@
     "title_create_repository": "Create a repository",
     "title_delete_file": "Delete {{path}}?",
     "unsupported_file_type": "Unsupported file type: {{type}}"
+  },
+
+  "settings": {
+    "button_cancel": "Cancel",
+    "button_close": "Close",
+    "button_create_token": "Create a token",
+    "button_delete": "Delete",
+    "button_delete_token": "Delete",
+    "button_generate": "Generate",
+    "button_invalidate_token": "Invalidate",
+    "deleted_token": "Application token '{{path}}' has been deleted.",
+    "title_delete_token": "Delete application token {{token}}?",
+    "title_generate_token": "Generate a new application token",
+    "title_token_generated": "Application token generated",
+    "token_application_id": "Application ID",
+    "token_application_id.exist": "Application ID '{{appId}}' exists. Please try a different ID again.",
+    "token_application_id.placeholder": "Your application name",
+    "token_creation_time": "Created At",
+    "token_creator": "Created By",
+    "token_secret": "Secret"
   }
 }

@@ -16,6 +16,9 @@
 
 package com.linecorp.centraldogma.server.internal.command;
 
+import static com.linecorp.centraldogma.server.internal.command.Command.createProject;
+import static com.linecorp.centraldogma.server.internal.command.Command.createRepository;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -23,15 +26,20 @@ import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableList;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.project.Project;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectExistsException;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryExistsException;
 
 // TODO(trustin): Generate more useful set of sample files.
-final class SampleGenerator {
+public final class ProjectInitializer {
 
-    private static final Logger logger = LoggerFactory.getLogger(SampleGenerator.class);
+    private static final Logger logger = LoggerFactory.getLogger(ProjectInitializer.class);
 
     private static final String[] SAMPLE_TEXT = {
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur sit" +
@@ -106,7 +114,11 @@ final class SampleGenerator {
             "  \"" + SAMPLE_TEXT[3] + "\",\n" +
             "  \"" + SAMPLE_TEXT[4] + "\" ]";
 
-    static CompletableFuture<Revision> generate(
+    public static final String INTERNAL_PROJECT_NAME = "dogma";
+    public static final String SESSION_REPOSITORY_NAME = "sessions";
+    public static final String TOKEN_REPOSITORY_NAME = "tokens";
+
+    static CompletableFuture<Revision> generateSampleFiles(
             CommandExecutor executor, String projectName, String repositoryName) {
 
         logger.info("Generating sample files into: {}/{}", projectName, repositoryName);
@@ -121,5 +133,31 @@ final class SampleGenerator {
                 "Add the sample files", "", Markup.PLAINTEXT, changes));
     }
 
-    private SampleGenerator() {}
+    /**
+     * Creates an internal project and repositories such as a session storage and a token storage.
+     */
+    public static void initializeInternalProject(CommandExecutor executor) {
+        try {
+            executor.execute(createProject(INTERNAL_PROJECT_NAME))
+                    .get();
+        } catch (Exception e) {
+            if (!(e.getCause() instanceof ProjectExistsException)) {
+                throw new Error(e);
+            }
+        }
+        for (final String repo : ImmutableList.of(Project.REPO_META,
+                                                  SESSION_REPOSITORY_NAME,
+                                                  TOKEN_REPOSITORY_NAME)) {
+            try {
+                executor.execute(createRepository(INTERNAL_PROJECT_NAME, repo))
+                        .get();
+            } catch (Exception e) {
+                if (!(e.getCause() instanceof RepositoryExistsException)) {
+                    throw new Error(e);
+                }
+            }
+        }
+    }
+
+    private ProjectInitializer() {}
 }

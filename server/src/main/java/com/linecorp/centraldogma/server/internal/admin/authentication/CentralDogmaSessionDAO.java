@@ -18,9 +18,9 @@ package com.linecorp.centraldogma.server.internal.admin.authentication;
 
 import static com.linecorp.centraldogma.server.internal.admin.authentication.SessionSerializationUtil.deserialize;
 import static com.linecorp.centraldogma.server.internal.admin.authentication.SessionSerializationUtil.serialize;
-import static com.linecorp.centraldogma.server.internal.command.Command.createProject;
-import static com.linecorp.centraldogma.server.internal.command.Command.createRepository;
 import static com.linecorp.centraldogma.server.internal.command.Command.push;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.SESSION_REPOSITORY_NAME;
 import static java.util.Objects.requireNonNull;
 
 import java.io.Serializable;
@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.shiro.authc.AuthenticationException;
@@ -36,9 +37,7 @@ import org.apache.shiro.cache.CacheManagerAware;
 import org.apache.shiro.session.Session;
 import org.apache.shiro.session.UnknownSessionException;
 import org.apache.shiro.session.mgt.SimpleSession;
-import org.apache.shiro.session.mgt.eis.JavaUuidSessionIdGenerator;
 import org.apache.shiro.session.mgt.eis.SessionDAO;
-import org.apache.shiro.session.mgt.eis.SessionIdGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,11 +51,8 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectExistsException;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RedundantChangeException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryExistsException;
 
 /**
  * A session data access object(DAO) which uses Central Dogma as its storage.
@@ -65,13 +61,10 @@ public class CentralDogmaSessionDAO implements SessionDAO, CacheManagerAware {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaSessionDAO.class);
 
-    private static final String INTERNAL_PROJECT_NAME = "dogma";
-    private static final String SESSION_REPOSITORY_NAME = "sessions";
-
     @VisibleForTesting
     static final String CACHE_NAME = CentralDogmaSessionDAO.class.getSimpleName();
 
-    private final SessionIdGenerator sessionIdGenerator = new JavaUuidSessionIdGenerator();
+    private static final String ID_PREFIX = "sessId-";
 
     private final ProjectManager pm;
     private final CommandExecutor executor;
@@ -81,32 +74,6 @@ public class CentralDogmaSessionDAO implements SessionDAO, CacheManagerAware {
     public CentralDogmaSessionDAO(ProjectManager pm, CommandExecutor executor) {
         this.pm = requireNonNull(pm, "pm");
         this.executor = requireNonNull(executor, "executor");
-
-        initializeSessionRepository(executor);
-    }
-
-    /**
-     * Creates an internal project and repositories as a session storage.
-     */
-    private static void initializeSessionRepository(CommandExecutor executor) {
-        try {
-            executor.execute(createProject(INTERNAL_PROJECT_NAME))
-                    .get();
-        } catch (Exception e) {
-            if (!(e.getCause() instanceof ProjectExistsException)) {
-                throw new Error(e);
-            }
-        }
-        for (final String repo : ImmutableList.of(Project.REPO_META, SESSION_REPOSITORY_NAME)) {
-            try {
-                executor.execute(createRepository(INTERNAL_PROJECT_NAME, repo))
-                        .get();
-            } catch (Exception e) {
-                if (!(e.getCause() instanceof RepositoryExistsException)) {
-                    throw new Error(e);
-                }
-            }
-        }
     }
 
     /**
@@ -124,7 +91,7 @@ public class CentralDogmaSessionDAO implements SessionDAO, CacheManagerAware {
     public Serializable create(Session session) {
         ensureNotInEventLoop();
         final SimpleSession simpleSession = ensureSimpleSession(session);
-        final Serializable sessionId = sessionIdGenerator.generateId(session);
+        final Serializable sessionId = ID_PREFIX + UUID.randomUUID();
         simpleSession.setId(sessionId);
         return createOrUpdate(sessionId, simpleSession);
     }
@@ -138,7 +105,7 @@ public class CentralDogmaSessionDAO implements SessionDAO, CacheManagerAware {
             // The actual requesting username might be set as the request context attribute,
             // but it is worthless.
             final User currentUser = AuthenticationUtil.currentUser();
-            final String username = currentUser != null ? currentUser.getName() : "<unknown>";
+            final String username = currentUser != null ? currentUser.name() : "<unknown>";
             final String value = serialize(session);
             executor.execute(
                     push(INTERNAL_PROJECT_NAME, SESSION_REPOSITORY_NAME, Revision.HEAD, Author.SYSTEM,
@@ -165,6 +132,10 @@ public class CentralDogmaSessionDAO implements SessionDAO, CacheManagerAware {
      */
     @Override
     public Session readSession(Serializable sessionId) {
+        if (!(sessionId instanceof String) ||
+            !((String) sessionId).startsWith(ID_PREFIX)) {
+            throw new UnknownSessionException(sessionId.toString());
+        }
         ensureNotInEventLoop();
         if (cacheManager != null) {
             final SimpleSession session = (SimpleSession) cacheManager.getCache(CACHE_NAME).get(sessionId);
@@ -191,7 +162,7 @@ public class CentralDogmaSessionDAO implements SessionDAO, CacheManagerAware {
                      .thenApply(entry -> deserialize((String) entry.content()))
                      .get();
         } catch (InterruptedException | ExecutionException e) {
-            throw new UnknownSessionException("Unknown session: " + sessionId, cause(e));
+            throw new UnknownSessionException(sessionId.toString(), cause(e));
         }
     }
 

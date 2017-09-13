@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.command;
 
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.generateSampleFiles;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_MAIN;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 
@@ -39,7 +40,7 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
         final CompletableFuture<Void> f = delegate().execute(c);
         return f.thenCompose(unused -> delegate().execute(Command.createRepository(projectName, REPO_META)))
                 .thenCompose(unused -> delegate().execute(Command.createRepository(projectName, REPO_MAIN)))
-                .thenCompose(unused -> SampleGenerator.generate(delegate(), projectName, REPO_MAIN))
+                .thenCompose(unused -> generateSampleFiles(delegate(), projectName, REPO_MAIN))
                 .thenApply(unused -> null);
     }
 }

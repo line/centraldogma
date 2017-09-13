@@ -35,11 +35,11 @@ import com.linecorp.armeria.server.auth.OAuth2Token;
  * A decorator to check whether the request holds a valid token. If it holds a valid token, this
  * decorator would find a session belonging to the token and attach it to the service context attributes.
  */
-public class CentralDogmaTokenAuthorizer implements Authorizer<HttpRequest> {
+public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
 
     private final SecurityManager securityManager;
 
-    public CentralDogmaTokenAuthorizer(SecurityManager securityManager) {
+    public SessionTokenAuthorizer(SecurityManager securityManager) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
     }
 
@@ -56,8 +56,10 @@ public class CentralDogmaTokenAuthorizer implements Authorizer<HttpRequest> {
                 final Subject currentUser =
                         new Subject.Builder(securityManager).sessionId(token.accessToken())
                                                             .buildSubject();
-                if (currentUser != null) {
-                    final User user = new User(currentUser.getPrincipal().toString(), User.USER_ROLE);
+                final Object principal = currentUser != null ? currentUser.getPrincipal()
+                                                             : null;
+                if (principal != null) {
+                    final User user = new User(principal.toString(), User.USER_ROLE);
                     AuthenticationUtil.setCurrentUser(ctx, user);
                 }
             } finally {

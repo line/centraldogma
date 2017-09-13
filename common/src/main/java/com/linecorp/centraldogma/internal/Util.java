@@ -23,16 +23,35 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * This class borrowed some of its methods from a <a href="https://github.com/netty/netty/blob/4.1/common
+ * /src/main/java/io/netty/util/NetUtil.java">NetUtil class</a> which was part of Netty project.
+ */
 public final class Util {
 
+    private static final Pattern FILE_NAME_PATTERN = Pattern.compile(
+            "^(?:[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
     private static final Pattern FILE_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
     private static final Pattern DIR_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[_A-Za-z0-9-\\+]+(?:\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9]+)*(?:\\.[A-Za-z]{2,})$");
+    private static final Pattern GENERAL_EMAIL_PATTERN = Pattern.compile(
+            "^[_A-Za-z0-9-\\+]+(?:\\.[_A-Za-z0-9-]+)*@(.+)$");
+
+    public static String validateFileName(String name, String paramName) {
+        requireNonNull(name, paramName);
+        if (isValidFileName(name)) {
+            return name;
+        }
+
+        throw new IllegalArgumentException(
+                paramName + ": " + name + " (expected: " + FILE_NAME_PATTERN.pattern() + ')');
+    }
 
     public static String validateFilePath(String path, String paramName) {
         requireNonNull(path, paramName);
@@ -42,6 +61,11 @@ public final class Util {
 
         throw new IllegalArgumentException(
                 paramName + ": " + path + " (expected: " + FILE_PATH_PATTERN.pattern() + ')');
+    }
+
+    public static boolean isValidFileName(String name) {
+        requireNonNull(name, "name");
+        return !name.isEmpty() && FILE_NAME_PATTERN.matcher(name).matches();
     }
 
     public static boolean isValidFilePath(String path) {
@@ -68,7 +92,19 @@ public final class Util {
 
     public static boolean isValidEmailAddress(String emailAddr) {
         requireNonNull(emailAddr);
-        return EMAIL_PATTERN.matcher(emailAddr).matches();
+        if (EMAIL_PATTERN.matcher(emailAddr).matches()) {
+            return true;
+        }
+        // Try to check whether the domain part is IP address format.
+        final Matcher m = GENERAL_EMAIL_PATTERN.matcher(emailAddr);
+        if (m.matches()) {
+            final String domainPart = m.group(1);
+            if (isValidIpV4Address(domainPart) ||
+                isValidIpV6Address(domainPart)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static String validateEmailAddress(String emailAddr, String paramName) {
@@ -78,7 +114,8 @@ public final class Util {
         }
 
         throw new IllegalArgumentException(
-                paramName + ": " + emailAddr + " (expected: " + EMAIL_PATTERN.pattern() + ')');
+                paramName + ": " + emailAddr +
+                " (expected: " + EMAIL_PATTERN.pattern() + " or IP address domain)");
     }
 
     public static List<String> stringToLines(String str) {
@@ -173,6 +210,170 @@ public final class Util {
         }
 
         return values;
+    }
+
+    private static boolean isValidIpV4Address(String ip) {
+        return isValidIpV4Address(ip, 0, ip.length());
+    }
+
+    @SuppressWarnings("DuplicateBooleanBranch")
+    private static boolean isValidIpV4Address(String ip, int from, int toExcluded) {
+        int len = toExcluded - from;
+        int i;
+        return len <= 15 && len >= 7 &&
+               (i = ip.indexOf('.', from + 1)) > 0 && isValidIpV4Word(ip, from, i) &&
+               (i = ip.indexOf('.', from = i + 2)) > 0 && isValidIpV4Word(ip, from - 1, i) &&
+               (i = ip.indexOf('.', from = i + 2)) > 0 && isValidIpV4Word(ip, from - 1, i) &&
+               isValidIpV4Word(ip, i + 1, toExcluded);
+    }
+
+    private static boolean isValidIpV4Word(CharSequence word, int from, int toExclusive) {
+        int len = toExclusive - from;
+        char c0;
+        char c1;
+        char c2;
+        if (len < 1 || len > 3 || (c0 = word.charAt(from)) < '0') {
+            return false;
+        }
+        if (len == 3) {
+            return (c1 = word.charAt(from + 1)) >= '0' &&
+                   (c2 = word.charAt(from + 2)) >= '0' &&
+                   (c0 <= '1' && c1 <= '9' && c2 <= '9' ||
+                    c0 == '2' && c1 <= '5' && (c2 <= '5' || c1 < '5' && c2 <= '9'));
+        }
+        return c0 <= '9' && (len == 1 || isValidNumericChar(word.charAt(from + 1)));
+    }
+
+    private static boolean isValidIpV6Address(String ip) {
+        int end = ip.length();
+        if (end < 2) {
+            return false;
+        }
+
+        // strip "[]"
+        int start;
+        char c = ip.charAt(0);
+        if (c == '[') {
+            end--;
+            if (ip.charAt(end) != ']') {
+                // must have a close ]
+                return false;
+            }
+            start = 1;
+            c = ip.charAt(1);
+        } else {
+            start = 0;
+        }
+
+        int colons;
+        int compressBegin;
+        if (c == ':') {
+            // an IPv6 address can start with "::" or with a number
+            if (ip.charAt(start + 1) != ':') {
+                return false;
+            }
+            colons = 2;
+            compressBegin = start;
+            start += 2;
+        } else {
+            colons = 0;
+            compressBegin = -1;
+        }
+
+        int wordLen = 0;
+        loop:
+        for (int i = start; i < end; i++) {
+            c = ip.charAt(i);
+            if (isValidHexChar(c)) {
+                if (wordLen < 4) {
+                    wordLen++;
+                    continue;
+                }
+                return false;
+            }
+
+            switch (c) {
+                case ':':
+                    if (colons > 7) {
+                        return false;
+                    }
+                    if (ip.charAt(i - 1) == ':') {
+                        if (compressBegin >= 0) {
+                            return false;
+                        }
+                        compressBegin = i - 1;
+                    } else {
+                        wordLen = 0;
+                    }
+                    colons++;
+                    break;
+                case '.':
+                    // case for the last 32-bits represented as IPv4 x:x:x:x:x:x:d.d.d.d
+
+                    // check a normal case (6 single colons)
+                    if (compressBegin < 0 && colons != 6 ||
+                        // a special case ::1:2:3:4:5:d.d.d.d allows 7 colons with an
+                        // IPv4 ending, otherwise 7 :'s is bad
+                        (colons == 7 && compressBegin >= start || colons > 7)) {
+                        return false;
+                    }
+
+                    // Verify this address is of the correct structure to contain an IPv4 address.
+                    // It must be IPv4-Mapped or IPv4-Compatible
+                    // (see https://tools.ietf.org/html/rfc4291#section-2.5.5).
+                    int ipv4Start = i - wordLen;
+                    int j = ipv4Start - 2; // index of character before the previous ':'.
+                    if (isValidIPv4MappedChar(ip.charAt(j))) {
+                        if (!isValidIPv4MappedChar(ip.charAt(j - 1)) ||
+                            !isValidIPv4MappedChar(ip.charAt(j - 2)) ||
+                            !isValidIPv4MappedChar(ip.charAt(j - 3))) {
+                            return false;
+                        }
+                        j -= 5;
+                    }
+
+                    for (; j >= start; --j) {
+                        char tmpChar = ip.charAt(j);
+                        if (tmpChar != '0' && tmpChar != ':') {
+                            return false;
+                        }
+                    }
+
+                    // 7 - is minimum IPv4 address length
+                    int ipv4End = ip.indexOf('%', ipv4Start + 7);
+                    if (ipv4End < 0) {
+                        ipv4End = end;
+                    }
+                    return isValidIpV4Address(ip, ipv4Start, ipv4End);
+                case '%':
+                    // strip the interface name/index after the percent sign
+                    end = i;
+                    break loop;
+                default:
+                    return false;
+            }
+        }
+
+        // normal case without compression
+        if (compressBegin < 0) {
+            return colons == 7 && wordLen > 0;
+        }
+
+        return compressBegin + 2 == end ||
+               // 8 colons is valid only if compression in start or end
+               wordLen > 0 && (colons < 8 || compressBegin <= start);
+    }
+
+    private static boolean isValidNumericChar(char c) {
+        return c >= '0' && c <= '9';
+    }
+
+    private static boolean isValidIPv4MappedChar(char c) {
+        return c == 'f' || c == 'F';
+    }
+
+    private static boolean isValidHexChar(char c) {
+        return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f';
     }
 
     private Util() {}
