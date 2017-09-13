@@ -21,8 +21,22 @@ import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Ascii;
 
+/**
+ * The type of an {@link Entry}.
+ */
 public enum EntryType {
-    JSON(JsonNode.class), TEXT(String.class), DIRECTORY(Void.class);
+    /**
+     * A UTF-8 encoded JSON file.
+     */
+    JSON(JsonNode.class),
+    /**
+     * A UTF-8 encoded text file.
+     */
+    TEXT(String.class),
+    /**
+     * A directory.
+     */
+    DIRECTORY(Void.class);
 
     /**
      * Guesses the {@link EntryType} from the specified {@code path}.
@@ -50,6 +64,9 @@ public enum EntryType {
         this.type = type;
     }
 
+    /**
+     * Returns the type of the content returned by {@link Entry#content()}.
+     */
     public Class<?> type() {
         return type;
     }

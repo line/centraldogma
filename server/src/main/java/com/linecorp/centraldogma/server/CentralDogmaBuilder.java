@@ -27,13 +27,23 @@ import java.util.List;
 
 import org.apache.shiro.config.Ini;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.github.benmanes.caffeine.cache.CaffeineSpec;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache;
 
+/**
+ * Builds a {@link CentralDogma} server.
+ *
+ * <pre>{@code
+ * CentralDogmaBuilder builder = new CentralDogmaBuilder(new File("/tmp/dogma"));
+ * builder.numRepositoryWorkers(32);
+ * builder...;
+ * CentralDogma dogma = builder.build();
+ * dogma.start();
+ * }</pre>
+ */
 public final class CentralDogmaBuilder {
 
     // You get 36462 if you map 'dogma' to T9 phone dialer layout.
@@ -69,6 +79,9 @@ public final class CentralDogmaBuilder {
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
     private Ini securityConfig;
 
+    /**
+     * Creates a new builder with the specified data directory.
+     */
     public CentralDogmaBuilder(File dataDir) {
         this.dataDir = requireNonNull(dataDir, "dataDir");
         if (dataDir.exists() && !dataDir.isDirectory()) {
@@ -76,100 +89,180 @@ public final class CentralDogmaBuilder {
         }
     }
 
+    /**
+     * Adds a port that serves the HTTP requests. If unspecified, cleartext HTTP on port 36462 is used.
+     *
+     * @param port the TCP/IP port number
+     * @param protocol {@link SessionProtocol#HTTP} or {@link SessionProtocol#HTTPS}
+     */
     public CentralDogmaBuilder port(int port, SessionProtocol protocol) {
         return port(new ServerPort(port, protocol));
     }
 
+    /**
+     * Adds a port that serves the HTTP requests. If unspecified, cleartext HTTP on port 36462 is used.
+     *
+     * @param localAddress the TCP/IP load address to bind
+     * @param protocol {@link SessionProtocol#HTTP} or {@link SessionProtocol#HTTPS}
+     */
     public CentralDogmaBuilder port(InetSocketAddress localAddress, SessionProtocol protocol) {
         return port(new ServerPort(localAddress, protocol));
     }
 
+    /**
+     * Adds a port that serves the HTTP requests. If unspecified, cleartext HTTP on port 36462 is used.
+     */
     public CentralDogmaBuilder port(ServerPort port) {
         ports.add(requireNonNull(port, "port"));
         return this;
     }
 
+    /**
+     * Sets the number of I/O worker threads. <a href="https://line.github.io/armeria/">Armeria</a> default is
+     * used if unspecified.
+     */
     public CentralDogmaBuilder numWorkers(int numWorkers) {
         this.numWorkers = numWorkers;
         return this;
     }
 
+    /**
+     * Sets the maximum allowed number of TCP/IP connections. If unspecified, no limit is enforced.
+     */
     public CentralDogmaBuilder maxNumConnections(int maxNumConnections) {
         this.maxNumConnections = maxNumConnections;
         return this;
     }
 
+    /**
+     * Sets the timeout for handling an incoming request. If it takes more than the specified timeout to
+     * handle a request, the server may respond with '503 Service Unavailable' or fail to respond.
+     * <a href="https://line.github.io/armeria/">Armeria</a> default is used if unspecified.
+     */
     public CentralDogmaBuilder requestTimeout(Duration requestTimeout) {
         return requestTimeoutMillis(requireNonNull(requestTimeout, "requestTimeout").toMillis());
     }
 
+    /**
+     * Sets the timeout for handling an incoming request, in milliseconds. If it takes more than
+     * the specified timeout to handle a request, the server may respond with '503 Service Unavailable' or
+     * fail to respond. <a href="https://line.github.io/armeria/">Armeria</a> default is used if unspecified.
+     */
     public CentralDogmaBuilder requestTimeoutMillis(long requestTimeoutMillis) {
         this.requestTimeoutMillis = requestTimeoutMillis;
         return this;
     }
 
+    /**
+     * Sets the timeout for keeping an idle connection. A connection is automatically closed when it stays idle
+     * without any requests in progress for more than the specified timeout.
+     * <a href="https://line.github.io/armeria/">Armeria</a> default is used if unspecified.
+     */
     public CentralDogmaBuilder idleTimeout(Duration idleTimeout) {
         return idleTimeoutMillis(requireNonNull(idleTimeout, "idleTimeout").toMillis());
     }
 
+    /**
+     * Sets the timeout for keeping an idle connection, in milliseconds. A connection is automatically closed
+     * when it stays idle without any requests in progress for more than the specified timeout.
+     */
     public CentralDogmaBuilder idleTimeoutMillis(long idleTimeoutMillis) {
         this.idleTimeoutMillis = idleTimeoutMillis;
         return this;
     }
 
+    /**
+     * Sets the maximum allowed content length of an incoming request.
+     */
     public CentralDogmaBuilder maxFrameLength(int maxFrameLength) {
         this.maxFrameLength = maxFrameLength;
         return this;
     }
 
+    /**
+     * Sets the number of worker threads dedicated to repository access.
+     * If unspecified, {@value #DEFAULT_NUM_REPOSITORY_WORKERS} threads are created at maximum.
+     */
     public CentralDogmaBuilder numRepositoryWorkers(int numRepositoryWorkers) {
         this.numRepositoryWorkers = numRepositoryWorkers;
         return this;
     }
 
+    /**
+     * Sets the cache specification of the server. See {@link CaffeineSpec} for the syntax of the spec.
+     * If unspecified, the default cache spec of {@value #DEFAULT_CACHE_SPEC} is used.
+     */
     public CentralDogmaBuilder cacheSpec(String cacheSpec) {
         this.cacheSpec = RepositoryCache.validateCacheSpec(cacheSpec);
         return this;
     }
 
+    /**
+     * Sets whether administrative web application is enabled or not.
+     * If unspecified, the administrative web application is enabled.
+     */
     public CentralDogmaBuilder webAppEnabled(boolean webAppEnabled) {
         this.webAppEnabled = webAppEnabled;
         return this;
     }
 
+    /**
+     * Sets whether {@link MirroringService} is enabled or not.
+     * If unspecified, {@link MirroringService} is enabled.
+     */
     public CentralDogmaBuilder mirroringEnabled(boolean mirroringEnabled) {
         this.mirroringEnabled = mirroringEnabled;
         return this;
     }
 
+    /**
+     * Sets the number of worker threads dedicated to mirroring between repositories.
+     * If unspecified, {@value #DEFAULT_NUM_MIRRORING_THREADS} threads are created at maximum.
+     */
     public CentralDogmaBuilder numMirroringThreads(int numMirroringThreads) {
         this.numMirroringThreads = numMirroringThreads;
         return this;
     }
 
+    /**
+     * Sets the maximum allowed number of files in a mirrored tree.
+     * If unspecified, {@value #DEFAULT_MAX_NUM_FILES_PER_MIRROR} files are allowed at maximum.
+     */
     public CentralDogmaBuilder maxNumFilesPerMirror(int maxNumFilesPerMirror) {
         this.maxNumFilesPerMirror = maxNumFilesPerMirror;
         return this;
     }
 
+    /**
+     * Sets the maximum allowed number of bytes in a mirrored tree.
+     * If unspecified, {@value #DEFAULT_MAX_NUM_BYTES_PER_MIRROR} bytes are allowed at maximum.
+     */
     public CentralDogmaBuilder maxNumBytesPerMirror(long maxNumBytesPerMirror) {
         this.maxNumBytesPerMirror = maxNumBytesPerMirror;
         return this;
     }
 
+    /**
+     * Sets the graceful shutdown timeout. If unspecified, graceful shutdown is disabled.
+     */
     public CentralDogmaBuilder gracefulShutdownTimeout(GracefulShutdownTimeout gracefulShutdownTimeout) {
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
         return this;
     }
 
+    /**
+     * Configures the replication.
+     * If unspecified or {@link ReplicationConfig#NONE} is specified, replication is disabled.
+     */
     public CentralDogmaBuilder replication(ReplicationConfig replicationConfig) {
         this.replicationConfig = requireNonNull(replicationConfig, "replicationConfig");
         return this;
     }
 
     /**
-     * Sets an {@link Ini} configuration for <a href="https://shiro.apache.org">Apache Shiro</a>.
-     * An {@link Ini} object would be created by {@link Ini#fromResourcePath(String)} with the INI file path.
+     * Configures the security using an {@link Ini} configuration for
+     * <a href="https://shiro.apache.org">Apache Shiro</a>. An {@link Ini} object would be created by
+     * {@link Ini#fromResourcePath(String)} with the INI file path.
      */
     public CentralDogmaBuilder securityConfig(Ini securityConfig) {
         requireNonNull(securityConfig, "securityConfig");
@@ -179,17 +272,11 @@ public final class CentralDogmaBuilder {
         return this;
     }
 
+    /**
+     * Returns a newly-created {@link CentralDogma} server.
+     */
     public CentralDogma build() {
         return new CentralDogma(buildConfig(), securityConfig);
-    }
-
-    public String toJson() {
-        try {
-            return Jackson.writeValueAsPrettyString(buildConfig());
-        } catch (JsonProcessingException e) {
-            // Should never reach here.
-            throw new Error(e);
-        }
     }
 
     private CentralDogmaConfig buildConfig() {

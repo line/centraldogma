@@ -96,6 +96,11 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutSched
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+/**
+ * Central Dogma server.
+ *
+ * @see CentralDogmaBuilder
+ */
 public class CentralDogma {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogma.class);
@@ -104,6 +109,11 @@ public class CentralDogma {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
     }
 
+    /**
+     * Creates a new instance from the given configuration file and security config.
+     *
+     * @throws IOException if failed to load the configuration from the specified file
+     */
     public static CentralDogma forConfig(File configFile, @Nullable Ini securityConfig) throws IOException {
         requireNonNull(configFile, "configFile");
         return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class),
@@ -136,11 +146,22 @@ public class CentralDogma {
         }
     }
 
+    /**
+     * Returns the primary port of the server.
+     *
+     * @return the primary {@link ServerPort} if the server is started. {@link Optional#empty()} otherwise.
+     */
     public Optional<ServerPort> activePort() {
         final Server server = this.server;
         return server != null ? server.activePort() : Optional.empty();
     }
 
+    /**
+     * Returns the ports of the server.
+     *
+     * @return the {@link Map} which contains the pairs of local {@link InetSocketAddress} and
+     *         {@link ServerPort} is the server is started. {@link Optional#empty()} otherwise.
+     */
     public Map<InetSocketAddress, ServerPort> activePorts() {
         final Server server = this.server;
         if (server != null) {
@@ -150,12 +171,21 @@ public class CentralDogma {
         }
     }
 
+    /**
+     * Returns the {@link MirroringService} of the server.
+     *
+     * @return the {@link MirroringService} if the server is started and mirroring is enabled.
+     *         {@link Optional#empty()} otherwise.
+     */
     public Optional<MirroringService> mirroringService() {
         return Optional.ofNullable(mirroringService);
     }
 
-    // FIXME(trustin): Remove this from the public API.
+    /**
+     * Returns the cache stats of the server.
+     */
     public Optional<CacheStats> cacheStats() {
+        // FIXME(trustin): Remove this from the public API.
         final ProjectManager pm = this.pm;
         if (pm == null) {
             return Optional.empty();
@@ -164,6 +194,9 @@ public class CentralDogma {
         return Optional.of(pm.cacheStats());
     }
 
+    /**
+     * Starts the server. This method does nothing if the server is started already.
+     */
     public synchronized void start() {
         boolean success = false;
         ThreadPoolExecutor repositoryWorker = null;
@@ -405,7 +438,7 @@ public class CentralDogma {
           .serviceUnder("/", HttpFileService.forClassPath("webapp"));
     }
 
-    private SecurityManager createSecurityManager(Ini securityConfig, SessionManager sessionManager) {
+    private static SecurityManager createSecurityManager(Ini securityConfig, SessionManager sessionManager) {
         final Factory<SecurityManager> factory = new IniSecurityManagerFactory(securityConfig) {
             @Override
             protected SecurityManager createDefaultInstance() {
@@ -418,6 +451,9 @@ public class CentralDogma {
         return factory.getInstance();
     }
 
+    /**
+     * Stops the server. This method does nothing if the server is stopped already.
+     */
     public synchronized void stop() {
         if (server == null) {
             return;

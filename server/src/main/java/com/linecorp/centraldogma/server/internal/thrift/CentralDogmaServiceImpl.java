@@ -39,7 +39,6 @@ import org.apache.thrift.async.AsyncMethodCallback;
 
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.centraldogma.common.FindOption;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.internal.thrift.Author;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaConstants;
@@ -62,6 +61,7 @@ import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 import io.netty.channel.EventLoop;

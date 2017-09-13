@@ -18,14 +18,19 @@ package com.linecorp.centraldogma.common;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+/**
+ * The type of a {@link Change}.
+ */
 public enum ChangeType {
     /**
-     * Adds a new text file or replaces an existing file.
+     * Adds a new JSON file or replaces an existing file. {@link Change#content()} will return
+     * the {@link JsonNode} that represents the content of the file.
      */
     UPSERT_JSON(JsonNode.class),
 
     /**
-     * Adds a new text file or replaces an existing file.
+     * Adds a new text file or replaces an existing file. {@link Change#content()} will return
+     * the {@link String} that represents the content of the file.
      */
     UPSERT_TEXT(String.class),
 
@@ -47,8 +52,7 @@ public enum ChangeType {
 
     /**
      * Applies a textual patch to a text file. The {@link Change#content()} of this type is a
-     * <a href="https://www.gnu.org/software/diffutils/manual/html_node/Unified-Format.html">unified format
-     * string</a>.
+     * <a href="https://en.wikipedia.org/wiki/Diff_utility#Unified_format">unified format</a> string.
      */
     APPLY_TEXT_PATCH(String.class);
 
@@ -58,6 +62,9 @@ public enum ChangeType {
         this.contentType = contentType;
     }
 
+    /**
+     * Returns the type of the content returned by {@link Change#content()}.
+     */
     public Class<?> contentType() {
         return contentType;
     }

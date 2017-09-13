@@ -41,77 +41,149 @@ import com.linecorp.centraldogma.common.Query;
 import javassist.util.proxy.ProxyFactory;
 
 /**
- * Creates a new bean instance that synchronizes each values with CentralDogma.
+ * Creates a new bean instance that mirrors its properties from Central Dogma.
+ *
+ * <p>In the following example, {@code mirroredFoo.getA()} and {@code getB()} will return the latest known
+ * values retrieved from {@code /myProject/myRepo/foo.json} in Central Dogma:
+ *
+ * <pre>{@code
+ * > CentralDogmaFactory factory = new CentralDogmaFactory(dogma, new ObjectMapper());
+ * > Foo mirroredFoo = factory.get(new Foo(), Foo.class);
+ * >
+ * > @CentralDogmaBean(project = "myProject",
+ * >                   repository = "myRepo",
+ * >                   path = "/foo.json")
+ * > public class Foo {
+ * >     private int a;
+ * >     private String b;
+ * >
+ * >     public int getA() { return a; }
+ * >     public void setA(int a) { this.a = a; }
+ * >     public String getB() { return b; }
+ * >     public void setB(String b) { this.b = b; }
+ * > }
+ * }</pre>
  */
 @Named
 public class CentralDogmaBeanFactory {
+
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaBeanFactory.class);
 
     private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
     private static final Object[] EMPTY_ARGS = new Object[0];
 
-    private final CentralDogma centralDogma;
+    private final CentralDogma dogma;
     private final ObjectMapper objectMapper;
 
     /**
      * Creates a new factory instance.
      */
     @Inject
-    public CentralDogmaBeanFactory(CentralDogma centralDogma, ObjectMapper objectMapper) {
-        this.centralDogma = centralDogma;
-        this.objectMapper = objectMapper;
+    public CentralDogmaBeanFactory(CentralDogma dogma, ObjectMapper objectMapper) {
+        this.dogma = requireNonNull(dogma, "dogma");
+        this.objectMapper = requireNonNull(objectMapper, "objectMapper");
     }
 
     /**
-     * Create a new bean instance with {@code override} settings.
+     * Returns a newly-created bean instance with the settings specified by {@link CentralDogmaBean} annotation.
      *
-     * @param bean an instance of {@link T} which may be initialized its fields with default values.
-     * @param beanClass a {@link Class} instance which points a class used for deserializing value.
-     * @param override a {@link CentralDogmaBeanConfig} which can be used to override config supplied through
-     *                 annotation.
-     * @param initialValueTimeout when a value larger than zero given to this argument this method
-     *                            tries to wait the initial value to be fetched up to
-     *                            {@code initialValueTimeoutMillis} milliseconds.
-     * @param initialValueTimeoutUnit a {@link TimeUnit} which qualifies {@code initialValueTimeout}
-     * @param <T> a representation class of target parameters.
+     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param beanType the type of {@code bean}
      *
-     * @return an instance of {@link T} which has proxied getters for obtaining latest values configured on
-     *         Central Dogma server.
+     * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
+     */
+    public <T> T get(T bean, Class<T> beanType) {
+        return get(bean, beanType, CentralDogmaBeanConfig.EMPTY);
+    }
+
+    /**
+     * Returns a newly-created bean instance with some or all of its settings overridden.
      *
-     * @throws TimeoutException thrown when {@code initialValueTimeoutMillis} set to more than zero and it
-     *                          fails to obtain the initial value within configured timeout.
-     * @throws InterruptedException thrown when {@code initialValueTimeoutMillis} set to more than zero and it
-     *                              got interrupted while waiting initial value to be fetched.
+     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param beanType the type of {@code bean}
+     * @param overrides the {@link CentralDogmaBeanConfig} whose properties will override the settings
+     *                  specified by the {@link CentralDogmaBean} annotation
+     *
+     * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
+     */
+    public <T> T get(T bean, Class<T> beanType, CentralDogmaBeanConfig overrides) {
+        try {
+            return get(bean, beanType, overrides, 0L, TimeUnit.SECONDS);
+        } catch (InterruptedException | TimeoutException e) {
+            // when initialValueTimeoutMillis set to zero, this exception never happens in practice.
+            throw new RuntimeException("Error: unexpected exception caught", e);
+        }
+    }
+
+    /**
+     * Returns a newly-created bean instance with the settings specified by {@link CentralDogmaBean} annotation.
+     *
+     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param beanType the type of {@code bean}
+     * @param initialValueTimeout when a value larger than zero given to this argument, this method
+     *                            tries to wait for the initial value to be fetched until the timeout
+     * @param initialValueTimeoutUnit the {@link TimeUnit} of {@code initialValueTimeout}
+     *
+     * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
+     *
+     * @throws TimeoutException when {@code initialValueTimeoutMillis} is positive and
+     *                          it failed to obtain the initial value within configured timeout
+     * @throws InterruptedException when {@code initialValueTimeoutMillis} is positive and
+     *                              it got interrupted while waiting for the initial value
+     */
+    public <T> T get(T bean, Class<T> beanType, long initialValueTimeout, TimeUnit initialValueTimeoutUnit)
+            throws TimeoutException, InterruptedException {
+        return get(bean, beanType, CentralDogmaBeanConfig.EMPTY,
+                   initialValueTimeout, initialValueTimeoutUnit);
+    }
+
+    /**
+     * Returns a newly-created bean instance with some or all of its settings overridden.
+     *
+     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param beanType the type of {@code bean}
+     * @param overrides the {@link CentralDogmaBeanConfig} whose properties will override the settings
+     *                  specified by the {@link CentralDogmaBean} annotation
+     * @param initialValueTimeout when a value larger than zero given to this argument, this method
+     *                            tries to wait for the initial value to be fetched until the timeout
+     * @param initialValueTimeoutUnit the {@link TimeUnit} of {@code initialValueTimeout}
+     *
+     * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
+     *
+     * @throws TimeoutException when {@code initialValueTimeoutMillis} is positive and
+     *                          it failed to obtain the initial value within configured timeout
+     * @throws InterruptedException when {@code initialValueTimeoutMillis} is positive and
+     *                              it got interrupted while waiting for the initial value
      */
     @SuppressWarnings("unchecked")
-    public <T> T get(T bean, Class<T> beanClass, CentralDogmaBeanConfig override,
+    public <T> T get(T bean, Class<T> beanType, CentralDogmaBeanConfig overrides,
                      long initialValueTimeout, TimeUnit initialValueTimeoutUnit)
             throws TimeoutException, InterruptedException {
         requireNonNull(bean, "bean");
-        requireNonNull(beanClass, "beanClass");
-        requireNonNull(override, "override");
+        requireNonNull(beanType, "beanType");
+        requireNonNull(overrides, "overrides");
         requireNonNull(initialValueTimeoutUnit, "initialValueTimeoutUnit");
 
-        CentralDogmaBean centralDogmaBean = bean.getClass()
-                                                .getAnnotation(CentralDogmaBean.class);
+        final CentralDogmaBean centralDogmaBean = bean.getClass().getAnnotation(CentralDogmaBean.class);
         if (centralDogmaBean == null) {
             throw new IllegalArgumentException("missing CentralDogmaBean annotation");
         }
-        CentralDogmaBeanConfig settings = merge(convertToSettings(centralDogmaBean), override);
+
+        final CentralDogmaBeanConfig settings = merge(convertToSettings(centralDogmaBean), overrides);
         checkState(!isNullOrEmpty(settings.project().get()), "settings.projectName should non-null");
         checkState(!isNullOrEmpty(settings.repository().get()), "settings.repositoryName should non-null");
         checkState(!isNullOrEmpty(settings.path().get()), "settings.fileName should non-null");
 
-        final Watcher<T> watcher = centralDogma.fileWatcher(
+        final Watcher<T> watcher = dogma.fileWatcher(
                 settings.project().get(),
                 settings.repository().get(),
                 buildQuery(settings),
                 jsonNode -> {
                     try {
-                        return objectMapper.treeToValue(jsonNode, beanClass);
+                        return objectMapper.treeToValue(jsonNode, beanType);
                     } catch (JsonProcessingException e) {
                         throw new IllegalStateException(
-                                "Failed to convert a JSON node into: " + beanClass.getName(), e);
+                                "Failed to convert a JSON node into: " + beanType.getName(), e);
                     }
                 });
 
@@ -124,7 +196,7 @@ public class CentralDogmaBeanFactory {
         }
 
         final ProxyFactory factory = new ProxyFactory();
-        factory.setSuperclass(beanClass);
+        factory.setSuperclass(beanType);
         factory.setFilter(method -> {
             // Looks like getter method
             if (method.getParameterCount() == 0) {
@@ -133,66 +205,13 @@ public class CentralDogmaBeanFactory {
             // The property is bidirectional and the method looks like setter method
             return centralDogmaBean.bidirectional() && method.getParameterCount() == 1;
         });
+
         try {
             return (T) factory.create(EMPTY_TYPES, EMPTY_ARGS,
                                       new CentralDogmaBeanMethodHandler<>(watcher, bean));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    /**
-     * Create a new bean instance with {@code override} settings.
-     *
-     * @param bean an instance of {@link T} which may be initialized its fields with default values.
-     * @param beanClass a {@link Class} instance which points a class used for deserializing value.
-     * @param override a {@link CentralDogmaBeanConfig} which can be used to override config supplied through
-     *                 annotation.
-     * @param <T> a representation class of target parameters.
-     *
-     * @return an instance of {@link T} which has proxied getters for obtaining latest values configured on
-     *         Central Dogma server.
-     */
-    public <T> T get(T bean, Class<T> beanClass, CentralDogmaBeanConfig override) {
-        try {
-            return get(bean, beanClass, override, 0L, TimeUnit.SECONDS);
-        } catch (InterruptedException | TimeoutException e) {
-            // when initialValueTimeoutMillis set to zero, this exception never happens in practice.
-            throw new RuntimeException("Error: unexpected exception caught", e);
-        }
-    }
-
-    /**
-     * Create a new bean instance with default settings.
-     *
-     * @param bean an instance of {@link T} which may be initialized its fields with default values.
-     * @param beanClass a {@link Class} instance which points a class used for deserializing value.
-     *                  annotation.
-     * @param initialValueTimeout when a value larger than zero given to this argument this method
-     *                            tries to wait the initial value to be fetched up to
-     *                            {@code initialValueTimeoutMillis} milliseconds.
-     * @param initialValueTimeoutUnit a {@link TimeUnit} which qualifies {@code initialValueTimeout}
-     * @param <T> a representation class of target parameters.
-     *
-     * @return an instance of {@link T} which has proxied getters for obtaining latest values configured on
-     *         Central Dogma server.
-     *
-     * @throws TimeoutException thrown when {@code initialValueTimeoutMillis} set to more than zero and it
-     *                          fails to obtain the initial value within configured timeout.
-     * @throws InterruptedException thrown when {@code initialValueTimeoutMillis} set to more than zero and it
-     *                              got interrupted while waiting initial value to be fetched.
-     */
-    public <T> T get(T bean, Class<T> beanClass, long initialValueTimeout, TimeUnit initialValueTimeoutUnit)
-            throws TimeoutException, InterruptedException {
-        return get(bean, beanClass, CentralDogmaBeanConfig.DEFAULT,
-                   initialValueTimeout, initialValueTimeoutUnit);
-    }
-
-    /**
-     * Create a new bean instance with default settings.
-     */
-    public <T> T get(T property, Class<T> propertyClass) {
-        return get(property, propertyClass, CentralDogmaBeanConfig.DEFAULT);
     }
 
     private static CentralDogmaBeanConfig convertToSettings(CentralDogmaBean property) {
@@ -206,12 +225,12 @@ public class CentralDogmaBeanFactory {
 
     private static CentralDogmaBeanConfig merge(CentralDogmaBeanConfig defaultSettings,
                                                 CentralDogmaBeanConfig overridden) {
-        return new CentralDogmaBeanConfigBuilder(defaultSettings).add(overridden).build();
+        return new CentralDogmaBeanConfigBuilder(defaultSettings).merge(overridden).build();
     }
 
     private static Query<JsonNode> buildQuery(CentralDogmaBeanConfig config) {
         checkArgument(config.path().get().endsWith(".json"),
                       "path: %s (expected: ends with '.json')", config.path().get());
-        return Query.ofJsonPath(config.path().get(), config.jsonPath().get());
+        return Query.ofJsonPath(config.path().get(), config.jsonPath().orElse("$"));
     }
 }

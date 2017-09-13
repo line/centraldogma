@@ -31,7 +31,6 @@ import javax.annotation.Nullable;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.centraldogma.common.FindOption;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;

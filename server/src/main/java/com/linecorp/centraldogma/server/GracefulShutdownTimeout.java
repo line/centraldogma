@@ -18,10 +18,22 @@ package com.linecorp.centraldogma.server;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+/**
+ * Graceful shutdown timeout.
+ */
 public final class GracefulShutdownTimeout {
     private final long quietPeriodMillis;
     private final long timeoutMillis;
 
+    /**
+     * Creates a new instance.
+     *
+     * @param quietPeriodMillis the number of milliseconds to wait for active requests to go end before
+     *                          shutting down. {@code 0} means the server will stop right away without waiting.
+     * @param timeoutMillis the number of milliseconds to wait before shutting down the server regardless of
+     *                      active requests. This should be set to a time greater than {@code quietPeriodMillis}
+     *                      to ensure the server shuts down even if there is a stuck request.
+     */
     public GracefulShutdownTimeout(
             @JsonProperty(value = "quietPeriodMillis", required = true) long quietPeriodMillis,
             @JsonProperty(value = "timeoutMillis", required = true) long timeoutMillis) {
@@ -29,11 +41,17 @@ public final class GracefulShutdownTimeout {
         this.timeoutMillis = timeoutMillis;
     }
 
+    /**
+     * Returns the quiet period of graceful shutdown process, in milliseconds.
+     */
     @JsonProperty("quietPeriodMillis")
     public long quietPeriodMillis() {
         return quietPeriodMillis;
     }
 
+    /**
+     * Returns the timeout of graceful shutdown process, in milliseconds.
+     */
     @JsonProperty("timeoutMillis")
     public long timeoutMillis() {
         return timeoutMillis;

@@ -45,7 +45,6 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.FindOption;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
@@ -63,6 +62,7 @@ import com.linecorp.centraldogma.server.internal.admin.exception.BadRequestExcep
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**

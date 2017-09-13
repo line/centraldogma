@@ -6,37 +6,12 @@
     </encoder>
   </appender>
 
-  <appender name="RCEA" class="com.linecorp.armeria.common.logback.RequestContextExportingAppender">
-    <appender-ref ref="CONSOLE" />
-    <export>elapsed_nanos</export>
-    <export>local.host</export>
-    <export>local.port</export>
-    <export>remote.host</export>
-    <export>remote.port</export>
-    <export>req.authority</export>
-    <export>req.content_length</export>
-    <export>req.direction</export>
-    <export>req.method</export>
-    <export>req.path</export>
-    <export>req.rpc_method</export>
-    <export>req.rpc_params</export>
-    <export>res.content_length</export>
-    <export>res.rpc_result</export>
-    <export>res.status_code</export>
-    <export>scheme</export>
-    <export>tls.cipher</export>
-    <export>tls.proto</export>
-    <export>tls.session_id</export>
-    <export>req.http_headers.user-agent</export>
-    <export>req.http_headers.x-forwarded-for</export>
-  </appender>
-
   <logger name="com.linecorp" level="DEBUG" />
   <logger name="com.linecorp.centraldogma.server.internal.admin.logging.LoggingAspect" level="INFO" />
 
   <logger name="io.netty" level="INFO" />
 
   <root level="WARN">
-    <appender-ref ref="RCEA" />
+    <appender-ref ref="CONSOLE" />
   </root>
 </configuration>

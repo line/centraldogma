@@ -17,65 +17,84 @@ package com.linecorp.centraldogma.client.updater;
 
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 
+import java.util.Objects;
 import java.util.Optional;
 
 import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Strings;
 
 /**
- * Settings for mirroring properties with CentralDogma.
+ * Provides the necessary information to {@link CentralDogmaBeanFactory} so that the bean properties are
+ * mirrored from a file in Central Dogma.
+ *
+ * @see CentralDogmaBean
  */
 public final class CentralDogmaBeanConfig {
-    public static final CentralDogmaBeanConfig DEFAULT = new CentralDogmaBeanConfigBuilder()
-            .build();
+
+    static final CentralDogmaBeanConfig EMPTY = new CentralDogmaBeanConfigBuilder().build();
+
+    private final String project;
+    private final String repository;
+    private final String path;
+    private final String jsonPath;
 
     /**
-     *  Name of the project that properties synchronize with CentralDogma.
+     * Creates a new instance.
+     *
+     * @param project the Central Dogma project name
+     * @param repository the Central Dogma repository name
+     * @param path the path of the file in Central Dogma
+     * @param jsonPath the JSON path expression that will be evaluated when retrieving the file
      */
-    private final Optional<String> project;
-
-    /**
-     *  Name of the repository that properties synchronize with CentralDogma.
-     */
-    private final Optional<String> repository;
-
-    /**
-     * Name of the path synchronize with Central Dogma.
-     */
-    private final Optional<String> path;
-
-    /**
-     * A JSONPath expression that will be executed when retriving the data from Central Dogma.
-     */
-    private final Optional<String> jsonPath;
-
     public CentralDogmaBeanConfig(@Nullable String project, @Nullable String repository,
                                   @Nullable String path, @Nullable String jsonPath) {
-        this.project = Optional.ofNullable(project);
-        this.repository = Optional.ofNullable(repository);
-        this.path = Optional.ofNullable(path);
-        this.jsonPath = Optional.ofNullable(jsonPath);
 
-        if (path != null) {
-            validateFilePath(path, "path");
+        this.project = Strings.emptyToNull(project);
+        this.repository = Strings.emptyToNull(repository);
+        this.path = Strings.emptyToNull(path);
+        this.jsonPath = Strings.emptyToNull(jsonPath);
+
+        if (this.path != null) {
+            validateFilePath(this.path, "path");
         }
     }
 
+    /**
+     * Returns the Central Dogma project name.
+     *
+     * @return {@link Optional#empty()} if the project name is unspecified
+     */
     public Optional<String> project() {
-        return project;
+        return Optional.ofNullable(project);
     }
 
+    /**
+     * Returns the Central Dogma repository name.
+     *
+     * @return {@link Optional#empty()} if the repository name is unspecified
+     */
     public Optional<String> repository() {
-        return repository;
+        return Optional.ofNullable(repository);
     }
 
+    /**
+     * Returns the path of the file in Central Dogma.
+     *
+     * @return {@link Optional#empty()} if the path is unspecified
+     */
     public Optional<String> path() {
-        return path;
+        return Optional.ofNullable(path);
     }
 
+    /**
+     * Returns the JSON path expression that will be evaluated when retrieving the file.
+     *
+     * @return {@link Optional#empty()} if the JSON path expression is unspecified
+     */
     public Optional<String> jsonPath() {
-        return jsonPath;
+        return Optional.ofNullable(jsonPath);
     }
 
     @Override
@@ -87,25 +106,24 @@ public final class CentralDogmaBeanConfig {
             return false;
         }
         final CentralDogmaBeanConfig other = (CentralDogmaBeanConfig) o;
-        return project.equals(other.project) &&
-               repository.equals(other.repository) &&
-               path.equals(other.path) &&
-               jsonPath.equals(other.jsonPath);
+        return Objects.equals(project, other.project) &&
+               Objects.equals(repository, other.repository) &&
+               Objects.equals(path, other.path) &&
+               Objects.equals(jsonPath, other.jsonPath);
     }
 
     @Override
     public int hashCode() {
-        return project.hashCode() * 31 + repository.hashCode() * 31 + path.hashCode() * 31 + jsonPath
-                .hashCode();
+        return Objects.hash(project, repository, path, jsonPath);
     }
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-                          .add("project", project.get())
-                          .add("repository", repository.get())
-                          .add("path", path.get())
-                          .add("jsonPath", jsonPath.get())
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("project", project)
+                          .add("repository", repository)
+                          .add("path", path)
+                          .add("jsonPath", jsonPath)
                           .toString();
     }
 }

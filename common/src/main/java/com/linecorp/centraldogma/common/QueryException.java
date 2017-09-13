@@ -17,23 +17,44 @@
 package com.linecorp.centraldogma.common;
 
 /**
- * An exception that is thrown when the syntax validation or the evaluation of a {@link Query} has failed.
+ * A {@link RuntimeException} that is raised when the syntax validation or the evaluation of a {@link Query}
+ * has failed.
  */
 public class QueryException extends RuntimeException {
 
     private static final long serialVersionUID = -432784402820790354L;
 
+    /**
+     * Creates a new instance.
+     */
     public QueryException() {}
 
+    /**
+     * Creates a new instance.
+     */
     public QueryException(String message) {
         super(message);
     }
 
+    /**
+     * Creates a new instance.
+     */
     public QueryException(String message, Throwable cause) {
         super(message, cause);
     }
 
+    /**
+     * Creates a new instance.
+     */
     public QueryException(Throwable cause) {
         super(cause);
+    }
+
+    /**
+     * Creates a new instance.
+     */
+    protected QueryException(String message, Throwable cause, boolean enableSuppression,
+                             boolean writableStackTrace) {
+        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

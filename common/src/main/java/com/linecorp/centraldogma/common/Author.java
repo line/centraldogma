@@ -23,19 +23,39 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.linecorp.centraldogma.internal.Util;
 
+/**
+ * An author of a {@link Commit}.
+ */
 public class Author {
 
+    /**
+     * The system author.
+     */
     public static final Author SYSTEM = new Author("System", "system@localhost.localdomain");
+
+    /**
+     * The default author which is used when security is disabled.
+     */
     public static final Author DEFAULT = new Author("User", "user@localhost.localdomain");
+
+    /**
+     * An unknown author.
+     */
     public static final Author UNKNOWN = new Author("Unknown", "nobody@no.where");
 
     private final String name;
     private final String email;
 
+    /**
+     * Creates a new instance with the specified e-mail address.
+     */
     public Author(String email) {
         this(email, email);
     }
 
+    /**
+     * Creates a new instance with the specified name and e-mail address.
+     */
     @JsonCreator
     public Author(@JsonProperty("name") String name,
                   @JsonProperty("email") String email) {
@@ -44,11 +64,17 @@ public class Author {
         this.email = Util.validateEmailAddress(email, "email");
     }
 
+    /**
+     * Returns the name of the author.
+     */
     @JsonProperty
     public String name() {
         return name;
     }
 
+    /**
+     * Returns the e-mail address of the author.
+     */
     @JsonProperty
     public String email() {
         return email;

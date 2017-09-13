@@ -19,57 +19,87 @@ package com.linecorp.centraldogma.client.updater;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
 
-public class CentralDogmaBeanConfigBuilder {
+import com.google.common.base.Strings;
+
+/**
+ * Builds a {@link CentralDogmaBeanConfig}.
+ */
+public final class CentralDogmaBeanConfigBuilder {
+
     private String project;
     private String repository;
     private String path;
-    private String jsonPath = "$";
+    private String jsonPath;
 
-    public CentralDogmaBeanConfigBuilder() {
-    }
+    /**
+     * Creates a new builder whose all properties are unspecified.
+     */
+    public CentralDogmaBeanConfigBuilder() {}
 
+    /**
+     * Creates a new builder from an existing {@link CentralDogmaBeanConfig}. This method is a shortcut of
+     * {@code new CentralDogmaBeanConfigBuilder().merge(config)}
+     */
     public CentralDogmaBeanConfigBuilder(CentralDogmaBeanConfig config) {
-        project = config.project().get();
-        repository = config.repository().get();
-        path = config.path().get();
-        jsonPath = config.jsonPath().get();
+        merge(config);
     }
 
+    /**
+     * Creates a new builder from the properties of a {@link CentralDogmaBean} annotation.
+     */
     public CentralDogmaBeanConfigBuilder(CentralDogmaBean config) {
-        project = config.project();
-        repository = config.repository();
-        path = config.path();
-        jsonPath = config.jsonPath();
+        project = Strings.emptyToNull(config.project());
+        repository = Strings.emptyToNull(config.repository());
+        path = Strings.emptyToNull(config.path());
+        jsonPath = Strings.emptyToNull(config.jsonPath());
     }
 
-    public CentralDogmaBeanConfigBuilder add(CentralDogmaBeanConfig config) {
-        project(config.project().orElse(project));
-        repository(config.repository().orElse(repository));
-        path(config.path().orElse(path));
-        jsonPath(config.jsonPath().orElse(jsonPath));
+    /**
+     * Merges the properties of the specified {@link CentralDogmaBeanConfig} into this builder.
+     */
+    public CentralDogmaBeanConfigBuilder merge(CentralDogmaBeanConfig config) {
+        config.project().ifPresent(this::project);
+        config.repository().ifPresent(this::repository);
+        config.path().ifPresent(this::path);
+        config.jsonPath().ifPresent(this::jsonPath);
         return this;
     }
 
+    /**
+     * Sets the Central Dogma project name.
+     */
     public CentralDogmaBeanConfigBuilder project(String project) {
         this.project = requireNonNull(project, "project");
         return this;
     }
 
+    /**
+     * Sets the Central Dogma repository name.
+     */
     public CentralDogmaBeanConfigBuilder repository(String repository) {
         this.repository = requireNonNull(repository, "repository");
         return this;
     }
 
+    /**
+     * Sets the path of the file in Central Dogma.
+     */
     public CentralDogmaBeanConfigBuilder path(String path) {
         this.path = validateFilePath(path, "path");
         return this;
     }
 
+    /**
+     * Sets the JSON path expression that will be evaluated when retrieving the file.
+     */
     public CentralDogmaBeanConfigBuilder jsonPath(String jsonPath) {
         this.jsonPath = requireNonNull(jsonPath, "jsonPath");
         return this;
     }
 
+    /**
+     * Returns a newly-created {@link CentralDogmaBeanConfig}.
+     */
     public CentralDogmaBeanConfig build() {
         return new CentralDogmaBeanConfig(project, repository, path, jsonPath);
     }

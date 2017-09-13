@@ -249,8 +249,6 @@ configure(javaProjects) {
 
     // Enforce checkstyle rules.
     checkstyle {
-        // FIXME(trustin): Unignore failures after fixing all violations.
-        ignoreFailures = true
         def checkstyleConfigDir = "${rootProject.projectDir}/settings/checkstyle"
         configFile = project.file("${checkstyleConfigDir}/checkstyle.xml")
         configProperties = [ 'checkstyleConfigDir': "$checkstyleConfigDir" ]

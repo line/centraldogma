@@ -32,16 +32,17 @@ import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.AuthenticationInfo;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.UsernamePasswordToken;
+import org.apache.shiro.realm.Realm;
 import org.apache.shiro.realm.activedirectory.ActiveDirectoryRealm;
 import org.apache.shiro.realm.ldap.LdapContextFactory;
 import org.apache.shiro.realm.ldap.LdapUtils;
 
 /**
- * A realm for Apache Shiro. This realm binds to the active directory LDAP server first with
- * the system username and password, then searches a distinguished name(DN) of a user. After that,
- * it binds to the active directory LDAP server again with the searched DN and the user password
- * to authenticate the user. The INI configuration might be specified as follows:
+ * A variant of {@link ActiveDirectoryRealm} that binds first with the privileged credential to search for
+ * the DN of a user from a username before the actual authentication. This {@link Realm} is useful when
+ * there is no simple rule to convert a username into a DN.
  *
+ * <p>The INI configuration might be specified as follows:
  * <pre>{@code
  * [main]
  * adRealm = com.linecorp.centraldogma.server.support.shiro.SearchFirstActiveDirectoryRealm

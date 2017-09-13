@@ -17,9 +17,21 @@ package com.linecorp.centraldogma.common;
 
 import com.google.common.base.Ascii;
 
+/**
+ * The markup language of a {@link Commit} message.
+ */
 public enum Markup {
+    /**
+     * Unknown markup language.
+     */
     UNKNOWN,
+    /**
+     * Plaintext.
+     */
     PLAINTEXT,
+    /**
+     * Markdown.
+     */
     MARKDOWN;
 
     private final String nameLowercased;
@@ -28,6 +40,9 @@ public enum Markup {
         nameLowercased = Ascii.toLowerCase(name());
     }
 
+    /**
+     * Returns the lower-cased name.
+     */
     public String nameLowercased() {
         return nameLowercased;
     }

@@ -25,8 +25,8 @@ import java.util.concurrent.CompletableFuture;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Entry;
-import com.linecorp.centraldogma.common.FindOption;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 final class CacheableFindCall extends CacheableCall<Map<String, Entry<?>>> {

@@ -22,20 +22,32 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Commit;
 
+/**
+ * An immutable holder of repository information.
+ */
 public final class RepositoryInfo {
 
     private final String name;
     private final Commit lastCommit;
 
+    /**
+     * Creates a new instance with the specified repository name and the last {@link Commit} of the repository.
+     */
     public RepositoryInfo(String name, Commit lastCommit) {
         this.name = requireNonNull(name, "name");
         this.lastCommit = requireNonNull(lastCommit, "lastCommit");
     }
 
+    /**
+     * Returns the name of the repository.
+     */
     public String name() {
         return name;
     }
 
+    /**
+     * Returns the last {@link Commit} of the repository.
+     */
     public Commit lastCommit() {
         return lastCommit;
     }

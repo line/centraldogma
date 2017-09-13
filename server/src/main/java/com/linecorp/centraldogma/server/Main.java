@@ -17,7 +17,6 @@ package com.linecorp.centraldogma.server;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Optional;
 
 import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
@@ -30,8 +29,9 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.FileConverter;
 
-import com.linecorp.armeria.server.ServerPort;
-
+/**
+ * Entry point of a standalone server. Use {@link CentralDogmaBuilder} to embed a server.
+ */
 public final class Main implements Daemon {
 
     enum State {
@@ -56,8 +56,6 @@ public final class Main implements Daemon {
             new File(System.getProperty("user.dir", ".") +
                      File.separatorChar + "conf" +
                      File.separatorChar + "security.ini");
-
-    private static Main current;
 
     @Parameter(names = "-config", description = "The path to the config file", converter = FileConverter.class)
     private File configFile;
@@ -95,7 +93,6 @@ public final class Main implements Daemon {
             return;
         }
 
-        current = this;
         state = State.INITIALIZED;
     }
 
@@ -174,22 +171,6 @@ public final class Main implements Daemon {
         // Nothing to do at the moment.
 
         state = State.DESTROYED;
-    }
-
-    public static Main current() {
-        if (current == null) {
-            throw new IllegalStateException("Current main is null.");
-        }
-
-        return current;
-    }
-
-    public Optional<ServerPort> activePort() {
-        if (dogma == null) {
-            return Optional.empty();
-        }
-
-        return dogma.activePort();
     }
 
     /**

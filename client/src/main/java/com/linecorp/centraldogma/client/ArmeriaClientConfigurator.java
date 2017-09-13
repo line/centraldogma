@@ -17,19 +17,26 @@
 package com.linecorp.centraldogma.client;
 
 import com.linecorp.armeria.client.ClientBuilder;
-import com.linecorp.armeria.client.ClientFactory;
-import com.linecorp.armeria.client.metric.MetricCollectingClient;
 
 /**
- * Interface used to configure a default armeria client. Can be used to register
- * arbitrary client decorators.
+ * Configures the underlying <a href="https://line.github.io/armeria/">Armeria</a> client of
+ * {@link CentralDogma}. Can be used to register arbitrary client decorators. e.g.
+ *
+ * <pre>{@code
+ * CentralDogmaBuilder builder = new CentralDogmaBuilder();
+ * builder.clientConfigurator(cb -> {
+ *     // Collect the client-side metrics under the meter name 'dogma.client'
+ *     cb.decorator(HttpRequest.class, HttpResponse.class,
+ *                  MetricCollectingClient.newDecorator(
+ *                          MeterIdFunction.ofDefault("dogma.client")));
+ * });
+ * ...
+ * }</pre>
  */
 @FunctionalInterface
 public interface ArmeriaClientConfigurator {
     /**
-     * Configures the client using the specified {@link ClientBuilder}. Note that there's
-     * no need to set {@link ClientFactory} or to add a {@link MetricCollectingClient};
-     * they are set and added automatically.
+     * Configures the client using the specified {@link ClientBuilder}.
      */
     void configure(ClientBuilder cb);
 }

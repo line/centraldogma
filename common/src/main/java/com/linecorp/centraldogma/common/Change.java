@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -43,14 +45,31 @@ import com.linecorp.centraldogma.internal.jsonpatch.diff.JsonDiff;
 import difflib.DiffUtils;
 import difflib.Patch;
 
+/**
+ * A modification of an individual {@link Entry}.
+ */
 @JsonDeserialize(as = DefaultChange.class)
 public interface Change<T> {
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_TEXT}.
+     *
+     * @param path the path of the file
+     * @param text the content of the file
+     */
     static Change<String> ofTextUpsert(String path, String text) {
         requireNonNull(text, "text");
         return new DefaultChange<>(path, ChangeType.UPSERT_TEXT, text);
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_JSON}.
+     *
+     * @param path the path of the file
+     * @param jsonText the content of the file
+     *
+     * @throws ChangeFormatException if the specified {@code jsonText} is not a valid JSON
+     */
     static Change<JsonNode> ofJsonUpsert(String path, String jsonText) {
         requireNonNull(jsonText, "jsonText");
 
@@ -64,21 +83,45 @@ public interface Change<T> {
         return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_JSON}.
+     *
+     * @param path the path of the file
+     * @param jsonNode the content of the file
+     */
     static Change<JsonNode> ofJsonUpsert(String path, JsonNode jsonNode) {
         requireNonNull(jsonNode, "jsonNode");
         return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#REMOVE}.
+     *
+     * @param path the path of the file to remove
+     */
     static Change<Void> ofRemoval(String path) {
         return new DefaultChange<>(path, ChangeType.REMOVE, null);
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#RENAME}.
+     *
+     * @param oldPath the old path of the file
+     * @param newPath the new path of the file
+     */
     static Change<String> ofRename(String oldPath, String newPath) {
         validateFilePath(oldPath, "oldPath");
         validateFilePath(newPath, "newPath");
         return new DefaultChange<>(oldPath, ChangeType.RENAME, newPath);
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_TEXT_PATCH}.
+     *
+     * @param path the path of the file
+     * @param oldText the old content of the file
+     * @param newText the new content of the file
+     */
     static Change<String> ofTextPatch(String path, String oldText, String newText) {
         validateFilePath(path, "path");
         requireNonNull(newText, "newText");
@@ -93,6 +136,13 @@ public interface Change<T> {
         return new DefaultChange<>(path, ChangeType.APPLY_TEXT_PATCH, String.join("\n", unifiedDiff));
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_TEXT_PATCH}.
+     *
+     * @param path the path of the file
+     * @param textPatch the patch in
+     *                  <a href="https://en.wikipedia.org/wiki/Diff_utility#Unified_format">unified format</a>
+     */
     static Change<String> ofTextPatch(String path, String textPatch) {
         validateFilePath(path, "path");
         requireNonNull(textPatch, "textPatch");
@@ -100,6 +150,16 @@ public interface Change<T> {
         return new DefaultChange<>(path, ChangeType.APPLY_TEXT_PATCH, textPatch);
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     *
+     * @param path the path of the file
+     * @param oldJsonText the old content of the file
+     * @param newJsonText the new content of the file
+     *
+     * @throws ChangeFormatException if the specified {@code oldJsonText} or {@code newJsonText} is
+     *                               not a valid JSON
+     */
     static Change<JsonNode> ofJsonPatch(String path, String oldJsonText, String newJsonText) {
 
         validateFilePath(path, "path");
@@ -119,6 +179,13 @@ public interface Change<T> {
                                                                                       ReplaceMode.SAFE));
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     *
+     * @param path the path of the file
+     * @param oldJsonNode the old content of the file
+     * @param newJsonNode the new content of the file
+     */
     static Change<JsonNode> ofJsonPatch(String path, JsonNode oldJsonNode, JsonNode newJsonNode) {
         validateFilePath(path, "path");
         requireNonNull(newJsonNode, "newJsonNode");
@@ -131,6 +198,14 @@ public interface Change<T> {
                                                                                       ReplaceMode.SAFE));
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     *
+     * @param path the path of the file
+     * @param jsonPatchText the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     *
+     * @throws ChangeFormatException if the specified {@code jsonPatchText} is not a valid JSON
+     */
     static Change<JsonNode> ofJsonPatch(String path, String jsonPatchText) {
         requireNonNull(jsonPatchText, "jsonPatchText");
 
@@ -144,6 +219,12 @@ public interface Change<T> {
         return ofJsonPatch(path, jsonPatchNode);
     }
 
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_JSON_PATCH}.
+     *
+     * @param path the path of the file
+     * @param jsonPatchNode the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     */
     static Change<JsonNode> ofJsonPatch(String path, JsonNode jsonPatchNode) {
         validateFilePath(path, "path");
         requireNonNull(jsonPatchNode, "jsonPatchNode");
@@ -225,14 +306,28 @@ public interface Change<T> {
         }
     }
 
+    /**
+     * Returns the type of the {@link Change}.
+     */
     @JsonProperty
     ChangeType type();
 
+    /**
+     * Returns the path of the {@link Change}.
+     */
     @JsonProperty
     String path();
 
+    /**
+     * Returns the content of the {@link Change}, which depends on the {@link #type()}.
+     */
+    @Nullable
     @JsonProperty
     T content();
 
+    /**
+     * Returns the textual representation of {@link #content()}.
+     */
+    @Nullable
     String contentAsText();
 }

@@ -5,5 +5,4 @@ managedDependencies {
     compile 'junit:junit'
     compile 'org.assertj:assertj-core'
     compile 'net.javacrumbs.json-unit:json-unit-fluent'
-    runtime 'com.linecorp.armeria:armeria-logback-shaded'
 }
