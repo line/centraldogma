@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.testing;
 
 import java.net.InetSocketAddress;
 
+import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 import com.linecorp.armeria.common.SessionProtocol;
@@ -29,6 +30,23 @@ import com.linecorp.centraldogma.server.MirroringService;
 
 import io.netty.util.NetUtil;
 
+/**
+ * JUnit {@link Rule} that starts an embedded {@link com.linecorp.centraldogma.server.CentralDogma} server.
+ *
+ * <pre>{@code
+ * > public class MyTest {
+ * >     @ClassRule
+ * >     public final CentralDogmaRule rule = new CentralDogmaRule();
+ * >
+ * >     @Test
+ * >     public void test() throws Exception {
+ * >         CentralDogma dogma = rule.client();
+ * >         dogma.push(...).join();
+ * >         ...
+ * >     }
+ * > }
+ * }</pre>
+ */
 public class CentralDogmaRule extends TemporaryFolder {
 
     private static final ServerPort TEST_PORT =
@@ -37,32 +55,55 @@ public class CentralDogmaRule extends TemporaryFolder {
     private com.linecorp.centraldogma.server.CentralDogma dogma;
     private CentralDogma client;
 
-    public com.linecorp.centraldogma.server.CentralDogma dogma() {
+    /**
+     * Returns the server.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public final com.linecorp.centraldogma.server.CentralDogma dogma() {
         if (dogma == null) {
             throw new IllegalStateException("Central Dogma not available");
         }
         return dogma;
     }
 
-    public MirroringService mirroringService() {
+    /**
+     * Returns the {@link MirroringService} of the server.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public final MirroringService mirroringService() {
         return dogma().mirroringService().get();
     }
 
-    public CentralDogma client() {
+    /**
+     * Returns the client.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public final CentralDogma client() {
         if (client == null) {
             throw new IllegalStateException("Central Dogma client not available");
         }
         return client;
     }
 
+    /**
+     * Starts an embedded server with {@link #start()} and calls {@link #scaffold(CentralDogma)}.
+     */
     @Override
-    protected void before() throws Throwable {
+    protected final void before() throws Throwable {
         super.before();
         start();
         scaffold(client);
     }
 
-    public void start() {
+    /**
+     * Creates a new server, configures it with {@link #configure(CentralDogmaBuilder)} and starts the server.
+     * Note that you don't need to call this method if you did not stop the server with {@link #stop()},
+     * because the server is automatically started up by JUnit.
+     */
+    public final void start() {
         final CentralDogmaBuilder builder = new CentralDogmaBuilder(getRoot())
                 .port(TEST_PORT)
                 .webAppEnabled(false)
@@ -87,16 +128,30 @@ public class CentralDogmaRule extends TemporaryFolder {
         client = CentralDogma.newClient("tbinary+http://" + host + "/cd/thrift/v1");
     }
 
+    /**
+     * Override this method to configure the server.
+     */
     protected void configure(CentralDogmaBuilder builder) {}
 
+    /**
+     * Override this method to perform the initial updates on the server, such as creating a repository and
+     * populating sample data.
+     */
     protected void scaffold(CentralDogma client) {}
 
+    /**
+     * Stops the server and deletes the temporary files created by the server.
+     */
     @Override
-    protected void after() {
+    protected final void after() {
         stop();
     }
 
-    public void stop() {
+    /**
+     * Stops the server and deletes the temporary files created by the server. Note that you don't usually need
+     * to call this method manually because the server is automatically stopped at the end by JUnit.
+     */
+    public final void stop() {
         final com.linecorp.centraldogma.server.CentralDogma dogma = this.dogma;
         this.dogma = null;
         client = null;

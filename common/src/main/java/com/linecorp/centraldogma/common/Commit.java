@@ -24,6 +24,9 @@ import com.fasterxml.jackson.databind.util.ISO8601Utils;
 
 import com.linecorp.centraldogma.internal.Util;
 
+/**
+ * A set of {@link Change}s and its metadata.
+ */
 public class Commit {
 
     private final Revision revision;
@@ -34,10 +37,30 @@ public class Commit {
     private final Markup markup;
     private String whenAsText;
 
+    /**
+     * Creates a new instance. The time and date of the new {@link Commit} is set to the current time and date.
+     *
+     * @param revision the {@link Revision} of this {@link Commit}
+     * @param author the {@link Author} of this {@link Commit}
+     * @param summary the human-readable summary of this {@link Commit}
+     * @param detail the human-readable detailed description of this {@link Commit}
+     * @param markup the {@link Markup} language of {@code summary} and {@code detail}
+     */
     public Commit(Revision revision, Author author, String summary, String detail, Markup markup) {
         this(revision, author, System.currentTimeMillis(), summary, detail, markup);
     }
 
+    /**
+     * Creates a new instance.
+     *
+     * @param revision the {@link Revision} of this {@link Commit}
+     * @param author the {@link Author} of this {@link Commit}
+     * @param when the time and date of this {@link Commit},
+     *             represented as the number of milliseconds since the epoch (midnight, January 1, 1970 UTC)
+     * @param summary the human-readable summary of this {@link Commit}
+     * @param detail the human-readable detailed description of this {@link Commit}
+     * @param markup the {@link Markup} language of {@code summary} and {@code detail}
+     */
     public Commit(Revision revision, Author author, long when, String summary, String detail, Markup markup) {
         this.revision = requireNonNull(revision, "revision");
         this.author = requireNonNull(author, "author");
@@ -47,12 +70,15 @@ public class Commit {
         this.when = when / 1000L * 1000L; // Drop the milliseconds
     }
 
+    /**
+     * Returns the {@link Revision} of this {@link Commit}.
+     */
     public Revision revision() {
         return revision;
     }
 
     /**
-     * Returns the time and date of the commit.
+     * Returns the time and date of this {@link Commit}.
      *
      * @return the number of milliseconds since the epoch (midnight, January 1, 1970 UTC)
      */
@@ -61,7 +87,9 @@ public class Commit {
     }
 
     /**
-     * Returns the time and date of the commit as an ISO8601-formatted text.
+     * Returns the time and date of this {@link Commit} in
+     * <a href="https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations">ISO 8601
+     * combined date and time representation</a>.
      */
     public String whenAsText() {
         if (whenAsText == null) {
@@ -70,18 +98,30 @@ public class Commit {
         return whenAsText;
     }
 
+    /**
+     * Returns the {@link Author} of this {@link Commit}.
+     */
     public Author author() {
         return author;
     }
 
+    /**
+     * Returns the human-readable summary of this {@link Commit}.
+     */
     public String summary() {
         return summary;
     }
 
+    /**
+     * Returns the human-readable detailed description of this {@link Commit}.
+     */
     public String detail() {
         return detail;
     }
 
+    /**
+     * Returns the {@link Markup} language of {@link #summary()} and {@link #detail()}.
+     */
     public Markup markup() {
         return markup;
     }

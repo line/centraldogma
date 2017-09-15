@@ -27,23 +27,53 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.linecorp.centraldogma.internal.Util;
 
+/**
+ * A revision number of a {@link Commit}.
+ *
+ * <p>A revision number is an integer which refers to a specific point of repository history.
+ * When a repository is created, it starts with an initial commit whose revision is {@code 1}.
+ * As new commits are added, each commit gets its own revision number, monotonically increasing from the
+ * previous commit's revision. i.e. 1, 2, 3, ...
+ *
+ * <p>A revision number can also be represented as a negative integer. When a revision number is negative,
+ * we start from {@code -1} which refers to the latest commit in repository history, which is often called
+ * 'HEAD' of the repository. A smaller revision number refers to the older commit. e.g. -2 refers to the
+ * commit before the latest commit, and so on.
+ *
+ * <p>A revision with a negative integer is called 'relative revision'. By contrast, a revision with
+ * a positive integer is called 'absolute revision'.
+ */
 public class Revision implements Comparable<Revision> {
 
     private static final Pattern REVISION_PATTERN = Pattern.compile("^(-?[0-9]+)(?:\\.([0-9]+))?$");
 
-    // Use integer negative to init revision number as the relative revision.
+    /**
+     * Revision {@code -1}, also known as 'HEAD'.
+     */
     public static final Revision HEAD = new Revision(-1);
 
+    /**
+     * Revision {@code 1}, also known as 'INIT'.
+     */
     public static final Revision INIT = new Revision(1);
 
     private final int major;
     private final int minor;
     private final String text;
 
+    /**
+     * Creates a new instance with the specified revision number.
+     */
     public Revision(int major) {
         this(major, 0);
     }
 
+    /**
+     * Creates a new instance.
+     *
+     * @deprecated Use {@link #Revision(int)} instead. Minor revisions are not used anymore.
+     */
+    @Deprecated
     @JsonCreator
     public Revision(@JsonProperty("major") int major,
                     @JsonProperty(value = "minor", defaultValue = "0") int minor) {
@@ -58,9 +88,7 @@ public class Revision implements Comparable<Revision> {
     }
 
     /**
-     * Create a new Revision object from a string representation (major.minor).
-     *
-     * @param revisionStr string representation of a revision
+     * Create a new instance from a string representation. e.g. {@code "42", "-1"}
      */
     public Revision(String revisionStr) {
         requireNonNull(revisionStr, "revisionStr");
@@ -87,24 +115,47 @@ public class Revision implements Comparable<Revision> {
         text = generateText(major, minor);
     }
 
+    /**
+     * Returns the revision number.
+     */
     @JsonProperty
     public int major() {
         return major;
     }
 
+    /**
+     * Returns the minor revision number.
+     *
+     * @deprecated Do not use. Minor revisions are not used anymore.
+     */
+    @Deprecated
     @JsonProperty
     public int minor() {
         return minor;
     }
 
+    /**
+     * Returns the textual representation of the revision. e.g. {@code "42", "-1"}.
+     */
     public String text() {
         return text;
     }
 
+    /**
+     * Returns whether the minor revision is zero.
+     *
+     * @deprecated Do not use. Minor revisions are not used anymore.
+     */
+    @Deprecated
     public boolean onMainLane() {
         return minor() == 0;
     }
 
+    /**
+     * Returns a new {@link Revision} whose revision number is earlier than this {@link Revision}.
+     *
+     * @param count the number of commits to go backward
+     */
     public Revision backward(int count) {
         if (count == 0) {
             return this;
@@ -132,6 +183,11 @@ public class Revision implements Comparable<Revision> {
         }
     }
 
+    /**
+     * Returns a new {@link Revision} whose revision number is later than this {@link Revision}.
+     *
+     * @param count the number of commits to go forward
+     */
     public Revision forward(int count) {
         if (count == 0) {
             return this;
@@ -204,14 +260,7 @@ public class Revision implements Comparable<Revision> {
             return 1;
         }
 
-        if (minor < o.minor()) {
-            return -1;
-        }
-        if (minor > o.minor()) {
-            return 1;
-        }
-
-        return 0;
+        return Integer.compare(minor, o.minor());
     }
 
     boolean isMajorRelative() {
@@ -222,6 +271,9 @@ public class Revision implements Comparable<Revision> {
         return minor < 0;
     }
 
+    /**
+     * Returns whether this {@link Revision} is relative.
+     */
     @JsonIgnore
     public boolean isRelative() {
         return isMajorRelative() || isMinorRelative();

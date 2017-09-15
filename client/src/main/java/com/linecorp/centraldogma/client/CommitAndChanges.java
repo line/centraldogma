@@ -26,19 +26,32 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 
-public class CommitAndChanges<T> {
+/**
+ * An immutable holder of a {@link Commit} and its {@link Change}s.
+ */
+public final class CommitAndChanges<T> {
+
     private final Commit commit;
     private final List<Change<T>> changes;
 
+    /**
+     * Creates a new instance with the specified {@link Commit} and {@link Change}s.
+     */
     public CommitAndChanges(Commit commit, Iterable<? extends Change<T>> changes) {
         this.commit = requireNonNull(commit, "commit");
         this.changes = ImmutableList.copyOf(requireNonNull(changes, "changes"));
     }
 
+    /**
+     * Returns the {@link Commit}.
+     */
     public Commit commit() {
         return commit;
     }
 
+    /**
+     * Returns the {@link Change}s.
+     */
     public List<Change<T>> changes() {
         return changes;
     }

@@ -20,8 +20,18 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
+/**
+ * The type of a {@link Query}.
+ */
 public enum QueryType {
+    /**
+     * Retrieves the content as it is.
+     */
     IDENTITY(EnumSet.of(EntryType.TEXT, EntryType.JSON)),
+    /**
+     * Applies a series of <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path
+     * expressions</a> to the content.
+     */
     JSON_PATH(EnumSet.of(EntryType.JSON));
 
     private final Set<EntryType> supportedEntryTypes;
@@ -30,6 +40,9 @@ public enum QueryType {
         this.supportedEntryTypes = Collections.unmodifiableSet(supportedEntryTypes);
     }
 
+    /**
+     * Returns the {@link Set} of {@link EntryType}s supported by this {@link QueryType}.
+     */
     public Set<EntryType> supportedEntryTypes() {
         return supportedEntryTypes;
     }

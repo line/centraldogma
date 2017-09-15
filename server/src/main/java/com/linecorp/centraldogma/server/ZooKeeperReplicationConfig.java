@@ -26,6 +26,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
+
+/**
+ * ZooKeeper-based replication configuration.
+ */
 public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
     private final String replicaId;
@@ -36,10 +41,31 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     private final int maxLogCount;
     private final long minLogAgeMillis;
 
+    /**
+     * Creates a new replication configuration.
+     *
+     * @param replicaId the unique and unchanging ID of the replica. e.g. UUID or unique hostname
+     * @param connectionString the ZooKeeper connection string.
+     *                         e.g. {@code "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181"}
+     * @param pathPrefix the ZooKeeper path prefix. e.g. {@code "/service/dogma"}
+     */
     public ZooKeeperReplicationConfig(String replicaId, String connectionString, String pathPrefix) {
         this(replicaId, connectionString, pathPrefix, null, null, null, null);
     }
 
+    /**
+     * Creates a new replication configuration.
+     *
+     * @param replicaId the unique and unchanging ID of the replica. e.g. UUID or unique hostname
+     * @param connectionString the ZooKeeper connection string.
+     *                         e.g. {@code "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181"}
+     * @param pathPrefix the ZooKeeper path prefix. e.g. {@code "/service/dogma"}
+     * @param timeoutMillis the ZooKeeper timeout, in milliseconds
+     * @param numWorkers the number of worker threads dedicated for replication
+     * @param maxLogCount the maximum number of log items to keep in ZooKeeper. Note that the log items will
+     *                    still not be removed if they are younger than {@code minLogAgeMillis}.
+     * @param minLogAgeMillis the minimum allowed age of log items before they are removed from ZooKeeper
+     */
     public ZooKeeperReplicationConfig(String replicaId, String connectionString, String pathPrefix,
             int timeoutMillis, int numWorkers, int maxLogCount, long minLogAgeMillis) {
         this(replicaId, connectionString, pathPrefix, Integer.valueOf(timeoutMillis),
@@ -81,36 +107,63 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
         return ReplicationMethod.ZOOKEEPER;
     }
 
+    /**
+     * Returns the unique and unchanging ID of the replica. e.g. UUID or unique hostname
+     */
     @JsonProperty
     public String replicaId() {
         return replicaId;
     }
 
+    /**
+     * Returns the ZooKeeper connection string.
+     * e.g. {@code "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181"}
+     */
     @JsonProperty
     public String connectionString() {
         return connectionString;
     }
 
+    /**
+     * Returns the ZooKeeper path prefix. e.g. {@code "/service/dogma"}
+     */
     @JsonProperty
     public String pathPrefix() {
         return pathPrefix;
     }
 
+    /**
+     * Returns the ZooKeeper timeout, in milliseconds.
+     * If unspecified, the default of {@value ZooKeeperCommandExecutor#DEFAULT_TIMEOUT_MILLIS} is returned.
+     */
     @JsonProperty
     public int timeoutMillis() {
         return timeoutMillis;
     }
 
+    /**
+     * Returns the number of worker threads dedicated for replication.
+     * If unspecified, the default of {@value ZooKeeperCommandExecutor#DEFAULT_NUM_WORKERS} is returned.
+     */
     @JsonProperty
     public int numWorkers() {
         return numWorkers;
     }
 
+    /**
+     * Returns the maximum number of log items to keep in ZooKeeper. Note that the log items will still not be
+     * removed if they are younger than {@link #minLogAgeMillis()}.
+     * If unspecified, the default of {@value ZooKeeperCommandExecutor#DEFAULT_MAX_LOG_COUNT} is returned.
+     */
     @JsonProperty
     public int maxLogCount() {
         return maxLogCount;
     }
 
+    /**
+     * Returns the minimum allowed age of log items before they are removed from ZooKeeper.
+     * If unspecified, the default of 1 hour is returned.
+     */
     @JsonProperty
     public long minLogAgeMillis() {
         return minLogAgeMillis;

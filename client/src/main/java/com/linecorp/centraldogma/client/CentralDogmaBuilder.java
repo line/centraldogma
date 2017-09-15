@@ -26,7 +26,13 @@ import com.linecorp.armeria.common.RpcResponse;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
 /**
- * Central Dogma client builder.
+ * Builds a {@link CentralDogma} client.
+ *
+ * <pre>{@code
+ * CentralDogmaBuilder builder = new CentralDogmaBuilder();
+ * builder.uri("tbinary+http://example.com:36462/cd/thrift/v1");
+ * CentralDogma dogma = builder.build();
+ * }</pre>
  */
 public class CentralDogmaBuilder {
 
@@ -36,7 +42,7 @@ public class CentralDogmaBuilder {
     };
 
     /**
-     * Sets the specified {@code uri} that connects to the specified {@code uri}.
+     * Sets the {@link URI} of the Central Dogma server.
      *
      * @param uri the URI of the Central Dogma server. e.g.
      *            {@code tbinary+http://example.com:36462/cd/thrift/v1}
@@ -47,7 +53,8 @@ public class CentralDogmaBuilder {
     }
 
     /**
-     * Sets the specified {@code clientFactory} that will manage the connection.
+     * Sets the {@link ClientFactory} that will create an underlying
+     * <a href="https://line.github.io/armeria/">Armeria</a> client which performs the actual socket I/O.
      */
     public CentralDogmaBuilder clientFactory(ClientFactory clientFactory) {
         this.clientFactory = requireNonNull(clientFactory, "clientFactory");
@@ -55,7 +62,8 @@ public class CentralDogmaBuilder {
     }
 
     /**
-     * Sets the specified {@code configurator} to customize Armeria client component.
+     * Sets the {@link ArmeriaClientConfigurator} that will configure an underlying
+     * <a href="https://line.github.io/armeria/">Armeria</a> client which performs the actual socket I/O.
      */
     public CentralDogmaBuilder clientConfigurator(ArmeriaClientConfigurator clientConfigurator) {
         this.clientConfigurator = requireNonNull(clientConfigurator, "clientConfigurator");
@@ -63,7 +71,7 @@ public class CentralDogmaBuilder {
     }
 
     /**
-     * Create a {@link CentralDogma} instance.
+     * Returns a newly-created {@link CentralDogma} instance.
      */
     public CentralDogma build() {
         if (uri == null) {

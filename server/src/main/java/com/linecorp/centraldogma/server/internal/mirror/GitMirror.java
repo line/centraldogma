@@ -47,7 +47,6 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
-import com.linecorp.centraldogma.common.FindOption;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -58,6 +57,7 @@ import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
+import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 public final class GitMirror extends Mirror {

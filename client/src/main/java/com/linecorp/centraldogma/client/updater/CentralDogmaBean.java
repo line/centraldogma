@@ -15,41 +15,61 @@
  */
 package com.linecorp.centraldogma.client.updater;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 import javax.inject.Qualifier;
 
 /**
- * Annotation to indicate the value(s) of instance fields in annotated class synchronize(s) with Central Dogma.
- * Each properties in this annotation can be overridden by {@link CentralDogmaBeanConfig} when creating
- * a property bean through {@link CentralDogmaBeanFactory#get(Object, Class, CentralDogmaBeanConfig)}.
+ * Annotates a type to provide the necessary information to {@link CentralDogmaBeanFactory} so that the
+ * bean properties are mirrored from a file in Central Dogma.
+ *
+ * <pre>{@code
+ * > @CentralDogmaBean(project = "myProject",
+ * >                   repository = "myRepo",
+ * >                   path = "/foo.json")
+ * > public class Foo {
+ * >     private int a;
+ * >     private String b;
+ * >
+ * >     public int getA() { return a; }
+ * >     public void setA(int a) { this.a = a; }
+ * >     public String getB() { return b; }
+ * >     public void setB(String b) { this.b = b; }
+ * > }
+ * }</pre>
+ *
+ * @see CentralDogmaBeanConfig
  */
 @Qualifier
+@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CentralDogmaBean {
     /**
-     * Name of the project that properties synchronize with Central Dogma.
+     * Central Dogma project name.
      */
     String project() default "";
 
     /**
-     * Name of the repository that properties synchronize with Central Dogma.
+     * Central Dogma repository name.
      */
     String repository() default "";
 
     /**
-     * Name of the path synchronize with Central Dogma.
+     * The path of the file in Central Dogma.
      */
     String path() default "";
 
     /**
-     * A JSONPath expression that will be executed when retriving the data from Central Dogma.
+     * The JSON path expression that will be evaluated when retrieving the file at the {@link #path()}.
      */
-    String jsonPath() default "$";
+    String jsonPath() default "";
 
     /**
-     * If {@code true}, then the change of each field will be committed to Central Dogma.
+     * If {@code true}, the change of each bean property will be pushed to Central Dogma.
+     * Use this property with caution because it can result in unnecessarily large number of commits.
      */
     boolean bidirectional() default false;
 }

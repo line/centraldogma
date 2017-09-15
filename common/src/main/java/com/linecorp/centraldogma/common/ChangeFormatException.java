@@ -17,23 +17,35 @@
 package com.linecorp.centraldogma.common;
 
 /**
- * An exception that is raised when building a {@link Change} or an {@link Entry} failed due to
- * invalid data format.
+ * An {@link IllegalArgumentException} exception that is raised when building a {@link Change} or
+ * an {@link Entry} failed due to invalid data format.
  */
 public class ChangeFormatException extends IllegalArgumentException {
 
     private static final long serialVersionUID = -582002681359825096L;
 
+    /**
+     * Creates a new instance.
+     */
     public ChangeFormatException() {}
 
+    /**
+     * Creates a new instance.
+     */
     public ChangeFormatException(String message) {
         super(message);
     }
 
+    /**
+     * Creates a new instance.
+     */
     public ChangeFormatException(Throwable cause) {
         super(cause);
     }
 
+    /**
+     * Creates a new instance.
+     */
     public ChangeFormatException(String message, Throwable cause) {
         super(message, cause);
     }

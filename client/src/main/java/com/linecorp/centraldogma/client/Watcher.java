@@ -27,11 +27,15 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
-import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
-public interface Watcher<T> extends SafeCloseable {
+/**
+ * Watches the changes of a repository or a file.
+ *
+ * @param <T> the watch result type
+ */
+public interface Watcher<T> extends AutoCloseable {
 
     /**
      * Returns the {@link CompletableFuture} which is completed when the initial value retrieval is done

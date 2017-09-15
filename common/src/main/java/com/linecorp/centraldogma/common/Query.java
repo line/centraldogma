@@ -29,6 +29,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 
+/**
+ * A query on an {@link Entry}.
+ *
+ * @param <T> the content type of an {@link Entry} being queried
+ */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
         @Type(value = IdentityQuery.class, name = "IDENTITY"),
@@ -36,18 +41,46 @@ import com.fasterxml.jackson.databind.JsonNode;
 })
 public interface Query<T> extends Function<T, T> {
 
+    /**
+     * Returns a newly-created {@link Query} that retrieves the content as it is.
+     *
+     * @param path the path of the {@link Entry} being queried on
+     */
     static Query<Object> identity(String path) {
         return new IdentityQuery(path);
     }
 
+    /**
+     * Returns a newly-created {@link Query} that applies a series of
+     * <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path expressions</a>
+     * to the content.
+     *
+     * @param path the path of the {@link Entry} being queried on
+     * @param jsonPaths the JSON path expressions to apply
+     */
     static Query<JsonNode> ofJsonPath(String path, String... jsonPaths) {
         return new JsonPathQuery(path, jsonPaths);
     }
 
+    /**
+     * Returns a newly-created {@link Query} that applies a series of
+     * <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path expressions</a>
+     * to the content.
+     *
+     * @param path the path of the {@link Entry} being queried on
+     * @param jsonPaths the JSON path expressions to apply
+     */
     static Query<JsonNode> ofJsonPath(String path, Iterable<String> jsonPaths) {
         return new JsonPathQuery(path, jsonPaths);
     }
 
+    /**
+     * Returns a newly-created {@link Query} that applies a series of expressions to the content.
+     *
+     * @param type the type of the {@link Query}
+     * @param path the path of the {@link Entry} being queried
+     * @param expressions the expressions to apply
+     */
     static Query<?> of(QueryType type, String path, @Nullable String... expressions) {
         requireNonNull(type, "type");
         switch (type) {
@@ -67,13 +100,13 @@ public interface Query<T> extends Function<T, T> {
     String path();
 
     /**
-     * Returns the type of this query.
+     * Returns the type of this {@link Query}.
      */
     @JsonProperty
     QueryType type();
 
     /**
-     * Returns the list of the query expressions of this query.
+     * Returns the list of the query expressions of this {@link Query}.
      */
     List<String> expressions();
 }

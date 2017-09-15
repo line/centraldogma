@@ -22,20 +22,34 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Revision;
 
+/**
+ * An immutable holder of the latest known value and its {@link Revision} retrieved by {@link Watcher}.
+ *
+ * @param <U> the value type
+ */
 public final class Latest<U> {
 
     private final Revision revision;
     private final U value;
 
+    /**
+     * Creates a new instance with the specified {@link Revision} and value.
+     */
     public Latest(Revision revision, U value) {
         this.revision = revision;
         this.value = value;
     }
 
+    /**
+     * Returns the {@link Revision} of the latest known value.
+     */
     public Revision revision() {
         return revision;
     }
 
+    /**
+     * Returns the latest known value.
+     */
     public U value() {
         return value;
     }
