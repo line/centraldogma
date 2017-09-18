@@ -62,9 +62,17 @@ task copyLib(group: 'Build',
     }
 }
 
+task copyClientBinaries(group: 'Build',
+        description: "Copies client binaries into ${project.ext.relativeDistDir}/lib",
+        dependsOn: project(':client/go').tasks.build,
+        type: Copy) {
+    from project(':client/go').ext.binDir
+    into "${project.ext.distDir}/bin/native"
+}
+
 task distDir(group: 'Build',
              description: "Builds a distribution directory (${project.ext.relativeDistDir})",
-             dependsOn: [tasks.copyLicenses, tasks.copyLib])
+             dependsOn: [tasks.copyLicenses, tasks.copyLib, tasks.copyClientBinaries])
 
 // Create the tasks that copy each directory under src/ into dist/
 ['bin', 'conf'].each { dirName ->

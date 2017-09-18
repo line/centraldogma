@@ -6,6 +6,9 @@ include 'common'
 include 'server'
 include 'testing'
 
+// Published Go project
+include 'client/go'
+
 // Unpublished Java projects
 include 'it'
 include 'shaded-test'

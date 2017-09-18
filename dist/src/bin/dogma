@@ -1,0 +1,28 @@
+#!/bin/bash -e
+
+OS=`uname -s`
+MACH=`uname -m`
+
+DOGMA_BIN="$(dirname "$0")/native"
+
+if [[ "${OS}" == 'Darwin' ]]; then
+  if [[ "${MACH}" == 'x86_64' ]]; then
+    DOGMA_BIN="${DOGMA_BIN}/dogma.darwin-amd64"
+  else
+    echo "32-bit OS is not supported by default: ${OS}-${MACH}"
+    exit 1
+  fi
+elif [[ "${OS}" == 'Linux' ]]; then
+  if [[ "${MACH}" == 'x86_64' ]]; then
+    DOGMA_BIN="${DOGMA_BIN}/dogma.linux-amd64"
+  else
+    echo "32-bit OS is not supported by default: ${OS}-${MACH}"
+    exit 1
+  fi
+else
+  echo "OS not supported: ${OS}-${MACH}"
+  exit 1
+fi
+
+exec "$DOGMA_BIN" "$@"
+

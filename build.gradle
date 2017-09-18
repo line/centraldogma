@@ -13,6 +13,10 @@ buildscript {
         classpath 'com.google.gradle:osdetector-gradle-plugin:1.4.0'
         classpath 'net.rdrei.android.buildtimetracker:gradle-plugin:0.10.0'
         classpath 'org.yaml:snakeyaml:1.18'
+
+        // For gogradle. It seems gogradle doesn't support buildscript so just leave this here until
+        // gogradle supports it.
+        classpath 'com.google.inject:guice:4.0'
     }
 }
 
@@ -28,7 +32,7 @@ ext {
     repoStatus = getRepoStatus()
 
     // The list of Java projects
-    javaProjects = subprojects.findAll { !(it.name in ['site']) }
+    javaProjects = subprojects.findAll { !(it.name in ['site', 'client/go']) }
 
     // The list of Java projects whose artifacts are published to the Maven repository
     publishedJavaProjects = javaProjects.findAll {
