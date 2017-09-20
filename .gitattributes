@@ -6,3 +6,7 @@
 
 /dist/src/bin/*.sh text eol=lf
 /dist/src/bin/jsvc.* binary
+
+/dist/src/bin/dogma text eol=lf
+/dist/src/bin/startup text eol=lf
+/dist/src/bin/shutdown text eol=lf

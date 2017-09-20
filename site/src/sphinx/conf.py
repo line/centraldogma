@@ -42,6 +42,11 @@ version = re.match(r'^[0-9]+\.[0-9]+', release).group(0)
 # Export the loaded properties and some useful values into epilogs
 rst_epilog = '\n'
 rst_epilog += '.. |baseurl| replace:: https://line.github.io/centraldogma/\n'
+rst_epilog += '.. |download| raw:: html\n'
+rst_epilog += '\n'
+rst_epilog += '   <a href="https://github.com/line/centraldogma/archive/centraldogma-' + release + '.tgz">Download</a>'
+rst_epilog += '\n'
+
 for k in properties.keys():
     v = properties[k]
     if k in [ 'release', 'version' ]:
@@ -55,7 +60,7 @@ for groupId in dependencies.keys():
 rst_epilog += '\n'
 
 needs_sphinx = '1.0'
-extensions = ['sphinx.ext.autodoc']
+extensions = ['sphinx.ext.autodoc', 'sphinxcontrib.inlinesyntaxhighlight', 'sphinxcontrib.plantuml']
 templates_path = ['_templates']
 source_suffix = '.rst'
 source_encoding = 'utf-8-sig'
@@ -73,3 +78,6 @@ html_static_path = ['_static']
 html_use_index = True
 html_show_sourcelink = False
 htmlhelp_basename = project_short
+
+# PlantUML options
+plantuml = os.getenv('plantuml')

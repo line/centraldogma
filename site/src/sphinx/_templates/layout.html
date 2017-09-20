@@ -1,5 +1,5 @@
 {% extends "!layout.html" %}
-{% set logo = 'armeria.png' %}
+{% set logo = 'central_dogma.png' %}
 {% set theme_logo_only = True %}
 {% set sticky_navigation = True %}
 {% set extra_css_files = ['_static/overrides.css'] %}
@@ -10,9 +10,11 @@
 {% block footer %}
   <div class="github-fork-ribbon-wrapper right">
     <div class="github-fork-ribbon">
-      <a href="https://github.com/line/armeria">Fork me at GitHub</a>
+      <a href="https://github.com/line/centraldogma">Fork me at GitHub</a>
     </div>
   </div>
+  {# TODO(trustin): Uncomment once all badges are ready.
   <script type="text/javascript" src="{{ pathto('_static/add_badges.js', 1) }}"></script>
+  #}
   {{ super() }}
 {% endblock %}

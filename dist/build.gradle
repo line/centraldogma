@@ -120,14 +120,14 @@ task startup(group: 'Execution',
              dependsOn: tasks.distDir,
              type: Exec) {
 
-    commandLine "${project.ext.distDir}/bin/startup.sh"
+    commandLine "${project.ext.distDir}/bin/startup"
 }
 
 task shutdown(group: 'Execution',
               description: "Shuts down Central Dogma at ${project.ext.relativeDistDir}",
               type: Exec) {
 
-    commandLine "${project.ext.distDir}/bin/shutdown.sh"
+    commandLine "${project.ext.distDir}/bin/shutdown"
 }
 
 tasks.startup.mustRunAfter(tasks.shutdown)
