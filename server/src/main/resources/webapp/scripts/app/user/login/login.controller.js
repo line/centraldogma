@@ -6,7 +6,6 @@ angular.module('CentralDogmaAdmin')
                   $scope.rememberMe = true;
 
                   $scope.login = function () {
-                    $scope.username = $scope.username.toUpperCase();
                     Auth.login({
                       username: $scope.username,
                       password: $scope.password,

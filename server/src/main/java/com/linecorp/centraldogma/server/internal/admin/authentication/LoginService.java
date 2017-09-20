@@ -25,8 +25,6 @@ import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.subject.SimplePrincipalCollection;
 import org.apache.shiro.subject.Subject;
 
-import com.google.common.base.Ascii;
-
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponseWriter;
 import com.linecorp.armeria.common.HttpStatus;
@@ -53,7 +51,7 @@ public class LoginService extends AbstractHttpService {
         req.aggregate().thenAccept(aMsg -> {
             final QueryStringDecoder decoder =
                     new QueryStringDecoder(aMsg.content().toStringUtf8(), false);
-            final String username = Ascii.toUpperCase(decoder.parameters().get("username").get(0));
+            final String username = decoder.parameters().get("username").get(0);
             final String password = decoder.parameters().get("password").get(0);
             final boolean rememberMe = Boolean.valueOf(decoder.parameters().get("remember_me").get(0));
 

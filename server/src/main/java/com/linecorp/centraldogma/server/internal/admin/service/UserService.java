@@ -16,14 +16,14 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
+import static com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil.requireLogin;
+
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
-import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -44,13 +44,9 @@ public class UserService extends AbstractService {
      * response is sent.
      */
     @Get("/users/me")
-    public HttpResponse usersMe(ServiceRequestContext ctx) throws Exception {
-        try {
-            final HttpData httpData = HttpData.of(Jackson.writeValueAsBytes(
-                    AuthenticationUtil.currentUser(ctx)));
-            return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, httpData);
-        } catch (Exception e) {
-            return HttpResponse.of(HttpStatus.UNAUTHORIZED);
-        }
+    public HttpResponse usersMe() throws Exception {
+        final User user = requireLogin();
+        return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
+                               HttpData.of(Jackson.writeValueAsBytes(user)));
     }
 }
