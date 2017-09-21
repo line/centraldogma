@@ -63,6 +63,7 @@ import com.linecorp.centraldogma.server.internal.admin.exception.BadRequestExcep
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -79,7 +80,7 @@ public class RepositoryService extends AbstractService {
 
     public RepositoryService(ProjectManager projectManager,
                              CommandExecutor executor) {
-        super(projectManager, executor);
+        super(new SafeProjectManager(projectManager), executor);
     }
 
     /**
