@@ -11,7 +11,7 @@ buildscript {
 
 apply plugin: 'com.boazj.log'
 
-evaluationDependsOn(':client')
+evaluationDependsOn(':client/java')
 evaluationDependsOn(':server')
 
 ext {
@@ -46,11 +46,11 @@ task copyLicenses(group: 'Build',
 
 task copyLib(group: 'Build',
              description: "Copies JARs into ${project.ext.relativeDistDir}/lib",
-             dependsOn: [project(':client').tasks.jar, project(':server').tasks.jar],
+             dependsOn: [project(':client/java').tasks.jar, project(':server').tasks.jar],
              type: Copy) {
 
-    from project(':client').configurations.runtime
-    from project(':client').tasks.jar
+    from project(':client/java').configurations.runtime
+    from project(':client/java').tasks.jar
     from project(':server').configurations.runtime
     from project(':server').tasks.jar
     from project.configurations.runtime
