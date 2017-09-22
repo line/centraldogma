@@ -1,5 +1,5 @@
 dependencies {
-    compile project(':client')
+    compile project(':client/java')
     compile project(':server')
 }
 
