@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -73,14 +74,16 @@ import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.admin.authentication.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSessionDAO;
-import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LoginService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LogoutService;
+import com.linecorp.centraldogma.server.internal.admin.authentication.SessionTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.admin.service.ProjectService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
+import com.linecorp.centraldogma.server.internal.admin.service.TokenService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
@@ -235,6 +238,8 @@ public class CentralDogma {
             logger.info("Starting the command executor ..");
             executor = startCommandExecutor(pm, mirroringService, repositoryWorker, sessionManager);
             logger.info("Started the command executor");
+
+            initializeInternalProject(executor);
 
             if (cfg.isSecurityEnabled()) {
                 sessionManager.setSessionDAO(new CentralDogmaSessionDAO(pm, executor));
@@ -412,6 +417,8 @@ public class CentralDogma {
                                    SecurityManager securityManager) {
         final String apiPathPrefix = "/api/v0/";
 
+        final TokenService tokenService = new TokenService(pm, executor);
+
         final Function<Service<HttpRequest, HttpResponse>,
                         ? extends Service<HttpRequest, HttpResponse>> decorator;
         if (cfg.isSecurityEnabled()) {
@@ -419,7 +426,10 @@ public class CentralDogma {
             sb.service(apiPathPrefix + "authenticate", new LoginService(securityManager))
               .service(apiPathPrefix + "logout", new LogoutService(securityManager));
 
-            decorator = HttpAuthService.newDecorator(new CentralDogmaTokenAuthorizer(securityManager));
+            final ApplicationTokenAuthorizer ata = new ApplicationTokenAuthorizer(tokenService::findToken);
+            final SessionTokenAuthorizer sta = new SessionTokenAuthorizer(securityManager);
+
+            decorator = HttpAuthService.newDecorator(ata, sta);
         } else {
             decorator = HttpAuthService.newDecorator((ctx, data) -> {
                 AuthenticationUtil.setCurrentUser(ctx, User.DEFAULT);
@@ -435,6 +445,7 @@ public class CentralDogma {
         sb.annotatedService(apiPathPrefix, new UserService(pm, executor), converters, decorator)
           .annotatedService(apiPathPrefix, new ProjectService(pm, executor), converters, decorator)
           .annotatedService(apiPathPrefix, new RepositoryService(pm, executor), converters, decorator)
+          .annotatedService(apiPathPrefix, tokenService, converters, decorator)
           .serviceUnder("/", HttpFileService.forClassPath("webapp"));
     }
 

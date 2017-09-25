@@ -41,7 +41,7 @@ public final class AuthenticationUtil {
         final User user = ctx.attr(CURRENT_USER_KEY).get();
         assert user != null;
         return user == User.DEFAULT ? Author.DEFAULT
-                                    : new Author(user.getName(), user.getEmail());
+                                    : new Author(user.name(), user.email());
     }
 
     public static Author currentAuthor() {

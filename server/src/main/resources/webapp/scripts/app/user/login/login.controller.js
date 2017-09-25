@@ -16,7 +16,7 @@ angular.module('CentralDogmaAdmin')
                         interpolateParams: { username: $scope.username }
                       });
                     }, function (error) {
-                      if (typeof error.status !== 'undefined' && error.status == 401) {
+                      if (typeof error.status !== 'undefined' && error.status === 401) {
                         NotificationUtil.error('login.auth_failed');
                       } else {
                         NotificationUtil.error(error);

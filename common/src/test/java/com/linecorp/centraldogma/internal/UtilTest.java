@@ -17,7 +17,9 @@
 package com.linecorp.centraldogma.internal;
 
 import static com.linecorp.centraldogma.internal.Util.validateDirPath;
+import static com.linecorp.centraldogma.internal.Util.validateEmailAddress;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.fail;
 
 import org.junit.Test;
@@ -91,6 +93,27 @@ public class UtilTest {
         assertDirPathValidationFailure("/\uAC00\uB098\uB2E4/"); // 가나다
     }
 
+    @Test
+    public void testValidEmailAddress() {
+        testValidEmail("dogma@github.com");
+        testValidEmail("dogma@127.0.0.1");
+        testValidEmail("dogma@10.1.1.1");
+        testValidEmail("dogma@0:0:0:0:0:0:0:1");
+        testValidEmail("dogma@::1");
+        testValidEmail("dogma@2001:0db8:85a3:0000:0000:8a2e:0370:7334");
+        testValidEmail("dogma@2001:db8:85a3:0:0:8a2e:370:7334");
+        testValidEmail("dogma@2001:db8:85a3::8a2e:370:7334");
+
+        testInvalidEmail("dogma!@github.com");
+        testInvalidEmail("dogma@127.0.0.256");
+        testInvalidEmail("dogma@10.1.1");
+        testInvalidEmail("dogma@0:0:0:0:0:0:0:0:1");
+        testInvalidEmail("dogma@:::1");
+        testInvalidEmail("dogma@2001:0db8:85a3:0000:0000:8a2e:0370:733X");
+        testInvalidEmail("dogma@2001:db8:85a3:00:8a2e:370:7334");
+        testInvalidEmail("dogma@2001:db8:85a38a2e:370:7334");
+    }
+
     private static void assertFilePathValidationSuccess(String path) {
         validateFilePath(path, "path");
     }
@@ -115,5 +138,14 @@ public class UtilTest {
         } catch (IllegalArgumentException ignored) {
             // Expected
         }
+    }
+
+    private static void testValidEmail(String email) {
+        validateEmailAddress(email, "email");
+    }
+
+    private static void testInvalidEmail(String invalidEmail) {
+        assertThatThrownBy(() -> testValidEmail(invalidEmail))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

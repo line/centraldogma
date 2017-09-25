@@ -122,6 +122,10 @@ This product contains a modified part of java-json-tools/json-patch, distributed
   * License: licenses/LICENSE.fge-json-patch.al20.txt (Apache License v2.0)
   * Homepage: https://github.com/java-json-tools/json-patch
 
+This product contains a modified part of Netty, distributed by Netty.io:
+
+  * License: licenses/LICENSE.netty.al20.txt (Apache License v2.0)
+  * Homepage: https://netty.io/
 
 Dependencies
 ============

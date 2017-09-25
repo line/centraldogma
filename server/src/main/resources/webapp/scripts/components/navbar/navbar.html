@@ -21,20 +21,6 @@
             <span translate>navbar.home</span>
           </a>
         </li>
-        <li ui-sref-active="active" class="dropdown pointer">
-          <a href="" class="dropdown-toggle" data-toggle="dropdown">
-            <span>
-              <span class="glyphicon glyphicon-th-list"></span>
-              <span class="hidden-tablet" translate>navbar.entities</span>
-              <b class="caret"></b>
-            </span>
-          </a>
-          <ul class="dropdown-menu">
-            <li ui-sref-active="active">
-              <a ui-sref="projects"><span translate>navbar.projects</span></a>
-            </li>
-          </ul>
-        </li>
         <li ng-switch-when="false" ng-show="isSecurityEnabled">
           <a href="" ng-click="$root.showLoginDialog()">
             <span class="glyphicon glyphicon-log-in"></span>&#xA0;
@@ -50,6 +36,9 @@
             </span>
           </a>
           <ul class="dropdown-menu">
+            <li ui-sref-active="active" ng-switch-when="true">
+              <a ui-sref="tokens"><span translate>navbar.tokens</span></a>
+            </li>
             <li ui-sref-active="active" ng-switch-when="true">
               <a href="" ng-click="logout()">
                 <span class="glyphicon glyphicon-log-out"></span>&#xA0;

@@ -38,15 +38,15 @@ class AbstractService {
         this.executor = requireNonNull(executor, "executor");
     }
 
-    protected final ProjectManager projectManager() {
+    final ProjectManager projectManager() {
         return projectManager;
     }
 
-    protected final CommandExecutor executor() {
+    final CommandExecutor executor() {
         return executor;
     }
 
-    protected <T> CompletableFuture<T> execute(Command<T> command) {
+    <T> CompletableFuture<T> execute(Command<T> command) {
         return executor().execute(command);
     }
 }

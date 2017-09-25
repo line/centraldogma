@@ -1,0 +1,19 @@
+<form name="genTokenForm" ng-submit="generateToken()">
+  <div class="modal-header">
+    <h4 class="modal-title" translate>settings.title_generate_token</h4>
+  </div>
+  <div class="modal-body">
+    <div class="form-group">
+      <label for="appId" translate>settings.token_application_id</label>
+      <input type="text" class="form-control" id="appId"
+             placeholder="{{ 'settings.token_application_id.placeholder' | translate }}" ng-model="appId"
+             required>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="submit" class="btn btn-primary" ng-disabled="genTokenForm.$invalid" translate>
+      settings.button_generate
+    </button>
+    <button type="button" class="btn" ng-click="close()" translate>settings.button_cancel</button>
+  </div>
+</form>

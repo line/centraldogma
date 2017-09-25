@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.project;
 
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collections;
@@ -116,8 +117,7 @@ public class SafeProjectManager implements ProjectManager {
     }
 
     protected static boolean isValidProjectName(String name) {
-        // TODO "dogma" will be replaced with SystemRepository.INTERNAL_PROJECT_NAME after merging
-        // https://github.com/line/centraldogma/pull/13.
-        return name != null && !"dogma".equals(name);
+        return name != null &&
+               !INTERNAL_PROJECT_NAME.equals(name);
     }
 }
