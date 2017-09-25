@@ -1,15 +1,19 @@
 import com.google.common.base.CaseFormat
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
 
 buildscript {
     repositories {
         jcenter()
+        mavenCentral()
     }
     dependencies {
         classpath 'com.boazj.gradle:gradle-log-plugin:0.1.0'
+        classpath('com.bmuschko:gradle-docker-plugin:3.1.0')
     }
 }
 
 apply plugin: 'com.boazj.log'
+apply plugin: 'com.bmuschko.docker-remote-api'
 
 evaluationDependsOn(':client/java')
 evaluationDependsOn(':server')
@@ -92,6 +96,15 @@ task tarball(group: 'Build',
 }
 
 tasks.assemble.dependsOn(tasks.tarball)
+
+// Tasks for building docker image
+task docker(group: 'Build',
+            description: "Builds a docker image from the distribution directory (${project.ext.relativeDistDir})",
+            dependsOn: tasks.distDir,
+            type: DockerBuildImage) {
+    inputDir = file('.')
+    tag = "line/centraldogma:${project.version}"
+}
 
 // Tasks for running Central Dogma conveniently.
 task startup(group: 'Execution',

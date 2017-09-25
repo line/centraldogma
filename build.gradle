@@ -1036,7 +1036,13 @@ task release(group: 'Publishing',
         println()
         println "   https://github.com/line/centraldogma/releases/tag/${tag}"
         println()
-        println "5. Copy the web site generated to the 'gh-pages' branch. e.g."
+        println '5. Build a docker image and push it into docker hub'
+        println()
+        println '   ./gradlew :dist:docker'
+        println '   docker login'
+        println '   docker push line/centraldogma'
+        println()
+        println "6. Copy the web site generated to the 'gh-pages' branch. e.g."
         println()
         println '   cd ../site-centraldogma'
         println '   rm -fr .[bd]* *'
