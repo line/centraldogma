@@ -47,11 +47,12 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
     public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
         final OAuth2Token token = AuthTokenExtractors.OAUTH2.apply(data.headers());
         if (token == null) {
-            return completedFuture(true);
+            return completedFuture(false);
         }
 
         final CompletableFuture<Boolean> res = new CompletableFuture<>();
         ctx.blockingTaskExecutor().execute(() -> {
+            boolean isAuthenticated = false;
             try {
                 final Subject currentUser =
                         new Subject.Builder(securityManager).sessionId(token.accessToken())
@@ -61,9 +62,10 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
                 if (principal != null) {
                     final User user = new User(principal.toString(), User.USER_ROLE);
                     AuthenticationUtil.setCurrentUser(ctx, user);
+                    isAuthenticated = true;
                 }
             } finally {
-                res.complete(true);
+                res.complete(isAuthenticated);
             }
         });
         return res;

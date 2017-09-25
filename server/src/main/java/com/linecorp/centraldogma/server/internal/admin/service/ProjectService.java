@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import static com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil.requireLogin;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -62,7 +60,6 @@ public class ProjectService extends AbstractService {
      */
     @Post("/projects")
     public CompletionStage<ProjectDto> createProject(AggregatedHttpMessage message) throws IOException {
-        requireLogin();
         final ProjectDto dto =
                 Jackson.readValue(message.content().toStringAscii(), ProjectDto.class);
         return execute(Command.createProject(dto.getName())).thenApply(unused -> dto);

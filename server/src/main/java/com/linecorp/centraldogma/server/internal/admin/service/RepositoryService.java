@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import static com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil.requireLogin;
 import static com.spotify.futures.CompletableFutures.allAsList;
 import static java.util.stream.Collectors.toList;
 
@@ -101,7 +100,6 @@ public class RepositoryService extends AbstractService {
     @Post("/projects/{projectName}/repositories")
     public CompletionStage<RepositoryDto> createRepository(@Param("projectName") String projectName,
                                                            AggregatedHttpMessage message) throws IOException {
-        requireLogin();
         final RepositoryDto dto =
                 Jackson.readValue(message.content().toStringAscii(), RepositoryDto.class);
         return execute(Command.createRepository(projectName, dto.getName())).thenApply(unused -> dto);
@@ -166,7 +164,6 @@ public class RepositoryService extends AbstractService {
                                                  @Param("revision") String revision,
                                                  AggregatedHttpMessage message,
                                                  ServiceRequestContext ctx) {
-        requireLogin();
         final Entry<CommitMessageDto, Change<?>> p = commitMessageAndChange(message);
         final CommitMessageDto commitMessage = p.getKey();
         final Change<?> change = p.getValue();
@@ -190,7 +187,6 @@ public class RepositoryService extends AbstractService {
                                           @Param("path") String path,
                                           AggregatedHttpMessage message,
                                           ServiceRequestContext ctx) {
-        requireLogin();
         final CommitMessageDto commitMessage;
         try {
             final JsonNode node = Jackson.readTree(message.content().toStringAscii());

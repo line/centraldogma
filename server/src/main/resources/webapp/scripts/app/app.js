@@ -75,10 +75,6 @@ angular.module(
                       tmhDynamicLocaleProvider, httpRequestInterceptorCacheBusterProvider,
                       NotificationProvider) {
 
-              //enable CSRF
-              $httpProvider.defaults.xsrfCookieName = 'CSRF-TOKEN';
-              $httpProvider.defaults.xsrfHeaderName = 'X-CSRF-TOKEN';
-
               //Cache everything except rest api requests
               httpRequestInterceptorCacheBusterProvider.setMatchlist([/.*api.*/, /.*protected.*/], true);
 

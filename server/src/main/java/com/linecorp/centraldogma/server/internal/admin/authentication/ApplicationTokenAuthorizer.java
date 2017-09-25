@@ -52,7 +52,7 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
     public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
         final OAuth2Token token = AuthTokenExtractors.OAUTH2.apply(data.headers());
         if (token == null) {
-            return completedFuture(true);
+            return completedFuture(false);
         }
 
         final CompletableFuture<Boolean> res = new CompletableFuture<>();
