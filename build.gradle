@@ -112,7 +112,11 @@ configure(javaProjects) {
     apply plugin: 'signing'
 
     // Set the artifact ID.
-    project.archivesBaseName = "centraldogma-$project.name"
+    if (project.name != 'client/java') {
+        project.archivesBaseName = "centraldogma-$project.name"
+    } else {
+        project.archivesBaseName = 'centraldogma-client'
+    }
 
     // Common properties and functions.
     ext {
