@@ -27,7 +27,7 @@ func main() {
 	app.Usage = "Central Dogma client"
 	app.UsageText = "dogma command [arguments]"
 	app.HelpName = "dogma"
-	app.Version = "0.16.0"
+	app.Version = "0.17.0"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name: "connect, c",
