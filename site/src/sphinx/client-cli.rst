@@ -24,17 +24,17 @@ path component signify a project name and a repository name respectively. For ex
 
 Creating projects and repositories
 ----------------------------------
-Use the ``add`` command to create a project or a repository::
+Use the ``new`` command to create a project::
 
     # Create two projects.
-    $ dogma add projFoo
+    $ dogma new projFoo
     Created: /projFoo
-    $ dogma add projBar
+    $ dogma new projBar
     Created: /projBar
 
-``Add`` command is also used for creating a repository::
+``new`` command is also used for creating a repository::
 
-    $ dogma add projFoo/repoA
+    $ dogma new projFoo/repoA
     Created: /projFoo/repoA
 
 Listing entries
@@ -108,21 +108,35 @@ You can also query a JSON file using JSON path::
     $ dogma cat --jsonpath '$.a' projFoo/main/samples/bar.json
     "Pellentesque feugiat, est sit amet condimentum sagittis...
 
-Alternatively, you can use the ``fetch`` command to download the file::
+Alternatively, you can use the ``get`` command to download the file::
 
-    $ dogma fetch projFoo/main/samples/bar.json
-    Fetched: bar.json
+    $ dogma get projFoo/main/samples/bar.json
+    Downloaded: bar.json
 
 Modifying a repository
 ----------------------
-You can add, edit or remove an individual file in a repository using ``add``, ``edit`` and ``rm`` command.
+You can add, edit or remove an individual file in a repository using ``put``, ``edit`` and ``rm`` command.
 
 First, let's create a JSON file and add it::
 
-    $ echo '[1, 2, 3, 4, 5, 6, 7, 8, 9]' > 9.json
+    $ echo '[1, 2, 3, 4, 5, 6, 7, 8, 9]' > nine.json
 
-    $ dogma add projFoo/main/numbers/9.json 9.json
-    Added: /projFoo/main/numbers/9.json
+    $ dogma put projFoo/main/numbers/9.json nine.json
+    Put: /projFoo/main/numbers/9.json
+
+The command above uploads ``nine.json`` as ``9.json`` under ``/projFoo/main/numbers/``.
+
+If you don't specify the file name, the file name will be attached automatically. For example,
+if you do ``dogma put projFoo/main/numbers/ nine.json``, then ``/projFoo/main/numbers/nine.json`` will be added.
+
+.. note::
+
+    A trailing '/' has important meaning in a ``put`` command. A path ends with a '/' refers to a directory.
+    On the other hand, a path that does not end with a '/' refers to a file. For example,
+    ``dogma put /projFoo/main/a.txt/ b.txt`` will upload ``/projFoo/main/a.txt/b.txt``,
+    because of the trailing '/' after ``a.txt``.
+
+And then, check it out::
 
     $ dogma ls projFoo/main/numbers
     [
@@ -169,35 +183,33 @@ option will show the full usage of the client::
        dogma command [arguments]
 
     COMMANDS:
-         ls             List of the projects, repositories, or files
-         add            Add a project, repository, or file
-         edit           Edit a file in the path
-         fetch          Fetch a file in the path
-         cat            Print a file in the path
-         rm             Remove a file in the path
-         diff           Get diff of given path between 'from' and 'to' revisions
-         log            Show commit logs of the path
-         normalize, nr  Normalize a revision into an absolute revision
-         search, s      Search files matched by the term
-         help, h        Shows a list of commands or help for one command
+         ls         Lists the projects, repositories or files
+         new        Creates a project or repository
+         put        Puts a file to the repository
+         edit       Edits a file in the path
+         get        Downloads a file in the path
+         cat        Prints a file in the path
+         rm         Removes a file in the path
+         diff       Gets diff of given path
+         log        Shows commit logs of the path
+         normalize  Normalizes a revision into an absolute revision
+         search     Searches files matched by the term
+         help, h    Shows a list of commands or help for one command
 
     GLOBAL OPTIONS:
-       --host value   Specify host or IP address with port to connect to: [hostname:port] or [http://hostname:port]
-       --login value  Specify the user to log in as on the Central Dogma server
-       --help, -h     show help
-       --version, -v  print the version
+       --connect value, -c value   Specifies host or IP address with port to connect to:[hostname:port] or [http://hostname:port]
+       --username value, -u value  Specifies the username to log in as
+       --token value, -t value     Specifies the token to authenticate
+       --help, -h                  Shows help
 
 
 Appending the ``--help`` option after a command will print the detailed usage for the command::
 
-    NAME:
-       dogma ls - List of the projects, repositories, or files
+    DESCRIPTION:
+       Lists the projects, repositories or files
 
     USAGE:
-       dogma ls [command options] project_name[/repository_name[/path]]
+       dogma ls [command options] [<project_name>[/<repository_name>[/<path>]]]
 
     OPTIONS:
-       --pretty
-       --simple
-       --json
-       --revision value, -r value
+       --revision value, -r value  Specifies the revision to operate
