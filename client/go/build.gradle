@@ -8,6 +8,18 @@ golang {
     goVersion = '1.9'
 }
 
+dependencies {
+    golang {
+        build 'github.com/urfave/cli@v1.19.1'
+        // no tags or releases
+        build 'github.com/bgentry/go-netrc#9fd32a8b3d3d3f9d43c341bfe098430e07609480'
+        // no tags or releases
+        build 'github.com/golang/crypto#7d9177d70076375b9a59c8fde23d52d9c4a7ecd5'
+        // no tags or releases
+        build 'github.com/BurntSushi/toml#8b58b6030fce084b58a61e2bc3fdf183d5881ab4'
+    }
+}
+
 ext {
     goPath = System.env.GOPATH
     if (goPath == null) {
