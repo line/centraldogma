@@ -1,0 +1,31 @@
+plugins {
+    id 'com.github.blindpirate.gogradle' version '0.7.0'
+}
+
+golang {
+    packagePath = 'github.com/line/centraldogma/client/go'
+
+    goVersion = '1.9'
+}
+
+ext {
+    goPath = System.env.GOPATH
+    if (goPath == null) {
+        goPath = "${project.projectDir}/.gogradle/project_gopath"
+    }
+    binDir = "${goPath}/bin"
+}
+
+// Gogradle puts several comman code check task into a check task. We need to explicitly specify this line
+// to invoke the tasks. By default, it is out-of-the-box and depends on vet/fmt and cover.
+build.dependsOn check
+
+build {
+    targetPlatform = ['linux-amd64', 'darwin-amd64', 'windows-amd64']
+
+    go "build -o ${project.ext.binDir}" +
+            '/dogma.${GOOS}-${GOARCH}${GOEXE} github.com/line/centraldogma/client/go/cmd/dogma'
+    doLast {
+        ant.chmod(file: "$project.ext.binDir" + '/dogma.windows-amd64.exe', perm: '644')
+    }
+}
