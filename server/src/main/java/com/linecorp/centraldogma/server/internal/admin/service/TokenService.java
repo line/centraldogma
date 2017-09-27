@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.internal.admin.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.Util.validateFileName;
-import static com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil.requireLogin;
 import static com.linecorp.centraldogma.server.internal.admin.authentication.Token.EMPTY_TOKEN;
 import static com.linecorp.centraldogma.server.internal.admin.service.RepositoryUtil.push;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
@@ -78,7 +77,6 @@ public class TokenService extends AbstractService {
      */
     @Get("/tokens")
     public CompletionStage<Collection<Token>> listTokens() {
-        requireLogin();
         return getTokens(Revision.HEAD)
                 .thenApply(Map::values)
                 .thenApply(tokens -> {
@@ -94,7 +92,6 @@ public class TokenService extends AbstractService {
      */
     @Post("/tokens")
     public CompletionStage<Token> createToken(@Param("appId") String appId) {
-        requireLogin();
         validateFileName(appId, "appId");
         return projectManager()
                 .get(INTERNAL_PROJECT_NAME).repos().get(TOKEN_REPOSITORY_NAME)
@@ -130,7 +127,6 @@ public class TokenService extends AbstractService {
      */
     @Delete("/tokens/{id}")
     public CompletionStage<Token> deleteToken(@Param("id") String id) {
-        requireLogin();
         return projectManager()
                 .get(INTERNAL_PROJECT_NAME).repos().get(TOKEN_REPOSITORY_NAME)
                 .normalize(Revision.HEAD)

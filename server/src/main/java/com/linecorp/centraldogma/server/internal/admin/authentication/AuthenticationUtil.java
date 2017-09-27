@@ -20,9 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestContext;
-import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 
@@ -60,22 +58,6 @@ public final class AuthenticationUtil {
         requireNonNull(ctx, "ctx");
         requireNonNull(currentUser, "currentUser");
         ctx.attr(CURRENT_USER_KEY).set(currentUser);
-    }
-
-    /**
-     * Returns the current login user, or throws {@link HttpResponseException} with 401 Unauthorized
-     * status code if a user is not logged in.
-     */
-    // TODO(hyangtack) This would be replaced with a decorator or the others.
-    // https://github.com/line/armeria/issues/582
-    public static User requireLogin() {
-        final User user = currentUser();
-        if (user != null) {
-            return user;
-        }
-        // Currently 401 response would not be sent correctly, but it would be fixed by
-        // https://github.com/line/armeria/pull/746.
-        throw new HttpResponseException(HttpStatus.UNAUTHORIZED);
     }
 
     private AuthenticationUtil() {}

@@ -21,8 +21,12 @@ import java.net.URI;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.HttpRequest;
+import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
 /**
@@ -82,6 +86,16 @@ public class CentralDogmaBuilder {
                 .decorator(RpcRequest.class, RpcResponse.class,
                            CentralDogmaClientTimeoutScheduler::new);
         clientConfigurator.configure(builder);
+
+        builder.decorator(HttpRequest.class, HttpResponse.class,
+                          (delegate, ctx, req) -> {
+                              if (!req.headers().contains(HttpHeaderNames.AUTHORIZATION)) {
+                                  // To prevent CSRF attack, we add 'Authorization' header to every request.
+                                  req.headers().set(HttpHeaderNames.AUTHORIZATION,
+                                                    "bearer " + CsrfToken.ANONYMOUS);
+                              }
+                              return delegate.execute(ctx, req);
+                          });
         return new DefaultCentralDogma(clientFactory, builder.build(CentralDogmaService.AsyncIface.class));
     }
 }

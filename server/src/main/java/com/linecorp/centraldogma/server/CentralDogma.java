@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedTransferQueue;
@@ -52,6 +51,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpResponseWriter;
@@ -67,20 +68,21 @@ import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.auth.HttpAuthService;
-import com.linecorp.armeria.server.docs.DocService;
+import com.linecorp.armeria.server.docs.DocServiceBuilder;
 import com.linecorp.armeria.server.file.HttpFileService;
 import com.linecorp.armeria.server.file.HttpVfs.ByteArrayEntry;
 import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.ApplicationTokenAuthorizer;
-import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSessionDAO;
+import com.linecorp.centraldogma.server.internal.admin.authentication.CsrfTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LoginService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LogoutService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.SessionTokenAuthorizer;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.admin.service.ProjectService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.TokenService;
@@ -342,7 +344,8 @@ public class CentralDogma {
                      ThriftCallService.of(service)
                                       .decorate(CentralDogmaTimeoutScheduler::new)
                                       .decorate(CentralDogmaExceptionTranslator::new)
-                                      .decorate(THttpService.newDecorator()));
+                                      .decorate(THttpService.newDecorator())
+                                      .decorate(HttpAuthService.newDecorator(new CsrfTokenAuthorizer())));
 
         sb.service("/hostname", HttpFileService.forVfs(
                 (path, encoding) -> new ByteArrayEntry(
@@ -359,20 +362,25 @@ public class CentralDogma {
             }
         });
 
+        sb.service("/security_enabled", new AbstractHttpService() {
+            @Override
+            protected void doGet(ServiceRequestContext ctx, HttpRequest req, HttpResponseWriter res)
+                    throws Exception {
+                res.respond(HttpStatus.OK,
+                            MediaType.JSON_UTF_8,
+                            Jackson.writeValueAsPrettyString(cfg.isSecurityEnabled()));
+            }
+        });
+
         sb.service("/monitor/l7check", new HttpHealthCheckService());
-        sb.serviceUnder("/docs/", new DocService());
+        sb.serviceUnder("/docs/",
+                        new DocServiceBuilder().exampleHttpHeaders(
+                                CentralDogmaService.class,
+                                HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
+                                               "bearer " + CsrfToken.ANONYMOUS))
+                                               .build());
 
         if (cfg.isWebAppEnabled()) {
-            sb.service("/security_enabled", new AbstractHttpService() {
-                @Override
-                protected void doGet(ServiceRequestContext ctx, HttpRequest req, HttpResponseWriter res)
-                        throws Exception {
-                    res.respond(HttpStatus.OK,
-                                MediaType.JSON_UTF_8,
-                                Jackson.writeValueAsPrettyString(cfg.isSecurityEnabled()));
-                }
-            });
-
             configureWebAdmin(sb, pm, executor, securityManager);
         }
 
@@ -431,10 +439,7 @@ public class CentralDogma {
 
             decorator = HttpAuthService.newDecorator(ata, sta);
         } else {
-            decorator = HttpAuthService.newDecorator((ctx, data) -> {
-                AuthenticationUtil.setCurrentUser(ctx, User.DEFAULT);
-                return CompletableFuture.completedFuture(true);
-            });
+            decorator = HttpAuthService.newDecorator(new CsrfTokenAuthorizer());
         }
 
         final Map<Class<?>, ResponseConverter> converters = ImmutableMap.of(
