@@ -60,7 +60,7 @@ var saveAction = func(content, filePath string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Fetched: %s\n", path.Base(filePath))
+	fmt.Printf("Downloaded: %s\n", path.Base(filePath))
 	return nil
 }
 
