@@ -1,0 +1,409 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Welcome to Central Dogma &mdash; Central Dogma 0.61.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/overrides.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Setting up" href="setup.html" />
+  <script src="https://cdn.jsdelivr.net/npm/interactjs@1.4.0/dist/interact.min.js"></script>
+  <script src="_static/center_page.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/default.min.css">
+   
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="#">
+          
+
+          
+            
+            <img src="_static/central_dogma.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.61
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setting up</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-cli.html">Command-line client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-java.html">Java client library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mirroring.html">Better configuration change workflow with Git-to-CD mirroring</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a></li>
+<li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/releases">Release notes</a></li>
+<li class="toctree-l1"><a class="reference external" href="apidocs/index.html#://">API documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="xref/index.html#://">Source cross-reference</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered">Questions and answers</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma">Fork me on GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/blob/main/CONTRIBUTING.md">Contributing</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">Central Dogma</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Welcome to Central Dogma</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            
+              <a href="https://github.com/line/centraldogma/blob/main/site/src/sphinx/index.rst" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="welcome-to-central-dogma">
+<span id="index"></span><h1>Welcome to Central Dogma<a class="headerlink" href="#welcome-to-central-dogma" title="Permalink to this headline">¶</a></h1>
+<p><em>Central Dogma</em> is an open-source highly-available version-controlled service configuration repository based on
+Git, ZooKeeper and HTTP/2. With Central Dogma, you can:</p>
+<ul class="simple">
+<li><p>Store your configuration files such as <code class="docutils literal notranslate"><span class="pre">.json</span></code>, <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> and <code class="docutils literal notranslate"><span class="pre">.xml</span></code> into a centralized, multi-master
+replicated, version-controlled repository.</p></li>
+<li><p>Retrieve your configuration using RESTful API, Java library and command-line client.</p></li>
+<li><p>Let your servers get notified immediately when the configuration files are updated and the new settings are
+applied without server restarts.</p></li>
+<li><p>Send a pull request for configuration changes and get it reviewed and merged by teammates;
+much less chance of making a bad configuration change!</p></li>
+</ul>
+<div class="section" id="want-a-quick-tour">
+<h2>Want a quick tour?<a class="headerlink" href="#want-a-quick-tour" title="Permalink to this headline">¶</a></h2>
+<p>Check out <a class="reference external" href="https://speakerdeck.com/trustin/central-dogma-lines-git-based-highly-available-service-configuration-repository">the introductory slides</a>:</p>
+<div style="max-width: 512px; margin-bottom: 1em"><script async class="speakerdeck-embed" data-id="a7b66c82136e494595cc06507adef5a4" data-ratio="1.77777777777778" src="//speakerdeck.com/assets/embed.js"></script></div></div>
+<div class="section" id="give-it-a-try">
+<h2>Give it a try!<a class="headerlink" href="#give-it-a-try" title="Permalink to this headline">¶</a></h2>
+<p><a href="https://github.com/line/centraldogma/releases/download/centraldogma-0.61.0/centraldogma-0.61.0.tgz">Download</a> now and give it a try (<a class="reference external" href="https://adoptopenjdk.net/">Java</a> required):</p>
+<pre class="highlight-shell literal-block">$ tar zxvf centraldogma-0.61.0.tgz
+$ cd centraldogma-0.61.0/
+$ bin/startup
+&lt;Open <a class="reference external" href="http://127.0.0.1:36462/">http://127.0.0.1:36462/</a> in your browser for administrative console.&gt;</pre>
+<p>Using Docker? Launch our image at <a class="reference external" href="https://hub.docker.com/r/line/centraldogma/">Docker Hub</a>:</p>
+<div class="highlight-shell notranslate"><div class="highlight hljs"><pre class="shell">$ docker run -p 36462:36462 line/centraldogma</pre></div>
+</div>
+</div>
+<div class="section" id="repository-service-for-textual-configuration">
+<h2>Repository service for textual configuration<a class="headerlink" href="#repository-service-for-textual-configuration" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Primarily designed for storing JSON</p>
+<ul>
+<li><p>Also supports any text formats such as YAML, XML, INI and even JavaScript</p></li>
+</ul>
+</li>
+<li><p>Store your start-time and run-time settings, such as:</p>
+<ul>
+<li><p>Application parameters and bean properties</p></li>
+<li><p>User and IP blacklists</p></li>
+<li><p>Scheduled maintenance notice</p></li>
+<li><p>Roll-out and A/B experiment parameters</p></li>
+<li><p>Rule engine scripts</p></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="highly-available">
+<h2>Highly-available<a class="headerlink" href="#highly-available" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Multi-master replicated</p>
+<ul>
+<li><p>Using <a class="reference external" href="https://zookeeper.apache.org/">Apache ZooKeeper</a> as a replication log queue</p></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="version-controlled">
+<h2>Version-controlled<a class="headerlink" href="#version-controlled" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Keeps full history of configuration changes in Git repositories.</p></li>
+<li><p>Can hold a lot more information than in-memory competitors.</p></li>
+</ul>
+</div>
+<div class="section" id="query-and-notification-mechanism">
+<h2>Query and notification mechanism<a class="headerlink" href="#query-and-notification-mechanism" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Query your JSON files with <a class="reference external" href="https://github.com/json-path/JsonPath">JSON path</a>.</p></li>
+<li><p>Watch your files and get notified immediately when they are modified.</p></li>
+</ul>
+</div>
+<div class="section" id="fine-grained-access-control">
+<h2>Fine-grained access control<a class="headerlink" href="#fine-grained-access-control" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Pluggable authentication layer</p></li>
+<li><p>Role-based per-repository permissions</p></li>
+<li><p>See <a class="reference internal" href="auth.html#auth"><span class="std std-ref">Authentication and Access Control</span></a> for more information.</p></li>
+</ul>
+</div>
+<div class="section" id="automated-mirroring-from-an-external-git-repository">
+<h2>Automated mirroring from an external Git repository<a class="headerlink" href="#automated-mirroring-from-an-external-git-repository" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Keep your settings in a GitHub or GitLab repository.</p></li>
+<li><p>Send a <a class="reference external" href="https://help.github.com/articles/about-pull-requests/">pull request</a> to modify the settings and get it reviewed and merged.</p></li>
+<li><p>Let Central Dogma mirror your settings so they are:</p>
+<ul>
+<li><p>Highly-available</p></li>
+<li><p>Queryable</p></li>
+<li><p>Watchable</p></li>
+<li><p>Access-controlled</p></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="read-more">
+<h2>Read more<a class="headerlink" href="#read-more" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setting up</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="setup-installation.html">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="setup-configuration.html">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-cli.html">Command-line client</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="client-cli.html#path-syntax">Path syntax</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-cli.html#creating-projects-and-repositories">Creating projects and repositories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-cli.html#listing-entries">Listing entries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-cli.html#retrieving-a-file">Retrieving a file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-cli.html#modifying-a-repository">Modifying a repository</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-cli.html#specifying-a-revision">Specifying a revision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-cli.html#watching-a-file">Watching a file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-cli.html#use-the-help-option">Use the <code class="docutils literal notranslate"><span class="pre">--help</span></code> option</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="client-java.html">Java client library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#adding-centraldogma-client-as-a-dependency">Adding <code class="docutils literal notranslate"><span class="pre">centraldogma-client</span></code> as a dependency</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#creating-a-client">Creating a client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#specifying-an-access-token">Specifying an access token</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#getting-a-file">Getting a file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#getting-a-merged-file">Getting a merged file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#pushing-a-commit">Pushing a commit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#watching-a-file">Watching a file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#specifying-multiple-hosts">Specifying multiple hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#using-client-profiles">Using client profiles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#using-dns-based-lookup">Using DNS-based lookup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#spring-boot-integration">Spring Boot integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client-java.html#read-the-javadoc">Read the Javadoc</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mirroring.html">Better configuration change workflow with Git-to-CD mirroring</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mirroring.html#setting-up-a-git-to-cd-mirror">Setting up a Git-to-CD mirror</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mirroring.html#setting-up-a-cd-to-git-mirror">Setting up a CD-to-Git mirror</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mirroring.html#mirror-limit-settings">Mirror limit settings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="auth.html#basic-authentication-configuration">Basic authentication configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth.html#configuring-authentication-with-saml">Configuring authentication with SAML</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth.html#configuring-authentication-with-apache-shiro">Configuring authentication with Apache Shiro</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth.html#access-control">Access Control</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="known-issues.html#previously-known-issues">Previously known issues</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/releases">Release notes</a></li>
+<li class="toctree-l1"><a class="reference external" href="apidocs/index.html#://">API documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="xref/index.html#://">Source cross-reference</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered">Questions and answers</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma">Fork me on GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/blob/main/CONTRIBUTING.md">Contributing</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="setup.html" class="btn btn-neutral float-right" title="Setting up" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2017-2023, LINE Corporation.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+  <a href="https://github.com/line/centraldogma" class="github-corner" aria-label="View source on GitHub">
+    <svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true">
+      <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z" fill="#1e2834"></path>
+      <path class="octo-arm" d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="#ffffff" style="transform-origin: 130px 106px;"></path>
+      <path class="octo-body" d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="#ffffff"></path>
+    </svg>
+  </a>
+  <script type="text/javascript" src="_static/add_badges.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/gradle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/protobuf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/thrift.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.7.0/highlightjs-line-numbers.min.js"></script>
+  <script>
+    document.querySelectorAll('div.hljs > pre').forEach(function(block) {
+      hljs.highlightBlock(block);
+      hljs.lineNumbersBlock(block);
+    });
+  </script>
+   
+
+
+</body>
+</html>

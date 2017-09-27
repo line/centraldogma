@@ -1,0 +1,509 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Better configuration change workflow with Git-to-CD mirroring &mdash; Central Dogma 0.61.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/overrides.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Authentication and Access Control" href="auth.html" />
+    <link rel="prev" title="Java client library" href="client-java.html" />
+  <script src="https://cdn.jsdelivr.net/npm/interactjs@1.4.0/dist/interact.min.js"></script>
+  <script src="_static/center_page.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/default.min.css">
+   
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html">
+          
+
+          
+            
+            <img src="_static/central_dogma.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.61
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setting up</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-cli.html">Command-line client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-java.html">Java client library</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Better configuration change workflow with Git-to-CD mirroring</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#setting-up-a-git-to-cd-mirror">Setting up a Git-to-CD mirror</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setting-up-a-cd-to-git-mirror">Setting up a CD-to-Git mirror</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mirror-limit-settings">Mirror limit settings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a></li>
+<li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/releases">Release notes</a></li>
+<li class="toctree-l1"><a class="reference external" href="apidocs/index.html#://">API documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="xref/index.html#://">Source cross-reference</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered">Questions and answers</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma">Fork me on GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/blob/main/CONTRIBUTING.md">Contributing</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Central Dogma</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Better configuration change workflow with Git-to-CD mirroring</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            
+              <a href="https://github.com/line/centraldogma/blob/main/site/src/sphinx/mirroring.rst" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="better-configuration-change-workflow-with-git-to-cd-mirroring">
+<span id="mirroring"></span><h1>Better configuration change workflow with Git-to-CD mirroring<a class="headerlink" href="#better-configuration-change-workflow-with-git-to-cd-mirroring" title="Permalink to this headline">¶</a></h1>
+<p>Making a configuration change is often a risky business. Pushing an invalid configuration change can cause your
+service to malfunction even if zero line of code is changed. To reduce the chance of outage due to incorrect
+configuration changes, you would want them reviewed by many eyes before they are applied.</p>
+<p>Modern source code hosting services such as <a class="reference external" href="https://github.com/">GitHub</a> and <a class="reference external" href="https://about.gitlab.com/">GitLab</a>
+have a notion of <a class="reference external" href="https://help.github.com/articles/about-pull-requests/">pull request</a>. What if we use pull
+requests for configuration changes just like we do for source code, given the importance of service
+configuration?</p>
+<p>With Central Dogma’s periodic Git repository mirroring, you can set up the following workflow in your
+organization:</p>
+<ul class="simple">
+<li><p>Humans work on a Git repository to manage the configuration files.</p>
+<ol class="arabic simple">
+<li><p>Store the configuration files in a Git repository.</p></li>
+<li><p>Send a pull request that updates the configuration files.</p></li>
+<li><p>The pull request is reviewed and merged.</p></li>
+</ol>
+</li>
+<li><p>Applications work on a Central Dogma repository to retrieve the configuration files.</p>
+<ol class="arabic simple">
+<li><p>Central Dogma mirrors the configuration files in the Git repository into a Central Dogma repository.</p></li>
+<li><p>Applications watches the configuration files in the Central Dogma repository.</p></li>
+</ol>
+</li>
+</ul>
+<p>Note that the applications do not access Git repositories directly. There are a few good reasons to make your
+applications access Central Dogma repositories instead:</p>
+<ul class="simple">
+<li><p>Source code repositories are often hosted in a different network.</p></li>
+<li><p>Source code repositories are not always highly-available, although they may be backed up regularly.</p></li>
+<li><p>Central Dogma repositories are highly-available, queryable and watchable.</p></li>
+</ul>
+<div class="section" id="setting-up-a-git-to-cd-mirror">
+<h2>Setting up a Git-to-CD mirror<a class="headerlink" href="#setting-up-a-git-to-cd-mirror" title="Permalink to this headline">¶</a></h2>
+<p>You need to put two files into the <code class="docutils literal notranslate"><span class="pre">meta</span></code> repository of your Central Dogma project: <code class="docutils literal notranslate"><span class="pre">/mirrors.json</span></code> and
+<code class="docutils literal notranslate"><span class="pre">/credentials.json</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">/mirrors.json</span></code> contains an array of periodic mirroring tasks. For example:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">[
+  {
+    &quot;type&quot;: &quot;single&quot;,
+    &quot;enabled&quot;: true,
+    &quot;schedule&quot;: &quot;0 * * * * ?&quot;,
+    &quot;direction&quot;: &quot;REMOTE_TO_LOCAL&quot;,
+    &quot;localRepo&quot;: &quot;foo&quot;,
+    &quot;localPath&quot;: &quot;/&quot;,
+    &quot;remoteUri&quot;: &quot;git+ssh://git.example.com/foo.git/settings#release&quot;,
+    &quot;credentialId&quot;: &quot;my_private_key&quot;,
+    &quot;gitignore&quot;: [
+        &quot;/credential.txt&quot;,
+        &quot;private_dir&quot;
+    ]
+  }
+]</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (string)</p>
+<ul>
+<li><p>the type of the mirroring task. Use <code class="docutils literal notranslate"><span class="pre">single</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">enabled</span></code> (boolean, optional)</p>
+<ul>
+<li><p>whether the mirroring task is enabled. Enabled by default if unspecified.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">schedule</span></code> (string, optional)</p>
+<ul>
+<li><p>a <a class="reference external" href="https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html">Quartz cron expression</a>
+that describes when the mirroring task is supposed to be triggered. If unspecified, <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">?</span></code>
+(every minute) is used.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">direction</span></code> (string)</p>
+<ul>
+<li><p>the direction of mirror. Use <code class="docutils literal notranslate"><span class="pre">REMOTE_TO_LOCAL</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">localRepo</span></code> (string)</p>
+<ul>
+<li><p>the Central Dogma repository name. The content under the location specified in <code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> will be
+mirrored into this repository.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">localPath</span></code> (string, optional)</p>
+<ul>
+<li><p>the directory path in <code class="docutils literal notranslate"><span class="pre">localRepo</span></code>. The content under the location specified in <code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> will be
+mirrored into this directory in <code class="docutils literal notranslate"><span class="pre">localRepo</span></code>. If unspecified, <code class="docutils literal notranslate"><span class="pre">/</span></code> is used.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> (string)</p>
+<ul>
+<li><p>the URI of the Git repository which will be mirrored from.</p></li>
+<li><p>Supported schemes are:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">git+http</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">git+https</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">git+ssh</span></code></p></li>
+</ul>
+</li>
+<li><p>Path is split after <code class="docutils literal notranslate"><span class="pre">.git</span></code>. The part after <code class="docutils literal notranslate"><span class="pre">.git</span></code> refers the directory inside the Git repository.
+e.g. <code class="docutils literal notranslate"><span class="pre">/foo.git/src/settings</span></code> refers to the files under the directory <code class="docutils literal notranslate"><span class="pre">/src/settings</span></code> which resides in
+the Git repository <code class="docutils literal notranslate"><span class="pre">/foo.git</span></code> If you want to mirror the whole content of the repository, you can simply
+end the URI with <code class="docutils literal notranslate"><span class="pre">.git</span></code>. e.g. <code class="docutils literal notranslate"><span class="pre">git+ssh://git.example.com/foo.git</span></code></p></li>
+<li><p>Fragment represents a branch name. e.g. <code class="docutils literal notranslate"><span class="pre">#release</span></code> will mirror the branch <code class="docutils literal notranslate"><span class="pre">release</span></code>. If unspecified,
+the repository’s default branch is mirrored.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">credentialId</span></code> (string, optional)</p>
+<ul>
+<li><p>the ID of the credential to use for authentication, as defined in <code class="docutils literal notranslate"><span class="pre">/credentials.json</span></code>. If unspecified,
+the credential whose <code class="docutils literal notranslate"><span class="pre">hostnamePattern</span></code> is matched by the host name part of the <code class="docutils literal notranslate"><span class="pre">remoteUri</span></code> value will
+be selected automatically.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gitignore</span></code> (string or array of strings, optional)</p>
+<ul>
+<li><p>a <cite>gitignore &lt;https://git-scm.com/docs/gitignore&gt;</cite> specifies files that should be excluded from mirroring.
+The type of gitignore can either be a string containing the entire file (e.g. <code class="docutils literal notranslate"><span class="pre">/filename.txt\ndirectory</span></code>) or an array
+of strings where each line represents a single pattern. The file pattern expressed in gitignore is relative to the
+path of <code class="docutils literal notranslate"><span class="pre">remoteUri</span></code>.</p></li>
+</ul>
+</li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">/credentials.json</span></code> contains the authentication credentials which are required when accessing the Git
+repositories defined in <code class="docutils literal notranslate"><span class="pre">/mirrors.json</span></code>:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">[
+  {
+    &quot;type&quot;: &quot;none&quot;,
+    &quot;hostnamePatterns&quot;: [
+      &quot;^git\.insecure\.com$&quot;
+    ]
+  },
+  {
+    &quot;type&quot;: &quot;password&quot;,
+    &quot;hostnamePatterns&quot;: [
+      &quot;^git\.password-protected\.com$&quot;
+    ],
+    &quot;username&quot;: &quot;alice&quot;,
+    &quot;password&quot;: &quot;secret!&quot;
+  },
+  {
+    &quot;id&quot;: &quot;my_private_key&quot;,
+    &quot;type&quot;: &quot;public_key&quot;,
+    &quot;hostnamePatterns&quot;: [
+      &quot;^.*\.secure\.com$&quot;
+    ],
+    &quot;username&quot;: &quot;git&quot;,
+    &quot;publicKey&quot;: &quot;ssh-rsa ... user@host&quot;,
+    &quot;privateKey&quot;: &quot;-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n&quot;,
+    &quot;passphrase&quot;: null
+  },
+  {
+    &quot;id&quot;: &quot;my_access_token&quot;,
+    &quot;type&quot;: &quot;access_token&quot;,
+    &quot;accessToken&quot;: &quot;github_pat_...&quot;
+  }
+]</pre></div>
+</div>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code> (string, optional)</p>
+<ul class="simple">
+<li><p>the ID of the credential. You can specify the value of this field in the <code class="docutils literal notranslate"><span class="pre">credentialId</span></code> field of the
+mirror definitions in <code class="docutils literal notranslate"><span class="pre">/mirrors.json</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code> (string)</p>
+<ul class="simple">
+<li><p>the type of authentication mechanism: <code class="docutils literal notranslate"><span class="pre">none</span></code>, <code class="docutils literal notranslate"><span class="pre">password</span></code>, <code class="docutils literal notranslate"><span class="pre">public_key</span></code> or <code class="docutils literal notranslate"><span class="pre">access_token</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hostnamePatterns</span></code> (array of strings, optional)</p>
+<ul class="simple">
+<li><p>the regular repressions that matches a host name. The credential whose hostname pattern matches first will
+be used when accessing a host. You may want to omit this field if you do not want the credential to be
+selected automatically, i.e. a mirror has to specify the <code class="docutils literal notranslate"><span class="pre">credentialId</span></code> field.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">username</span></code> (string)</p>
+<ul class="simple">
+<li><p>the user name. You must specify this field if you use a credential whose type is <code class="docutils literal notranslate"><span class="pre">password</span></code> or
+<code class="docutils literal notranslate"><span class="pre">public_key</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">password</span></code> (string)</p>
+<ul class="simple">
+<li><p>the password which is used for password-based authentication.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">publicKey</span></code> (string)</p>
+<ul class="simple">
+<li><p>the OpenSSH RSA public key which is used for SSH public key authentication.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">privateKey</span></code> (string)</p>
+<ul>
+<li><p>the OpenSSH RSA private key in PEM format which is used for SSH public key authentication.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that the private key must be an RSA key formatted in PEM format, which starts with
+<code class="docutils literal notranslate"><span class="pre">-----BEGIN</span> <span class="pre">RSA</span> <span class="pre">PRIVATE</span> <span class="pre">KEY-----</span></code>. If your private key starts with
+<code class="docutils literal notranslate"><span class="pre">-----BEGIN</span> <span class="pre">OPENSSH</span> <span class="pre">PRIVATE</span> <span class="pre">KEY-----</span></code>, you must convert it into PEM format first:</p>
+<div class="highlight-shell notranslate"><div class="highlight hljs"><pre class="shell">$ ssh-keygen -p -m PEM -f ~/.ssh/id_rsa</pre></div>
+</div>
+<p>Alternatively, you can regenerate the key pair with the <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">PEM</span></code> option:</p>
+<div class="highlight-shell notranslate"><div class="highlight hljs"><pre class="shell">$ ssh-keygen -m PEM -t rsa -b 4096 -C &quot;your_email@example.com&quot;</pre></div>
+</div>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>You can convert your private key into a JSON string using a <code class="docutils literal notranslate"><span class="pre">perl</span></code> command:</p>
+<div class="highlight-shell notranslate"><div class="highlight hljs"><pre class="shell">$ cat ~/.ssh/id_rsa | perl -p -0 -e &#x27;s/\r?\n/\\n/g&#x27;</pre></div>
+</div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">passphrase</span></code> (string)</p>
+<ul class="simple">
+<li><p>the passphrase of <code class="docutils literal notranslate"><span class="pre">privateKey</span></code> if the private key is encrypted.
+If unspecified or <code class="docutils literal notranslate"><span class="pre">null</span></code>, the private key should not be encrypted.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">accessToken</span></code> (string)</p>
+<ul class="simple">
+<li><p>the access token which is used for access token-based authentication such as
+<a class="reference external" href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token">GitHub Personal Access Token</a>.</p></li>
+</ul>
+</li>
+</ul>
+<p>If everything was configured correctly, the repository you specified in <code class="docutils literal notranslate"><span class="pre">localRepo</span></code> will have a file named
+<code class="docutils literal notranslate"><span class="pre">mirror_state.json</span></code> on a successful run, which contains the commit ID of the Git repository:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;sourceRevision&quot;: &quot;22fb176e4d8096d709d34ffe985c5f3acea83ef2&quot;
+}</pre></div>
+</div>
+</div>
+<div class="section" id="setting-up-a-cd-to-git-mirror">
+<h2>Setting up a CD-to-Git mirror<a class="headerlink" href="#setting-up-a-cd-to-git-mirror" title="Permalink to this headline">¶</a></h2>
+<p>It’s exactly the same as setting up a Git-to-CD mirror which is described above, except you need to specify
+<code class="docutils literal notranslate"><span class="pre">direction</span></code> with <code class="docutils literal notranslate"><span class="pre">LOCAL_TO_REMOTE</span></code>.</p>
+</div>
+<div class="section" id="mirror-limit-settings">
+<h2>Mirror limit settings<a class="headerlink" href="#mirror-limit-settings" title="Permalink to this headline">¶</a></h2>
+<p>Central Dogma limits the number of files and the total size of the files in a mirror for its reliability.
+As your configuration grows, you may want to bump the limit. See <a class="reference internal" href="setup-configuration.html#setup-configuration"><span class="std std-ref">Configuration</span></a> to learn about
+the options related with mirroring: <code class="docutils literal notranslate"><span class="pre">numMirroringThreads</span></code>, <code class="docutils literal notranslate"><span class="pre">maxNumFilesPerMirror</span></code> and
+<code class="docutils literal notranslate"><span class="pre">maxNumBytesPerMirror</span></code>.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="auth.html" class="btn btn-neutral float-right" title="Authentication and Access Control" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="client-java.html" class="btn btn-neutral float-left" title="Java client library" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2017-2023, LINE Corporation.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+  <a href="https://github.com/line/centraldogma" class="github-corner" aria-label="View source on GitHub">
+    <svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true">
+      <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z" fill="#1e2834"></path>
+      <path class="octo-arm" d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="#ffffff" style="transform-origin: 130px 106px;"></path>
+      <path class="octo-body" d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="#ffffff"></path>
+    </svg>
+  </a>
+  <script type="text/javascript" src="_static/add_badges.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/gradle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/protobuf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/thrift.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.7.0/highlightjs-line-numbers.min.js"></script>
+  <script>
+    document.querySelectorAll('div.hljs > pre').forEach(function(block) {
+      hljs.highlightBlock(block);
+      hljs.lineNumbersBlock(block);
+    });
+  </script>
+   
+
+
+</body>
+</html>

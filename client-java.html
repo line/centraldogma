@@ -1,0 +1,823 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Java client library &mdash; Central Dogma 0.61.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/overrides.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Better configuration change workflow with Git-to-CD mirroring" href="mirroring.html" />
+    <link rel="prev" title="Command-line client" href="client-cli.html" />
+  <script src="https://cdn.jsdelivr.net/npm/interactjs@1.4.0/dist/interact.min.js"></script>
+  <script src="_static/center_page.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/default.min.css">
+   
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html">
+          
+
+          
+            
+            <img src="_static/central_dogma.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.61
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setting up</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client-cli.html">Command-line client</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Java client library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#adding-centraldogma-client-as-a-dependency">Adding <code class="docutils literal notranslate"><span class="pre">centraldogma-client</span></code> as a dependency</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-a-client">Creating a client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#specifying-an-access-token">Specifying an access token</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-a-file">Getting a file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-a-merged-file">Getting a merged file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pushing-a-commit">Pushing a commit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#watching-a-file">Watching a file</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#preparing-for-unavailability">Preparing for unavailability</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#specifying-multiple-hosts">Specifying multiple hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#using-client-profiles">Using client profiles</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#custom-client-profiles">Custom client profiles</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#using-dns-based-lookup">Using DNS-based lookup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#spring-boot-integration">Spring Boot integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#read-the-javadoc">Read the Javadoc</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mirroring.html">Better configuration change workflow with Git-to-CD mirroring</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Access Control</a></li>
+<li class="toctree-l1"><a class="reference internal" href="known-issues.html">Known issues</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/releases">Release notes</a></li>
+<li class="toctree-l1"><a class="reference external" href="apidocs/index.html#://">API documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="xref/index.html#://">Source cross-reference</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered">Questions and answers</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma">Fork me on GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/line/centraldogma/blob/main/CONTRIBUTING.md">Contributing</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Central Dogma</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Java client library</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            
+              <a href="https://github.com/line/centraldogma/blob/main/site/src/sphinx/client-java.rst" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="java-client-library">
+<span id="client-java"></span><h1>Java client library<a class="headerlink" href="#java-client-library" title="Permalink to this headline">¶</a></h1>
+<p>The Java client library is the first class client implementation that provides the access to all operations
+exposed by a Central Dogma server.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Keep <a class="reference external" href="apidocs/index.html">the API documentation</a> open in another browser tab. You’ll find it to be a very useful companion.</p>
+</div>
+<div class="section" id="adding-centraldogma-client-as-a-dependency">
+<h2>Adding <code class="docutils literal notranslate"><span class="pre">centraldogma-client</span></code> as a dependency<a class="headerlink" href="#adding-centraldogma-client-as-a-dependency" title="Permalink to this headline">¶</a></h2>
+<p>Gradle:</p>
+<pre class="highlight-gradle literal-block">dependencies {
+    compile 'com.linecorp.centraldogma:centraldogma-client-armeria:0.61.0'
+}</pre>
+<p>Maven:</p>
+<pre class="highlight-xml literal-block">&lt;dependencies&gt;
+  &lt;dependency&gt;
+    &lt;groupId&gt;com.linecorp.centraldogma&lt;/groupId&gt;
+    &lt;artifactId&gt;centraldogma-client-armeria&lt;/artifactId&gt;
+    &lt;version&gt;0.61.0&lt;/version&gt;
+  &lt;/dependency&gt;
+&lt;/dependencies&gt;</pre>
+</div>
+<div class="section" id="creating-a-client">
+<h2>Creating a client<a class="headerlink" href="#creating-a-client" title="Permalink to this headline">¶</a></h2>
+<p>First, we should create a new instance of <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/client/CentralDogma.html">CentralDogma</a></code>:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
+
+// The default port 36462 is used if unspecified.
+CentralDogma dogma = new ArmeriaCentralDogmaBuilder()
+        .host(&quot;127.0.0.1&quot;)
+        .build();
+// You can specify an alternative port or enable TLS as well:
+CentralDogma dogma2 = new ArmeriaCentralDogmaBuilder()
+        .useTls()                   // Enable TLS.
+        .host(&quot;example.com&quot;, 8443); // Use port 8443.
+        .build();</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Internally, the client uses <a class="reference external" href="https://line.github.io/armeria/">Armeria</a> as its networking layer. You may want to customize the client
+settings, such as specifying alternative Armeria <code class="docutils literal notranslate"><span class="pre">ClientFactory</span></code> or configuring Armeria <code class="docutils literal notranslate"><span class="pre">ClientBuilder</span></code>.</p>
+</div>
+</div>
+<div class="section" id="specifying-an-access-token">
+<h2>Specifying an access token<a class="headerlink" href="#specifying-an-access-token" title="Permalink to this headline">¶</a></h2>
+<p>You must specify an access token if your Central Dogma server has enabled authorization.</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">CentralDogma dogma = new ArmeriaCentralDogmaBuilder()
+        .host(&quot;127.0.0.1&quot;)
+        .accessToken(&quot;appToken-cffed349-d573-457f-8f74-4727ad9341ce&quot;)
+        .build();</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>See <a class="reference internal" href="auth.html#auth"><span class="std std-ref">Authentication and Access Control</span></a> for more information about securing a Central Dogma server and managing permissions and
+access tokens.</p>
+</div>
+</div>
+<div class="section" id="getting-a-file">
+<span id="id1"></span><h2>Getting a file<a class="headerlink" href="#getting-a-file" title="Permalink to this headline">¶</a></h2>
+<p>Once a client is created, you can get a file from a repository:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import java.util.concurrent.CompletableFuture;
+import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.Query;
+
+CentralDogma dogma = ...;
+CompletableFuture&lt;Entry&lt;String&gt;&gt; future =
+        dogma.getFile(&quot;myProj&quot;, &quot;myRepo&quot;, Revision.HEAD, Query.ofText(&quot;/a.txt&quot;));
+
+Entry&lt;String&gt; entry = future.join();
+assert entry.type() == EntryType.TEXT
+assert entry.content() instanceof String; // Text file&#x27;s content type is String.
+System.err.println(entry.content());</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">getFile()</span></code> call above will fetch the latest revision of <code class="docutils literal notranslate"><span class="pre">/a.txt</span></code> because we specified <code class="docutils literal notranslate"><span class="pre">Revision.HEAD</span></code>
+which is equal to <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">Revision(-1)</span></code>. If you want to fetch a specific revision, you can specify the revision
+you desire. e.g. <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">Revision(42)</span></code> or <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">Revision(-7)</span></code></p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Not sure what the meaning of a negative revision number is? Read <a class="reference internal" href="concepts.html#concepts"><span class="std std-ref">Concepts</span></a>.</p>
+</div>
+<p>Note that we used <code class="docutils literal notranslate"><span class="pre">Query.ofText()</span></code>, which tells Central Dogma to fetch the textual content. For a JSON file,
+you need to use <code class="docutils literal notranslate"><span class="pre">Query.ofJson()</span></code>:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import com.fasterxml.jackson.databind.JsonNode;
+
+CentralDogma dogma = ...;
+CompletableFuture&lt;Entry&lt;JsonNode&gt;&gt; future =
+        dogma.getFile(&quot;myProj&quot;, &quot;myRepo&quot;, Revision.HEAD, Query.ofJson(&quot;/b.json&quot;));</pre></div>
+</div>
+<p>Did you notice the return type changed slightly? The type parameter of <code class="docutils literal notranslate"><span class="pre">Entry</span></code> is not <code class="docutils literal notranslate"><span class="pre">String</span></code> anymore but
+<code class="docutils literal notranslate"><span class="pre">JsonNode</span></code> (from <a class="reference external" href="https://github.com/FasterXML/jackson">Jackson</a>), because we know we are fetching a JSON
+file.</p>
+<p>Alternatively, you can use <code class="docutils literal notranslate"><span class="pre">Query.ofJsonPath()</span></code> to retrieve the result of JSON path evaluation instead of
+the whole content, which would be useful especially when you are interested only in a certain part of a
+large JSON file:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">CentralDogma dogma = ...;
+CompletableFuture&lt;Entry&lt;JsonNode&gt;&gt; future =
+        dogma.getFile(&quot;myProj&quot;, &quot;myRepo&quot;, Revision.HEAD,
+                      Query.ofJsonPath(&quot;/b.json&quot;, &quot;$.someValue&quot;));</pre></div>
+</div>
+<p>Central Dogma server will apply the JSON path expression <code class="docutils literal notranslate"><span class="pre">$.someValue</span></code> to the content of <code class="docutils literal notranslate"><span class="pre">/b.json</span></code>
+and return the query result to the client. For example, if <code class="docutils literal notranslate"><span class="pre">/b.json</span></code> contains the following:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{ &quot;someValue&quot;: 42, &quot;otherValue&quot;: &quot;foo&quot; }</pre></div>
+</div>
+<p>You would get:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">42</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Central Dogma uses <a class="reference external" href="https://github.com/json-path/JsonPath">Jayway’s JSON path implementation</a>.
+Refer to their project page for syntax, example and the list of supported functions.</p>
+</div>
+</div>
+<div class="section" id="getting-a-merged-file">
+<h2>Getting a merged file<a class="headerlink" href="#getting-a-merged-file" title="Permalink to this headline">¶</a></h2>
+<p>You can get a merged file from a repository:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
+
+CentralDogma dogma = ...;
+List&lt;MergeSource&gt; mergeSources = Arrays.asList(MergeSource.ofRequired(&quot;/a.json&quot;),
+                                               MergeSource.ofRequired(&quot;/b.json&quot;),
+                                               MergeSource.ofRequired(&quot;/c.json&quot;));
+CompletableFuture&lt;MergedEntry&lt;JsonNode&gt;&gt; future =
+        dogma.mergeFiles(&quot;myProj&quot;, &quot;myRepo&quot;, Revision.HEAD,
+                         MergeQuery.ofJson(mergeSources));
+
+MergedEntry&lt;JsonNode&gt; mergedEntry = future.join();
+assert mergedEntry.type() == EntryType.JSON
+assert mergedEntry.content() instanceof JsonNode;
+System.err.println(mergedEntry.content());</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">mergeFiles()</span></code> call above will retrieve the <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/MergedEntry.html">MergedEntry</a></code> which contains a JSON document which
+is the result of merging the files specified in the <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/MergeQuery.html">MergeQuery</a></code> sequentially.
+We specified <code class="docutils literal notranslate"><span class="pre">Revision.HEAD</span></code>, so the latest revision of <code class="docutils literal notranslate"><span class="pre">/a.json</span></code>, <code class="docutils literal notranslate"><span class="pre">/b.json</span></code> and <code class="docutils literal notranslate"><span class="pre">/c.json</span></code>
+will be merged. If you want to fetch at the specific revision, you can specify the revision as we
+did in <a class="reference internal" href="#getting-a-file"><span class="std std-ref">Getting a file</span></a>.</p>
+<p>Only merging JSON files is currently supported. The merge happens traversing children in the JSON object
+recursively. In the merge process, the value is simply replaced by the value who has same property name.
+Let’s consider that the contents of the <code class="docutils literal notranslate"><span class="pre">/a.json</span></code>, <code class="docutils literal notranslate"><span class="pre">/b.json</span></code> and <code class="docutils literal notranslate"><span class="pre">/c.json</span></code> are as follows:</p>
+<p><code class="docutils literal notranslate"><span class="pre">/a.json</span></code></p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;someObject&quot;: {
+    &quot;nullInSomeObject&quot;: null
+  },
+  &quot;someValue&quot;: &quot;foo&quot;
+}</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">/b.json</span></code></p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;someObject&quot;: {
+    &quot;booleanInSomeObject&quot;: true // Add this field because it it not in &quot;/a.json&quot;.
+  },
+  &quot;someValue&quot;: &quot;bar&quot; // Replace the value with &quot;bar&quot;.
+}</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">/c.json</span></code></p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;someObject&quot;: {
+    // Replace the null with 100. null can be converted to any type.
+    &quot;nullInSomeObject&quot;: 100
+  }
+}</pre></div>
+</div>
+<p>Then, the content of the merged entry will be:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">{
+  &quot;someObject&quot;: {
+    &quot;nullInSomeObject&quot;: 100,
+    &quot;booleanInSomeObject&quot;: true
+  },
+  &quot;someValue&quot;: &quot;bar&quot;
+}</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Corresponding types of values should be same or one of the types must be <code class="docutils literal notranslate"><span class="pre">null</span></code> to replace.
+If their types do not match or neither value is <code class="docutils literal notranslate"><span class="pre">null</span></code>, you will get a <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/QueryExecutionException.html">QueryExecutionException</a></code>.</p>
+</div>
+<p>You can mark some files involved in the merge process as optional.</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">CentralDogma dogma = ...;
+List&lt;MergeSource&gt; mergeSources = Arrays.asList(MergeSource.ofRequired(&quot;/a.json&quot;),
+                                               MergeSource.ofOptional(&quot;/b.json&quot;), // &lt;-- It&#x27;s optional!
+                                               MergeSource.ofRequired(&quot;/c.json&quot;));
+CompletableFuture&lt;MergedEntry&lt;JsonNode&gt;&gt; future =
+        dogma.mergeFiles(&quot;myProj&quot;, &quot;myRepo&quot;, Revision.HEAD,
+                         MergeQuery.ofJson(mergeSources));</pre></div>
+</div>
+<p>Note that we used <code class="docutils literal notranslate"><span class="pre">MergeSource.ofOptional(&quot;/b.json&quot;)</span></code>, which tells to include the <code class="docutils literal notranslate"><span class="pre">/b.json</span></code> file only if it
+exists in the repository. If it does not exist, <code class="docutils literal notranslate"><span class="pre">/a.json</span></code> and <code class="docutils literal notranslate"><span class="pre">/c.json</span></code> will be merged sequentially.
+The files specified as required must exist in the repository. You will get an <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/EntryNotFoundException.html">EntryNotFoundException</a></code>
+otherwise.
+You will get the <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/EntryNotFoundException.html">EntryNotFoundException</a></code> as well when you specify all of the files as optional
+and none of them exists.</p>
+<p>As we used <code class="docutils literal notranslate"><span class="pre">Query.ofJsonPath()</span></code> in <a class="reference internal" href="#getting-a-file"><span class="std std-ref">Getting a file</span></a>, you can use <code class="docutils literal notranslate"><span class="pre">MergeQuery.ofJsonPath()</span></code> to
+retrieve the result of JSON path evaluation of the <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/MergedEntry.html">MergedEntry</a></code>.</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">CentralDogma dogma = ...;
+List&lt;MergeSource&gt; mergeSources = Arrays.asList(MergeSource.ofRequired(&quot;/a.json&quot;),
+                                               MergeSource.ofOptional(&quot;/b.json&quot;),
+                                               MergeSource.ofRequired(&quot;/c.json&quot;));
+CompletableFuture&lt;MergedEntry&lt;JsonNode&gt;&gt; future =
+        dogma.mergeFiles(&quot;myProj&quot;, &quot;myRepo&quot;, Revision.HEAD,
+                         MergeQuery.ofJsonPath(mergeSources, &quot;$.someValue&quot;));</pre></div>
+</div>
+<p>Central Dogma server will apply the JSON path expression <code class="docutils literal notranslate"><span class="pre">$.someValue</span></code> to the content of the
+<code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/common/MergedEntry.html">MergedEntry</a></code>, and return the query result to the client.</p>
+</div>
+<div class="section" id="pushing-a-commit">
+<span id="id2"></span><h2>Pushing a commit<a class="headerlink" href="#pushing-a-commit" title="Permalink to this headline">¶</a></h2>
+<p>You can also push a commit into a repository programmatically:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Commit;
+
+CentralDogma dogma = ...;
+CompletableFuture&lt;Commit&gt; future =
+        dogma.push(&quot;myProj&quot;, &quot;myRepo&quot;, Revision.HEAD,
+                   &quot;Add /c.json and remove /b.json&quot;,
+                   Change.ofUpsert(&quot;/c.json&quot;, &quot;{ \&quot;foo\&quot;: \&quot;bar\&quot; }&quot;),
+                   Change.ofRemoval(&quot;/b.json&quot;));
+
+Commit commit = future.join();
+System.err.printf(&quot;Pushed a commit %s at %s%n&quot;,
+                  commit.revision(), commit.whenAsText());</pre></div>
+</div>
+<p>In this example, we pushed a commit that contains two changes: one that adds <code class="docutils literal notranslate"><span class="pre">/c.json</span></code> and the other that
+removes <code class="docutils literal notranslate"><span class="pre">/b.json</span></code>.</p>
+<p>Note that we specified <code class="docutils literal notranslate"><span class="pre">Revision.HEAD</span></code> as the base revision. It means this commit is against the latest
+commit in the repository <code class="docutils literal notranslate"><span class="pre">myRepo</span></code>. Alternatively, you can specify an absolute revision so that you are
+absolutely sure that nobody pushed a commit while you prepare yours: (pun intended 😉)</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import java.util.concurrent.CompletionException;
+
+CentralDogma dogma = ...;
+CompletableFuture&lt;Commit&gt; future = dogma.push(..., new Revision(3), ...);
+try {
+    future.join();
+} catch (CompletionException e) {
+    Throwable cause = e.getCause();
+    if (cause instanceof ChangeConflictException) {
+        // Somebody pushed a commit newer than revision 3 or
+        // our changes cannot be applied to the revision 3 cleanly.
+    }
+}</pre></div>
+</div>
+</div>
+<div class="section" id="watching-a-file">
+<h2>Watching a file<a class="headerlink" href="#watching-a-file" title="Permalink to this headline">¶</a></h2>
+<p>Some configuration properties are dynamic. They are changed often and they must be applied without restarting
+the process. The client library provides an easy way to watch a file:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import com.linecorp.centraldogma.client.Latest;
+import com.linecorp.centraldogma.client.Watcher;
+
+CentralDogma dogma = ...;
+Watcher&lt;JsonNode&gt; watcher =
+        dogma.fileWatcher(&quot;myProj&quot;, &quot;myRepo&quot;,
+                          Query.ofJsonPath(&quot;/some_file.json&quot;, &quot;$.foo&quot;));
+// Register a callback for changes.
+watcher.watch((revision, value) -&gt; {
+    System.err.printf(&quot;Updated to %s at %s%n&quot;, value, revision);
+});
+
+// Alternatively, without using a callback:
+Latest&lt;JsonNode&gt; latest = watcher.awaitInitialValue(); // Wait for the initial value.
+System.err.printf(&quot;Initial: %s at %s%n&quot;, latest.value(), latest.revision());</pre></div>
+</div>
+<p>You would want to register a callback to the <code class="docutils literal notranslate"><span class="pre">Watcher</span></code> or check the return value of <code class="docutils literal notranslate"><span class="pre">Watcher.latest()</span></code>
+periodically to apply the new settings to your application.</p>
+<div class="section" id="preparing-for-unavailability">
+<h3>Preparing for unavailability<a class="headerlink" href="#preparing-for-unavailability" title="Permalink to this headline">¶</a></h3>
+<p>It is possible that the servers are not available when you are waiting for the initial value. To prevent from
+your application from awaiting indefinitely, you can specify a timeout and a default value when calling
+the <code class="docutils literal notranslate"><span class="pre">awaitInitialValue()</span></code> method:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import static java.util.concurrent.TimeUnit.SECONDS;
+
+CentralDogma dogma = ...;
+Watcher&lt;JsonNode&gt; watcher = dogma.fileWatcher(..., Query.ofJsonPath(...));
+JsonNode initialValue = watcher.awaitInitialValue(20, SECONDS, someDefaultValue);
+
+// If you are interested in the Revision of the initial value, you can:
+JsonNode initialValue;
+try {
+    Latest&lt;JsonNode&gt; latest = watcher.awaitInitialValue(20, SECONDS);
+    System.err.printf(&quot;Initial: %s at %s%n&quot;, latest.value(), latest.revision());
+    initialValue = latest.value();
+} catch (TimeoutException e) {
+    System.err.printf(&quot;Default: %s%n&quot;, someDefaultValue);
+    initialValue = someDefaultValue;
+}</pre></div>
+</div>
+<p>Note that a timeout is basically a trade-off. If you specify a smaller timeout, you will have a higher chance
+of getting a <code class="docutils literal notranslate"><span class="pre">TimeoutException</span></code> or falling back to the default value when the server does not respond in time.
+If you specify a larger timeout, you will have a better chance of successful retrieval. It is generally
+recommended to use a value not less than 20 seconds so that the client can retry at least a few times before
+timing out. Consider specifying a sensible default value if you need to use a small timeout or want to make
+sure your application is not affected when the servers have an issue.</p>
+<p>Alternatively, you can choose not to use <code class="docutils literal notranslate"><span class="pre">awaitInitialValue()</span></code> at all if the value being retrieved is not
+part of a critical path, e.g. span collection rate in distributed tracing. In such a case, you can simply
+add a callback to <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/client/Watcher.html">Watcher</a></code> or poll the most recently retrieved value using the <code class="docutils literal notranslate"><span class="pre">latestValue()</span></code> method:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">CentralDogma dogma = ...;
+Watcher&lt;JsonNode&gt; watcher = dogma.fileWatcher(..., Query.ofJsonPath(...));
+
+// Using a callback:
+watcher.watch((revision, value) -&gt; {
+    System.err.printf(&quot;Updated to %s at %s%n&quot;, value, revision);
+});
+
+// Polling the latest value. The client will keep updating in the background.
+JsonNode maybeLatestValue = watcher.latestValue(someDefaultValue);</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="specifying-multiple-hosts">
+<h2>Specifying multiple hosts<a class="headerlink" href="#specifying-multiple-hosts" title="Permalink to this headline">¶</a></h2>
+<p>You can also specify more than one host using the <code class="docutils literal notranslate"><span class="pre">host()</span></code> method:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
+
+ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
+// The default port 36462 is used if unspecified.
+builder.host(&quot;replica1.example.com&quot;);
+// You can specify an alternative port number.
+builder.host(&quot;replica2.example.com&quot;, 1234);
+CentralDogma dogma = builder.build();</pre></div>
+</div>
+</div>
+<div class="section" id="using-client-profiles">
+<span id="id3"></span><h2>Using client profiles<a class="headerlink" href="#using-client-profiles" title="Permalink to this headline">¶</a></h2>
+<p>You can load the list of the Central Dogma servers from one of the following JSON files in the class path using
+<code class="docutils literal notranslate"><span class="pre">ArmeriaCentralDogmaBuilder.profile(String...)</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">centraldogma-profiles-test.json</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">centraldogma-profiles.json</span></code> (if <code class="docutils literal notranslate"><span class="pre">centraldogma-profiles-test.json</span></code> is missing)</p></li>
+</ul>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
+// Loads the profile &#x27;beta&#x27; from:
+// - /centraldogma-profiles-test.json or
+// - /centraldogma-profiles.json
+builder.profile(&quot;beta&quot;);
+CentralDogma dogma = builder.build();</pre></div>
+</div>
+<p>The following example <code class="docutils literal notranslate"><span class="pre">centraldogma-profiles.json</span></code> contains two profiles, <code class="docutils literal notranslate"><span class="pre">beta</span></code> and <code class="docutils literal notranslate"><span class="pre">release</span></code>, and
+they contain two replicas, <code class="docutils literal notranslate"><span class="pre">replica{1,2}.beta.example.com</span></code> and <code class="docutils literal notranslate"><span class="pre">replica{1,2}.release.example.com</span></code>
+respectively. The replicas in the <code class="docutils literal notranslate"><span class="pre">release</span></code> profile support both <code class="docutils literal notranslate"><span class="pre">http</span></code> and <code class="docutils literal notranslate"><span class="pre">https</span></code> whereas
+the replicas in the <code class="docutils literal notranslate"><span class="pre">beta</span></code> profile support <code class="docutils literal notranslate"><span class="pre">http</span></code> only:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">[ {
+  &quot;name&quot;: &quot;beta&quot;,
+  &quot;priority&quot;: 0,
+  &quot;hosts&quot;: [ {
+    &quot;host&quot;: &quot;replica1.beta.example.com&quot;,
+    &quot;protocol&quot;: &quot;http&quot;,
+    &quot;port&quot;: 36462
+  }, {
+    &quot;host&quot;: &quot;replica2.beta.example.com&quot;,
+    &quot;protocol&quot;: &quot;http&quot;,
+    &quot;port&quot;: 36462
+  } ]
+}, {
+  &quot;name&quot;: &quot;release&quot;,
+  &quot;priority&quot;: 0,
+  &quot;hosts&quot;: [ {
+    &quot;host&quot;: &quot;replica1.release.example.com&quot;,
+    &quot;protocol&quot;: &quot;http&quot;,
+    &quot;port&quot;: 36462
+  }, {
+    &quot;host&quot;: &quot;replica1.release.example.com&quot;,
+    &quot;protocol&quot;: &quot;https&quot;,
+    &quot;port&quot;: 8443
+  }, {
+    &quot;host&quot;: &quot;replica2.release.example.com&quot;,
+    &quot;protocol&quot;: &quot;http&quot;,
+    &quot;port&quot;: 36462
+  }, {
+    &quot;host&quot;: &quot;replica2.release.example.com&quot;,
+    &quot;protocol&quot;: &quot;https&quot;,
+    &quot;port&quot;: 8443
+  } ]
+} ]</pre></div>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Use <a class="reference external" href="_static/schema-centraldogma-profiles.json">the JSON schema</a> to validate your
+<code class="docutils literal notranslate"><span class="pre">centraldogma-profiles.json</span></code> file.</p>
+</div>
+<p>You may want to archive this file into a JAR file and distribute it as the <em>official</em> client profiles via
+a Maven repository, so that your users get the up-to-date host list easily. For example, a user could put
+<code class="docutils literal notranslate"><span class="pre">centraldogma-profiles-1.0.jar</span></code> into his or her class path:</p>
+<div class="highlight-shell notranslate"><div class="highlight hljs"><pre class="shell">$ cat centraldogma-profiles.json
+[ { &quot;name&quot;: &quot;beta&quot;,    &quot;priority&quot;: 0, &quot;hosts&quot;: [ ... ] },
+  { &quot;name&quot;: &quot;release&quot;, &quot;priority&quot;: 0, &quot;hosts&quot;: [ ... ] } ]
+$ jar cvf centraldogma-profiles-1.0.jar centraldogma-profiles.json
+added manifest
+adding: centraldogma-profiles.json</pre></div>
+</div>
+<div class="section" id="custom-client-profiles">
+<h3>Custom client profiles<a class="headerlink" href="#custom-client-profiles" title="Permalink to this headline">¶</a></h3>
+<p>A user can add his or her own custom client profiles other than the official ones by adding more
+<code class="docutils literal notranslate"><span class="pre">centraldogma-profiles.json</span></code> files to the class path. The following example adds a custom profile called
+<code class="docutils literal notranslate"><span class="pre">localtest</span></code>:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">[ {
+  &quot;name&quot;: &quot;localtest&quot;,
+  &quot;hosts&quot;: [ {
+    &quot;host&quot;: &quot;127.0.0.1&quot;,
+    &quot;protocol&quot;: &quot;http&quot;,
+    &quot;port&quot;: 36462
+  } ]
+} ]</pre></div>
+</div>
+<p>A user can also override the official profile provided by an administrator by specifying a higher priority.
+For example, you can override the <code class="docutils literal notranslate"><span class="pre">beta</span></code> profile using priority <code class="docutils literal notranslate"><span class="pre">100</span></code> which is higher than the default
+priority of <code class="docutils literal notranslate"><span class="pre">0</span></code>:</p>
+<div class="highlight-json notranslate"><div class="highlight hljs"><pre class="json">[ {
+  &quot;name&quot;: &quot;beta&quot;,
+  &quot;priority&quot;: 100,
+  &quot;hosts&quot;: [ {
+    &quot;host&quot;: &quot;replica1.alternative-beta.example.com&quot;,
+    &quot;protocol&quot;: &quot;http&quot;,
+    &quot;port&quot;: 36462
+  }, {
+    &quot;host&quot;: &quot;replica2.alternative-beta.example.com&quot;,
+    &quot;protocol&quot;: &quot;http&quot;,
+    &quot;port&quot;: 36462
+  } ]
+} ]</pre></div>
+</div>
+<p>Note that other profiles such as <code class="docutils literal notranslate"><span class="pre">release</span></code> are still loaded from the <code class="docutils literal notranslate"><span class="pre">centraldogma-profiles.json</span></code> distributed by
+the administrator.</p>
+</div>
+</div>
+<div class="section" id="using-dns-based-lookup">
+<h2>Using DNS-based lookup<a class="headerlink" href="#using-dns-based-lookup" title="Permalink to this headline">¶</a></h2>
+<p>Central Dogma Java client always retrieves all the IP addresses of a host from the current system DNS server or
+the <code class="docutils literal notranslate"><span class="pre">/etc/host</span></code> file. Instead of specifying all the individual replica addresses in a client profile,
+consider specifying a single host name that’s very unlikely to change in the client profile and add multiple
+<code class="docutils literal notranslate"><span class="pre">A</span></code> or <code class="docutils literal notranslate"><span class="pre">AAAA</span></code> DNS records to the host name:</p>
+<div class="highlight-shell notranslate"><div class="highlight hljs"><pre class="shell">$ cat centraldogma-profiles.json
+[ {
+  &quot;name&quot;: &quot;release&quot;,
+  &quot;hosts&quot;: [ {
+    &quot;host&quot;: &quot;all.dogma.example.com&quot;,
+    &quot;protocol&quot;: &quot;http&quot;,
+    &quot;port&quot;: 36462
+  } ]
+} ]
+$ dig all.dogma.example.com
+; &lt;&lt;&gt;&gt; DiG 9.12.1-P2 &lt;&lt;&gt;&gt; all.dogma.example.com
+;; global options: +cmd
+;; Got answer:
+;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 58779
+;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1440
+;; QUESTION SECTION:
+;all.dogma.example.com. IN A
+
+;; ANSWER SECTION:
+all.dogma.example.com. 300 IN A 192.168.1.1
+all.dogma.example.com. 300 IN A 192.168.1.2
+all.dogma.example.com. 300 IN A 192.168.1.3
+
+;; Query time: 54 msec</pre></div>
+</div>
+<p>The client will periodically send DNS queries respecting the TTL values advertised by the DNS server and update
+the endpoint list dynamically, so that an administrator can add or remove a replica without distributing a new
+client profile JAR again.</p>
+</div>
+<div class="section" id="spring-boot-integration">
+<h2>Spring Boot integration<a class="headerlink" href="#spring-boot-integration" title="Permalink to this headline">¶</a></h2>
+<p>If you are using <a class="reference external" href="https://spring.io/">Spring Framework</a>, you can inject <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/client/CentralDogma.html">CentralDogma</a></code>
+client very easily. First, add <code class="docutils literal notranslate"><span class="pre">centraldogma-client-spring-boot3-starter</span></code> into your dependencies.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Use the <code class="docutils literal notranslate"><span class="pre">centraldogma-client-spring-boot2-starter</span></code> dependency if you are using Spring Boot 2 or running your application with
+a Java version lower than 17.</p>
+</div>
+<p>Gradle:</p>
+<pre class="highlight-gradle literal-block">dependencies {
+    compile 'com.linecorp.centraldogma:centraldogma-client-spring-boot3-starter:0.61.0'
+}</pre>
+<p>Maven:</p>
+<pre class="highlight-xml literal-block">&lt;dependencies&gt;
+  &lt;dependency&gt;
+    &lt;groupId&gt;com.linecorp.centraldogma&lt;/groupId&gt;
+    &lt;artifactId&gt;centraldogma-client-spring-boot3-starter&lt;/artifactId&gt;
+    &lt;version&gt;0.61.0&lt;/version&gt;
+  &lt;/dependency&gt;
+&lt;/dependencies&gt;</pre>
+<p>Then, add a new section called <code class="docutils literal notranslate"><span class="pre">centraldogma</span></code> to your Spring Boot application configuration, which is often
+named <code class="docutils literal notranslate"><span class="pre">application.yml</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">centraldogma:
+  hosts:
+  - replica1.example.com:36462
+  - replica2.example.com:36462
+  - replica3.example.com:36462
+  access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce</pre></div>
+</div>
+<p>If you prefer using client profiles as described in <a class="reference internal" href="#using-client-profiles"><span class="std std-ref">Using client profiles</span></a>, use the <code class="docutils literal notranslate"><span class="pre">profile</span></code> property:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">centraldogma:
+  profile: beta
+  access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce</pre></div>
+</div>
+<p>If neither <code class="docutils literal notranslate"><span class="pre">hosts</span></code> nor <code class="docutils literal notranslate"><span class="pre">profile</span></code> property is specified, currently active
+<a class="reference external" href="https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html">Spring Boot profile</a>
+will be used as the client profile. When more than one Spring Boot profile are active, the last matching one
+will be chosen.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Do not confuse ‘Central Dogma client profile’ with ‘Spring Boot profile’.</p>
+</div>
+<p>You can also enable a TLS connection or override the default health check request interval:</p>
+<div class="highlight-yaml notranslate"><div class="highlight hljs"><pre class="yaml">centraldogma:
+  profile: staging
+  access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
+  use-tls: true
+  health-check-interval-millis: 15000</pre></div>
+</div>
+<p>Once configured correctly, a new <code class="code api-reference docutils literal javadoc"><a class="code api-reference reference external javadoc" href="apidocs/com/linecorp/centraldogma/client/CentralDogma.html">CentralDogma</a></code> client will be created and
+injected into your application like the following:</p>
+<div class="highlight-java notranslate"><div class="highlight hljs"><pre class="java">import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+
+import com.linecorp.centraldogma.client.CentralDogma;
+
+@SpringBootApplication
+public class MyApp {
+
+    public static void main(String[] args) {
+        SpringApplication.run(MyApp.class, args);
+    }
+
+    // CentralDogma is injected automatically by CentralDogmaConfiguration.
+    @Bean
+    public CommandLineRunner commandLineRunner(CentralDogma dogma) {
+        return args -&gt; {
+            System.err.println(dogma.listProjects().join());
+        };
+    }
+}</pre></div>
+</div>
+</div>
+<div class="section" id="read-the-javadoc">
+<h2>Read the Javadoc<a class="headerlink" href="#read-the-javadoc" title="Permalink to this headline">¶</a></h2>
+<p>Refer to <a class="reference external" href="apidocs/com/linecorp/centraldogma/client/CentralDogma.html">the API documentation of ‘CentralDogma’ interface</a>
+for the complete list of operations you can perform with a Central Dogma server, which should be definitely
+much more than what this tutorial covers, such as fetching and watching multiple files.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="mirroring.html" class="btn btn-neutral float-right" title="Better configuration change workflow with Git-to-CD mirroring" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="client-cli.html" class="btn btn-neutral float-left" title="Command-line client" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2017-2023, LINE Corporation.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+  <a href="https://github.com/line/centraldogma" class="github-corner" aria-label="View source on GitHub">
+    <svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true">
+      <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z" fill="#1e2834"></path>
+      <path class="octo-arm" d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="#ffffff" style="transform-origin: 130px 106px;"></path>
+      <path class="octo-body" d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="#ffffff"></path>
+    </svg>
+  </a>
+  <script type="text/javascript" src="_static/add_badges.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/gradle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/protobuf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/thrift.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.7.0/highlightjs-line-numbers.min.js"></script>
+  <script>
+    document.querySelectorAll('div.hljs > pre').forEach(function(block) {
+      hljs.highlightBlock(block);
+      hljs.lineNumbersBlock(block);
+    });
+  </script>
+   
+
+
+</body>
+</html>
