@@ -30,6 +30,10 @@ With Central Dogma, you can:
     $ bin/startup
     # Open http://127.0.0.1:36462/ in your browser for administrative console.
 
+Using Docker? Give our image a try::
+
+    $ docker run -p 36462:36462 line/centraldogma
+
 Repository service for textual configuration
 --------------------------------------------
 - Primarily designed for storing JSON

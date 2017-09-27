@@ -28,4 +28,4 @@ COPY build/dist/licenses/*  "$CENTRALDOGMA_HOME"/licenses/
 # Expose ports.
 EXPOSE 36462
 
-CMD ["sh", "-c", "${CENTRALDOGMA_HOME}/bin/startup.sh"]
+CMD ["sh", "-c", "${CENTRALDOGMA_HOME}/bin/startup"]

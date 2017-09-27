@@ -111,7 +111,11 @@ task docker(group: 'Build',
             dependsOn: tasks.distDir,
             type: DockerBuildImage) {
     inputDir = file('.')
-    tag = "line/centraldogma:${project.version}"
+    def name = 'line/centraldogma:'
+    tags = [name + "${project.version}"]
+    if (!(project.version =~ /-SNAPSHOT$/)) {
+        tags.add(name + "latest")
+    }
 }
 
 // Tasks for running Central Dogma conveniently.
