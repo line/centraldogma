@@ -57,7 +57,7 @@ This product contains Angular Translate, distributed by the angular-translate te
   * License: license/LICENSE.angular-translate.mit.txt (MIT License)
   * Homepage: https://angular-translate.github.io/
 
-This product contains Angular UI, distributed by the AngularUI Team:
+This product contains Angular UI, distributed by the AngularUI Team and other contributors:
 
   * License: license/LICENSE.angular-ui.mit.txt (MIT License)
   * Homepage: https://angular-ui.github.io/
@@ -76,6 +76,11 @@ This product contains Bootswatch, distributed by Thomas Park:
 
   * License: licenses/LICENSE.bootswatch.mit.txt (MIT License)
   * Homepage: https://bootswatch.com
+
+This product contains ES6-Promise, distributed by Yehuda Katz, Tom Dale, Stefan Penner and contributors:
+
+  * License: licenses/LICENSE.es6-promise.mit.txt (MIT License)
+  * Homepage: https://github.com/stefanpenner/es6-promise
 
 This product contains fast-json-Patch, distributed by Joachim Wester:
 
@@ -112,6 +117,11 @@ This product contains ReadTheDocs.org Sphinx Theme, distributed by Dave Snider:
 
   * License: license/LICENSE.rtdtheme.mit.txt (MIT License)
   * Homepage: https://github.com/snide/sphinx_rtd_theme
+
+This product contains RequireJS, distributed by jQuery Foundation and other contributors:
+
+  * License: license/LICENSE.requirejs.mit.txt (MIT License)
+  * Homepage: http://requirejs.org/
 
 
 Modified redistributions
@@ -215,14 +225,19 @@ This product depends on jCommander, distributed by Cédric Beust:
   * License: licenses/LICENSE.jcommander.al20.txt (Apache License v2.0)
   * Homepage: http://jcommander.org/
 
-This product depends on Jetty ALPN, distributed by Eclipse Foundation:
+This product depends on Jetty ALPN API, distributed by Eclipse Foundation:
 
-  * License: licenses/LICENSE.jetty.al20.txt (Apache License v2.0)
+  * License: licenses/LICENSE.jetty-alpn-api.al20.txt (Apache License v2.0)
   * Homepage: https://www.eclipse.org/jetty/
+
+This product depends on Jetty ALPN agent, distributed by Simon Bordet and Trustin Lee:
+
+  * License: licenses/LICENSE.jetty-alpn-agent.al20.txt
+  * Homepage: https://github.com/jetty-project/jetty-alpn-agent
 
 This product depends on jGit, distributed by Eclipse Foundation:
 
-  * License: licenses/LICENSE.jgit.epl10.html (Eclipse Public License v1.0)
+  * License: licenses/LICENSE.jgit.edl10.txt (Eclipse Distribution License v1.0)
   * Homepage: https://eclipse.org/jgit/
 
 This product depends on JSch, distributed by JCraft, Inc:
@@ -259,11 +274,6 @@ This product depends on SLF4J, distributed by QOS.ch:
 
   * License: licenses/LICENSE.slf4j.mit.txt (MIT License)
   * Homepage: https://www.slf4j.org/
-
-This product depends on Spring Framework, distributed by Pivotal Software, Inc:
-
-  * License: licenses/LICENSE.spring.al20.txt (Apache License v2.0)
-  * Homepage: https://spring.io/
 
 This product depends on TestNG, distributed by Cédric Beust:
 
