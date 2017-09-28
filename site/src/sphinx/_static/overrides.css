@@ -215,6 +215,11 @@ p, .rst-content li {
   background-color: #424c58;
 }
 
+/* Adjust the height of the top navbar */
+.wy-nav-top {
+  line-height: 44px;
+}
+
 /* Center the PlantUML diagrams */
 .plantuml {
   text-align: center;
