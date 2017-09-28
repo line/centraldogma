@@ -44,7 +44,7 @@ rst_epilog = '\n'
 rst_epilog += '.. |baseurl| replace:: https://line.github.io/centraldogma/\n'
 rst_epilog += '.. |download| raw:: html\n'
 rst_epilog += '\n'
-rst_epilog += '   <a href="https://github.com/line/centraldogma/archive/centraldogma-' + release + '.tgz">Download</a>'
+rst_epilog += '   <a href="https://github.com/line/centraldogma/releases/download/centraldogma-' + release + '/centraldogma-' + release + '.tgz">Download</a>'
 rst_epilog += '\n'
 
 for k in properties.keys():
