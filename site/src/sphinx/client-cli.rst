@@ -9,8 +9,8 @@ so the client is available regardless of your current working directory.
 .. note::
 
     In this tutorial, we assume your Central Dogma server is running at ``localhost:36462``. Unless specified,
-    ``dogma`` will connect to ``localhost:36462`` by default. Use the ``--host`` option to connect to other
-    Central Dogma server. e.g. ``--host dogma.example.com:36462``
+    ``dogma`` will connect to ``localhost:36462`` by default. Use the ``--connect`` option to connect to other
+    Central Dogma server. e.g. ``--connect dogma.example.com:36462``
 
 Path syntax
 -----------
