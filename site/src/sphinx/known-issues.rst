@@ -17,6 +17,8 @@ Known issues
   - Consider enforcing network-level access control over Thrift calls.
   - Note that the Thrift RPC layer is left only for backward compatibility, and will be removed in the future,
     in favor of the REST API.
-  - 401 unauthorized notification may be shown when web administrative console is first loaded with security
-    disabled. Please ignore the notification; it's purely a cosmetic issue and you can access everything
-    without logging in.
+
+- 401 unauthorized notification may be shown when web administrative console is first loaded with security
+  disabled. Please ignore the notification; it's purely a cosmetic issue and you can access everything
+  without logging in.
+
