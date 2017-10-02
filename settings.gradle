@@ -1,13 +1,13 @@
 rootProject.name = 'centraldogma'
 
 // Published Java projects
-include 'client/java'
+include 'client:java'
 include 'common'
 include 'server'
 include 'testing'
 
 // Published Go project
-include 'client/go'
+include 'client:go'
 
 // Unpublished Java projects
 include 'it'
@@ -19,3 +19,6 @@ include 'site'
 
 // Distribution
 include 'dist'
+
+project(':client:java').name = 'client-java'
+project(':client:go').name = 'client-go'
