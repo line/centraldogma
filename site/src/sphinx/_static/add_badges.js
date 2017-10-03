@@ -6,7 +6,7 @@ function addSlackInvitation(parent) {
   div.className = 'slack-invitation';
   var script = document.createElement('script');
   script.type = 'text/javascript';
-  script.src = 'https://slackin-line-armeria.herokuapp.com/slackin.js';
+  script.src = 'https://line-slacknow.herokuapp.com/central-dogma/slackin.js';
   div.appendChild(script);
   li.appendChild(div);
   parent.appendChild(li);
