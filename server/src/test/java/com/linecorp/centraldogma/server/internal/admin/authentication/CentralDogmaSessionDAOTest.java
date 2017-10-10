@@ -73,7 +73,7 @@ public class CentralDogmaSessionDAOTest {
     }
 
     @Test
-    public void testBasicOperations() throws IOException {
+    public void testBasicOperations() throws Exception {
         final ProjectManager pm = new DefaultProjectManager(
                 rootDir.newFolder(), ForkJoinPool.commonPool(), null);
         final CommandExecutor executor = new StandaloneCommandExecutor(pm, ForkJoinPool.commonPool());
@@ -93,6 +93,7 @@ public class CentralDogmaSessionDAOTest {
             assertThat(session).isEqualTo(initial);
 
             // Changing session's last accessed time locally.
+            Thread.sleep(10);
             session.touch();
             assertThat(dao.readSession(sessionId).getLastAccessTime())
                     .isNotEqualTo(session.getLastAccessTime());

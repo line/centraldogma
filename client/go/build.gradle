@@ -28,7 +28,8 @@ ext {
     if (goPath == null) {
         goPath = "${project.projectDir}/.gogradle/project_gopath"
     }
-    binDir = "${goPath}/bin"
+    // Needs replaceAll() to make gogradle work on Windows.
+    binDir = "${goPath}/bin".replaceAll('\\\\', '/')
 }
 
 // Gogradle puts several comman code check task into a check task. We need to explicitly specify this line
