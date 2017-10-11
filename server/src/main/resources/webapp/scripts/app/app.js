@@ -37,7 +37,14 @@ angular.module(
              $rootScope.toState = toState;
              $rootScope.toStateParams = toStateParams;
 
-             Principal.refresh();
+             if (angular.isUndefined($rootScope.isSecurityEnabled)) {
+               Auth.isEnabled().then(function (data) {
+                 $rootScope.isSecurityEnabled = data;
+                 Principal.refresh();
+               });
+             } else {
+               Principal.refresh();
+             }
 
              // Update the language
              Language.getCurrent().then(function (language) {
