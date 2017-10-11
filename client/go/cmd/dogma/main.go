@@ -21,13 +21,18 @@ import (
 	"github.com/urfave/cli"
 )
 
+var (
+	version   = "unspecified"
+	shortHash = "unspecified"
+)
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "Central Dogma"
 	app.Usage = "Central Dogma client"
 	app.UsageText = "dogma command [arguments]"
 	app.HelpName = "dogma"
-	app.Version = "0.17.0"
+	app.Version = version + " (" + shortHash + ")"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name: "connect, c",
@@ -45,7 +50,6 @@ func main() {
 	}
 
 	app.Commands = cmd.CLICommands()
-	app.HideVersion = true
 	cli.HelpFlag = cli.BoolFlag{
 		Name:  "help, h",
 		Usage: "Shows help",

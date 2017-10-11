@@ -39,8 +39,11 @@ build.dependsOn check
 build {
     targetPlatform = ['linux-amd64', 'darwin-amd64', 'windows-amd64']
 
-    go "build -o ${project.ext.binDir}" +
+    def ldflags = "\"-X main.version=${version} -X main.shortHash=${rootProject.ext.repoStatus.shortCommitHash}\""
+
+    go "build -ldflags=${ldflags} -o ${project.ext.binDir}" +
             '/dogma.${GOOS}-${GOARCH}${GOEXE} github.com/line/centraldogma/client/go/cmd/dogma'
+
     doLast {
         ant.chmod(file: "$project.ext.binDir" + '/dogma.windows-amd64.exe', perm: '644')
     }
