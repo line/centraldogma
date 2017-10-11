@@ -198,7 +198,7 @@ public class GitRepositoryTest {
     public void testJsonPatch_safeReplace() throws JsonProcessingException {
         String jsonFilePath = String.format("/test_%s.json", testName.getMethodName());
         Change<JsonNode> change = Change.ofJsonUpsert(jsonFilePath, "{\"key\":1}");
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, change);
+        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, change).join();
         Change<JsonNode> nextChange = Change.ofJsonPatch(jsonFilePath, "{\"key\":2}", "{\"key\":3}");
         assertThatThrownBy(
                 () -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, nextChange).join())
@@ -359,7 +359,7 @@ public class GitRepositoryTest {
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
         // Renaming to its own path.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]);
+        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
         assertThatThrownBy(() -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
                                              Change.ofRename(jsonPaths[0], jsonPaths[0])).join())
                 .isInstanceOf(CompletionException.class)
@@ -458,7 +458,7 @@ public class GitRepositoryTest {
     @Test
     public void testRenameWithConflict() throws Exception {
         // Create a file to produce redundant changes.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]);
+        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
 
         // Attempt to rename to itself.
         assertThatThrownBy(() -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
