@@ -21,13 +21,13 @@
             <span translate>navbar.home</span>
           </a>
         </li>
-        <li ng-switch-when="false" ng-show="isSecurityEnabled">
+        <li ng-switch-when="false" ng-show="$root.isSecurityEnabled">
           <a href="" ng-click="$root.showLoginDialog()">
             <span class="glyphicon glyphicon-log-in"></span>&#xA0;
             <span translate>navbar.login</span>
           </a>
         </li>
-        <li class="dropdown pointer" ng-show="$root.user && isSecurityEnabled">
+        <li class="dropdown pointer" ng-show="$root.user && $root.isSecurityEnabled">
           <a href="" class="dropdown-toggle" data-toggle="dropdown">
             <span>
               <span class="glyphicon glyphicon-user"></span>

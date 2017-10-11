@@ -1,8 +1,9 @@
 'use strict';
 
 angular.module('CentralDogmaAdmin')
-    .factory('ApiService', function ($http, $q, $window, StringUtil, NotificationUtil, CentralDogmaConstant) {
+    .factory('ApiService', function ($rootScope, $http, $q, $window, StringUtil, NotificationUtil, CentralDogmaConstant) {
                function makeRequest(verb, uri, config, data) {
+                 var sessionId;
                  var defer = $q.defer();
 
                  if (angular.isUndefined(config)) {
@@ -12,7 +13,11 @@ angular.module('CentralDogmaAdmin')
                  config.method = verb;
                  config.url = rewriteUri(uri);
 
-                 var sessionId = $window.sessionStorage.getItem('sessionId');
+                 if ($rootScope.isSecurityEnabled) {
+                   sessionId = $window.sessionStorage.getItem('sessionId');
+                 } else {
+                   sessionId = "anonymous";
+                 }
                  if (sessionId !== null) {
                    if (angular.isUndefined(config.headers)) {
                      config.headers = {};
