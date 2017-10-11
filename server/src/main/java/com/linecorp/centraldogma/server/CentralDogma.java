@@ -51,6 +51,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpRequest;
@@ -373,6 +374,18 @@ public class CentralDogma {
         });
 
         sb.service("/monitor/l7check", new HttpHealthCheckService());
+
+        // TODO(hyangtack): This service is temporarily added to support redirection from '/docs' to '/docs/'.
+        //                  It would be removed if this kind of redirection is handled by Armeria.
+        sb.service("/docs", new AbstractHttpService() {
+            @Override
+            protected void doGet(ServiceRequestContext ctx, HttpRequest req, HttpResponseWriter res)
+                    throws Exception {
+                res.respond(AggregatedHttpMessage.of(
+                        HttpHeaders.of(HttpStatus.TEMPORARY_REDIRECT)
+                                   .set(HttpHeaderNames.LOCATION, "/docs/")));
+            }
+        });
         sb.serviceUnder("/docs/",
                         new DocServiceBuilder().exampleHttpHeaders(
                                 CentralDogmaService.class,
