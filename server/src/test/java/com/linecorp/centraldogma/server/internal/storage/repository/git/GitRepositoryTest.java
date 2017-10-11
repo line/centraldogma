@@ -401,7 +401,7 @@ public class GitRepositoryTest {
     @Test
     public void testEmptyCommitWithRedundantRenames() throws Exception {
         // Create a file to produce redundant changes.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]);
+        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
 
         // Ensure redundant changes do not count as a valid change.
         assertThatThrownBy(() -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
