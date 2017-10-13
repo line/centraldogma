@@ -18,7 +18,7 @@ $ ./gradlew build
 
 Just [create a new issue](https://github.com/line/centraldogma/issues/new) to ask a question, and browse [the list of previously answered questions](https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered).
 
-We also have a Slack workspace at: https://line-slacknow.herokuapp.com/centraldogma/
+We also have [a Slack workspace](https://line-slacknow.herokuapp.com/central-dogma/).
 
 ## How to contribute
 
