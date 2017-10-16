@@ -1,0 +1,10 @@
+dependencies {
+    compile project(':client:client-java')
+}
+
+managedDependencies {
+    compile 'org.hibernate.validator:hibernate-validator'
+    compile 'org.springframework.boot:spring-boot-starter'
+
+    testCompile 'org.springframework.boot:spring-boot-starter-test'
+}

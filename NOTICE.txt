@@ -205,6 +205,11 @@ This product depends on Hamcrest, distributed by hamcrest.org:
   * License: licenses/LICENSE.hamcrest.bsd.txt (BSD License)
   * Homepage: http://hamcrest.org/
 
+This product depends on Hibernate Validator, distributed by Red Hat, Inc:
+
+  * License: licenses/LICENSE.hibernate.al20.txt
+  * Homepage: http://hibernate.org/validator/
+
 This product depends on Jackson, distributed by FasterXML, LLC:
 
   * License: licenses/LICENSE.jackson.al20.txt (Apache License v2.0)
@@ -279,6 +284,11 @@ This product depends on SLF4J, distributed by QOS.ch:
 
   * License: licenses/LICENSE.slf4j.mit.txt (MIT License)
   * Homepage: https://www.slf4j.org/
+
+This product depends on Spring Framework, distributed by Pivotal Software, Inc:
+
+  * License: licenses/LICENSE.spring.al20.txt (Apache License v2.0)
+  * Homepage: https://spring.io/
 
 This product depends on TestNG, distributed by Cédric Beust:
 

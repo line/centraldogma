@@ -14,8 +14,6 @@
  * under the License.
  */
 /**
- * Central Dogma client.
- *
- * @see <a href="https://line.github.io/centraldogma/client-java.html" target="_blank">Java client library</a>
+ * <a href="https://spring.io/">Spring framework</a> integration for Central Dogma client.
  */
-package com.linecorp.centraldogma.client;
+package com.linecorp.centraldogma.client.spring;
