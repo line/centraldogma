@@ -116,16 +116,7 @@ public class CentralDogmaRule extends TemporaryFolder {
         dogma.start();
 
         final InetSocketAddress serverAddress = dogma.activePort().get().localAddress();
-
-        // TODO(trustin): Add a utility or a shortcut method in Armeria.
-        final String host;
-        if (NetUtil.isValidIpV6Address(serverAddress.getHostString())) {
-            host = '[' + serverAddress.getHostString() + "]:" + serverAddress.getPort();
-        } else {
-            host = serverAddress.getHostString() + ':' + serverAddress.getPort();
-        }
-
-        client = CentralDogma.newClient("tbinary+http://" + host + "/cd/thrift/v1");
+        client = CentralDogma.forHost(serverAddress.getHostString(), serverAddress.getPort());
     }
 
     /**

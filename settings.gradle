@@ -2,6 +2,8 @@ rootProject.name = 'centraldogma'
 
 // Published Java projects
 include 'client:java'
+include 'client:java-spring-boot-autoconfigure'
+include 'client:java-spring-boot-starter'
 include 'common'
 include 'server'
 include 'testing'
@@ -21,4 +23,6 @@ include 'site'
 include 'dist'
 
 project(':client:java').name = 'client-java'
+project(':client:java-spring-boot-autoconfigure').name = 'client-java-spring-boot-autoconfigure'
+project(':client:java-spring-boot-starter').name = 'client-java-spring-boot-starter'
 project(':client:go').name = 'client-go'

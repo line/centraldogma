@@ -50,7 +50,10 @@ First, we should create a new instance of ``CentralDogma``:
 
     import com.linecorp.centraldogma.client.CentralDogma;
 
-    CentralDogma dogma = CentralDogma.newClient("tbinary+http://127.0.0.1:36462/cd/thrift/v1");
+    // The default port 36462 is used if unspecified.
+    CentralDogma dogma = CentralDogma.forHost("127.0.0.1");
+    // You can specify an alternative port as well:
+    CentralDogma dogma2 = CentralDogma.forHost("example.com", 8888);
 
 .. note::
 
@@ -185,6 +188,104 @@ the process. The client library provides an easy way to watch a file:
 
 You would want to register a callback to the ``Watcher`` or check the return value of ``Watcher.latest()``
 periodically to apply the new settings to your application.
+
+Specifying multiple hosts
+-------------------------
+You can use ``CentralDogmaBuilder`` to add more than one host:
+
+.. code-block:: java
+
+    import com.linecorp.centraldogma.client.CentralDogmaBuilder;
+
+    CentralDogmaBuilder builder = new CentralDogmaBuilder();
+    // The default port 36462 is used if unspecified.
+    builder.host("replica1.example.com");
+    // You can specify an alternative port number.
+    builder.host("replica2.example.com", 1234);
+    CentralDogma dogma = builder.build();
+
+.. _using_client_profiles:
+
+Using client profiles
+---------------------
+You can load the list of the Central Dogma servers from ``.properties`` resource file in the class path using
+``CentralDogma.forProfile()`` or ``CentralDogmaBuilder.profile()``:
+
+.. code-block:: java
+
+    CentralDogmauBuilder builder = new CentralDogmaBuilder();
+    // Loads the host list from /centraldogma-profile-beta.properties.
+    builder.profile("beta");
+    CentralDogma dogma = builder.build();
+
+The resource path of the ``.properties`` file is ``/centraldogma-profile-<profile_name>.properties`` and its
+content looks like the following:
+
+.. code-block:: properties
+
+    # The default port 36462 is used if unspecified.
+    centraldogma.hosts.0=replica1.beta.example.com
+    # You can specify an alternative port number.
+    centraldogma.hosts.1=replica2.beta.example.com:1234
+
+You may want to archive this file into a JAR file and distribute it via a Maven repository, so that your users
+gets the up-to-date host list easily. For example, a user could put ``centraldogma-profiles-1.0.jar`` into his
+or her class path::
+
+    $ cat centraldogma-profile-beta.properties
+    centraldogma.host.0=...
+    ...
+    $ cat centraldogma-profile-staging.properties
+    centraldogma.host.0=...
+    ...
+    $ cat centraldogma-profile-release.properties
+    centraldogma.host.0=...
+    ...
+    $ jar cvf centraldogma-profiles-1.0.jar centraldogma-profile-*.properties
+    added manifest
+    adding: centraldogma-profile-beta.properties
+    adding: centraldogma-profile-staging.properties
+    adding: centraldogma-profile-release.properties
+
+Spring Boot integration
+-----------------------
+If you are using `Spring Framework <https://spring.io/>`_, you can inject ``CentralDogma`` client very easily.
+
+1. Add ``centraldogma-client-spring-boot-autoconfigure`` into your dependencies.
+2. Add the client profile to your class path, as described in :ref:`using_client_profiles`.
+
+A new ``CentralDogma`` client will be created and injected using your
+`Spring Boot profile <https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html>`_.
+When more than one profile is active, the first matching one will be used. For example,
+``/centraldogma-profile-dev.properties`` will be tried first and then ``/centraldogma-profile-hsqldb.properties``
+if your active Spring Boot profiles are ``dev`` and ``hsqldb``.
+
+Once configured correctly, you would be able to run an application like the following:
+
+.. code-block:: java
+
+    import org.springframework.boot.CommandLineRunner;
+    import org.springframework.boot.SpringApplication;
+    import org.springframework.boot.autoconfigure.SpringBootApplication;
+    import org.springframework.context.annotation.Bean;
+
+    import com.linecorp.centraldogma.client.CentralDogma;
+
+    @SpringBootApplication
+    public class MyApp {
+
+        public static void main(String[] args) {
+            SpringApplication.run(MyApp.class, args);
+        }
+
+        // CentralDogma is injected automatically by CentralDogmaConfiguration.
+        @Bean
+        public CommandLineRunner commandLineRunner(CentralDogma dogma) {
+            return args -> {
+                System.err.println(dogma.listProjects().join());
+            };
+        }
+    }
 
 Read the Javadoc
 ----------------

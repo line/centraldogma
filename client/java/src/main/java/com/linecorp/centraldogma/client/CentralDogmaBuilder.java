@@ -15,12 +15,28 @@
  */
 package com.linecorp.centraldogma.client;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.client.Endpoint;
+import com.linecorp.armeria.client.endpoint.EndpointGroupRegistry;
+import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
+import com.linecorp.armeria.client.endpoint.StaticEndpointGroup;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
@@ -29,30 +45,195 @@ import com.linecorp.armeria.common.RpcResponse;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
+import io.netty.util.NetUtil;
+
 /**
  * Builds a {@link CentralDogma} client.
- *
- * <pre>{@code
- * CentralDogmaBuilder builder = new CentralDogmaBuilder();
- * builder.uri("tbinary+http://example.com:36462/cd/thrift/v1");
- * CentralDogma dogma = builder.build();
- * }</pre>
  */
 public class CentralDogmaBuilder {
 
+    private static final int DEFAULT_PORT = 36462;
+
+    private static final AtomicLong nextGroupId = new AtomicLong();
+
     private ClientFactory clientFactory = ClientFactory.DEFAULT;
-    private URI uri;
+    private final List<Endpoint> endpoints = new ArrayList<>();
     private ArmeriaClientConfigurator clientConfigurator = cb -> {
     };
 
     /**
-     * Sets the {@link URI} of the Central Dogma server.
+     * Adds the {@link URI} of the Central Dogma server.
+     *
+     * @deprecated Use {@link #host(String)} or {@link #profile(String...)} instead.
      *
      * @param uri the URI of the Central Dogma server. e.g.
      *            {@code tbinary+http://example.com:36462/cd/thrift/v1}
      */
+    @Deprecated
     public CentralDogmaBuilder uri(String uri) {
-        this.uri = URI.create(requireNonNull(uri, "uri"));
+        final URI parsed = URI.create(requireNonNull(uri, "uri"));
+        final String host = parsed.getHost();
+        final int port = parsed.getPort();
+        checkArgument(host != null, "uri: %s (must contain a host part)", uri);
+        if (port < 0) {
+            host(host);
+        } else {
+            host(host, port);
+        }
+        return this;
+    }
+
+    /**
+     * Adds the host name or IP address of the Central Dogma Server and uses the default port number of
+     * {@value #DEFAULT_PORT}.
+     *
+     * @param host the host name or IP address of the Central Dogma server
+     */
+    public CentralDogmaBuilder host(String host) {
+        return host(host, DEFAULT_PORT);
+    }
+
+    /**
+     * Adds the host name (or IP address) and the port number of the Central Dogma server.
+     *
+     * @param host the host name or IP address of the Central Dogma server
+     * @param port the port number of the Central Dogma server
+     */
+    public CentralDogmaBuilder host(String host, int port) {
+        requireNonNull(host, "host");
+        checkArgument(!host.startsWith("group:"), "host: %s (must not start with 'group:')", host);
+        checkArgument(port >= 1 && port < 65536, "port: %s (expected: 1 .. 65535)", port);
+
+        // TODO(trustin): Add a utility or a shortcut method in Armeria.
+        if (NetUtil.isValidIpV6Address(host)) {
+            host = '[' + host + ']';
+        }
+
+        endpoints.add(Endpoint.parse(host + ':' + port));
+        return this;
+    }
+
+    /**
+     * Adds the host names (or IP addresses) and the port numbers of the Central Dogma servers loaded from the
+     * {@code /centraldogma-profile-<profile_name>.properties} resource file. The {@code .properties} file
+     * must contain at least one property whose name starts with {@code "centraldogma.hosts."}:
+     *
+     * <pre>{@code
+     * centraldogma.hosts.0=replica1.example.com:36462
+     * centraldogma.hosts.1=replica2.example.com:36462
+     * centraldogma.hosts.2=replica3.example.com:36462
+     * }</pre>
+     *
+     * @param profiles the list of profile names, in the order of preference
+     *
+     * @throws IllegalArgumentException if failed to load any hosts from all the specified profiles
+     */
+    public CentralDogmaBuilder profile(String... profiles) {
+        requireNonNull(profiles, "profiles");
+        return profile(ImmutableList.copyOf(profiles));
+    }
+
+    /**
+     * Adds the host names (or IP addresses) and the port numbers of the Central Dogma servers loaded from the
+     * {@code /centraldogma-profile-<profile_name>.properties} resource file. The {@code .properties} file
+     * must contain at least one property whose name starts with {@code "centraldogma.hosts."}:
+     *
+     * <pre>{@code
+     * centraldogma.hosts.0=replica1.example.com:36462
+     * centraldogma.hosts.1=replica2.example.com:36462
+     * centraldogma.hosts.2=replica3.example.com:36462
+     * }</pre>
+     *
+     * @param profiles the list of profile names, in the order of preference
+     *
+     * @throws IllegalArgumentException if failed to load any hosts from all the specified profiles
+     */
+    public CentralDogmaBuilder profile(ClassLoader classLoader, String... profiles) {
+        requireNonNull(profiles, "profiles");
+        return profile(classLoader, ImmutableList.copyOf(profiles));
+    }
+
+    /**
+     * Adds the host names (or IP address) and the port numbers of the Central Dogma servers loaded from the
+     * {@code /centraldogma-profile-<profile_name>.properties} resource file. The {@code .properties} file
+     * must contain at least one property whose name starts with {@code "centraldogma.hosts."}:
+     *
+     * <pre>{@code
+     * centraldogma.hosts.0=replica1.example.com:36462
+     * centraldogma.hosts.1=replica2.example.com:36462
+     * centraldogma.hosts.2=replica3.example.com:36462
+     * }</pre>
+     *
+     * @param profiles the list of profile names, in the order of preference
+     *
+     * @throws IllegalArgumentException if failed to load any hosts from all the specified profiles
+     */
+    public CentralDogmaBuilder profile(Iterable<String> profiles) {
+        final ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+        if (ccl != null) {
+            profile(ccl, profiles);
+        } else {
+            profile(CentralDogmaBuilder.class.getClassLoader(), profiles);
+        }
+        return this;
+    }
+
+    /**
+     * Adds the host names (or IP address) and the port numbers of the Central Dogma servers loaded from the
+     * {@code /centraldogma-profile-<profile_name>.properties} resource file. The {@code .properties} file
+     * must contain at least one property whose name starts with {@code "centraldogma.hosts."}:
+     *
+     * <pre>{@code
+     * centraldogma.hosts.0=replica1.example.com:36462
+     * centraldogma.hosts.1=replica2.example.com:36462
+     * centraldogma.hosts.2=replica3.example.com:36462
+     * }</pre>
+     *
+     * @param profiles the list of profile names, in the order of preference
+     *
+     * @throws IllegalArgumentException if failed to load any hosts from all the specified profiles
+     */
+    public CentralDogmaBuilder profile(ClassLoader classLoader, Iterable<String> profiles) {
+        requireNonNull(classLoader, "classLoader");
+        requireNonNull(profiles, "profiles");
+
+        int numProfiles = 0;
+        int numTotalHosts = 0;
+        for (String p : profiles) {
+            checkNotNull(p, "profiles contains null: %s", profiles);
+
+            numProfiles++;
+            final String path = "centraldogma-profile-" + p + ".properties";
+            final InputStream in = classLoader.getResourceAsStream(path);
+            if (in == null) {
+                continue;
+            }
+
+            try {
+                final Properties props = new Properties();
+                props.load(in);
+                int numHosts = 0;
+                for (Entry<Object, Object> e : props.entrySet()) {
+                    final String key = (String) e.getKey();
+                    final String value = (String) e.getValue();
+
+                    if (key.startsWith("centraldogma.hosts.")) {
+                        final Endpoint endpoint = Endpoint.parse(value);
+                        checkState(!endpoint.isGroup(),
+                                   "%s contains an endpoint group which is not allowed: %s", path, value);
+                        host(endpoint.host(), endpoint.port(DEFAULT_PORT));
+                        numHosts++;
+                        numTotalHosts++;
+                    }
+                }
+                checkState(numHosts > 0, "%s contains no hosts.", path);
+            } catch (IOException e) {
+                throw new IllegalArgumentException("failed to load: " + path, e);
+            }
+        }
+
+        checkArgument(numProfiles > 0, "profiles is empty.");
+        checkArgument(numTotalHosts > 0, "no profile matches: %s", profiles);
         return this;
     }
 
@@ -78,9 +259,19 @@ public class CentralDogmaBuilder {
      * Returns a newly-created {@link CentralDogma} instance.
      */
     public CentralDogma build() {
-        if (uri == null) {
-            throw new IllegalStateException("uri not set");
+        checkState(!endpoints.isEmpty(), "no endpoints were added.");
+
+        final Endpoint endpoint;
+        if (endpoints.size() == 1) {
+            endpoint = endpoints.get(0);
+        } else {
+            final String groupName = "centraldogma-" + nextGroupId.getAndIncrement();
+            EndpointGroupRegistry.register(groupName, new StaticEndpointGroup(endpoints),
+                                           EndpointSelectionStrategy.ROUND_ROBIN);
+            endpoint = Endpoint.ofGroup(groupName);
         }
+
+        final String uri = "tbinary+http://" + endpoint.authority() + "/cd/thrift/v1";
         final ClientBuilder builder = new ClientBuilder(uri)
                 .factory(clientFactory)
                 .decorator(RpcRequest.class, RpcResponse.class,
