@@ -6,12 +6,16 @@
     </encoder>
   </appender>
 
+  <appender name="EEA" class="com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender">
+    <appender-ref ref="CONSOLE"/>
+  </appender>
+
   <logger name="com.linecorp" level="DEBUG" />
   <logger name="com.linecorp.centraldogma.server.internal.admin.logging.LoggingAspect" level="INFO" />
 
   <logger name="io.netty" level="INFO" />
 
   <root level="WARN">
-    <appender-ref ref="CONSOLE" />
+    <appender-ref ref="EEA" />
   </root>
 </configuration>

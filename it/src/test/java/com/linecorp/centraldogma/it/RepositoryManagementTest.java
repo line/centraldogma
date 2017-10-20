@@ -19,8 +19,8 @@ package com.linecorp.centraldogma.it;
 import static com.linecorp.centraldogma.internal.thrift.ErrorCode.BAD_REQUEST;
 import static com.linecorp.centraldogma.internal.thrift.ErrorCode.REPOSITORY_EXISTS;
 import static com.linecorp.centraldogma.internal.thrift.ErrorCode.REPOSITORY_NOT_FOUND;
+import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
 import java.util.concurrent.CompletionException;
@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryExistsException;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNotFoundException;
 
 public class RepositoryManagementTest {
 
@@ -58,23 +60,29 @@ public class RepositoryManagementTest {
 
     @Test
     public void testCreateRepositoryFailures() throws Exception {
-        assertThatThrownBy(() -> rule.client().createRepository(rule.project(), rule.repo1()).join())
+        assertThatThrownByWithExpectedException(RepositoryExistsException.class, "repository: r", () ->
+                rule.client().createRepository(rule.project(), rule.repo1()).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REPOSITORY_EXISTS);
 
-        // It is not allowed to create a new repository whose name is same with the removed repository.
-        assertThatThrownBy(() -> rule.client().createRepository(rule.project(), rule.removedRepo()).join())
+        assertThatThrownByWithExpectedException(RepositoryExistsException.class, "repository: rr", () ->
+                // It is not allowed to create a new repository whose name is same with the removed repository.
+                rule.client().createRepository(rule.project(), rule.removedRepo()).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REPOSITORY_EXISTS);
 
-        assertThatThrownBy(() -> rule.client().createRepository(rule.project(), "..").join())
+        assertThatThrownByWithExpectedException(
+                IllegalArgumentException.class, "invalid repository name: ..", () ->
+                        rule.client().createRepository(rule.project(), "..").join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == BAD_REQUEST);
     }
 
     @Test
     public void testRemoveRepositoryFailures() throws Exception {
-        assertThatThrownBy(() -> rule.client().removeRepository(rule.project(), rule.missingRepo()).join())
+        assertThatThrownByWithExpectedException(
+                RepositoryNotFoundException.class, "repository: mr", () ->
+                        rule.client().removeRepository(rule.project(), rule.missingRepo()).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REPOSITORY_NOT_FOUND);
     }

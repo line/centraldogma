@@ -18,8 +18,8 @@ package com.linecorp.centraldogma.it;
 import static com.linecorp.centraldogma.internal.thrift.ErrorCode.BAD_REQUEST;
 import static com.linecorp.centraldogma.internal.thrift.ErrorCode.PROJECT_EXISTS;
 import static com.linecorp.centraldogma.internal.thrift.ErrorCode.PROJECT_NOT_FOUND;
+import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Set;
 import java.util.concurrent.CompletionException;
@@ -30,6 +30,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectExistsException;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectNotFoundException;
 
 public class ProjectManagementTest {
 
@@ -55,23 +57,30 @@ public class ProjectManagementTest {
 
     @Test
     public void testCreateProjectFailures() throws Exception {
-        assertThatThrownBy(() -> rule.client().createProject(rule.project()).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
+        assertThatThrownByWithExpectedException(ProjectExistsException.class, "project: p", () ->
+                rule.client().createProject(rule.project()).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == PROJECT_EXISTS);
 
-        // It is not allowed to create a new project whose name is same with the removed project.
-        assertThatThrownBy(() -> rule.client().createProject(rule.removedProject()).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
+        assertThatThrownByWithExpectedException(ProjectExistsException.class, "project: rp", () ->
+                // It is not allowed to create a new project whose name is same with the removed project.
+                rule.client().createProject(rule.removedProject()).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == PROJECT_EXISTS);
 
-        assertThatThrownBy(() -> rule.client().createProject("..").join())
+        assertThatThrownByWithExpectedException(
+                IllegalArgumentException.class, "invalid project name: ..", () ->
+                        rule.client().createProject("..").join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == BAD_REQUEST);
     }
 
     @Test
     public void testRemoveProjectFailures() throws Exception {
-        assertThatThrownBy(() -> rule.client().removeProject(rule.missingProject()).join())
+        assertThatThrownByWithExpectedException(ProjectNotFoundException.class, "project: mp", () ->
+                rule.client().removeProject(rule.missingProject()).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == PROJECT_NOT_FOUND);
     }

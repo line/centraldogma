@@ -125,7 +125,6 @@ public class ZooKeeperCommandExecutorTest {
         } finally {
             replica1.rm.stop();
             replica2.rm.stop();
-            replica3.rm.stop();
             if (newReplica3 != null) {
                 newReplica3.rm.stop();
             }

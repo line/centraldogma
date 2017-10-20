@@ -17,8 +17,8 @@
 package com.linecorp.centraldogma.it;
 
 import static com.linecorp.centraldogma.internal.thrift.ErrorCode.REVISION_NOT_FOUND;
+import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CompletionException;
 
@@ -27,6 +27,7 @@ import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
+import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotFoundException;
 
 public class RevisionNormalizationTest {
 
@@ -49,8 +50,8 @@ public class RevisionNormalizationTest {
     @Test
     public void testAbsoluteMajorOutOfRange() throws Exception {
         final Revision outOfRange = new Revision(Integer.MAX_VALUE, 0);
-        assertThatThrownBy(
-                () -> rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
+        assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "2147483647", () ->
+                rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REVISION_NOT_FOUND);
     }
@@ -68,8 +69,8 @@ public class RevisionNormalizationTest {
     @Test
     public void testRelativeMajorOutOfRange() throws Exception {
         final Revision outOfRange = new Revision(Integer.MIN_VALUE, 0);
-        assertThatThrownBy(
-                () -> rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
+        assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "-2147483648", () ->
+                rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REVISION_NOT_FOUND);
     }
