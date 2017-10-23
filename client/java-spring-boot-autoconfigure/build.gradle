@@ -3,8 +3,9 @@ dependencies {
 }
 
 managedDependencies {
-    compile 'org.hibernate.validator:hibernate-validator'
+    compile 'javax.validation:validation-api'
     compile 'org.springframework.boot:spring-boot-starter'
 
     testCompile 'org.springframework.boot:spring-boot-starter-test'
+    testRuntime 'org.hibernate.validator:hibernate-validator'
 }

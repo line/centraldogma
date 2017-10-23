@@ -225,6 +225,11 @@ This product depends on javax.inject API, distributed by the JSR-330 Expert Grou
   * License: licenses/LICENSE.javax-inject.al20.txt (Apache License v2.0)
   * Homepage: https://javax-inject.github.io/javax-inject/
 
+This product depends on javax.validation API, distributed by Red Hat, Inc:
+
+  * License: licenses/LICENSE.javax-validation.al20.txt (Apache License v2.0)
+  * Homepage: http://beanvalidation.org/
+
 This product depends on Jayway JsonPath, distributed by Jayway and other contributors:
 
   * License: licenses/LICENSE.jayway-jsonpath.al20.txt (Apache License v2.0)
