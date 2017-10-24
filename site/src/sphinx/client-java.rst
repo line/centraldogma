@@ -175,7 +175,7 @@ the process. The client library provides an easy way to watch a file:
     import com.linecorp.centraldogma.client.Latest;
     import com.linecorp.centraldogma.client.Watcher;
 
-    Watcher<JsonNode> watcher = dogma.fileWatcher("myRepo", "myProj", Query.ofJsonPath("$.foo"));
+    Watcher<JsonNode> watcher = dogma.fileWatcher("myProj", "myRepo", Query.ofJsonPath("$.foo"));
 
     // Register a callback for changes.
     watcher.watch((revision, value) -> {
