@@ -75,20 +75,24 @@ task copyClientBinaries(group: 'Build',
     into "${project.ext.distDir}/bin/native"
 }
 
-task distDir(group: 'Build',
-             description: "Builds a distribution directory (${project.ext.relativeDistDir})",
-             dependsOn: [tasks.copyLicenses, tasks.copyLib, tasks.copyClientBinaries])
+task distDirForStartup(group: 'Build',
+        description: "Builds a distribution directory with libraries for startup task (${project.ext.relativeDistDir})",
+        dependsOn: [tasks.copyLicenses, tasks.copyLib])
 
 // Create the tasks that copy each directory under src/ into dist/
 ['bin', 'conf'].each { dirName ->
     def taskName = "copy${CaseFormat.LOWER_HYPHEN.to(CaseFormat.UPPER_CAMEL, dirName)}"
-    tasks.distDir.dependsOn(tasks.create(taskName, Copy) {
+    tasks.distDirForStartup.dependsOn(tasks.create(taskName, Copy) {
         group = 'Build'
         description = "Copies src/$dirName into ${project.ext.relativeDistDir}/$dirName"
         from "${project.projectDir}/src/$dirName"
         into "${project.ext.distDir}/$dirName"
     })
 }
+
+task distDir(group: 'Build',
+        description: "Builds a distribution directory (${project.ext.relativeDistDir})",
+        dependsOn: [tasks.distDirForStartup, tasks.copyClientBinaries])
 
 task tarball(group: 'Build',
              description: "Builds a tarball from the distribution directory (${project.ext.relativeDistDir})",
@@ -122,7 +126,7 @@ task docker(group: 'Build',
 // Tasks for running Central Dogma conveniently.
 task startup(group: 'Execution',
              description: "Starts up Central Dogma at ${project.ext.relativeDistDir}",
-             dependsOn: tasks.distDir,
+             dependsOn: tasks.distDirForStartup,
              type: Exec) {
 
     commandLine "${project.ext.distDir}/bin/startup"
