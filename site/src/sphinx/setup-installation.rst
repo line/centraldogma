@@ -63,7 +63,7 @@ To stop the server, use the ``bin/shutdown`` script:
 
 Running on Docker
 -----------------
-You can also pull Central Dogma image from `Docker Hub <https://hub.docker.com/r/line/centraldogma>`_
+You can also pull Central Dogma image from `Docker Hub <https://hub.docker.com/r/line/centraldogma/>`_
 and then run it on your Docker::
 
     $ docker run -p 36462:36462 line/centraldogma

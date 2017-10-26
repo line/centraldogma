@@ -30,7 +30,7 @@ With Central Dogma, you can:
     $ bin/startup
     # Open http://127.0.0.1:36462/ in your browser for administrative console.
 
-Using Docker? Give our image a try::
+Using Docker? Launch our image at `Docker Hub <https://hub.docker.com/r/line/centraldogma/>`_::
 
     $ docker run -p 36462:36462 line/centraldogma
 
