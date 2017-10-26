@@ -1,3 +1,5 @@
+import com.google.common.base.CaseFormat
+
 plugins {
     id 'com.github.blindpirate.gogradle' version '0.7.0'
 }
@@ -32,7 +34,12 @@ ext {
     binDir = "${goPath}/bin".replaceAll('\\\\', '/')
 }
 
-// Gogradle puts several comman code check task into a check task. We need to explicitly specify this line
+test {
+    inputs.files(fileTree("${project.projectDir}").include('**/*_test.go'))
+    outputs.dir("${project.projectDir}/.gogradle/reports/test")
+}
+
+// Gogradle puts several common code check task into a check task. We need to explicitly specify this line
 // to invoke the tasks. By default, it is out-of-the-box and depends on vet/fmt and cover.
 build.dependsOn check
 
@@ -46,5 +53,19 @@ build {
 
     doLast {
         ant.chmod(file: "$project.ext.binDir" + '/dogma.windows-amd64.exe', perm: '644')
+    }
+}
+
+FileTree goSources = fileTree("${project.projectDir}").include('**/*.go').exclude('.gogradle/**')
+
+tasks.whenTaskAdded { task ->
+    def taskName = task.name
+    if (taskName.startsWith('build') && !taskName.equalsIgnoreCase('build')) {
+        task.inputs.dir(goSources)
+        def outputFileName = "dogma.${CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_HYPHEN, taskName.replace('build', ''))}"
+        if (taskName.contains('Windows')) {
+            outputFileName += '.exe'
+        }
+        task.outputs.file("${project.ext.binDir}/${outputFileName}")
     }
 }
