@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -44,7 +45,8 @@ import javassist.util.proxy.ProxyFactory;
  * Creates a new bean instance that mirrors its properties from Central Dogma.
  *
  * <p>In the following example, {@code mirroredFoo.getA()} and {@code getB()} will return the latest known
- * values retrieved from {@code /myProject/myRepo/foo.json} in Central Dogma:
+ * values retrieved from {@code /myProject/myRepo/foo.json} along with the latest revision in Central Dogma.
+ * If the latest values are not available yet, the revision will be set to null.
  *
  * <pre>{@code
  * > CentralDogmaFactory factory = new CentralDogmaFactory(dogma, new ObjectMapper());
@@ -61,7 +63,19 @@ import javassist.util.proxy.ProxyFactory;
  * >     public void setA(int a) { this.a = a; }
  * >     public String getB() { return b; }
  * >     public void setB(String b) { this.b = b; }
+ * >     public Revision getRevision() { return null; }
  * > }
+ * }</pre>
+ *
+ * <p>In the following example, callback will be called when a property is updated with a new value:
+ *
+ * <pre>{@code
+ * CentralDogmaFactory factory = new CentralDogmaFactory(dogma, new ObjectMapper());
+ * Consumer<Foo> fooUpdatedListener = (Foo f) -> {
+ *     System.out.println("foo has updated to: " + f);
+ * };
+ *
+ * Foo mirroredFoo = factory.get(new Foo(), Foo.class, fooUpdatedListener);
  * }</pre>
  */
 @Named
@@ -93,7 +107,66 @@ public class CentralDogmaBeanFactory {
      * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
      */
     public <T> T get(T bean, Class<T> beanType) {
-        return get(bean, beanType, CentralDogmaBeanConfig.EMPTY);
+        return get(bean, beanType, (T x) -> {
+        }, CentralDogmaBeanConfig.EMPTY);
+    }
+
+    /**
+     * Returns a newly-created bean instance with the settings specified by {@link CentralDogmaBean} annotation.
+     *
+     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param beanType the type of {@code bean}
+     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated
+     *
+     * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
+     */
+    public <T> T get(T bean, Class<T> beanType, Consumer<T> changeListener) {
+        return get(bean, beanType, changeListener, CentralDogmaBeanConfig.EMPTY);
+    }
+
+    /**
+     * Returns a newly-created bean instance with some or all of its settings overridden.
+     *
+     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param beanType the type of {@code bean}
+     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated
+     * @param overrides the {@link CentralDogmaBeanConfig} whose properties will override the settings
+     *                  specified by the {@link CentralDogmaBean} annotation
+     *
+     * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
+     */
+    public <T> T get(T bean, Class<T> beanType, Consumer<T> changeListener,
+                     CentralDogmaBeanConfig overrides) {
+        try {
+            return get(bean, beanType, changeListener, overrides, 0L, TimeUnit.SECONDS);
+        } catch (InterruptedException | TimeoutException e) {
+            // when initialValueTimeoutMillis set to zero, this exception never happens in practice.
+            throw new RuntimeException("Error: unexpected exception caught", e);
+        }
+    }
+
+    /**
+     * Returns a newly-created bean instance with the settings specified by {@link CentralDogmaBean} annotation.
+     *
+     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param beanType the type of {@code bean}
+     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated
+     * @param initialValueTimeout when a value larger than zero given to this argument, this method
+     *                            tries to wait for the initial value to be fetched until the timeout
+     * @param initialValueTimeoutUnit the {@link TimeUnit} of {@code initialValueTimeout}
+     *
+     * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
+     *
+     * @throws TimeoutException when {@code initialValueTimeoutMillis} is positive and
+     *                          it failed to obtain the initial value within configured timeout
+     * @throws InterruptedException when {@code initialValueTimeoutMillis} is positive and
+     *                              it got interrupted while waiting for the initial value
+     */
+    public <T> T get(T bean, Class<T> beanType, Consumer<T> changeListener, long initialValueTimeout,
+                     TimeUnit initialValueTimeoutUnit)
+            throws TimeoutException, InterruptedException {
+        return get(bean, beanType, changeListener, CentralDogmaBeanConfig.EMPTY,
+                   initialValueTimeout, initialValueTimeoutUnit);
     }
 
     /**
@@ -159,6 +232,34 @@ public class CentralDogmaBeanFactory {
     public <T> T get(T bean, Class<T> beanType, CentralDogmaBeanConfig overrides,
                      long initialValueTimeout, TimeUnit initialValueTimeoutUnit)
             throws TimeoutException, InterruptedException {
+        return get(bean, beanType, (T x) -> {
+        }, overrides, initialValueTimeout, initialValueTimeoutUnit);
+    }
+
+    /**
+     * Returns a newly-created bean instance with some or all of its settings overridden.
+     *
+     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param beanType the type of {@code bean}
+     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated
+     * @param overrides the {@link CentralDogmaBeanConfig} whose properties will override the settings
+     *                  specified by the {@link CentralDogmaBean} annotation
+     * @param initialValueTimeout when a value larger than zero given to this argument, this method
+     *                            tries to wait for the initial value to be fetched until the timeout
+     * @param initialValueTimeoutUnit the {@link TimeUnit} of {@code initialValueTimeout}
+     *
+     * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
+     *
+     * @throws TimeoutException when {@code initialValueTimeoutMillis} is positive and
+     *                          it failed to obtain the initial value within configured timeout
+     * @throws InterruptedException when {@code initialValueTimeoutMillis} is positive and
+     *                              it got interrupted while waiting for the initial value
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T get(T bean, Class<T> beanType, Consumer<T> changeListener,
+                     CentralDogmaBeanConfig overrides, long initialValueTimeout,
+                     TimeUnit initialValueTimeoutUnit)
+            throws TimeoutException, InterruptedException {
         requireNonNull(bean, "bean");
         requireNonNull(beanType, "beanType");
         requireNonNull(overrides, "overrides");
@@ -179,6 +280,7 @@ public class CentralDogmaBeanFactory {
                 settings.repository().get(),
                 buildQuery(settings),
                 jsonNode -> {
+                    changeListener.accept(bean);
                     try {
                         return objectMapper.treeToValue(jsonNode, beanType);
                     } catch (JsonProcessingException e) {
@@ -198,11 +300,11 @@ public class CentralDogmaBeanFactory {
         final ProxyFactory factory = new ProxyFactory();
         factory.setSuperclass(beanType);
         factory.setFilter(method -> {
-            // Looks like getter method
+            // Allow all non-parameter methods (getter/closeWatcher..)
             if (method.getParameterCount() == 0) {
                 return true;
             }
-            // The property is bidirectional and the method looks like setter method
+            // Allow methods have bidirectional property and looks like setter
             return centralDogmaBean.bidirectional() && method.getParameterCount() == 1;
         });
 

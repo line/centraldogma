@@ -18,11 +18,14 @@ package com.linecorp.centraldogma.it.updater;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.ThrowableAssert.catchThrowable;
 import static org.awaitility.Awaitility.await;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
+import org.awaitility.core.ConditionTimeoutException;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -64,12 +67,15 @@ public class CentralDogmaBeanTest {
 
     @Test
     public void test() throws Exception {
+        final int[] called = new int[1];
+        Consumer<TestProperty> listener = testProperty -> called[0] = 1;
         final CentralDogma client = dogma.client();
-        final TestProperty property = factory.get(new TestProperty(), TestProperty.class);
+        final TestProperty property = factory.get(new TestProperty(), TestProperty.class, listener);
 
         assertThat(property.getFoo()).isEqualTo(10);
         assertThat(property.getBar()).isEqualTo("20");
         assertThat(property.getQux()).containsExactly("x", "y", "z");
+        assertThat(property.getRevision()).isNull();
 
         client.push("a", "b", Revision.HEAD, Author.SYSTEM, "Add a.json",
                     Change.ofJsonUpsert("/c.json",
@@ -87,6 +93,46 @@ public class CentralDogmaBeanTest {
 
         assertThat(property.getBar()).isEqualTo("Y");
         assertThat(property.getQux()).containsExactly("0", "1");
+        assertThat(property.getRevision()).isNotNull();
+        assertThat(called[0]).isEqualTo(1);
+
+        // test that after close a watcher, it could not receive change anymore
+        property.closeWatcher();
+        client.push("a", "b", Revision.HEAD, Author.SYSTEM, "Modify a.json",
+                    Change.ofJsonUpsert("/c.json",
+                                        '{' +
+                                        "  \"foo\": 50," +
+                                        "  \"bar\": \"Y2\"," +
+                                        "  \"qux\": [\"M\", \"N\"]" +
+                                        '}'))
+              .join();
+        // TODO(huydx): this test may be flaky, is there any better way?
+        Throwable thrown = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
+                                                       .until(() -> property.getFoo() == 50)
+        );
+        assertThat(thrown).isInstanceOf(ConditionTimeoutException.class);
+
+        // test that fail consumer will prevent it from receive change
+        // TODO(huydx): this test may be flaky, is there any better way?
+        Consumer<TestProperty> failListener = testProperty -> {
+            throw new RuntimeException("test runtime exception");
+        };
+        final TestProperty failProp = factory.get(new TestProperty(), TestProperty.class, failListener);
+        client.push("a", "b", Revision.HEAD, Author.SYSTEM, "Add a.json",
+                    Change.ofJsonUpsert("/c.json",
+                                        '{' +
+                                        "  \"foo\": 211," +
+                                        "  \"bar\": \"Y\"," +
+                                        "  \"qux\": [\"11\", \"1\"]" +
+                                        '}'))
+              .join();
+        // await will fail due to exception is thrown before node get serialized
+        // and revision will remain null
+        Throwable thrown2 = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
+                                                       .until(() -> failProp.getFoo() == 211)
+        );
+        assertThat(thrown2).isInstanceOf(ConditionTimeoutException.class);
+        assertThat(failProp.getRevision()).isNull();
     }
 
     @Test
@@ -103,6 +149,7 @@ public class CentralDogmaBeanTest {
               .join();
 
         TestProperty property = factory.get(new TestProperty(), TestProperty.class,
+                                            (TestProperty x) -> { },
                                             new CentralDogmaBeanConfigBuilder()
                                                     .project("alice")
                                                     .repository("bob")
@@ -113,6 +160,10 @@ public class CentralDogmaBeanTest {
         await().atMost(5, TimeUnit.SECONDS).until(() -> property.getFoo() == 200);
         assertThat(property.getBar()).isEqualTo("YY");
         assertThat(property.getQux()).containsExactly("100", "200");
+        assertThat(property.getRevision()).isEqualTo(new Revision("2"));
+
+        // properly close watcher
+        property.closeWatcher();
     }
 
     @CentralDogmaBean(project = "a", repository = "b", path = "/c.json")
@@ -120,6 +171,10 @@ public class CentralDogmaBeanTest {
         int foo = 10;
         String bar = "20";
         List<String> qux = ImmutableList.of("x", "y", "z");
+
+        public Revision getRevision() {
+            return null;
+        }
 
         public int getFoo() {
             return foo;
@@ -132,5 +187,7 @@ public class CentralDogmaBeanTest {
         public List<String> getQux() {
             return qux;
         }
+
+        public void closeWatcher() { }
     }
 }
