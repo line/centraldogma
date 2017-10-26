@@ -24,6 +24,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -38,7 +39,6 @@ import com.linecorp.armeria.common.DefaultHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Get;
-import com.linecorp.armeria.server.annotation.Optional;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Path;
 import com.linecorp.armeria.server.annotation.Post;
@@ -141,11 +141,11 @@ public class RepositoryService extends AbstractService {
                                                          @Param("repositoryName") String repositoryName,
                                                          @Param("revision") String revision,
                                                          @Param("path") String path,
-                                                         @Param("queryType") @Optional("IDENTITY")
-                                                                     String queryType,
-                                                         @Param("expression") @Optional("")
-                                                                     String expressions) {
-        final Query<?> query = Query.of(QueryType.valueOf(queryType), path, expressions);
+                                                         @Param("queryType") Optional<String> queryType,
+                                                         @Param("expression") Optional<String> expressions) {
+
+        final Query<?> query = Query.of(QueryType.valueOf(queryType.orElse("IDENTITY")),
+                                        path, expressions.orElse(""));
         final Repository repo = projectManager().get(projectName).repos().get(repositoryName);
         return repo.normalize(new Revision(revision))
                    .thenCompose(normalized -> repo.get(normalized, query))
@@ -218,10 +218,12 @@ public class RepositoryService extends AbstractService {
     public CompletionStage<List<CommitDto>> getHistory(@Param("projectName") String projectName,
                                                        @Param("repositoryName") String repositoryName,
                                                        @Param("path") String path,
-                                                       @Param("from") @Optional("-1") String from,
-                                                       @Param("to") @Optional("1") String to) {
+                                                       @Param("from") Optional<String> from,
+                                                       @Param("to") Optional<String> to) {
         return projectManager().get(projectName).repos().get(repositoryName)
-                               .history(new Revision(from), new Revision(to), path + "**")
+                               .history(new Revision(from.orElse("-1")),
+                                        new Revision(to.orElse("1")),
+                                        path + "**")
                                .thenApply(commits -> commits.stream()
                                                             .map(DtoConverter::convert)
                                                             .collect(toList()));
