@@ -770,36 +770,7 @@ configure(javaProjects) {
                     printBuffer = true
                 } else {
                     def lines = buf.readLines().findAll { it =~ /(?:Exception|Error|Throwable|LEAK):/ }
-
-                    // Ignore the expected exceptions.
-                    lines.removeIf { it.matches(/.*Anticipated(?:Exception|Error|Throwable):.*/) }
-
-                    // Ignore known false positives.
                     lines.removeIf { it.contains('Only supported on Linux') }
-                    switch (td.className) {
-                        case 'com.linecorp.armeria.client.Http2ClientSettingsTest':
-                            lines.removeIf { it.contains('Frame length: 32769 exceeds maximum: 32768') }
-                            break
-                        case 'com.linecorp.armeria.client.zookeeper.EndpointGroupTest':
-                            lines.removeIf { it.contains('ServerCnxn$EndOfStreamException') }
-                            break
-                        case 'com.linecorp.armeria.common.stream.StreamMessageDuplicatorTest':
-                            if (td.name.contains('abort')) {
-                                lines.removeIf {
-                                    it.contains('com.linecorp.armeria.common.stream.AbortedStreamException')
-                                }
-                            }
-                            break
-                        case 'com.linecorp.armeria.server.AnnotatedServiceTest':
-                            lines.removeIf { it.contains('For input string: "fourty-two"') }
-                            break
-                        case 'com.linecorp.armeria.server.zookeeper.ZooKeeperRegistrationTest':
-                            lines.removeIf { it.contains('ServerCnxn$EndOfStreamException') }
-                            lines.removeIf { it.contains('KeeperException$ConnectionLossException') }
-                            lines.removeIf { it.contains('ZooKeeperException: Failed to notify ZooKeeper listener') }
-                            break
-                    }
-
                     printBuffer = !lines.isEmpty()
                 }
 

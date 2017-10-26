@@ -18,8 +18,8 @@ package com.linecorp.centraldogma.it;
 
 import static com.linecorp.centraldogma.internal.thrift.ErrorCode.CHANGE_CONFLICT;
 import static com.linecorp.centraldogma.internal.thrift.ErrorCode.REVISION_NOT_FOUND;
+import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -33,6 +33,8 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
+import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
+import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotFoundException;
 
 public class PreviewDiffsTest {
 
@@ -44,8 +46,8 @@ public class PreviewDiffsTest {
         // Apply a conflict change
         final Change<?> change = Change.ofJsonPatch("/test/new_json_file.json",
                                                     "{ \"a\": \"apple\" }", "{ \"a\": \"angle\" }");
-        assertThatThrownBy(() -> rule.client().getPreviewDiffs(
-                rule.project(), rule.repo1(), Revision.HEAD, change).join())
+        assertThatThrownByWithExpectedException(ChangeConflictException.class, "/test/new_json_file.json", () ->
+                rule.client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, change).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == CHANGE_CONFLICT);
     }
@@ -54,8 +56,8 @@ public class PreviewDiffsTest {
     public void testInvalidRemoval() throws Exception {
         // Apply a conflict removal
         final Change<?> change = Change.ofRemoval("/non_existent_path.txt");
-        assertThatThrownBy(() -> rule.client().getPreviewDiffs(
-                rule.project(), rule.repo1(), Revision.HEAD, change).join())
+        assertThatThrownByWithExpectedException(ChangeConflictException.class, "non_existent_path.txt", () ->
+                rule.client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, change).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == CHANGE_CONFLICT);
     }
@@ -63,8 +65,9 @@ public class PreviewDiffsTest {
     @Test
     public void testInvalidRevision() throws Exception {
         final Change<String> change = Change.ofTextUpsert("/a_new_text_file.txt", "text");
-        assertThatThrownBy(() -> rule.client().getPreviewDiffs(
-                rule.project(), rule.repo1(), new Revision(Integer.MAX_VALUE), change).join())
+        assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "2147483647", () ->
+                rule.client().getPreviewDiffs(
+                        rule.project(), rule.repo1(), new Revision(Integer.MAX_VALUE), change).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REVISION_NOT_FOUND);
     }
