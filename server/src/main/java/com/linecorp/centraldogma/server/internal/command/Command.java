@@ -49,7 +49,11 @@ import com.linecorp.centraldogma.common.Revision;
 public interface Command<T> {
 
     static Command<Void> createProject(String name) {
-        return new CreateProjectCommand(name);
+        return new CreateProjectCommand(name, null);
+    }
+
+    static Command<Void> createProject(String name, long creationTimeMillis) {
+        return new CreateProjectCommand(name, creationTimeMillis);
     }
 
     static Command<Void> removeProject(String name) {
@@ -61,7 +65,7 @@ public interface Command<T> {
     }
 
     static Command<Void> createRepository(String projectName, String repositoryName) {
-        return new CreateRepositoryCommand(projectName, repositoryName);
+        return new CreateRepositoryCommand(projectName, repositoryName, null);
     }
 
     static Command<Void> removeRepository(String projectName, String repositoryName) {
@@ -77,22 +81,41 @@ public interface Command<T> {
                                   Markup markup, Change<?>... changes) {
 
         requireNonNull(changes, "changes");
-        return new PushCommand(projectName, repositoryName,
-                               baseRevision, author, summary, detail, markup, Arrays.asList(changes));
+        return new PushCommand(projectName, repositoryName, baseRevision, null,
+                               author, summary, detail, markup, Arrays.asList(changes));
     }
 
     static Command<Revision> push(String projectName, String repositoryName,
-                                Revision baseRevision, Author author, String summary, String detail,
-                                Markup markup, Iterable<Change<?>> changes) {
+                                  Revision baseRevision, long commitTimeMillis,
+                                  Author author, String summary, String detail,
+                                  Markup markup, Change<?>... changes) {
 
-        return new PushCommand(projectName, repositoryName,
-                               baseRevision, author, summary, detail, markup, changes);
+        requireNonNull(changes, "changes");
+        return new PushCommand(projectName, repositoryName, baseRevision, commitTimeMillis,
+                               author, summary, detail, markup, Arrays.asList(changes));
+    }
+
+    static Command<Revision> push(String projectName, String repositoryName,
+                                  Revision baseRevision, Author author, String summary, String detail,
+                                  Markup markup, Iterable<Change<?>> changes) {
+
+        return new PushCommand(projectName, repositoryName, baseRevision, null,
+                               author, summary, detail, markup, changes);
+    }
+
+    static Command<Revision> push(String projectName, String repositoryName,
+                                  Revision baseRevision, long commitTimeMillis,
+                                  Author author, String summary, String detail,
+                                  Markup markup, Iterable<Change<?>> changes) {
+
+        return new PushCommand(projectName, repositoryName, baseRevision, commitTimeMillis,
+                               author, summary, detail, markup, changes);
     }
 
     static Command<Void> createRunspace(String projectName, String repositoryName,
-                                        Author author, int baseRevision) {
+                                        int baseRevision, Author author) {
 
-        return new CreateRunspaceCommand(projectName, repositoryName, author, baseRevision);
+        return new CreateRunspaceCommand(projectName, repositoryName, baseRevision, null, author);
     }
 
     static Command<Void> removeRunspace(String projectName, String repositoryName, int baseRevision) {

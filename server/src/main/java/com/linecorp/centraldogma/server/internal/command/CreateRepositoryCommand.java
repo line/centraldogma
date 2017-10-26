@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
@@ -25,18 +27,26 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 public final class CreateRepositoryCommand extends ProjectCommand<Void> {
 
     private final String repositoryName;
+    private final long creationTimeMillis;
 
     @JsonCreator
     CreateRepositoryCommand(@JsonProperty("projectName") String projectName,
-                            @JsonProperty("repositoryName") String repositoryName) {
+                            @JsonProperty("repositoryName") String repositoryName,
+                            @JsonProperty("creationTimeMillis") @Nullable Long creationTimeMillis) {
 
         super(CommandType.CREATE_REPOSITORY, projectName);
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
+        this.creationTimeMillis = creationTimeMillis != null ? creationTimeMillis : System.currentTimeMillis();
     }
 
     @JsonProperty
     public String repositoryName() {
         return repositoryName;
+    }
+
+    @JsonProperty
+    public long creationTimeMillis() {
+        return creationTimeMillis;
     }
 
     @Override
@@ -51,6 +61,7 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
 
         final CreateRepositoryCommand that = (CreateRepositoryCommand) obj;
         return super.equals(obj) &&
+               creationTimeMillis == that.creationTimeMillis &&
                repositoryName.equals(that.repositoryName);
     }
 
@@ -61,6 +72,8 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
 
     @Override
     ToStringHelper toStringHelper() {
-        return super.toStringHelper().add("repositoryName", repositoryName);
+        return super.toStringHelper()
+                    .add("repositoryName", repositoryName)
+                    .add("creationTimeMillis", creationTimeMillis);
     }
 }

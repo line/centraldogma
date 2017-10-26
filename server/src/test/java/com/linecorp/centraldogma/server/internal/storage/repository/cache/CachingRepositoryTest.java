@@ -26,7 +26,6 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -219,11 +218,7 @@ public class CachingRepositoryTest {
     }
 
     private Repository newCachingRepo(int headRevision) {
-        when(delegateRepo.normalize(HEAD)).thenReturn(completedFuture(new Revision(headRevision)));
-
         Repository cachingRepo = new CachingRepository(delegateRepo, new RepositoryCache("maximumSize=1000"));
-
-        verify(delegateRepo, times(1)).normalize(HEAD);
         verifyNoMoreInteractions(delegateRepo);
         clearInvocations(delegateRepo);
 

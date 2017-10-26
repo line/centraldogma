@@ -23,11 +23,12 @@ import org.junit.Test;
 public class CreateProjectCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new CreateProjectCommand("foo"),
+        assertJsonConversion(new CreateProjectCommand("foo", 1234L),
                              Command.class,
                              '{' +
                              "  \"type\": \"CREATE_PROJECT\"," +
-                             "  \"projectName\": \"foo\"" +
+                             "  \"projectName\": \"foo\"," +
+                             "  \"creationTimeMillis\": 1234" +
                              '}');
     }
 }

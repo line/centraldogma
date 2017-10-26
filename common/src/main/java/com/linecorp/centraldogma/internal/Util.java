@@ -19,8 +19,11 @@ package com.linecorp.centraldogma.internal;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.file.Files;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -374,6 +377,15 @@ public final class Util {
 
     private static boolean isValidHexChar(char c) {
         return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f';
+    }
+
+    /**
+     * Deletes the specified {@code directory} recursively.
+     */
+    public static void deleteFileTree(File directory) throws IOException {
+        if (directory.exists()) {
+            Files.walkFileTree(directory.toPath(), DeletingFileVisitor.INSTANCE);
+        }
     }
 
     private Util() {}

@@ -27,9 +27,11 @@ public interface StorageManager<T> extends AutoCloseable {
 
     T get(String name);
 
-    T getOrCreate(String name);
+    default T create(String name) {
+        return create(name, System.currentTimeMillis());
+    }
 
-    T create(String name);
+    T create(String name, long creationTimeMillis);
 
     Map<String, T> list();
 

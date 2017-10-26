@@ -104,11 +104,11 @@ public class DefaultMetaRepositoryTest {
         assertThat(metaRepo.mirrors()).isEmpty();
 
         // should return an empty result when /credentials.json exists and /mirrors.json does not.
-        metaRepo.commit(Revision.HEAD, Author.SYSTEM, "", Change.ofJsonUpsert("/credentials.json", "[]"));
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", Change.ofJsonUpsert("/credentials.json", "[]"));
         assertThat(metaRepo.mirrors()).isEmpty();
 
         // should return an empty result when both /credentials.json and /mirrors.json exist.
-        metaRepo.commit(Revision.HEAD, Author.SYSTEM, "", Change.ofJsonUpsert("/mirrors.json", "[]"));
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", Change.ofJsonUpsert("/mirrors.json", "[]"));
         assertThat(metaRepo.mirrors()).isEmpty();
     }
 
@@ -118,24 +118,24 @@ public class DefaultMetaRepositoryTest {
     @Test
     public void testInvalidMirrors() {
         // not an array but an object
-        metaRepo.commit(Revision.HEAD, Author.SYSTEM, "",
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(PATH_MIRRORS, "{}")).join();
         assertThatThrownBy(() -> metaRepo.mirrors()).isInstanceOf(RepositoryMetadataException.class);
 
         // not an array but a value
-        metaRepo.commit(Revision.HEAD, Author.SYSTEM, "",
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(PATH_MIRRORS, "\"oops\"")).join();
         assertThatThrownBy(() -> metaRepo.mirrors()).isInstanceOf(RepositoryMetadataException.class);
 
         // an array that contains null.
-        metaRepo.commit(Revision.HEAD, Author.SYSTEM, "",
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(PATH_MIRRORS, "[ null ]")).join();
         assertThatThrownBy(() -> metaRepo.mirrors()).isInstanceOf(RepositoryMetadataException.class);
     }
 
     @Test
     public void testSingleTypeMirror() {
-        metaRepo.commit(Revision.HEAD, Author.SYSTEM, "",
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
                                 PATH_MIRRORS,
                                 "[{" +
@@ -231,7 +231,7 @@ public class DefaultMetaRepositoryTest {
     @Test
     public void testMultipleTypeMirror() {
 
-        metaRepo.commit(Revision.HEAD, Author.SYSTEM, "",
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
                                 PATH_MIRRORS,
                                 "[{" +

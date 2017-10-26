@@ -19,9 +19,14 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.Executor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
 import com.linecorp.centraldogma.server.internal.storage.StorageExistsException;
 import com.linecorp.centraldogma.server.internal.storage.StorageNotFoundException;
@@ -34,20 +39,82 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNo
 public class GitRepositoryManager extends DirectoryBasedStorageManager<Repository>
                                   implements RepositoryManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(GitRepositoryManager.class);
+
     public GitRepositoryManager(Project parent, File rootDir, Executor repositoryWorker) {
+        this(parent, rootDir, GitRepositoryFormat.V1, repositoryWorker);
+    }
+
+    public GitRepositoryManager(Project parent, File rootDir, GitRepositoryFormat preferredFormat,
+                                Executor repositoryWorker) {
+
         super(rootDir, Repository.class,
               requireNonNull(parent, "parent"),
+              requireNonNull(preferredFormat, "preferredFormat"),
               requireNonNull(repositoryWorker, "repositoryWorker"));
     }
 
     @Override
     protected Repository openChild(File childDir, Object[] childArgs) throws Exception {
-        return new GitRepository((Project) childArgs[0], childDir, (Executor) childArgs[1]);
+        final Project project = (Project) childArgs[0];
+        final GitRepositoryFormat preferredFormat = (GitRepositoryFormat) childArgs[1];
+        final Executor repositoryWorker = (Executor) childArgs[2];
+        final GitRepository repository = new GitRepository(project, childDir, repositoryWorker);
+        if (repository.format() != preferredFormat) {
+            return migrate(childDir, project, repositoryWorker, repository, preferredFormat);
+        } else {
+            return repository;
+        }
+    }
+
+    private static Repository migrate(File childDir, Project project, Executor repositoryWorker,
+                                      GitRepository oldRepo, GitRepositoryFormat newFormat) throws IOException {
+        try {
+            logger.info("Migrating from {} to {}: {}", oldRepo.format(), newFormat, oldRepo);
+            final File newChildDir = new File(childDir.getParentFile(),
+                                              "_newfmt_" + childDir.getName());
+            final File oldChildDir = new File(childDir.getParentFile(),
+                                              "_oldfmt_" + childDir.getName());
+
+            if (newChildDir.exists()) {
+                deleteCruft(newChildDir);
+            }
+            if (oldChildDir.exists()) {
+                deleteCruft(oldChildDir);
+            }
+
+            oldRepo.cloneTo(newChildDir, newFormat);
+
+            if (!childDir.renameTo(oldChildDir)) {
+                throw new IOException("failed to rename " + childDir + " to " + oldChildDir);
+            }
+            if (!newChildDir.renameTo(childDir)) {
+                throw new IOException("failed to rename " + newChildDir + " to " + childDir);
+            }
+
+            final GitRepository newRepo = new GitRepository(project, childDir, repositoryWorker);
+            logger.info("Migrated from {} to {}: {}", oldRepo.format(), newFormat, newRepo);
+            return newRepo;
+        } finally {
+            oldRepo.close();
+        }
+    }
+
+    private static void deleteCruft(File dir) throws IOException {
+        logger.info("Deleting the cruft from previous migration: {}", dir);
+        Util.deleteFileTree(dir);
+        logger.info("Deleted the cruft from previous migration: {}", dir);
     }
 
     @Override
-    protected Repository createChild(File childDir, Object[] childArgs) throws Exception {
-        return new GitRepository((Project) childArgs[0], childDir, (Executor) childArgs[1], Author.SYSTEM);
+    protected Repository createChild(File childDir, Object[] childArgs,
+                                     long creationTimeMillis) throws Exception {
+
+        final Project project = (Project) childArgs[0];
+        final GitRepositoryFormat preferredFormat = (GitRepositoryFormat) childArgs[1];
+        final Executor repositoryWorker = (Executor) childArgs[2];
+        return new GitRepository(project, childDir, preferredFormat, repositoryWorker,
+                                 creationTimeMillis, Author.SYSTEM);
     }
 
     @Override

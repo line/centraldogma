@@ -270,9 +270,9 @@ public interface Repository {
      *
      * @return the {@link Revision} of the new {@link Commit}
      */
-    default CompletableFuture<Revision> commit(
-            Revision baseRevision, Author author, String summary, Iterable<Change<?>> changes) {
-        return commit(baseRevision, author, summary, "", Markup.PLAINTEXT, changes);
+    default CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
+                                               Author author, String summary, Iterable<Change<?>> changes) {
+        return commit(baseRevision, commitTimeMillis, author, summary, "", Markup.PLAINTEXT, changes);
     }
 
     /**
@@ -280,9 +280,9 @@ public interface Repository {
      *
      * @return the {@link Revision} of the new {@link Commit}
      */
-    default CompletableFuture<Revision> commit(
-            Revision baseRevision, Author author, String summary, Change<?>... changes) {
-        return commit(baseRevision, author, summary, "", Markup.PLAINTEXT, changes);
+    default CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
+                                               Author author, String summary, Change<?>... changes) {
+        return commit(baseRevision, commitTimeMillis, author, summary, "", Markup.PLAINTEXT, changes);
     }
 
     /**
@@ -290,12 +290,11 @@ public interface Repository {
      *
      * @return the {@link Revision} of the new {@link Commit}
      */
-    default CompletableFuture<Revision> commit(
-            Revision baseRevision, Author author,
-            String summary, String detail, Markup markup, Change<?>... changes) {
-
+    default CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
+                                               Author author, String summary, String detail, Markup markup,
+                                               Change<?>... changes) {
         requireNonNull(changes, "changes");
-        return commit(baseRevision, author, summary, detail, markup, Arrays.asList(changes));
+        return commit(baseRevision, commitTimeMillis, author, summary, detail, markup, Arrays.asList(changes));
     }
 
     /**
@@ -303,9 +302,9 @@ public interface Repository {
      *
      * @return the {@link Revision} of the new {@link Commit}
      */
-    CompletableFuture<Revision> commit(
-            Revision baseRevision, Author author,
-            String summary, String detail, Markup markup, Iterable<Change<?>> changes);
+    CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
+                                       Author author, String summary, String detail, Markup markup,
+                                       Iterable<Change<?>> changes);
 
     /**
      * Get a list of {@link Commit} for given pathPattern.
@@ -340,18 +339,27 @@ public interface Repository {
      * Awaits and retrieves the latest revision of the commit that changed the file that matches the specified
      * {@code pathPattern} since the specified last known revision.
      */
-    CompletableFuture<Revision> watch(Revision lastKnownRev, String pathPattern);
+    CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern);
 
     /**
      * Awaits and retrieves the change in the query result of the specified file asynchronously since the
      * specified last known revision.
      */
-    default <T> CompletableFuture<QueryResult<T>> watch(Revision lastKnownRev, Query<T> query) {
-        return RepositoryUtil.watch(this, lastKnownRev, query);
+    default <T> CompletableFuture<QueryResult<T>> watch(Revision lastKnownRevision, Query<T> query) {
+        return RepositoryUtil.watch(this, lastKnownRevision, query);
     }
 
-    CompletableFuture<Revision> createRunspace(Author author, int majorRevision);
+    /**
+     * Creates a new runspace at {@code majorRevision}.
+     *
+     * @param author the author who creates this runspace
+     * @return the {@link Revision} for newly created runspace
+     */
+    CompletableFuture<Revision> createRunspace(int majorRevision, long creationTimeMillis, Author author);
 
+    /**
+     * Removes the runspace associated with the specified {@code majorRevision}.
+     */
     CompletableFuture<Void> removeRunspace(int majorRevision);
 
     CompletableFuture<Set<Revision>> listRunspaces();

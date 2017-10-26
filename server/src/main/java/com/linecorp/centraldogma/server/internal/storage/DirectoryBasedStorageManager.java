@@ -121,7 +121,8 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     protected abstract T openChild(File childDir, Object[] childArgs) throws Exception;
 
-    protected abstract T createChild(File childDir, Object[] childArgs) throws Exception;
+    protected abstract T createChild(File childDir, Object[] childArgs,
+                                     long creationTimeMillis) throws Exception;
 
     private void closeChild(String name, T child) {
         closeChild(new File(rootDir, name), child);
@@ -165,21 +166,13 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     }
 
     @Override
-    public T getOrCreate(String name) {
-        ensureOpen();
-        validateChildName(name);
-
-        return children.computeIfAbsent(name, this::create0);
-    }
-
-    @Override
-    public T create(String name) {
+    public T create(String name, long creationTimeMillis) {
         ensureOpen();
         validateChildName(name);
 
         AtomicBoolean created = new AtomicBoolean();
         T child = children.computeIfAbsent(name, n -> {
-            T c = create0(n);
+            T c = create0(n, creationTimeMillis);
             created.set(true);
             return c;
         });
@@ -191,14 +184,14 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
     }
 
-    private T create0(String name) {
+    private T create0(String name, long creationTimeMillis) {
         if (new File(rootDir, name + SUFFIX_REMOVED).exists()) {
             throw newStorageExistsException(childTypeName + ": " + name + " (removed)");
         }
 
         File f = new File(rootDir, name);
         try {
-            return createChild(f, childArgs);
+            return createChild(f, childArgs, creationTimeMillis);
         } catch (StorageException e) {
             throw e;
         } catch (Exception e) {

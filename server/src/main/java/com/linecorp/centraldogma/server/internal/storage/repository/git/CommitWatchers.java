@@ -76,12 +76,12 @@ final class CommitWatchers {
                     // Committed to the main lane; find only those who watches the main lane.
                     for (Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                         final Watch w = i.next();
-                        final Revision lastKnownRev = w.lastKnownRev;
-                        if (lastKnownRev.onMainLane()) {
-                            if (lastKnownRev.compareTo(revision) < 0) {
+                        final Revision lastKnownRevision = w.lastKnownRevision;
+                        if (lastKnownRevision.onMainLane()) {
+                            if (lastKnownRevision.compareTo(revision) < 0) {
                                 eligibleWatches = move(eligibleWatches, i, w);
                             } else {
-                                logIneligibleFuture(lastKnownRev, revision);
+                                logIneligibleFuture(lastKnownRevision, revision);
                             }
                         }
                     }
@@ -89,7 +89,7 @@ final class CommitWatchers {
                     // Committed to a runspace; find only those who watches the matching runspace.
                     for (Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                         final Watch p = i.next();
-                        final Revision lastKnownRev = p.lastKnownRev;
+                        final Revision lastKnownRev = p.lastKnownRevision;
                         if (lastKnownRev.major() == revision.major() && lastKnownRev.minor() != 0) {
                             if (lastKnownRev.compareTo(revision) < 0) {
                                 eligibleWatches = move(eligibleWatches, i, p);
@@ -126,9 +126,9 @@ final class CommitWatchers {
         return watches;
     }
 
-    private static void logIneligibleFuture(Revision lastKnownRev, Revision newRevision) {
-        logger.debug("Not notifying a future with same or newer lastKnownRevision: {} (new revision: {})",
-                     lastKnownRev, newRevision);
+    private static void logIneligibleFuture(Revision lastKnownRevision, Revision newRevision) {
+        logger.debug("Not notifying a future with same or newer lastKnownRevision: {} (newRevision: {})",
+                     lastKnownRevision, newRevision);
     }
 
     private static final class WatcherMap
@@ -152,12 +152,12 @@ final class CommitWatchers {
 
     private static final class Watch {
 
-        final Revision lastKnownRev;
+        final Revision lastKnownRevision;
         final CompletableFuture<Revision> future;
         volatile boolean removed;
 
-        Watch(Revision lastKnownRev, CompletableFuture<Revision> future) {
-            this.lastKnownRev = lastKnownRev;
+        Watch(Revision lastKnownRevision, CompletableFuture<Revision> future) {
+            this.lastKnownRevision = lastKnownRevision;
             this.future = future;
         }
     }

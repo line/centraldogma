@@ -45,7 +45,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 final class CachingRepository implements Repository {
 
     private final Repository repo;
-    private volatile Revision headRevision;
 
     @SuppressWarnings("rawtypes")
     private final AsyncLoadingCache<CacheableCall, Object> cache;
@@ -53,7 +52,6 @@ final class CachingRepository implements Repository {
     CachingRepository(Repository repo, RepositoryCache cache) {
         this.repo = requireNonNull(repo, "repo");
         this.cache = requireNonNull(cache, "cache").cache;
-        repo.normalize(Revision.HEAD).thenAccept(headRevision -> this.headRevision = headRevision);
     }
 
     @Override
@@ -167,21 +165,22 @@ final class CachingRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> commit(
-            Revision baseRevision, Author author, String summary,
-            String detail, Markup markup, Iterable<Change<?>> changes) {
+    public CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
+                                              Author author, String summary, String detail, Markup markup,
+                                              Iterable<Change<?>> changes) {
 
-        return repo.commit(baseRevision, author, summary, detail, markup, changes);
+        return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes);
     }
 
     @Override
-    public CompletableFuture<Revision> watch(Revision lastKnownRev, String pathPattern) {
-        return repo.watch(lastKnownRev, pathPattern);
+    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+        return repo.watch(lastKnownRevision, pathPattern);
     }
 
     @Override
-    public CompletableFuture<Revision> createRunspace(Author author, int majorRevision) {
-        return repo.createRunspace(author, majorRevision);
+    public CompletableFuture<Revision> createRunspace(int majorRevision, long creationTimeMillis,
+                                                      Author author) {
+        return repo.createRunspace(majorRevision, creationTimeMillis, author);
     }
 
     @Override

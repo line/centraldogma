@@ -32,7 +32,7 @@ public class PushCommandTest {
     @Test
     public void testJsonConversion() {
         assertJsonConversion(
-                new PushCommand("foo", "bar", new Revision(42),
+                new PushCommand("foo", "bar", new Revision(42), 1234L,
                                 new Author("Marge Simpson", "marge@simpsonsworld.com"),
                                 "baz", "qux", Markup.MARKDOWN,
                                 Collections.singletonList(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
@@ -45,6 +45,7 @@ public class PushCommandTest {
                 "    \"major\": 42," +
                 "    \"minor\": 0" +
                 "  }," +
+                "  \"commitTimeMillis\": 1234," +
                 "  \"author\": {" +
                 "    \"name\": \"Marge Simpson\"," +
                 "    \"email\": \"marge@simpsonsworld.com\"" +

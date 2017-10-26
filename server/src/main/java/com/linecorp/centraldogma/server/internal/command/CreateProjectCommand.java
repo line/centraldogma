@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
@@ -25,16 +27,24 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 public final class CreateProjectCommand extends RootCommand<Void> {
 
     private final String projectName;
+    private final long creationTimeMillis;
 
     @JsonCreator
-    CreateProjectCommand(@JsonProperty("projectName") String projectName) {
+    CreateProjectCommand(@JsonProperty("projectName") String projectName,
+                         @JsonProperty("creationTimeMillis") @Nullable Long creationTimeMillis) {
         super(CommandType.CREATE_PROJECT);
         this.projectName = requireNonNull(projectName, "projectName");
+        this.creationTimeMillis = creationTimeMillis != null ? creationTimeMillis : System.currentTimeMillis();
     }
 
     @JsonProperty
     public String projectName() {
         return projectName;
+    }
+
+    @JsonProperty
+    public long creationTimeMillis() {
+        return creationTimeMillis;
     }
 
     @Override
@@ -49,6 +59,7 @@ public final class CreateProjectCommand extends RootCommand<Void> {
 
         final CreateProjectCommand that = (CreateProjectCommand) obj;
         return super.equals(obj) &&
+               creationTimeMillis == that.creationTimeMillis &&
                projectName.equals(that.projectName);
     }
 
@@ -59,6 +70,8 @@ public final class CreateProjectCommand extends RootCommand<Void> {
 
     @Override
     ToStringHelper toStringHelper() {
-        return super.toStringHelper().add("projectName", projectName);
+        return super.toStringHelper()
+                    .add("projectName", projectName)
+                    .add("creationTimeMillis", creationTimeMillis);
     }
 }

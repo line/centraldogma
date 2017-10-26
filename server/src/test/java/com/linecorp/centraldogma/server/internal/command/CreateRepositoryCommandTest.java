@@ -23,12 +23,13 @@ import org.junit.Test;
 public class CreateRepositoryCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new CreateRepositoryCommand("foo", "bar"),
+        assertJsonConversion(new CreateRepositoryCommand("foo", "bar", 1234L),
                              Command.class,
                              '{' +
                              "  \"type\": \"CREATE_REPOSITORY\"," +
                              "  \"projectName\": \"foo\"," +
-                             "  \"repositoryName\": \"bar\"" +
+                             "  \"repositoryName\": \"bar\"," +
+                             "  \"creationTimeMillis\": 1234" +
                              '}');
     }
 }

@@ -81,15 +81,6 @@ public class RepositoryManagerWrapperTest {
     }
 
     @Test
-    public void testGetOrCreate() {
-        String name = testName.getMethodName();
-        assertTrue(!m.exists(name));
-        Repository repo = m.getOrCreate(name);
-        Repository repo2 = m.getOrCreate(name);
-        assertSame(repo, repo2);
-    }
-
-    @Test
     public void testRemove() {
         String name = testName.getMethodName();
         m.create(name);

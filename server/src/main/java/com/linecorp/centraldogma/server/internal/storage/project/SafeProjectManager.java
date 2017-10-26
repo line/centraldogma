@@ -61,15 +61,9 @@ public class SafeProjectManager implements ProjectManager {
     }
 
     @Override
-    public Project getOrCreate(String name) {
+    public Project create(String name, long creationTimeMillis) {
         validateProjectName(name);
-        return delegate().getOrCreate(name);
-    }
-
-    @Override
-    public Project create(String name) {
-        validateProjectName(name);
-        return delegate().create(name);
+        return delegate().create(name, creationTimeMillis);
     }
 
     @Override
