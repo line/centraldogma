@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
@@ -95,9 +96,9 @@ public class ZooKeeperCommandExecutorTest {
             assertThat(commandResult2.get().result()).isNull();
 
             Thread.sleep(100);
-            verify(replica1.delegate, times(1)).apply(eq(command1));
-            verify(replica2.delegate, times(1)).apply(eq(command1));
-            verify(replica3.delegate, times(1)).apply(eq(command1));
+            verify(replica1.delegate, timeout(300).times(1)).apply(eq(command1));
+            verify(replica2.delegate, timeout(300).times(1)).apply(eq(command1));
+            verify(replica3.delegate, timeout(300).times(1)).apply(eq(command1));
 
             assertThat(replica1.localRevision()).isEqualTo(0L);
             assertThat(replica2.localRevision()).isEqualTo(0L);
@@ -108,20 +109,18 @@ public class ZooKeeperCommandExecutorTest {
 
             final Command<?> command2 = Command.createProject("foo");
             replica1.rm.execute(command2).join();
-            Thread.sleep(100);
-            verify(replica1.delegate, times(1)).apply(eq(command2));
-            verify(replica2.delegate, times(1)).apply(eq(command2));
-            verify(replica3.delegate, times(0)).apply(eq(command2));
+            verify(replica1.delegate, timeout(300).times(1)).apply(eq(command2));
+            verify(replica2.delegate, timeout(300).times(1)).apply(eq(command2));
+            verify(replica3.delegate, timeout(300).times(0)).apply(eq(command2));
 
             //start replay m3 with new object
             newReplica3 = new Replica("m3", ROOT);
-            Thread.sleep(100);
-            verify(newReplica3.delegate, times(1)).apply(eq(command2));
+            verify(newReplica3.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command1));
+            verify(newReplica3.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command2));
 
             replica4 = new Replica("m4", ROOT);
-            Thread.sleep(100);
-            verify(replica4.delegate, times(1)).apply(eq(command1));
-            verify(replica4.delegate, times(1)).apply(eq(command2));
+            verify(replica4.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command1));
+            verify(replica4.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command2));
         } finally {
             replica1.rm.stop();
             replica2.rm.stop();
