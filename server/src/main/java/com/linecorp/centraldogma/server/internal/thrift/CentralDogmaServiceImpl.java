@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.internal.thrift;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
+import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.spotify.futures.CompletableFutures.allAsList;
 import static java.util.Objects.requireNonNull;
@@ -120,7 +121,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void createProject(String name, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.createProject(name)), resultHandler);
+        handle(executor.execute(Command.createProject(name, SYSTEM)), resultHandler);
     }
 
     @Override
@@ -152,7 +153,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void createRepository(
             String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.createRepository(projectName, repositoryName)), resultHandler);
+        handle(executor.execute(Command.createRepository(projectName, repositoryName, SYSTEM)),
+               resultHandler);
     }
 
     @Override

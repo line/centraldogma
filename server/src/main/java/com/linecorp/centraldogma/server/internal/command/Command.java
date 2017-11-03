@@ -20,6 +20,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -48,12 +50,13 @@ import com.linecorp.centraldogma.common.Revision;
 })
 public interface Command<T> {
 
-    static Command<Void> createProject(String name) {
-        return new CreateProjectCommand(name, null);
+    static Command<Void> createProject(String name, Author author) {
+        return createProject(name, null, author);
     }
 
-    static Command<Void> createProject(String name, long creationTimeMillis) {
-        return new CreateProjectCommand(name, creationTimeMillis);
+    static Command<Void> createProject(String name, @Nullable Long creationTimeMillis, Author author) {
+        requireNonNull(author, "author");
+        return new CreateProjectCommand(name, creationTimeMillis, author);
     }
 
     static Command<Void> removeProject(String name) {
@@ -64,8 +67,9 @@ public interface Command<T> {
         return new UnremoveProjectCommand(name);
     }
 
-    static Command<Void> createRepository(String projectName, String repositoryName) {
-        return new CreateRepositoryCommand(projectName, repositoryName, null);
+    static Command<Void> createRepository(String projectName, String repositoryName, Author author) {
+        requireNonNull(author, "author");
+        return new CreateRepositoryCommand(projectName, repositoryName, null, author);
     }
 
     static Command<Void> removeRepository(String projectName, String repositoryName) {

@@ -20,16 +20,22 @@ import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConv
 
 import org.junit.Test;
 
+import com.linecorp.centraldogma.common.Author;
+
 public class CreateRepositoryCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new CreateRepositoryCommand("foo", "bar", 1234L),
+        assertJsonConversion(new CreateRepositoryCommand("foo", "bar", 1234L, new Author("foo", "bar@baz.com")),
                              Command.class,
                              '{' +
                              "  \"type\": \"CREATE_REPOSITORY\"," +
                              "  \"projectName\": \"foo\"," +
                              "  \"repositoryName\": \"bar\"," +
-                             "  \"creationTimeMillis\": 1234" +
+                             "  \"creationTimeMillis\": 1234," +
+                             "  \"author\": {" +
+                             "    \"name\": \"foo\"," +
+                             "    \"email\": \"bar@baz.com\"" +
+                             "  }" +
                              '}');
     }
 }

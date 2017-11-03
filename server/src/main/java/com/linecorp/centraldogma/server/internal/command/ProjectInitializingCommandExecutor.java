@@ -22,6 +22,8 @@ import static com.linecorp.centraldogma.server.internal.storage.project.Project.
 
 import java.util.concurrent.CompletableFuture;
 
+import com.linecorp.centraldogma.common.Author;
+
 public class ProjectInitializingCommandExecutor extends ForwardingCommandExecutor {
 
     public ProjectInitializingCommandExecutor(CommandExecutor delegate) {
@@ -36,10 +38,13 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
 
         final CreateProjectCommand c = (CreateProjectCommand) command;
         final String projectName = c.projectName();
+        final Author author = c.author();
 
         final CompletableFuture<Void> f = delegate().execute(c);
-        return f.thenCompose(unused -> delegate().execute(Command.createRepository(projectName, REPO_META)))
-                .thenCompose(unused -> delegate().execute(Command.createRepository(projectName, REPO_MAIN)))
+        return f.thenCompose(unused -> delegate().execute(Command.createRepository(projectName, REPO_META,
+                                                                                   author)))
+                .thenCompose(unused -> delegate().execute(Command.createRepository(projectName, REPO_MAIN,
+                                                                                   author)))
                 .thenCompose(unused -> generateSampleFiles(delegate(), projectName, REPO_MAIN))
                 .thenApply(unused -> null);
     }

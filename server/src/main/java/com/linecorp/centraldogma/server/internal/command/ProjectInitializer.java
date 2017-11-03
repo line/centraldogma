@@ -138,7 +138,7 @@ public final class ProjectInitializer {
      */
     public static void initializeInternalProject(CommandExecutor executor) {
         try {
-            executor.execute(createProject(INTERNAL_PROJECT_NAME))
+            executor.execute(createProject(INTERNAL_PROJECT_NAME, Author.SYSTEM))
                     .get();
         } catch (Exception e) {
             if (!(e.getCause() instanceof ProjectExistsException)) {
@@ -149,7 +149,7 @@ public final class ProjectInitializer {
                                                   SESSION_REPOSITORY_NAME,
                                                   TOKEN_REPOSITORY_NAME)) {
             try {
-                executor.execute(createRepository(INTERNAL_PROJECT_NAME, repo))
+                executor.execute(createRepository(INTERNAL_PROJECT_NAME, repo, Author.SYSTEM))
                         .get();
             } catch (Exception e) {
                 if (!(e.getCause() instanceof RepositoryExistsException)) {

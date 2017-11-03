@@ -27,15 +27,22 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.command.Command;
 
 public class ReplicationLogTest {
+
+    private static final Author AUTHOR = new Author("foo", "bar@baz.com");
+
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new ReplicationLog<>("r1", Command.createProject("foo", 1234), null),
+        assertJsonConversion(new ReplicationLog<>("r1", Command.createProject("foo", 1234L, AUTHOR), null),
                              '{' +
                              "  \"replicaId\": \"r1\"," +
                              "  \"command\": {" +
                              "    \"type\": \"CREATE_PROJECT\"," +
                              "    \"projectName\": \"foo\"," +
-                             "    \"creationTimeMillis\": 1234" +
+                             "    \"creationTimeMillis\": 1234," +
+                             "    \"author\": {" +
+                             "      \"name\": \"foo\"," +
+                             "      \"email\": \"bar@baz.com\"" +
+                             "    }" +
                              "  }," +
                              "  \"result\": null" +
                              '}');

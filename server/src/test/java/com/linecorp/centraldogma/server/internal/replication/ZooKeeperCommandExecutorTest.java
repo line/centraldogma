@@ -87,7 +87,7 @@ public class ZooKeeperCommandExecutorTest {
         Replica replica4 = null;
 
         try {
-            final Command<Void> command1 = Command.createRepository("project", "repo1");
+            final Command<Void> command1 = Command.createRepository("project", "repo1", Author.SYSTEM);
             replica1.rm.execute(command1).join();
 
             final Optional<ReplicationLog<?>> commandResult2 = replica1.rm.loadLog(0, false);
@@ -106,7 +106,7 @@ public class ZooKeeperCommandExecutorTest {
             //stop replay m3
             replica3.rm.stop();
 
-            final Command<?> command2 = Command.createProject("foo");
+            final Command<?> command2 = Command.createProject("foo", Author.SYSTEM);
             replica1.rm.execute(command2).join();
             Thread.sleep(100);
             verify(replica1.delegate, times(1)).apply(eq(command2));

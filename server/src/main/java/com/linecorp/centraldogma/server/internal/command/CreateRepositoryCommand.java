@@ -18,25 +18,32 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
+
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
+import com.linecorp.centraldogma.common.Author;
+
 public final class CreateRepositoryCommand extends ProjectCommand<Void> {
 
     private final String repositoryName;
     private final long creationTimeMillis;
+    private final Author author;
 
     @JsonCreator
     CreateRepositoryCommand(@JsonProperty("projectName") String projectName,
                             @JsonProperty("repositoryName") String repositoryName,
-                            @JsonProperty("creationTimeMillis") @Nullable Long creationTimeMillis) {
+                            @JsonProperty("creationTimeMillis") @Nullable Long creationTimeMillis,
+                            @JsonProperty("author") @Nullable Author author) {
 
         super(CommandType.CREATE_REPOSITORY, projectName);
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.creationTimeMillis = creationTimeMillis != null ? creationTimeMillis : System.currentTimeMillis();
+        this.author = author != null ? author : Author.SYSTEM;
     }
 
     @JsonProperty
@@ -47,6 +54,11 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
     @JsonProperty
     public long creationTimeMillis() {
         return creationTimeMillis;
+    }
+
+    @JsonProperty
+    public Author author() {
+        return author;
     }
 
     @Override
@@ -61,13 +73,14 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
 
         final CreateRepositoryCommand that = (CreateRepositoryCommand) obj;
         return super.equals(obj) &&
+               repositoryName.equals(that.repositoryName) &&
                creationTimeMillis == that.creationTimeMillis &&
-               repositoryName.equals(that.repositoryName);
+               author.equals(that.author);
     }
 
     @Override
     public int hashCode() {
-        return repositoryName.hashCode() * 31 + super.hashCode();
+        return Objects.hash(repositoryName, creationTimeMillis, author) * 31 + super.hashCode();
     }
 
     @Override

@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.command;
 
-import static java.util.Objects.requireNonNull;
-
 import java.util.Objects;
 
 import javax.annotation.Nullable;
@@ -39,12 +37,12 @@ public final class CreateRunspaceCommand extends RepositoryCommand<Void> {
                           @JsonProperty("repositoryName") String repositoryName,
                           @JsonProperty("baseRevision") int baseRevision,
                           @JsonProperty("creationTimeMillis") @Nullable Long creationTimeMillis,
-                          @JsonProperty("author") Author author) {
+                          @JsonProperty("author") @Nullable Author author) {
 
         super(CommandType.CREATE_RUNSPACE, projectName, repositoryName);
         this.baseRevision = baseRevision;
         this.creationTimeMillis = creationTimeMillis != null ? creationTimeMillis : System.currentTimeMillis();
-        this.author = requireNonNull(author, "author");
+        this.author = author != null ? author : Author.SYSTEM;
     }
 
     @JsonProperty
@@ -81,7 +79,7 @@ public final class CreateRunspaceCommand extends RepositoryCommand<Void> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(baseRevision, author) * 31 + super.hashCode();
+        return Objects.hash(baseRevision, creationTimeMillis, author) * 31 + super.hashCode();
     }
 
     @Override

@@ -20,7 +20,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOError;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.file.Files;
