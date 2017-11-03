@@ -33,6 +33,9 @@ managedDependencies {
 
     // Shiro
     compile 'org.apache.shiro:shiro-core'
+
+    // Mockito for mocking a Project
+    jmh 'org.mockito:mockito-core'
 }
 
 clientDependencies {

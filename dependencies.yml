@@ -105,6 +105,10 @@ org.mockito:
 org.mortbay.jetty.alpn:
   jetty-alpn-agent: { version: '2.0.6' }
 
+org.openjdk.jmh:
+  jmh-core: { version: &JMH_VERSION '1.19' }
+  jmh-generator-annprocess: { version: *JMH_VERSION }
+
 org.slf4j:
   jcl-over-slf4j: { version: &SLF4J_VERSION '1.7.25' }
   jul-to-slf4j: { version: *SLF4J_VERSION }

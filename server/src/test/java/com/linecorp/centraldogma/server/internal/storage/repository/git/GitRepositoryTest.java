@@ -45,6 +45,7 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
+import org.eclipse.jgit.revwalk.RevWalk;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -1206,19 +1207,20 @@ public class GitRepositoryTest {
 
     private static void testDoUpdateRef(String ref, ObjectId commitId, boolean tagExists) throws Exception {
         final org.eclipse.jgit.lib.Repository jGitRepo = mock(org.eclipse.jgit.lib.Repository.class);
+        final RevWalk revWalk = mock(RevWalk.class);
         final RefUpdate refUpdate = mock(RefUpdate.class);
 
         when(jGitRepo.exactRef(ref)).thenReturn(tagExists ? mock(Ref.class) : null);
         when(jGitRepo.updateRef(ref)).thenReturn(refUpdate);
 
-        when(refUpdate.update()).thenReturn(RefUpdate.Result.NEW);
-        GitRepository.doRefUpdate(jGitRepo, ref, commitId);
+        when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.NEW);
+        GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId);
 
-        when(refUpdate.update()).thenReturn(RefUpdate.Result.FAST_FORWARD);
-        GitRepository.doRefUpdate(jGitRepo, ref, commitId);
+        when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.FAST_FORWARD);
+        GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId);
 
-        when(refUpdate.update()).thenReturn(RefUpdate.Result.LOCK_FAILURE);
-        assertThatThrownBy(() -> GitRepository.doRefUpdate(jGitRepo, ref, commitId))
+        when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.LOCK_FAILURE);
+        assertThatThrownBy(() -> GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId))
                 .isInstanceOf(StorageException.class);
     }
 

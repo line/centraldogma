@@ -890,12 +890,12 @@ class GitRepository implements Repository {
             inserter.flush();
 
             // tagging the revision object, for history lookup purpose.
-            doRefUpdate(revisionRef(nextRevision), nextCommitId);
+            doRefUpdate(revWalk, revisionRef(nextRevision), nextCommitId);
 
             if (nextRevision.onMainLane()) {
-                doRefUpdate(R_HEADS_MASTER, nextCommitId);
+                doRefUpdate(revWalk, R_HEADS_MASTER, nextCommitId);
             } else {
-                doRefUpdate(runspaceRef(nextRevision.major()), nextCommitId);
+                doRefUpdate(revWalk, runspaceRef(nextRevision.major()), nextCommitId);
             }
 
             return new CommitResult(nextRevision, prevTreeId, nextTreeId);
@@ -1192,13 +1192,14 @@ class GitRepository implements Repository {
         }
     }
 
-    private void doRefUpdate(String ref, ObjectId commitId) throws IOException {
-        doRefUpdate(jGitRepository, ref, commitId);
+    private void doRefUpdate(RevWalk revWalk, String ref, ObjectId commitId) throws IOException {
+        doRefUpdate(jGitRepository, revWalk, ref, commitId);
     }
 
     @VisibleForTesting
-    static void doRefUpdate(org.eclipse.jgit.lib.Repository jGitRepository,
+    static void doRefUpdate(org.eclipse.jgit.lib.Repository jGitRepository, RevWalk revWalk,
                             String ref, ObjectId commitId) throws IOException {
+
         if (ref.startsWith(Constants.R_TAGS)) {
             final Ref oldRef = jGitRepository.exactRef(ref);
             if (oldRef != null) {
@@ -1209,7 +1210,7 @@ class GitRepository implements Repository {
         final RefUpdate refUpdate = jGitRepository.updateRef(ref);
         refUpdate.setNewObjectId(commitId);
 
-        final RefUpdate.Result res = refUpdate.update();
+        final RefUpdate.Result res = refUpdate.update(revWalk);
         switch (res) {
             case NEW:
             case FAST_FORWARD:
