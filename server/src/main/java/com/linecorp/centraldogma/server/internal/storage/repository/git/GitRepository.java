@@ -1543,11 +1543,8 @@ class GitRepository implements Repository {
      * @param format the repository format
      */
     public void cloneTo(File newRepoDir, GitRepositoryFormat format) {
-        // Create a new repository with the initial commit using the identical author.
-        final Commit firstCommit = blockingHistory(Revision.INIT, Revision.INIT, Repository.ALL_PATH, 1).get(0);
         final GitRepository newRepo = new GitRepository(parent, newRepoDir, format, repositoryWorker,
-                                                        firstCommit.when(), firstCommit.author());
-
+                                                        creationTimeMillis(), author());
         boolean success = false;
         try {
             // Replay all commits.

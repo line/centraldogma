@@ -58,6 +58,16 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
+    public long creationTimeMillis() {
+        return unwrap().creationTimeMillis();
+    }
+
+    @Override
+    public Author author() {
+        return unwrap().author();
+    }
+
+    @Override
     public CompletableFuture<Revision> normalize(Revision revision) {
         return unwrap().normalize(revision);
     }

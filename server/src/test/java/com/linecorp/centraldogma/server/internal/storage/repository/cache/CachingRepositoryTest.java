@@ -26,6 +26,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -65,7 +66,7 @@ public class CachingRepositoryTest {
     @Test
     @SuppressWarnings("unchecked")
     public void query() {
-        final Repository repo = setMockNames(newCachingRepo(10));
+        final Repository repo = setMockNames(newCachingRepo());
         final Query<Object> query = Query.identity("/baz.txt");
         final QueryResult<Object> queryResult = new QueryResult<>(new Revision(10), EntryType.TEXT, "qux");
 
@@ -89,9 +90,8 @@ public class CachingRepositoryTest {
     @Test
     @SuppressWarnings("unchecked")
     public void queryMissingEntry() {
-        final Repository repo = setMockNames(newCachingRepo(10));
+        final Repository repo = setMockNames(newCachingRepo());
         final Query<Object> query = Query.identity("/baz.txt");
-        final QueryResult<Object> queryResult = CacheableQueryCall.EMPTY;
 
         doReturn(completedFuture(new Revision(10))).when(delegateRepo).normalize(new Revision(10));
         doReturn(completedFuture(new Revision(10))).when(delegateRepo).normalize(HEAD);
@@ -113,7 +113,7 @@ public class CachingRepositoryTest {
 
     @Test
     public void find() {
-        final Repository repo = setMockNames(newCachingRepo(10));
+        final Repository repo = setMockNames(newCachingRepo());
         final Map<String, Entry<?>> entries = ImmutableMap.of("/baz.txt", Entry.ofText("/baz.txt", "qux"));
 
         doReturn(completedFuture(new Revision(10))).when(delegateRepo).normalize(new Revision(10));
@@ -135,7 +135,7 @@ public class CachingRepositoryTest {
 
     @Test
     public void history() {
-        final Repository repo = setMockNames(newCachingRepo(3));
+        final Repository repo = setMockNames(newCachingRepo());
         final List<Commit> commits = ImmutableList.of(
                 new Commit(new Revision(3), SYSTEM, "third",  "", Markup.MARKDOWN),
                 new Commit(new Revision(3), SYSTEM, "second", "", Markup.MARKDOWN),
@@ -165,7 +165,7 @@ public class CachingRepositoryTest {
     @Test
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public void singleDiff() {
-        final Repository repo = setMockNames(newCachingRepo(10));
+        final Repository repo = setMockNames(newCachingRepo());
         final Query query = Query.identity("/foo.txt");
         final Change change = Change.ofTextUpsert(query.path(), "bar");
 
@@ -192,7 +192,7 @@ public class CachingRepositoryTest {
 
     @Test
     public void multiDiff() {
-        final Repository repo = setMockNames(newCachingRepo(10));
+        final Repository repo = setMockNames(newCachingRepo());
         final Map<String, Change<?>> changes = ImmutableMap.of(
                 "/foo.txt", Change.ofTextUpsert("/foo.txt", "bar"));
 
@@ -217,8 +217,15 @@ public class CachingRepositoryTest {
         verifyNoMoreInteractions(delegateRepo);
     }
 
-    private Repository newCachingRepo(int headRevision) {
+    private Repository newCachingRepo() {
+        when(delegateRepo.history(INIT, INIT, Repository.ALL_PATH, 1)).thenReturn(completedFuture(
+                ImmutableList.of(new Commit(INIT, SYSTEM, "", "", Markup.PLAINTEXT))));
+
         Repository cachingRepo = new CachingRepository(delegateRepo, new RepositoryCache("maximumSize=1000"));
+
+        // Verify that CachingRepository calls delegateRepo.history() once to retrieve the initial commit.
+        verify(delegateRepo, times(1)).history(INIT, INIT, Repository.ALL_PATH, 1);
+
         verifyNoMoreInteractions(delegateRepo);
         clearInvocations(delegateRepo);
 

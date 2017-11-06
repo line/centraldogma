@@ -38,13 +38,14 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
 
         final CreateProjectCommand c = (CreateProjectCommand) command;
         final String projectName = c.projectName();
+        final long creationTimeMillis = c.creationTimeMillis();
         final Author author = c.author();
 
         final CompletableFuture<Void> f = delegate().execute(c);
         return f.thenCompose(unused -> delegate().execute(Command.createRepository(projectName, REPO_META,
-                                                                                   author)))
+                                                                                   creationTimeMillis, author)))
                 .thenCompose(unused -> delegate().execute(Command.createRepository(projectName, REPO_MAIN,
-                                                                                   author)))
+                                                                                   creationTimeMillis, author)))
                 .thenCompose(unused -> generateSampleFiles(delegate(), projectName, REPO_MAIN))
                 .thenApply(unused -> null);
     }

@@ -68,8 +68,13 @@ public interface Command<T> {
     }
 
     static Command<Void> createRepository(String projectName, String repositoryName, Author author) {
+        return createRepository(projectName, repositoryName, null, author);
+    }
+
+    static Command<Void> createRepository(String projectName, String repositoryName,
+                                          @Nullable Long creationTimeMillis, Author author) {
         requireNonNull(author, "author");
-        return new CreateRepositoryCommand(projectName, repositoryName, null, author);
+        return new CreateRepositoryCommand(projectName, repositoryName, creationTimeMillis, author);
     }
 
     static Command<Void> removeRepository(String projectName, String repositoryName) {

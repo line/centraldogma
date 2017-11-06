@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.project;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.internal.plugin.PluginManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
@@ -26,6 +27,14 @@ public interface Project {
     String REPO_MAIN = "main";
 
     String name();
+
+    default long creationTimeMillis() {
+        return metaRepo().creationTimeMillis();
+    }
+
+    default Author author() {
+        return metaRepo().author();
+    }
 
     MetaRepository metaRepo();
 

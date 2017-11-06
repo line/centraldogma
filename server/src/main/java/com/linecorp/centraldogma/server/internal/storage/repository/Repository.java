@@ -27,10 +27,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.spotify.futures.CompletableFutures;
 
@@ -63,6 +65,34 @@ public interface Repository {
      * Returns the name of this {@link Repository}.
      */
     String name();
+
+    /**
+     * Returns the creation time of this {@link Repository}.
+     */
+    default long creationTimeMillis() {
+        try {
+            final List<Commit> history = history(Revision.INIT, Revision.INIT, ALL_PATH, 1).join();
+            return history.get(0).when();
+        } catch (CompletionException e) {
+            final Throwable cause = Throwables.getRootCause(e);
+            Throwables.throwIfUnchecked(cause);
+            throw new StorageException("failed to retrieve the initial commit", cause);
+        }
+    }
+
+    /**
+     * Returns the author who created this {@link Repository}.
+     */
+    default Author author() {
+        try {
+            final List<Commit> history = history(Revision.INIT, Revision.INIT, ALL_PATH, 1).join();
+            return history.get(0).author();
+        } catch (CompletionException e) {
+            final Throwable cause = Throwables.getRootCause(e);
+            Throwables.throwIfUnchecked(cause);
+            throw new StorageException("failed to retrieve the initial commit", cause);
+        }
+    }
 
     /**
      * Validates the specified {@link Revision} and converts it into an absolute {@link Revision}.

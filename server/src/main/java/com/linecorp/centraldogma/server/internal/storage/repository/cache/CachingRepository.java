@@ -23,12 +23,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.base.Throwables;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -38,6 +40,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
@@ -49,9 +52,30 @@ final class CachingRepository implements Repository {
     @SuppressWarnings("rawtypes")
     private final AsyncLoadingCache<CacheableCall, Object> cache;
 
+    private final Commit firstCommit;
+
     CachingRepository(Repository repo, RepositoryCache cache) {
         this.repo = requireNonNull(repo, "repo");
         this.cache = requireNonNull(cache, "cache").cache;
+
+        try {
+            final List<Commit> history = repo.history(Revision.INIT, Revision.INIT, ALL_PATH, 1).join();
+            firstCommit = history.get(0);
+        } catch (CompletionException e) {
+            final Throwable cause = Throwables.getRootCause(e);
+            Throwables.throwIfUnchecked(cause);
+            throw new StorageException("failed to retrieve the initial commit", cause);
+        }
+    }
+
+    @Override
+    public long creationTimeMillis() {
+        return firstCommit.when();
+    }
+
+    @Override
+    public Author author() {
+        return firstCommit.author();
     }
 
     @Override
