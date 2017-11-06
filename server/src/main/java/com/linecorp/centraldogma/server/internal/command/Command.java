@@ -20,6 +20,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -48,8 +50,13 @@ import com.linecorp.centraldogma.common.Revision;
 })
 public interface Command<T> {
 
-    static Command<Void> createProject(String name) {
-        return new CreateProjectCommand(name);
+    static Command<Void> createProject(String name, Author author) {
+        return createProject(name, null, author);
+    }
+
+    static Command<Void> createProject(String name, @Nullable Long creationTimeMillis, Author author) {
+        requireNonNull(author, "author");
+        return new CreateProjectCommand(name, creationTimeMillis, author);
     }
 
     static Command<Void> removeProject(String name) {
@@ -60,8 +67,14 @@ public interface Command<T> {
         return new UnremoveProjectCommand(name);
     }
 
-    static Command<Void> createRepository(String projectName, String repositoryName) {
-        return new CreateRepositoryCommand(projectName, repositoryName);
+    static Command<Void> createRepository(String projectName, String repositoryName, Author author) {
+        return createRepository(projectName, repositoryName, null, author);
+    }
+
+    static Command<Void> createRepository(String projectName, String repositoryName,
+                                          @Nullable Long creationTimeMillis, Author author) {
+        requireNonNull(author, "author");
+        return new CreateRepositoryCommand(projectName, repositoryName, creationTimeMillis, author);
     }
 
     static Command<Void> removeRepository(String projectName, String repositoryName) {
@@ -77,22 +90,41 @@ public interface Command<T> {
                                   Markup markup, Change<?>... changes) {
 
         requireNonNull(changes, "changes");
-        return new PushCommand(projectName, repositoryName,
-                               baseRevision, author, summary, detail, markup, Arrays.asList(changes));
+        return new PushCommand(projectName, repositoryName, baseRevision, null,
+                               author, summary, detail, markup, Arrays.asList(changes));
     }
 
     static Command<Revision> push(String projectName, String repositoryName,
-                                Revision baseRevision, Author author, String summary, String detail,
-                                Markup markup, Iterable<Change<?>> changes) {
+                                  Revision baseRevision, long commitTimeMillis,
+                                  Author author, String summary, String detail,
+                                  Markup markup, Change<?>... changes) {
 
-        return new PushCommand(projectName, repositoryName,
-                               baseRevision, author, summary, detail, markup, changes);
+        requireNonNull(changes, "changes");
+        return new PushCommand(projectName, repositoryName, baseRevision, commitTimeMillis,
+                               author, summary, detail, markup, Arrays.asList(changes));
+    }
+
+    static Command<Revision> push(String projectName, String repositoryName,
+                                  Revision baseRevision, Author author, String summary, String detail,
+                                  Markup markup, Iterable<Change<?>> changes) {
+
+        return new PushCommand(projectName, repositoryName, baseRevision, null,
+                               author, summary, detail, markup, changes);
+    }
+
+    static Command<Revision> push(String projectName, String repositoryName,
+                                  Revision baseRevision, long commitTimeMillis,
+                                  Author author, String summary, String detail,
+                                  Markup markup, Iterable<Change<?>> changes) {
+
+        return new PushCommand(projectName, repositoryName, baseRevision, commitTimeMillis,
+                               author, summary, detail, markup, changes);
     }
 
     static Command<Void> createRunspace(String projectName, String repositoryName,
-                                        Author author, int baseRevision) {
+                                        int baseRevision, Author author) {
 
-        return new CreateRunspaceCommand(projectName, repositoryName, author, baseRevision);
+        return new CreateRunspaceCommand(projectName, repositoryName, baseRevision, null, author);
     }
 
     static Command<Void> removeRunspace(String projectName, String repositoryName, int baseRevision) {

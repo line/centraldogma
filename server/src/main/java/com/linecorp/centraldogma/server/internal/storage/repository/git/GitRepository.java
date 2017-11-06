@@ -16,14 +16,22 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_CORE_SECTION;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_DIFF_SECTION;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_ALGORITHM;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_FILEMODE;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_HIDEDOTFILES;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_RENAMES;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_REPO_FORMAT_VERSION;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_SYMLINKS;
 
 import java.io.File;
-import java.io.IOError;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,6 +56,7 @@ import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.dircache.DirCacheIterator;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.CoreConfig.HideDotFiles;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectInserter;
@@ -58,6 +67,7 @@ import org.eclipse.jgit.lib.RefRename;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.lib.RepositoryBuilder;
+import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -72,6 +82,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -117,6 +128,7 @@ class GitRepository implements Repository {
     private final Executor repositoryWorker;
     private final String name;
     private final org.eclipse.jgit.lib.Repository jGitRepository;
+    private final GitRepositoryFormat format;
     private final CommitWatchers commitWatchers = new CommitWatchers();
 
     /**
@@ -129,30 +141,81 @@ class GitRepository implements Repository {
      *
      * @param repoDir the location of this repository
      * @param repositoryWorker the {@link Executor} which will perform the blocking repository operations
+     * @param creationTimeMillis the creation time
      * @param author the user who initiated the creation of this repository
      *
      * @throws StorageException if failed to create a new repository
      */
-    GitRepository(Project parent, File repoDir, Executor repositoryWorker, Author author) {
+    GitRepository(Project parent, File repoDir, Executor repositoryWorker,
+                  long creationTimeMillis, Author author) {
+        this(parent, repoDir, GitRepositoryFormat.V1, repositoryWorker, creationTimeMillis, author);
+    }
+
+    /**
+     * Creates a new Git-backed repository.
+     *
+     * @param repoDir the location of this repository
+     * @param format the repository format
+     * @param repositoryWorker the {@link Executor} which will perform the blocking repository operations
+     * @param creationTimeMillis the creation time
+     * @param author the user who initiated the creation of this repository
+     *
+     * @throws StorageException if failed to create a new repository
+     */
+    GitRepository(Project parent, File repoDir, GitRepositoryFormat format, Executor repositoryWorker,
+                  long creationTimeMillis, Author author) {
+
         this.parent = requireNonNull(parent, "parent");
         name = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
+        this.format = requireNonNull(format, "format");
 
         requireNonNull(author, "author");
 
-        RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
+        final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
         boolean success = false;
         try {
-            jGitRepository = repositoryBuilder.build();
-            if (exist(repoDir)) {
-                throw new StorageException(
-                        "failed to create a repository at: " + repoDir + " (exists already)");
+            // Create an empty repository with format version 0 first.
+            try (org.eclipse.jgit.lib.Repository initRepo = repositoryBuilder.build()) {
+                if (exist(repoDir)) {
+                    throw new StorageException(
+                            "failed to create a repository at: " + repoDir + " (exists already)");
+                }
+
+                initRepo.create(true);
+
+                final StoredConfig config = initRepo.getConfig();
+                if (format == GitRepositoryFormat.V1) {
+                    // Update the repository settings to upgrade to format version 1 and reftree.
+                    config.setInt(CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 1);
+                    config.setString("extensions", null, "refStorage", "reftree");
+                }
+
+                // Disable hidden files, symlinks and file modes we do not use.
+                config.setEnum(CONFIG_CORE_SECTION, null, CONFIG_KEY_HIDEDOTFILES, HideDotFiles.FALSE);
+                config.setBoolean(CONFIG_CORE_SECTION, null, CONFIG_KEY_SYMLINKS, false);
+                config.setBoolean(CONFIG_CORE_SECTION, null, CONFIG_KEY_FILEMODE, false);
+
+                // Set the diff algorithm.
+                config.setString(CONFIG_DIFF_SECTION, null, CONFIG_KEY_ALGORITHM, "histogram");
+
+                // Disable rename detection which we do not use.
+                config.setBoolean(CONFIG_DIFF_SECTION, null, CONFIG_KEY_RENAMES, false);
+
+                config.save();
             }
 
-            jGitRepository.create(true);
+            // Re-open the repository with the updated settings and format version.
+            jGitRepository = new RepositoryBuilder().setGitDir(repoDir).build();
 
-            // Insert the initial commit.
-            commit0(null, Revision.INIT, author, "Create a new repository", "", Markup.PLAINTEXT,
+            // Initialize the master branch.
+            final RefUpdate head = jGitRepository.updateRef(Constants.HEAD);
+            head.disableRefLog();
+            head.link(Constants.R_HEADS + Constants.MASTER);
+
+            // Insert the initial commit into the master branch.
+            commit0(null, Revision.INIT, creationTimeMillis, author,
+                    "Create a new repository", "", Markup.PLAINTEXT,
                     Collections.emptyList(), true);
 
             headRevision = Revision.INIT;
@@ -162,11 +225,7 @@ class GitRepository implements Repository {
         } finally {
             if (!success) {
                 // Failed to create a repository. Remove any cruft so that it is not loaded on the next run.
-                try {
-                    deltree(repoDir);
-                } catch (IOError e) {
-                    logger.warn("Failed to delete a half-created repository at: {}", repoDir, e);
-                }
+                deleteCruft(repoDir);
             }
         }
     }
@@ -190,6 +249,20 @@ class GitRepository implements Repository {
             if (!exist(repoDir)) {
                 throw new StorageException("failed to open a repository at: " + repoDir + " (does not exist)");
             }
+
+            // Retrieve the tag format.
+            final int formatVersion = jGitRepository.getConfig().getInt(
+                    CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 0);
+            switch (formatVersion) {
+                case 0:
+                    format = GitRepositoryFormat.V0;
+                    break;
+                case 1:
+                    format = GitRepositoryFormat.V1;
+                    break;
+                default:
+                    throw new StorageException("unknown repository format version: " + formatVersion);
+            }
         } catch (IOException e) {
             throw new StorageException("failed to open a repository at: " + repoDir, e);
         }
@@ -210,19 +283,6 @@ class GitRepository implements Repository {
         }
     }
 
-    /**
-     * Deletes the specified {@code directory} recursively.
-     */
-    private static void deltree(File directory) {
-        if (directory.exists()) {
-            try {
-                Files.walkFileTree(directory.toPath(), DeletingFileVisitor.INSTANCE);
-            } catch (IOException e) {
-                throw new IOError(e);
-            }
-        }
-    }
-
     void close() {
         jGitRepository.close();
     }
@@ -235,6 +295,10 @@ class GitRepository implements Repository {
     @Override
     public String name() {
         return name;
+    }
+
+    public GitRepositoryFormat format() {
+        return format;
     }
 
     @Override
@@ -502,18 +566,18 @@ class GitRepository implements Repository {
                 revWalk.markUninteresting(toCommit);
             }
 
-            final List<Commit> revisionList = new ArrayList<>();
+            final List<Commit> commitList = new ArrayList<>();
             boolean needsLastCommit = true;
             for (RevCommit revCommit : revWalk) {
                 final Commit c = toCommit(revCommit);
                 if (c != null) {
-                    revisionList.add(c);
+                    commitList.add(c);
                 } else {
                     // Probably garbage (e.g. deleted runspace)
                     continue;
                 }
 
-                if (revCommit.getId().equals(toCommitId) || revisionList.size() == maxCommits) {
+                if (revCommit.getId().equals(toCommitId) || commitList.size() == maxCommits) {
                     // Visited the last commit or can't retrieve beyond maxCommits
                     needsLastCommit = false;
                     break;
@@ -529,16 +593,16 @@ class GitRepository implements Repository {
                     final Revision lastCommitRevision =
                             CommitUtil.extractRevision(lastRevCommit.getFullMessage());
                     if (lastCommitRevision.major() == 1 || lastCommitRevision.minor() == 1) {
-                        revisionList.add(toCommit(lastRevCommit));
+                        commitList.add(toCommit(lastRevCommit));
                     }
                 }
             }
 
             if (ascending) {
-                Collections.reverse(revisionList);
+                Collections.reverse(commitList);
             }
 
-            return revisionList;
+            return commitList;
         } catch (StorageException e) {
             throw e;
         } catch (Exception e) {
@@ -700,15 +764,16 @@ class GitRepository implements Repository {
 
     @Override
     public CompletableFuture<Revision> commit(
-            Revision baseRevision, Author author, String summary,
+            Revision baseRevision, long commitTimeMillis, Author author, String summary,
             String detail, Markup markup, Iterable<Change<?>> changes) {
 
         return CompletableFuture.supplyAsync(
-                () -> blockingCommit(baseRevision, author, summary, detail, markup, changes), repositoryWorker);
+                () -> blockingCommit(baseRevision, commitTimeMillis,
+                                     author, summary, detail, markup, changes), repositoryWorker);
     }
 
     private Revision blockingCommit(
-            Revision baseRevision, Author author, String summary,
+            Revision baseRevision, long commitTimeMillis, Author author, String summary,
             String detail, Markup markup, Iterable<Change<?>> changes) {
 
         requireNonNull(baseRevision, "baseRevision");
@@ -739,7 +804,8 @@ class GitRepository implements Repository {
                 nextRevision = new Revision(headRevision.major() + 1);
             }
 
-            res = commit0(headRevision, nextRevision, author, summary, detail, markup, changes, false);
+            res = commit0(headRevision, nextRevision, commitTimeMillis,
+                          author, summary, detail, markup, changes, false);
 
             if (!pushToRunspace) {
                 this.headRevision = res.revision;
@@ -753,7 +819,7 @@ class GitRepository implements Repository {
         return res.revision;
     }
 
-    private CommitResult commit0(Revision prevRevision, Revision nextRevision,
+    private CommitResult commit0(Revision prevRevision, Revision nextRevision, long commitTimeMillis,
                                  Author author, String summary, String detail, Markup markup,
                                  Iterable<Change<?>> changes, boolean allowEmpty) {
 
@@ -803,13 +869,14 @@ class GitRepository implements Repository {
 
             // build a commit object
             final PersonIdent personIdent = new PersonIdent(author.name(), author.email(),
-                                                            System.currentTimeMillis() / 1000L * 1000L, 0);
+                                                            commitTimeMillis / 1000L * 1000L, 0);
 
             final CommitBuilder commitBuilder = new CommitBuilder();
 
             commitBuilder.setAuthor(personIdent);
             commitBuilder.setCommitter(personIdent);
             commitBuilder.setTreeId(nextTreeId);
+            commitBuilder.setEncoding(StandardCharsets.UTF_8);
 
             // Write summary, detail and revision to commit's message as JSON format.
             commitBuilder.setMessage(CommitUtil.toJsonString(summary, detail, markup, nextRevision));
@@ -823,12 +890,12 @@ class GitRepository implements Repository {
             inserter.flush();
 
             // tagging the revision object, for history lookup purpose.
-            doRefUpdate(revisionRef(nextRevision), nextCommitId);
+            doRefUpdate(revWalk, revisionRef(nextRevision), nextCommitId);
 
             if (nextRevision.onMainLane()) {
-                doRefUpdate(R_HEADS_MASTER, nextCommitId);
+                doRefUpdate(revWalk, R_HEADS_MASTER, nextCommitId);
             } else {
-                doRefUpdate(runspaceRef(nextRevision.major()), nextCommitId);
+                doRefUpdate(revWalk, runspaceRef(nextRevision.major()), nextCommitId);
             }
 
             return new CommitResult(nextRevision, prevTreeId, nextTreeId);
@@ -1125,13 +1192,14 @@ class GitRepository implements Repository {
         }
     }
 
-    private void doRefUpdate(String ref, ObjectId commitId) throws IOException {
-        doRefUpdate(jGitRepository, ref, commitId);
+    private void doRefUpdate(RevWalk revWalk, String ref, ObjectId commitId) throws IOException {
+        doRefUpdate(jGitRepository, revWalk, ref, commitId);
     }
 
     @VisibleForTesting
-    static void doRefUpdate(org.eclipse.jgit.lib.Repository jGitRepository,
+    static void doRefUpdate(org.eclipse.jgit.lib.Repository jGitRepository, RevWalk revWalk,
                             String ref, ObjectId commitId) throws IOException {
+
         if (ref.startsWith(Constants.R_TAGS)) {
             final Ref oldRef = jGitRepository.exactRef(ref);
             if (oldRef != null) {
@@ -1142,7 +1210,7 @@ class GitRepository implements Repository {
         final RefUpdate refUpdate = jGitRepository.updateRef(ref);
         refUpdate.setNewObjectId(commitId);
 
-        final RefUpdate.Result res = refUpdate.update();
+        final RefUpdate.Result res = refUpdate.update(revWalk);
         switch (res) {
             case NEW:
             case FAST_FORWARD:
@@ -1154,29 +1222,29 @@ class GitRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> watch(Revision lastKnownRev, String pathPattern) {
-        requireNonNull(lastKnownRev, "lastKnownRev");
+    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+        requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
         requireNonNull(repositoryWorker, "executor");
 
         final CompletableFuture<Revision> future = new CompletableFuture<>();
 
-        normalize(lastKnownRev).thenAccept(normalizedLastKnownRev -> {
-            final Revision headRev;
-            if (normalizedLastKnownRev.onMainLane()) {
-                headRev = cachedMainLaneHeadRevision();
+        normalize(lastKnownRevision).thenAccept(normLastKnownRevision -> {
+            final Revision headRevision;
+            if (normLastKnownRevision.onMainLane()) {
+                headRevision = cachedMainLaneHeadRevision();
             } else {
-                headRev = runspaceHeadRevision(normalizedLastKnownRev.major());
+                headRevision = runspaceHeadRevision(normLastKnownRevision.major());
             }
 
             final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
 
-            // If lastKnownRev is outdated already and the recent changes match, there's no need to watch.
-            if (!normalizedLastKnownRev.equals(headRev) &&
-                hasMatchingChanges(normalizedLastKnownRev, headRev, filter)) {
-                future.complete(headRev);
+            // If lastKnownRevision is outdated already and the recent changes match, there's no need to watch.
+            if (!normLastKnownRevision.equals(headRevision) &&
+                hasMatchingChanges(normLastKnownRevision, headRevision, filter)) {
+                future.complete(headRevision);
             } else {
-                commitWatchers.add(normalizedLastKnownRev, filter, future);
+                commitWatchers.add(normLastKnownRevision, filter, future);
             }
         }).exceptionally(cause -> {
             future.completeExceptionally(cause);
@@ -1230,20 +1298,15 @@ class GitRepository implements Repository {
         }
     }
 
-    /**
-     * Creates a new runspace at {@code majorRevision}.
-     *
-     * @param author author who creates this runspace
-     * @param majorRevision the major revision number based on which the runspace is created
-     * @return the {@link Revision} for newly created runspace
-     */
     @Override
-    public CompletableFuture<Revision> createRunspace(Author author, int majorRevision) {
-        return CompletableFuture.supplyAsync(() -> blockingCreateRunspace(author, majorRevision),
-                                             repositoryWorker);
+    public CompletableFuture<Revision> createRunspace(int majorRevision, long creationTimeMillis,
+                                                      Author author) {
+        return CompletableFuture.supplyAsync(
+                () -> blockingCreateRunspace(majorRevision, creationTimeMillis, author),
+                repositoryWorker);
     }
 
-    private Revision blockingCreateRunspace(Author author, int majorRevision) {
+    private Revision blockingCreateRunspace(int majorRevision, long creationTimeMillis, Author author) {
         if (majorRevision <= 0) {
             throw new IllegalArgumentException("majorRevision " + majorRevision + " (expected: > 0)");
         }
@@ -1254,27 +1317,25 @@ class GitRepository implements Repository {
         writeLock.lock();
         try {
             if (resolveExactRef(runspaceRef(majorRevision)) != null) {
-                throw new StorageException("runspace exists already (majorRevision: " + majorRevision + ')');
+                throw new StorageException("runspace exists already (major revision: " + majorRevision + ')');
             }
 
             prevRevision = new Revision(majorRevision);
 
             if (resolveExactRef(revisionRef(prevRevision)) == null) {
-                throw new RevisionNotFoundException("non-existent majorRevision: " + majorRevision);
+                throw new RevisionNotFoundException("non-existent major revision: " + majorRevision);
             }
 
             nextRevision = new Revision(majorRevision, 1);
 
-            return commit0(prevRevision, nextRevision, author, "Create a new runspace from " + majorRevision,
+            return commit0(prevRevision, nextRevision, creationTimeMillis,
+                           author, "Create a new runspace from major revision " + majorRevision,
                            "", Markup.PLAINTEXT, Collections.emptyList(), true).revision;
         } finally {
             writeLock.unlock();
         }
     }
 
-    /**
-     * Removes the runspace associated with the specified {@code majorRevision}.
-     */
     @Override
     public CompletableFuture<Void> removeRunspace(int majorRevision) {
         return CompletableFuture.supplyAsync(() -> {
@@ -1300,8 +1361,19 @@ class GitRepository implements Repository {
                         " (result: " + result + ')');
             }
 
-            final Map<String, Ref> refMap = jGitRepository.getRefDatabase().getRefs(
-                    Constants.R_TAGS + TagUtil.byteHexDirName(majorRevision));
+            final String prefix;
+            switch (format) {
+                case V0:
+                    prefix = Constants.R_TAGS + TagUtil.byteHexDirName(majorRevision);
+                    break;
+                case V1:
+                    prefix = Constants.R_TAGS + "runspaces/" + majorRevision + '/';
+                    break;
+                default:
+                    throw new Error("unknown repository format: " + format);
+            }
+
+            final Map<String, Ref> refMap = jGitRepository.getRefDatabase().getRefs(prefix);
 
             for (Map.Entry<String, Ref> refEntry : refMap.entrySet()) {
                 final Revision revision = new Revision(refEntry.getKey());
@@ -1330,8 +1402,8 @@ class GitRepository implements Repository {
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
             final Map<String, Ref> refMap = jGitRepository.getRefDatabase().getRefs(R_HEADS_RUNSPACES);
             for (Ref ref : refMap.values()) {
-                RevCommit revCommit = revWalk.parseCommit(ref.getObjectId());
-                Revision revision = CommitUtil.extractRevision(revCommit.getFullMessage());
+                final RevCommit revCommit = revWalk.parseCommit(ref.getObjectId());
+                final Revision revision = CommitUtil.extractRevision(revCommit.getFullMessage());
                 runspaces.add(revision);
             }
             return runspaces;
@@ -1366,22 +1438,22 @@ class GitRepository implements Repository {
     }
 
     /**
-     * Get the latest revision for given runspace specified by {@code major}.
+     * Get the latest revision for given runspace specified by {@code majorRevision}.
      */
-    private Revision runspaceHeadRevision(int major) {
-        if (major == 0) {
-            throw new IllegalArgumentException("major: 0 (expected: a positive integer)");
+    private Revision runspaceHeadRevision(int majorRevision) {
+        if (majorRevision == 0) {
+            throw new IllegalArgumentException("majorRevision: 0 (expected: a positive integer)");
         }
 
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-            ObjectId commitId = toRunspaceHeadCommitId(major);
+            ObjectId commitId = toRunspaceHeadCommitId(majorRevision);
             RevCommit revCommit = revWalk.parseCommit(commitId);
             return CommitUtil.extractRevision(revCommit.getFullMessage());
         } catch (StorageException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException(
-                    "failed to get the latest runspace revision for major revision " + major, e);
+                    "failed to get the latest runspace revision for major revision " + majorRevision, e);
         }
     }
 
@@ -1434,9 +1506,20 @@ class GitRepository implements Repository {
         }
     }
 
-    private static String revisionRef(Revision revision) {
-        return Constants.R_TAGS + TagUtil.byteHexDirName(revision.major()) +
-               (revision.minor() == 0 ? revision.text() + ".0" : revision.text());
+    private String revisionRef(Revision revision) {
+        switch (format) {
+            case V0:
+                return Constants.R_TAGS + TagUtil.byteHexDirName(revision.major()) +
+                       (revision.minor() == 0 ? revision.text() + ".0" : revision.text());
+            case V1:
+                if (revision.minor() == 0) {
+                    return Constants.R_TAGS + revision.major();
+                } else {
+                    return Constants.R_TAGS + "runspaces/" + revision.major() + '/' + revision.minor();
+                }
+        }
+
+        throw new Error("unknown repository format: " + format);
     }
 
     private static String runspaceRef(int majorRevision) {
@@ -1447,9 +1530,70 @@ class GitRepository implements Repository {
         return R_HEADS_RUNSPACES_REMOVED + majorRevision;
     }
 
+    /**
+     * Clones this repository into a new one.
+     */
+    public void cloneTo(File newRepoDir) {
+        cloneTo(newRepoDir, GitRepositoryFormat.V1);
+    }
+
+    /**
+     * Clones this repository into a new one.
+     *
+     * @param format the repository format
+     */
+    public void cloneTo(File newRepoDir, GitRepositoryFormat format) {
+        final GitRepository newRepo = new GitRepository(parent, newRepoDir, format, repositoryWorker,
+                                                        creationTimeMillis(), author());
+        boolean success = false;
+        try {
+            // Replay all commits.
+            final Revision endRevision = blockingNormalize(Revision.HEAD);
+            for (int i = 2; i <= endRevision.major();) {
+                // Fetch up to 16 commits at once.
+                final int batch = 16;
+                final List<Commit> commits = blockingHistory(
+                        new Revision(i), new Revision(Math.min(endRevision.major(), i + batch - 1)),
+                        Repository.ALL_PATH, batch);
+                checkState(!commits.isEmpty(), "empty commits");
+
+                for (Commit c : commits) {
+                    final Revision revision = c.revision();
+                    checkState(revision.major() == i,
+                               "mismatching revision: %s (expected: %s)", revision.major(), i);
+
+                    final Revision baseRevision = revision.backward(1);
+                    final Collection<Change<?>> changes =
+                            blockingDiff(baseRevision, revision, Repository.ALL_PATH).values();
+                    newRepo.blockingCommit(
+                            baseRevision, c.when(), c.author(), c.summary(), c.detail(), c.markup(), changes);
+                    i++;
+                }
+            }
+
+            success = true;
+        } finally {
+            newRepo.close();
+            if (!success) {
+                deleteCruft(newRepoDir);
+            }
+        }
+    }
+
+    private static void deleteCruft(File repoDir) {
+        try {
+            Util.deleteFileTree(repoDir);
+        } catch (IOException e) {
+            logger.error("Failed to delete a half-created repository at: {}", repoDir, e);
+        }
+    }
+
     @Override
     public String toString() {
-        return "GitRepository(" + jGitRepository.getDirectory() + ')';
+        return MoreObjects.toStringHelper(this)
+                          .add("dir", jGitRepository.getDirectory())
+                          .add("format", format)
+                          .toString();
     }
 
     private static final class CommitResult {

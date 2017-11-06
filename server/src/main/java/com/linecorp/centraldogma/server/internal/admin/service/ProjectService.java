@@ -25,7 +25,9 @@ import java.util.stream.Collectors;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.dto.ProjectDto;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
@@ -60,8 +62,8 @@ public class ProjectService extends AbstractService {
      */
     @Post("/projects")
     public CompletionStage<ProjectDto> createProject(AggregatedHttpMessage message) throws IOException {
-        final ProjectDto dto =
-                Jackson.readValue(message.content().toStringAscii(), ProjectDto.class);
-        return execute(Command.createProject(dto.getName())).thenApply(unused -> dto);
+        final Author author = AuthenticationUtil.currentAuthor();
+        final ProjectDto dto = Jackson.readValue(message.content().toStringAscii(), ProjectDto.class);
+        return execute(Command.createProject(dto.getName(), author)).thenApply(unused -> dto);
     }
 }

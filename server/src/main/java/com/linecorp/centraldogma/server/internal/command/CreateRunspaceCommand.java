@@ -16,9 +16,9 @@
 
 package com.linecorp.centraldogma.server.internal.command;
 
-import static java.util.Objects.requireNonNull;
-
 import java.util.Objects;
+
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -28,28 +28,36 @@ import com.linecorp.centraldogma.common.Author;
 
 public final class CreateRunspaceCommand extends RepositoryCommand<Void> {
 
-    private final Author author;
     private final int baseRevision;
+    private final long creationTimeMillis;
+    private final Author author;
 
     @JsonCreator
     CreateRunspaceCommand(@JsonProperty("projectName") String projectName,
                           @JsonProperty("repositoryName") String repositoryName,
-                          @JsonProperty("author") Author author,
-                          @JsonProperty("baseRevision") int baseRevision) {
+                          @JsonProperty("baseRevision") int baseRevision,
+                          @JsonProperty("creationTimeMillis") @Nullable Long creationTimeMillis,
+                          @JsonProperty("author") @Nullable Author author) {
 
         super(CommandType.CREATE_RUNSPACE, projectName, repositoryName);
-        this.author = requireNonNull(author, "author");
         this.baseRevision = baseRevision;
-    }
-
-    @JsonProperty
-    public Author author() {
-        return author;
+        this.creationTimeMillis = creationTimeMillis != null ? creationTimeMillis : System.currentTimeMillis();
+        this.author = author != null ? author : Author.SYSTEM;
     }
 
     @JsonProperty
     public int baseRevision() {
         return baseRevision;
+    }
+
+    @JsonProperty
+    public long creationTimeMillis() {
+        return creationTimeMillis;
+    }
+
+    @JsonProperty
+    public Author author() {
+        return author;
     }
 
     @Override
@@ -65,18 +73,20 @@ public final class CreateRunspaceCommand extends RepositoryCommand<Void> {
         final CreateRunspaceCommand that = (CreateRunspaceCommand) obj;
         return super.equals(that) &&
                baseRevision == that.baseRevision &&
+               creationTimeMillis == that.creationTimeMillis &&
                author.equals(that.author);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(baseRevision, author) * 31 + super.hashCode();
+        return Objects.hash(baseRevision, creationTimeMillis, author) * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
                     .add("baseRevision", baseRevision)
+                    .add("creationTimeMillis", creationTimeMillis)
                     .add("author", author);
     }
 }

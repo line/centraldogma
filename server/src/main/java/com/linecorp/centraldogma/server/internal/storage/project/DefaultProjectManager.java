@@ -61,7 +61,7 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
     }
 
     @Override
-    protected Project createChild(File childDir, Object[] childArgs) throws Exception {
+    protected Project createChild(File childDir, Object[] childArgs, long creationTimeMillis) throws Exception {
         return new DefaultProject(childDir, true, (Executor) childArgs[0], (RepositoryCache) childArgs[1]);
     }
 

@@ -113,7 +113,7 @@ public class PluginTest {
         final Project p = pm.create(testName.getMethodName());
         p.repos().create(REPO_META);
         p.repos().create(REPO_MAIN);
-        p.metaRepo().commit(Revision.HEAD, Author.SYSTEM, "", loadChanges("meta"));
+        p.metaRepo().commit(Revision.HEAD, 0L, Author.SYSTEM, "", loadChanges("meta"));
         p.plugins().reload();
         return p;
     }

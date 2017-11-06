@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +45,7 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
+import org.eclipse.jgit.revwalk.RevWalk;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -76,7 +78,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotF
 
 public class GitRepositoryTest {
 
-    private static final String TEST_MESSAGE_SUMMARY = "summary";
+    private static final String SUMMARY = "summary";
 
     private static final int NUM_ITERATIONS = 3;
 
@@ -92,13 +94,13 @@ public class GitRepositoryTest {
 
     @BeforeClass
     public static void init() throws Exception {
-        repo = new GitRepository(mock(Project.class), repoDir.getRoot(), commonPool(), Author.SYSTEM) {
+        repo = new GitRepository(mock(Project.class), repoDir.getRoot(), commonPool(), 0L, Author.SYSTEM) {
             /**
              * Used by {@link GitRepositoryTest#testWatchWithQueryCancellation()}.
              */
             @Override
-            public CompletableFuture<Revision> watch(Revision lastKnownRev, String pathPattern) {
-                final CompletableFuture<Revision> f = super.watch(lastKnownRev, pathPattern);
+            public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+                final CompletableFuture<Revision> f = super.watch(lastKnownRevision, pathPattern);
                 if (watchConsumer != null) {
                     watchConsumer.accept(f);
                 }
@@ -165,16 +167,15 @@ public class GitRepositoryTest {
     }
 
     private void testUpsert(Change<?>[] upserts, EntryType entryType) {
-        final Revision oldHeadRev = repo.normalize(Revision.HEAD).join();
+        final Revision oldHeadRev = repo.normalize(HEAD).join();
         for (int i = 0; i < upserts.length; i++) {
             final Change<?> change = upserts[i];
 
-            final Revision revision = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, change)
-                                          .join();
+            final Revision revision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change).join();
 
             // Ensure the revision is incremented.
             assertThat(revision.major()).isEqualTo(oldHeadRev.major() + i + 1);
-            assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(revision);
+            assertThat(repo.normalize(HEAD).join()).isEqualTo(revision);
             assertThat(revision.minor()).isZero();
 
             // Ensure that the entries which were created in the previous revisions are retrieved
@@ -187,7 +188,7 @@ public class GitRepositoryTest {
         }
 
         // Check the content of all entries.
-        Map<String, Entry<?>> entries = Util.unsafeCast(repo.find(Revision.HEAD, allPattern).join());
+        Map<String, Entry<?>> entries = Util.unsafeCast(repo.find(HEAD, allPattern).join());
         for (Change<?> c : upserts) {
             final String path = c.path();
             assertThat(entries).containsEntry(path, Entry.of(path, c.content(), entryType));
@@ -198,10 +199,10 @@ public class GitRepositoryTest {
     public void testJsonPatch_safeReplace() throws JsonProcessingException {
         String jsonFilePath = String.format("/test_%s.json", testName.getMethodName());
         Change<JsonNode> change = Change.ofJsonUpsert(jsonFilePath, "{\"key\":1}");
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, change).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change).join();
         Change<JsonNode> nextChange = Change.ofJsonPatch(jsonFilePath, "{\"key\":2}", "{\"key\":3}");
         assertThatThrownBy(
-                () -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, nextChange).join())
+                () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, nextChange).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
     }
@@ -221,29 +222,27 @@ public class GitRepositoryTest {
         for (int i = 0; i < NUM_ITERATIONS; i++) {
             assert path.equals(patches[i].path());
 
-            final Revision rev = repo.normalize(Revision.HEAD).join();
+            final Revision rev = repo.normalize(HEAD).join();
 
             // Ensure that we cannot apply patched in an incorrect order.
             for (int j = i + 1; j < NUM_ITERATIONS; j++) {
                 final int finalJ = j;
                 assertThatThrownBy(
-                        () -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, patches[finalJ])
-                                  .join())
+                        () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, patches[finalJ]).join())
                         .isInstanceOf(CompletionException.class)
                         .hasCauseInstanceOf(StorageException.class);
             }
 
             // Ensure that the failed commit does not change the revision.
-            assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(rev);
+            assertThat(repo.normalize(HEAD).join()).isEqualTo(rev);
 
             // Ensure that the successful commit changes the revision.
-            Revision newRev = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, patches[i])
-                                  .join();
-            assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(newRev);
+            Revision newRev = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, patches[i]).join();
+            assertThat(repo.normalize(HEAD).join()).isEqualTo(newRev);
             assertThat(newRev).isEqualTo(new Revision(rev.major() + 1));
 
             // Ensure the entry has been patched as expected.
-            Entry<?> e = repo.get(Revision.HEAD, path).join();
+            Entry<?> e = repo.get(HEAD, path).join();
             if (e.type() == EntryType.JSON) {
                 assertThatJson(e.content()).isEqualTo(upserts[i].content());
             } else {
@@ -256,24 +255,20 @@ public class GitRepositoryTest {
     public void testRemoval() throws Exception {
         // A removal should fail when there's no such entry.
         assertThatThrownBy(() -> repo
-                .commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, Change.ofRemoval(jsonPaths[0]))
-                .join())
+                .commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(jsonPaths[0])).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
-        Revision revision = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0])
-                                .join();
+        Revision revision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
         assertThat(repo.exists(revision, jsonPaths[0]).join()).isTrue();
 
         // A removal should succeed when there's an entry.
-        revision = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
-                               Change.ofRemoval(jsonPaths[0])).join();
+        revision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(jsonPaths[0])).join();
         assertThat(repo.exists(revision, jsonPaths[0]).join()).isFalse();
 
         // A removal should fail when there's no such entry.
         assertThatThrownBy(() -> repo
-                .commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, Change.ofRemoval(jsonPaths[0]))
-                .join())
+                .commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(jsonPaths[0])).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
     }
@@ -283,90 +278,86 @@ public class GitRepositoryTest {
         // A recursive removal should fail when there's no such entry.
         final String curDir = prefix.substring(0, prefix.length() - 1); // Remove trailing '/'.
         assertThatThrownBy(
-                () -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, Change.ofRemoval(curDir))
-                          .join())
+                () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(curDir)).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
         // Add some files
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts).join();
-        assertThat(repo.find(Revision.HEAD, allPattern).join()).hasSize(jsonUpserts.length);
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts).join();
+        assertThat(repo.find(HEAD, allPattern).join()).hasSize(jsonUpserts.length);
 
         // Perform a recursive removal
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, Change.ofRemoval(curDir)).join();
-        assertThat(repo.find(Revision.HEAD, allPattern).join()).isEmpty();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(curDir)).join();
+        assertThat(repo.find(HEAD, allPattern).join()).isEmpty();
     }
 
     @Test
     public void testRename() throws Exception {
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
         // Rename without content modification.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
-                    Change.ofRename(jsonPaths[0], jsonPaths[1])).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRename(jsonPaths[0], jsonPaths[1])).join();
 
-        assertThat(repo.exists(Revision.HEAD, jsonPaths[0]).join()).isFalse();
-        assertThat(repo.exists(Revision.HEAD, jsonPaths[1]).join()).isTrue();
-        assertThat(repo.exists(Revision.HEAD, jsonPaths[2]).join()).isFalse();
-        assertThatJson(repo.get(Revision.HEAD, jsonPaths[1]).join().content())
+        assertThat(repo.exists(HEAD, jsonPaths[0]).join()).isFalse();
+        assertThat(repo.exists(HEAD, jsonPaths[1]).join()).isTrue();
+        assertThat(repo.exists(HEAD, jsonPaths[2]).join()).isFalse();
+        assertThatJson(repo.get(HEAD, jsonPaths[1]).join().content())
                 .isEqualTo(jsonUpserts[0].content());
 
         // Rename with content modification.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                     Change.ofRename(jsonPaths[1], jsonPaths[2]),
                     Change.ofJsonPatch(jsonPaths[2], jsonPatches[1].content()),
                     Change.ofJsonPatch(jsonPaths[2], jsonPatches[2].content())).join();
 
-        assertThat(repo.exists(Revision.HEAD, jsonPaths[0]).join()).isFalse();
-        assertThat(repo.exists(Revision.HEAD, jsonPaths[1]).join()).isFalse();
-        assertThat(repo.exists(Revision.HEAD, jsonPaths[2]).join()).isTrue();
-        assertThatJson(repo.get(Revision.HEAD, jsonPaths[2]).join().content())
+        assertThat(repo.exists(HEAD, jsonPaths[0]).join()).isFalse();
+        assertThat(repo.exists(HEAD, jsonPaths[1]).join()).isFalse();
+        assertThat(repo.exists(HEAD, jsonPaths[2]).join()).isTrue();
+        assertThatJson(repo.get(HEAD, jsonPaths[2]).join().content())
                 .isEqualTo(jsonUpserts[2].content());
     }
 
     @Test
     public void testRecursiveRename() throws Exception {
         // Add some files under a directory.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts).join();
-        assertThat(repo.find(Revision.HEAD, allPattern).join()).hasSize(jsonUpserts.length);
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts).join();
+        assertThat(repo.find(HEAD, allPattern).join()).hasSize(jsonUpserts.length);
 
         // Rename the directory and ensure all files were moved.
         final String oldDir = prefix.substring(0, prefix.length() - 1); // Strip the trailing '/'.
         final String newDir = "/re_" + oldDir.substring(1) + "_named";
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, Change.ofRename(oldDir, newDir))
-            .join();
-        assertThat(repo.find(Revision.HEAD, allPattern).join()).isEmpty();
-        assertThat(repo.find(Revision.HEAD, newDir + "/**").join()).hasSize(jsonUpserts.length);
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRename(oldDir, newDir)).join();
+        assertThat(repo.find(HEAD, allPattern).join()).isEmpty();
+        assertThat(repo.find(HEAD, newDir + "/**").join()).hasSize(jsonUpserts.length);
 
         // Add some files under a directory again.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts).join();
-        assertThat(repo.find(Revision.HEAD, allPattern).join()).hasSize(jsonUpserts.length);
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts).join();
+        assertThat(repo.find(HEAD, allPattern).join()).hasSize(jsonUpserts.length);
 
         // Attempt to rename the directory again, which should fail because the target directory exists now.
         assertThatThrownBy(() -> repo
-                .commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, Change.ofRename(oldDir, newDir))
-                .join())
+                .commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRename(oldDir, newDir)).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
     }
 
     @Test
     public void testRenameFailure() throws Exception {
-        assertThatThrownBy(() -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                              jsonUpserts[0], jsonUpserts[1],
                                              Change.ofRename(jsonPaths[0], jsonPaths[1])).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
         // Renaming to its own path.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
-        assertThatThrownBy(() -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                              Change.ofRename(jsonPaths[0], jsonPaths[0])).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
         // Renaming to its own path, when the file is not committed yet.
-        assertThatThrownBy(() -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                              jsonUpserts[1], Change.ofRename(jsonPaths[1], jsonPaths[1]))
                                      .join())
                 .isInstanceOf(CompletionException.class)
@@ -379,12 +370,11 @@ public class GitRepositoryTest {
     @Test
     public void testLateCommit() throws Exception {
         // Increase the head revision by one by pushing one commit.
-        Revision rev = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
+        Revision rev = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
         // Attempt to commit again with an old revision.
         assertThatThrownBy(() -> repo
-                .commit(new Revision(rev.major() - 1), Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[1])
-                .join())
+                .commit(new Revision(rev.major() - 1), 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[1]).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
     }
@@ -392,8 +382,7 @@ public class GitRepositoryTest {
     @Test
     public void testEmptyCommit() {
         assertThatThrownBy(
-                () -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, Collections.emptyList())
-                          .join())
+                () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Collections.emptyList()).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);
     }
@@ -401,10 +390,10 @@ public class GitRepositoryTest {
     @Test
     public void testEmptyCommitWithRedundantRenames() throws Exception {
         // Create a file to produce redundant changes.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
         // Ensure redundant changes do not count as a valid change.
-        assertThatThrownBy(() -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                              Change.ofRename(jsonPaths[0], jsonPaths[1]),
                                              Change.ofRename(jsonPaths[1], jsonPaths[0])).join())
                 .isInstanceOf(CompletionException.class)
@@ -414,17 +403,16 @@ public class GitRepositoryTest {
     @Test
     public void testEmptyCommitWithRedundantUpsert() throws Exception {
         assertThatThrownBy(
-                () -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, Collections.emptyList())
-                          .join())
+                () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Collections.emptyList()).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);
 
         // Create a file to produce redundant changes.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
         // Ensure redundant changes do not count as a valid change.
         assertThatThrownBy(
-                () -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join())
+                () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);
     }
@@ -437,9 +425,9 @@ public class GitRepositoryTest {
             changes.add(jsonPatches[i]);
         }
 
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, changes).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, changes).join();
 
-        Map<String, Entry<?>> entries = repo.find(Revision.HEAD, allPattern).join();
+        Map<String, Entry<?>> entries = repo.find(HEAD, allPattern).join();
 
         assertThat(entries).hasSize(jsonUpserts.length);
         for (int i = 0; i < jsonUpserts.length; i++) {
@@ -458,10 +446,10 @@ public class GitRepositoryTest {
     @Test
     public void testRenameWithConflict() throws Exception {
         // Create a file to produce redundant changes.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
         // Attempt to rename to itself.
-        assertThatThrownBy(() -> repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                              Change.ofRename(jsonPaths[0], jsonPaths[0])).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
@@ -470,8 +458,7 @@ public class GitRepositoryTest {
     @Test
     public void testMultipleChangesWithConflict() throws Exception {
         assertThatThrownBy(() -> repo
-                .commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0], jsonPatches[2])
-                .join())
+                .commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0], jsonPatches[2]).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ChangeConflictException.class);
     }
@@ -482,10 +469,10 @@ public class GitRepositoryTest {
     @Test
     public void testDiff_invalidParameters() throws Exception {
         final String path = jsonPatches[0].path();
-        final Revision revision1 =
-                repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches[0]).join();
-        final Revision revision2 =
-                repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches[1]).join();
+        final Revision revision1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                               jsonPatches[0]).join();
+        final Revision revision2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                               jsonPatches[1]).join();
 
         assertThat(repo.diff(revision1, revision2, "non_existing_path").join()).isEmpty();
 
@@ -508,16 +495,16 @@ public class GitRepositoryTest {
 
     @Test
     public void testPreviewDiff() {
-        Map<String, Change<?>> changeMap = repo.previewDiff(Revision.HEAD, jsonUpserts[0]).join();
+        Map<String, Change<?>> changeMap = repo.previewDiff(HEAD, jsonUpserts[0]).join();
         assertThat(changeMap).containsEntry(jsonPaths[0], jsonUpserts[0]);
 
         // Invalid patch
-        assertThatThrownBy(() -> repo.previewDiff(Revision.HEAD, jsonPatches[1]).join())
+        assertThatThrownBy(() -> repo.previewDiff(HEAD, jsonPatches[1]).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(StorageException.class);
 
         // Invalid removal
-        assertThatThrownBy(() -> repo.previewDiff(Revision.HEAD, Change.ofRemoval(jsonPaths[0])).join())
+        assertThatThrownBy(() -> repo.previewDiff(HEAD, Change.ofRemoval(jsonPaths[0])).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(StorageException.class);
 
@@ -525,7 +512,7 @@ public class GitRepositoryTest {
         List<Change<?>> changes = Arrays.asList(jsonUpserts[0], jsonPatches[1], jsonPatches[2],
                                                 Change.ofRename(jsonPaths[0], jsonPaths[1]),
                                                 Change.ofRemoval(jsonPaths[1]));
-        Map<String, Change<?>> returnedChangeMap = repo.previewDiff(Revision.HEAD, changes).join();
+        Map<String, Change<?>> returnedChangeMap = repo.previewDiff(HEAD, changes).join();
         assertThat(returnedChangeMap).isEmpty();
         assertThatThrownBy(() -> repo.previewDiff(new Revision(Integer.MAX_VALUE), changes).join())
                 .isInstanceOf(CompletionException.class)
@@ -534,8 +521,8 @@ public class GitRepositoryTest {
         assertThat(repo.previewDiff(new Revision(-1), Collections.emptyList()).join()).isEmpty();
 
         // Test upsert on an existing path
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches[0], jsonPatches[1]).join();
-        returnedChangeMap = repo.previewDiff(Revision.HEAD, jsonUpserts[0]).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[0], jsonPatches[1]).join();
+        returnedChangeMap = repo.previewDiff(HEAD, jsonUpserts[0]).join();
         assertThat(returnedChangeMap.get(jsonPaths[0]).type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);
     }
 
@@ -547,11 +534,11 @@ public class GitRepositoryTest {
         final String jsonPath = jsonUpserts[0].path();
         final String textPath = textUpserts[0].path();
 
-        Revision prevRevison = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        Revision prevRevison = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                            jsonUpserts[0], textUpserts[0]).join();
 
         for (int i = 1; i < NUM_ITERATIONS; i++) {
-            Revision currRevision = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+            Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                                 jsonPatches[i], textPatches[i]).join();
 
             Map<String, Change<?>> diff = repo.diff(prevRevison, currRevision, Repository.ALL_PATH).join();
@@ -561,7 +548,7 @@ public class GitRepositoryTest {
                             .containsEntry(textPath, textPatches[i]);
 
             Map<String, Change<?>> diff2 =
-                    repo.diff(Revision.HEAD.backward(1), Revision.HEAD, Repository.ALL_PATH).join();
+                    repo.diff(HEAD.backward(1), HEAD, Repository.ALL_PATH).join();
 
             assertThat(diff2).isEqualTo(diff);
 
@@ -577,7 +564,7 @@ public class GitRepositoryTest {
         // add all files into repository
         Revision lastRevision = null;
         for (int i = 0; i < NUM_ITERATIONS; i++) {
-            lastRevision = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+            lastRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                        jsonUpserts[i], textUpserts[i]).join();
         }
 
@@ -589,18 +576,17 @@ public class GitRepositoryTest {
             final Change<Void> jsonRemoval = Change.ofRemoval(jsonPath);
             final Change<Void> textRemoval = Change.ofRemoval(textPath);
 
-            final Revision currRevision =
-                    repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonRemoval, textRemoval)
-                        .join();
-            final Map<String, Change<?>> changes = repo.diff(prevRevison, currRevision, Repository.ALL_PATH)
-                                                       .join();
+            final Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                                      jsonRemoval, textRemoval).join();
+            final Map<String, Change<?>> changes = repo.diff(prevRevison, currRevision,
+                                                             Repository.ALL_PATH).join();
 
             assertThat(changes).hasSize(2)
                                .containsEntry(jsonPath, jsonRemoval)
                                .containsEntry(textPath, textRemoval);
 
             final Map<String, Change<?>> changesRelative =
-                    repo.diff(Revision.HEAD.backward(1), Revision.HEAD, allPattern).join();
+                    repo.diff(HEAD.backward(1), HEAD, allPattern).join();
 
             assertThat(changesRelative).isEqualTo(changes);
 
@@ -617,11 +603,11 @@ public class GitRepositoryTest {
         final String textNodePath = textPatches[0].path();
 
         // initial commit
-        Revision prevRevision = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        Revision prevRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                             jsonPatches[0], textPatches[0]).join();
 
         for (int i = 1; i < NUM_ITERATIONS; i++) {
-            final Revision currRevision = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+            final Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                                       jsonPatches[i], textPatches[i]).join();
 
             final Map<String, Change<?>> changes = repo.diff(prevRevision, currRevision, allPattern).join();
@@ -631,7 +617,7 @@ public class GitRepositoryTest {
                                .containsEntry(textNodePath, textPatches[i]);
 
             final Map<String, Change<?>> changesRelative =
-                    repo.diff(Revision.HEAD.backward(1), Revision.HEAD, allPattern).join();
+                    repo.diff(HEAD.backward(1), HEAD, allPattern).join();
 
             assertThat(changesRelative).isEqualTo(changes);
 
@@ -651,18 +637,18 @@ public class GitRepositoryTest {
 
         // Start at oldPath with value set to false.
         Revision rev0 = repo.commit(
-                Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+                HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofJsonUpsert(oldPath, "{ \"value\": false }")).join();
 
         // Move to newPath with the same value.
         Revision rev1 = repo.commit(
-                Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+                HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofRemoval(oldPath),
                 Change.ofJsonUpsert(newPath, "{ \"value\": false }")).join();
 
         // Set 'value' to true.
         Revision rev2 = repo.commit(
-                Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+                HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofJsonUpsert(newPath, "{ \"value\": true }")).join();
 
         // Get the diff between rev0 and rev2.
@@ -688,22 +674,22 @@ public class GitRepositoryTest {
         final String jsonPath = jsonPatches[0].path();
         final String textPath = textPatches[0].path();
 
-        final Revision firstJsonCommit = repo.normalize(Revision.HEAD).join().forward(1);
+        final Revision firstJsonCommit = repo.normalize(HEAD).join().forward(1);
         Revision lastJsonCommit = null;
         for (Change<JsonNode> c : jsonPatches) {
-            lastJsonCommit = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, c).join();
+            lastJsonCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, c).join();
         }
 
         final Revision firstTextCommit = lastJsonCommit.forward(1);
         Revision lastTextCommit = null;
         for (Change<String> c : textPatches) {
-            lastTextCommit = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, c).join();
+            lastTextCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, c).join();
         }
 
         final Revision firstJsonCommitRel = new Revision(-(jsonPatches.length + textPatches.length));
         final Revision lastJsonCommitRel = new Revision(-(textPatches.length + 1));
         final Revision firstTextCommitRel = new Revision(-textPatches.length);
-        final Revision lastTextCommitRel = Revision.HEAD;
+        final Revision lastTextCommitRel = HEAD;
 
         assertThat(repo.normalize(firstJsonCommitRel).join()).isEqualTo(firstJsonCommit);
         assertThat(repo.normalize(lastJsonCommitRel).join()).isEqualTo(lastJsonCommit);
@@ -765,13 +751,11 @@ public class GitRepositoryTest {
         Revision lastJsonCommit = null;
         Revision lastTextCommit = null;
         for (int i = 0; i < NUM_ITERATIONS; i++) {
-            lastJsonCommit = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches[i])
-                                 .join();
-            lastTextCommit = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, textPatches[i])
-                                 .join();
+            lastJsonCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[i]).join();
+            lastTextCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, textPatches[i]).join();
         }
 
-        List<Commit> jsonCommits = repo.history(Revision.HEAD, new Revision(1), jsonPath).join();
+        List<Commit> jsonCommits = repo.history(HEAD, new Revision(1), jsonPath).join();
         // # of JSON commits + the initial empty commit
         assertThat(jsonCommits).hasSize(jsonPatches.length + 1);
 
@@ -782,7 +766,7 @@ public class GitRepositoryTest {
             }
         }
 
-        List<Commit> textCommits = repo.history(Revision.HEAD, new Revision(1), textPath).join();
+        List<Commit> textCommits = repo.history(HEAD, new Revision(1), textPath).join();
         // # of text commits + the initial empty commit
         assertThat(textCommits).hasSize(textPatches.length + 1);
 
@@ -797,18 +781,18 @@ public class GitRepositoryTest {
     @Test
     public void testHistory_parameterCheck() throws Exception {
         // Make sure that we added at least one non-initial commit.
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
-        final Revision head = repo.normalize(Revision.HEAD).join();
+        final Revision head = repo.normalize(HEAD).join();
 
         List<Commit> commits;
 
         // Should include the initial empty commit as long as the range contains 1.
-        commits = repo.history(Revision.HEAD, new Revision(1), "non_existing_path").join();
+        commits = repo.history(HEAD, new Revision(1), "non_existing_path").join();
         assertThat(commits).hasSize(1);
 
         // Should not include the initial empty commit if the range does not contain 1.
-        commits = repo.history(Revision.HEAD, Revision.HEAD, "non_existing_path").join();
+        commits = repo.history(HEAD, HEAD, "non_existing_path").join();
         assertThat(commits).isEmpty();
 
         assertThatThrownBy(() -> repo.history(head.forward(1), head.forward(2), "non_existing_path").join())
@@ -819,16 +803,16 @@ public class GitRepositoryTest {
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(StorageException.class);
 
-        assertThatThrownBy(() -> repo.history(null, Revision.HEAD, "non_existing_path").join())
+        assertThatThrownBy(() -> repo.history(null, HEAD, "non_existing_path").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(NullPointerException.class);
 
-        assertThatThrownBy(() -> repo.history(Revision.HEAD, null, "non_existing_path").join())
+        assertThatThrownBy(() -> repo.history(HEAD, null, "non_existing_path").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(NullPointerException.class);
 
-        Revision r1rev = repo.createRunspace(Author.UNKNOWN, head.backward(1).major()).join();
-        Revision r2rev = repo.createRunspace(Author.UNKNOWN, head.major()).join();
+        Revision r1rev = repo.createRunspace(head.backward(1).major(), 0L, Author.UNKNOWN).join();
+        Revision r2rev = repo.createRunspace(head.major(), 0L, Author.UNKNOWN).join();
 
         // Attempt to fetch the history between different runspaces.
         assertThatThrownBy(() -> repo.history(r1rev, r2rev, allPattern).join())
@@ -875,7 +859,7 @@ public class GitRepositoryTest {
             Change<JsonNode> jsonChange = Change.ofJsonPatch(jsonNodePath, oldJsonString, newJsonString);
             Change<String> textChange = Change.ofTextPatch(textNodePath, oldTextString, newTextString);
 
-            revision = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+            revision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                    Arrays.asList(jsonChange, textChange)).join();
         }
 
@@ -894,8 +878,8 @@ public class GitRepositoryTest {
 
     @Test
     public void testFindNone() {
-        assertThat(repo.find(Revision.HEAD, "/non-existent").join()).isEmpty();
-        assertThat(repo.find(Revision.HEAD, "non-existent").join()).isEmpty();
+        assertThat(repo.find(HEAD, "/non-existent").join()).isEmpty();
+        assertThat(repo.find(HEAD, "non-existent").join()).isEmpty();
     }
 
     /**
@@ -906,7 +890,7 @@ public class GitRepositoryTest {
         String jsonNodePath = "/node.json";
         String jsonString = "{\"key\":\"value\"}";
         Change<JsonNode> jsonChange = Change.ofJsonUpsert(jsonNodePath, jsonString);
-        Revision revision = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonChange).join();
+        Revision revision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonChange).join();
 
         assertThatThrownBy(() -> repo.find(new Revision(revision.major() + 1), jsonNodePath).join())
                 .isInstanceOf(CompletionException.class)
@@ -922,7 +906,7 @@ public class GitRepositoryTest {
         //               +- bb
         //
 
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                     Change.ofTextUpsert(prefix + "a/file", ""),
                     Change.ofTextUpsert(prefix + "b/ba/file", ""),
                     Change.ofTextUpsert(prefix + "b/bb/file", "")).join();
@@ -933,21 +917,21 @@ public class GitRepositoryTest {
         final Entry<Void> b_bb = Entry.ofDirectory(prefix + "b/bb");
 
         // Recursive search
-        final Collection<Entry<?>> entries = repo.find(Revision.HEAD, allPattern).join().entrySet().stream()
+        final Collection<Entry<?>> entries = repo.find(HEAD, allPattern).join().entrySet().stream()
                                                  .filter(e -> !e.getKey().endsWith("/file"))
                                                  .map(Map.Entry::getValue).collect(Collectors.toList());
         assertThat(entries).containsExactly(a, b, b_ba, b_bb);
 
         // Non-recursive search
-        assertThat(repo.find(Revision.HEAD, prefix + '*').join().values()).containsExactly(a, b);
+        assertThat(repo.find(HEAD, prefix + '*').join().values()).containsExactly(a, b);
 
         // Single get
-        assertThat(repo.find(Revision.HEAD, prefix + 'b').join().values()).containsExactly(b);
+        assertThat(repo.find(HEAD, prefix + 'b').join().values()).containsExactly(b);
     }
 
     @Test
     public void testJsonPathQuery() throws Exception {
-        repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                     Change.ofJsonUpsert("/instances.json",
                                         '[' +
                                         "  {" +
@@ -971,7 +955,7 @@ public class GitRepositoryTest {
                                         "  }" +
                                         ']')).join();
 
-        final QueryResult<JsonNode> res1 = repo.get(Revision.HEAD, Query.ofJsonPath(
+        final QueryResult<JsonNode> res1 = repo.get(HEAD, Query.ofJsonPath(
                 "/instances.json", "$[?(@.name == 'b')]")).join();
 
         assertThatJson(res1.content()).isEqualTo("[{" +
@@ -985,7 +969,7 @@ public class GitRepositoryTest {
                                                  "  }]" +
                                                  "}]");
 
-        final QueryResult<JsonNode> res2 = repo.get(Revision.HEAD, Query.ofJsonPath(
+        final QueryResult<JsonNode> res2 = repo.get(HEAD, Query.ofJsonPath(
                 "/instances.json", "$..groups[?(@.type == 'not_phase' && @.name == 'alpha')]")).join();
 
         assertThatJson(res2.content()).isEqualTo("[{" +
@@ -993,7 +977,7 @@ public class GitRepositoryTest {
                                                  "  \"name\": \"alpha\"" +
                                                  "}]");
 
-        final QueryResult<JsonNode> res3 = repo.get(Revision.HEAD, Query.ofJsonPath(
+        final QueryResult<JsonNode> res3 = repo.get(HEAD, Query.ofJsonPath(
                 "/instances.json", "$[?(@.groups[?(@.type == 'phase' && @.name == 'alpha')] empty false)]"))
                                                .join();
 
@@ -1011,26 +995,26 @@ public class GitRepositoryTest {
 
     @Test
     public void testRunspace() throws Exception {
-        final Revision r1 = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches[0])
+        final Revision r1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[0])
                                 .join();
-        final Revision r2 = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches[1])
+        final Revision r2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[1])
                                 .join();
-        final Revision r3 = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches[2])
+        final Revision r3 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[2])
                                 .join();
 
-        final Revision r11 = repo.createRunspace(Author.UNKNOWN, r1.major()).join();
+        final Revision r11 = repo.createRunspace(r1.major(), 0L, Author.UNKNOWN).join();
         assertThat(repo.listRunspaces().join()).contains(r11);
         assertThat(r11).isEqualTo(new Revision(r1.major(), 1));
         assertThat(repo.find(r11, allPattern).join()).isEqualTo(repo.find(r1, allPattern).join());
 
-        final Revision r12 = repo.commit(r11, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches[1]).join();
+        final Revision r12 = repo.commit(r11, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[1]).join();
         assertThat(r12).isEqualTo(new Revision(r1.major(), 2));
         assertThat(repo.listRunspaces().join()).contains(r12);
         assertThat(repo.find(r12, allPattern).join()).isNotEqualTo(repo.find(r11, allPattern).join());
         assertThat(repo.find(r12, allPattern).join()).isNotEqualTo(repo.find(r1, allPattern).join());
         assertThat(repo.find(r12, allPattern).join()).isEqualTo(repo.find(r2, allPattern).join());
 
-        final Revision r13 = repo.commit(r12, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches[2]).join();
+        final Revision r13 = repo.commit(r12, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[2]).join();
         assertThat(r13).isEqualTo(new Revision(r1.major(), 3));
         assertThat(repo.listRunspaces().join()).contains(r13);
         assertThat(repo.find(r13, allPattern).join()).isNotEqualTo(repo.find(r12, allPattern).join());
@@ -1045,43 +1029,43 @@ public class GitRepositoryTest {
 
     @Test
     public void testWatch() throws Exception {
-        Revision rev1 = repo.normalize(Revision.HEAD).join();
+        Revision rev1 = repo.normalize(HEAD).join();
         Revision rev2 = rev1.forward(1);
 
         final CompletableFuture<Revision> f = repo.watch(rev1, Repository.ALL_PATH);
         assertThat(f).isNotDone();
 
-        repo.commit(rev1, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]);
+        repo.commit(rev1, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
 
-        assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(rev2);
+        assertThat(repo.normalize(HEAD).join()).isEqualTo(rev2);
     }
 
     @Test
     public void testWatchWithPathPattern() throws Exception {
-        final Revision rev1 = repo.normalize(Revision.HEAD).join();
+        final Revision rev1 = repo.normalize(HEAD).join();
         final Revision rev2 = rev1.forward(1);
         final Revision rev3 = rev2.forward(1);
 
         final CompletableFuture<Revision> f = repo.watch(rev1, jsonPaths[1]);
 
         // Should not notify when the path pattern does not match.
-        repo.commit(rev1, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0]).join();
-        assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(rev2);
+        repo.commit(rev1, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
+        assertThat(repo.normalize(HEAD).join()).isEqualTo(rev2);
         assertThatThrownBy(() -> f.get(500, TimeUnit.MILLISECONDS))
                 .isInstanceOf(TimeoutException.class);
 
         // Should notify when the path pattern matches.
-        repo.commit(rev2, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[1]).join();
-        assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(rev3);
+        repo.commit(rev2, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[1]).join();
+        assertThat(repo.normalize(HEAD).join()).isEqualTo(rev3);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(rev3);
     }
 
     @Test
     public void testWatchWithOldRevision() throws Exception {
-        final Revision lastKnownRev = repo.normalize(Revision.HEAD).join();
-        repo.commit(lastKnownRev, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts).join();
-        final Revision latestRev = repo.normalize(Revision.HEAD).join();
+        final Revision lastKnownRev = repo.normalize(HEAD).join();
+        repo.commit(lastKnownRev, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts).join();
+        final Revision latestRev = repo.normalize(HEAD).join();
         assertThat(latestRev).isNotEqualTo(lastKnownRev);
 
         // Should notify very soon.
@@ -1091,9 +1075,9 @@ public class GitRepositoryTest {
 
     @Test
     public void testWatchWithOldRevisionAndPathPattern() throws Exception {
-        final Revision lastKnownRev = repo.normalize(Revision.HEAD).join();
-        repo.commit(lastKnownRev, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonPatches).join();
-        final Revision latestRev = repo.normalize(Revision.HEAD).join();
+        final Revision lastKnownRev = repo.normalize(HEAD).join();
+        repo.commit(lastKnownRev, 0L, Author.UNKNOWN, SUMMARY, jsonPatches).join();
+        final Revision latestRev = repo.normalize(HEAD).join();
         assertThat(latestRev).isNotEqualTo(lastKnownRev);
 
         // Should not return a successful future because the changes in the prior commit did not affect
@@ -1102,16 +1086,16 @@ public class GitRepositoryTest {
         assertThatThrownBy(() -> f.get(500, TimeUnit.MILLISECONDS))
                 .isInstanceOf(TimeoutException.class);
 
-        final Revision newLatestRev = repo.commit(latestRev, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+        final Revision newLatestRev = repo.commit(latestRev, 0L, Author.UNKNOWN, SUMMARY,
                                                   jsonUpserts[1]).join();
-        assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(newLatestRev);
+        assertThat(repo.normalize(HEAD).join()).isEqualTo(newLatestRev);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(newLatestRev);
     }
 
     @Test
     public void testWatchWithQuery() throws Exception {
         final Revision rev1 = repo.commit(
-                Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+                HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofJsonUpsert(jsonPaths[0], "{ \"hello\": \"mars\" }")).join();
 
         CompletableFuture<QueryResult<JsonNode>> f =
@@ -1123,7 +1107,7 @@ public class GitRepositoryTest {
 
         // Make sure the change that does not affect the query result does not trigger a notification.
         repo.commit(
-                Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+                HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofJsonUpsert(jsonPaths[0], "{ \"hello\": \"mars\", \"goodbye\": \"venus\" }"));
 
         assertThatThrownBy(() -> f.get(500, TimeUnit.MILLISECONDS))
@@ -1131,7 +1115,7 @@ public class GitRepositoryTest {
 
         // Here comes the interesting change; make sure notification is triggered.
         final Revision rev3 = repo.commit(
-                Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY,
+                HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofJsonUpsert(jsonPaths[0], "{ \"hello\": \"jupiter\", \"goodbye\": \"mars\" }")).join();
 
         final QueryResult<JsonNode> res = f.get(3, TimeUnit.SECONDS);
@@ -1142,14 +1126,12 @@ public class GitRepositoryTest {
 
     @Test(timeout = 10000)
     public void testWatchWithIdentityQuery() throws Exception {
-        final Revision rev1 = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, textUpserts[0])
-                                  .join();
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, textUpserts[0]).join();
 
         CompletableFuture<QueryResult<Object>> f =
                 repo.watch(rev1, Query.identity(textPaths[0]));
 
-        final Revision rev2 = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, textPatches[1])
-                                  .join();
+        final Revision rev2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, textPatches[1]).join();
         final QueryResult<Object> res = f.get(3, TimeUnit.SECONDS);
         assertThat(res.revision()).isEqualTo(rev2);
         assertThat(res.type()).isEqualTo(EntryType.TEXT);
@@ -1158,15 +1140,14 @@ public class GitRepositoryTest {
 
     @Test
     public void testWatchRemoval() throws Exception {
-        final Revision rev1 = repo.commit(Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, jsonUpserts[0])
-                                  .join();
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
         CompletableFuture<QueryResult<JsonNode>> f =
                 repo.watch(rev1, Query.ofJsonPath(jsonPaths[0], "$"));
 
         // Remove the file being watched.
         final Revision rev2 = repo.commit(
-                Revision.HEAD, Author.UNKNOWN, TEST_MESSAGE_SUMMARY, Change.ofRemoval(jsonPaths[0])).join();
+                HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(jsonPaths[0])).join();
         final QueryResult<JsonNode> res = f.get(3, TimeUnit.SECONDS);
         assertThat(res.revision()).isEqualTo(rev2);
         assertThat(res.type()).isNull();
@@ -1191,7 +1172,7 @@ public class GitRepositoryTest {
 
         // Start a watch that never finishes.
         final CompletableFuture<QueryResult<JsonNode>> f =
-                repo.watch(Revision.HEAD, Query.ofJsonPath(jsonPaths[0], "$"));
+                repo.watch(HEAD, Query.ofJsonPath(jsonPaths[0], "$"));
         assertThatThrownBy(() -> f.get(500, TimeUnit.MILLISECONDS))
                 .isInstanceOf(TimeoutException.class);
 
@@ -1216,29 +1197,30 @@ public class GitRepositoryTest {
         final ObjectId commitId = mock(ObjectId.class);
 
         // A commit on the mainlane
-        testDoUpdateRef(Constants.R_TAGS + "01/1.0", commitId, false);
+        testDoUpdateRef(Constants.R_TAGS + '1', commitId, false);
         testDoUpdateRef(Constants.R_HEADS + Constants.MASTER, commitId, false);
 
         // A commit on a runspace
-        testDoUpdateRef(Constants.R_TAGS + "01/1.1", commitId, false);
+        testDoUpdateRef(Constants.R_TAGS + "runspaces/1/1", commitId, false);
         testDoUpdateRef(Constants.R_HEADS + "runspaces/1", commitId, false);
     }
 
     private static void testDoUpdateRef(String ref, ObjectId commitId, boolean tagExists) throws Exception {
         final org.eclipse.jgit.lib.Repository jGitRepo = mock(org.eclipse.jgit.lib.Repository.class);
+        final RevWalk revWalk = mock(RevWalk.class);
         final RefUpdate refUpdate = mock(RefUpdate.class);
 
         when(jGitRepo.exactRef(ref)).thenReturn(tagExists ? mock(Ref.class) : null);
         when(jGitRepo.updateRef(ref)).thenReturn(refUpdate);
 
-        when(refUpdate.update()).thenReturn(RefUpdate.Result.NEW);
-        GitRepository.doRefUpdate(jGitRepo, ref, commitId);
+        when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.NEW);
+        GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId);
 
-        when(refUpdate.update()).thenReturn(RefUpdate.Result.FAST_FORWARD);
-        GitRepository.doRefUpdate(jGitRepo, ref, commitId);
+        when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.FAST_FORWARD);
+        GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId);
 
-        when(refUpdate.update()).thenReturn(RefUpdate.Result.LOCK_FAILURE);
-        assertThatThrownBy(() -> GitRepository.doRefUpdate(jGitRepo, ref, commitId))
+        when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.LOCK_FAILURE);
+        assertThatThrownBy(() -> GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId))
                 .isInstanceOf(StorageException.class);
     }
 

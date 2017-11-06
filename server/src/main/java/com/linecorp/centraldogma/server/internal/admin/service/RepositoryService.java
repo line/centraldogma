@@ -100,9 +100,12 @@ public class RepositoryService extends AbstractService {
     @Post("/projects/{projectName}/repositories")
     public CompletionStage<RepositoryDto> createRepository(@Param("projectName") String projectName,
                                                            AggregatedHttpMessage message) throws IOException {
+
+        final Author author = AuthenticationUtil.currentAuthor();
         final RepositoryDto dto =
                 Jackson.readValue(message.content().toStringAscii(), RepositoryDto.class);
-        return execute(Command.createRepository(projectName, dto.getName())).thenApply(unused -> dto);
+        return execute(Command.createRepository(projectName, dto.getName(), author))
+                .thenApply(unused -> dto);
     }
 
     /**

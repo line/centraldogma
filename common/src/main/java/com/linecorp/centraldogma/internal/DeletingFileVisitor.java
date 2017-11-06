@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository.git;
+package com.linecorp.centraldogma.internal;
 
 import java.io.File;
 import java.io.IOException;

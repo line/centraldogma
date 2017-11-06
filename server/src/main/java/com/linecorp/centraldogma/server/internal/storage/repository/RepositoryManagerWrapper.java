@@ -66,14 +66,8 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
-    public Repository getOrCreate(String name) {
-        ensureOpen();
-        return repos.computeIfAbsent(name, n -> repoWrapper.apply(delegate.getOrCreate(n)));
-    }
-
-    @Override
-    public Repository create(String name) {
-        return repos.compute(name, (n, v) -> repoWrapper.apply(delegate.create(name)));
+    public Repository create(String name, long creationTimeMillis) {
+        return repos.compute(name, (n, v) -> repoWrapper.apply(delegate.create(name, creationTimeMillis)));
     }
 
     @Override

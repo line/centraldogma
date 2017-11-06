@@ -25,18 +25,19 @@ import com.linecorp.centraldogma.common.Author;
 public class CreateRunspaceCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new CreateRunspaceCommand("foo", "bar",
-                                                       new Author("John Doe", "john@doe.com"), 42),
+        assertJsonConversion(new CreateRunspaceCommand("foo", "bar", 42, 1234L,
+                                                       new Author("John Doe", "john@doe.com")),
                              Command.class,
                              '{' +
                              "  \"type\": \"CREATE_RUNSPACE\"," +
                              "  \"projectName\": \"foo\"," +
+                             "  \"baseRevision\": 42," +
+                             "  \"creationTimeMillis\": 1234," +
                              "  \"repositoryName\": \"bar\"," +
                              "  \"author\": {" +
                              "    \"name\": \"John Doe\"," +
                              "    \"email\": \"john@doe.com\"" +
-                             "  }," +
-                             "  \"baseRevision\": 42" +
+                             "  }" +
                              '}');
     }
 }
