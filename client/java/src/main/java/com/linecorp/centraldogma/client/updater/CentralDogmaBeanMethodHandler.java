@@ -18,24 +18,43 @@ package com.linecorp.centraldogma.client.updater;
 import static java.util.Objects.requireNonNull;
 
 import java.lang.reflect.Method;
+import java.util.List;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.client.Watcher;
 
 import javassist.util.proxy.MethodHandler;
 
-class CentralDogmaBeanMethodHandler<T> implements MethodHandler {
-    private final Watcher<T> watcher;
-    private final T defaultValue;
+final class CentralDogmaBeanMethodHandler<T> implements MethodHandler {
+    final Watcher<T> watcher;
+    final T defaultValue;
 
     CentralDogmaBeanMethodHandler(Watcher<T> watcher, T defaultValue) {
         this.watcher = watcher;
         this.defaultValue = requireNonNull(defaultValue, "defaultValue");
     }
 
+    // note that below delegate will be match from top to bottom
+    // so if your matcher may duplicate with another one, please consider the order carefully
+    private static final List<MethodDelegate> methodDelegators = ImmutableList.of(
+            new RevisionMethodDelegate(),
+            new CloseMethodDelegate(),
+
+            // The last delegator must be DefaultMethodDelegator.
+            new DefaultMethodDelegate());
+
     @Override
     public Object invoke(Object self, Method thisMethod, Method proceed, Object[] args) throws Throwable {
         // TODO(ide) Push the change if thisMethod is setter method
         thisMethod.setAccessible(true);
-        return thisMethod.invoke(watcher.latestValue(defaultValue), args);
+        for (MethodDelegate md : methodDelegators) {
+            if (md.match(thisMethod)) {
+                return md.invoke(this, self, thisMethod, proceed, args);
+            }
+        }
+
+        // it must not reach here
+        throw new IllegalStateException("method is not handled: " + thisMethod);
     }
 }
