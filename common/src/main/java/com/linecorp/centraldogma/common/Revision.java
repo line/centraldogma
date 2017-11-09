@@ -21,9 +21,8 @@ import static java.util.Objects.requireNonNull;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import com.linecorp.centraldogma.internal.Util;
 
@@ -43,6 +42,8 @@ import com.linecorp.centraldogma.internal.Util;
  * <p>A revision with a negative integer is called 'relative revision'. By contrast, a revision with
  * a positive integer is called 'absolute revision'.
  */
+@JsonSerialize(using = RevisionJsonSerializer.class)
+@JsonDeserialize(using = RevisionJsonDeserializer.class)
 public class Revision implements Comparable<Revision> {
 
     private static final Pattern REVISION_PATTERN = Pattern.compile("^(-?[0-9]+)(?:\\.([0-9]+))?$");
@@ -74,10 +75,7 @@ public class Revision implements Comparable<Revision> {
      * @deprecated Use {@link #Revision(int)} instead. Minor revisions are not used anymore.
      */
     @Deprecated
-    @JsonCreator
-    public Revision(@JsonProperty("major") int major,
-                    @JsonProperty(value = "minor", defaultValue = "0") int minor) {
-
+    public Revision(int major, int minor) {
         if (major == 0) {
             throw new IllegalArgumentException("major: 0 (expected: a non-zero integer)");
         }
@@ -118,7 +116,6 @@ public class Revision implements Comparable<Revision> {
     /**
      * Returns the revision number.
      */
-    @JsonProperty
     public int major() {
         return major;
     }
@@ -129,7 +126,6 @@ public class Revision implements Comparable<Revision> {
      * @deprecated Do not use. Minor revisions are not used anymore.
      */
     @Deprecated
-    @JsonProperty
     public int minor() {
         return minor;
     }
@@ -274,7 +270,6 @@ public class Revision implements Comparable<Revision> {
     /**
      * Returns whether this {@link Revision} is relative.
      */
-    @JsonIgnore
     public boolean isRelative() {
         return isMajorRelative() || isMinorRelative();
     }

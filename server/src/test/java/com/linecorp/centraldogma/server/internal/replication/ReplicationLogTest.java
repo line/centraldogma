@@ -58,10 +58,7 @@ public class ReplicationLogTest {
                              "    \"type\": \"PUSH\"," +
                              "    \"projectName\": \"foo\"," +
                              "    \"repositoryName\": \"bar\"," +
-                             "    \"baseRevision\": {" +
-                             "      \"major\": -1," +
-                             "      \"minor\": 0" +
-                             "    }," +
+                             "    \"baseRevision\": -1," +
                              "    \"commitTimeMillis\": 1234," +
                              "    \"author\": {" +
                              "      \"name\": \"Sedol Lee\"," +
@@ -76,10 +73,7 @@ public class ReplicationLogTest {
                              "      \"content\": \"too soon to tell\"" +
                              "    }]" +
                              "  }," +
-                             "  \"result\": {" +
-                             "    \"major\": 43," +
-                             "    \"minor\": 0" +
-                             "  }" +
+                             "  \"result\": 43" +
                              '}');
     }
 }
