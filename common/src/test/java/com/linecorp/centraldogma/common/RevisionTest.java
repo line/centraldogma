@@ -16,24 +16,48 @@
 
 package com.linecorp.centraldogma.common;
 
-import org.junit.Test;
+import static com.linecorp.centraldogma.internal.Jackson.readValue;
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import com.linecorp.centraldogma.testing.internal.TestUtil;
+import java.io.IOException;
+
+import org.junit.Test;
 
 public class RevisionTest {
 
     @Test
-    public void testJsonConversion() {
-        TestUtil.assertJsonConversion(new Revision(4, 2),
-                             '{' +
-                             "  \"major\": 4," +
-                             "  \"minor\": 2" +
-                             '}');
+    public void deserialization() throws Exception {
+        assertThat(toRevision("2")).isEqualTo(new Revision(2));
+        assertThat(toRevision("\"3\"")).isEqualTo(new Revision(3));
+        assertThat(toRevision("\"4.5\"")).isEqualTo(new Revision(4, 5));
+        assertThat(toRevision("{ \"major\": 6 }")).isEqualTo(new Revision(6));
+        assertThat(toRevision("{ \"major\": 7, \"minor\": 8 }")).isEqualTo(new Revision(7, 8));
 
-        TestUtil.assertJsonConversion(new Revision(7),
-                             '{' +
-                             "  \"major\": 7," +
-                             "  \"minor\": 0" +
-                             '}');
+        // Special revisions:
+        assertThat(toRevision("1")).isEqualTo(Revision.INIT);
+        assertThat(toRevision("\"1\"")).isEqualTo(Revision.INIT);
+        assertThat(toRevision("\"1.0\"")).isEqualTo(Revision.INIT);
+        assertThat(toRevision("{ \"major\": 1 }")).isEqualTo(Revision.INIT);
+        assertThat(toRevision("{ \"major\": 1, \"minor\": 0 }")).isEqualTo(Revision.INIT);
+        assertThat(toRevision("-1")).isEqualTo(Revision.HEAD);
+        assertThat(toRevision("\"-1\"")).isEqualTo(Revision.HEAD);
+        assertThat(toRevision("\"-1.0\"")).isEqualTo(Revision.HEAD);
+        assertThat(toRevision("{ \"major\": -1 }")).isEqualTo(Revision.HEAD);
+        assertThat(toRevision("{ \"major\": -1, \"minor\": 0 }")).isEqualTo(Revision.HEAD);
+
+        assertThat(toRevision("\"head\"")).isEqualTo(Revision.HEAD);
+        assertThat(toRevision("\"HEAD\"")).isEqualTo(Revision.HEAD);
+    }
+
+    @Test
+    public void serialization() throws Exception {
+        assertThatJson(new Revision(9)).isEqualTo("9");
+        assertThatJson(new Revision(8, 7)).isEqualTo("{ \"major\": 8, \"minor\": 7 }");
+        assertThatJson(Revision.HEAD).isEqualTo("-1");
+    }
+
+    private static Revision toRevision(String text) throws IOException {
+        return readValue(text, Revision.class);
     }
 }

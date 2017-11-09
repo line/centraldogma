@@ -58,7 +58,7 @@ final class CommitUtil {
     static Revision extractRevision(String jsonString) {
         try {
             JsonNode jsonNode = Jackson.readTree(jsonString);
-            return new Revision(Jackson.textValue(jsonNode.get(FIELD_NAME_REVISION),""));
+            return new Revision(Jackson.textValue(jsonNode.get(FIELD_NAME_REVISION), ""));
         } catch (Exception e) {
             throw new StorageException("failed to extract revision from " + jsonString, e);
         }

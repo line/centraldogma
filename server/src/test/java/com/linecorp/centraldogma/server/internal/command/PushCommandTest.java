@@ -41,10 +41,7 @@ public class PushCommandTest {
                 "  \"type\": \"PUSH\"," +
                 "  \"projectName\": \"foo\"," +
                 "  \"repositoryName\": \"bar\"," +
-                "  \"baseRevision\": {" +
-                "    \"major\": 42," +
-                "    \"minor\": 0" +
-                "  }," +
+                "  \"baseRevision\": 42," +
                 "  \"commitTimeMillis\": 1234," +
                 "  \"author\": {" +
                 "    \"name\": \"Marge Simpson\"," +
