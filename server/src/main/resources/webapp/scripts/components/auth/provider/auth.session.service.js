@@ -21,7 +21,7 @@ angular.module('CentralDogmaAdmin')
                  },
 
                  logout: function () {
-                   ApiService.post('logout', '').then(function (data) {
+                   return ApiService.post('logout', '').then(function (data) {
                      $window.sessionStorage.clear();
                      Principal.refresh(); // Clear user info.
                      return data;

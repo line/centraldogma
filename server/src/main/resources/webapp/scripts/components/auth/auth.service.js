@@ -24,10 +24,12 @@ angular.module('CentralDogmaAdmin')
                  },
 
                  logout: function () {
-                   AuthServerProvider.logout();
-                   if (Principal.clear()) {
+                   var deferred = $q.defer();
+                   AuthServerProvider.logout().then(function () {
                      NotificationUtil.success("login.logged_out");
-                   }
+                     deferred.resolve(null);
+                   });
+                   return deferred.promise;
                  },
 
                  isEnabled: function () {

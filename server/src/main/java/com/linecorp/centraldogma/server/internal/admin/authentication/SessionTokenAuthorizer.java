@@ -60,7 +60,7 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
                 final Object principal = currentUser != null ? currentUser.getPrincipal()
                                                              : null;
                 if (principal != null) {
-                    final User user = new User(principal.toString(), User.USER_ROLE);
+                    final User user = new User(principal.toString());
                     AuthenticationUtil.setCurrentUser(ctx, user);
                     isAuthenticated = true;
                 }

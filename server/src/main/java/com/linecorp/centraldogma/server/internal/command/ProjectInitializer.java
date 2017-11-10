@@ -146,6 +146,7 @@ public final class ProjectInitializer {
             }
         }
         for (final String repo : ImmutableList.of(Project.REPO_META,
+                                                  Project.REPO_MAIN,
                                                   SESSION_REPOSITORY_NAME,
                                                   TOKEN_REPOSITORY_NAME)) {
             try {
