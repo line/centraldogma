@@ -17,18 +17,42 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
+
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public class RemovePluginCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new RemovePluginCommand("foo", "my_plugin"),
+        assertJsonConversion(new RemovePluginCommand(1234L, Author.SYSTEM, "foo", "my_plugin"),
                              Command.class,
                              '{' +
                              "  \"type\": \"REMOVE_PLUGIN\"," +
+                             "  \"timestamp\": 1234," +
+                             "  \"author\": {" +
+                             "    \"name\": \"System\"," +
+                             "    \"email\": \"system@localhost.localdomain\"" +
+                             "  }," +
                              "  \"projectName\": \"foo\"," +
                              "  \"pluginName\": \"my_plugin\"" +
                              '}');
+    }
+
+    @Test
+    public void backwardCompatibility() throws Exception {
+        final RemovePluginCommand c = (RemovePluginCommand) Jackson.readValue(
+                '{' +
+                "  \"type\": \"REMOVE_PLUGIN\"," +
+                "  \"projectName\": \"foo\"," +
+                "  \"pluginName\": \"my_plugin\"" +
+                '}', Command.class);
+
+        assertThat(c.author()).isEqualTo(Author.SYSTEM);
+        assertThat(c.timestamp()).isNotZero();
+        assertThat(c.projectName()).isEqualTo("foo");
+        assertThat(c.pluginName()).isEqualTo("my_plugin");
     }
 }

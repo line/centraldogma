@@ -64,6 +64,6 @@ public class ProjectService extends AbstractService {
     public CompletionStage<ProjectDto> createProject(AggregatedHttpMessage message) throws IOException {
         final Author author = AuthenticationUtil.currentAuthor();
         final ProjectDto dto = Jackson.readValue(message.content().toStringAscii(), ProjectDto.class);
-        return execute(Command.createProject(dto.getName(), author)).thenApply(unused -> dto);
+        return execute(Command.createProject(author, dto.getName())).thenApply(unused -> dto);
     }
 }

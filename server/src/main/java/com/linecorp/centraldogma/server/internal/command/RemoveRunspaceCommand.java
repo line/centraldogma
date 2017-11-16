@@ -16,20 +16,26 @@
 
 package com.linecorp.centraldogma.server.internal.command;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
+
+import com.linecorp.centraldogma.common.Author;
 
 public final class RemoveRunspaceCommand extends RepositoryCommand<Void> {
 
     private final int baseRevision;
 
     @JsonCreator
-    RemoveRunspaceCommand(@JsonProperty("projectName") String projectName,
+    RemoveRunspaceCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                          @JsonProperty("author") @Nullable Author author,
+                          @JsonProperty("projectName") String projectName,
                           @JsonProperty("repositoryName") String repositoryName,
                           @JsonProperty("baseRevision") int baseRevision) {
 
-        super(CommandType.REMOVE_RUNSPACE, projectName, repositoryName);
+        super(CommandType.REMOVE_RUNSPACE, timestamp, author, projectName, repositoryName);
         this.baseRevision = baseRevision;
     }
 

@@ -16,9 +16,13 @@
 
 package com.linecorp.centraldogma.server.internal.command;
 
+import javax.annotation.Nullable;
+
+import com.linecorp.centraldogma.common.Author;
+
 public abstract class RootCommand<T> extends AbstractCommand<T> {
-    RootCommand(CommandType commandType) {
-        super(commandType);
+    RootCommand(CommandType commandType, @Nullable Long timestamp, @Nullable Author author) {
+        super(commandType, timestamp, author);
     }
 
     @Override

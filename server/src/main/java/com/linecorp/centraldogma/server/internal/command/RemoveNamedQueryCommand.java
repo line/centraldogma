@@ -18,18 +18,24 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
+
+import com.linecorp.centraldogma.common.Author;
 
 public final class RemoveNamedQueryCommand extends ProjectCommand<Void> {
 
     private final String queryName;
 
     @JsonCreator
-    RemoveNamedQueryCommand(@JsonProperty("projectName") String projectName,
+    RemoveNamedQueryCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                            @JsonProperty("author") @Nullable Author author,
+                            @JsonProperty("projectName") String projectName,
                             @JsonProperty("queryName") String queryName) {
-        super(CommandType.REMOVE_NAMED_QUERY, projectName);
+        super(CommandType.REMOVE_NAMED_QUERY, timestamp, author, projectName);
         this.queryName = requireNonNull(queryName, "queryName");
     }
 

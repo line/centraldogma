@@ -38,29 +38,25 @@ import com.linecorp.centraldogma.common.Revision;
 public final class PushCommand extends RepositoryCommand<Revision> {
 
     private final Revision baseRevision;
-    private final long commitTimeMillis;
-    private final Author author;
     private final String summary;
     private final String detail;
     private final Markup markup;
     private final List<Change<?>> changes;
 
     @JsonCreator
-    PushCommand(@JsonProperty("projectName") String projectName,
+    PushCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                @JsonProperty("author") @Nullable Author author,
+                @JsonProperty("projectName") String projectName,
                 @JsonProperty("repositoryName") String repositoryName,
                 @JsonProperty("baseRevision") Revision baseRevision,
-                @JsonProperty("commitTimeMillis") @Nullable Long commitTimeMillis,
-                @JsonProperty("author") Author author,
                 @JsonProperty("summary") String summary,
                 @JsonProperty("detail") String detail,
                 @JsonProperty("markup") Markup markup,
                 @JsonProperty("changes") Iterable<Change<?>> changes) {
 
-        super(CommandType.PUSH, projectName, repositoryName);
+        super(CommandType.PUSH, timestamp, author, projectName, repositoryName);
 
         this.baseRevision = requireNonNull(baseRevision, "baseRevision");
-        this.commitTimeMillis = commitTimeMillis != null ? commitTimeMillis : System.currentTimeMillis();
-        this.author = requireNonNull(author, "author");
         this.summary = requireNonNull(summary, "summary");
         this.detail = requireNonNull(detail, "detail");
         this.markup = requireNonNull(markup, "markup");
@@ -73,16 +69,6 @@ public final class PushCommand extends RepositoryCommand<Revision> {
     @JsonProperty
     public Revision baseRevision() {
         return baseRevision;
-    }
-
-    @JsonProperty
-    public long commitTimeMillis() {
-        return commitTimeMillis;
-    }
-
-    @JsonProperty
-    public Author author() {
-        return author;
     }
 
     @JsonProperty
@@ -118,8 +104,6 @@ public final class PushCommand extends RepositoryCommand<Revision> {
         final PushCommand that = (PushCommand) obj;
         return super.equals(that) &&
                baseRevision.equals(that.baseRevision) &&
-               commitTimeMillis == that.commitTimeMillis &&
-               author.equals(that.author) &&
                summary.equals(that.summary) &&
                detail.equals(that.detail) &&
                markup == that.markup &&
@@ -128,16 +112,13 @@ public final class PushCommand extends RepositoryCommand<Revision> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(baseRevision, commitTimeMillis,
-                            author, summary, detail, markup, changes) * 31 + super.hashCode();
+        return Objects.hash(baseRevision, summary, detail, markup, changes) * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
                     .add("baseRevision", baseRevision)
-                    .add("commitTimeMillis", commitTimeMillis)
-                    .add("author", author)
                     .add("summary", summary)
                     .add("markup", markup);
     }

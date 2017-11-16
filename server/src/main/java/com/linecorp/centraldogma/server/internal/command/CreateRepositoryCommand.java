@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Objects;
-
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -31,34 +29,20 @@ import com.linecorp.centraldogma.common.Author;
 public final class CreateRepositoryCommand extends ProjectCommand<Void> {
 
     private final String repositoryName;
-    private final long creationTimeMillis;
-    private final Author author;
 
     @JsonCreator
-    CreateRepositoryCommand(@JsonProperty("projectName") String projectName,
-                            @JsonProperty("repositoryName") String repositoryName,
-                            @JsonProperty("creationTimeMillis") @Nullable Long creationTimeMillis,
-                            @JsonProperty("author") @Nullable Author author) {
+    CreateRepositoryCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                            @JsonProperty("author") @Nullable Author author,
+                            @JsonProperty("projectName") String projectName,
+                            @JsonProperty("repositoryName") String repositoryName) {
 
-        super(CommandType.CREATE_REPOSITORY, projectName);
+        super(CommandType.CREATE_REPOSITORY, timestamp, author, projectName);
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
-        this.creationTimeMillis = creationTimeMillis != null ? creationTimeMillis : System.currentTimeMillis();
-        this.author = author != null ? author : Author.SYSTEM;
     }
 
     @JsonProperty
     public String repositoryName() {
         return repositoryName;
-    }
-
-    @JsonProperty
-    public long creationTimeMillis() {
-        return creationTimeMillis;
-    }
-
-    @JsonProperty
-    public Author author() {
-        return author;
     }
 
     @Override
@@ -73,20 +57,17 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
 
         final CreateRepositoryCommand that = (CreateRepositoryCommand) obj;
         return super.equals(obj) &&
-               repositoryName.equals(that.repositoryName) &&
-               creationTimeMillis == that.creationTimeMillis &&
-               author.equals(that.author);
+               repositoryName.equals(that.repositoryName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(repositoryName, creationTimeMillis, author) * 31 + super.hashCode();
+        return repositoryName.hashCode() * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
-                    .add("repositoryName", repositoryName)
-                    .add("creationTimeMillis", creationTimeMillis);
+                    .add("repositoryName", repositoryName);
     }
 }

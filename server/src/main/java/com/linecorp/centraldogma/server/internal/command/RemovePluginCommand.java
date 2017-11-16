@@ -18,19 +18,25 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
+
+import com.linecorp.centraldogma.common.Author;
 
 public final class RemovePluginCommand extends ProjectCommand<Void> {
 
     private final String pluginName;
 
     @JsonCreator
-    RemovePluginCommand(@JsonProperty("projectName") String projectName,
+    RemovePluginCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                        @JsonProperty("author") @Nullable Author author,
+                        @JsonProperty("projectName") String projectName,
                         @JsonProperty("pluginName") String pluginName) {
 
-        super(CommandType.REMOVE_PLUGIN, projectName);
+        super(CommandType.REMOVE_PLUGIN, timestamp, author, projectName);
         this.pluginName = requireNonNull(pluginName, "pluginName");
     }
 

@@ -17,21 +17,29 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public class SaveNamedQueryCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new SaveNamedQueryCommand("foo", "bar", true, "qux",
+        assertJsonConversion(new SaveNamedQueryCommand(1234L, Author.SYSTEM, "foo", "bar", true, "qux",
                                                        Query.identity("/first.txt"),
                                                        "plaintext comment", Markup.PLAINTEXT),
                              Command.class,
                              '{' +
                              "  \"type\": \"SAVE_NAMED_QUERY\"," +
+                             "  \"timestamp\": 1234," +
+                             "  \"author\": {" +
+                             "    \"name\": \"System\"," +
+                             "    \"email\": \"system@localhost.localdomain\"" +
+                             "  }," +
                              "  \"projectName\": \"foo\"," +
                              "  \"queryName\": \"bar\"," +
                              "  \"enabled\": true," +
@@ -44,12 +52,17 @@ public class SaveNamedQueryCommandTest {
                              "  \"markup\": \"PLAINTEXT\"" +
                              '}');
 
-        assertJsonConversion(new SaveNamedQueryCommand("qux", "foo", false, "bar",
+        assertJsonConversion(new SaveNamedQueryCommand(1234L, Author.SYSTEM, "qux", "foo", false, "bar",
                                                        Query.ofJsonPath("/second.json", "$..author", "$..name"),
                                                        "markdown comment", Markup.MARKDOWN),
                              Command.class,
                              '{' +
                              "  \"type\": \"SAVE_NAMED_QUERY\"," +
+                             "  \"timestamp\": 1234," +
+                             "  \"author\": {" +
+                             "    \"name\": \"System\"," +
+                             "    \"email\": \"system@localhost.localdomain\"" +
+                             "  }," +
                              "  \"projectName\": \"qux\"," +
                              "  \"queryName\": \"foo\"," +
                              "  \"enabled\": false," +
@@ -62,5 +75,33 @@ public class SaveNamedQueryCommandTest {
                              "  \"comment\": \"markdown comment\"," +
                              "  \"markup\": \"MARKDOWN\"" +
                              '}');
+    }
+
+    @Test
+    public void backwardCompatibility() throws Exception {
+        final SaveNamedQueryCommand c = (SaveNamedQueryCommand) Jackson.readValue(
+                '{' +
+                "  \"type\": \"SAVE_NAMED_QUERY\"," +
+                "  \"projectName\": \"foo\"," +
+                "  \"queryName\": \"bar\"," +
+                "  \"enabled\": true," +
+                "  \"repositoryName\": \"qux\"," +
+                "  \"query\": {" +
+                "    \"type\": \"IDENTITY\"," +
+                "    \"path\": \"/first.txt\"" +
+                "  }," +
+                "  \"comment\": \"plaintext comment\"," +
+                "  \"markup\": \"PLAINTEXT\"" +
+                '}', Command.class);
+
+        assertThat(c.author()).isEqualTo(Author.SYSTEM);
+        assertThat(c.timestamp()).isNotZero();
+        assertThat(c.projectName()).isEqualTo("foo");
+        assertThat(c.queryName()).isEqualTo("bar");
+        assertThat(c.isEnabled()).isTrue();
+        assertThat(c.repositoryName()).isEqualTo("qux");
+        assertThat(c.query()).isEqualTo(Query.identity("/first.txt"));
+        assertThat(c.comment()).isEqualTo("plaintext comment");
+        assertThat(c.markup()).isSameAs(Markup.PLAINTEXT);
     }
 }

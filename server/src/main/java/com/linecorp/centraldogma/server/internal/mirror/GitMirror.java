@@ -217,8 +217,8 @@ public final class GitMirror extends Mirror {
             });
 
             executor.execute(Command.push(
-                    localRepo().parent().name(), localRepo().name(),
-                    Revision.HEAD, MIRROR_AUTHOR, summary, "", Markup.PLAINTEXT, changes.values())).join();
+                    MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
+                    Revision.HEAD, summary, "", Markup.PLAINTEXT, changes.values())).join();
         }
     }
 

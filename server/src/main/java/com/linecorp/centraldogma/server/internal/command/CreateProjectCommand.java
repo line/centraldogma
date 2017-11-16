@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Objects;
-
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -31,32 +29,18 @@ import com.linecorp.centraldogma.common.Author;
 public final class CreateProjectCommand extends RootCommand<Void> {
 
     private final String projectName;
-    private final long creationTimeMillis;
-    private final Author author;
 
     @JsonCreator
-    CreateProjectCommand(@JsonProperty("projectName") String projectName,
-                         @JsonProperty("creationTimeMillis") @Nullable Long creationTimeMillis,
-                         @JsonProperty("author") @Nullable Author author) {
-        super(CommandType.CREATE_PROJECT);
+    CreateProjectCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                         @JsonProperty("author") @Nullable Author author,
+                         @JsonProperty("projectName") String projectName) {
+        super(CommandType.CREATE_PROJECT, timestamp, author);
         this.projectName = requireNonNull(projectName, "projectName");
-        this.creationTimeMillis = creationTimeMillis != null ? creationTimeMillis : System.currentTimeMillis();
-        this.author = author != null ? author : Author.SYSTEM;
     }
 
     @JsonProperty
     public String projectName() {
         return projectName;
-    }
-
-    @JsonProperty
-    public long creationTimeMillis() {
-        return creationTimeMillis;
-    }
-
-    @JsonProperty
-    public Author author() {
-        return author;
     }
 
     @Override
@@ -71,20 +55,17 @@ public final class CreateProjectCommand extends RootCommand<Void> {
 
         final CreateProjectCommand that = (CreateProjectCommand) obj;
         return super.equals(obj) &&
-               projectName.equals(that.projectName) &&
-               creationTimeMillis == that.creationTimeMillis &&
-               author.equals(that.author);
+               projectName.equals(that.projectName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(projectName, creationTimeMillis, author) * 31 + super.hashCode();
+        return projectName.hashCode() * 31 + super.hashCode();
     }
 
     @Override
     ToStringHelper toStringHelper() {
         return super.toStringHelper()
-                    .add("projectName", projectName)
-                    .add("creationTimeMillis", creationTimeMillis);
+                    .add("projectName", projectName);
     }
 }
