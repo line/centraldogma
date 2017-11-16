@@ -61,8 +61,8 @@ import com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
 import com.linecorp.centraldogma.server.internal.admin.exception.BadRequestException;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.httpapi.AbstractService;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -77,9 +77,8 @@ public class RepositoryService extends AbstractService {
 
     private static final Splitter termSplitter = Splitter.on(',').trimResults().omitEmptyStrings();
 
-    public RepositoryService(ProjectManager projectManager,
-                             CommandExecutor executor) {
-        super(new SafeProjectManager(projectManager), executor);
+    public RepositoryService(ProjectManager projectManager, CommandExecutor executor) {
+        super(projectManager, executor);
     }
 
     /**

@@ -18,21 +18,28 @@ package com.linecorp.centraldogma.server.internal.admin.service;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
+import com.linecorp.armeria.server.annotation.Param;
+import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
+import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.admin.dto.ProjectDto;
+import com.linecorp.centraldogma.server.internal.admin.model.ProjectInfo;
+import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.httpapi.AbstractService;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 
 /**
  * Annotated service object for managing projects.
@@ -41,9 +48,8 @@ public class ProjectService extends AbstractService {
 
     private final MetadataService mds;
 
-    public ProjectService(ProjectManager projectManager,
-                          CommandExecutor executor) {
-        super(new SafeProjectManager(projectManager), executor);
+    public ProjectService(ProjectManager projectManager, CommandExecutor executor) {
+        super(projectManager, executor);
         mds = new MetadataService(projectManager, executor);
         mds.initialize();
     }
@@ -73,7 +79,6 @@ public class ProjectService extends AbstractService {
 
     // TODO(hyangtack) Test APIs to manipulate metadata.
     //                 These test APIs would be merged into existing HTTP APIs.
-    /*
     @Get("/mds/projects")
     public CompletionStage<List<ProjectInfo>> listProjectInfo() {
         return mds.findProjects(AuthenticationUtil.currentUser());
@@ -122,5 +127,4 @@ public class ProjectService extends AbstractService {
         return mds.changeRole(projectName, AuthenticationUtil.currentAuthor(), new User(user),
                               ProjectRole.of(role));
     }
-    */
 }

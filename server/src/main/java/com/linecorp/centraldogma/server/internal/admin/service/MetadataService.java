@@ -53,6 +53,7 @@ import com.linecorp.centraldogma.server.internal.admin.model.UserAndTimestamp;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializer;
+import com.linecorp.centraldogma.server.internal.httpapi.AbstractService;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectNotFoundException;

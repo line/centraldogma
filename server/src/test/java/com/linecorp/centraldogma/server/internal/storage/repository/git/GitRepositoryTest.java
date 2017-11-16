@@ -778,7 +778,7 @@ public class GitRepositoryTest {
 
         commits = repo.history(new Revision(1), lastTextCommit, jsonPath).join();
         commitsRel = repo.history(new Revision(1), lastTextCommitRel, jsonPath).join();
-        assertThat(commits).hasSize(jsonPatches.length + 1) // # of JSON patches + the initial empty commit
+        assertThat(commits).hasSize(jsonPatches.length) // # of JSON patches
                            .isEqualTo(commitsRel);
 
         commits = repo.history(firstTextCommit, lastTextCommit, textPath).join();
@@ -798,7 +798,7 @@ public class GitRepositoryTest {
 
         commits = repo.history(new Revision(1), lastTextCommit, textPath).join();
         commitsRel = repo.history(new Revision(1), lastTextCommitRel, textPath).join();
-        assertThat(commits).hasSize(textPatches.length + 1) // # of text patches + the initial empty commit
+        assertThat(commits).hasSize(textPatches.length) // # of text patches
                            .isEqualTo(commitsRel);
     }
 
@@ -818,8 +818,8 @@ public class GitRepositoryTest {
         }
 
         List<Commit> jsonCommits = repo.history(HEAD, new Revision(1), jsonPath).join();
-        // # of JSON commits + the initial empty commit
-        assertThat(jsonCommits).hasSize(jsonPatches.length + 1);
+        // # of JSON commits
+        assertThat(jsonCommits).hasSize(jsonPatches.length);
 
         for (Commit c : jsonCommits) {
             if (c.revision().major() > 1) {
@@ -829,8 +829,8 @@ public class GitRepositoryTest {
         }
 
         List<Commit> textCommits = repo.history(HEAD, new Revision(1), textPath).join();
-        // # of text commits + the initial empty commit
-        assertThat(textCommits).hasSize(textPatches.length + 1);
+        // # of text commits
+        assertThat(textCommits).hasSize(textPatches.length);
 
         for (Commit c : textCommits) {
             if (c.revision().major() > 1) {
@@ -849,8 +849,13 @@ public class GitRepositoryTest {
 
         List<Commit> commits;
 
-        // Should include the initial empty commit as long as the range contains 1.
+        // Even though the range contains 1, if the path is specified and does not contain "/**",
+        // it should not include the initial commit.
         commits = repo.history(HEAD, new Revision(1), "non_existing_path").join();
+        assertThat(commits).hasSize(0);
+
+        // Should include the initial empty commit if the range contain 1 and the path contains "/**".
+        commits = repo.history(HEAD, HEAD, "/**").join();
         assertThat(commits).hasSize(1);
 
         // Should not include the initial empty commit if the range does not contain 1.

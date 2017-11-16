@@ -24,22 +24,15 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.thrift.async.AsyncMethodCallback;
 
-import com.linecorp.armeria.common.RequestContext;
-import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.internal.thrift.Author;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaConstants;
@@ -61,17 +54,14 @@ import com.linecorp.centraldogma.internal.thrift.WatchFileResult;
 import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.httpapi.WatchService;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
-import io.netty.channel.EventLoop;
-
 public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     private static final Map<FindOption<?>, Object> LIST_FILES_FIND_OPTIONS = new IdentityHashMap<>();
-    private static final CancellationException CANCELLATION_EXCEPTION =
-            Exceptions.clearTrace(new CancellationException("watch timed out"));
 
     static {
         LIST_FILES_FIND_OPTIONS.put(FindOption.FETCH_CONTENT, false);
@@ -79,25 +69,13 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     private final ProjectManager projectManager;
     private final CommandExecutor executor;
+    private final WatchService watchService;
 
-    private final Set<CompletableFuture<?>> pendingFutures =
-            Collections.newSetFromMap(new ConcurrentHashMap<CompletableFuture<?>, Boolean>());
-
-    private volatile boolean serverStopping;
-
-    public CentralDogmaServiceImpl(ProjectManager projectManager, CommandExecutor executor) {
+    public CentralDogmaServiceImpl(ProjectManager projectManager, CommandExecutor executor,
+                                   WatchService watchService) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.executor = requireNonNull(executor, "executor");
-    }
-
-    public void serverStopping() {
-        serverStopping = true;
-        final CompletableFuture<?>[] futures =
-                pendingFutures.toArray(new CompletableFuture[pendingFutures.size()]);
-        for (CompletableFuture<?> f : futures) {
-            pendingFutures.remove(f);
-            f.cancel(false);
-        }
+        this.watchService = requireNonNull(watchService, "watchService");
     }
 
     private static void handle(CompletableFuture<?> future, AsyncMethodCallback resultHandler) {
@@ -297,54 +275,27 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             String projectName, String repositoryName, Revision lastKnownRevision,
             String pathPattern, long timeoutMillis, AsyncMethodCallback resultHandler) {
 
-        if (serverStopping) {
+        if (watchService.isServerStopping()) {
             resultHandler.onError(new CentralDogmaException(ErrorCode.SHUTTING_DOWN));
             return;
         }
 
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
-        final com.linecorp.centraldogma.common.Revision lastKnownRev0 = convert(lastKnownRevision);
-        final CompletableFuture<com.linecorp.centraldogma.common.Revision> f =
-                repo.watch(lastKnownRev0, pathPattern);
-        pendingFutures.add(f);
-
-        if (f.isDone()) {
-            handleWatchRepositoryResult(f, resultHandler);
-            return;
-        }
-
-        final ScheduledFuture<?> timeoutFuture;
-        if (timeoutMillis > 0) {
-            final EventLoop eventLoop = RequestContext.current().eventLoop();
-            timeoutFuture = eventLoop.schedule(() -> f.completeExceptionally(CANCELLATION_EXCEPTION),
-                                               timeoutMillis, TimeUnit.MILLISECONDS);
-        } else {
-            timeoutFuture = null;
-        }
-
-        f.whenComplete((revision, cause) -> {
-            if (timeoutFuture != null) {
-                timeoutFuture.cancel(true);
-            }
-
-            handleWatchRepositoryResult(f, resultHandler);
-        });
+        final CompletableFuture<com.linecorp.centraldogma.common.Revision> future =
+                watchService.watchRepository(repo, convert(lastKnownRevision), pathPattern, timeoutMillis);
+        handleWatchRepositoryResult(future, resultHandler);
     }
 
     private void handleWatchRepositoryResult(
             CompletableFuture<com.linecorp.centraldogma.common.Revision> future,
             AsyncMethodCallback resultHandler) {
-
-        assert future.isDone();
-        pendingFutures.remove(future);
-
         future.handle(voidFunction((res, cause) -> {
             if (cause == null) {
                 final WatchRepositoryResult wrr = new WatchRepositoryResult();
                 wrr.setRevision(convert(res));
                 resultHandler.onComplete(wrr);
             } else if (cause instanceof CancellationException) {
-                if (serverStopping) {
+                if (watchService.isServerStopping()) {
                     resultHandler.onError(new CentralDogmaException(ErrorCode.SHUTTING_DOWN));
                 } else {
                     resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_REPOSITORY_RESULT);
@@ -359,44 +310,15 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     public void watchFile(
             String projectName, String repositoryName, Revision lastKnownRevision,
             Query query, long timeoutMillis, AsyncMethodCallback resultHandler) {
-
-        if (serverStopping) {
-            resultHandler.onError(new CentralDogmaException(ErrorCode.SHUTTING_DOWN));
-            return;
-        }
-
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
-        final com.linecorp.centraldogma.common.Revision lastKnownRev0 = convert(lastKnownRevision);
-        final CompletableFuture<QueryResult<Object>> f = repo.watch(lastKnownRev0, convert(query));
-        pendingFutures.add(f);
+        final CompletableFuture<QueryResult<Object>> future =
+                watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis);
 
-        if (f.isDone()) {
-            handleWatchFileResult(f, resultHandler);
-            return;
-        }
-
-        final ScheduledFuture<?> timeoutFuture;
-        if (timeoutMillis > 0) {
-            final EventLoop eventLoop = RequestContext.current().eventLoop();
-            timeoutFuture = eventLoop.schedule(() -> f.completeExceptionally(CANCELLATION_EXCEPTION),
-                                               timeoutMillis, TimeUnit.MILLISECONDS);
-        } else {
-            timeoutFuture = null;
-        }
-
-        f.whenComplete((result, cause) -> {
-            if (timeoutFuture != null) {
-                timeoutFuture.cancel(true);
-            }
-
-            handleWatchFileResult(f, resultHandler);
-        });
+        handleWatchFileResult(future, resultHandler);
     }
 
     private void handleWatchFileResult(
             CompletableFuture<QueryResult<Object>> future, AsyncMethodCallback resultHandler) {
-        assert future.isDone();
-        pendingFutures.remove(future);
         future.handle(voidFunction((res, cause) -> {
             if (cause == null) {
                 final WatchFileResult wfr = new WatchFileResult();
@@ -405,7 +327,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 wfr.setContent(res.contentAsText());
                 resultHandler.onComplete(wfr);
             } else if (cause instanceof CancellationException) {
-                if (serverStopping) {
+                if (watchService.isServerStopping()) {
                     resultHandler.onError(new CentralDogmaException(ErrorCode.SHUTTING_DOWN));
                 } else {
                     resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_FILE_RESULT);

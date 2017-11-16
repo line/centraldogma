@@ -83,6 +83,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -341,32 +342,13 @@ class GitRepository implements Repository {
         return oldTagFile.exists();
     }
 
+    // TODO(minwoox) chagne this method to return just Revision? Does this method have to be async???
     @Override
     public CompletableFuture<Revision> normalize(Revision revision) {
-        final int maxMajor = headRevision.major();
-
-        int major = revision.major();
-
-        if (major >= 0) {
-            if (major > maxMajor) {
-                final CompletableFuture<Revision> future = new CompletableFuture<>();
-                future.completeExceptionally(new RevisionNotFoundException(revision));
-                return future;
-            }
-        } else {
-            major = maxMajor + major + 1;
-            if (major <= 0) {
-                final CompletableFuture<Revision> future = new CompletableFuture<>();
-                future.completeExceptionally(new RevisionNotFoundException(revision));
-                return future;
-            }
-        }
-
-        // Create a new instance only when necessary.
-        if (revision.major() == major) {
-            return CompletableFuture.completedFuture(revision);
-        } else {
-            return CompletableFuture.completedFuture(new Revision(major));
+        try {
+            return CompletableFuture.completedFuture(blockingNormalize(revision));
+        } catch (RevisionNotFoundException e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
         }
     }
 
@@ -568,7 +550,9 @@ class GitRepository implements Repository {
             // Handle the case where the last commit was not visited by the RevWalk,
             // which can happen when the commit is empty.  In our repository, an empty commit can only be made
             // when a new repository is created.
-            if (needsLastCommit) {
+            // If the pathPattern does not contain "/**", the caller wants commits only with the specific path,
+            // so skip the empty commit.
+            if (needsLastCommit && pathPattern.contains(ALL_PATH)) {
                 try (RevWalk tmpRevWalk = new RevWalk(jGitRepository)) {
                     final RevCommit lastRevCommit = tmpRevWalk.parseCommit(toCommitId);
                     final Revision lastCommitRevision =

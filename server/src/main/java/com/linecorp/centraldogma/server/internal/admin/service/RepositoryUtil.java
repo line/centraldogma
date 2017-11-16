@@ -26,6 +26,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.command.Command;
+import com.linecorp.centraldogma.server.internal.httpapi.AbstractService;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 
 /**

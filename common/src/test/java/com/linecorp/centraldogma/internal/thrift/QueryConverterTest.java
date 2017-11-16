@@ -35,8 +35,8 @@ public class QueryConverterTest {
                                                           .setExpressions(Collections.emptyList());
 
     private static final com.linecorp.centraldogma.common.Query<JsonNode> JSON_PATH_MODEL =
-            com.linecorp.centraldogma.common.Query.ofJsonPath("/a.txt", "a", "b");
-    private static final Query JSON_PATH_DATA = new Query().setPath("/a.txt")
+            com.linecorp.centraldogma.common.Query.ofJsonPath("/a.json", "a", "b");
+    private static final Query JSON_PATH_DATA = new Query().setPath("/a.json")
                                                            .setType(QueryType.JSON_PATH)
                                                            .setExpressions(ImmutableList.of("a", "b"));
 

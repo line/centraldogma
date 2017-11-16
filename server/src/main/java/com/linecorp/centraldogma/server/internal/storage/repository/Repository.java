@@ -141,7 +141,7 @@ public interface Repository {
     }
 
     /**
-     * Retrieves an {@link Entry} at the specified {@code path}. {@code other} is returned
+     * Retrieves an {@link Entry} at the specified {@code path}.
      *
      * @return the {@link Entry} at the specified {@code path} if exists.
      *         The specified {@code other} if there's no such {@link Entry}.
@@ -219,9 +219,20 @@ public interface Repository {
         requireNonNull(to, "to");
         requireNonNull(query, "query");
 
+        Revision normalizedFrom = normalize(from).join();
+        Revision normalizedTo = normalize(to).join();
+
+        // If the from revision is newer than the to revision,
+        // swap them to compare from old to new one always.
+        if (normalizedFrom.major() > normalizedTo.major() || normalizedFrom.minor() > normalizedTo.minor()) {
+            Revision temp = normalizedFrom;
+            normalizedFrom = normalizedTo;
+            normalizedTo = temp;
+        }
+
         final String path = query.path();
-        final CompletableFuture<Entry<?>> fromEntryFuture = getOrElse(from, path, null);
-        final CompletableFuture<Entry<?>> toEntryFuture = getOrElse(to, path, null);
+        final CompletableFuture<Entry<?>> fromEntryFuture = getOrElse(normalizedFrom, path, null);
+        final CompletableFuture<Entry<?>> toEntryFuture = getOrElse(normalizedTo, path, null);
 
         final CompletableFuture<Change<?>> future =
                 CompletableFutures.combine(fromEntryFuture, toEntryFuture, (fromEntry, toEntry) -> {

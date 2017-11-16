@@ -54,6 +54,7 @@ import com.linecorp.centraldogma.server.internal.admin.authentication.Authentica
 import com.linecorp.centraldogma.server.internal.admin.authentication.Token;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.httpapi.AbstractService;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 
 /**

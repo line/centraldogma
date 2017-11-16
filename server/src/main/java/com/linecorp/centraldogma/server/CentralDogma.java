@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
 import static java.util.Objects.requireNonNull;
 
@@ -96,11 +97,18 @@ import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseC
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.internal.httpapi.CommitServiceV1;
+import com.linecorp.centraldogma.server.internal.httpapi.ContentServiceV1;
+import com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1ResponseConverter;
+import com.linecorp.centraldogma.server.internal.httpapi.ProjectServiceV1;
+import com.linecorp.centraldogma.server.internal.httpapi.RepositoryServiceV1;
+import com.linecorp.centraldogma.server.internal.httpapi.WatchService;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringService;
 import com.linecorp.centraldogma.server.internal.replication.ReplicationException;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
@@ -344,7 +352,15 @@ public class CentralDogma {
         cfg.gracefulShutdownTimeout().ifPresent(
                 t -> sb.gracefulShutdownTimeout(t.quietPeriodMillis(), t.timeoutMillis()));
 
-        configureThriftService(sb, pm, executor);
+        final WatchService watchService = new WatchService();
+        sb.serverListener(new ServerListenerAdapter() {
+            @Override
+            public void serverStopping(Server server) {
+                watchService.serverStopping();
+            }
+        });
+
+        configureThriftService(sb, pm, executor, watchService);
 
         sb.service("/hostname", HttpFileService.forVfs(
                 (path, encoding) -> new ByteArrayEntry(
@@ -391,9 +407,7 @@ public class CentralDogma {
                                                "bearer " + CsrfToken.ANONYMOUS))
                                                .build());
 
-        if (cfg.isWebAppEnabled()) {
-            configureWebAdmin(sb, pm, executor, securityManager);
-        }
+        configureHttpApi(sb, pm, executor, securityManager, watchService);
 
         final Server s = sb.build();
         s.start().join();
@@ -456,16 +470,10 @@ public class CentralDogma {
                                        .build();
     }
 
-    private void configureThriftService(ServerBuilder sb, ProjectManager pm, CommandExecutor executor) {
+    private void configureThriftService(ServerBuilder sb, ProjectManager pm, CommandExecutor executor,
+                                        WatchService watchService) {
         final CentralDogmaServiceImpl service =
-                new CentralDogmaServiceImpl(pm, executor);
-
-        sb.serverListener(new ServerListenerAdapter() {
-            @Override
-            public void serverStopping(Server server) {
-                service.serverStopping();
-            }
-        });
+                new CentralDogmaServiceImpl(pm, executor, watchService);
 
         Service<HttpRequest, HttpResponse> thriftService =
                 ThriftCallService.of(service)
@@ -482,10 +490,9 @@ public class CentralDogma {
         sb.service("/cd/thrift/v1", thriftService);
     }
 
-    private void configureWebAdmin(ServerBuilder sb,
-                                   ProjectManager pm, CommandExecutor executor,
-                                   SecurityManager securityManager) {
-        final String apiPathPrefix = "/api/v0/";
+    private void configureHttpApi(ServerBuilder sb, ProjectManager pm, CommandExecutor executor,
+                                  SecurityManager securityManager, WatchService watchService) {
+        final String apiV0PathPrefix = "/api/v0/";
 
         final TokenService tokenService = new TokenService(pm, executor);
 
@@ -493,8 +500,8 @@ public class CentralDogma {
                         ? extends Service<HttpRequest, HttpResponse>> decorator;
         if (cfg.isSecurityEnabled()) {
             requireNonNull(securityManager, "securityManager");
-            sb.service(apiPathPrefix + "authenticate", new LoginService(securityManager))
-              .service(apiPathPrefix + "logout", new LogoutService(securityManager));
+            sb.service(apiV0PathPrefix + "authenticate", new LoginService(securityManager))
+              .service(apiV0PathPrefix + "logout", new LogoutService(securityManager));
 
             final ApplicationTokenAuthorizer ata = new ApplicationTokenAuthorizer(tokenService::findToken);
             final SessionTokenAuthorizer sta = new SessionTokenAuthorizer(securityManager);
@@ -504,16 +511,32 @@ public class CentralDogma {
             decorator = HttpAuthService.newDecorator(new CsrfTokenAuthorizer());
         }
 
-        final Map<Class<?>, ResponseConverter> converters = ImmutableMap.of(
-                Object.class, new RestfulJsonResponseConverter()  // Default converter
+        final Map<Class<?>, ResponseConverter> httpApiV1converters = ImmutableMap.of(
+                Object.class, new HttpApiV1ResponseConverter()
         );
+        final SafeProjectManager safePm = new SafeProjectManager(pm);
+        sb.annotatedService(API_V1_PATH_PREFIX, new ProjectServiceV1(safePm, executor),
+                            httpApiV1converters, decorator);
+        sb.annotatedService(API_V1_PATH_PREFIX, new RepositoryServiceV1(safePm, executor),
+                            httpApiV1converters, decorator);
+        sb.annotatedService(API_V1_PATH_PREFIX, new ContentServiceV1(safePm, executor, watchService),
+                            httpApiV1converters, decorator);
+        sb.annotatedService(API_V1_PATH_PREFIX, new CommitServiceV1(safePm, executor),
+                            httpApiV1converters, decorator);
 
-        // TODO(hyangtack): Simplify this if https://github.com/line/armeria/issues/582 is resolved.
-        sb.annotatedService(apiPathPrefix, new UserService(pm, executor), converters, decorator)
-          .annotatedService(apiPathPrefix, new ProjectService(pm, executor), converters, decorator)
-          .annotatedService(apiPathPrefix, new RepositoryService(pm, executor), converters, decorator)
-          .annotatedService(apiPathPrefix, tokenService, converters, decorator)
-          .serviceUnder("/", HttpFileService.forClassPath("webapp"));
+        if (cfg.isWebAppEnabled()) {
+            final Map<Class<?>, ResponseConverter> converters = ImmutableMap.of(
+                    Object.class, new RestfulJsonResponseConverter()
+            );
+
+            // TODO(hyangtack): Simplify this if https://github.com/line/armeria/issues/582 is resolved.
+            sb.annotatedService(apiV0PathPrefix, new UserService(safePm, executor), converters, decorator)
+              .annotatedService(apiV0PathPrefix, new ProjectService(safePm, executor), converters, decorator)
+              .annotatedService(apiV0PathPrefix, new RepositoryService(safePm, executor), converters, decorator)
+              .annotatedService(apiV0PathPrefix, tokenService, converters, decorator);
+        }
+
+        sb.serviceUnder("/", HttpFileService.forClassPath("webapp"));
     }
 
     private static SecurityManager createSecurityManager(Ini securityConfig, SessionManager sessionManager) {

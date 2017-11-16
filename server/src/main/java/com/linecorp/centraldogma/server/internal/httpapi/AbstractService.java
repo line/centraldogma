@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.admin.service;
+package com.linecorp.centraldogma.server.internal.httpapi;
 
 import static java.util.Objects.requireNonNull;
 
@@ -25,28 +25,27 @@ import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 
 /**
- * A base service class for CentralDogma admin service.
+ * A base service class for HTTP API.
  */
-class AbstractService {
+public class AbstractService {
 
     private final ProjectManager projectManager;
     private final CommandExecutor executor;
 
-    AbstractService(ProjectManager projectManager,
-                    CommandExecutor executor) {
+    protected AbstractService(ProjectManager projectManager, CommandExecutor executor) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.executor = requireNonNull(executor, "executor");
     }
 
-    final ProjectManager projectManager() {
+    public final ProjectManager projectManager() {
         return projectManager;
     }
 
-    final CommandExecutor executor() {
+    public final CommandExecutor executor() {
         return executor;
     }
 
-    <T> CompletableFuture<T> execute(Command<T> command) {
+    public <T> CompletableFuture<T> execute(Command<T> command) {
         return executor().execute(command);
     }
 }
