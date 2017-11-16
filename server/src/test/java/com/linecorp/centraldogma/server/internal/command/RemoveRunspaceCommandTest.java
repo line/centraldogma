@@ -17,19 +17,45 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
+
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public class RemoveRunspaceCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new RemoveRunspaceCommand("foo", "bar", 42),
+        assertJsonConversion(new RemoveRunspaceCommand(1234L, Author.SYSTEM, "foo", "bar", 42),
                              Command.class,
                              '{' +
                              "  \"type\": \"REMOVE_RUNSPACE\"," +
+                             "  \"timestamp\": 1234," +
+                             "  \"author\": {" +
+                             "    \"name\": \"System\"," +
+                             "    \"email\": \"system@localhost.localdomain\"" +
+                             "  }," +
                              "  \"projectName\": \"foo\"," +
                              "  \"repositoryName\": \"bar\"," +
                              "  \"baseRevision\": 42" +
                              '}');
+    }
+
+    @Test
+    public void backwardCompatibility() throws Exception {
+        final RemoveRunspaceCommand c = (RemoveRunspaceCommand) Jackson.readValue(
+                '{' +
+                "  \"type\": \"REMOVE_RUNSPACE\"," +
+                "  \"projectName\": \"foo\"," +
+                "  \"repositoryName\": \"bar\"," +
+                "  \"baseRevision\": 42" +
+                '}', Command.class);
+
+        assertThat(c.author()).isEqualTo(Author.SYSTEM);
+        assertThat(c.timestamp()).isNotZero();
+        assertThat(c.projectName()).isEqualTo("foo");
+        assertThat(c.repositoryName()).isEqualTo("bar");
+        assertThat(c.baseRevision()).isEqualTo(42);
     }
 }

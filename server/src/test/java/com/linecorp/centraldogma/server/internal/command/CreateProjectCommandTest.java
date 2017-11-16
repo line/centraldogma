@@ -17,24 +17,39 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public class CreateProjectCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new CreateProjectCommand("foo", 1234L, new Author("foo", "bar@baz.com")),
+        assertJsonConversion(new CreateProjectCommand(1234L, new Author("foo", "bar@baz.com"), "foo"),
                              Command.class,
                              '{' +
                              "  \"type\": \"CREATE_PROJECT\"," +
-                             "  \"projectName\": \"foo\"," +
-                             "  \"creationTimeMillis\": 1234," +
+                             "  \"timestamp\": 1234," +
                              "  \"author\": {" +
                              "    \"name\": \"foo\"," +
                              "    \"email\": \"bar@baz.com\"" +
-                             "  }" +
+                             "  }," +
+                             "  \"projectName\": \"foo\"" +
                              '}');
+    }
+
+    @Test
+    public void backwardCompatibility() throws Exception {
+        final CreateProjectCommand c = (CreateProjectCommand) Jackson.readValue(
+                '{' +
+                "  \"type\": \"CREATE_PROJECT\"," +
+                "  \"projectName\": \"foo\"" +
+                '}', Command.class);
+
+        assertThat(c.author()).isEqualTo(Author.SYSTEM);
+        assertThat(c.timestamp()).isNotZero();
+        assertThat(c.projectName()).isEqualTo("foo");
     }
 }

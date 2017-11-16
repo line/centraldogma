@@ -121,17 +121,17 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void createProject(String name, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.createProject(name, SYSTEM)), resultHandler);
+        handle(executor.execute(Command.createProject(SYSTEM, name)), resultHandler);
     }
 
     @Override
     public void removeProject(String name, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.removeProject(name)), resultHandler);
+        handle(executor.execute(Command.removeProject(SYSTEM, name)), resultHandler);
     }
 
     @Override
     public void unremoveProject(String name, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.unremoveProject(name)), resultHandler);
+        handle(executor.execute(Command.unremoveProject(SYSTEM, name)), resultHandler);
     }
 
     @Override
@@ -153,20 +153,21 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void createRepository(
             String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.createRepository(projectName, repositoryName, SYSTEM)),
+        handle(executor.execute(Command.createRepository(SYSTEM, projectName, repositoryName)),
                resultHandler);
     }
 
     @Override
     public void removeRepository(
             String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.removeRepository(projectName, repositoryName)), resultHandler);
+        handle(executor.execute(Command.removeRepository(SYSTEM, projectName, repositoryName)), resultHandler);
     }
 
     @Override
     public void unremoveRepository(
             String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.unremoveRepository(projectName, repositoryName)), resultHandler);
+        handle(executor.execute(Command.unremoveRepository(SYSTEM, projectName, repositoryName)),
+               resultHandler);
     }
 
     @Override
@@ -260,10 +261,9 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                      String summary, Comment detail, List<Change> changes, AsyncMethodCallback resultHandler) {
 
         // TODO(trustin): Change Repository.commit() to return a Commit.
-        handle(executor.execute(Command.push(projectName, repositoryName, convert(baseRevision),
-                                             convert(author), summary, detail.getContent(),
-                                             convert(detail.getMarkup()),
-                                             convert(changes, Converter::convert)))
+        handle(executor.execute(Command.push(convert(author), projectName, repositoryName,
+                                             convert(baseRevision), summary, detail.getContent(),
+                                             convert(detail.getMarkup()), convert(changes, Converter::convert)))
                        .thenCompose(newRev -> projectManager.get(projectName).repos().get(repositoryName)
                                                             .history(newRev, newRev, "/**"))
                        .thenApply(commits -> convert(commits.get(0))),

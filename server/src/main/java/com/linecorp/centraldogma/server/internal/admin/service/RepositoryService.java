@@ -104,7 +104,7 @@ public class RepositoryService extends AbstractService {
         final Author author = AuthenticationUtil.currentAuthor();
         final RepositoryDto dto =
                 Jackson.readValue(message.content().toStringAscii(), RepositoryDto.class);
-        return execute(Command.createRepository(projectName, dto.getName(), author))
+        return execute(Command.createRepository(author, projectName, dto.getName()))
                 .thenApply(unused -> dto);
     }
 
@@ -281,7 +281,7 @@ public class RepositoryService extends AbstractService {
                 projectManager(), projectName, repositoryName, normalizedRev, ImmutableList.of(change));
 
         return f.thenCompose(
-                changes -> execute(Command.push(projectName, repositoryName, normalizedRev, author,
+                changes -> execute(Command.push(author, projectName, repositoryName, normalizedRev,
                                                 commitSummary, commitDetail, commitMarkup, changes.values())));
     }
 

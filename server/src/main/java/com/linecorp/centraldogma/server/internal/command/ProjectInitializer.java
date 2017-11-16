@@ -129,7 +129,7 @@ public final class ProjectInitializer {
                 Change.ofJsonUpsert("/samples/qux.json", SAMPLE_JSON_ARRAY));
 
         return executor.execute(Command.push(
-                projectName, repositoryName, Revision.HEAD, Author.SYSTEM,
+                Author.SYSTEM, projectName, repositoryName, Revision.HEAD,
                 "Add the sample files", "", Markup.PLAINTEXT, changes));
     }
 
@@ -138,7 +138,7 @@ public final class ProjectInitializer {
      */
     public static void initializeInternalProject(CommandExecutor executor) {
         try {
-            executor.execute(createProject(INTERNAL_PROJECT_NAME, Author.SYSTEM))
+            executor.execute(createProject(Author.SYSTEM, INTERNAL_PROJECT_NAME))
                     .get();
         } catch (Exception e) {
             if (!(e.getCause() instanceof ProjectExistsException)) {
@@ -149,7 +149,7 @@ public final class ProjectInitializer {
                                                   SESSION_REPOSITORY_NAME,
                                                   TOKEN_REPOSITORY_NAME)) {
             try {
-                executor.execute(createRepository(INTERNAL_PROJECT_NAME, repo, Author.SYSTEM))
+                executor.execute(createRepository(Author.SYSTEM, INTERNAL_PROJECT_NAME, repo))
                         .get();
             } catch (Exception e) {
                 if (!(e.getCause() instanceof RepositoryExistsException)) {

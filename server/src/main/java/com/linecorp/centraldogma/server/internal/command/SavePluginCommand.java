@@ -20,9 +20,13 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
+
+import com.linecorp.centraldogma.common.Author;
 
 public final class SavePluginCommand extends ProjectCommand<Void> {
 
@@ -30,11 +34,13 @@ public final class SavePluginCommand extends ProjectCommand<Void> {
     private final String path;
 
     @JsonCreator
-    SavePluginCommand(@JsonProperty("projectName") String projectName,
+    SavePluginCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                      @JsonProperty("author") @Nullable Author author,
+                      @JsonProperty("projectName") String projectName,
                       @JsonProperty("pluginName") String pluginName,
                       @JsonProperty("path") String path) {
 
-        super(CommandType.SAVE_PLUGIN, projectName);
+        super(CommandType.SAVE_PLUGIN, timestamp, author, projectName);
         this.pluginName = requireNonNull(pluginName, "pluginName");
         this.path = requireNonNull(path, "path");
     }

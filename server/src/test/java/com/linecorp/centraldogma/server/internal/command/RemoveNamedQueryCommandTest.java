@@ -17,18 +17,42 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
+
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public class RemoveNamedQueryCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new RemoveNamedQueryCommand("foo", "bar"),
+        assertJsonConversion(new RemoveNamedQueryCommand(1234L, Author.SYSTEM, "foo", "bar"),
                              Command.class,
                              '{' +
                              "  \"type\": \"REMOVE_NAMED_QUERY\"," +
+                             "  \"timestamp\": 1234," +
+                             "  \"author\": {" +
+                             "    \"name\": \"System\"," +
+                             "    \"email\": \"system@localhost.localdomain\"" +
+                             "  }," +
                              "  \"projectName\": \"foo\"," +
                              "  \"queryName\": \"bar\"" +
                              '}');
+    }
+
+    @Test
+    public void backwardCompatibility() throws Exception {
+        final RemoveNamedQueryCommand c = (RemoveNamedQueryCommand) Jackson.readValue(
+                '{' +
+                "  \"type\": \"REMOVE_NAMED_QUERY\"," +
+                "  \"projectName\": \"foo\"," +
+                "  \"queryName\": \"bar\"" +
+                '}', Command.class);
+
+        assertThat(c.author()).isEqualTo(Author.SYSTEM);
+        assertThat(c.timestamp()).isNotZero();
+        assertThat(c.projectName()).isEqualTo("foo");
+        assertThat(c.queryName()).isEqualTo("bar");
     }
 }

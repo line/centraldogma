@@ -20,10 +20,13 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 
@@ -37,7 +40,9 @@ public final class SaveNamedQueryCommand extends ProjectCommand<Void> {
     private final Markup markup;
 
     @JsonCreator
-    SaveNamedQueryCommand(@JsonProperty("projectName") String projectName,
+    SaveNamedQueryCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                          @JsonProperty("author") @Nullable Author author,
+                          @JsonProperty("projectName") String projectName,
                           @JsonProperty("queryName") String queryName,
                           @JsonProperty("enabled") boolean enabled,
                           @JsonProperty("repositoryName") String repositoryName,
@@ -45,7 +50,7 @@ public final class SaveNamedQueryCommand extends ProjectCommand<Void> {
                           @JsonProperty("comment") String comment,
                           @JsonProperty("markup") Markup markup) {
 
-        super(CommandType.SAVE_NAMED_QUERY, projectName);
+        super(CommandType.SAVE_NAMED_QUERY, timestamp, author, projectName);
 
         this.queryName = requireNonNull(queryName, "queryName");
         this.enabled = enabled;

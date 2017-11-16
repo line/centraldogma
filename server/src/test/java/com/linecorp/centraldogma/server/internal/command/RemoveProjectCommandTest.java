@@ -17,17 +17,39 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
+
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public class RemoveProjectCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new RemoveProjectCommand("foo"),
+        assertJsonConversion(new RemoveProjectCommand(1234L, Author.SYSTEM, "foo"),
                              Command.class,
                              '{' +
                              "  \"type\": \"REMOVE_PROJECT\"," +
+                             "  \"timestamp\": 1234," +
+                             "  \"author\": {" +
+                             "    \"name\": \"System\"," +
+                             "    \"email\": \"system@localhost.localdomain\"" +
+                             "  }," +
                              "  \"projectName\": \"foo\"" +
                              '}');
+    }
+
+    @Test
+    public void backwardCompatibility() throws Exception {
+        final RemoveProjectCommand c = (RemoveProjectCommand) Jackson.readValue(
+                '{' +
+                "  \"type\": \"REMOVE_PROJECT\"," +
+                "  \"projectName\": \"foo\"" +
+                '}', Command.class);
+
+        assertThat(c.author()).isEqualTo(Author.SYSTEM);
+        assertThat(c.timestamp()).isNotZero();
+        assertThat(c.projectName()).isEqualTo("foo");
     }
 }

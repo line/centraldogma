@@ -18,17 +18,23 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
+
+import com.linecorp.centraldogma.common.Author;
 
 public class RemoveProjectCommand extends RootCommand<Void> {
 
     private final String projectName;
 
     @JsonCreator
-    RemoveProjectCommand(@JsonProperty("projectName") String projectName) {
-        super(CommandType.REMOVE_PROJECT);
+    RemoveProjectCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                         @JsonProperty("author") @Nullable Author author,
+                         @JsonProperty("projectName") String projectName) {
+        super(CommandType.REMOVE_PROJECT, timestamp, author);
         this.projectName = requireNonNull(projectName, "projectName");
     }
 

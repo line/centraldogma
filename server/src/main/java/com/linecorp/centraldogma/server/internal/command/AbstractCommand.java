@@ -18,19 +18,39 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
+
+import javax.annotation.Nullable;
+
 import com.google.common.base.MoreObjects;
+
+import com.linecorp.centraldogma.common.Author;
 
 abstract class AbstractCommand<T> implements Command<T> {
 
     private final CommandType type;
+    private final long timestamp;
+    private final Author author;
 
-    protected AbstractCommand(CommandType type) {
+    protected AbstractCommand(CommandType type, @Nullable Long timestamp, @Nullable Author author) {
         this.type = requireNonNull(type, "type");
+        this.timestamp = timestamp != null ? timestamp : System.currentTimeMillis();
+        this.author = author != null ? author : Author.SYSTEM;
     }
 
     @Override
     public final CommandType type() {
         return type;
+    }
+
+    @Override
+    public final long timestamp() {
+        return timestamp;
+    }
+
+    @Override
+    public final Author author() {
+        return author;
     }
 
     @Override
@@ -44,12 +64,14 @@ abstract class AbstractCommand<T> implements Command<T> {
         }
 
         final AbstractCommand<?> that = (AbstractCommand<?>) obj;
-        return type == that.type;
+        return type == that.type &&
+               timestamp == that.timestamp &&
+               author.equals(that.author);
     }
 
     @Override
     public int hashCode() {
-        return type.hashCode();
+        return Objects.hash(type, timestamp, author);
     }
 
     @Override
@@ -58,6 +80,9 @@ abstract class AbstractCommand<T> implements Command<T> {
     }
 
     MoreObjects.ToStringHelper toStringHelper() {
-        return MoreObjects.toStringHelper(this).add("type", type);
+        return MoreObjects.toStringHelper(this)
+                          .add("type", type)
+                          .add("timestamp", timestamp)
+                          .add("author", author);
     }
 }

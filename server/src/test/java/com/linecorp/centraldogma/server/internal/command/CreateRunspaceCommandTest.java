@@ -17,27 +17,46 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public class CreateRunspaceCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new CreateRunspaceCommand("foo", "bar", 42, 1234L,
-                                                       new Author("John Doe", "john@doe.com")),
+        assertJsonConversion(new CreateRunspaceCommand(1234L, new Author("John Doe", "john@doe.com"),
+                                                       "foo", "bar", 42),
                              Command.class,
                              '{' +
                              "  \"type\": \"CREATE_RUNSPACE\"," +
-                             "  \"projectName\": \"foo\"," +
-                             "  \"baseRevision\": 42," +
-                             "  \"creationTimeMillis\": 1234," +
-                             "  \"repositoryName\": \"bar\"," +
+                             "  \"timestamp\": 1234," +
                              "  \"author\": {" +
                              "    \"name\": \"John Doe\"," +
                              "    \"email\": \"john@doe.com\"" +
-                             "  }" +
+                             "  }," +
+                             "  \"projectName\": \"foo\"," +
+                             "  \"repositoryName\": \"bar\"," +
+                             "  \"baseRevision\": 42" +
                              '}');
+    }
+
+    @Test
+    public void backwardCompatibility() throws Exception {
+        final CreateRunspaceCommand c = (CreateRunspaceCommand) Jackson.readValue(
+                '{' +
+                "  \"type\": \"CREATE_RUNSPACE\"," +
+                "  \"projectName\": \"foo\"," +
+                "  \"repositoryName\": \"bar\"," +
+                "  \"baseRevision\": 42" +
+                '}', Command.class);
+
+        assertThat(c.author()).isEqualTo(Author.SYSTEM);
+        assertThat(c.timestamp()).isNotZero();
+        assertThat(c.projectName()).isEqualTo("foo");
+        assertThat(c.repositoryName()).isEqualTo("bar");
+        assertThat(c.baseRevision()).isEqualTo(42);
     }
 }

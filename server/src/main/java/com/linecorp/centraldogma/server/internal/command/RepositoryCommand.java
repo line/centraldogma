@@ -20,16 +20,21 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
+
+import com.linecorp.centraldogma.common.Author;
 
 public abstract class RepositoryCommand<T> extends AbstractCommand<T> {
 
     private final String projectName;
     private final String repositoryName;
 
-    RepositoryCommand(CommandType commandType, String projectName, String repositoryName) {
-        super(commandType);
+    RepositoryCommand(CommandType commandType, @Nullable Long timestamp, @Nullable Author author,
+                      String projectName, String repositoryName) {
+        super(commandType, timestamp, author);
         this.projectName = requireNonNull(projectName, "projectName");
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
     }

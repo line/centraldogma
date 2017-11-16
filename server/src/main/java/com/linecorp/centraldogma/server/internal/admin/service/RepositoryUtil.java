@@ -57,7 +57,7 @@ final class RepositoryUtil {
 
         return f.thenCompose(
                 changes -> service.execute(
-                        Command.push(projectName, repositoryName, normalizedRev, author,
+                        Command.push(author, projectName, repositoryName, normalizedRev,
                                      commitSummary, commitDetail, commitMarkup, changes.values())));
     }
 

@@ -108,7 +108,7 @@ public class CentralDogmaSessionDAO implements SessionDAO, CacheManagerAware {
             final String username = currentUser != null ? currentUser.name() : "<unknown>";
             final String value = serialize(session);
             executor.execute(
-                    push(INTERNAL_PROJECT_NAME, SESSION_REPOSITORY_NAME, Revision.HEAD, Author.SYSTEM,
+                    push(Author.SYSTEM, INTERNAL_PROJECT_NAME, SESSION_REPOSITORY_NAME, Revision.HEAD,
                          "Login: " + username, "",
                          Markup.PLAINTEXT, Change.ofTextUpsert(sessionPath(sessionId), value)))
                     .thenRun(() -> {
@@ -183,7 +183,7 @@ public class CentralDogmaSessionDAO implements SessionDAO, CacheManagerAware {
     public void delete(Session session) {
         ensureNotInEventLoop();
         executor.execute(
-                push(INTERNAL_PROJECT_NAME, SESSION_REPOSITORY_NAME, Revision.HEAD, Author.SYSTEM,
+                push(Author.SYSTEM, INTERNAL_PROJECT_NAME, SESSION_REPOSITORY_NAME, Revision.HEAD,
                      "Logout: " + AuthenticationUtil.currentUser(), "",
                      Markup.PLAINTEXT, Change.ofRemoval(sessionPath(session.getId()))))
                 .thenRun(() -> {
@@ -232,8 +232,8 @@ public class CentralDogmaSessionDAO implements SessionDAO, CacheManagerAware {
         if (changesOfRemoval != null && !changesOfRemoval.isEmpty()) {
             try {
                 executor.execute(
-                        push(INTERNAL_PROJECT_NAME, SESSION_REPOSITORY_NAME, Revision.HEAD,
-                             Author.SYSTEM, "Logout", "", Markup.PLAINTEXT,
+                        push(Author.SYSTEM, INTERNAL_PROJECT_NAME, SESSION_REPOSITORY_NAME,
+                             Revision.HEAD, "Logout", "", Markup.PLAINTEXT,
                              changesOfRemoval));
             } catch (Exception e) {
                 logger.warn("Failed to remove invalid formatted sessions", cause(e));

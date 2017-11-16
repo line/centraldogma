@@ -17,25 +17,42 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
 
 public class CreateRepositoryCommandTest {
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new CreateRepositoryCommand("foo", "bar", 1234L, new Author("foo", "bar@baz.com")),
+        assertJsonConversion(new CreateRepositoryCommand(1234L, new Author("foo", "bar@baz.com"), "foo", "bar"),
                              Command.class,
                              '{' +
                              "  \"type\": \"CREATE_REPOSITORY\"," +
-                             "  \"projectName\": \"foo\"," +
-                             "  \"repositoryName\": \"bar\"," +
-                             "  \"creationTimeMillis\": 1234," +
+                             "  \"timestamp\": 1234," +
                              "  \"author\": {" +
                              "    \"name\": \"foo\"," +
                              "    \"email\": \"bar@baz.com\"" +
-                             "  }" +
+                             "  }," +
+                             "  \"projectName\": \"foo\"," +
+                             "  \"repositoryName\": \"bar\"" +
                              '}');
+    }
+
+    @Test
+    public void backwardCompatibility() throws Exception {
+        final CreateRepositoryCommand c = (CreateRepositoryCommand) Jackson.readValue(
+                '{' +
+                "  \"type\": \"CREATE_REPOSITORY\"," +
+                "  \"projectName\": \"foo\"," +
+                "  \"repositoryName\": \"bar\"" +
+                '}', Command.class);
+
+        assertThat(c.author()).isEqualTo(Author.SYSTEM);
+        assertThat(c.timestamp()).isNotZero();
+        assertThat(c.projectName()).isEqualTo("foo");
+        assertThat(c.repositoryName()).isEqualTo("bar");
     }
 }

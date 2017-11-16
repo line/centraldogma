@@ -18,15 +18,20 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
+
+import com.linecorp.centraldogma.common.Author;
 
 public abstract class ProjectCommand<T> extends AbstractCommand<T> {
 
     private final String projectName;
 
-    ProjectCommand(CommandType commandType, String projectName) {
-        super(commandType);
+    ProjectCommand(CommandType commandType, @Nullable Long timestamp,
+                   @Nullable Author author, String projectName) {
+        super(commandType, timestamp, author);
         this.projectName = requireNonNull(projectName, "projectName");
     }
 

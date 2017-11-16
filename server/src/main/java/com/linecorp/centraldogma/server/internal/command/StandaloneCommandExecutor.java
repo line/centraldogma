@@ -107,7 +107,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createProject(CreateProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.create(c.projectName(), c.creationTimeMillis());
+            projectManager.create(c.projectName(), c.timestamp());
             return null;
         }, repositoryWorker);
     }
@@ -130,7 +130,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createRepository(CreateRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.creationTimeMillis());
+            projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp());
             return null;
         }, repositoryWorker);
     }
@@ -150,12 +150,12 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<Revision> push(PushCommand c) {
-        return repo(c).commit(c.baseRevision(), c.commitTimeMillis(),
+        return repo(c).commit(c.baseRevision(), c.timestamp(),
                               c.author(), c.summary(), c.detail(), c.markup(), c.changes());
     }
 
     private CompletableFuture<Void> createRunspace(CreateRunspaceCommand c) {
-        return repo(c).createRunspace(c.baseRevision(), c.creationTimeMillis(),
+        return repo(c).createRunspace(c.baseRevision(), c.timestamp(),
                                       c.author()).thenApply(revision -> null);
     }
 
