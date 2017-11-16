@@ -99,6 +99,7 @@ import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
+import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -338,15 +339,7 @@ public class CentralDogma {
         cfg.gracefulShutdownTimeout().ifPresent(
                 t -> sb.gracefulShutdownTimeout(t.quietPeriodMillis(), t.timeoutMillis()));
 
-        final CentralDogmaServiceImpl service =
-                new CentralDogmaServiceImpl(pm, executor);
-
-        sb.service("/cd/thrift/v1",
-                     ThriftCallService.of(service)
-                                      .decorate(CentralDogmaTimeoutScheduler::new)
-                                      .decorate(CentralDogmaExceptionTranslator::new)
-                                      .decorate(THttpService.newDecorator())
-                                      .decorate(HttpAuthService.newDecorator(new CsrfTokenAuthorizer())));
+        configureThriftService(sb, pm, executor);
 
         sb.service("/hostname", HttpFileService.forVfs(
                 (path, encoding) -> new ByteArrayEntry(
@@ -397,13 +390,6 @@ public class CentralDogma {
             configureWebAdmin(sb, pm, executor, securityManager);
         }
 
-        sb.serverListener(new ServerListenerAdapter() {
-            @Override
-            public void serverStopping(Server server) {
-                service.serverStopping();
-            }
-        });
-
         final Server s = sb.build();
         s.start().join();
         return s;
@@ -431,6 +417,32 @@ public class CentralDogma {
                                        .minLogAge(zkCfg.minLogAgeMillis(), TimeUnit.MILLISECONDS)
                                        .revisionFile(revisionFile)
                                        .build();
+    }
+
+    private void configureThriftService(ServerBuilder sb, ProjectManager pm, CommandExecutor executor) {
+        final CentralDogmaServiceImpl service =
+                new CentralDogmaServiceImpl(pm, executor);
+
+        sb.serverListener(new ServerListenerAdapter() {
+            @Override
+            public void serverStopping(Server server) {
+                service.serverStopping();
+            }
+        });
+
+        Service<HttpRequest, HttpResponse> thriftService =
+                ThriftCallService.of(service)
+                                 .decorate(CentralDogmaTimeoutScheduler::new)
+                                 .decorate(CentralDogmaExceptionTranslator::new)
+                                 .decorate(THttpService.newDecorator());
+
+        if (cfg.isCsrfTokenRequiredForThrift()) {
+            thriftService = thriftService.decorate(HttpAuthService.newDecorator(new CsrfTokenAuthorizer()));
+        } else {
+            thriftService = thriftService.decorate(TokenlessClientLogger::new);
+        }
+
+        sb.service("/cd/thrift/v1", thriftService);
     }
 
     private void configureWebAdmin(ServerBuilder sb,

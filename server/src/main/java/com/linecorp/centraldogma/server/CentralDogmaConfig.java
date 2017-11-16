@@ -91,6 +91,7 @@ final class CentralDogmaConfig {
 
     // Security
     private final boolean securityEnabled;
+    private final boolean csrfTokenRequiredForThrift;
 
     CentralDogmaConfig(@JsonProperty(value = "dataDir", required = true) File dataDir,
                        @JsonProperty(value = "ports", required = true)
@@ -111,7 +112,8 @@ final class CentralDogmaConfig {
                        @JsonProperty("maxNumFilesPerMirror") Integer maxNumFilesPerMirror,
                        @JsonProperty("maxNumBytesPerMirror") Long maxNumBytesPerMirror,
                        @JsonProperty("replication") ReplicationConfig replicationConfig,
-                       @JsonProperty("securityEnabled") Boolean securityEnabled) {
+                       @JsonProperty("securityEnabled") Boolean securityEnabled,
+                       @JsonProperty("csrfTokenRequiredForThrift") Boolean csrfTokenRequiredForThrift) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -140,6 +142,7 @@ final class CentralDogmaConfig {
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
         this.replicationConfig = firstNonNull(replicationConfig, ReplicationConfig.NONE);
         this.securityEnabled = firstNonNull(securityEnabled, false);
+        this.csrfTokenRequiredForThrift = firstNonNull(csrfTokenRequiredForThrift, true);
     }
 
     @JsonProperty
@@ -234,6 +237,11 @@ final class CentralDogmaConfig {
         return securityEnabled;
     }
 
+    @JsonProperty
+    boolean isCsrfTokenRequiredForThrift() {
+        return csrfTokenRequiredForThrift;
+    }
+
     @Override
     public String toString() {
         try {
@@ -316,7 +324,8 @@ final class CentralDogmaConfig {
         }
 
         private static ServerPort fail(DeserializationContext ctx, JsonNode root) throws JsonMappingException {
-            throw ctx.mappingException("invalid server port information: " + root);
+            ctx.reportInputMismatch(ServerPort.class, "invalid server port information: %s", root);
+            throw new Error(); // Should never reach here.
         }
     }
 
