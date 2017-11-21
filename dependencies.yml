@@ -18,14 +18,14 @@ com.fasterxml.jackson.core:
   jackson-databind: { version: *JACKSON_VERSION }
 
 com.github.ben-manes.caffeine:
-  caffeine: { version: '2.5.6' }
+  caffeine: { version: '2.6.0' }
 
 com.google.code.findbugs:
   jsr305: { version: '3.0.2' }
 
 com.google.guava:
   guava:
-    version: '23.2-jre'
+    version: '23.4-jre'
     exclusions:
     - com.google.code.findbugs:jsr305
     - com.google.errorprone:error_prone_annotations
@@ -45,12 +45,12 @@ com.jcraft:
   jsch: { version: '0.1.54' }
 
 com.linecorp.armeria:
-  armeria-shaded: { version: &ARMERIA_VERSION '0.54.1' }
+  armeria-shaded: { version: &ARMERIA_VERSION '0.54.2' }
   armeria-logback-shaded: { version: *ARMERIA_VERSION }
   armeria-thrift0.9-shaded: { version: *ARMERIA_VERSION }
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.3' }
+  checkstyle: { version: '8.4' }
 
 com.spotify:
   completable-futures: { version: '0.3.2' }
@@ -69,7 +69,7 @@ junit:
   junit: { version: '4.12' }
 
 net.javacrumbs.json-unit:
-  json-unit-fluent: { version: '1.25.0' }
+  json-unit-fluent: { version: '1.25.1' }
 
 org.apache.curator:
   curator-recipes: { version: &CURATOR_VERSION '2.12.0' }
@@ -97,10 +97,10 @@ org.hamcrest:
   hamcrest-library: { version: '1.3' }
 
 org.hibernate.validator:
-  hibernate-validator: { version: '6.0.4.Final' }
+  hibernate-validator: { version: '6.0.5.Final' }
 
 org.mockito:
-  mockito-core: { version: '2.11.0' }
+  mockito-core: { version: '2.12.0' }
 
 org.mortbay.jetty.alpn:
   jetty-alpn-agent: { version: '2.0.6' }
