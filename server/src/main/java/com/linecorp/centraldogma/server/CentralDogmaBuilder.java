@@ -288,6 +288,6 @@ public final class CentralDogmaBuilder {
                                       numRepositoryWorkers, cacheSpec, gracefulShutdownTimeout,
                                       webAppEnabled, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      securityConfig != null);
+                                      securityConfig != null, null);
     }
 }
