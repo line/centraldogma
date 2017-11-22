@@ -15,7 +15,7 @@ buildscript {
     dependencies {
         classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
         classpath 'com.google.gradle:osdetector-gradle-plugin:1.4.0'
-        classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.4'
+        classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.5'
         classpath 'org.yaml:snakeyaml:1.18'
 
         // For gogradle. It seems gogradle doesn't support buildscript so just leave this here until
