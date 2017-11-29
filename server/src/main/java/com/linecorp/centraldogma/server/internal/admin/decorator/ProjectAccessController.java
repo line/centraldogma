@@ -25,7 +25,7 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.DecoratingServiceFunction;
-import com.linecorp.armeria.server.HttpResponseException;
+import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
@@ -48,13 +48,13 @@ abstract class ProjectAccessController implements DecoratingServiceFunction<Http
 
         final Function<String, ProjectRole> map = ctx.attr(RoleResolvingDecorator.ROLE_MAP).get();
         if (map == null) {
-            throw new HttpResponseException(HttpStatus.UNAUTHORIZED);
+            throw HttpStatusException.of(HttpStatus.UNAUTHORIZED);
         }
 
         final User user = AuthenticationUtil.currentUser();
         final ProjectRole projectRole = map.apply(projectName);
         if (projectRole == null || !isAllowedRole(user, projectRole)) {
-            throw new HttpResponseException(HttpStatus.UNAUTHORIZED);
+            throw HttpStatusException.of(HttpStatus.UNAUTHORIZED);
         }
 
         return delegate.serve(ctx, req);

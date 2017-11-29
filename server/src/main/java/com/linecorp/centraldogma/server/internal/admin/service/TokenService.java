@@ -38,7 +38,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Maps;
 
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.server.HttpResponseException;
+import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
@@ -111,7 +111,7 @@ public class TokenService extends AbstractService {
             if (exist) {
                 // TODO(hyangtack) Would send 409 conflict when the following PR is merged.
                 // https://github.com/line/armeria/pull/746
-                throw new HttpResponseException(HttpStatus.CONFLICT);
+                throw HttpStatusException.of(HttpStatus.CONFLICT);
             }
 
             entries.put(newToken.secret(), newToken);
