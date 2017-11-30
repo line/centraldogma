@@ -40,7 +40,7 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.armeria.internal.DefaultAttributeMap;
-import com.linecorp.armeria.server.HttpResponseException;
+import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
@@ -48,6 +48,7 @@ import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
 import com.linecorp.centraldogma.server.internal.admin.service.MetadataService;
 
 import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.EventLoop;
 
 public class DecoratorTest {
 
@@ -91,41 +92,48 @@ public class DecoratorTest {
 
     @Test
     public void testProjectAccessController() throws Exception {
-        final ServiceRequestContext ctx = spy(mock(ServiceRequestContext.class));
+        final EventLoop ev = new DefaultEventLoop();
 
-        final DefaultAttributeMap attrs = new DefaultAttributeMap();
-        attrs.attr(ROLE_MAP).set(roleMap::get);
-        when(ctx.attr(CURRENT_USER_KEY)).thenReturn(attrs.attr(CURRENT_USER_KEY));
-        when(ctx.attr(ROLE_MAP)).thenReturn(attrs.attr(ROLE_MAP));
+        try {
+            final ServiceRequestContext ctx = spy(mock(ServiceRequestContext.class));
+            when(ctx.eventLoop()).thenReturn(ev);
 
-        try (SafeCloseable ignore = RequestContext.push(ctx)) {
+            final DefaultAttributeMap attrs = new DefaultAttributeMap();
+            attrs.attr(ROLE_MAP).set(roleMap::get);
+            when(ctx.attr(CURRENT_USER_KEY)).thenReturn(attrs.attr(CURRENT_USER_KEY));
+            when(ctx.attr(ROLE_MAP)).thenReturn(attrs.attr(ROLE_MAP));
 
-            attrs.attr(CURRENT_USER_KEY).set(User.DEFAULT);
+            try (SafeCloseable ignore = RequestContext.push(ctx)) {
 
-            when(ctx.pathParam("projectName")).thenReturn("A");
-            assertThat(new ProjectMembersOnly().serve(delegate, ctx, null).aggregate().join().status())
-                    .isEqualTo(HttpStatus.OK);
-            assertThat(new ProjectOwnersOnly().serve(delegate, ctx, null).aggregate().join().status())
-                    .isEqualTo(HttpStatus.OK);
+                attrs.attr(CURRENT_USER_KEY).set(User.DEFAULT);
 
-            when(ctx.pathParam("projectName")).thenReturn("B");
-            assertThat(new ProjectMembersOnly().serve(delegate, ctx, null).aggregate().join().status())
-                    .isEqualTo(HttpStatus.OK);
-            assertThatThrownBy(() -> new ProjectOwnersOnly().serve(delegate, ctx, null))
-                    .isInstanceOf(HttpResponseException.class)
-                    .satisfies(cause -> {
-                        assertThat(((HttpResponseException) cause).httpStatus())
-                                .isEqualTo(HttpStatus.UNAUTHORIZED);
-                    });
+                when(ctx.pathParam("projectName")).thenReturn("A");
+                assertThat(new ProjectMembersOnly().serve(delegate, ctx, null).aggregate().join().status())
+                        .isEqualTo(HttpStatus.OK);
+                assertThat(new ProjectOwnersOnly().serve(delegate, ctx, null).aggregate().join().status())
+                        .isEqualTo(HttpStatus.OK);
 
-            attrs.attr(CURRENT_USER_KEY).set(User.ADMIN);
+                when(ctx.pathParam("projectName")).thenReturn("B");
+                assertThat(new ProjectMembersOnly().serve(delegate, ctx, null).aggregate().join().status())
+                        .isEqualTo(HttpStatus.OK);
+                assertThatThrownBy(() -> new ProjectOwnersOnly().serve(delegate, ctx, null))
+                        .isInstanceOf(HttpStatusException.class)
+                        .satisfies(cause -> {
+                            assertThat(((HttpStatusException) cause).httpStatus())
+                                    .isEqualTo(HttpStatus.UNAUTHORIZED);
+                        });
 
-            assertThat(new AdministratorsOnly().serve(delegate, ctx, null).aggregate().join().status())
-                    .isEqualTo(HttpStatus.OK);
-            assertThat(new ProjectMembersOnly().serve(delegate, ctx, null).aggregate().join().status())
-                    .isEqualTo(HttpStatus.OK);
-            assertThat(new ProjectOwnersOnly().serve(delegate, ctx, null).aggregate().join().status())
-                    .isEqualTo(HttpStatus.OK);
+                attrs.attr(CURRENT_USER_KEY).set(User.ADMIN);
+
+                assertThat(new AdministratorsOnly().serve(delegate, ctx, null).aggregate().join().status())
+                        .isEqualTo(HttpStatus.OK);
+                assertThat(new ProjectMembersOnly().serve(delegate, ctx, null).aggregate().join().status())
+                        .isEqualTo(HttpStatus.OK);
+                assertThat(new ProjectOwnersOnly().serve(delegate, ctx, null).aggregate().join().status())
+                        .isEqualTo(HttpStatus.OK);
+            }
+        } finally {
+            ev.shutdownGracefully();
         }
     }
 }

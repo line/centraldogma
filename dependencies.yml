@@ -25,7 +25,7 @@ com.google.code.findbugs:
 
 com.google.guava:
   guava:
-    version: '23.4-jre'
+    version: '23.5-jre'
     exclusions:
     - com.google.code.findbugs:jsr305
     - com.google.errorprone:error_prone_annotations
@@ -45,12 +45,12 @@ com.jcraft:
   jsch: { version: '0.1.54' }
 
 com.linecorp.armeria:
-  armeria-shaded: { version: &ARMERIA_VERSION '0.54.2' }
+  armeria-shaded: { version: &ARMERIA_VERSION '0.55.1' }
   armeria-logback-shaded: { version: *ARMERIA_VERSION }
   armeria-thrift0.9-shaded: { version: *ARMERIA_VERSION }
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.4' }
+  checkstyle: { version: '8.5' }
 
 com.spotify:
   completable-futures: { version: '0.3.2' }
