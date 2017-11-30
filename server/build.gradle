@@ -38,6 +38,14 @@ managedDependencies {
     jmh 'org.mockito:mockito-core'
 }
 
+dependencies {
+    // Logging
+    runtime ("ch.qos.logback:logback-classic:" +
+            "${rootProject.ext.dependencyManagement ['ch.qos.logback']['logback-classic'].version}") {
+        ext.optional = true
+    }
+}
+
 clientDependencies {
     installDir = "${project.projectDir}/src/main/resources/webapp/vendor"
     copyExcludes = ['**/Gruntfile.js', 'gulpfile.js', 'source/**', 'test', 'karma.conf.js', 'index.js']

@@ -12,7 +12,8 @@ angular.module('CentralDogmaAdmin')
                   });
 
                   $scope.logout = function () {
-                    Auth.logout();
-                    $state.go('home');
+                    Auth.logout().then(function() {
+                      $state.go('home', {}, {reload: true});
+                    });
                   };
                 });

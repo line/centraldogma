@@ -64,8 +64,8 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
                                login.append('@').append(((InetSocketAddress) ra).getHostString());
                            }
 
-                           final User user = new User(login.toString(), User.USER_ROLE);
-                           AuthenticationUtil.setCurrentUser(ctx, user);
+                           AuthenticationUtil.setCurrentUser(
+                                   ctx, new UserWithToken(login.toString(), token.accessToken()));
                            res.complete(true);
                        })
                        // Should be authorized by the next authorizer.

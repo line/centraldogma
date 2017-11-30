@@ -29,6 +29,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.util.ISO8601Utils;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.internal.admin.model.TokenInfo;
+
+/**
+ * Specifies details of an application token.
+ * This will be replaced with {@link TokenInfo}.
+ */
 @JsonInclude(Include.NON_NULL)
 public final class Token {
 

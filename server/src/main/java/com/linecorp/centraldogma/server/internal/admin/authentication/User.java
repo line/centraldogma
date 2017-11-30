@@ -33,18 +33,35 @@ public class User implements Serializable {
 
     private static final long serialVersionUID = -5429782019985526549L;
 
-    public static final String ADMIN = "ROLE_ADMIN";
-    public static final String USER = "ROLE_USER";
+    // TODO(hyangtack) Will change the word "role" to something other to avoid conflicting with project "role".
+    // System-wide roles for a user. It is different from the role in a project.
+    public static final List<String> USER_ROLE = ImmutableList.of("ROLE_USER");
+    public static final List<String> ADMIN_ROLE = ImmutableList.of("ROLE_ADMIN");
 
-    public static final List<String> USER_ROLE = ImmutableList.of(USER);
     public static final User DEFAULT = new User("User@localhost.localdomain", USER_ROLE);
+    public static final User ADMIN = new User("Admin@localhost.localdomain", ADMIN_ROLE);
 
     private String login;
     private String name;
     private String email;
     private List<String> roles;
 
-    public User(String login, List<String> roles) {
+    @JsonCreator
+    public User(@JsonProperty("login") String login,
+                @JsonProperty("name") String name,
+                @JsonProperty("email") String email,
+                @JsonProperty("roles") List<String> roles) {
+        this.login = requireNonNull(login, "login");
+        this.name = requireNonNull(name, "name");
+        this.email = requireNonNull(email, "email");
+        this.roles = ImmutableList.copyOf(requireNonNull(roles, "roles"));
+    }
+
+    public User(String login) {
+        this(login, USER_ROLE);
+    }
+
+    private User(String login, List<String> roles) {
         requireNonNull(roles, "roles");
 
         if (Strings.isNullOrEmpty(login)) {
@@ -60,17 +77,6 @@ public class User implements Serializable {
         }
 
         this.roles = roles;
-    }
-
-    @JsonCreator
-    public User(@JsonProperty("login") String login,
-                @JsonProperty("name") String name,
-                @JsonProperty("email") String email,
-                @JsonProperty("roles") List<String> roles) {
-        this.login = requireNonNull(login, "login");
-        this.name = requireNonNull(name, "name");
-        this.email = requireNonNull(email, "email");
-        this.roles = ImmutableList.copyOf(requireNonNull(roles, "roles"));
     }
 
     @JsonProperty
@@ -114,10 +120,10 @@ public class User implements Serializable {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("login", login)
-                          .add("name", name)
-                          .add("email", email)
-                          .add("roles", roles)
+                          .add("login", login())
+                          .add("name", name())
+                          .add("email", email())
+                          .add("roles", roles())
                           .toString();
     }
 }
