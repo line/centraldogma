@@ -140,7 +140,7 @@ Core properties
   - whether to enable authentication. It's disabled by default so that a user can play with Central Dogma
     without hassle. However, it is strongly encouraged to enable authentication because the authorship of
     a commit is filled in automatically based on the principal of the current user. Central Dogma uses
-    `Apache Shiro`_ as its authentication layer and uses the ``conf/security.ini`` file as its security
+    `Apache Shiro`_ as its authentication layer and uses the ``conf/shiro.ini`` file as its security
     configuration. For more information about how to configure `Apache Shiro`_, read
     `this page <https://shiro.apache.org/configuration.html#ini-sections>`_ or check the example configuration
     files under the ``conf/`` directory in the distribution.
