@@ -55,7 +55,7 @@ public final class Main implements Daemon {
     private static final File DEFAULT_SECURITY_CONFIG_FILE =
             new File(System.getProperty("user.dir", ".") +
                      File.separatorChar + "conf" +
-                     File.separatorChar + "security.ini");
+                     File.separatorChar + "shiro.ini");
 
     @Parameter(names = "-config", description = "The path to the config file", converter = FileConverter.class)
     private File configFile;
