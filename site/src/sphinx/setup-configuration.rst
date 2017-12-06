@@ -209,7 +209,6 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
       },
       "replication" : {
         "method" : "ZOOKEEPER",
-        "replicaId": "<replicaId>",
         "connectionString": "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181",
         "pathPrefix": "/service/centraldogma",
         "timeoutMillis": null,
@@ -223,11 +222,6 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
 - ``method`` (string)
 
   - the replication method. ``ZOOKEEPER`` indicates ZooKeeper-based multi-master replication.
-
-- ``replicaId`` (string)
-
-  - the unique and unchanging ID of the replica, e.g. `UUID <https://www.uuidgenerator.net/>`_
-  - Be extra cautious so that the replica IDs do not change or duplicate.
 
 - ``connectionString`` (string)
 

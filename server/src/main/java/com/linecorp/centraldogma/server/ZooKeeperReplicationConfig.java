@@ -33,7 +33,6 @@ import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExe
  */
 public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
-    private final String replicaId;
     private final String connectionString;
     private final String pathPrefix;
     private final int timeoutMillis;
@@ -44,19 +43,17 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     /**
      * Creates a new replication configuration.
      *
-     * @param replicaId the unique and unchanging ID of the replica. e.g. UUID or unique hostname
      * @param connectionString the ZooKeeper connection string.
      *                         e.g. {@code "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181"}
      * @param pathPrefix the ZooKeeper path prefix. e.g. {@code "/service/dogma"}
      */
-    public ZooKeeperReplicationConfig(String replicaId, String connectionString, String pathPrefix) {
-        this(replicaId, connectionString, pathPrefix, null, null, null, null);
+    public ZooKeeperReplicationConfig(String connectionString, String pathPrefix) {
+        this(connectionString, pathPrefix, null, null, null, null);
     }
 
     /**
      * Creates a new replication configuration.
      *
-     * @param replicaId the unique and unchanging ID of the replica. e.g. UUID or unique hostname
      * @param connectionString the ZooKeeper connection string.
      *                         e.g. {@code "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181"}
      * @param pathPrefix the ZooKeeper path prefix. e.g. {@code "/service/dogma"}
@@ -66,22 +63,20 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
      *                    still not be removed if they are younger than {@code minLogAgeMillis}.
      * @param minLogAgeMillis the minimum allowed age of log items before they are removed from ZooKeeper
      */
-    public ZooKeeperReplicationConfig(String replicaId, String connectionString, String pathPrefix,
+    public ZooKeeperReplicationConfig(String connectionString, String pathPrefix,
             int timeoutMillis, int numWorkers, int maxLogCount, long minLogAgeMillis) {
-        this(replicaId, connectionString, pathPrefix, Integer.valueOf(timeoutMillis),
+        this(connectionString, pathPrefix, Integer.valueOf(timeoutMillis),
              Integer.valueOf(numWorkers), Integer.valueOf(maxLogCount), Long.valueOf(minLogAgeMillis));
     }
 
     @JsonCreator
-    ZooKeeperReplicationConfig(@JsonProperty("replicaId") String replicaId,
-                               @JsonProperty("connectionString") String connectionString,
+    ZooKeeperReplicationConfig(@JsonProperty("connectionString") String connectionString,
                                @JsonProperty("pathPrefix") String pathPrefix,
                                @JsonProperty("timeoutMillis") Integer timeoutMillis,
                                @JsonProperty("numWorkers") Integer numWorkers,
                                @JsonProperty("maxLogCount") Integer maxLogCount,
                                @JsonProperty("minLogAgeMillis") Long minLogAgeMillis) {
 
-        this.replicaId = requireNonNull(replicaId, "replicaId");
         this.connectionString = requireNonNull(connectionString, "connectionString");
         this.pathPrefix = requireNonNull(pathPrefix, "pathPrefix");
 
@@ -105,14 +100,6 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     @Override
     public ReplicationMethod method() {
         return ReplicationMethod.ZOOKEEPER;
-    }
-
-    /**
-     * Returns the unique and unchanging ID of the replica. e.g. UUID or unique hostname
-     */
-    @JsonProperty
-    public String replicaId() {
-        return replicaId;
     }
 
     /**
@@ -171,8 +158,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
     @Override
     public int hashCode() {
-        return replicaId().hashCode() * 31 +
-               connectionString().hashCode() * 31 +
+        return connectionString().hashCode() * 31 +
                pathPrefix().hashCode();
     }
 
@@ -188,8 +174,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
         final ZooKeeperReplicationConfig that = (ZooKeeperReplicationConfig) obj;
 
-        return replicaId().equals(that.replicaId()) &&
-               connectionString().equals(that.connectionString()) &&
+        return connectionString().equals(that.connectionString()) &&
                pathPrefix().equals(that.pathPrefix()) &&
                timeoutMillis() == that.timeoutMillis() &&
                numWorkers() == that.numWorkers() &&
@@ -200,7 +185,6 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("replicaId", replicaId())
                           .add("connectionString", connectionString())
                           .add("pathPrefix", pathPrefix())
                           .add("timeoutMillis", timeoutMillis())
