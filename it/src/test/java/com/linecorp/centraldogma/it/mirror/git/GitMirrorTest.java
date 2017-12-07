@@ -170,7 +170,7 @@ public class GitMirrorTest {
         assertThat(client.getFiles(projName, REPO_MAIN, rev3, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
                                            Entry.ofDirectory("/first"),
-                                           Entry.ofText("/first/light.txt", "26-Aug-2014"),
+                                           Entry.ofText("/first/light.txt", "26-Aug-2014\n"),
                                            Entry.ofDirectory("/second"),
                                            Entry.ofJson("/second/son.json",
                                                         "{\"release_date\": \"21-Mar-2014\"}"));
@@ -190,7 +190,7 @@ public class GitMirrorTest {
         //// Make sure the rewritten content is mirrored.
         assertThat(client.getFiles(projName, REPO_MAIN, rev4, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedThirdMirrorState,
-                                           Entry.ofText("/final_fantasy_xv.txt", "29-Nov-2016"));
+                                           Entry.ofText("/final_fantasy_xv.txt", "29-Nov-2016\n"));
     }
 
     @Test
@@ -231,7 +231,7 @@ public class GitMirrorTest {
         assertThat(client.getFiles(projName, REPO_MAIN, rev2, "/target/**").join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
                                            Entry.ofDirectory("/target/first"),
-                                           Entry.ofText("/target/first/light.txt", "26-Aug-2014"));
+                                           Entry.ofText("/target/first/light.txt", "26-Aug-2014\n"));
 
         //// Make sure the files not under '/target' are not touched. (sample files)
         assertThat(client.getFiles(projName, REPO_MAIN, rev2, "/samples/**").join().values())

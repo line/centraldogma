@@ -74,18 +74,15 @@ final class DiffProcessor
 
     void valueAdded(final JsonPointer pointer, final JsonNode value)
     {
-        final int removalIndex = findPreviouslyRemoved(value);
-        if (removalIndex != -1) {
-            final DiffOperation removed = diffs.get(removalIndex);
-            diffs.remove(removalIndex);
-            diffs.add(DiffOperation.move(removed.getFrom(),
-                value, pointer, value));
-            return;
+        final DiffOperation op;
+        if (value.isContainerNode()) {
+            // Use copy operation only for container nodes.
+            final JsonPointer ptr = findUnchangedValue(value);
+            op = ptr != null ? DiffOperation.copy(ptr, pointer, value)
+                             : DiffOperation.add(pointer, value);
+        } else {
+            op = DiffOperation.add(pointer, value);
         }
-        final JsonPointer ptr = findUnchangedValue(value);
-        final DiffOperation op = ptr != null
-            ? DiffOperation.copy(ptr, pointer, value)
-            : DiffOperation.add(pointer, value);
 
         diffs.add(op);
     }
@@ -108,20 +105,5 @@ final class DiffProcessor
             if (predicate.apply(entry.getValue()))
                 return entry.getKey();
         return null;
-    }
-
-    private int findPreviouslyRemoved(final JsonNode value)
-    {
-        final Predicate<JsonNode> predicate = EQUIVALENCE.equivalentTo(value);
-
-        DiffOperation op;
-
-        for (int i = 0; i < diffs.size(); i++) {
-            op = diffs.get(i);
-            if (op.getType() == DiffOperation.Type.REMOVE
-                && predicate.apply(op.getOldValue()))
-                return i;
-        }
-        return -1;
     }
 }

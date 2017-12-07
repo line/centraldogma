@@ -21,10 +21,13 @@ import static java.util.Objects.requireNonNull;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.armeria.common.util.TextFormatter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
@@ -83,7 +86,7 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
                 deleteCruft(oldChildDir);
             }
 
-            oldRepo.cloneTo(newChildDir, newFormat);
+            oldRepo.cloneTo(newChildDir, newFormat, new MigrationProgressLogger(oldRepo));
 
             if (!childDir.renameTo(oldChildDir)) {
                 throw new IOException("failed to rename " + childDir + " to " + oldChildDir);
@@ -130,5 +133,38 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
     @Override
     protected StorageNotFoundException newStorageNotFoundException(String name) {
         return new RepositoryNotFoundException(name);
+    }
+
+    /**
+     * Logs the migration progress periodically.
+     */
+    private static class MigrationProgressLogger implements BiConsumer<Integer, Integer> {
+
+        private static final long REPORT_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(10);
+
+        private final String name;
+        private final long startTimeNanos;
+        private long lastReportTimeNanos;
+
+        MigrationProgressLogger(Repository repo) {
+            name = repo.parent().name() + '/' + repo.name();
+            startTimeNanos = lastReportTimeNanos = System.nanoTime();
+        }
+
+        @Override
+        public void accept(Integer current, Integer total) {
+            final long currentTimeNanos = System.nanoTime();
+            final long elapsedTimeNanos = currentTimeNanos - startTimeNanos;
+            if (currentTimeNanos - lastReportTimeNanos > REPORT_INTERVAL_NANOS) {
+                logger.info("{}: {}% ({}/{}) - took {}",
+                            name, (int) ((double) current / total * 100),
+                            current, total, TextFormatter.elapsed(elapsedTimeNanos));
+                lastReportTimeNanos = currentTimeNanos;
+            } else if (current.equals(total)) {
+                logger.info("{}: 100% ({}/{}) - took {}",
+                            name, current, total,
+                            TextFormatter.elapsed(elapsedTimeNanos));
+            }
+        }
     }
 }
