@@ -1,4 +1,19 @@
 /*
+ * Copyright 2017 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+/*
  * Copyright (c) 2014, Francis Galiegue (fgaliegue@gmail.com)
  *
  * This software is dual-licensed under:
@@ -27,7 +42,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * JSON Patch {@code replace} operation
+ * JSON Patch {@code replace} operation.
  *
  * <p>For this operation, {@code path} points to the value to replace, and
  * {@code value} is the replacement value.</p>
@@ -35,45 +50,29 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * <p>It is an error condition if {@code path} does not point to an actual JSON
  * value.</p>
  */
-public final class ReplaceOperation
-    extends PathValueOperation
-{
+final class ReplaceOperation extends PathValueOperation {
+
     @JsonCreator
-    public ReplaceOperation(@JsonProperty("path") final JsonPointer path,
-        @JsonProperty("value") final JsonNode value)
-    {
+    ReplaceOperation(@JsonProperty("path") final JsonPointer path,
+                     @JsonProperty("value") final JsonNode value) {
         super("replace", path, value);
     }
 
     @Override
-    public JsonNode apply(final JsonNode node)
-        throws JsonPatchException
-    {
-        /*
-         * FIXME cannot quite be replaced by a remove + add because of arrays.
-         * For instance:
-         *
-         * { "op": "replace", "path": "/0", "value": 1 }
-         *
-         * with
-         *
-         * [ "x" ]
-         *
-         * If remove is done first, the array is empty and add rightly complains
-         * that there is no such index in the array.
-         */
-        if (node.at(path).isMissingNode())
-            throw new JsonPatchException("non-existent path: " + path);
-        final JsonNode replacement = value.deepCopy();
-        if (path.toString().isEmpty())
+    JsonNode apply(final JsonNode node) {
+        ensureExistence(node);
+
+        final JsonNode replacement = valueCopy();
+        if (path.toString().isEmpty()) {
             return replacement;
-        final JsonNode ret = node.deepCopy();
-        final JsonNode parent = ret.at(path.head());
+        }
+        final JsonNode parent = node.at(path.head());
         final String rawToken = path.last().getMatchingProperty();
-        if (parent.isObject())
+        if (parent.isObject()) {
             ((ObjectNode) parent).set(rawToken, replacement);
-        else
+        } else {
             ((ArrayNode) parent).set(Integer.parseInt(rawToken), replacement);
-        return ret;
+        }
+        return node;
     }
 }

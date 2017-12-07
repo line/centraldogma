@@ -13,17 +13,17 @@
         {
             "op": { "op": "add", "path": "/3", "value": 1 },
             "node": [ 1, 2 ],
-            "message": "index out of bounds: 3 (expected: >= 0 && < 2)"
+            "message": "index out of bounds: 3 (expected: >= 0 && <= 2)"
         },
         {
             "op": { "op": "add", "path": "/-2", "value": 1 },
             "node": [ 1, 2 ],
-            "message": "index out of bounds: -2 (expected: >= 0 && < 2)"
+            "message": "index out of bounds: -2 (expected: >= 0 && <= 2)"
         },
         {
             "op": { "op": "add", "path": "/foo/f", "value": "bar" },
             "node": { "foo": "bar" },
-            "message": "target parent is not a container: /foo"
+            "message": "target parent is not a container: /foo (STRING)"
         }
     ],
     "ops": [

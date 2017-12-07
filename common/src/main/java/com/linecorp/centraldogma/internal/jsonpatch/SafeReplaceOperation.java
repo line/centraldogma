@@ -30,54 +30,47 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Equivalence;
 
-import com.linecorp.centraldogma.internal.jsonpatch.utils.JsonNumEquals;
+final class SafeReplaceOperation extends JsonPatchOperation {
 
-public class SafeReplaceOperation extends JsonPatchOperation {
-
-    private static final Equivalence<JsonNode> EQUIVALENCE
-            = JsonNumEquals.getInstance();
+    private static final Equivalence<JsonNode> EQUIVALENCE = JsonNumEquals.getInstance();
 
     @JsonSerialize
-    protected final JsonNode oldValue;
+    private final JsonNode oldValue;
     @JsonSerialize
-    protected final JsonNode newValue;
+    private final JsonNode newValue;
 
     @JsonCreator
-    public SafeReplaceOperation(@JsonProperty("path") final JsonPointer path,
-                                @JsonProperty("oldValue") JsonNode oldValue,
-                                @JsonProperty("value") JsonNode newValue) {
+    SafeReplaceOperation(@JsonProperty("path") final JsonPointer path,
+                         @JsonProperty("oldValue") JsonNode oldValue,
+                         @JsonProperty("value") JsonNode newValue) {
         super("safeReplace", path);
         this.oldValue = oldValue.deepCopy();
         this.newValue = newValue.deepCopy();
     }
 
     @Override
-    public JsonNode apply(JsonNode node) throws JsonPatchException {
-        final JsonNode tested = node.at(path);
-        if (tested.isMissingNode()) {
-            throw new JsonPatchException("non-existent path: " + path);
-        }
-        if (!EQUIVALENCE.equivalent(tested, oldValue)) {
-            throw new JsonPatchException("mismatching value: " + tested + " (expected: " + oldValue + ')');
+    JsonNode apply(JsonNode node) {
+        final JsonNode actual = ensureExistence(node);
+        if (!EQUIVALENCE.equivalent(actual, oldValue)) {
+            throw new JsonPatchException("mismatching value at '" + path + "': " +
+                                         actual + " (expected: " + oldValue + ')');
         }
         final JsonNode replacement = newValue.deepCopy();
         if (path.toString().isEmpty()) {
             return replacement;
         }
-        final JsonNode ret = node.deepCopy();
-        final JsonNode parent = ret.at(path.head());
+        final JsonNode parent = node.at(path.head());
         final String rawToken = path.last().getMatchingProperty();
         if (parent.isObject()) {
             ((ObjectNode) parent).set(rawToken, replacement);
         } else {
             ((ArrayNode) parent).set(Integer.parseInt(rawToken), replacement);
         }
-        return ret;
+        return node;
     }
 
     @Override
     public void serialize(JsonGenerator gen, SerializerProvider serializers) throws IOException {
-
         gen.writeStartObject();
         gen.writeStringField("op", op);
         gen.writeStringField("path", path.toString());

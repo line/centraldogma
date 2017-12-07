@@ -94,7 +94,6 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
-import com.linecorp.centraldogma.internal.jsonpatch.diff.JsonDiff;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
@@ -644,7 +643,7 @@ class GitRepository implements Repository {
                         final JsonNode newJsonNode =
                                 Jackson.readTree(reader.open(diffEntry.getNewId().toObjectId()).getBytes());
                         final JsonPatch patch =
-                                JsonDiff.asJsonPatch(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
+                                JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
 
                         if (!patch.isEmpty()) {
                             putChange(changeMap, newPath,

@@ -8,12 +8,12 @@
         {
             "op": { "op": "test", "path": "", "value": true },
             "node": [ 1, 2 ],
-            "message": "mismatching value: [1,2] (expected: true)"
+            "message": "mismatching value at '': [1,2] (expected: true)"
         },
         {
             "op": { "op": "test", "path": "/x", "value": -30.000 },
             "node": { "x": -29.020 },
-            "message": "mismatching value: -29.02 (expected: -30.0)"
+            "message": "mismatching value at '/x': -29.02 (expected: -30.0)"
         }
     ],
     "ops": [

@@ -36,8 +36,8 @@ package com.linecorp.centraldogma.internal.jsonpatch;
 
 import java.io.IOException;
 
-public final class CopyOperationTest extends JsonPatchOperationTest {
-    public CopyOperationTest() throws IOException {
-        super("copy");
+public final class TestOperationSerializationTest extends JsonPatchOperationSerializationTest {
+    public TestOperationSerializationTest() throws IOException {
+        super("test", TestOperation.class);
     }
 }

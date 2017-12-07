@@ -1,4 +1,19 @@
 /*
+ * Copyright 2017 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+/*
  * Copyright (c) 2014, Francis Galiegue (fgaliegue@gmail.com)
  *
  * This software is dual-licensed under:
@@ -17,7 +32,7 @@
  * - ASL 2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 
-package com.linecorp.centraldogma.internal.jsonpatch.serialization;
+package com.linecorp.centraldogma.internal.jsonpatch;
 
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
@@ -35,59 +50,51 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Equivalence;
 import com.google.common.collect.Lists;
 
-import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
-import com.linecorp.centraldogma.internal.jsonpatch.utils.JsonNumEquals;
-
 @Test
-public abstract class JsonPatchOperationSerializationTest
-{
-    private static final Equivalence<JsonNode> EQUIVALENCE
-        = JsonNumEquals.getInstance();
+public abstract class JsonPatchOperationSerializationTest {
 
-    private final Class<? extends JsonPatchOperation> c;
+    private static final Equivalence<JsonNode> EQUIVALENCE = JsonNumEquals.getInstance();
+
+    private final Class<? extends JsonPatchOperation> opType;
     private final JsonNode node;
     private final ObjectMapper mapper;
 
-    protected JsonPatchOperationSerializationTest(final String prefix,
-        final Class<? extends JsonPatchOperation> c)
-        throws IOException
-    {
+    protected JsonPatchOperationSerializationTest(
+            final String prefix, final Class<? extends JsonPatchOperation> opType) throws IOException {
         mapper = new ObjectMapper();
         final String resource = "/jsonpatch/" + prefix + ".json";
-        URL url = this.getClass().getResource(resource);
+        URL url = getClass().getResource(resource);
         node = mapper.readTree(url);
-        this.c = c;
+        this.opType = opType;
     }
 
     @DataProvider
-    public final Iterator<Object[]> getInputs()
-    {
+    public final Iterator<Object[]> getInputs() {
         final List<Object[]> list = Lists.newArrayList();
 
-        for (final JsonNode n: node.get("errors"))
-            list.add(new Object[] { n.get("op")});
+        for (final JsonNode n : node.get("errors")) {
+            list.add(new Object[] { n.get("op") });
+        }
 
-        for (final JsonNode n: node.get("ops"))
-            list.add(new Object[] { n.get("op")});
+        for (final JsonNode n : node.get("ops")) {
+            list.add(new Object[] { n.get("op") });
+        }
 
         return list.iterator();
     }
 
     @Test(dataProvider = "getInputs")
-    public final void patchOperationSerializationWorks(final JsonNode input)
-        throws IOException
-    {
+    public final void patchOperationSerializationWorks(final JsonNode input) throws IOException {
         /*
          * Deserialize a string input
          */
         final String in = input.toString();
-        final JsonPatchOperation op
-            = mapper.readValue(in, JsonPatchOperation.class);
+        final JsonPatchOperation op = mapper.readValue(in, JsonPatchOperation.class);
 
         /*
          * Check that the class of the operation is what is expected
          */
-        assertSame(op.getClass(), c);
+        assertSame(op.getClass(), opType);
 
         /*
          * Now, write the operation as a String...
