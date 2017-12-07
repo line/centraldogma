@@ -23,10 +23,13 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedTransferQueue;
@@ -49,6 +52,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
@@ -93,6 +97,7 @@ import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringService;
+import com.linecorp.centraldogma.server.internal.replication.ReplicationException;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -398,13 +403,45 @@ public class CentralDogma {
     private CommandExecutor newZooKeeperCommandExecutor(ProjectManager pm, Executor repositoryWorker) {
 
         final ZooKeeperReplicationConfig zkCfg = (ZooKeeperReplicationConfig) cfg.replicationConfig();
-        final String replicaId = zkCfg.replicaId();
-        logger.info("Using ZooKeeper-based replication mechanism; replicaId = {}", replicaId);
+
+        // Read or generate the replica ID.
+        final File replicaIdFile =
+                new File(cfg.dataDir().getAbsolutePath() + File.separatorChar + "replica_id");
+        final String replicaId;
+
+        if (replicaIdFile.exists()) {
+            // Read the replica ID.
+            try {
+                final List<String> lines = Files.readAllLines(replicaIdFile.toPath());
+                if (lines.isEmpty()) {
+                    throw new IllegalStateException("replica_id contains no lines.");
+                }
+                replicaId = lines.get(0).trim();
+                if (replicaId.isEmpty()) {
+                    throw new IllegalStateException("replica_id is empty.");
+                }
+            } catch (Exception e) {
+                throw new ReplicationException("failed to retrieve the replica ID from: " + replicaIdFile, e);
+            }
+            logger.info("Using ZooKeeper-based replication mechanism with an existing replica ID: {}",
+                        replicaId);
+        } else {
+            // Generate a replica ID.
+            replicaId = UUID.randomUUID().toString();
+            try {
+                Files.write(replicaIdFile.toPath(), ImmutableList.of(replicaId));
+            } catch (Exception e) {
+                throw new ReplicationException("failed to generate a replica ID into: " + replicaIdFile, e);
+            }
+            logger.info("Using ZooKeeper-based replication mechanism with a generated replica ID: {}",
+                        replicaId);
+        }
 
         // TODO(trustin): Provide a way to restart/reload the replicator
         //                so that we can recover from ZooKeeper maintenance automatically.
         final File revisionFile =
                 new File(cfg.dataDir().getAbsolutePath() + File.separatorChar + "last_revision");
+
         return ZooKeeperCommandExecutor.builder()
                                        .replicaId(replicaId)
                                        .delegate(new StandaloneCommandExecutor(replicaId, pm, repositoryWorker))
@@ -511,8 +548,8 @@ public class CentralDogma {
         this.mirroringService = null;
         this.pm = null;
         this.repositoryWorker = null;
-        this.sessionManager = null;
-        this.securityManager = null;
+        sessionManager = null;
+        securityManager = null;
 
         logger.info("Stopping the Central Dogma ..");
         if (!stop(server, executor, mirroringService, pm, repositoryWorker)) {

@@ -29,13 +29,12 @@ import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 public class ZooKeeperReplicationConfigTest {
     @Test
     public void testJsonConversion() throws Exception {
-        assertJsonConversion(new ZooKeeperReplicationConfig("foo", "bar", "baz", 42, 65, 17, 99),
+        assertJsonConversion(new ZooKeeperReplicationConfig("foo", "bar", 42, 65, 17, 99),
                              ReplicationConfig.class,
                              '{' +
                              "  \"method\": \"ZOOKEEPER\"," +
-                             "  \"replicaId\": \"foo\"," +
-                             "  \"connectionString\": \"bar\"," +
-                             "  \"pathPrefix\": \"baz\"," +
+                             "  \"connectionString\": \"foo\"," +
+                             "  \"pathPrefix\": \"bar\"," +
                              "  \"timeoutMillis\": 42," +
                              "  \"numWorkers\": 65," +
                              "  \"maxLogCount\": 17," +
@@ -49,12 +48,11 @@ public class ZooKeeperReplicationConfigTest {
                 Jackson.readValue(
                         '{' +
                         "  \"method\": \"ZOOKEEPER\"," +
-                        "  \"replicaId\": \"foo\"," +
-                        "  \"connectionString\": \"bar\"," +
-                        "  \"pathPrefix\": \"baz\"" +
+                        "  \"connectionString\": \"foo\"," +
+                        "  \"pathPrefix\": \"bar\"" +
                         '}',
                         ReplicationConfig.class);
 
-        assertThat(defaultCfg, is(new ZooKeeperReplicationConfig("foo", "bar", "baz")));
+        assertThat(defaultCfg, is(new ZooKeeperReplicationConfig("foo", "bar")));
     }
 }
