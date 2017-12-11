@@ -72,31 +72,13 @@ final class CommitWatchers {
                 }
 
                 final Set<Watch> watches = e.getValue();
-                if (revision.onMainLane()) {
-                    // Committed to the main lane; find only those who watches the main lane.
-                    for (Iterator<Watch> i = watches.iterator(); i.hasNext();) {
-                        final Watch w = i.next();
-                        final Revision lastKnownRevision = w.lastKnownRevision;
-                        if (lastKnownRevision.onMainLane()) {
-                            if (lastKnownRevision.compareTo(revision) < 0) {
-                                eligibleWatches = move(eligibleWatches, i, w);
-                            } else {
-                                logIneligibleFuture(lastKnownRevision, revision);
-                            }
-                        }
-                    }
-                } else {
-                    // Committed to a runspace; find only those who watches the matching runspace.
-                    for (Iterator<Watch> i = watches.iterator(); i.hasNext();) {
-                        final Watch p = i.next();
-                        final Revision lastKnownRev = p.lastKnownRevision;
-                        if (lastKnownRev.major() == revision.major() && lastKnownRev.minor() != 0) {
-                            if (lastKnownRev.compareTo(revision) < 0) {
-                                eligibleWatches = move(eligibleWatches, i, p);
-                            } else {
-                                logIneligibleFuture(lastKnownRev, revision);
-                            }
-                        }
+                for (Iterator<Watch> i = watches.iterator(); i.hasNext();) {
+                    final Watch w = i.next();
+                    final Revision lastKnownRevision = w.lastKnownRevision;
+                    if (lastKnownRevision.compareTo(revision) < 0) {
+                        eligibleWatches = move(eligibleWatches, i, w);
+                    } else {
+                        logIneligibleFuture(lastKnownRevision, revision);
                     }
                 }
             }

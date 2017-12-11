@@ -36,15 +36,6 @@ public class RevisionJsonSerializer extends StdSerializer<Revision> {
 
     @Override
     public void serialize(Revision value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-        final int major = value.major();
-        final int minor = value.minor();
-        if (minor == 0) {
-            gen.writeNumber(major);
-        } else {
-            gen.writeStartObject();
-            gen.writeNumberField("major", major);
-            gen.writeNumberField("minor", minor);
-            gen.writeEndObject();
-        }
+        gen.writeNumber(value.major());
     }
 }

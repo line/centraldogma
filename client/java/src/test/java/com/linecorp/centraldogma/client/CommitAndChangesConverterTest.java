@@ -40,7 +40,7 @@ public class CommitAndChangesConverterTest {
     private static final CommitAndChanges<String> COMMON =
             new CommitAndChanges<>(
                     new com.linecorp.centraldogma.common.Commit(
-                            new com.linecorp.centraldogma.common.Revision(1, 2),
+                            new com.linecorp.centraldogma.common.Revision(1),
                             new com.linecorp.centraldogma.common.Author("user", "user@sample.com"),
                             Instant.parse(TIMESTAMP).toEpochMilli(),
                             "summary",
@@ -48,7 +48,7 @@ public class CommitAndChangesConverterTest {
                             com.linecorp.centraldogma.common.Markup.PLAINTEXT),
                     ImmutableList.of(com.linecorp.centraldogma.common.Change.ofTextUpsert("/a.txt", "hello")));
 
-    private static final Commit THRIFT = new Commit(new Revision(1, 2),
+    private static final Commit THRIFT = new Commit(new Revision(1, 0),
                                                     new Author("user", "user@sample.com"),
                                                     TIMESTAMP,
                                                     "summary",

@@ -25,8 +25,8 @@ import org.junit.Test;
 public class RevisionConverterTest {
 
     private static final com.linecorp.centraldogma.common.Revision COMMON =
-            new com.linecorp.centraldogma.common.Revision(1, 2);
-    private static final Revision THRIFT = new Revision(1, 2);
+            new com.linecorp.centraldogma.common.Revision(1);
+    private static final Revision THRIFT = new Revision(1, 0);
 
     @Test
     public void test() throws Exception {

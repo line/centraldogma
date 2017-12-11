@@ -20,7 +20,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.common.Author;
@@ -175,22 +174,6 @@ public class RepositoryWrapper implements Repository {
     @Override
     public <T> CompletableFuture<QueryResult<T>> watch(Revision lastKnownRevision, Query<T> query) {
         return unwrap().watch(lastKnownRevision, query);
-    }
-
-    @Override
-    public CompletableFuture<Revision> createRunspace(int majorRevision, long creationTimeMillis,
-                                                      Author author) {
-        return unwrap().createRunspace(majorRevision, creationTimeMillis, author);
-    }
-
-    @Override
-    public CompletableFuture<Void> removeRunspace(int majorRevision) {
-        return unwrap().removeRunspace(majorRevision);
-    }
-
-    @Override
-    public CompletableFuture<Set<Revision>> listRunspaces() {
-        return unwrap().listRunspaces();
     }
 
     @Override

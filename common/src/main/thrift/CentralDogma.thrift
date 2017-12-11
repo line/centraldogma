@@ -116,12 +116,6 @@ struct Commit {
     6: required list<Change> diffs = [],
 }
 
-struct Runspace {
-    1: required string projectName,
-    2: required string repositoryName,
-    3: required Commit head,
-}
-
 struct Repository {
     1: required string name,
     2: optional Commit head,
@@ -356,23 +350,6 @@ service CentralDogmaService {
                               4: Query query, 5: i64 timeoutMillis) throws (1: CentralDogmaException e),
 
     // The operations below are not implemented yet.
-
-    /**
-     * Creates a runspace.
-     */
-    void createRunspace(1: string projectName, 2: string repositoryName,
-                        3: RevisionNumber base) throws (1: CentralDogmaException e),
-
-    /**
-     * Removes a runspace.
-     */
-    void removeRunspace(1: string projectName, 2: string repositoryName,
-                        3: RevisionNumber base) throws (1: CentralDogmaException e),
-
-    /**
-     * Retrieves the list of the runspaces.
-     */
-    list<Runspace> listRunspaces(1: string projectName, 2: string repositoryName) throws (1: CentralDogmaException e),
 
     /**
      * Gets the schema.

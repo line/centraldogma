@@ -426,23 +426,6 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     // Unimplemented methods
 
     @Override
-    public void createRunspace(String projectName, String repositoryName, int base,
-                               AsyncMethodCallback resultHandler) {
-        unimplemented(resultHandler);
-    }
-
-    @Override
-    public void removeRunspace(String projectName, String repositoryName, int base,
-                               AsyncMethodCallback resultHandler) {
-        unimplemented(resultHandler);
-    }
-
-    @Override
-    public void listRunspaces(String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
-        unimplemented(resultHandler);
-    }
-
-    @Override
     public void getSchema(String projectName, AsyncMethodCallback resultHandler) {
         unimplemented(resultHandler);
     }

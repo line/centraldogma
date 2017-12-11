@@ -33,11 +33,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -65,7 +63,6 @@ import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.RefRename;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.lib.RepositoryBuilder;
@@ -119,12 +116,7 @@ class GitRepository implements Repository {
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
-    private static final String RUNSPACES = "runspaces/";
-    private static final String RUNSPACES_REMOVED = "runspaces.removed/";
-
     private static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
-    private static final String R_HEADS_RUNSPACES = Constants.R_HEADS + RUNSPACES;
-    private static final String R_HEADS_RUNSPACES_REMOVED = Constants.R_HEADS + RUNSPACES_REMOVED;
 
     private final Lock writeLock = new ReentrantLock();
     private final Project parent;
@@ -306,11 +298,6 @@ class GitRepository implements Repository {
 
     @Override
     public CompletableFuture<Revision> normalize(Revision revision) {
-        // Don't bother caching runspace revisions; we do not use them at all.
-        if (!revision.onMainLane()) {
-            return CompletableFuture.supplyAsync(() -> blockingNormalize(revision), repositoryWorker);
-        }
-
         final int maxMajor = headRevision.major();
 
         int major = revision.major();
@@ -334,7 +321,7 @@ class GitRepository implements Repository {
         if (revision.major() == major) {
             return CompletableFuture.completedFuture(revision);
         } else {
-            return CompletableFuture.completedFuture(new Revision(major, 0));
+            return CompletableFuture.completedFuture(new Revision(major));
         }
     }
 
@@ -344,7 +331,6 @@ class GitRepository implements Repository {
         final int baseMajor = cachedMainLaneHeadRevision().major();
 
         int major = revision.major();
-        int minor = revision.minor();
 
         if (major >= 0) {
             if (major > baseMajor) {
@@ -357,25 +343,11 @@ class GitRepository implements Repository {
             }
         }
 
-        if (minor != 0) {
-            final int baseMinor = runspaceHeadRevision(major).minor();
-            if (minor > 0) {
-                if (minor > baseMinor) {
-                    throw new RevisionNotFoundException(revision);
-                }
-            } else {
-                minor = baseMinor + minor + 1;
-                if (minor <= 0) {
-                    throw new RevisionNotFoundException(revision);
-                }
-            }
-        }
-
         // Create a new instance only when necessary.
-        if (revision.major() == major && revision.minor() == minor) {
+        if (revision.major() == major) {
             return revision;
         } else {
-            return new Revision(major, minor);
+            return new Revision(major);
         }
     }
 
@@ -517,45 +489,6 @@ class GitRepository implements Repository {
         toCommitId = toCommitId(to);
 
         // At this point, we are sure: from.major >= to.major
-        final boolean validCommitRange;
-        if (from.minor() != 0) {
-            if (to.minor() != 0) {
-                // Both revisions are runspace revisions, and thus must belong to the same runspace.
-                //
-                //     GOOD:         BAD:
-                //
-                //     |   from      | from
-                //     |   /         |/
-                //     |  to         *  to
-                //     | /           | /
-                //     |/            |/
-                //     *             *
-                //
-                validCommitRange = from.major() == to.major();
-            } else {
-                validCommitRange = true;
-            }
-        } else {
-            // If 'from' is a main lane revision, 'to' must also be a mainline revision
-            // because otherwise we will have to climb back up the runspace branch.
-            //
-            //   GOOD:     BAD:
-            //
-            //     |        |
-            //   from     from  /
-            //     |        |  to
-            //     |        | /
-            //     |        |/
-            //    to        *
-            //     |        |
-            //
-            validCommitRange = to.onMainLane();
-        }
-
-        if (!validCommitRange) {
-            throw new IllegalArgumentException("invalid commit range: " + origFrom + " .. " + origTo);
-        }
-
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
             // Walk through the commit tree to get the corresponding commit information by given filters
             revWalk.setTreeFilter(AndTreeFilter.create(TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
@@ -576,7 +509,7 @@ class GitRepository implements Repository {
                 if (c != null) {
                     commitList.add(c);
                 } else {
-                    // Probably garbage (e.g. deleted runspace)
+                    // Probably garbage?
                     continue;
                 }
 
@@ -589,13 +522,13 @@ class GitRepository implements Repository {
 
             // Handle the case where the last commit was not visited by the RevWalk,
             // which can happen when the commit is empty.  In our repository, an empty commit can only be made
-            // when a new repository is created or a new runspace is created.
+            // when a new repository is created.
             if (needsLastCommit) {
                 try (RevWalk tmpRevWalk = new RevWalk(jGitRepository)) {
                     final RevCommit lastRevCommit = tmpRevWalk.parseCommit(toCommitId);
                     final Revision lastCommitRevision =
                             CommitUtil.extractRevision(lastRevCommit.getFullMessage());
-                    if (lastCommitRevision.major() == 1 || lastCommitRevision.minor() == 1) {
+                    if (lastCommitRevision.major() == 1) {
                         commitList.add(toCommit(lastRevCommit));
                     }
                 }
@@ -796,34 +729,17 @@ class GitRepository implements Repository {
         writeLock.lock();
         try {
             final Revision normBaseRevision = blockingNormalize(baseRevision);
-            final Revision headRevision;
-            final Revision nextRevision;
-            final boolean pushToRunspace = normBaseRevision.minor() > 0;
-
-            if (pushToRunspace) {
-                headRevision = runspaceHeadRevision(baseRevision.major());
-                if (headRevision.minor() != normBaseRevision.minor()) {
-                    throw new ChangeConflictException(
-                            "invalid baseRevision: " + baseRevision + " (expected: " + headRevision +
-                            " or equivalent)");
-                }
-                nextRevision = new Revision(headRevision.major(), headRevision.minor() + 1);
-            } else {
-                headRevision = cachedMainLaneHeadRevision();
-                if (headRevision.major() != normBaseRevision.major()) {
-                    throw new ChangeConflictException(
-                            "invalid baseRevision: " + baseRevision + " (expected: " + headRevision +
-                            " or equivalent)");
-                }
-                nextRevision = new Revision(headRevision.major() + 1);
+            final Revision headRevision = cachedMainLaneHeadRevision();
+            if (headRevision.major() != normBaseRevision.major()) {
+                throw new ChangeConflictException(
+                        "invalid baseRevision: " + baseRevision + " (expected: " + headRevision +
+                        " or equivalent)");
             }
 
-            res = commit0(headRevision, nextRevision, commitTimeMillis,
+            res = commit0(headRevision, headRevision.forward(1), commitTimeMillis,
                           author, summary, detail, markup, changes, allowEmptyCommit);
 
-            if (!pushToRunspace) {
-                this.headRevision = res.revision;
-            }
+            this.headRevision = res.revision;
         } finally {
             writeLock.unlock();
         }
@@ -843,8 +759,8 @@ class GitRepository implements Repository {
         requireNonNull(detail, "detail");
         requireNonNull(markup, "markup");
 
-        assert prevRevision == null || prevRevision.major() > 0 && prevRevision.minor() >= 0;
-        assert nextRevision.major() > 0 && nextRevision.minor() >= 0;
+        assert prevRevision == null || prevRevision.major() > 0;
+        assert nextRevision.major() > 0;
 
         try (ObjectInserter inserter = jGitRepository.newObjectInserter();
              ObjectReader reader = jGitRepository.newObjectReader();
@@ -905,12 +821,7 @@ class GitRepository implements Repository {
 
             // tagging the revision object, for history lookup purpose.
             doRefUpdate(revWalk, revisionRef(nextRevision), nextCommitId);
-
-            if (nextRevision.onMainLane()) {
-                doRefUpdate(revWalk, R_HEADS_MASTER, nextCommitId);
-            } else {
-                doRefUpdate(revWalk, runspaceRef(nextRevision.major()), nextCommitId);
-            }
+            doRefUpdate(revWalk, R_HEADS_MASTER, nextCommitId);
 
             return new CommitResult(nextRevision, prevTreeId, nextTreeId);
         } catch (IllegalArgumentException | StorageException e) {
@@ -1293,13 +1204,7 @@ class GitRepository implements Repository {
         final CompletableFuture<Revision> future = new CompletableFuture<>();
 
         normalize(lastKnownRevision).thenAccept(normLastKnownRevision -> {
-            final Revision headRevision;
-            if (normLastKnownRevision.onMainLane()) {
-                headRevision = cachedMainLaneHeadRevision();
-            } else {
-                headRevision = runspaceHeadRevision(normLastKnownRevision.major());
-            }
-
+            final Revision headRevision = cachedMainLaneHeadRevision();
             final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
 
             // If lastKnownRevision is outdated already and the recent changes match, there's no need to watch.
@@ -1361,122 +1266,6 @@ class GitRepository implements Repository {
         }
     }
 
-    @Override
-    public CompletableFuture<Revision> createRunspace(int majorRevision, long creationTimeMillis,
-                                                      Author author) {
-        return CompletableFuture.supplyAsync(
-                () -> blockingCreateRunspace(majorRevision, creationTimeMillis, author),
-                repositoryWorker);
-    }
-
-    private Revision blockingCreateRunspace(int majorRevision, long creationTimeMillis, Author author) {
-        if (majorRevision <= 0) {
-            throw new IllegalArgumentException("majorRevision " + majorRevision + " (expected: > 0)");
-        }
-
-        final Revision prevRevision;
-        final Revision nextRevision;
-
-        writeLock.lock();
-        try {
-            if (resolveExactRef(runspaceRef(majorRevision)) != null) {
-                throw new StorageException("runspace exists already (major revision: " + majorRevision + ')');
-            }
-
-            prevRevision = new Revision(majorRevision);
-
-            if (resolveExactRef(revisionRef(prevRevision)) == null) {
-                throw new RevisionNotFoundException("non-existent major revision: " + majorRevision);
-            }
-
-            nextRevision = new Revision(majorRevision, 1);
-
-            return commit0(prevRevision, nextRevision, creationTimeMillis,
-                           author, "Create a new runspace from major revision " + majorRevision,
-                           "", Markup.PLAINTEXT, Collections.emptyList(), true).revision;
-        } finally {
-            writeLock.unlock();
-        }
-    }
-
-    @Override
-    public CompletableFuture<Void> removeRunspace(int majorRevision) {
-        return CompletableFuture.supplyAsync(() -> {
-            blockingRemoveRunspace(majorRevision);
-            return null;
-        }, repositoryWorker);
-    }
-
-    private void blockingRemoveRunspace(int majorRevision) {
-        writeLock.lock();
-        try {
-            final String oldRef = runspaceRef(majorRevision);
-            if (jGitRepository.exactRef(oldRef) == null) {
-                throw new StorageException("non-existent runspace for major revision: " + majorRevision);
-            }
-
-            final RefRename refRename =
-                    jGitRepository.renameRef(oldRef, removedRunspaceRef(majorRevision));
-            final Result result = refRename.rename();
-            if (Result.RENAMED != result) {
-                throw new StorageException(
-                        "failed to remove the runspace for major revision: " + majorRevision +
-                        " (result: " + result + ')');
-            }
-
-            final String prefix;
-            switch (format) {
-                case V0:
-                    prefix = Constants.R_TAGS + TagUtil.byteHexDirName(majorRevision);
-                    break;
-                case V1:
-                    prefix = Constants.R_TAGS + "runspaces/" + majorRevision + '/';
-                    break;
-                default:
-                    throw new Error("unknown repository format: " + format);
-            }
-
-            final Map<String, Ref> refMap = jGitRepository.getRefDatabase().getRefs(prefix);
-
-            for (Map.Entry<String, Ref> refEntry : refMap.entrySet()) {
-                final Revision revision = new Revision(refEntry.getKey());
-                if (revision.major() == majorRevision && !revision.onMainLane()) {
-                    RefUpdate refUpdate = jGitRepository.updateRef(refEntry.getValue().getName());
-                    refUpdate.setForceUpdate(true);
-                    refUpdate.delete();
-                }
-            }
-        } catch (StorageException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new StorageException("failed to remove runspace for major revision: " + majorRevision, e);
-        } finally {
-            writeLock.unlock();
-        }
-    }
-
-    @Override
-    public CompletableFuture<Set<Revision>> listRunspaces() {
-        return CompletableFuture.supplyAsync(this::blockingListRunspaces, repositoryWorker);
-    }
-
-    private Set<Revision> blockingListRunspaces() {
-        final Set<Revision> runspaces = new HashSet<>();
-        try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-            final Map<String, Ref> refMap = jGitRepository.getRefDatabase().getRefs(R_HEADS_RUNSPACES);
-            for (Ref ref : refMap.values()) {
-                final RevCommit revCommit = revWalk.parseCommit(ref.getObjectId());
-                final Revision revision = CommitUtil.extractRevision(revCommit.getFullMessage());
-                runspaces.add(revision);
-            }
-            return runspaces;
-        } catch (StorageException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new StorageException("failed to list runspaces", e);
-        }
-    }
-
     private Revision cachedMainLaneHeadRevision() {
         return headRevision;
     }
@@ -1498,26 +1287,6 @@ class GitRepository implements Repository {
         }
 
         throw new StorageException("failed to determine the HEAD: " + jGitRepository.getDirectory());
-    }
-
-    /**
-     * Get the latest revision for given runspace specified by {@code majorRevision}.
-     */
-    private Revision runspaceHeadRevision(int majorRevision) {
-        if (majorRevision == 0) {
-            throw new IllegalArgumentException("majorRevision: 0 (expected: a positive integer)");
-        }
-
-        try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-            ObjectId commitId = toRunspaceHeadCommitId(majorRevision);
-            RevCommit revCommit = revWalk.parseCommit(commitId);
-            return CommitUtil.extractRevision(revCommit.getFullMessage());
-        } catch (StorageException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new StorageException(
-                    "failed to get the latest runspace revision for major revision " + majorRevision, e);
-        }
     }
 
     /**
@@ -1552,14 +1321,6 @@ class GitRepository implements Repository {
         return resolved;
     }
 
-    private ObjectId toRunspaceHeadCommitId(int major) {
-        final ObjectId resolved = resolveExactRef(runspaceRef(major));
-        if (resolved == null) {
-            throw new StorageException("failed to find the head commit for the runspace: " + major);
-        }
-        return resolved;
-    }
-
     private ObjectId resolveExactRef(String ref) {
         try {
             final Ref res = jGitRepository.exactRef(requireNonNull(ref, "ref"));
@@ -1573,24 +1334,12 @@ class GitRepository implements Repository {
         switch (format) {
             case V0:
                 return Constants.R_TAGS + TagUtil.byteHexDirName(revision.major()) +
-                       (revision.minor() == 0 ? revision.text() + ".0" : revision.text());
+                       (revision.text() + ".0");
             case V1:
-                if (revision.minor() == 0) {
-                    return Constants.R_TAGS + revision.major();
-                } else {
-                    return Constants.R_TAGS + "runspaces/" + revision.major() + '/' + revision.minor();
-                }
+                return Constants.R_TAGS + revision.major();
         }
 
         throw new Error("unknown repository format: " + format);
-    }
-
-    private static String runspaceRef(int majorRevision) {
-        return R_HEADS_RUNSPACES + majorRevision;
-    }
-
-    private static String removedRunspaceRef(int majorRevision) {
-        return R_HEADS_RUNSPACES_REMOVED + majorRevision;
     }
 
     /**

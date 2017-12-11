@@ -16,9 +16,9 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -46,7 +46,7 @@ import com.linecorp.centraldogma.internal.Util;
 @JsonDeserialize(using = RevisionJsonDeserializer.class)
 public class Revision implements Comparable<Revision> {
 
-    private static final Pattern REVISION_PATTERN = Pattern.compile("^(-?[0-9]+)(?:\\.([0-9]+))?$");
+    private static final Pattern REVISION_PATTERN = Pattern.compile("^-?[0-9]+(?:\\.0)?$");
 
     /**
      * Revision {@code -1}, also known as 'HEAD'.
@@ -59,14 +59,18 @@ public class Revision implements Comparable<Revision> {
     public static final Revision INIT = new Revision(1);
 
     private final int major;
-    private final int minor;
     private final String text;
 
     /**
      * Creates a new instance with the specified revision number.
      */
     public Revision(int major) {
-        this(major, 0);
+        if (major == 0) {
+            throw new IllegalArgumentException("major: 0 (expected: a non-zero integer)");
+        }
+
+        this.major = major;
+        text = generateText(major);
     }
 
     /**
@@ -76,13 +80,8 @@ public class Revision implements Comparable<Revision> {
      */
     @Deprecated
     public Revision(int major, int minor) {
-        if (major == 0) {
-            throw new IllegalArgumentException("major: 0 (expected: a non-zero integer)");
-        }
-
-        this.major = major;
-        this.minor = minor;
-        text = generateText(major, minor);
+        this(major);
+        checkArgument(minor == 0, "minor: %s (expected: 0)", minor);
     }
 
     /**
@@ -92,25 +91,23 @@ public class Revision implements Comparable<Revision> {
         requireNonNull(revisionStr, "revisionStr");
         if ("head".equalsIgnoreCase(revisionStr) || "-1".equals(revisionStr)) {
             major = HEAD.major;
-            minor = HEAD.minor;
         } else {
-            Matcher m = REVISION_PATTERN.matcher(revisionStr);
-            if (!m.matches()) {
+            if (!REVISION_PATTERN.matcher(revisionStr).matches()) {
                 throw illegalRevisionArgumentException(revisionStr);
             }
-            String majorStr = m.group(1);
-            String minorStr = m.group(2);
+
             try {
-                major = Integer.parseInt(majorStr);
+                major = Integer.parseInt(
+                        !revisionStr.endsWith(".0") ? revisionStr
+                                                    : revisionStr.substring(0, revisionStr.length() - 2));
                 if (major == 0) {
                     throw illegalRevisionArgumentException(revisionStr);
                 }
-                minor = minorStr == null ? 0 : Integer.parseInt(minorStr);
             } catch (NumberFormatException ignored) {
                 throw illegalRevisionArgumentException(revisionStr);
             }
         }
-        text = generateText(major, minor);
+        text = generateText(major);
     }
 
     /**
@@ -121,13 +118,13 @@ public class Revision implements Comparable<Revision> {
     }
 
     /**
-     * Returns the minor revision number.
+     * Returns {@code 0}.
      *
      * @deprecated Do not use. Minor revisions are not used anymore.
      */
     @Deprecated
     public int minor() {
-        return minor;
+        return 0;
     }
 
     /**
@@ -138,13 +135,13 @@ public class Revision implements Comparable<Revision> {
     }
 
     /**
-     * Returns whether the minor revision is zero.
+     * Returns {@code true}.
      *
      * @deprecated Do not use. Minor revisions are not used anymore.
      */
     @Deprecated
     public boolean onMainLane() {
-        return minor() == 0;
+        return true;
     }
 
     /**
@@ -160,11 +157,7 @@ public class Revision implements Comparable<Revision> {
             throw new IllegalArgumentException("count " + count + " (expected: a non-negative integer)");
         }
 
-        if (minor == 0) {
-            return new Revision(subtract(major, count));
-        } else {
-            return new Revision(major, subtract(minor, count));
-        }
+        return new Revision(subtract(major, count));
     }
 
     private static int subtract(int revNum, int delta) {
@@ -192,11 +185,7 @@ public class Revision implements Comparable<Revision> {
             throw new IllegalArgumentException("count " + count + " (expected: a non-negative integer)");
         }
 
-        if (minor == 0) {
-            return new Revision(add(major, count));
-        } else {
-            return new Revision(major, add(minor, count));
-        }
+        return new Revision(add(major, count));
     }
 
     private static int add(int revNum, int delta) {
@@ -213,7 +202,7 @@ public class Revision implements Comparable<Revision> {
 
     @Override
     public int hashCode() {
-        return major * 31 + minor;
+        return major;
     }
 
     @Override
@@ -225,9 +214,7 @@ public class Revision implements Comparable<Revision> {
             return false;
         }
 
-        Revision revision = (Revision) o;
-
-        return major == revision.major && minor == revision.minor;
+        return major == ((Revision) o).major;
     }
 
     @Override
@@ -238,10 +225,6 @@ public class Revision implements Comparable<Revision> {
         buf.append(Util.simpleTypeName(this));
         buf.append('(');
         buf.append(major);
-        if (minor != 0) {
-            buf.append('.');
-            buf.append(minor);
-        }
         buf.append(')');
 
         return buf.toString();
@@ -249,39 +232,23 @@ public class Revision implements Comparable<Revision> {
 
     @Override
     public int compareTo(Revision o) {
-        if (major < o.major()) {
-            return -1;
-        }
-        if (major > o.major()) {
-            return 1;
-        }
-
-        return Integer.compare(minor, o.minor());
-    }
-
-    boolean isMajorRelative() {
-        return major < 0;
-    }
-
-    boolean isMinorRelative() {
-        return minor < 0;
+        return Integer.compare(major, o.major);
     }
 
     /**
      * Returns whether this {@link Revision} is relative.
      */
     public boolean isRelative() {
-        return isMajorRelative() || isMinorRelative();
+        return major < 0;
     }
 
-    private static String generateText(int major, int minor) {
-        return minor == 0 ? String.valueOf(major) : major + "." + minor;
+    private static String generateText(int major) {
+        return String.valueOf(major);
     }
 
     private static IllegalArgumentException illegalRevisionArgumentException(String revisionStr) {
         return new IllegalArgumentException(
                 "revisionStr: " + revisionStr +
-                " (expected: \"major\" or \"major.minor\"" +
-                " where major is non-zero integer and minor is an integer)");
+                " (expected: \"major\" or \"major.0\" where major is non-zero integer)");
     }
 }

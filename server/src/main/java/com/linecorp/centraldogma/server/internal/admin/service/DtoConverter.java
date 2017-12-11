@@ -65,11 +65,7 @@ final class DtoConverter {
     }
 
     static RevisionDto convert(Revision revision) {
-        return new RevisionDto(revision.major(), revision.minor(), revision.text());
-    }
-
-    static Revision convert(RevisionDto dto) {
-        return new Revision(dto.getMajor(), dto.getMinor());
+        return new RevisionDto(revision.major(), 0, revision.text());
     }
 
     static AuthorDto convert(Author author) {

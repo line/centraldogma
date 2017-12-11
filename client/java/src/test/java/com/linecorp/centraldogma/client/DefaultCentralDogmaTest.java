@@ -175,7 +175,7 @@ public class DefaultCentralDogmaTest {
         doAnswer(invocation -> {
             final AsyncMethodCallback<List<Repository>> callback = invocation.getArgument(1);
             final Repository repository = new Repository("repo").setHead(
-                    new TCommit(new TRevision(42, 0),
+                    new TCommit(new TRevision(42),
                                 new TAuthor("hitchhiker", "arthur@dent.com"),
                                 "1978-03-08T00:00:00Z", "The primary phrase",
                                 new Comment(""), null));
@@ -208,11 +208,11 @@ public class DefaultCentralDogmaTest {
     public void normalizeRevision() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<TRevision> callback = invocation.getArgument(3);
-            callback.onComplete(new TRevision(3, 4));
+            callback.onComplete(new TRevision(3));
             return null;
         }).when(iface).normalizeRevision(anyString(), anyString(), any(), any());
-        assertThat(client.normalizeRevision("project", "repo", new Revision(1, 2)).get())
-                .isEqualTo(new Revision(3, 4));
+        assertThat(client.normalizeRevision("project", "repo", new Revision(1)).get())
+                .isEqualTo(new Revision(3));
         verify(iface).normalizeRevision(eq("project"), eq("repo"), any(), any());
     }
 
@@ -225,7 +225,7 @@ public class DefaultCentralDogmaTest {
             callback.onComplete(ImmutableList.of(entry));
             return null;
         }).when(iface).listFiles(anyString(), anyString(), any(), anyString(), any());
-        assertThat(client.listFiles("project", "repo", new Revision(1, 2), "/a.txt").get())
+        assertThat(client.listFiles("project", "repo", new Revision(1), "/a.txt").get())
                 .isEqualTo(ImmutableMap.of("/a.txt", EntryType.TEXT));
         verify(iface).listFiles(anyString(), anyString(), any(), anyString(), any());
     }
@@ -239,7 +239,7 @@ public class DefaultCentralDogmaTest {
             callback.onComplete(ImmutableList.of(entry));
             return null;
         }).when(iface).getFiles(anyString(), anyString(), any(), anyString(), any());
-        assertThat(client.getFiles("project", "repo", new Revision(1, 2), "path").get())
+        assertThat(client.getFiles("project", "repo", new Revision(1), "path").get())
                 .isEqualTo(ImmutableMap.of("/b.txt", Entry.ofText("/b.txt", "world")));
         verify(iface).getFiles(anyString(), anyString(), any(), anyString(), any());
     }
@@ -249,7 +249,7 @@ public class DefaultCentralDogmaTest {
         doAnswer(invocation -> {
             final AsyncMethodCallback<List<TCommit>> callback = invocation.getArgument(5);
             callback.onComplete(ImmutableList.of(new TCommit(
-                    new TRevision(1, 2),
+                    new TRevision(1),
                     new TAuthor("name", "name@sample.com"),
                     TIMESTAMP,
                     "summary",
@@ -257,9 +257,9 @@ public class DefaultCentralDogmaTest {
                     ImmutableList.of(new TChange("/a.txt", ChangeType.UPSERT_TEXT).setContent("content")))));
             return null;
         }).when(iface).getHistory(any(), any(), any(), any(), any(), any());
-        assertThat(client.getHistory("project", "repo", new Revision(1, 2), new Revision(3, 4), "path").get())
+        assertThat(client.getHistory("project", "repo", new Revision(1), new Revision(3), "path").get())
                 .isEqualTo(ImmutableList.of(new CommitAndChanges<>(
-                        new Commit(new Revision(1, 2),
+                        new Commit(new Revision(1),
                                    new Author("name", "name@sample.com"),
                                    Instant.parse(TIMESTAMP).toEpochMilli(),
                                    "summary", "detail", Markup.PLAINTEXT),
@@ -276,7 +276,7 @@ public class DefaultCentralDogmaTest {
             callback.onComplete(ImmutableList.of(change));
             return null;
         }).when(iface).getDiffs(any(), any(), any(), any(), any(), any());
-        assertThat(client.getDiffs("project", "repo", new Revision(1, 2), new Revision(3, 4), "path").get())
+        assertThat(client.getDiffs("project", "repo", new Revision(1), new Revision(3), "path").get())
                 .isEqualTo(ImmutableList.of(Change.ofTextUpsert("/a.txt", "content")));
         verify(iface).getDiffs(eq("project"), eq("repo"), any(), any(), eq("path"), any());
     }
@@ -290,7 +290,7 @@ public class DefaultCentralDogmaTest {
             callback.onComplete(ImmutableList.of(change));
             return null;
         }).when(iface).getPreviewDiffs(any(), any(), any(), any(), any());
-        assertThat(client.getPreviewDiffs("project", "repo", new Revision(1, 2),
+        assertThat(client.getPreviewDiffs("project", "repo", new Revision(1),
                                           ImmutableList.of(Change.ofTextUpsert("/a.txt", "content"))).get())
                 .isEqualTo(ImmutableList.of(Change.ofTextUpsert("/a.txt", "content")));
         verify(iface).getPreviewDiffs(eq("project"), eq("repo"), any(), any(), any());
@@ -301,7 +301,7 @@ public class DefaultCentralDogmaTest {
         doAnswer(invocation -> {
             final AsyncMethodCallback<TCommit> callback = invocation.getArgument(7);
             callback.onComplete(new TCommit(
-                    new TRevision(1, 2),
+                    new TRevision(1),
                     new TAuthor("name", "name@sample.com"),
                     TIMESTAMP,
                     "summary",
@@ -309,12 +309,12 @@ public class DefaultCentralDogmaTest {
                     ImmutableList.of()));
             return null;
         }).when(iface).push(anyString(), anyString(), any(), any(), any(), any(), any(), any());
-        assertThat(client.push("project", "repo", new Revision(1, 2),
+        assertThat(client.push("project", "repo", new Revision(1),
                                new Author("name", "name@sample.com"),
                                "summary", "detail", Markup.PLAINTEXT,
                                ImmutableList.of(Change.ofTextUpsert("/a.txt", "hello"))
         ).get()).isEqualTo(new Commit(
-                new Revision(1, 2),
+                new Revision(1),
                 new Author("name", "name@sample.com"),
                 Instant.parse(TIMESTAMP).toEpochMilli(),
                 "summary", "detail", Markup.PLAINTEXT
@@ -330,7 +330,7 @@ public class DefaultCentralDogmaTest {
             callback.onComplete(new GetFileResult(TEntryType.TEXT, "content"));
             return null;
         }).when(iface).getFile(any(), any(), any(), any(), any());
-        assertThat(client.getFile("project", "repo", new Revision(1, 2), Query.identity("/a.txt")).get())
+        assertThat(client.getFile("project", "repo", new Revision(1), Query.identity("/a.txt")).get())
                 .isEqualTo(Entry.ofText("/a.txt", "content"));
         verify(iface).getFile(eq("project"), eq("repo"), any(), any(), any());
     }
@@ -342,7 +342,7 @@ public class DefaultCentralDogmaTest {
             callback.onComplete(new GetFileResult(TEntryType.TEXT, "content"));
             return null;
         }).when(iface).getFile(any(), any(), any(), any(), any());
-        assertThat(client.getFile("project", "repo", new Revision(1, 2), "/a.txt").get())
+        assertThat(client.getFile("project", "repo", new Revision(1), "/a.txt").get())
                 .isEqualTo(Entry.ofText("/a.txt", "content"));
         verify(iface).getFile(eq("project"), eq("repo"), any(), any(), any());
     }
@@ -354,7 +354,7 @@ public class DefaultCentralDogmaTest {
             callback.onComplete(new DiffFileResult(ChangeType.UPSERT_TEXT, "some_text"));
             return null;
         }).when(iface).diffFile(any(), any(), any(), any(), any(), any());
-        assertThat(client.getDiff("project", "repo", new Revision(1, 2), new Revision(3, 4),
+        assertThat(client.getDiff("project", "repo", new Revision(1), new Revision(3),
                                   Query.identity("/a.txt")).get())
                 .isEqualTo(Change.ofTextUpsert("/a.txt", "some_text"));
         verify(iface).diffFile(eq("project"), eq("repo"), any(), any(), any(), any());
@@ -364,10 +364,10 @@ public class DefaultCentralDogmaTest {
     public void watchRepository() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<WatchRepositoryResult> callback = invocation.getArgument(5);
-            callback.onComplete(new WatchRepositoryResult().setRevision(new TRevision(42, 0)));
+            callback.onComplete(new WatchRepositoryResult().setRevision(new TRevision(42)));
             return null;
         }).when(iface).watchRepository(any(), any(), any(), anyString(), anyLong(), any());
-        assertThat(client.watchRepository("project", "repo", new Revision(1, 2), "/a.txt", 100).get())
+        assertThat(client.watchRepository("project", "repo", new Revision(1), "/a.txt", 100).get())
                 .isEqualTo(new Revision(42));
         verify(iface).watchRepository(eq("project"), eq("repo"), any(), eq("/a.txt"), eq(100L), any());
     }
@@ -379,7 +379,7 @@ public class DefaultCentralDogmaTest {
             callback.onComplete(new WatchRepositoryResult());
             return null;
         }).when(iface).watchRepository(any(), any(), any(), anyString(), anyLong(), any());
-        assertThat(client.watchRepository("project", "repo", new Revision(1, 2), "/a.txt", 100).get())
+        assertThat(client.watchRepository("project", "repo", new Revision(1), "/a.txt", 100).get())
                 .isNull();
         verify(iface).watchRepository(eq("project"), eq("repo"), any(), eq("/a.txt"), eq(100L), any());
     }
@@ -388,12 +388,12 @@ public class DefaultCentralDogmaTest {
     public void watchFile() throws Exception {
         doAnswer(invocation -> {
             AsyncMethodCallback<WatchFileResult> callback = invocation.getArgument(5);
-            callback.onComplete(new WatchFileResult().setRevision(new TRevision(42, 0))
+            callback.onComplete(new WatchFileResult().setRevision(new TRevision(42))
                                                      .setType(TEntryType.TEXT)
                                                      .setContent("foo"));
             return null;
         }).when(iface).watchFile(any(), any(), any(), any(), anyLong(), any());
-        assertThat(client.watchFile("project", "repo", new Revision(1, 2), Query.identity("/a.txt"), 100).get())
+        assertThat(client.watchFile("project", "repo", new Revision(1), Query.identity("/a.txt"), 100).get())
                 .isEqualTo(new QueryResult<>(new Revision(42), EntryType.TEXT, "foo"));
         verify(iface).watchFile(eq("project"), eq("repo"), any(), any(), eq(100L), any());
     }
@@ -405,7 +405,7 @@ public class DefaultCentralDogmaTest {
             callback.onComplete(new WatchFileResult());
             return null;
         }).when(iface).watchFile(any(), any(), any(), any(), anyLong(), any());
-        assertThat(client.watchFile("project", "repo", new Revision(1, 2),
+        assertThat(client.watchFile("project", "repo", new Revision(1),
                                     Query.identity("/a.txt"), 100).get()).isNull();
         verify(iface).watchFile(eq("project"), eq("repo"), any(), any(), eq(100L), any());
     }

@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
@@ -115,11 +114,6 @@ final class CachingRepository implements Repository {
             throw new IllegalArgumentException("maxCommits: " + maxCommits + " (expected: > 0)");
         }
 
-        if (!from.onMainLane() || !to.onMainLane()) {
-            // Do not cache non-mainlane requests.
-            return repo.history(from, to, pathPattern, maxCommits);
-        }
-
         final CompletableFuture<Object> future = normalizeAndCompose(
                 from, to,
                 (normalizedFrom, normalizedTo) -> {
@@ -199,22 +193,6 @@ final class CachingRepository implements Repository {
     @Override
     public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
         return repo.watch(lastKnownRevision, pathPattern);
-    }
-
-    @Override
-    public CompletableFuture<Revision> createRunspace(int majorRevision, long creationTimeMillis,
-                                                      Author author) {
-        return repo.createRunspace(majorRevision, creationTimeMillis, author);
-    }
-
-    @Override
-    public CompletableFuture<Void> removeRunspace(int majorRevision) {
-        return repo.removeRunspace(majorRevision);
-    }
-
-    @Override
-    public CompletableFuture<Set<Revision>> listRunspaces() {
-        return repo.listRunspaces();
     }
 
     private <T> CompletableFuture<T> normalizeAndCompose(
