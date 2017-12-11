@@ -115,7 +115,7 @@
         ]
     },
     {
-        "message": "similar element is copied instead of added",
+        "message": "similar element is not copied if it's not a container",
         "first": {
             "a": "c"
         },
@@ -124,15 +124,20 @@
             "d": "c"
         },
         "patch": [
-            { "op": "copy", "path": "/d", "from": "/a" }
+            { "op": "add", "path": "/d", "value": "c" }
         ]
     },
     {
-        "message": "similar element removed then added is moved instead",
-        "first": { "a": "b" },
-        "second": { "c": "b" },
+        "message": "similar element is copied if it's a container",
+        "first": {
+            "a": [ "1", "2" ]
+        },
+        "second": {
+            "a": [ "1", "2" ],
+            "c": [ "1", "2" ]
+        },
         "patch": [
-            { "op": "move", "path": "/c", "from": "/a" }
+            { "op": "copy", "path": "/c", "from": "/a" }
         ]
     }
 ]

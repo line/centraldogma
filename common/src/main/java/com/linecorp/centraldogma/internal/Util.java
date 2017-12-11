@@ -23,7 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.file.Files;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -121,10 +121,10 @@ public final class Util {
     }
 
     public static List<String> stringToLines(String str) {
-        BufferedReader reader = new BufferedReader(new StringReader(str));
-        List<String> lines = new LinkedList<>();
-        String line;
+        final BufferedReader reader = new BufferedReader(new StringReader(str));
+        final List<String> lines = new ArrayList<>(128);
         try {
+            String line;
             while ((line = reader.readLine()) != null) {
                 lines.add(line);
             }

@@ -128,6 +128,13 @@ public final class JsonPatch
     }
 
     /**
+     * Returns whether this patch is empty.
+     */
+    public boolean isEmpty() {
+        return operations.isEmpty();
+    }
+
+    /**
      * Apply this patch to a JSON value
      *
      * @param node the value to apply the patch to

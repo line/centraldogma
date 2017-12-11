@@ -191,7 +191,12 @@ public class GitRepositoryTest {
         Map<String, Entry<?>> entries = Util.unsafeCast(repo.find(HEAD, allPattern).join());
         for (Change<?> c : upserts) {
             final String path = c.path();
-            assertThat(entries).containsEntry(path, Entry.of(path, c.content(), entryType));
+            if (entryType == EntryType.TEXT) {
+                // Text must be sanitized so that the last line ends with \n.
+                assertThat(entries).containsEntry(path, Entry.of(path, c.content() + "\n", EntryType.TEXT));
+            } else {
+                assertThat(entries).containsEntry(path, Entry.of(path, c.content(), entryType));
+            }
         }
     }
 
@@ -246,7 +251,8 @@ public class GitRepositoryTest {
             if (e.type() == EntryType.JSON) {
                 assertThatJson(e.content()).isEqualTo(upserts[i].content());
             } else {
-                assertThat(e.content()).isEqualTo(upserts[i].content());
+                // Text must be sanitized so that the last line ends with \n.
+                assertThat(e.content()).isEqualTo(upserts[i].content() + "\n");
             }
         }
     }
@@ -415,6 +421,63 @@ public class GitRepositoryTest {
                 () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);
+    }
+
+    @Test
+    public void testEmptyCommitWithRedundantUpsert2() throws Exception {
+        // Create files to produce redundant changes.
+        final Change<JsonNode> change1 = Change.ofJsonUpsert("/redundant_upsert_2.json",
+                                                             "{ \"foo\": 0, \"bar\": 1 }");
+        final Change<String> change2 = Change.ofTextUpsert("/redundant_upsert_2.txt", "foo");
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change1).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change2).join();
+
+        // Ensure redundant changes do not count as a valid change.
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change1).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RedundantChangeException.class);
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change2).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RedundantChangeException.class);
+
+        // Ensure a change only whose serialized form is different does not count.
+        final Change<JsonNode> change1a = Change.ofJsonUpsert("/redundant_upsert_2.json",
+                                                              "{ \"bar\": 1, \"foo\": 0 }");
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change1a).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RedundantChangeException.class);
+    }
+
+    @Test
+    public void testTextSanitization() throws Exception {
+        // Ensure CRs are stripped.
+        final Change<String> dosText = Change.ofTextUpsert("/text_sanitization_dos.txt", "foo\r\nbar\r\n");
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, dosText).join();
+        assertThat(repo.get(HEAD, dosText.path()).join().contentAsText()).isEqualTo("foo\nbar\n");
+
+        // Ensure redundant commits are rejected.
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                             Change.ofTextUpsert(dosText.path(), "foo\nbar\n")).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RedundantChangeException.class);
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                             Change.ofTextUpsert(dosText.path(), "foo\nbar")).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RedundantChangeException.class);
+        //// However, additional empty lines should be treated as different.
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                    Change.ofTextUpsert(dosText.path(), "foo\nbar\r\n\n")).join();
+        assertThat(repo.get(HEAD, dosText.path()).join().contentAsText()).isEqualTo("foo\nbar\n\n");
+
+        // Ensure trailing \n is added if missing.
+        final Change<String> withoutNewline = Change.ofTextUpsert("/text_sanitization_without_lf.txt", "foo");
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, withoutNewline).join();
+        assertThat(repo.get(HEAD, withoutNewline.path()).join().contentAsText()).isEqualTo("foo\n");
+
+        // Ensure trailing \n is not added if exists.
+        final Change<String> withNewline = Change.ofTextUpsert("/text_sanitization_with_lf.txt", "foo\n");
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, withNewline).join();
+        assertThat(repo.get(HEAD, withNewline.path()).join().contentAsText()).isEqualTo("foo\n");
     }
 
     @Test
@@ -872,7 +935,7 @@ public class GitRepositoryTest {
             assertThatJson(entryMap.get(jsonNodePath).content()).isEqualTo(
                     String.format(jsonStringPattern, numIterations + i));
             assertThat(entryMap.get(textNodePath).content()).isEqualTo(
-                    String.format(textStringPattern, numIterations + i));
+                    String.format(textStringPattern + '\n', numIterations + i));
         }
     }
 
@@ -1135,7 +1198,8 @@ public class GitRepositoryTest {
         final QueryResult<Object> res = f.get(3, TimeUnit.SECONDS);
         assertThat(res.revision()).isEqualTo(rev2);
         assertThat(res.type()).isEqualTo(EntryType.TEXT);
-        assertThat(res.content()).isEqualTo(textUpserts[1].content());
+        // Text must be sanitized so that the last line ends with \n.
+        assertThat(res.content()).isEqualTo(textUpserts[1].content() + '\n');
     }
 
     @Test

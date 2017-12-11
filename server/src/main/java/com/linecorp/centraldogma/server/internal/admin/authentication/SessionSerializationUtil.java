@@ -48,7 +48,7 @@ final class SessionSerializationUtil {
      */
     static SimpleSession deserialize(String base64Encoded) {
         try (ByteArrayInputStream bais =
-                     new ByteArrayInputStream(Base64.getDecoder().decode(base64Encoded));
+                     new ByteArrayInputStream(Base64.getDecoder().decode(base64Encoded.trim()));
              ObjectInputStream ois = new ObjectInputStream(bais)) {
             return (SimpleSession) ois.readObject();
         } catch (Exception e) {

@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_CORE_SECTION;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_DIFF_SECTION;
@@ -29,20 +30,21 @@ import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_SYMLINKS;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
+import java.util.regex.Pattern;
 
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
@@ -94,7 +96,8 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
-import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchException;
+import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
+import com.linecorp.centraldogma.internal.jsonpatch.diff.JsonDiff;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
@@ -105,7 +108,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotF
 
 import difflib.DiffUtils;
 import difflib.Patch;
-import difflib.PatchFailedException;
 
 /**
  * A {@link Repository} based on Git.
@@ -115,6 +117,7 @@ class GitRepository implements Repository {
     private static final Logger logger = LoggerFactory.getLogger(GitRepository.class);
 
     private static final byte[] EMPTY_BYTE = new byte[0];
+    private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
     private static final String RUNSPACES = "runspaces/";
     private static final String RUNSPACES_REMOVED = "runspaces.removed/";
@@ -446,7 +449,7 @@ class GitRepository implements Repository {
                         entry = Entry.ofJson(path, jsonNode);
                         break;
                     case TEXT:
-                        final String strVal = new String(content, StandardCharsets.UTF_8);
+                        final String strVal = sanitizeText(new String(content, UTF_8));
                         entry = Entry.ofText(path, strVal);
                         break;
                     default:
@@ -688,7 +691,7 @@ class GitRepository implements Repository {
     private Map<String, Change<?>> toChangeMap(List<DiffEntry> diffEntryList) {
 
         try (ObjectReader reader = jGitRepository.newObjectReader()) {
-            final Map<String, Change<?>> changeMap = new HashMap<>();
+            final Map<String, Change<?>> changeMap = new LinkedHashMap<>();
 
             for (DiffEntry diffEntry : diffEntryList) {
                 final String oldPath = '/' + diffEntry.getOldPath();
@@ -699,31 +702,36 @@ class GitRepository implements Repository {
                     final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
                     switch (oldEntryType) {
                     case JSON:
-                        JsonNode oldJsonNode = Jackson.readTree(
-                                reader.open(diffEntry.getOldId().toObjectId()).getBytes());
-                        JsonNode newJsonNode = Jackson.readTree(
-                                reader.open(diffEntry.getNewId().toObjectId()).getBytes());
-
                         if (!oldPath.equals(newPath)) {
-                            changeMap.put(oldPath, Change.ofRename(oldPath, newPath));
+                            putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
                         }
 
-                        changeMap.put(newPath, Change.ofJsonPatch(newPath, oldJsonNode, newJsonNode));
+                        final JsonNode oldJsonNode =
+                                Jackson.readTree(reader.open(diffEntry.getOldId().toObjectId()).getBytes());
+                        final JsonNode newJsonNode =
+                                Jackson.readTree(reader.open(diffEntry.getNewId().toObjectId()).getBytes());
+                        final JsonPatch patch =
+                                JsonDiff.asJsonPatch(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
+
+                        if (!patch.isEmpty()) {
+                            putChange(changeMap, newPath,
+                                      Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
+                        }
                         break;
                     case TEXT:
-                        final String oldText = new String(
-                                reader.open(diffEntry.getOldId().toObjectId()).getBytes(),
-                                StandardCharsets.UTF_8);
+                        final String oldText = sanitizeText(new String(
+                                reader.open(diffEntry.getOldId().toObjectId()).getBytes(), UTF_8));
 
-                        final String newText = new String(
-                                reader.open(diffEntry.getNewId().toObjectId()).getBytes(),
-                                StandardCharsets.UTF_8);
+                        final String newText = sanitizeText(new String(
+                                reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
 
                         if (!oldPath.equals(newPath)) {
-                            changeMap.put(oldPath, Change.ofRename(oldPath, newPath));
+                            putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
                         }
 
-                        changeMap.put(newPath, Change.ofTextPatch(newPath, oldText, newText));
+                        if (!oldText.equals(newText)) {
+                            putChange(changeMap, newPath, Change.ofTextPatch(newPath, oldText, newText));
+                        }
                         break;
                     default:
                         throw new Error("unexpected old entry type: " + oldEntryType);
@@ -732,25 +740,26 @@ class GitRepository implements Repository {
                 case ADD:
                     final EntryType newEntryType = EntryType.guessFromPath(newPath);
                     switch (newEntryType) {
-                    case JSON:
+                    case JSON: {
                         final JsonNode jsonNode = Jackson.readTree(
                                 reader.open(diffEntry.getNewId().toObjectId()).getBytes());
 
-                        changeMap.put(newPath, Change.ofJsonUpsert(newPath, jsonNode));
+                        putChange(changeMap, newPath, Change.ofJsonUpsert(newPath, jsonNode));
                         break;
-                    case TEXT:
-                        final String text = new String(
-                                reader.open(diffEntry.getNewId().toObjectId()).getBytes(),
-                                StandardCharsets.UTF_8);
+                    }
+                    case TEXT: {
+                        final String text = sanitizeText(new String(
+                                reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
 
-                        changeMap.put(newPath, Change.ofTextUpsert(newPath, text));
+                        putChange(changeMap, newPath, Change.ofTextUpsert(newPath, text));
                         break;
+                    }
                     default:
                         throw new Error("unexpected new entry type: " + newEntryType);
                     }
                     break;
                 case DELETE:
-                    changeMap.put(oldPath, Change.ofRemoval(oldPath));
+                    putChange(changeMap, oldPath, Change.ofRemoval(oldPath));
                     break;
                 default:
                     throw new Error();
@@ -762,6 +771,11 @@ class GitRepository implements Repository {
         }
     }
 
+    private static void putChange(Map<String, Change<?>> changeMap, String path, Change<?> change) {
+        final Change<?> oldChange = changeMap.put(path, change);
+        assert oldChange == null;
+    }
+
     @Override
     public CompletableFuture<Revision> commit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
@@ -769,12 +783,12 @@ class GitRepository implements Repository {
 
         return CompletableFuture.supplyAsync(
                 () -> blockingCommit(baseRevision, commitTimeMillis,
-                                     author, summary, detail, markup, changes), repositoryWorker);
+                                     author, summary, detail, markup, changes, false), repositoryWorker);
     }
 
     private Revision blockingCommit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
-            String detail, Markup markup, Iterable<Change<?>> changes) {
+            String detail, Markup markup, Iterable<Change<?>> changes, boolean allowEmptyCommit) {
 
         requireNonNull(baseRevision, "baseRevision");
 
@@ -805,7 +819,7 @@ class GitRepository implements Repository {
             }
 
             res = commit0(headRevision, nextRevision, commitTimeMillis,
-                          author, summary, detail, markup, changes, false);
+                          author, summary, detail, markup, changes, allowEmptyCommit);
 
             if (!pushToRunspace) {
                 this.headRevision = res.revision;
@@ -876,7 +890,7 @@ class GitRepository implements Repository {
             commitBuilder.setAuthor(personIdent);
             commitBuilder.setCommitter(personIdent);
             commitBuilder.setTreeId(nextTreeId);
-            commitBuilder.setEncoding(StandardCharsets.UTF_8);
+            commitBuilder.setEncoding(UTF_8);
 
             // Write summary, detail and revision to commit's message as JSON format.
             commitBuilder.setMessage(CommitUtil.toJsonString(summary, detail, markup, nextRevision));
@@ -931,31 +945,49 @@ class GitRepository implements Repository {
                                                            : null;
 
                 switch (change.type()) {
-                case UPSERT_JSON:
-                    applyPathEdit(dirCache, new PathEdit(changePath) {
-                        @Override
-                        public void apply(DirCacheEntry ent) {
-                            ent.setFileMode(FileMode.REGULAR_FILE);
-                            ent.setObjectId(newBlob(inserter, (JsonNode) change.content()));
-                        }
-                    });
-                    numEdits++;
+                case UPSERT_JSON: {
+                    final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
+                    final JsonNode newJsonNode = (JsonNode) change.content();
+
+                    // Upsert only when the contents are really different.
+                    if (!newJsonNode.equals(oldJsonNode)) {
+                        applyPathEdit(dirCache, new PathEdit(changePath) {
+                            @Override
+                            public void apply(DirCacheEntry ent) {
+                                ent.setFileMode(FileMode.REGULAR_FILE);
+                                ent.setObjectId(newBlob(inserter, newJsonNode));
+                            }
+                        });
+                        numEdits++;
+                    }
                     break;
+                }
                 case UPSERT_TEXT: {
-                    applyPathEdit(dirCache, new PathEdit(changePath) {
-                        @Override
-                        public void apply(DirCacheEntry ent) {
-                            ent.setFileMode(FileMode.REGULAR_FILE);
-                            ent.setObjectId(newBlob(
-                                    inserter, ((String) change.content()).getBytes(StandardCharsets.UTF_8)));
-                        }
-                    });
-                    numEdits++;
+                    final String sanitizedOldText;
+                    if (oldContent != null) {
+                        sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
+                    } else {
+                        sanitizedOldText = null;
+                    }
+
+                    final String sanitizedNewText = sanitizeText(change.contentAsText());
+
+                    // Upsert only when the contents are really different.
+                    if (!sanitizedNewText.equals(sanitizedOldText)) {
+                        applyPathEdit(dirCache, new PathEdit(changePath) {
+                            @Override
+                            public void apply(DirCacheEntry ent) {
+                                ent.setFileMode(FileMode.REGULAR_FILE);
+                                ent.setObjectId(newBlob(inserter, sanitizedNewText.getBytes(UTF_8)));
+                            }
+                        });
+                        numEdits++;
+                    }
                     break;
                 }
                 case REMOVE:
                     if (oldEntry != null) {
-                        applyPathEdit(dirCache, new DirCacheEditor.DeletePath(changePath));
+                        applyPathEdit(dirCache, new DeletePath(changePath));
                         numEdits++;
                         break;
                     }
@@ -1016,46 +1048,64 @@ class GitRepository implements Repository {
                     final JsonNode newJsonNode;
                     try {
                         newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
-                    } catch (JsonPatchException e) {
+                    } catch (Exception e) {
                         throw new ChangeConflictException("failed to apply JSON patch: " + change, e);
                     }
 
-                    applyPathEdit(dirCache, new PathEdit(changePath) {
-                        @Override
-                        public void apply(DirCacheEntry ent) {
-                            ent.setFileMode(FileMode.REGULAR_FILE);
-                            ent.setObjectId(newBlob(inserter, newJsonNode));
-                        }
-                    });
-                    numEdits++;
+                    // Apply only when the contents are really different.
+                    if (!newJsonNode.equals(oldJsonNode)) {
+                        applyPathEdit(dirCache, new PathEdit(changePath) {
+                            @Override
+                            public void apply(DirCacheEntry ent) {
+                                ent.setFileMode(FileMode.REGULAR_FILE);
+                                ent.setObjectId(newBlob(inserter, newJsonNode));
+                            }
+                        });
+                        numEdits++;
+                    }
                     break;
                 }
                 case APPLY_TEXT_PATCH:
-                    Patch<String> patch =
-                            DiffUtils.parseUnifiedDiff(Util.stringToLines((String) change.content()));
-                    final List<String> oldText;
+                    final Patch<String> patch = DiffUtils.parseUnifiedDiff(
+                            Util.stringToLines(sanitizeText((String) change.content())));
+
+                    final String sanitizedOldText;
+                    final List<String> sanitizedOldTextLines;
                     if (oldContent != null) {
-                        oldText = Util.stringToLines(new String(oldContent, StandardCharsets.UTF_8));
+                        sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
+                        sanitizedOldTextLines = Util.stringToLines(sanitizedOldText);
                     } else {
-                        oldText = Collections.emptyList();
+                        sanitizedOldText = null;
+                        sanitizedOldTextLines = Collections.emptyList();
                     }
 
-                    final List<String> newText;
+                    final String newText;
                     try {
-                        newText = DiffUtils.patch(oldText, patch);
-                    } catch (PatchFailedException e) {
+                        final List<String> newTextLines = DiffUtils.patch(sanitizedOldTextLines, patch);
+                        if (newTextLines.isEmpty()) {
+                            newText = "";
+                        } else {
+                            final StringJoiner joiner = new StringJoiner("\n", "", "\n");
+                            for (String line : newTextLines) {
+                                joiner.add(line);
+                            }
+                            newText = joiner.toString();
+                        }
+                    } catch (Exception e) {
                         throw new ChangeConflictException("failed to apply text patch: " + change, e);
                     }
 
-                    applyPathEdit(dirCache, new PathEdit(changePath) {
-                        @Override
-                        public void apply(DirCacheEntry ent) {
-                            ent.setFileMode(FileMode.REGULAR_FILE);
-                            ent.setObjectId(newBlob(
-                                    inserter, String.join("\n", newText).getBytes(StandardCharsets.UTF_8)));
-                        }
-                    });
-                    numEdits++;
+                    // Apply only when the contents are really different.
+                    if (!newText.equals(sanitizedOldText)) {
+                        applyPathEdit(dirCache, new PathEdit(changePath) {
+                            @Override
+                            public void apply(DirCacheEntry ent) {
+                                ent.setFileMode(FileMode.REGULAR_FILE);
+                                ent.setObjectId(newBlob(inserter, newText.getBytes(UTF_8)));
+                            }
+                        });
+                        numEdits++;
+                    }
                     break;
                 }
             }
@@ -1065,6 +1115,19 @@ class GitRepository implements Repository {
             throw new StorageException("failed to apply changes on revision " + baseRevision, e);
         }
         return numEdits;
+    }
+
+    /**
+     * Removes {@code \r} and appends {@code \n} on the last line if it does not end with {@code \n}.
+     */
+    private static String sanitizeText(String text) {
+        if (text.indexOf('\r') >= 0) {
+            text = CR.matcher(text).replaceAll("");
+        }
+        if (!text.isEmpty() && !text.endsWith("\n")) {
+            text += "\n";
+        }
+        return text;
     }
 
     private static void reportNonExistentEntry(Change<?> change) {
@@ -1210,7 +1273,7 @@ class GitRepository implements Repository {
         final RefUpdate refUpdate = jGitRepository.updateRef(ref);
         refUpdate.setNewObjectId(commitId);
 
-        final RefUpdate.Result res = refUpdate.update(revWalk);
+        final Result res = refUpdate.update(revWalk);
         switch (res) {
             case NEW:
             case FAST_FORWARD:
@@ -1539,16 +1602,41 @@ class GitRepository implements Repository {
 
     /**
      * Clones this repository into a new one.
+     */
+    public void cloneTo(File newRepoDir, BiConsumer<Integer, Integer> progressListener) {
+        cloneTo(newRepoDir, GitRepositoryFormat.V1, progressListener);
+    }
+
+    /**
+     * Clones this repository into a new one.
      *
      * @param format the repository format
      */
     public void cloneTo(File newRepoDir, GitRepositoryFormat format) {
+        cloneTo(newRepoDir, format, (current, total) -> { /* no-op */ });
+    }
+
+    /**
+     * Clones this repository into a new one.
+     *
+     * @param format the repository format
+     */
+    public void cloneTo(File newRepoDir, GitRepositoryFormat format,
+                        BiConsumer<Integer, Integer> progressListener) {
+
+        requireNonNull(newRepoDir, "newRepoDir");
+        requireNonNull(format, "format");
+        requireNonNull(progressListener, "progressListener");
+
+        final Revision endRevision = blockingNormalize(Revision.HEAD);
         final GitRepository newRepo = new GitRepository(parent, newRepoDir, format, repositoryWorker,
                                                         creationTimeMillis(), author());
+
+        progressListener.accept(1, endRevision.major());
         boolean success = false;
         try {
             // Replay all commits.
-            final Revision endRevision = blockingNormalize(Revision.HEAD);
+            Revision previousNonEmptyRevision = null;
             for (int i = 2; i <= endRevision.major();) {
                 // Fetch up to 16 commits at once.
                 final int batch = 16;
@@ -1557,6 +1645,9 @@ class GitRepository implements Repository {
                         Repository.ALL_PATH, batch);
                 checkState(!commits.isEmpty(), "empty commits");
 
+                if (previousNonEmptyRevision == null) {
+                    previousNonEmptyRevision = commits.get(0).revision().backward(1);
+                }
                 for (Commit c : commits) {
                     final Revision revision = c.revision();
                     checkState(revision.major() == i,
@@ -1564,9 +1655,22 @@ class GitRepository implements Repository {
 
                     final Revision baseRevision = revision.backward(1);
                     final Collection<Change<?>> changes =
-                            blockingDiff(baseRevision, revision, Repository.ALL_PATH).values();
-                    newRepo.blockingCommit(
-                            baseRevision, c.when(), c.author(), c.summary(), c.detail(), c.markup(), changes);
+                            blockingDiff(previousNonEmptyRevision, revision, Repository.ALL_PATH).values();
+
+                    try {
+                        newRepo.blockingCommit(
+                                baseRevision, c.when(), c.author(), c.summary(), c.detail(), c.markup(),
+                                changes, /* allowEmptyCommit */ false);
+                        previousNonEmptyRevision = revision;
+                    } catch (RedundantChangeException e) {
+                        // NB: We allow an empty commit here because an old version of Central Dogma had a bug
+                        //     which allowed the creation of an empty commit.
+                        newRepo.blockingCommit(
+                                baseRevision, c.when(), c.author(), c.summary(), c.detail(), c.markup(),
+                                changes, /* allowEmptyCommit */ true);
+                    }
+
+                    progressListener.accept(i, endRevision.major());
                     i++;
                 }
             }
