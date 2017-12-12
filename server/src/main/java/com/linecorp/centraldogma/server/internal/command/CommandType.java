@@ -26,8 +26,6 @@ public enum CommandType {
     REMOVE_REPOSITORY(Void.class),
     UNREMOVE_REPOSITORY(Void.class),
     PUSH(Revision.class),
-    CREATE_RUNSPACE(Void.class),
-    REMOVE_RUNSPACE(Void.class),
     SAVE_NAMED_QUERY(Void.class),
     REMOVE_NAMED_QUERY(Void.class),
     SAVE_PLUGIN(Void.class),

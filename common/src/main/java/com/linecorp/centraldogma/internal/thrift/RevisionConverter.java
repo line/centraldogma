@@ -34,11 +34,14 @@ public final class RevisionConverter extends Converter<com.linecorp.centraldogma
 
     @Override
     protected Revision doForward(com.linecorp.centraldogma.common.Revision rev) {
-        return new Revision(rev.major(), rev.minor());
+        return new Revision(rev.major(), 0);
     }
 
     @Override
     protected com.linecorp.centraldogma.common.Revision doBackward(Revision rev) {
-        return new com.linecorp.centraldogma.common.Revision(rev.getMajor(), rev.getMinor());
+        if (rev.getMinor() != 0) {
+            throw new IllegalArgumentException("minor: " + rev.getMinor() + " (expected: 0)");
+        }
+        return new com.linecorp.centraldogma.common.Revision(rev.getMajor());
     }
 }

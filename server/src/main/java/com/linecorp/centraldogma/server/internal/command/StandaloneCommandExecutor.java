@@ -92,14 +92,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) push((PushCommand) command);
         }
 
-        if (command instanceof CreateRunspaceCommand) {
-            return (CompletableFuture<T>) createRunspace((CreateRunspaceCommand) command);
-        }
-
-        if (command instanceof RemoveRunspaceCommand) {
-            return (CompletableFuture<T>) removeRunspace((RemoveRunspaceCommand) command);
-        }
-
         throw new UnsupportedOperationException(command.toString());
     }
 
@@ -152,15 +144,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<Revision> push(PushCommand c) {
         return repo(c).commit(c.baseRevision(), c.timestamp(),
                               c.author(), c.summary(), c.detail(), c.markup(), c.changes());
-    }
-
-    private CompletableFuture<Void> createRunspace(CreateRunspaceCommand c) {
-        return repo(c).createRunspace(c.baseRevision(), c.timestamp(),
-                                      c.author()).thenApply(revision -> null);
-    }
-
-    private CompletableFuture<Void> removeRunspace(RemoveRunspaceCommand c) {
-        return repo(c).removeRunspace(c.baseRevision());
     }
 
     private Repository repo(RepositoryCommand<?> c) {

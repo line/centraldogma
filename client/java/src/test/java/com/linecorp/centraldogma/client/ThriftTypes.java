@@ -57,8 +57,8 @@ final class ThriftTypes {
     static class TRevision extends Revision {
         private static final long serialVersionUID = -4549948907219772242L;
 
-        TRevision(int major, int minor) {
-            super(major, minor);
+        TRevision(int major) {
+            super(major, 0);
         }
     }
 

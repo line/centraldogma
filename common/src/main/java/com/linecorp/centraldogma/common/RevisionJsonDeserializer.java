@@ -65,18 +65,18 @@ public class RevisionJsonDeserializer extends StdDeserializer<Revision> {
         final JsonNode majorNode = node.get("major");
         final JsonNode minorNode = node.get("minor");
         final int major;
-        final int minor;
 
         validateRevisionNumber(ctx, majorNode, "major", false);
         major = majorNode.intValue();
         if (minorNode != null) {
             validateRevisionNumber(ctx, minorNode, "minor", true);
-            minor = minorNode.intValue();
-        } else {
-            minor = 0;
+            if (minorNode.intValue() != 0) {
+                ctx.reportInputMismatch(Revision.class,
+                                        "A revision must not have a non-zero \"minor\" property.");
+            }
         }
 
-        return new Revision(major, minor);
+        return new Revision(major);
     }
 
     private static void validateRevisionNumber(DeserializationContext ctx, JsonNode node,

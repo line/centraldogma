@@ -176,7 +176,6 @@ public class GitRepositoryTest {
             // Ensure the revision is incremented.
             assertThat(revision.major()).isEqualTo(oldHeadRev.major() + i + 1);
             assertThat(repo.normalize(HEAD).join()).isEqualTo(revision);
-            assertThat(revision.minor()).isZero();
 
             // Ensure that the entries which were created in the previous revisions are retrieved
             // as well as the entry in the latest revision.
@@ -873,27 +872,6 @@ public class GitRepositoryTest {
         assertThatThrownBy(() -> repo.history(HEAD, null, "non_existing_path").join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(NullPointerException.class);
-
-        Revision r1rev = repo.createRunspace(head.backward(1).major(), 0L, Author.UNKNOWN).join();
-        Revision r2rev = repo.createRunspace(head.major(), 0L, Author.UNKNOWN).join();
-
-        // Attempt to fetch the history between different runspaces.
-        assertThatThrownBy(() -> repo.history(r1rev, r2rev, allPattern).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class);
-
-        assertThatThrownBy(() -> repo.history(r2rev, r1rev, allPattern).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class);
-
-        // Attempt to climb up the history.
-        assertThatThrownBy(() -> repo.history(r1rev, head, allPattern).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class);
-
-        assertThatThrownBy(() -> repo.history(head, r1rev, allPattern).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -1054,40 +1032,6 @@ public class GitRepositoryTest {
                                                  "    \"name\": \"beta\"" +
                                                  "  }]" +
                                                  "}]");
-    }
-
-    @Test
-    public void testRunspace() throws Exception {
-        final Revision r1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[0])
-                                .join();
-        final Revision r2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[1])
-                                .join();
-        final Revision r3 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[2])
-                                .join();
-
-        final Revision r11 = repo.createRunspace(r1.major(), 0L, Author.UNKNOWN).join();
-        assertThat(repo.listRunspaces().join()).contains(r11);
-        assertThat(r11).isEqualTo(new Revision(r1.major(), 1));
-        assertThat(repo.find(r11, allPattern).join()).isEqualTo(repo.find(r1, allPattern).join());
-
-        final Revision r12 = repo.commit(r11, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[1]).join();
-        assertThat(r12).isEqualTo(new Revision(r1.major(), 2));
-        assertThat(repo.listRunspaces().join()).contains(r12);
-        assertThat(repo.find(r12, allPattern).join()).isNotEqualTo(repo.find(r11, allPattern).join());
-        assertThat(repo.find(r12, allPattern).join()).isNotEqualTo(repo.find(r1, allPattern).join());
-        assertThat(repo.find(r12, allPattern).join()).isEqualTo(repo.find(r2, allPattern).join());
-
-        final Revision r13 = repo.commit(r12, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[2]).join();
-        assertThat(r13).isEqualTo(new Revision(r1.major(), 3));
-        assertThat(repo.listRunspaces().join()).contains(r13);
-        assertThat(repo.find(r13, allPattern).join()).isNotEqualTo(repo.find(r12, allPattern).join());
-        assertThat(repo.find(r13, allPattern).join()).isNotEqualTo(repo.find(r11, allPattern).join());
-        assertThat(repo.find(r13, allPattern).join()).isNotEqualTo(repo.find(r1, allPattern).join());
-        assertThat(repo.find(r13, allPattern).join()).isNotEqualTo(repo.find(r2, allPattern).join());
-        assertThat(repo.find(r13, allPattern).join()).isEqualTo(repo.find(r3, allPattern).join());
-
-        repo.removeRunspace(r1.major()).join();
-        assertThat(repo.listRunspaces().join()).isEmpty();
     }
 
     @Test
@@ -1263,10 +1207,6 @@ public class GitRepositoryTest {
         // A commit on the mainlane
         testDoUpdateRef(Constants.R_TAGS + '1', commitId, false);
         testDoUpdateRef(Constants.R_HEADS + Constants.MASTER, commitId, false);
-
-        // A commit on a runspace
-        testDoUpdateRef(Constants.R_TAGS + "runspaces/1/1", commitId, false);
-        testDoUpdateRef(Constants.R_HEADS + "runspaces/1", commitId, false);
     }
 
     private static void testDoUpdateRef(String ref, ObjectId commitId, boolean tagExists) throws Exception {

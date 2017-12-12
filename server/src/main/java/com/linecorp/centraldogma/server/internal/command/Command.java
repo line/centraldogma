@@ -42,8 +42,6 @@ import com.linecorp.centraldogma.common.Revision;
         @Type(value = RemoveRepositoryCommand.class, name = "REMOVE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
         @Type(value = PushCommand.class, name = "PUSH"),
-        @Type(value = CreateRunspaceCommand.class, name = "CREATE_RUNSPACE"),
-        @Type(value = RemoveRunspaceCommand.class, name = "REMOVE_RUNSPACE"),
         @Type(value = SaveNamedQueryCommand.class, name = "SAVE_NAMED_QUERY"),
         @Type(value = RemoveNamedQueryCommand.class, name = "REMOVE_NAMED_QUERY"),
         @Type(value = SavePluginCommand.class, name = "SAVE_PLUGIN"),
@@ -141,32 +139,6 @@ public interface Command<T> {
         requireNonNull(author, "author");
         return new PushCommand(timestamp, author, projectName, repositoryName, baseRevision,
                                summary, detail, markup, changes);
-    }
-
-    static Command<Void> createRunspace(Author author, String projectName, String repositoryName,
-                                        int baseRevision) {
-
-        return createRunspace(null, author, projectName, repositoryName, baseRevision);
-    }
-
-    static Command<Void> createRunspace(@Nullable Long timestamp, Author author,
-                                        String projectName, String repositoryName, int baseRevision) {
-
-        requireNonNull(author, "author");
-        return new CreateRunspaceCommand(timestamp, author, projectName, repositoryName, baseRevision);
-    }
-
-    static Command<Void> removeRunspace(Author author, String projectName, String repositoryName,
-                                        int baseRevision) {
-
-        return removeRunspace(null, author, projectName, repositoryName, baseRevision);
-    }
-
-    static Command<Void> removeRunspace(@Nullable Long timestamp, Author author,
-                                        String projectName, String repositoryName, int baseRevision) {
-
-        requireNonNull(author, "author");
-        return new RemoveRunspaceCommand(timestamp, author, projectName, repositoryName, baseRevision);
     }
 
     static Command<Void> saveNamedQuery(Author author, String projectName,

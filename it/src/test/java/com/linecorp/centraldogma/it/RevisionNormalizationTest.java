@@ -49,7 +49,7 @@ public class RevisionNormalizationTest {
      */
     @Test
     public void testAbsoluteMajorOutOfRange() throws Exception {
-        final Revision outOfRange = new Revision(Integer.MAX_VALUE, 0);
+        final Revision outOfRange = new Revision(Integer.MAX_VALUE);
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "2147483647", () ->
                 rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
@@ -68,13 +68,10 @@ public class RevisionNormalizationTest {
      */
     @Test
     public void testRelativeMajorOutOfRange() throws Exception {
-        final Revision outOfRange = new Revision(Integer.MIN_VALUE, 0);
+        final Revision outOfRange = new Revision(Integer.MIN_VALUE);
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "-2147483648", () ->
                 rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
                 .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REVISION_NOT_FOUND);
     }
-
-    // TODO(trustin): Add the test cases for minor revision normalization.
-    //                Waiting for proper runspace support
 }

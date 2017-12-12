@@ -25,7 +25,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -378,19 +377,4 @@ public interface Repository {
     default <T> CompletableFuture<QueryResult<T>> watch(Revision lastKnownRevision, Query<T> query) {
         return RepositoryUtil.watch(this, lastKnownRevision, query);
     }
-
-    /**
-     * Creates a new runspace at {@code majorRevision}.
-     *
-     * @param author the author who creates this runspace
-     * @return the {@link Revision} for newly created runspace
-     */
-    CompletableFuture<Revision> createRunspace(int majorRevision, long creationTimeMillis, Author author);
-
-    /**
-     * Removes the runspace associated with the specified {@code majorRevision}.
-     */
-    CompletableFuture<Void> removeRunspace(int majorRevision);
-
-    CompletableFuture<Set<Revision>> listRunspaces();
 }

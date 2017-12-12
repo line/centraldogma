@@ -30,9 +30,9 @@ public class RevisionTest {
     public void deserialization() throws Exception {
         assertThat(toRevision("2")).isEqualTo(new Revision(2));
         assertThat(toRevision("\"3\"")).isEqualTo(new Revision(3));
-        assertThat(toRevision("\"4.5\"")).isEqualTo(new Revision(4, 5));
+        assertThat(toRevision("\"4.0\"")).isEqualTo(new Revision(4));
         assertThat(toRevision("{ \"major\": 6 }")).isEqualTo(new Revision(6));
-        assertThat(toRevision("{ \"major\": 7, \"minor\": 8 }")).isEqualTo(new Revision(7, 8));
+        assertThat(toRevision("{ \"major\": 7, \"minor\": 0 }")).isEqualTo(new Revision(7));
 
         // Special revisions:
         assertThat(toRevision("1")).isEqualTo(Revision.INIT);
@@ -53,7 +53,6 @@ public class RevisionTest {
     @Test
     public void serialization() throws Exception {
         assertThatJson(new Revision(9)).isEqualTo("9");
-        assertThatJson(new Revision(8, 7)).isEqualTo("{ \"major\": 8, \"minor\": 7 }");
         assertThatJson(Revision.HEAD).isEqualTo("-1");
     }
 

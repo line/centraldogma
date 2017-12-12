@@ -31,14 +31,14 @@ public class CommitConverterTest {
 
     private static final com.linecorp.centraldogma.common.Commit COMMON =
             new com.linecorp.centraldogma.common.Commit(
-                    new com.linecorp.centraldogma.common.Revision(1, 2),
+                    new com.linecorp.centraldogma.common.Revision(1),
                     new com.linecorp.centraldogma.common.Author("user", "user@sample.com"),
                     Instant.parse(TIMESTAMP).toEpochMilli(),
                     "summary",
                     "hello",
                     com.linecorp.centraldogma.common.Markup.PLAINTEXT);
 
-    private static final Commit THRIFT = new Commit(new Revision(1, 2),
+    private static final Commit THRIFT = new Commit(new Revision(1, 0),
                                                     new Author("user", "user@sample.com"),
                                                     TIMESTAMP,
                                                     "summary",

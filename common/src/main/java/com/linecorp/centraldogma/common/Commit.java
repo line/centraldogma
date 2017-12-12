@@ -18,9 +18,8 @@ package com.linecorp.centraldogma.common;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Date;
-
-import com.fasterxml.jackson.databind.util.ISO8601Utils;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 
 import com.linecorp.centraldogma.internal.Util;
 
@@ -93,7 +92,7 @@ public class Commit {
      */
     public String whenAsText() {
         if (whenAsText == null) {
-            whenAsText = ISO8601Utils.format(new Date(when()));
+            whenAsText = DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(when()));
         }
         return whenAsText;
     }
@@ -152,10 +151,6 @@ public class Commit {
         buf.append(Util.simpleTypeName(this));
         buf.append('[');
         buf.append(revision.major());
-        if (revision.minor() != 0) {
-            buf.append('.');
-            buf.append(revision.minor());
-        }
         buf.append(": author=");
         buf.append(author.email());
         buf.append(", when=");
