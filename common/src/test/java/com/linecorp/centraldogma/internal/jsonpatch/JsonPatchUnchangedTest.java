@@ -1,4 +1,19 @@
 /*
+ * Copyright 2017 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+/*
  * Copyright (c) 2014, Francis Galiegue (fgaliegue@gmail.com)
  *
  * This software is dual-licensed under:
@@ -17,7 +32,7 @@
  * - ASL 2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 
-package com.linecorp.centraldogma.internal.jsonpatch.diff;
+package com.linecorp.centraldogma.internal.jsonpatch;
 
 import static org.testng.Assert.assertEquals;
 
@@ -36,43 +51,39 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 
-public final class UnchangedTest
-{
+public final class JsonPatchUnchangedTest {
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final TypeReference<Map<JsonPointer, JsonNode>> TYPE_REF
-        = new TypeReference<Map<JsonPointer, JsonNode>>()
-    {
-    };
+    private static final TypeReference<Map<JsonPointer, JsonNode>> TYPE_REF =
+            new TypeReference<Map<JsonPointer, JsonNode>>() {};
 
     private final JsonNode testData;
 
-    public UnchangedTest()
-        throws IOException
-    {
+    public JsonPatchUnchangedTest() throws IOException {
         final String resource = "/jsonpatch/diff/unchanged.json";
-        URL url = this.getClass().getResource(resource);
+        URL url = getClass().getResource(resource);
         testData = MAPPER.readTree(url);
     }
 
     @DataProvider
     public Iterator<Object[]> getTestData()
-        throws IOException
-    {
+            throws IOException {
         final List<Object[]> list = Lists.newArrayList();
 
-        for (final JsonNode node: testData)
-            list.add(new Object[] { node.get("first"), node.get("second"),
-                MAPPER.readValue(node.get("unchanged").traverse(), TYPE_REF)});
+        for (final JsonNode node : testData) {
+            list.add(new Object[] {
+                    node.get("first"), node.get("second"),
+                    MAPPER.readValue(node.get("unchanged").traverse(), TYPE_REF)
+            });
+        }
 
         return list.iterator();
     }
 
     @Test(dataProvider = "getTestData")
-    public void computeUnchangedValuesWorks(final JsonNode first,
-        final JsonNode second, final Map<JsonPointer, JsonNode> expected)
-    {
-        final Map<JsonPointer, JsonNode> actual
-            = JsonDiff.getUnchangedValues(first, second);
+    public void computeUnchangedValuesWorks(final JsonNode source, final JsonNode target,
+                                            final Map<JsonPointer, JsonNode> expected) {
+        final Map<JsonPointer, JsonNode> actual = JsonPatch.unchangedValues(source, target);
 
         assertEquals(actual, expected);
     }

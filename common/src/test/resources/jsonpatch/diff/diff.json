@@ -52,7 +52,7 @@
         "first": { "a": null },
         "second": { "a": 6 },
         "patch": [
-            { "op": "replace", "path": "/a", "value": 6 }
+            { "op": "safeReplace", "path": "/a", "oldValue": null, "value": 6 }
         ]
     },
     {
@@ -60,7 +60,7 @@
         "first": [ 1, 2, 3 ],
         "second": { "hello": "world" },
         "patch": [
-            { "op": "replace", "path": "", "value": { "hello": "world" } }
+            { "op": "safeReplace", "path": "", "oldValue": [ 1, 2, 3], "value": { "hello": "world" } }
         ]
     },
     {
@@ -80,7 +80,7 @@
         },
         "patch": [
             { "op": "add", "path": "/c/e", "value": "f" },
-            { "op": "replace", "path": "/c/d", "value": 1 }
+            { "op": "safeReplace", "path": "/c/d", "oldValue": "e", "value": 1 }
         ]
     },
     {
@@ -92,7 +92,7 @@
             "a": [ "b", 2, 3, 4 ]
         },
         "patch": [
-            { "op": "replace", "path": "/a/0", "value": "b" },
+            { "op": "safeReplace", "path": "/a/0", "oldValue": 1, "value": "b" },
             { "op": "add", "path": "/a/-", "value": 4 }
         ]
     },
@@ -102,7 +102,7 @@
         "second": [ { "a": "b", "c": "d" }, "foo", { "bar": "baz" } ],
         "patch": [
             { "op": "add", "path": "/0/c", "value": "d" },
-            { "op": "replace", "path": "/2/bar", "value": "baz" }
+            { "op": "safeReplace", "path": "/2/bar", "oldValue": null, "value": "baz" }
         ]
     },
     {
@@ -110,7 +110,7 @@
         "first": [ 1, [ 2, 3 ], 4 ],
         "second": [ "x", [ 2, 3, "y" ], 4 ],
         "patch": [
-            { "op": "replace", "path": "/0", "value": "x" },
+            { "op": "safeReplace", "path": "/0", "oldValue": 1, "value": "x" },
             { "op": "add", "path": "/1/-", "value": "y" }
         ]
     },

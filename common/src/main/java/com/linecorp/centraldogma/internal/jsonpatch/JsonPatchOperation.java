@@ -1,4 +1,19 @@
 /*
+ * Copyright 2017 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+/*
  * Copyright (c) 2014, Francis Galiegue (fgaliegue@gmail.com)
  *
  * This software is dual-licensed under:
@@ -33,17 +48,17 @@ import com.fasterxml.jackson.databind.JsonSerializable;
 @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "op")
 
 @JsonSubTypes({
-    @Type(name = "add", value = AddOperation.class),
-    @Type(name = "copy", value = CopyOperation.class),
-    @Type(name = "move", value = MoveOperation.class),
-    @Type(name = "remove", value = RemoveOperation.class),
-    @Type(name = "replace", value = ReplaceOperation.class),
-    @Type(name = "safeReplace", value = SafeReplaceOperation.class),
-    @Type(name = "test", value = TestOperation.class)
+        @Type(name = "add", value = AddOperation.class),
+        @Type(name = "copy", value = CopyOperation.class),
+        @Type(name = "move", value = MoveOperation.class),
+        @Type(name = "remove", value = RemoveOperation.class),
+        @Type(name = "replace", value = ReplaceOperation.class),
+        @Type(name = "safeReplace", value = SafeReplaceOperation.class),
+        @Type(name = "test", value = TestOperation.class)
 })
 
 /**
- * Base abstract class for one patch operation
+ * Base abstract class for one patch operation.
  *
  * <p>Two more abstract classes extend this one according to the arguments of
  * the operation:</p>
@@ -56,10 +71,9 @@ import com.fasterxml.jackson.databind.JsonSerializable;
  * </ul>
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public abstract class JsonPatchOperation
-    implements JsonSerializable
-{
-    protected final String op;
+abstract class JsonPatchOperation implements JsonSerializable {
+
+    final String op;
 
     /*
      * Note: no need for a custom deserializer, Jackson will try and find a
@@ -67,30 +81,61 @@ public abstract class JsonPatchOperation
      *
      * However, we need to serialize using .toString().
      */
-    protected final JsonPointer path;
+    final JsonPointer path;
 
     /**
-     * Constructor
+     * Creates a new instance.
      *
      * @param op the operation name
      * @param path the JSON Pointer for this operation
      */
-    protected JsonPatchOperation(final String op, final JsonPointer path)
-    {
+    JsonPatchOperation(final String op, final JsonPointer path) {
         this.op = op;
         this.path = path;
     }
 
     /**
-     * Apply this operation to a JSON value
+     * Applies this operation to a JSON value.
      *
      * @param node the value to patch
      * @return the patched value
      * @throws JsonPatchException operation failed to apply to this value
      */
-    public abstract JsonNode apply(final JsonNode node)
-        throws JsonPatchException;
+    abstract JsonNode apply(JsonNode node);
 
     @Override
     public abstract String toString();
+
+    JsonNode ensureExistence(JsonNode node) {
+        final JsonNode found = node.at(path);
+        if (found.isMissingNode()) {
+            throw new JsonPatchException("non-existent path: " + path);
+        }
+        return found;
+    }
+
+    static JsonNode ensureSourceParent(JsonNode node, JsonPointer path) {
+        return ensureParent(node, path, "source");
+    }
+
+    static JsonNode ensureTargetParent(JsonNode node, JsonPointer path) {
+        return ensureParent(node, path, "target");
+    }
+
+    private static JsonNode ensureParent(JsonNode node, JsonPointer path, String typeName) {
+        /*
+         * Check the parent node: it must exist and be a container (ie an array
+         * or an object) for the add operation to work.
+         */
+        final JsonPointer parentPath = path.head();
+        final JsonNode parentNode = node.at(parentPath);
+        if (parentNode.isMissingNode()) {
+            throw new JsonPatchException("non-existent " + typeName + " parent: " + parentPath);
+        }
+        if (!parentNode.isContainerNode()) {
+            throw new JsonPatchException(typeName + " parent is not a container: " + parentPath +
+                                         " (" + parentNode.getNodeType() + ')');
+        }
+        return parentNode;
+    }
 }

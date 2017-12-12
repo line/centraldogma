@@ -8,7 +8,7 @@
     {
       "op": { "op": "safeReplace", "path": "/x", "oldValue": 2, "value": 3 },
       "node": { "x": 1 },
-      "message": "mismatching value: 1 (expected: 2)"
+      "message": "mismatching value at '/x': 1 (expected: 2)"
     },
     {
       "op": { "op": "safeReplace", "path": "/x/z", "oldValue": null, "value": "hello" },

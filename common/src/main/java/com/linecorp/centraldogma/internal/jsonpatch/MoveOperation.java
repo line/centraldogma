@@ -1,4 +1,19 @@
 /*
+ * Copyright 2017 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+/*
  * Copyright (c) 2014, Francis Galiegue (fgaliegue@gmail.com)
  *
  * This software is dual-licensed under:
@@ -23,20 +38,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * JSON Patch {@code move} operation
+ * JSON Patch {@code move} operation.
  *
  * <p>For this operation, {@code from} points to the value to move, and {@code
  * path} points to the new location of the moved value.</p>
- *
- * <p>As for {@code add}:</p>
- *
- * <ul>
- *     <li>the value at the destination path is either created or replaced;</li>
- *     <li>it is created only if the immediate parent exists;</li>
- *     <li>{@code -} appends at the end of an array.</li>
- * </ul>
  *
  * <p>It is an error condition if {@code from} does not point to a JSON value.
  * </p>
@@ -62,27 +71,41 @@ import com.fasterxml.jackson.databind.JsonNode;
  *     [ { "x": "victim" } ]
  * </pre>
  */
-public final class MoveOperation
-    extends DualPathOperation
-{
+final class MoveOperation extends DualPathOperation {
+
     @JsonCreator
-    public MoveOperation(@JsonProperty("from") final JsonPointer from,
-        @JsonProperty("path") final JsonPointer path)
-    {
+    MoveOperation(@JsonProperty("from") final JsonPointer from,
+                  @JsonProperty("path") final JsonPointer path) {
         super("move", from, path);
     }
 
     @Override
-    public JsonNode apply(final JsonNode node)
-        throws JsonPatchException
-    {
-        if (from.equals(path))
-            return node.deepCopy();
-        final JsonNode movedNode = node.at(from);
-        if (movedNode.isMissingNode())
+    JsonNode apply(final JsonNode node) {
+        if (from.equals(path)) {
+            return node;
+        }
+        if (node.at(from).isMissingNode()) {
             throw new JsonPatchException("non-existent source path: " + from);
-        final JsonPatchOperation remove = new RemoveOperation(from);
-        final JsonPatchOperation add = new AddOperation(path, movedNode);
-        return add.apply(remove.apply(node));
+        }
+
+        final JsonNode sourceParent = ensureSourceParent(node, from);
+
+        // Remove
+        final String raw = from.last().getMatchingProperty();
+        final JsonNode source;
+        if (sourceParent.isObject()) {
+            source = ((ObjectNode) sourceParent).remove(raw);
+        } else {
+            source = ((ArrayNode) sourceParent).remove(Integer.parseInt(raw));
+        }
+
+        // Add
+        if (path.toString().isEmpty()) {
+            return source;
+        }
+
+        final JsonNode targetParent = ensureTargetParent(node, path);
+        return targetParent.isArray() ? AddOperation.addToArray(path, node, source)
+                                      : AddOperation.addToObject(path, node, source);
     }
 }

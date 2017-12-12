@@ -1,4 +1,19 @@
 /*
+ * Copyright 2017 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+/*
  * Copyright (c) 2014, Francis Galiegue (fgaliegue@gmail.com)
  *
  * This software is dual-licensed under:
@@ -40,59 +55,50 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableList;
 
-public final class JsonPatchTest
-{
+public final class JsonPatchTest {
+
     private static final JsonNodeFactory FACTORY = JsonNodeFactory.instance;
 
     private JsonPatchOperation op1;
     private JsonPatchOperation op2;
 
     @BeforeMethod
-    public void init()
-    {
+    public void init() {
         op1 = mock(JsonPatchOperation.class);
         op2 = mock(JsonPatchOperation.class);
     }
 
     @Test
-    public void nullInputsDuringBuildAreRejected()
-        throws IOException
-    {
+    public void nullInputsDuringBuildAreRejected() throws IOException {
         try {
             JsonPatch.fromJson(null);
-            fail("No exception thrown!!");
+            fail("No exception thrown!");
         } catch (NullPointerException e) {
             // Expected
         }
     }
 
     @Test
-    public void cannotPatchNull()
-        throws JsonPatchException
-    {
+    public void cannotPatchNull() {
         final JsonPatch patch = new JsonPatch(ImmutableList.of(op1, op2));
 
         try {
             patch.apply(null);
-            fail("No exception thrown!!");
+            fail("No exception thrown!");
         } catch (NullPointerException e) {
             // Expected
         }
     }
 
     @Test
-    public void operationsAreCalledInOrder()
-        throws JsonPatchException
-    {
+    public void operationsAreCalledInOrder() {
         final JsonNode node1 = FACTORY.textNode("hello");
         final JsonNode node2 = FACTORY.textNode("world");
 
         when(op1.apply(node1)).thenReturn(node2);
 
         final JsonPatch patch = new JsonPatch(ImmutableList.of(op1, op2));
-
-        final ArgumentCaptor<JsonNode> captor
-            = ArgumentCaptor.forClass(JsonNode.class);
+        final ArgumentCaptor<JsonNode> captor = ArgumentCaptor.forClass(JsonNode.class);
 
         patch.apply(node1);
         verify(op1, only()).apply(same(node1));
@@ -102,18 +108,16 @@ public final class JsonPatchTest
     }
 
     @Test
-    public void whenOneOperationFailsNextOperationIsNotCalled()
-        throws JsonPatchException
-    {
+    public void whenOneOperationFailsNextOperationIsNotCalled() {
         final String message = "foo";
         when(op1.apply(any(JsonNode.class)))
-            .thenThrow(new JsonPatchException(message));
+                .thenThrow(new JsonPatchException(message));
 
         final JsonPatch patch = new JsonPatch(ImmutableList.of(op1, op2));
 
         try {
             patch.apply(FACTORY.nullNode());
-            fail("No exception thrown!!");
+            fail("No exception thrown!");
         } catch (JsonPatchException e) {
             assertEquals(e.getMessage(), message);
         }

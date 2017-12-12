@@ -39,8 +39,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
-import com.linecorp.centraldogma.internal.jsonpatch.diff.JsonDiff;
 
 import difflib.DiffUtils;
 import difflib.Patch;
@@ -175,8 +175,8 @@ public interface Change<T> {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
 
-        return new DefaultChange<>(path, ChangeType.APPLY_JSON_PATCH, JsonDiff.asJson(oldJsonNode, newJsonNode,
-                                                                                      ReplaceMode.SAFE));
+        return new DefaultChange<>(path, ChangeType.APPLY_JSON_PATCH,
+                                   JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE).toJson());
     }
 
     /**
@@ -194,8 +194,8 @@ public interface Change<T> {
             oldJsonNode = Jackson.nullNode;
         }
 
-        return new DefaultChange<>(path, ChangeType.APPLY_JSON_PATCH, JsonDiff.asJson(oldJsonNode, newJsonNode,
-                                                                                      ReplaceMode.SAFE));
+        return new DefaultChange<>(path, ChangeType.APPLY_JSON_PATCH,
+                                   JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE).toJson());
     }
 
     /**
