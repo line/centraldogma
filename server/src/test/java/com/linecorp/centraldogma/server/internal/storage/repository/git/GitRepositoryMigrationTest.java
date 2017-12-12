@@ -61,9 +61,6 @@ public class GitRepositoryMigrationTest {
         final GitRepository repo0 = new GitRepository(proj, repoDir0, V0, commonPool(), 0L, Author.SYSTEM);
         try {
             assertThat(repo0.format()).isSameAs(V0);
-            assertThat(Paths.get(repoDir0.getPath(), "refs", "tags", "01", "1.0"))
-                    .existsNoFollowLinks()
-                    .isRegularFile();
             assertThat(Paths.get(repoDir0.getPath(), "refs", "heads", "master"))
                     .existsNoFollowLinks()
                     .isRegularFile();
@@ -82,9 +79,7 @@ public class GitRepositoryMigrationTest {
         final GitRepository repo1 = new GitRepository(proj, repoDir1, commonPool(), 0L, Author.SYSTEM);
         try {
             assertThat(repo1.format()).isSameAs(V1);
-            assertThat(Paths.get(repoDir1.getPath(), "refs", "tags", "01", "1.0")).doesNotExist();
-            assertThat(Paths.get(repoDir1.getPath(), "refs", "heads", "master")).doesNotExist();
-            assertThat(Paths.get(repoDir1.getPath(), "refs", "txn", "committed"))
+            assertThat(Paths.get(repoDir1.getPath(), "refs", "heads", "master"))
                     .existsNoFollowLinks()
                     .isRegularFile();
         } finally {

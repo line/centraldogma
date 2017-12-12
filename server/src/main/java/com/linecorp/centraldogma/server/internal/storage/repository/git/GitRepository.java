@@ -54,6 +54,7 @@ import org.eclipse.jgit.dircache.DirCacheEditor.DeleteTree;
 import org.eclipse.jgit.dircache.DirCacheEditor.PathEdit;
 import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.dircache.DirCacheIterator;
+import org.eclipse.jgit.internal.storage.file.RefDirectory;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.CoreConfig.HideDotFiles;
@@ -112,10 +113,10 @@ class GitRepository implements Repository {
 
     private static final Logger logger = LoggerFactory.getLogger(GitRepository.class);
 
+    static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
+
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
-
-    private static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
 
     private final Lock writeLock = new ReentrantLock();
     private final Project parent;
@@ -123,6 +124,7 @@ class GitRepository implements Repository {
     private final String name;
     private final org.eclipse.jgit.lib.Repository jGitRepository;
     private final GitRepositoryFormat format;
+    private final CommitIdDatabase commitIdDatabase;
     private final CommitWatchers commitWatchers = new CommitWatchers();
 
     /**
@@ -182,7 +184,6 @@ class GitRepository implements Repository {
                 if (format == GitRepositoryFormat.V1) {
                     // Update the repository settings to upgrade to format version 1 and reftree.
                     config.setInt(CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 1);
-                    config.setString("extensions", null, "refStorage", "reftree");
                 }
 
                 // Disable hidden files, symlinks and file modes we do not use.
@@ -207,6 +208,9 @@ class GitRepository implements Repository {
             head.disableRefLog();
             head.link(Constants.R_HEADS + Constants.MASTER);
 
+            // Initialize the commit ID database.
+            commitIdDatabase = new CommitIdDatabase(repoDir);
+
             // Insert the initial commit into the master branch.
             commit0(null, Revision.INIT, creationTimeMillis, author,
                     "Create a new repository", "", Markup.PLAINTEXT,
@@ -218,6 +222,7 @@ class GitRepository implements Repository {
             throw new StorageException("failed to create a repository at: " + repoDir, e);
         } finally {
             if (!success) {
+                close();
                 // Failed to create a repository. Remove any cruft so that it is not loaded on the next run.
                 deleteCruft(repoDir);
             }
@@ -261,7 +266,20 @@ class GitRepository implements Repository {
             throw new StorageException("failed to open a repository at: " + repoDir, e);
         }
 
-        headRevision = uncachedMainLaneHeadRevision();
+        boolean success = false;
+        try {
+            headRevision = uncachedMainLaneHeadRevision();
+            commitIdDatabase = new CommitIdDatabase(repoDir);
+            if (!headRevision.equals(commitIdDatabase.headRevision())) {
+                commitIdDatabase.rebuild(jGitRepository);
+                assert headRevision.equals(commitIdDatabase.headRevision());
+            }
+            success = true;
+        } finally {
+            if (!success) {
+                close();
+            }
+        }
     }
 
     private static boolean exist(File repoDir) {
@@ -269,7 +287,7 @@ class GitRepository implements Repository {
             RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir);
             org.eclipse.jgit.lib.Repository repository = repositoryBuilder.build();
             if (repository.getConfig() instanceof FileBasedConfig) {
-                return ((FileBasedConfig)repository.getConfig()).getFile().exists();
+                return ((FileBasedConfig) repository.getConfig()).getFile().exists();
             }
             return repository.getDirectory().exists();
         } catch (IOException e) {
@@ -278,7 +296,16 @@ class GitRepository implements Repository {
     }
 
     void close() {
-        jGitRepository.close();
+        if (commitIdDatabase != null) {
+            commitIdDatabase.close();
+        }
+        if (jGitRepository != null) {
+            try {
+                jGitRepository.close();
+            } catch (Exception e) {
+                logger.warn("Failed to close a Git repository: {}", jGitRepository.getDirectory(), e);
+            }
+        }
     }
 
     @Override
@@ -293,6 +320,25 @@ class GitRepository implements Repository {
 
     public GitRepositoryFormat format() {
         return format;
+    }
+
+    public boolean needsMigration(GitRepositoryFormat preferredFormat) {
+        if (format != preferredFormat) {
+            return true;
+        }
+
+        if (!(jGitRepository.getRefDatabase() instanceof RefDirectory)) {
+            // 0.19.0 used RefTreeDatabase we do not use anymore.
+            return true;
+        }
+
+        final File oldTagFile = new File(
+                jGitRepository.getDirectory(),
+                "refs" + File.separatorChar + "tags" + File.separatorChar + "01" + File.separatorChar + "1.0");
+
+        // Some old repositories used tags to store the revision-to-commitId mappings,
+        // which has been replaced by CommitIdDatabase by https://github.com/line/centraldogma/pull/104
+        return oldTagFile.exists();
     }
 
     @Override
@@ -384,7 +430,7 @@ class GitRepository implements Repository {
             }
 
             final Map<String, Entry<?>> result = new LinkedHashMap<>();
-            final ObjectId commitId = toCommitId(normRevision);
+            final ObjectId commitId = commitIdDatabase.get(normRevision);
             final RevCommit revCommit = revWalk.parseCommit(commitId);
             final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
 
@@ -484,8 +530,8 @@ class GitRepository implements Repository {
             from = temp;
         }
 
-        fromCommitId = toCommitId(from);
-        toCommitId = toCommitId(to);
+        fromCommitId = commitIdDatabase.get(from);
+        toCommitId = commitIdDatabase.get(to);
 
         // At this point, we are sure: from.major >= to.major
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
@@ -583,7 +629,8 @@ class GitRepository implements Repository {
         requireNonNull(to, "to");
         requireNonNull(pathPattern, "pathPattern");
 
-        return toChangeMap(compareTrees(toCommitId(blockingNormalize(from)), toCommitId(blockingNormalize(to)),
+        return toChangeMap(compareTrees(commitIdDatabase.get(blockingNormalize(from)),
+                                        commitIdDatabase.get(blockingNormalize(to)),
                                         PathPatternFilter.of(pathPattern)));
     }
 
@@ -812,14 +859,14 @@ class GitRepository implements Repository {
 
             // if the head commit exists, use it as the parent commit.
             if (prevRevision != null) {
-                commitBuilder.setParentId(toCommitId(prevRevision));
+                commitBuilder.setParentId(commitIdDatabase.get(prevRevision));
             }
 
             final ObjectId nextCommitId = inserter.insert(commitBuilder);
             inserter.flush();
 
             // tagging the revision object, for history lookup purpose.
-            doRefUpdate(revWalk, revisionRef(nextRevision), nextCommitId);
+            commitIdDatabase.put(nextRevision, nextCommitId);
             doRefUpdate(revWalk, R_HEADS_MASTER, nextCommitId);
 
             return new CommitResult(nextRevision, prevTreeId, nextTreeId);
@@ -1303,42 +1350,12 @@ class GitRepository implements Repository {
     }
 
     private ObjectId toTreeId(RevWalk revWalk, Revision revision) {
-        final ObjectId commitId = toCommitId(revision);
+        final ObjectId commitId = commitIdDatabase.get(revision);
         try {
             return revWalk.parseCommit(commitId).getTree().getId();
         } catch (IOException e) {
             throw new StorageException("failed to parse a commit: " + commitId, e);
         }
-    }
-
-    private ObjectId toCommitId(Revision revision) {
-        requireNonNull(revision, "revision");
-        final ObjectId resolved = resolveExactRef(revisionRef(revision));
-        if (resolved == null) {
-            throw new StorageException("failed to find the commit for the revision: " + revision);
-        }
-        return resolved;
-    }
-
-    private ObjectId resolveExactRef(String ref) {
-        try {
-            final Ref res = jGitRepository.exactRef(requireNonNull(ref, "ref"));
-            return res != null ? res.getObjectId() : null;
-        } catch (IOException e) {
-            throw new StorageException("failed to resolve: " + ref, e);
-        }
-    }
-
-    private String revisionRef(Revision revision) {
-        switch (format) {
-            case V0:
-                return Constants.R_TAGS + TagUtil.byteHexDirName(revision.major()) +
-                       (revision.text() + ".0");
-            case V1:
-                return Constants.R_TAGS + revision.major();
-        }
-
-        throw new Error("unknown repository format: " + format);
     }
 
     /**
