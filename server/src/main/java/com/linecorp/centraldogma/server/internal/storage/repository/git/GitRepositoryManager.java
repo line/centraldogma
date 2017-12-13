@@ -63,7 +63,7 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
         final GitRepositoryFormat preferredFormat = (GitRepositoryFormat) childArgs[1];
         final Executor repositoryWorker = (Executor) childArgs[2];
         final GitRepository repository = new GitRepository(project, childDir, repositoryWorker);
-        if (repository.format() != preferredFormat) {
+        if (repository.needsMigration(preferredFormat)) {
             return migrate(childDir, project, repositoryWorker, repository, preferredFormat);
         } else {
             return repository;
@@ -72,6 +72,7 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
 
     private static Repository migrate(File childDir, Project project, Executor repositoryWorker,
                                       GitRepository oldRepo, GitRepositoryFormat newFormat) throws IOException {
+        boolean closedOldRepo = false;
         try {
             logger.info("Migrating from {} to {}: {}", oldRepo.format(), newFormat, oldRepo);
             final File newChildDir = new File(childDir.getParentFile(),
@@ -87,6 +88,8 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
             }
 
             oldRepo.cloneTo(newChildDir, newFormat, new MigrationProgressLogger(oldRepo));
+            oldRepo.close();
+            closedOldRepo = true;
 
             if (!childDir.renameTo(oldChildDir)) {
                 throw new IOException("failed to rename " + childDir + " to " + oldChildDir);
@@ -99,7 +102,9 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
             logger.info("Migrated from {} to {}: {}", oldRepo.format(), newFormat, newRepo);
             return newRepo;
         } finally {
-            oldRepo.close();
+            if (!closedOldRepo) {
+                oldRepo.close();
+            }
         }
     }
 
