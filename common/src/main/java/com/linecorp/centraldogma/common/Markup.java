@@ -52,7 +52,7 @@ public enum Markup {
     }
 
     /**
-     * Returns the {@link Markup} from the specified {@code value}. If none of markup is matched,
+     * Returns a {@link Markup} from the specified {@code value}. If none of markup is matched,
      * this will return {@link #UNKNOWN}.
      */
     public static Markup parse(@Nullable String value) {

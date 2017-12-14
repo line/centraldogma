@@ -224,7 +224,7 @@ public interface Repository {
 
         // If the from revision is newer than the to revision,
         // swap them to compare from old to new one always.
-        if (normalizedFrom.major() > normalizedTo.major() || normalizedFrom.minor() > normalizedTo.minor()) {
+        if (normalizedFrom.major() > normalizedTo.major()) {
             Revision temp = normalizedFrom;
             normalizedFrom = normalizedTo;
             normalizedTo = temp;

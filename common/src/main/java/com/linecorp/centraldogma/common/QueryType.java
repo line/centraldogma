@@ -54,7 +54,7 @@ public enum QueryType {
     }
 
     /**
-     * Returns the {@link QueryType} from the specified {@code value}. If none of query type is matched,
+     * Returns a {@link QueryType} from the specified {@code value}. If none of query type is matched,
      * this will return {@link #IDENTITY}.
      */
     public static QueryType parse(@Nullable String value) {

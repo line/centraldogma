@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects;
@@ -38,7 +37,6 @@ public class CommitMessageDto {
 
     private final Markup markup;
 
-    @JsonCreator
     public CommitMessageDto(String summary, @Nullable String detail, @Nullable Markup markup) {
         this.summary = requireNonNull(summary, "summary");
         this.detail = isNullOrEmpty(detail) ? "" : detail;

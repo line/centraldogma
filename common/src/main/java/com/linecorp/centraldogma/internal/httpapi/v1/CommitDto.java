@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
@@ -39,7 +38,6 @@ public class CommitDto {
 
     private final String pushedAt;
 
-    @JsonCreator
     public CommitDto(Commit commit) {
         requireNonNull(commit, "commit");
         revision = commit.revision();

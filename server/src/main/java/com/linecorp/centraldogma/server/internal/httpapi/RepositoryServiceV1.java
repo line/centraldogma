@@ -101,7 +101,7 @@ public class RepositoryServiceV1 extends AbstractService {
                     if (thrown != null) {
                         if (Throwables.getRootCause(thrown) instanceof StorageExistsException) {
                             throw newHttpResponseException(HttpStatus.BAD_REQUEST,
-                                                       "repository " + repoName + " already exists");
+                                                           "repository " + repoName + " already exists");
                         }
                         return Exceptions.throwUnsafely(thrown);
                     }
@@ -131,7 +131,7 @@ public class RepositoryServiceV1 extends AbstractService {
                     if (thrown != null) {
                         if (Throwables.getRootCause(thrown) instanceof StorageNotFoundException) {
                             throw newHttpResponseException(HttpStatus.NOT_FOUND,
-                                                       "repository " + repoName + " not found");
+                                                           "repository " + repoName + " not found");
                         }
                         Exceptions.throwUnsafely(thrown);
                     }
@@ -153,8 +153,8 @@ public class RepositoryServiceV1 extends AbstractService {
 
         if (!unremovePatch.equals(jsonNode)) {
             throw newHttpResponseException(HttpStatus.BAD_REQUEST,
-                                       "not supported JSON patch: " + message.content() +
-                                       " (expected: " + unremovePatch.toString() + ')');
+                                           "not supported JSON patch: " + message.content() +
+                                           " (expected: " + unremovePatch.toString() + ')');
         }
 
         return execute(Command.unremoveRepository(AuthenticationUtil.currentAuthor(), projectName, repoName))
@@ -162,7 +162,7 @@ public class RepositoryServiceV1 extends AbstractService {
                     if (thrown != null) {
                         if (Throwables.getRootCause(thrown) instanceof StorageNotFoundException) {
                             throw newHttpResponseException(HttpStatus.NOT_FOUND,
-                                                       "repository " + repoName + " not found");
+                                                           "repository " + repoName + " not found");
                         }
                         return Exceptions.throwUnsafely(thrown);
                     }

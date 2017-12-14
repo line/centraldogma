@@ -44,6 +44,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -207,7 +208,24 @@ public class ContentServiceV1 extends AbstractService {
         final String detail = commitMessage.detail();
         final Markup markup = commitMessage.markup();
 
-        return repository.normalize(revision).thenCompose(normalizedRevision -> execute(
+        final CompletableFuture<Revision> normalizeFuture = repository.normalize(revision);
+        final CompletableFuture<Revision> headFuture = repository.normalize(Revision.HEAD);
+
+        final CompletableFuture<Revision> future = CompletableFutures.combine(
+                normalizeFuture, headFuture, (normalized, head) -> {
+
+                    // If the revision is not same with head revision, just throw an exception here with
+                    // HttpStatus.BAD_REQUEST. If the revision is same with head revision and if
+                    // there's a change while invoking this operation, then will throw an exception with
+                    // HttpStatus.CONFLICT.
+                    if (normalized.compareTo(head) != 0) {
+                        throw newHttpResponseException(HttpStatus.BAD_REQUEST,
+                                                       "must request with the latest revision");
+                    }
+                    return normalized;
+                }).toCompletableFuture();
+
+        return future.thenCompose(normalizedRevision -> execute(
                 Command.push(commitTimeMills, author, repository.parent().name(), repository.name(),
                              normalizedRevision,
                              summary, detail, markup, changes)));
@@ -271,20 +289,20 @@ public class ContentServiceV1 extends AbstractService {
     private static long getTimeOutMillis(String preferHeader) {
         final String prefer = toLowerCase(preferHeader.replaceAll("\\s+", ""));
         if (!prefer.startsWith("wait=")) {
-            throw newHttpResponseException(HttpStatus.BAD_REQUEST,
-                                       "invalid prefer header: " + preferHeader + " (expected: wait=seconds)");
+            throw newHttpResponseException(HttpStatus.BAD_REQUEST, "invalid prefer header: " + preferHeader +
+                                                                   " (expected: wait=seconds)");
         }
 
         try {
             return TimeUnit.SECONDS.toMillis(Long.parseLong(prefer.substring("wait=".length())));
         } catch (NumberFormatException e) {
-            throw newHttpResponseException(HttpStatus.BAD_REQUEST,
-                                       "invalid prefer header: " + preferHeader + " (expected: wait=seconds)");
+            throw newHttpResponseException(HttpStatus.BAD_REQUEST, "invalid prefer header: " + preferHeader +
+                                                                   " (expected: wait=seconds)");
         }
     }
 
     private CompletionStage<?> watchFile(String projectName, String repoName, Revision lastKnownRevision,
-                                           Query<?> query, long timeOutMillis) {
+                                         Query<?> query, long timeOutMillis) {
         final Repository repository = getRepository(projectName, repoName);
         final CompletableFuture<? extends QueryResult<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis);
@@ -318,8 +336,8 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     private CompletionStage<?> watchRepository(String projectName, String repoName,
-                                                 Revision lastKnownRevision,
-                                                 String path, long timeOutMillis) {
+                                               Revision lastKnownRevision,
+                                               String path, long timeOutMillis) {
         final Repository repository = getRepository(projectName, repoName);
         final String pathPattern = appendWildCardIfDirectory(path);
         final CompletableFuture<Revision> future =
@@ -357,7 +375,7 @@ public class ContentServiceV1 extends AbstractService {
                 .handle(voidFunction((unused, thrown) -> {
                     if (thrown != null) {
                         if (Throwables.getRootCause(thrown) instanceof ChangeConflictException) {
-                            throw HttpStatusException.of(HttpStatus.BAD_REQUEST);
+                            throw HttpStatusException.of(HttpStatus.CONFLICT);
                         }
                         Exceptions.throwUnsafely(thrown);
                     }
@@ -390,7 +408,7 @@ public class ContentServiceV1 extends AbstractService {
                     commitMessage, ImmutableList.of(change)).handle((resultRevision, thrown) -> {
             if (thrown != null) {
                 if (Throwables.getRootCause(thrown) instanceof ChangeConflictException) {
-                    throw HttpStatusException.of(HttpStatus.BAD_REQUEST);
+                    throw HttpStatusException.of(HttpStatus.CONFLICT);
                 }
                 return Exceptions.throwUnsafely(thrown);
             }

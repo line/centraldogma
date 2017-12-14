@@ -23,11 +23,13 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
 
@@ -44,12 +46,10 @@ public class ProjectDto {
 
     private String createdAt;
 
-    @JsonCreator
     public ProjectDto(String name) {
         this.name = requireNonNull(name, "name");
     }
 
-    @JsonCreator
     public ProjectDto(String name, Author creator, long creationTimeMillis) {
         this.name = requireNonNull(name, "name");
         this.creator = requireNonNull(creator, "creator");
@@ -63,21 +63,25 @@ public class ProjectDto {
         return name;
     }
 
+    @Nullable
     @JsonProperty("creator")
     public Author creator() {
         return creator;
     }
 
+    @Nullable
     @JsonProperty("url")
     public String url() {
         return url;
     }
 
+    @Nullable
     @JsonProperty("reposUrl")
     public String reposUrl() {
         return reposUrl;
     }
 
+    @Nullable
     @JsonProperty("createdAt")
     public String createdAt() {
         return createdAt;
@@ -85,11 +89,16 @@ public class ProjectDto {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-                          .add("name", name())
-                          .add("creator", creator())
-                          .add("createdAt", createdAt())
-                          .toString();
+        final ToStringHelper stringHelper = MoreObjects.toStringHelper(this)
+                                                       .add("name", name());
+        if (creator() != null) {
+            stringHelper.add("creator", creator());
+        }
+
+        if (createdAt() != null) {
+            stringHelper.add("createdAt", createdAt());
+        }
+        return stringHelper.toString();
     }
 }
 

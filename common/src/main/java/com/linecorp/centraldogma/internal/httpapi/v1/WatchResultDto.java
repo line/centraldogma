@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.internal.httpapi.v1;
 
 import static java.util.Objects.requireNonNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
@@ -28,7 +27,6 @@ public class WatchResultDto {
 
     private String contentsUrl;
 
-    @JsonCreator
     public WatchResultDto(CommitDto head, String contentsUrl) {
         this.head = requireNonNull(head, "head");
         this.contentsUrl = requireNonNull(contentsUrl, "contentsUrl");

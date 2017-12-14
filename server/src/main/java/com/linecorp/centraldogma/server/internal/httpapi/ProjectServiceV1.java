@@ -70,7 +70,7 @@ public class ProjectServiceV1 extends AbstractService {
         if (status.isPresent()) {
             if (!status.get().equalsIgnoreCase("removed")) {
                 throw newHttpResponseException(HttpStatus.BAD_REQUEST,
-                                           "invalid status: " + status + " (expected: removed)");
+                                               "invalid status: " + status + " (expected: removed)");
             }
 
             return CompletableFuture.supplyAsync(
@@ -101,7 +101,7 @@ public class ProjectServiceV1 extends AbstractService {
                     if (thrown != null) {
                         if (Throwables.getRootCause(thrown) instanceof StorageExistsException) {
                             throw newHttpResponseException(HttpStatus.BAD_REQUEST,
-                                                       "project " + name + " already exists");
+                                                           "project " + name + " already exists");
                         }
                         return Exceptions.throwUnsafely(thrown);
                     }
@@ -141,8 +141,8 @@ public class ProjectServiceV1 extends AbstractService {
 
         if (!jsonNode.equals(unremovePatch)) {
             throw newHttpResponseException(HttpStatus.BAD_REQUEST,
-                                       "not supported JSON patch: " + message.content() +
-                                       " (expected: " + unremovePatch.toString() + ')');
+                                           "not supported JSON patch: " + message.content() +
+                                           " (expected: " + unremovePatch.toString() + ')');
         }
 
         return execute(Command.unremoveProject(AuthenticationUtil.currentAuthor(), name))

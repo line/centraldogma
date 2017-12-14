@@ -20,7 +20,6 @@ import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -36,10 +35,8 @@ public class ChangeDto<T> {
 
     private final ChangeType type;
 
-    @Nullable
     private final T content;
 
-    @JsonCreator
     public ChangeDto(String path, ChangeType type, @Nullable T content) {
         this.path = requireNonNull(path, "path");
         this.type = requireNonNull(type, "type");
@@ -56,6 +53,7 @@ public class ChangeDto<T> {
         return type;
     }
 
+    @Nullable
     @JsonProperty("content")
     public T content() {
         return content;
@@ -69,6 +67,7 @@ public class ChangeDto<T> {
         if (content() != null) {
             stringHelper.add("content", content());
         }
+
         return stringHelper.toString();
     }
 }

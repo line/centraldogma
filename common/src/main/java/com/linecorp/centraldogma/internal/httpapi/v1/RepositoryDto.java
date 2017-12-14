@@ -26,11 +26,13 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
@@ -54,12 +56,10 @@ public class RepositoryDto {
 
     private String createdAt;
 
-    @JsonCreator
     public RepositoryDto(String name) {
         this.name = requireNonNull(name, "name");
     }
 
-    @JsonCreator
     public RepositoryDto(String projectName, String repoName, Author creator,
                          Revision headRevision, long creationTimeMillis) {
         requireNonNull(projectName, "projectName");
@@ -96,36 +96,43 @@ public class RepositoryDto {
         return name;
     }
 
+    @Nullable
     @JsonProperty("creator")
     public Author creator() {
         return creator;
     }
 
+    @Nullable
     @JsonProperty("headRevision")
     public Revision headRevision() {
         return headRevision;
     }
 
+    @Nullable
     @JsonProperty("url")
     public String url() {
         return url;
     }
 
+    @Nullable
     @JsonProperty("commitsUrl")
     public String commitsUrl() {
         return commitsUrl;
     }
 
+    @Nullable
     @JsonProperty("compareUrl")
     public String compareUrl() {
         return compareUrl;
     }
 
+    @Nullable
     @JsonProperty("contentsUrl")
     public String contentsUrl() {
         return contentsUrl;
     }
 
+    @Nullable
     @JsonProperty("createdAt")
     public String createdAt() {
         return createdAt;
@@ -133,11 +140,20 @@ public class RepositoryDto {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-                          .add("name", name())
-                          .add("creator", creator())
-                          .add("headRevision", headRevision())
-                          .add("createdAt", createdAt())
-                          .toString();
+        final ToStringHelper stringHelper = MoreObjects.toStringHelper(this)
+                                                       .add("name", name());
+        if (creator() != null) {
+            stringHelper.add("creator", creator());
+        }
+
+        if (headRevision() != null) {
+            stringHelper.add("headRevision", headRevision());
+        }
+
+        if (createdAt() != null) {
+            stringHelper.add("createdAt", createdAt());
+        }
+
+        return stringHelper.toString();
     }
 }

@@ -45,24 +45,18 @@ public class EntryDto<T> {
 
     private final EntryType type;
 
-    @Nullable
     private final T content;
 
-    @Nullable
     private Revision revision;
 
-    @Nullable
     private String url;
 
-    @Nullable
     private String modifiedAt;
 
-    @JsonCreator
     public EntryDto(Entry<T> entry) {
         this(requireNonNull(entry, "entry").path(), entry.type(), entry.content());
     }
 
-    @JsonCreator
     public EntryDto(String path, EntryType type, T content) {
         this.path = requireNonNull(path, "path");
         this.type = requireNonNull(type, "type");
@@ -95,21 +89,25 @@ public class EntryDto<T> {
     }
 
     @JsonProperty("content")
+    @Nullable
     public T content() {
         return content;
     }
 
     @JsonProperty("revision")
+    @Nullable
     public Revision revision() {
         return revision;
     }
 
     @JsonProperty("url")
+    @Nullable
     public String url() {
         return url;
     }
 
     @JsonProperty("modifiedAt")
+    @Nullable
     public String modifiedAt() {
         return modifiedAt;
     }

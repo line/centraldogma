@@ -44,7 +44,7 @@ public interface Query<T> extends Function<T, T> {
     /**
      * Returns a newly-created {@link Query} that retrieves the content as it is.
      *
-     * @param path the path of the a file being queried on
+     * @param path the path of a file being queried on
      */
     static Query<Object> identity(String path) {
         return new IdentityQuery(path);
