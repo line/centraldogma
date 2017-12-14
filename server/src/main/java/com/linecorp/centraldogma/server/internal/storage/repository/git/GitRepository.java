@@ -209,7 +209,7 @@ class GitRepository implements Repository {
             head.link(Constants.R_HEADS + Constants.MASTER);
 
             // Initialize the commit ID database.
-            commitIdDatabase = new CommitIdDatabase(repoDir);
+            commitIdDatabase = new CommitIdDatabase(jGitRepository);
 
             // Insert the initial commit into the master branch.
             commit0(null, Revision.INIT, creationTimeMillis, author,
@@ -269,7 +269,7 @@ class GitRepository implements Repository {
         boolean success = false;
         try {
             headRevision = uncachedMainLaneHeadRevision();
-            commitIdDatabase = new CommitIdDatabase(repoDir);
+            commitIdDatabase = new CommitIdDatabase(jGitRepository);
             if (!headRevision.equals(commitIdDatabase.headRevision())) {
                 commitIdDatabase.rebuild(jGitRepository);
                 assert headRevision.equals(commitIdDatabase.headRevision());

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.R_HEADS_MASTER;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_CORE_SECTION;
 
 import java.io.EOFException;
 import java.io.File;
@@ -35,6 +36,8 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
@@ -71,9 +74,22 @@ final class CommitIdDatabase implements AutoCloseable {
 
     private final Path path;
     private final FileChannel channel;
+    private final boolean fsync;
     private volatile Revision headRevision;
 
+    CommitIdDatabase(Repository repo) {
+        // NB: We enable fsync only when our Git repository has been configured so,
+        //     because there's no point of doing fsync only on this file when the
+        //     Git repository does not.
+        this(repo.getDirectory(), repo.getConfig().getBoolean(CONFIG_CORE_SECTION, "fsyncObjectFiles", false));
+    }
+
+    @VisibleForTesting
     CommitIdDatabase(File rootDir) {
+        this(rootDir, false);
+    }
+
+    private CommitIdDatabase(File rootDir, boolean fsync) {
         path = new File(rootDir, "commit_ids.dat").toPath();
         try {
             channel = FileChannel.open(path,
@@ -84,6 +100,7 @@ final class CommitIdDatabase implements AutoCloseable {
             throw new StorageException("failed to open a commit ID database: " + path, e);
         }
 
+        this.fsync = fsync;
         boolean success = false;
         try {
             final long size;
@@ -174,7 +191,7 @@ final class CommitIdDatabase implements AutoCloseable {
                 pos += channel.write(buf, pos);
             } while (buf.hasRemaining());
 
-            if (safeMode) {
+            if (safeMode && fsync) {
                 channel.force(true);
             }
         } catch (IOException e) {
