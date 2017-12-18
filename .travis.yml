@@ -1,46 +1,37 @@
----
 language: java
 sudo: false
-
 os:
-  - linux
-
+- linux
 branches:
   only:
-    - master
-    - '0.46'
-
+  - master
+  - '0.46'
 notifications:
   email: false
-  slack: central-dogma:cQkK8Cvl3LI8Qa9BmuoKc1vT
-
+  slack:
+    rooms:
+      secure: rGpkegVQycujds7QV+y9rhXtnRnu3o19P5bH2bVyU12aNKIMJStl8pd3qO6iRYcVYv66TnfpOoLOvkovXEy1S/xymyoLDvCK630R9aSXRAVf//Y+2Mov1ENRoHNLbIf1QcLc7/M+zrM7+NPvyjm2LAVcZd3EXok1owprDBhRGwWWPIFIVCssqdRSBAs7PhWgv8XKXSdnTVDL9bbhrupIPkh24ajDqelR3JCT0s/4Mgc59zpiHqEWlEURQdWTwetiDYZeEU8WxkKDiy39YkBMiMkGLQ6Z0kW8x0K4W85rhR+i94p28GrhOk0pXIVpuDA17/JlmRBACBk8Tv+kpHduEeVTJGpmGxHDeWLYPuX7XV0X9k+fUiyNSiVWjBq+jjAQ6BsDi1nkCYewfS7hd6vmcjUdZIIT3nbp+pS0BABMiA9wtlHwhKlDaqRJWEoxTKLMNbzesNpNCeSvLFX4niWOogYVY2bYJFfHfa8o+FOPC2TBA4/kseP94MsLmJ6zcgWBzmZFgrSyco7BG1fpfbPy1l6U2m0nD8X5Kf9gFePtRuEOC0dP58LKHp/QId68JqoNVZq9Di6/xKgcJeZutCz5iKxdcC28lHp/CWmWbT0VodpkKnT597T+kXKVsuxn2YgKhu3iYmutAbw5mXDreSl5Yr4zxDVDZKwpn4Ecwy/V07Q=
 cache:
   directories:
-    - $HOME/.gradle/wrapper/dists
-    - $HOME/.gradle/caches/jars-3
-    - $HOME/.gradle/caches/modules-2
-    - $HOME/.gradle/go
-    - $HOME/.jdk
-
+  - "$HOME/.gradle/wrapper/dists"
+  - "$HOME/.gradle/caches/jars-3"
+  - "$HOME/.gradle/caches/modules-2"
+  - "$HOME/.gradle/go"
+  - "$HOME/.jdk"
 env:
   global:
-    - _JAVA_OPTIONS=
-    - JAVA_HOME=$HOME/.jdk/default
-    - PATH=$JAVA_HOME/bin:$PATH
-    - GRADLE_OPTS=-Xmx1024m
-
+  - _JAVA_OPTIONS=
+  - JAVA_HOME=$HOME/.jdk/default
+  - PATH=$JAVA_HOME/bin:$PATH
+  - GRADLE_OPTS=-Xmx1024m
 before_install:
-  - .travis/install-jdk.sh
-  - ./gradlew --version
-
+- ".travis/install-jdk.sh"
+- "./gradlew --version"
 install:
-  - true
-
+- true
 script:
-  - ./gradlew --no-daemon --stacktrace -Pcoverage checkstyle test build
-
+- "./gradlew --no-daemon --stacktrace -Pcoverage checkstyle test build"
 before_cache:
-  - find $HOME/.gradle/caches -name '*.lock' -delete
-
+- find $HOME/.gradle/caches -name '*.lock' -delete
 after_success:
-  - bash <(curl -s https://codecov.io/bash)
+- bash <(curl -s https://codecov.io/bash)
