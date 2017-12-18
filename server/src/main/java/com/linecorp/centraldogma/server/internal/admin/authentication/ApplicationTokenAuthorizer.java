@@ -58,20 +58,24 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
         final CompletableFuture<Boolean> res = new CompletableFuture<>();
         tokenLookupFunc.apply(token.accessToken())
                        .thenAccept(appToken -> {
-                           final StringBuilder login = new StringBuilder(appToken.appId());
-                           final SocketAddress ra = ctx.remoteAddress();
-                           if (ra instanceof InetSocketAddress) {
-                               login.append('@').append(((InetSocketAddress) ra).getHostString());
-                           }
+                           if (appToken != null) {
+                               final StringBuilder login = new StringBuilder(appToken.appId());
+                               final SocketAddress ra = ctx.remoteAddress();
+                               if (ra instanceof InetSocketAddress) {
+                                   login.append('@').append(((InetSocketAddress) ra).getHostString());
+                               }
 
-                           AuthenticationUtil.setCurrentUser(
-                                   ctx, new UserWithToken(login.toString(), token.accessToken()));
-                           res.complete(true);
+                               AuthenticationUtil.setCurrentUser(
+                                       ctx, new UserWithToken(login.toString(), token.accessToken()));
+                               res.complete(true);
+                           } else {
+                               res.complete(false);
+                           }
                        })
                        // Should be authorized by the next authorizer.
                        .exceptionally(voidFunction(cause -> {
-                           logger.debug("Application token authorization failed: {}",
-                                        token.accessToken(), cause);
+                           logger.warn("Application token authorization failed: {}",
+                                       token.accessToken(), cause);
                            res.complete(false);
                        }));
 

@@ -16,12 +16,12 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.Util.validateFileName;
 import static com.linecorp.centraldogma.server.internal.admin.authentication.Token.EMPTY_TOKEN;
 import static com.linecorp.centraldogma.server.internal.admin.service.RepositoryUtil.push;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.TOKEN_REPOSITORY_NAME;
+import static java.util.Objects.requireNonNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,6 +33,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Maps;
@@ -60,6 +63,7 @@ import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
  * Annotated service object for managing application tokens.
  */
 public class TokenService extends AbstractService {
+    private static final Logger logger = LoggerFactory.getLogger(TokenService.class);
 
     private static final String TOKEN_JSON_PATH = "/token.json";
     private static final String SECRET_PREFIX = "appToken-";
@@ -154,17 +158,30 @@ public class TokenService extends AbstractService {
      * Finds a token of the specified secret.
      */
     public CompletionStage<Token> findToken(String secret) {
-        checkArgument(secret != null && secret.startsWith(SECRET_PREFIX),
-                      "Secret should start with " + SECRET_PREFIX + "'");
+        requireNonNull(secret, "secret");
+        if (!secret.startsWith(SECRET_PREFIX)) {
+            return CompletableFuture.completedFuture(null);
+        }
         return projectManager()
                 .get(INTERNAL_PROJECT_NAME).repos().get(TOKEN_REPOSITORY_NAME)
                 .get(Revision.HEAD, Query.ofJsonPath(TOKEN_JSON_PATH, "$." + secret))
-                .thenApply(result -> {
-                    if (result.isRemoved() ||
+                .handle((result, cause) -> {
+                    if (cause != null) {
+                        logger.warn("An exception is raised while finding a token:", cause);
+                        return null;
+                    }
+                    if (result == null ||
+                        result.isRemoved() ||
                         result.type() != EntryType.JSON) {
                         return null;
                     }
-                    return Jackson.convertValue(result.content(), Token.class);
+                    try {
+                        return Jackson.convertValue(result.content(), Token.class);
+                    } catch (Exception e) {
+                        logger.warn("An exception is raised while converting a JSON value to " +
+                                    Token.class.getName(), e);
+                        return null;
+                    }
                 });
     }
 
