@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
@@ -37,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -255,6 +257,8 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         }
 
         public Builder path(String path) {
+            path = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+            checkArgument(!path.isEmpty(), "ZooKeeper path must not refer to the root node.");
             this.path = path;
             return this;
         }
@@ -349,13 +353,10 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
             // Create the zkPath if it does not exist.
             if (createPathIfNotExist) {
-                if (curator.checkExists().forPath(zkPath) == null) {
-                    curator.inTransaction().create().forPath(zkPath).and()
-                           .create().forPath(zkPath + '/' + LOG_PATH).and()
-                           .create().forPath(zkPath + '/' + LOG_BLOCK_PATH).and()
-                           .create().forPath(zkPath + '/' + LOCK_PATH).and()
-                           .commit();
-                }
+                createZkPathIfMissing(zkPath);
+                createZkPathIfMissing(zkPath + '/' + LOG_PATH);
+                createZkPathIfMissing(zkPath + '/' + LOG_BLOCK_PATH);
+                createZkPathIfMissing(zkPath + '/' + LOCK_PATH);
             }
 
             // Start the log replay.
@@ -366,6 +367,18 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         } catch (Exception e) {
             throw new ReplicationException(e);
         }
+    }
+
+    private void createZkPathIfMissing(String zkPath) throws Exception {
+        if (curator.checkExists().forPath(zkPath) == null) {
+            curator.create().forPath(zkPath);
+        }
+    }
+
+    private void stopLater() {
+        // Stop from an other thread so that it does not get stuck
+        // when this method runs on an executor thread.
+        ForkJoinPool.commonPool().execute(this::stop);
     }
 
     @Override
@@ -444,9 +457,11 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 final long nextRevision = info.lastReplayedRevision + 1;
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
                 if (log.isPresent()) {
-                    final Command<?> command = log.get().command();
-                    final Object expectedResult = log.get().result();
-                    final Object actualResult = delegate.execute(command).join();
+                    final ReplicationLog<?> l = log.get();
+                    final String originatingReplicaId = l.replicaId();
+                    final Command<?> command = l.command();
+                    final Object expectedResult = l.result();
+                    final Object actualResult = delegate.execute(originatingReplicaId, command).join();
 
                     if (!Objects.equals(expectedResult, actualResult)) {
                         throw new ReplicationException(
@@ -464,7 +479,8 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
             }
         } catch (Exception e) {
             logger.warn("log replay fails. stop.", e);
-            stop();
+            stopLater();
+
             if (e instanceof ReplicationException) {
                 throw (ReplicationException) e;
             }
@@ -641,11 +657,11 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
     // Ensure that all logs are replayed, any other logs can not be added before end of this function.
     @Override
-    protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
+    protected <T> CompletableFuture<T> doExecute(String replicaId, Command<T> command) throws Exception {
         final CompletableFuture<T> future = new CompletableFuture<>();
         executor.execute(() -> {
             try {
-                future.complete(blockingExecute(command));
+                future.complete(blockingExecute(replicaId, command));
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             }
@@ -653,7 +669,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         return future;
     }
 
-    private <T> T blockingExecute(Command<T> command) throws Exception {
+    private <T> T blockingExecute(String replicaId, Command<T> command) throws Exception {
         SafeLock lock = null;
         try {
             lock = safeLock(command.executionPath());
@@ -670,7 +686,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 replayLogs(lastRevision);
             }
 
-            final T result = delegate.execute(command).join();
+            final T result = delegate.execute(replicaId, command).join();
             final ReplicationLog<T> log = new ReplicationLog<>(replicaId(), command, result);
 
             // Store the command execution log to ZooKeeper.
@@ -679,7 +695,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
             logger.debug("logging OK. revision = {}, log = {}", revision, log);
             return result;
         } catch (ReplicationException e) {
-            stop();
+            stopLater();
             throw e;
         } finally {
             if (lock != null) {

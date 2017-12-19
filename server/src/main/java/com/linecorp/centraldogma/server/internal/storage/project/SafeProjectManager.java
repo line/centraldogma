@@ -106,7 +106,7 @@ public class SafeProjectManager implements ProjectManager {
 
     protected static void validateProjectName(String name) {
         if (!isValidProjectName(name)) {
-            throw new IllegalArgumentException("Illegal access to project '" + name + "'");
+            throw new IllegalArgumentException("Illegal access to project '" + name + '\'');
         }
     }
 

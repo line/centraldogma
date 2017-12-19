@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
+import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -54,6 +55,7 @@ public class CentralDogmaRule extends TemporaryFolder {
 
     private com.linecorp.centraldogma.server.CentralDogma dogma;
     private CentralDogma client;
+    private HttpClient httpClient;
 
     /**
      * Returns the server.
@@ -89,6 +91,18 @@ public class CentralDogmaRule extends TemporaryFolder {
     }
 
     /**
+     * Returns the HTTP client.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public final HttpClient httpClient() {
+        if (httpClient == null) {
+            throw new IllegalStateException("Central Dogma client not available");
+        }
+        return httpClient;
+    }
+
+    /**
      * Starts an embedded server with {@link #start()} and calls {@link #scaffold(CentralDogma)}.
      */
     @Override
@@ -117,6 +131,7 @@ public class CentralDogmaRule extends TemporaryFolder {
 
         final InetSocketAddress serverAddress = dogma.activePort().get().localAddress();
         client = CentralDogma.forHost(serverAddress.getHostString(), serverAddress.getPort());
+        httpClient = HttpClient.of("h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort());
     }
 
     /**
@@ -146,6 +161,7 @@ public class CentralDogmaRule extends TemporaryFolder {
         final com.linecorp.centraldogma.server.CentralDogma dogma = this.dogma;
         this.dogma = null;
         client = null;
+        httpClient = null;
 
         if (dogma != null) {
             newCleanUpThread(dogma).start();

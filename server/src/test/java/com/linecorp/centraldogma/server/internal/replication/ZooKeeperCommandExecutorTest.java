@@ -208,6 +208,13 @@ public class ZooKeeperCommandExecutorTest {
         }
     }
 
+    private static Function<Command<?>, CompletableFuture<?>> newMockDelegate() {
+        @SuppressWarnings("unchecked")
+        final Function<Command<?>, CompletableFuture<?>> delegate = mock(Function.class);
+        when(delegate.apply(any())).thenReturn(completedFuture(null));
+        return delegate;
+    }
+
     private final class Replica {
 
         private final ZooKeeperCommandExecutor rm;
@@ -216,8 +223,7 @@ public class ZooKeeperCommandExecutorTest {
 
         @SuppressWarnings("unchecked")
         Replica(String id, String zkPath) throws Exception {
-            this(id, zkPath, mock(Function.class));
-            when(delegate.apply(any())).thenReturn(completedFuture(null));
+            this(id, zkPath, newMockDelegate());
         }
 
         Replica(String id, String zkPath,
@@ -238,7 +244,7 @@ public class ZooKeeperCommandExecutorTest {
 
                             @Override
                             @SuppressWarnings("unchecked")
-                            protected <T> CompletableFuture<T> doExecute(Command<T> command) {
+                            protected <T> CompletableFuture<T> doExecute(String replicaId, Command<T> command) {
                                 return (CompletableFuture<T>) delegate.apply(command);
                             }
                         })
