@@ -32,7 +32,6 @@ final class IdentityQuery implements Query<Object> {
 
     @JsonCreator
     IdentityQuery(@JsonProperty("path") String path) {
-        requireNonNull(path, "path");
         this.path = validateFilePath(path, "path");
     }
 

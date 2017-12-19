@@ -36,6 +36,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
@@ -68,20 +69,22 @@ public class ProjectServiceV1Test {
 
         final JsonNode jsonNode = Jackson.readTree(aRes.content().toStringUtf8());
         assertThat(jsonNode.get("name").asText()).isEqualTo("myPro");
-        assertThat(jsonNode.get("reposUrl").asText()).isEqualTo("/api/v1/projects/myPro/repos");
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
     }
 
     private AggregatedHttpMessage createProject(String name) {
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, PROJECTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+
         final String body = "{\"name\": \"" + name + "\"}";
-        return httpClient.post(PROJECTS_PREFIX, body).aggregate().join();
+        return httpClient.execute(headers, body).aggregate().join();
     }
 
     @Test
     public void createProjectWithSameName() {
         createProject("myPro");
         final AggregatedHttpMessage res = createProject("myPro");
-        assertThat(res.headers().status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
                 "   \"message\": \"project myPro already exists\"" +
@@ -105,7 +108,6 @@ public class ProjectServiceV1Test {
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "       }," +
                 "       \"url\": \"/api/v1/projects/hyangtack\"," +
-                "       \"reposUrl\": \"/api/v1/projects/hyangtack/repos\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
                 "   {" +
@@ -115,7 +117,6 @@ public class ProjectServiceV1Test {
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "       }," +
                 "       \"url\": \"/api/v1/projects/minwoox\"," +
-                "       \"reposUrl\": \"/api/v1/projects/minwoox/repos\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
                 "   {" +
@@ -125,7 +126,6 @@ public class ProjectServiceV1Test {
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "       }," +
                 "       \"url\": \"/api/v1/projects/trustin\"," +
-                "       \"reposUrl\": \"/api/v1/projects/trustin/repos\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }" +
                 ']';
@@ -187,11 +187,11 @@ public class ProjectServiceV1Test {
         httpClient.delete(projectPath).aggregate().join();
 
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.PATCH, projectPath)
-                                               .add(HttpHeaderNames.CONTENT_TYPE,
-                                                    "application/json-patch+json");
+                                               .contentType(MediaType.JSON_PATCH);
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
         final AggregatedHttpMessage aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
+        System.err.println(aRes.content().toStringUtf8());
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '{' +
@@ -201,7 +201,6 @@ public class ProjectServiceV1Test {
                 "       \"email\": \"system@localhost.localdomain\"" +
                 "   }," +
                 "   \"url\": \"/api/v1/projects/bar\"," +
-                "   \"reposUrl\": \"/api/v1/projects/bar/repos\"," +
                 "   \"createdAt\": \"${json-unit.ignore}\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();

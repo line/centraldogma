@@ -18,21 +18,20 @@ package com.linecorp.centraldogma.server.internal.httpapi;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
-import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.getJsonNode;
 import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.newHttpResponseException;
 import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.unremovePatch;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.annotation.ConsumeType;
@@ -42,7 +41,9 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.centraldogma.internal.httpapi.v1.ProjectDto;
+import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
@@ -76,12 +77,12 @@ public class ProjectServiceV1 extends AbstractService {
             return CompletableFuture.supplyAsync(
                     () -> projectManager().listRemoved().stream()
                                           .map(ProjectDto::new)
-                                          .collect(Collectors.toList()));
+                                          .collect(toImmutableList()));
         }
 
         return CompletableFuture.supplyAsync(() -> projectManager().list().values().stream()
                                                                    .map(DtoConverter::convert)
-                                                                   .collect(Collectors.toList()));
+                                                                   .collect(toImmutableList()));
     }
 
     /**
@@ -90,17 +91,16 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Creates a new project.
      */
     @Post("/projects")
-    public CompletionStage<ProjectDto> createProject(AggregatedHttpMessage message) {
-        final JsonNode jsonNode = getJsonNode(message);
-        checkArgument(jsonNode.get("name") != null, "project name should be non-null");
-        final String name = jsonNode.get("name").textValue();
+    public CompletionStage<ProjectDto> createProject(@RequestObject JsonNode node) {
+        checkArgument(node.get("name") != null, "project name should be non-null");
+        final String name = node.get("name").textValue();
         checkArgument(!isNullOrEmpty(name), "project name should be non-null");
 
         return execute(Command.createProject(AuthenticationUtil.currentAuthor(), name))
                 .handle((unused, thrown) -> {
                     if (thrown != null) {
                         if (Throwables.getRootCause(thrown) instanceof StorageExistsException) {
-                            throw newHttpResponseException(HttpStatus.BAD_REQUEST,
+                            throw newHttpResponseException(HttpStatus.CONFLICT,
                                                            "project " + name + " already exists");
                         }
                         return Exceptions.throwUnsafely(thrown);
@@ -135,16 +135,25 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @ConsumeType("application/json-patch+json")
     @Patch("/projects/{projectName}")
-    public CompletionStage<ProjectDto> patchProject(
-            @Param("projectName") String name, AggregatedHttpMessage message) {
-        final JsonNode jsonNode = getJsonNode(message);
-
-        if (!jsonNode.equals(unremovePatch)) {
+    public CompletionStage<ProjectDto> patchProject(@Param("projectName") String name,
+                                                    @RequestObject JsonNode node) {
+        try {
+            // validate if it is a JSON patch
+            JsonPatch.fromJson(node);
+        } catch (IOException e) {
             throw newHttpResponseException(HttpStatus.BAD_REQUEST,
-                                           "not supported JSON patch: " + message.content() +
+                                           "not a valid JSON patch: " + node.toString() +
                                            " (expected: " + unremovePatch.toString() + ')');
         }
 
+        // check if the patch is same with the unremovePatch
+        if (!node.equals(unremovePatch)) {
+            throw newHttpResponseException(HttpStatus.CONFLICT,
+                                           "not supported JSON patch: " + node.toString() +
+                                           " (expected: " + unremovePatch.toString() + ')');
+        }
+
+        //  if it's same, do the operation
         return execute(Command.unremoveProject(AuthenticationUtil.currentAuthor(), name))
                 .handle((project, thrown) -> {
                     if (thrown != null) {

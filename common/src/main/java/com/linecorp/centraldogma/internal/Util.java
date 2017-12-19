@@ -108,9 +108,9 @@ public final class Util {
         return isValidDirPath(path, false);
     }
 
-    public static boolean isValidDirPath(String path, boolean mustEndsWithSlash) {
+    public static boolean isValidDirPath(String path, boolean mustEndWithSlash) {
         requireNonNull(path);
-        if (mustEndsWithSlash && !path.endsWith("/")) {
+        if (mustEndWithSlash && !path.endsWith("/")) {
             return false;
         }
         return !path.isEmpty() && path.charAt(0) == '/' &&

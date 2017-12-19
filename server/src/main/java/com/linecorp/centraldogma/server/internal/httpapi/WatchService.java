@@ -24,8 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import com.spotify.futures.CompletableFutures;
-
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Query;
@@ -73,10 +71,6 @@ public class WatchService {
      */
     public CompletableFuture<Revision> watchRepository(Repository repo, Revision lastKnownRevision,
                                                        String pathPattern, long timeoutMillis) {
-        if (isServerStopping()) {
-            return CompletableFutures.exceptionallyCompletedFuture(CANCELLATION_EXCEPTION);
-        }
-
         final CompletableFuture<Revision> result = repo.watch(lastKnownRevision, pathPattern);
         if (result.isDone()) {
             return result;
@@ -118,10 +112,6 @@ public class WatchService {
      */
     public <T> CompletableFuture<QueryResult<T>> watchFile(Repository repo, Revision lastKnownRevision,
                                                            Query<T> query, long timeoutMillis) {
-        if (isServerStopping()) {
-            return CompletableFutures.exceptionallyCompletedFuture(CANCELLATION_EXCEPTION);
-        }
-
         final CompletableFuture<QueryResult<T>> result = repo.watch(lastKnownRevision, query);
         if (result.isDone()) {
             return result;

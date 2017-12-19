@@ -42,7 +42,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 /**
  * A utility class to convert domain objects to DTO objects.
  */
-public final class DtoConverter {
+final class DtoConverter {
 
     public static ProjectDto convert(Project project) {
         requireNonNull(project, "project");
@@ -52,8 +52,10 @@ public final class DtoConverter {
     public static RepositoryDto convert(Repository repository) {
         requireNonNull(repository, "repository");
         final Revision headRevision = repository.normalize(Revision.HEAD).join();
-        return new RepositoryDto(repository.parent().name(), repository.name(),
-                                 repository.author(), headRevision,
+        final String projectName = repository.parent().name();
+        final String repoName = repository.name();
+
+        return new RepositoryDto(projectName, repoName, repository.author(), headRevision,
                                  repository.creationTimeMillis());
     }
 
@@ -66,7 +68,7 @@ public final class DtoConverter {
         return new EntryDto<>(path, result.type(), result.content());
     }
 
-    public static EntryDto convert(Revision revision, String projectName, String repoName, String path,
+    public static EntryDto<?> convert(Revision revision, String projectName, String repoName, String path,
                                    EntryType type, long commitTimeMillis) {
         return new EntryDto(path, type, projectName, repoName, revision, commitTimeMillis);
     }
@@ -88,12 +90,12 @@ public final class DtoConverter {
 
         checkArgument(Iterables.size(entries) >= 1, "should have at least one entry");
 
-        final String contentsUrl = createContentsUrl(projectName, repoName) + Iterables.get(entries, 0).path();
+        final String contentsUrl = contentsUrl(projectName, repoName) + Iterables.get(entries, 0).path();
         return new WatchResultDto(convert(commit), contentsUrl);
     }
 
     // TODO(minwoox) replace with URI template processor implementing RFC6570
-    private static String createContentsUrl(String projectName, String repoName) {
+    private static String contentsUrl(String projectName, String repoName) {
         return PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName + CONTENTS;
     }
 

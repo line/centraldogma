@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -38,6 +37,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
@@ -62,7 +62,10 @@ public class RepositoryServiceV1Test {
 
         // the default project used for unit tests
         final String body = "{\"name\": \"myPro\"}";
-        httpClient.post(PROJECTS_PREFIX, body).aggregate().join();
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, PROJECTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+
+        httpClient.execute(headers, body).aggregate().join();
     }
 
     @Test
@@ -77,18 +80,15 @@ public class RepositoryServiceV1Test {
         final JsonNode jsonNode = Jackson.readTree(aRes.content().toStringUtf8());
         assertThat(jsonNode.get("name").asText()).isEqualTo("myRepo");
         assertThat(jsonNode.get("headRevision").asInt()).isOne();
-        assertThat(jsonNode.get("commitsUrl").asText()).isEqualTo(
-                "/api/v1/projects/myPro/repos/myRepo/commits?revision=1");
-        assertThat(jsonNode.get("compareUrl").asText()).isEqualTo(
-                "/api/v1/projects/myPro/repos/myRepo/compare?from=1&to=1");
-        assertThat(jsonNode.get("contentsUrl").asText()).isEqualTo(
-                "/api/v1/projects/myPro/repos/myRepo/contents");
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
     }
 
     private AggregatedHttpMessage createRepository(String repoName) {
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, REPOS_PREFIX)
+                                               .contentType(MediaType.JSON);
         final String body = "{\"name\": \"" + repoName + "\"}";
-        return httpClient.post(REPOS_PREFIX, body).aggregate().join();
+
+        return httpClient.execute(headers, body).aggregate().join();
     }
 
     @Test
@@ -97,7 +97,7 @@ public class RepositoryServiceV1Test {
 
         // create again with the same name
         final AggregatedHttpMessage aRes = createRepository("myRepo");
-        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
                 "   \"message\": \"repository myRepo already exists\"" +
@@ -106,11 +106,11 @@ public class RepositoryServiceV1Test {
     }
 
     @Test
-    @Ignore
     public void createRepositoryInAbsentProject() {
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, PROJECTS_PREFIX + "/absentProject" + REPOS)
+                                               .contentType(MediaType.JSON);
         final String body = "{\"name\": \"myRepo\"}";
-        final AggregatedHttpMessage aRes =
-                httpClient.post(PROJECTS_PREFIX + "/absentProject" + REPOS, body).aggregate().join();
+        final AggregatedHttpMessage aRes = httpClient.execute(headers, body).aggregate().join();
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.NOT_FOUND);
         final String expectedJson =
                 '{' +
@@ -135,9 +135,6 @@ public class RepositoryServiceV1Test {
                 "       }," +
                 "       \"headRevision\": 2," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/main\"," +
-                "       \"commitsUrl\": \"/api/v1/projects/myPro/repos/main/commits?revision=2\"," +
-                "       \"compareUrl\": \"/api/v1/projects/myPro/repos/main/compare?from=2&to=1\"," +
-                "       \"contentsUrl\": \"/api/v1/projects/myPro/repos/main/contents\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
                 "   {" +
@@ -148,9 +145,6 @@ public class RepositoryServiceV1Test {
                 "       }," +
                 "       \"headRevision\": 1," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/meta\"," +
-                "       \"commitsUrl\": \"/api/v1/projects/myPro/repos/meta/commits?revision=1\"," +
-                "       \"compareUrl\": \"/api/v1/projects/myPro/repos/meta/compare?from=1&to=1\"," +
-                "       \"contentsUrl\": \"/api/v1/projects/myPro/repos/meta/contents\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
                 "   {" +
@@ -161,9 +155,6 @@ public class RepositoryServiceV1Test {
                 "       }," +
                 "       \"headRevision\": 1," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo\"," +
-                "       \"commitsUrl\": \"/api/v1/projects/myPro/repos/myRepo/commits?revision=1\"," +
-                "       \"compareUrl\": \"/api/v1/projects/myPro/repos/myRepo/compare?from=1&to=1\"," +
-                "       \"contentsUrl\": \"/api/v1/projects/myPro/repos/myRepo/contents\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }" +
                 ']';
@@ -238,9 +229,6 @@ public class RepositoryServiceV1Test {
                 "   }," +
                 "   \"headRevision\": 1," +
                 "   \"url\": \"/api/v1/projects/myPro/repos/foo\"," +
-                "   \"commitsUrl\": \"/api/v1/projects/myPro/repos/foo/commits?revision=1\"," +
-                "   \"compareUrl\": \"/api/v1/projects/myPro/repos/foo/compare?from=1&to=1\"," +
-                "   \"contentsUrl\": \"/api/v1/projects/myPro/repos/foo/contents\"," +
                 "   \"createdAt\": \"${json-unit.ignore}\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();

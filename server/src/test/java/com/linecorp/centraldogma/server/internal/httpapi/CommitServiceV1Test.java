@@ -28,6 +28,9 @@ import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.HttpHeaders;
+import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class CommitServiceV1Test {
@@ -49,17 +52,22 @@ public class CommitServiceV1Test {
                 .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer anonymous").build();
 
         // the default project used for unit tests
+        HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, "/api/v1/projects").contentType(MediaType.JSON);
         String body = "{\"name\": \"myPro\"}";
-        httpClient.post("/api/v1/projects", body).aggregate().join();
+        httpClient.execute(headers, body).aggregate().join();
 
         // the default repository used for unit tests
+        headers = HttpHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos").contentType(MediaType.JSON);
         body = "{\"name\": \"myRepo\"}";
-        httpClient.post("/api/v1/projects/myPro/repos", body).aggregate().join();
+        httpClient.execute(headers, body).aggregate().join();
         // default files used for unit tests
         addFooFile();
     }
 
     private static void addFooFile() {
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST,
+                                                   "/api/v1/projects/myPro/repos/myRepo/contents")
+                                               .contentType(MediaType.JSON);
         for (int i = 0; i < 2; i++) {
             final String body =
                     '{' +
@@ -71,8 +79,7 @@ public class CommitServiceV1Test {
                     "       \"markup\": \"PLAINTEXT\"" +
                     "   }" +
                     '}';
-            httpClient.post("/api/v1/projects/myPro/repos/myRepo/contents", body).aggregate()
-                      .join();
+            httpClient.execute(headers, body).aggregate().join();
         }
     }
 
@@ -123,6 +130,7 @@ public class CommitServiceV1Test {
                 "   }" +
                 ']';
         final String actualJson = aRes.content().toStringUtf8();
+        System.err.println(actualJson);
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -265,6 +273,9 @@ public class CommitServiceV1Test {
     }
 
     private static void editFooFile() {
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST,
+                                                   "/api/v1/projects/myPro/repos/myRepo/contents")
+                                               .contentType(MediaType.JSON);
         for (int i = 0; i < 2; i++) {
             final String body =
                     '{' +
@@ -276,8 +287,7 @@ public class CommitServiceV1Test {
                     "       \"markup\": \"PLAINTEXT\"" +
                     "   }" +
                     '}';
-            httpClient.post("/api/v1/projects/myPro/repos/myRepo/contents", body).aggregate()
-                      .join();
+            httpClient.execute(headers, body).aggregate().join();
         }
     }
 }

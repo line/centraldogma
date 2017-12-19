@@ -20,7 +20,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
@@ -30,16 +29,17 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestContext;
-import com.linecorp.armeria.server.annotation.ResponseConverter;
+import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**
  * A default response converter of HTTP API version 1.
  */
-public class HttpApiV1ResponseConverter implements ResponseConverter {
+public final class HttpApiV1ResponseConverter implements ResponseConverterFunction {
 
     @Override
-    public HttpResponse convert(Object resObj) throws Exception {
+    public HttpResponse convertResponse(ServiceRequestContext ctx, Object resObj) throws Exception {
         try {
             final HttpRequest request = RequestContext.current().request();
 
@@ -51,11 +51,9 @@ public class HttpApiV1ResponseConverter implements ResponseConverter {
                 ((ObjectNode) jsonNode).remove("url");
                 final HttpHeaders headers = HttpHeaders.of(HttpStatus.CREATED)
                                                        .add(HttpHeaderNames.LOCATION, url)
-                                                       .addObject(HttpHeaderNames.CONTENT_TYPE,
-                                                                  MediaType.JSON_UTF_8);
-                final AggregatedHttpMessage aRes =
-                        AggregatedHttpMessage.of(headers, HttpData.of(Jackson.writeValueAsBytes(jsonNode)));
-                return aRes.toHttpResponse();
+                                                       .contentType(MediaType.JSON_UTF_8);
+
+                return HttpResponse.of(headers, HttpData.of(Jackson.writeValueAsBytes(jsonNode)));
             }
 
             if (HttpMethod.DELETE == request.method()) {

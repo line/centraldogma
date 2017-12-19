@@ -23,9 +23,9 @@ import com.google.common.base.MoreObjects;
 
 public class WatchResultDto {
 
-    private CommitDto head;
+    private final CommitDto head;
 
-    private String contentsUrl;
+    private final String contentsUrl;
 
     public WatchResultDto(CommitDto head, String contentsUrl) {
         this.head = requireNonNull(head, "head");

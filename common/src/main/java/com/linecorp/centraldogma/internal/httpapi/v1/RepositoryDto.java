@@ -16,9 +16,6 @@
 
 package com.linecorp.centraldogma.internal.httpapi.v1;
 
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.COMMITS;
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.COMPARE;
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.CONTENTS;
 import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.REPOS;
 import static java.time.format.DateTimeFormatter.ISO_INSTANT;
@@ -60,35 +57,13 @@ public class RepositoryDto {
         this.name = requireNonNull(name, "name");
     }
 
-    public RepositoryDto(String projectName, String repoName, Author creator,
-                         Revision headRevision, long creationTimeMillis) {
-        requireNonNull(projectName, "projectName");
+    public RepositoryDto(String projectName, String repoName, Author creator, Revision headRevision,
+                         long creationTimeMillis) {
         this.name = requireNonNull(repoName, "repoName");
         this.creator = requireNonNull(creator, "creator");
         this.headRevision = requireNonNull(headRevision, "headRevision");
-
-        url = PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + name;
-        commitsUrl = createCommitsUrl(projectName, name, headRevision.text());
-        compareUrl = createCompareUrl(projectName, name, headRevision.text());
-        contentsUrl = createContentsUrl(projectName, name);
+        url = PROJECTS_PREFIX + '/' + requireNonNull(projectName, "projectName") + REPOS + '/' + repoName;
         createdAt = ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis));
-    }
-
-    // TODO(minwoox) replace with URI template processor implementing RFC6570
-    private static String createCommitsUrl(String projectName, String repoName, String revision) {
-        return PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName +
-               COMMITS + "?revision=" + revision;
-    }
-
-    // TODO(minwoox) replace with URI template processor implementing RFC6570
-    private static String createCompareUrl(String projectName, String repoName, String revision) {
-        return PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName +
-               COMPARE + "?from=" + revision + "&to=1";
-    }
-
-    // TODO(minwoox) replace with URI template processor implementing RFC6570
-    private static String createContentsUrl(String projectName, String repoName) {
-        return PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName + CONTENTS;
     }
 
     @JsonProperty("name")

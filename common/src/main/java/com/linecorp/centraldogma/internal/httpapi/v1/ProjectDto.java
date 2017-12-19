@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.internal.httpapi.v1;
 
 import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.PROJECTS_PREFIX;
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.REPOS;
 import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 import static java.util.Objects.requireNonNull;
 
@@ -55,7 +54,6 @@ public class ProjectDto {
         this.creator = requireNonNull(creator, "creator");
         this.createdAt = ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis));
         url = PROJECTS_PREFIX + '/' + name;
-        reposUrl = url + REPOS;
     }
 
     @JsonProperty("name")

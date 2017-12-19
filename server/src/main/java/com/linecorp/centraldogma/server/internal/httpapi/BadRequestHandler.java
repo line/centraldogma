@@ -22,37 +22,23 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestContext;
-import com.linecorp.armeria.server.HttpResponseException;
-import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
 
 /**
- * An exception handler for HTTP API version 1.
+ * An {@link IllegalArgumentException} handler for HTTP API version 1.
  */
-public class BadRequestHandler implements ExceptionHandlerFunction {
+final class BadRequestHandler implements ExceptionHandlerFunction {
 
     @Override
-    public boolean accept(Throwable cause) {
-        return cause instanceof IllegalArgumentException || cause instanceof HttpResponseException ||
-               cause instanceof HttpStatusException;
-    }
+    public HttpResponse handleException(RequestContext ctx, HttpRequest req, Throwable cause) {
+        if (cause instanceof IllegalArgumentException) {
+            if (cause.getMessage() != null) {
+                return newResponseWithErrorMessage(HttpStatus.BAD_REQUEST, cause.getMessage());
+            }
 
-    @Override
-    public HttpResponse handle(RequestContext ctx, HttpRequest req, Throwable cause) {
-        // remove when upstream handles it with DefaultExceptionHandlers
-        if (cause instanceof HttpStatusException) {
-            return HttpResponse.of(((HttpStatusException) cause).httpStatus());
+            return HttpResponse.of(HttpStatus.BAD_REQUEST);
         }
 
-        // remove when upstream handles it with DefaultExceptionHandlers
-        if (cause instanceof HttpResponseException) {
-            return ((HttpResponseException) cause).httpResponse();
-        }
-
-        if (cause.getMessage() != null) {
-            return newResponseWithErrorMessage(HttpStatus.BAD_REQUEST, cause.getMessage());
-        }
-
-        return HttpResponse.of(HttpStatus.BAD_REQUEST);
+        return ExceptionHandlerFunction.fallthrough();
     }
 }

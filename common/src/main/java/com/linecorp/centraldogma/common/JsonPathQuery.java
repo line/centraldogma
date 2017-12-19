@@ -39,7 +39,6 @@ final class JsonPathQuery implements Query<JsonNode> {
     private String strVal;
 
     JsonPathQuery(String path, String... jsonPaths) {
-        requireNonNull(path, "path");
         requireNonNull(jsonPaths, "jsonPaths");
 
         this.path = validateJsonFilePath(path, "path");
@@ -49,8 +48,6 @@ final class JsonPathQuery implements Query<JsonNode> {
     @JsonCreator
     JsonPathQuery(@JsonProperty("path") String path,
                   @JsonProperty("expressions") Iterable<String> jsonPaths) {
-
-        requireNonNull(path, "path");
         requireNonNull(jsonPaths, "jsonPaths");
 
         this.path = validateJsonFilePath(path, "path");

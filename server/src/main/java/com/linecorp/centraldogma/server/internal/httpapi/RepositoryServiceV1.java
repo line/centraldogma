@@ -18,12 +18,12 @@ package com.linecorp.centraldogma.server.internal.httpapi;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
-import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.getJsonNode;
 import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.newHttpResponseException;
 import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.unremovePatch;
-import static java.util.stream.Collectors.toList;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -32,7 +32,6 @@ import java.util.concurrent.CompletionStage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.annotation.ConsumeType;
@@ -42,7 +41,9 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.centraldogma.internal.httpapi.v1.RepositoryDto;
+import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
@@ -70,6 +71,7 @@ public class RepositoryServiceV1 extends AbstractService {
     public CompletionStage<List<RepositoryDto>> listRepositories(@Param("projectName") String projectName,
                                                                  @Param("status") Optional<String> status) {
         checkProjectExists(projectName);
+
         if (status.isPresent()) {
             if (!status.get().equalsIgnoreCase("removed")) {
                 throw newHttpResponseException(HttpStatus.BAD_REQUEST, "invalid status: " + status);
@@ -77,12 +79,12 @@ public class RepositoryServiceV1 extends AbstractService {
 
             return CompletableFuture.completedFuture(
                     projectManager().get(projectName).repos().listRemoved().stream()
-                                    .map(RepositoryDto::new).collect(toList()));
+                                    .map(RepositoryDto::new).collect(toImmutableList()));
         }
 
         return CompletableFuture.completedFuture(projectManager().get(projectName).repos().list().values()
                                                                  .stream().map(DtoConverter::convert)
-                                                                 .collect(toList()));
+                                                                 .collect(toImmutableList()));
     }
 
     /**
@@ -92,15 +94,15 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Post("/projects/{projectName}/repos")
     public CompletionStage<RepositoryDto> createRepository(@Param("projectName") String projectName,
-                                                           AggregatedHttpMessage message) {
+                                                           @RequestObject JsonNode node) {
         checkProjectExists(projectName);
 
-        final String repoName = getName(message);
+        final String repoName = getName(node);
         return execute(Command.createRepository(AuthenticationUtil.currentAuthor(), projectName, repoName))
                 .handle((unused, thrown) -> {
                     if (thrown != null) {
                         if (Throwables.getRootCause(thrown) instanceof StorageExistsException) {
-                            throw newHttpResponseException(HttpStatus.BAD_REQUEST,
+                            throw newHttpResponseException(HttpStatus.CONFLICT,
                                                            "repository " + repoName + " already exists");
                         }
                         return Exceptions.throwUnsafely(thrown);
@@ -109,10 +111,9 @@ public class RepositoryServiceV1 extends AbstractService {
                 });
     }
 
-    private static String getName(AggregatedHttpMessage message) {
-        final JsonNode jsonNode = getJsonNode(message);
-        checkArgument(jsonNode.get("name") != null, "repository name should be non-null");
-        final String repoName = jsonNode.get("name").textValue();
+    private static String getName(JsonNode node) {
+        checkArgument(node.get("name") != null, "repository name should be non-null");
+        final String repoName = node.get("name").textValue();
         checkArgument(!isNullOrEmpty(repoName), "repository name should be non-null");
         return repoName;
     }
@@ -147,16 +148,25 @@ public class RepositoryServiceV1 extends AbstractService {
     @Patch("/projects/{projectName}/repos/{repoName}")
     public CompletionStage<RepositoryDto> patchRepository(@Param("projectName") String projectName,
                                                           @Param("repoName") String repoName,
-                                                          AggregatedHttpMessage message) {
+                                                          @RequestObject JsonNode node) {
         checkProjectExists(projectName);
-        final JsonNode jsonNode = getJsonNode(message);
-
-        if (!unremovePatch.equals(jsonNode)) {
+        try {
+            // validate if it is a JSON patch
+            JsonPatch.fromJson(node);
+        } catch (IOException e) {
             throw newHttpResponseException(HttpStatus.BAD_REQUEST,
-                                           "not supported JSON patch: " + message.content() +
+                                           "not a valid JSON patch: " + node.toString() +
                                            " (expected: " + unremovePatch.toString() + ')');
         }
 
+        // check if the patch is same with the unremovePatch
+        if (!node.equals(unremovePatch)) {
+            throw newHttpResponseException(HttpStatus.CONFLICT,
+                                           "not supported JSON patch: " + node.toString() +
+                                           " (expected: " + unremovePatch.toString() + ')');
+        }
+
+        //  if it's same, do the operation
         return execute(Command.unremoveRepository(AuthenticationUtil.currentAuthor(), projectName, repoName))
                 .handle((unused, thrown) -> {
                     if (thrown != null) {

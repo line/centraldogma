@@ -36,11 +36,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
-import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
@@ -64,12 +64,16 @@ public class ContentServiceV1Test {
                 .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer anonymous").build();
 
         // the default project used for unit tests
+        // the default project used for unit tests
+        HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, "/api/v1/projects").contentType(MediaType.JSON);
         String body = "{\"name\": \"myPro\"}";
-        httpClient.post("/api/v1/projects", body).aggregate().join();
+        httpClient.execute(headers, body).aggregate().join();
 
         // the default repository used for unit tests
+        headers = HttpHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos").contentType(MediaType.JSON);
         body = "{\"name\": \"myRepo\"}";
-        httpClient.post("/api/v1/projects/myPro/repos", body).aggregate().join();
+        httpClient.execute(headers, body).aggregate().join();
+        // default files used for unit tests
     }
 
     @Test
@@ -101,7 +105,9 @@ public class ContentServiceV1Test {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        httpClient.post(CONTENTS_PREFIX, editJsonBody).aggregate().join();
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        httpClient.execute(headers, editJsonBody).aggregate().join();
 
         // check whether the change is right
         final AggregatedHttpMessage res1 = httpClient
@@ -122,7 +128,8 @@ public class ContentServiceV1Test {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        httpClient.post(CONTENTS_PREFIX, editTextBody).aggregate().join();
+        httpClient.execute(HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX).contentType(MediaType.JSON),
+                           editTextBody).aggregate().join();
 
         // check whether the change is right
         final AggregatedHttpMessage res2 = httpClient
@@ -267,9 +274,9 @@ public class ContentServiceV1Test {
                 "       \"summary\" : \"Delete foo.json\"" +
                 "   }" +
                 '}';
-        final AggregatedHttpMessage res1 = httpClient
-                .execute(HttpHeaders.of(HttpMethod.DELETE, CONTENTS_PREFIX + "/foo.json"),
-                         HttpData.ofUtf8(body)).aggregate().join();
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.DELETE, CONTENTS_PREFIX + "/foo.json")
+                                               .contentType(MediaType.JSON);
+        final AggregatedHttpMessage res1 = httpClient.execute(headers, body).aggregate().join();
         assertThat(res1.headers().status()).isEqualTo(HttpStatus.NO_CONTENT);
 
         final AggregatedHttpMessage res2 = httpClient.get(CONTENTS_PREFIX + "/**").aggregate().join();
@@ -287,10 +294,10 @@ public class ContentServiceV1Test {
                 "       \"summary\" : \"Delete foo.json\"" +
                 "   }" +
                 '}';
-        final AggregatedHttpMessage res = httpClient
-                .execute(HttpHeaders.of(HttpMethod.DELETE, CONTENTS_PREFIX + "/foo.json?revision=2"),
-                         HttpData.ofUtf8(body)).aggregate().join();
-        assertThat(res.headers().status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.DELETE, CONTENTS_PREFIX + "/foo.json?revision=2")
+                                               .contentType(MediaType.JSON);
+        final AggregatedHttpMessage res = httpClient.execute(headers, body).aggregate().join();
+        assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
     }
 
     @Test
@@ -469,7 +476,9 @@ public class ContentServiceV1Test {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        return httpClient.post(CONTENTS_PREFIX, body).aggregate().join();
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        return httpClient.execute(headers, body).aggregate().join();
     }
 
     private static AggregatedHttpMessage editFooJson() {
@@ -489,12 +498,11 @@ public class ContentServiceV1Test {
                 '}';
 
         final HttpHeaders reqHeaders = HttpHeaders.of(HttpMethod.PATCH, CONTENTS_PREFIX + "/foo.json")
-                                                  .add(HttpHeaderNames.CONTENT_TYPE,
-                                                       "application/json-patch+json");
+                                                  .contentType(MediaType.JSON_PATCH);
         return httpClient.execute(reqHeaders, patch).aggregate().join();
     }
 
-    private static void addBarTxt() {
+    private static AggregatedHttpMessage addBarTxt() {
         final String body =
                 '{' +
                 "   \"path\" : \"/a/bar.txt\"," +
@@ -505,6 +513,8 @@ public class ContentServiceV1Test {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        httpClient.post(CONTENTS_PREFIX, body).aggregate().join();
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        return httpClient.execute(headers, body).aggregate().join();
     }
 }

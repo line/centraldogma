@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.server.internal.httpapi;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
-import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.getQueryIfPathIsValidFile;
 import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.newHttpResponseException;
 
 import java.util.Collection;
@@ -33,9 +31,9 @@ import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
+import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -62,15 +60,13 @@ public class CommitServiceV1 extends AbstractService {
                                           @Param("revision") String revision,
                                           @Param("path") @Default("/**") String path,
                                           @Param("to") Optional<String> to) {
-        checkRepositoryExists(projectName, repoName);
-
         final Revision fromRevision;
         final Revision toRevision;
 
-        // 1. only the "revision" is specified: get the "revision"
-        // 2. only the "to" is specified: get from "HEAD" to "to"
-        // 3. the "revision" and "to" is specified: get from the "revision" to "to"
-        // 4. nothing is specified: get from "HEAD" to "INIT"
+        // 1. only the "revision" is specified:       get the "revision"
+        // 2. only the "to" is specified:             get from "HEAD" to "to"
+        // 3. the "revision" and "to" is specified:   get from the "revision" to "to"
+        // 4. nothing is specified:                   get from "HEAD" to "INIT"
         if (isNullOrEmpty(revision) || "/".equalsIgnoreCase(revision)) {
             fromRevision = Revision.HEAD;
             toRevision = to.map(Revision::new).orElse(Revision.INIT);
@@ -101,17 +97,8 @@ public class CommitServiceV1 extends AbstractService {
                                       @Param("path") @Default("/**") String path,
                                       @Param("from") @Default("-1") String from,
                                       @Param("to") @Default("1") String to,
-                                      @Param("queryType") Optional<String> queryType,
-                                      @Param("expression") Optional<String> expression) {
-        checkRepositoryExists(projectName, repoName);
-
-        final Optional<Query<?>> query = getQueryIfPathIsValidFile(
-                QueryType.parse(queryType.orElse("IDENTITY")), path, expression.orElse(""));
-
+                                      @RequestObject(RequestQueryConverter.class) Optional<Query<?>> query) {
         if (query.isPresent()) {
-            if (query.get().type() == QueryType.JSON_PATH) {
-                validateJsonFilePath(path, "path");
-            }
             return getRepository(projectName, repoName).diff(new Revision(from), new Revision(to), query.get())
                                                        .thenApply(DtoConverter::convert);
         }
@@ -127,6 +114,7 @@ public class CommitServiceV1 extends AbstractService {
     }
 
     private Repository getRepository(String projectName, String repoName) {
+        checkRepositoryExists(projectName, repoName);
         return projectManager().get(projectName).repos().get(repoName);
     }
 

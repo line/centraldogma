@@ -25,6 +25,9 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import com.linecorp.centraldogma.common.Markup;
 
+/**
+ * Deserializes JSON into a {@link CommitMessageDto}.
+ */
 public class CommitMessageDtoDeserializer extends StdDeserializer<CommitMessageDto> {
 
     protected CommitMessageDtoDeserializer() {
@@ -36,7 +39,7 @@ public class CommitMessageDtoDeserializer extends StdDeserializer<CommitMessageD
         final JsonNode jsonNode = p.readValueAsTree();
         final JsonNode summary = jsonNode.get("summary");
         if (summary.textValue() == null) {
-            ctxt.reportInputMismatch(CommitMessageDto.class, "commit message should hava summary");
+            ctxt.reportInputMismatch(CommitMessageDto.class, "commit message should have a summary");
             // should never reach here
             throw new Error();
         }

@@ -25,18 +25,19 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestContext;
-import com.linecorp.armeria.server.annotation.ResponseConverter;
+import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**
  * A default response converter of CentralDogma admin service.
  */
-public class RestfulJsonResponseConverter implements ResponseConverter {
+public class RestfulJsonResponseConverter implements ResponseConverterFunction {
 
     private static final HttpData EMPTY_RESULT = HttpData.ofUtf8("{}");
 
     @Override
-    public HttpResponse convert(Object resObj) throws Exception {
+    public HttpResponse convertResponse(ServiceRequestContext ctx, Object resObj) throws Exception {
         try {
             final HttpRequest request = RequestContext.current().request();
             final HttpData httpData =
