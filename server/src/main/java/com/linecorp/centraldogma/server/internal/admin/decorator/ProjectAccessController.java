@@ -21,6 +21,8 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -47,18 +49,14 @@ abstract class ProjectAccessController implements DecoratingServiceFunction<Http
                       "No project name is specified");
 
         final Function<String, ProjectRole> map = ctx.attr(RoleResolvingDecorator.ROLE_MAP).get();
-        if (map == null) {
-            throw HttpStatusException.of(HttpStatus.UNAUTHORIZED);
-        }
-
-        final User user = AuthenticationUtil.currentUser();
-        final ProjectRole projectRole = map.apply(projectName);
-        if (projectRole == null || !isAllowedRole(user, projectRole)) {
+        final ProjectRole projectRole = map != null ? map.apply(projectName) : null;
+        final User user = AuthenticationUtil.currentUser(ctx);
+        if (!isAllowedRole(user, projectRole)) {
             throw HttpStatusException.of(HttpStatus.UNAUTHORIZED);
         }
 
         return delegate.serve(ctx, req);
     }
 
-    protected abstract boolean isAllowedRole(User user, ProjectRole projectRole);
+    protected abstract boolean isAllowedRole(User user, @Nullable ProjectRole projectRole);
 }

@@ -51,8 +51,8 @@ public class ProjectInfo {
     @Nullable
     private final UserAndTimestamp removal;
 
-    public ProjectInfo(String name, UserAndTimestamp creation) {
-        this(name, ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), creation, null);
+    public ProjectInfo(String name, UserAndTimestamp creation, List<MemberInfo> members) {
+        this(name, ImmutableList.of(), members, ImmutableList.of(), creation, null);
     }
 
     @JsonCreator

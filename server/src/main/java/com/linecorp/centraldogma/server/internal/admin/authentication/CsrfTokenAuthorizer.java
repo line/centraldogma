@@ -37,7 +37,7 @@ public class CsrfTokenAuthorizer implements Authorizer<HttpRequest> {
     public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
         final OAuth2Token token = AuthTokenExtractors.OAUTH2.apply(data.headers());
         if (token != null && CsrfToken.ANONYMOUS.equals(token.accessToken())) {
-            AuthenticationUtil.setCurrentUser(ctx, User.DEFAULT);
+            AuthenticationUtil.setCurrentUser(ctx, User.ADMIN);
             return CompletableFuture.completedFuture(true);
         } else {
             return CompletableFuture.completedFuture(false);

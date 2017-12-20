@@ -317,6 +317,8 @@ public class ContentServiceV1Test {
 
         final AggregatedHttpMessage res2 = httpClient.get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
 
+        System.err.println(res2.content().toStringUtf8());
+
         assertThat(Jackson.readTree(res2.content().toStringUtf8()).get("content").get("a").textValue())
                 .isEqualToIgnoringCase("baz");
     }
@@ -390,8 +392,8 @@ public class ContentServiceV1Test {
                 "   \"head\" : {" +
                 "       \"revision\" : 3," +
                 "       \"author\" : {" +
-                "           \"name\" : \"User\"," +
-                "           \"email\" : \"user@localhost.localdomain\"" +
+                "           \"name\" : \"${json-unit.ignore}\"," +
+                "           \"email\" : \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\" : \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +
@@ -448,8 +450,8 @@ public class ContentServiceV1Test {
                 "   \"head\" : {" +
                 "       \"revision\" : 4," +
                 "       \"author\" : {" +
-                "           \"name\" : \"User\"," +
-                "           \"email\" : \"user@localhost.localdomain\"" +
+                "           \"name\" : \"${json-unit.ignore}\"," +
+                "           \"email\" : \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\" : \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +
