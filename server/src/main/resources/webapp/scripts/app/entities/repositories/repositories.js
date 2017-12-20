@@ -51,7 +51,7 @@ angular.module('CentralDogmaAdmin')
                     parent: 'entity',
                     url: '/:projectName/:repositoryName/new/:revision/{path:repositoryPath}',
                     data: {
-                      roles: [CentralDogmaConstant.ROLE_USER]
+                      roles: [CentralDogmaConstant.LEVEL_USER]
                     },
                     views: {
                       'content@': {
@@ -65,7 +65,7 @@ angular.module('CentralDogmaAdmin')
                     parent: 'entity',
                     url: '/:projectName/:repositoryName/edit/:revision/{path:repositoryPath}',
                     data: {
-                      roles: [CentralDogmaConstant.ROLE_USER]
+                      roles: [CentralDogmaConstant.LEVEL_USER]
                     },
                     views: {
                       'content@': {

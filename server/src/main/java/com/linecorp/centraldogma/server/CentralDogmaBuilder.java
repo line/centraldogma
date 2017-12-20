@@ -28,6 +28,8 @@ import java.util.List;
 import org.apache.shiro.config.Ini;
 
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
@@ -81,6 +83,7 @@ public final class CentralDogmaBuilder {
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
     private Ini securityConfig;
     private String accessLogFormat;
+    private final ImmutableSet.Builder<String> administrators = new Builder<>();
 
     /**
      * Creates a new builder with the specified data directory.
@@ -304,6 +307,26 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Adds administrators to the set.
+     */
+    public CentralDogmaBuilder administrators(String... administrators) {
+        requireNonNull(administrators, "administrators");
+        for (final String administrator : administrators) {
+            this.administrators.add(administrator);
+        }
+        return this;
+    }
+
+    /**
+     * Adds administrators to the set.
+     */
+    public CentralDogmaBuilder administrators(Iterable<String> administrators) {
+        requireNonNull(administrators, "administrators");
+        this.administrators.addAll(administrators);
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -321,6 +344,6 @@ public final class CentralDogmaBuilder {
                                       mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
                                       securityConfig != null, null,
-                                      accessLogFormat);
+                                      accessLogFormat, administrators.build());
     }
 }

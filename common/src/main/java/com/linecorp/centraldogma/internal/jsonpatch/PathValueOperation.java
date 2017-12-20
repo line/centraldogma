@@ -66,6 +66,10 @@ abstract class PathValueOperation extends JsonPatchOperation {
         this.value = value.deepCopy();
     }
 
+    public JsonNode value() {
+        return value;
+    }
+
     JsonNode valueCopy() {
         return value.deepCopy();
     }

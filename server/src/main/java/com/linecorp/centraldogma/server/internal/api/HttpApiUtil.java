@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -36,7 +36,6 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.internal.shaded.guava.base.Preconditions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.centraldogma.internal.Jackson;
 
@@ -91,8 +90,8 @@ final class HttpApiUtil {
      * @throws IllegalArgumentException if the {@code status} is invalid.
      */
     static void checkStatusArgument(String status) {
-        Preconditions.checkArgument("removed".equalsIgnoreCase(status),
-                                    "invalid status: " + status + " (expected: removed)");
+        checkArgument("removed".equalsIgnoreCase(status),
+                      "invalid status: " + status + " (expected: removed)");
     }
 
     /**
@@ -120,10 +119,10 @@ final class HttpApiUtil {
      * if the specified {@link Throwable} is {@code null}. Otherwise, it throws the {@code cause}.
      */
     @SuppressWarnings("unchecked")
-    static <T> BiFunction<? super Void, Throwable, ? extends T> returnOrThrow(Supplier<? super T> supplier) {
+    static <T, U> BiFunction<? super T, Throwable, ? extends U> returnOrThrow(Supplier<? super U> supplier) {
         return (unused, cause) -> {
             throwUnsafelyIfNonNull(cause);
-            return (T) supplier.get();
+            return (U) supplier.get();
         };
     }
 

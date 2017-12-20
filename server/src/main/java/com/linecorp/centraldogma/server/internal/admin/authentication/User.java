@@ -22,29 +22,39 @@ import java.io.Serializable;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.server.internal.metadata.Identifiable;
 
-public class User implements Serializable {
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+public class User implements Identifiable, Serializable {
 
     private static final long serialVersionUID = -5429782019985526549L;
 
-    // TODO(hyangtack) Will change the word "role" to something other to avoid conflicting with project "role".
+    private static final String LEVEL_ADMIN_STR = "LEVEL_ADMIN";
+    private static final String LEVEL_USER_STR = "LEVEL_USER";
+
     // System-wide roles for a user. It is different from the role in a project.
-    public static final List<String> USER_ROLE = ImmutableList.of("ROLE_USER");
-    public static final List<String> ADMIN_ROLE = ImmutableList.of("ROLE_ADMIN", "ROLE_USER");
+    public static final List<String> LEVEL_USER = ImmutableList.of(LEVEL_USER_STR);
+    public static final List<String> LEVEL_ADMIN = ImmutableList.of(LEVEL_ADMIN_STR, LEVEL_USER_STR);
 
-    public static final User DEFAULT = new User("user@localhost.localdomain", USER_ROLE);
-    public static final User ADMIN = new User("admin@localhost.localdomain", ADMIN_ROLE);
+    public static final User DEFAULT = new User("user@localhost.localdomain", LEVEL_USER);
+    public static final User ADMIN = new User("admin@localhost.localdomain", LEVEL_ADMIN);
 
-    private String login;
-    private String name;
-    private String email;
-    private List<String> roles;
+    private final String login;
+    private final String name;
+    private final String email;
+    private final List<String> roles;
+
+    private final boolean isAdmin;
 
     @JsonCreator
     public User(@JsonProperty("login") String login,
@@ -55,28 +65,25 @@ public class User implements Serializable {
         this.name = requireNonNull(name, "name");
         this.email = requireNonNull(email, "email");
         this.roles = ImmutableList.copyOf(requireNonNull(roles, "roles"));
+        isAdmin = roles.stream().anyMatch(LEVEL_ADMIN_STR::equals);
     }
 
     public User(String login) {
-        this(login, USER_ROLE);
+        this(login, LEVEL_USER);
     }
 
-    private User(String login, List<String> roles) {
-        requireNonNull(roles, "roles");
-
+    public User(String login, List<String> roles) {
         if (Strings.isNullOrEmpty(login)) {
             throw new IllegalArgumentException("login");
         }
+        requireNonNull(roles, "roles");
 
-        if (Util.isValidEmailAddress(login)) {
-            email = this.login = login;
-            name = login.substring(0, login.indexOf('@'));
-        } else {
-            name = this.login = login;
-            email = login + "@localhost.localdomain";
-        }
+        this.login = login;
+        email = Util.toEmailAddress(login, "login");
+        name = Util.emailToUsername(email, "login");
 
-        this.roles = roles;
+        this.roles = ImmutableList.copyOf(roles);
+        isAdmin = roles.stream().anyMatch(LEVEL_ADMIN_STR::equals);
     }
 
     @JsonProperty
@@ -97,6 +104,15 @@ public class User implements Serializable {
     @JsonProperty
     public List<String> roles() {
         return roles;
+    }
+
+    @Override
+    public String id() {
+        return email();
+    }
+
+    public boolean isAdmin() {
+        return isAdmin;
     }
 
     @Override
@@ -124,6 +140,7 @@ public class User implements Serializable {
                           .add("name", name())
                           .add("email", email())
                           .add("roles", roles())
+                          .add("isAdmin", isAdmin())
                           .toString();
     }
 }

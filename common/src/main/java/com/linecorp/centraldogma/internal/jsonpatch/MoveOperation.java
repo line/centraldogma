@@ -71,7 +71,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  *     [ { "x": "victim" } ]
  * </pre>
  */
-final class MoveOperation extends DualPathOperation {
+public final class MoveOperation extends DualPathOperation {
 
     @JsonCreator
     MoveOperation(@JsonProperty("from") final JsonPointer from,

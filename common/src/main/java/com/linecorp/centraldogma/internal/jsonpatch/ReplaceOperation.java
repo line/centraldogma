@@ -50,11 +50,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * <p>It is an error condition if {@code path} does not point to an actual JSON
  * value.</p>
  */
-final class ReplaceOperation extends PathValueOperation {
+public final class ReplaceOperation extends PathValueOperation {
 
     @JsonCreator
-    ReplaceOperation(@JsonProperty("path") final JsonPointer path,
-                     @JsonProperty("value") final JsonNode value) {
+    public ReplaceOperation(@JsonProperty("path") final JsonPointer path,
+                            @JsonProperty("value") final JsonNode value) {
         super("replace", path, value);
     }
 

@@ -1,0 +1,271 @@
+<div ng-cloak>
+  <h2>
+    <a ng-href="#">Projects</a> / {{project.name}}
+    <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+      <a type="button" class="close" aria-label="Close" ng-click="removeProject()">
+        <span aria-hidden="true">&times;</span>
+      </a>
+    </div>
+  </h2>
+  <hr />
+
+  <h4>Repositories</h4>
+  <table class="table table-hover table-responsive">
+    <thead>
+    <tr>
+      <th>{{ 'entities.title_name' | translate }}</th>
+      <th>{{ 'entities.title_created_by' | translate }}</th>
+      <th>{{ 'entities.title_created_at' | translate }}</th>
+      <th>{{ 'entities.title_status' | translate }}</th>
+      <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr ng-repeat="repo in metadata.repos" ng-switch="repo.isActive">
+      <td ng-switch-when="true">
+        <a ng-href="#/{{project.name}}/{{repo.name}}">
+          <span class="glyphicon">{{repo.name}}</span>
+        </a>
+      </td>
+      <td ng-switch-default><span class="glyphicon">{{repo.name}}</span></td>
+      <td>{{sanitizeEmail(repo.creation.user)}}</td>
+      <td>{{toDateTimeStr(repo.creation.timestamp)}}</td>
+      <td ng-switch-when="true"><span class="glyphicon">Active</span></td>
+      <td ng-switch-default><span class="glyphicon" style="color:red">Deleted</span></td>
+      <td ng-switch-when="true">
+        <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+          <a type="button" class="close" aria-label="Close" ng-click="removeRepository(repo)">
+            <span aria-hidden="true">&times;</span>
+          </a>
+        </div>
+      </td>
+      <td ng-switch-default>
+        <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+          <a type="button" class="btn btn-xs" ng-click="restoreRepository(repo)">
+            <span class="glyphicon glyphicon-off"></span>
+          </a>
+        </div>
+      </td>
+    </tr>
+    </tbody>
+  </table>
+  <hr />
+  <div class="row">
+    <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+      <a type="button" class="btn btn-primary" ng-href="#/{{project.name}}/new">
+        <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_create_repository' | translate }}
+      </a>
+    </div>
+  </div>
+
+  <div ng-if="$root.isSecurityEnabled">
+    <h4>Repository Permissions</h4>
+    <table class="table table-hover table-responsive">
+      <thead>
+      <tr>
+        <th>{{ 'entities.title_name' | translate }}</th>
+        <th>{{ 'entities.title_owner' | translate }}</th>
+        <th>{{ 'entities.title_member' | translate }}</th>
+        <th>{{ 'entities.title_guest' | translate }}</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr ng-repeat="repo in metadata.repos" ng-if="repo.isActive">
+        <td>
+          <a ng-href="#/metadata/{{project.name}}/{{repo.name}}">
+            <span class="glyphicon">{{repo.name}}</span>
+          </a>
+        </td>
+        <td>
+          <div ng-repeat="perm in repo.perRolePermissions.owner" style="display:inline-block">
+            <a type="button" class="btn btn-xs btn-link" ng-href="#/metadata/{{project.name}}/{{repo.name}}">
+              <span class="glyphicon">{{perm}}</span>
+            </a>
+          </div>
+        </td>
+        <td>
+          <div ng-repeat="perm in repo.perRolePermissions.member" style="display:inline-block">
+            <a type="button" class="btn btn-xs btn-link" ng-href="#/metadata/{{project.name}}/{{repo.name}}">
+              <span class="glyphicon">{{perm}}</span>
+            </a>
+          </div>
+        </td>
+        <td>
+          <div ng-repeat="perm in repo.perRolePermissions.guest" style="display:inline-block">
+            <a type="button" class="btn btn-xs btn-link" ng-href="#/metadata/{{project.name}}/{{repo.name}}">
+              <span class="glyphicon">{{perm}}</span>
+            </a>
+          </div>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+
+    <h4>Members</h4>
+    <table class="table table-hover table-responsive">
+      <thead>
+      <tr>
+        <th>{{ 'entities.title_login_id' | translate }}</th>
+        <th>{{ 'entities.title_role' | translate }}</th>
+        <th>{{ 'entities.title_added_by' | translate }}</th>
+        <th>{{ 'entities.title_added_at' | translate }}</th>
+        <th></th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr ng-repeat="member in memberList" ng-switch="member.isEditing">
+        <td><span class="glyphicon">{{sanitizeEmail(member.login)}}</span></td>
+        <td ng-switch-when="true">
+          <select class="form-control input-sm" ng-model="member.role"
+                  ng-options="role for role in project.roles"></select>
+        </td>
+        <td ng-switch-default>
+          {{member.role}}
+          <a type="button" class="btn btn-xs" ng-click="member.isEditing = true" ng-if="isOwner()">
+            <span class="glyphicon glyphicon-pencil"></span>
+          </a>
+        </td>
+        <td>{{sanitizeEmail(member.creation.user)}}</td>
+        <td>{{toDateTimeStr(member.creation.timestamp)}}</td>
+
+        <td ng-switch-when="true">
+          <div class="pull-right" has-role="LEVEL_USER">
+            <button class="btn btn-xs" ng-click="updateMemberRole(member)"
+                    data-ng-disabled="member.role === null || member.role === member.originalRole">
+              <span class="glyphicon"></span> {{ 'entities.button_save' | translate }}
+            </button>
+            <button class="btn btn-xs" ng-click="member.isEditing = false; refresh()">
+              <span class="glyphicon"></span> {{ 'entities.button_cancel' | translate }}
+            </button>
+          </div>
+        </td>
+        <td ng-switch-default>
+          <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+            <button type="button" class="close" aria-label="Close" ng-click="removeMember(member)">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+      <tr ng-repeat="newMember in newMemberList.elements">
+        <td>
+          <input type="text" ng-model="newMember.id">
+        </td>
+        <td>
+          <select class="form-control input-sm" ng-model="newMember.role"
+                  ng-options="role for role in project.roles"></select>
+        </td>
+        <td></td>
+        <td></td>
+        <td>
+          <div class="pull-right" has-role="LEVEL_USER">
+            <button class="btn btn-xs" ng-click="saveNewMember(newMember)"
+                    data-ng-disabled="newMember.name === null || newMember.role === null">
+              <span class="glyphicon"></span> {{ 'entities.button_save' | translate }}
+            </button>
+            <button class="btn btn-xs" ng-click="newMemberList.remove(newMember)">
+              <span class="glyphicon"></span> {{ 'entities.button_cancel' | translate }}
+            </button>
+          </div>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+    <hr />
+    <div class="row">
+      <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+        <button class="btn btn-primary" ng-click="newMemberList.pushNew()">
+          <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_add_member' | translate }}
+        </button>
+      </div>
+    </div>
+
+    <h4>
+      <div has-role="LEVEL_USER">
+        Tokens
+        <a ng-href="#/settings/tokens" type="button" class="btn btn-xs">
+          <span class="glyphicon glyphicon-pencil"></span>
+        </a>
+      </div>
+    </h4>
+    <table class="table table-hover table-responsive">
+      <thead>
+      <tr>
+        <th>{{ 'entities.title_app_id' | translate }}</th>
+        <th>{{ 'entities.title_role' | translate }}</th>
+        <th>{{ 'entities.title_added_by' | translate }}</th>
+        <th>{{ 'entities.title_added_at' | translate }}</th>
+        <th></th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr ng-repeat="token in tokenList" ng-switch="token.isEditing">
+        <td><span class="glyphicon">{{token.appId}}</span></td>
+        <td ng-switch-when="true">
+          <select class="form-control input-sm" ng-model="token.role"
+                  ng-options="role for role in project.roles"></select>
+        </td>
+        <td ng-switch-default>
+          {{token.role}}
+          <a type="button" class="btn btn-xs" ng-click="token.isEditing = true" ng-if="isOwner()">
+            <span class="glyphicon glyphicon-pencil"></span>
+          </a>
+        </td>
+        <td>{{sanitizeEmail(token.creation.user)}}</td>
+        <td>{{toDateTimeStr(token.creation.timestamp)}}</td>
+
+        <td ng-switch-when="true">
+          <div class="pull-right" has-role="LEVEL_USER">
+            <button class="btn btn-xs" ng-click="updateTokenRole(token)"
+                    data-ng-disabled="token.role === null || token.role === token.originalRole">
+              <span class="glyphicon"></span> {{ 'entities.button_save' | translate }}
+            </button>
+            <button class="btn btn-xs" ng-click="token.isEditing = false; refresh()">
+              <span class="glyphicon"></span> {{ 'entities.button_cancel' | translate }}
+            </button>
+          </div>
+        </td>
+        <td ng-switch-default>
+          <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+            <button type="button" class="close" aria-label="Close" ng-click="removeToken(token)">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+      <tr ng-repeat="newToken in newTokenList.elements">
+        <td>
+          <select class="form-control input-sm" ng-model="newToken.id"
+                  ng-options="id for id in appIdList"></select>
+        </td>
+        <td>
+          <select class="form-control input-sm" ng-model="newToken.role"
+                  ng-options="role for role in project.roles"></select>
+        </td>
+        <td></td>
+        <td></td>
+        <td>
+          <div class="pull-right" has-role="LEVEL_USER">
+            <button class="btn btn-xs" ng-click="saveNewToken(newToken)"
+                    data-ng-disabled="newToken.name === null || newToken.role === null">
+              <span class="glyphicon"></span> {{ 'entities.button_save' | translate }}
+            </button>
+            <button class="btn btn-xs" ng-click="newTokenList.remove(newToken)">
+              <span class="glyphicon"></span> {{ 'entities.button_cancel' | translate }}
+            </button>
+          </div>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+    <hr />
+    <div class="row">
+      <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+        <button class="btn btn-primary" ng-click="newTokenList.pushNew()"
+                data-ng-disabled="appIdList.length === 0">
+          <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_add_token' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

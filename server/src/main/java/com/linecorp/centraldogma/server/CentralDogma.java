@@ -73,28 +73,30 @@ import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
-import com.linecorp.centraldogma.server.internal.admin.authentication.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSecurityManager;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CsrfTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LoginService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LogoutService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.SessionTokenAuthorizer;
-import com.linecorp.centraldogma.server.internal.admin.service.MetadataService;
-import com.linecorp.centraldogma.server.internal.admin.service.ProjectService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
-import com.linecorp.centraldogma.server.internal.admin.service.TokenService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
+import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
+import com.linecorp.centraldogma.server.internal.api.TokenService;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
+import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
+import com.linecorp.centraldogma.server.internal.metadata.MigrationUtil;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringService;
 import com.linecorp.centraldogma.server.internal.replication.ReplicationException;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
@@ -247,6 +249,9 @@ public class CentralDogma {
 
             initializeInternalProject(executor);
 
+            // Migrate tokens and create metadata files if it does not exist.
+            MigrationUtil.migrate(pm, executor);
+
             logger.info("Starting the RPC server");
             server = startServer(pm, executor, securityManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
@@ -369,16 +374,6 @@ public class CentralDogma {
             }
         });
 
-        sb.service("/security_enabled", new AbstractHttpService() {
-            @Override
-            protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req)
-                    throws Exception {
-                return HttpResponse.of(HttpStatus.OK,
-                                       MediaType.JSON_UTF_8,
-                                       Jackson.writeValueAsPrettyString(cfg.isSecurityEnabled()));
-            }
-        });
-
         sb.service("/monitor/l7check", new HttpHealthCheckService());
 
         // TODO(hyangtack): This service is temporarily added to support redirection from '/docs' to '/docs/'.
@@ -498,9 +493,9 @@ public class CentralDogma {
     private void configureHttpApi(ServerBuilder sb,
                                   ProjectManager pm, CommandExecutor executor, WatchService watchService,
                                   @Nullable CentralDogmaSecurityManager securityManager) {
+        // TODO(hyangtack) Replace the prefix with something like "/api/web/" or "/api/admin/".
         final String apiV0PathPrefix = "/api/v0/";
 
-        final TokenService tokenService = new TokenService(pm, executor);
         final MetadataService mds = new MetadataService(pm, executor);
 
         final Function<Service<HttpRequest, HttpResponse>,
@@ -510,12 +505,24 @@ public class CentralDogma {
             sb.service(apiV0PathPrefix + "authenticate", new LoginService(securityManager, executor))
               .service(apiV0PathPrefix + "logout", new LogoutService(securityManager, executor));
 
-            final ApplicationTokenAuthorizer ata = new ApplicationTokenAuthorizer(tokenService::findToken);
-            final SessionTokenAuthorizer sta = new SessionTokenAuthorizer(securityManager);
+            sb.service("/security_enabled", new AbstractHttpService() {
+                @Override
+                protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req) {
+                    return HttpResponse.of(HttpStatus.OK);
+                }
+            });
 
-            decorator = HttpAuthService.newDecorator(ata, sta);
+            final ApplicationTokenAuthorizer ata =
+                    new ApplicationTokenAuthorizer(mds::findTokenBySecret);
+            final SessionTokenAuthorizer sta = new SessionTokenAuthorizer(securityManager,
+                                                                          cfg.administrators());
+
+            decorator = MetadataServiceInjector.newDecorator(mds)
+                                               .andThen(HttpAuthService.newDecorator(ata, sta));
         } else {
-            decorator = HttpAuthService.newDecorator(new CsrfTokenAuthorizer());
+            decorator = MetadataServiceInjector.newDecorator(mds)
+                                               .andThen(HttpAuthService.newDecorator(
+                                                       new CsrfTokenAuthorizer()));
         }
 
         final SafeProjectManager safePm = new SafeProjectManager(pm);
@@ -536,17 +543,22 @@ public class CentralDogma {
                             new ContentServiceV1(safePm, executor, watchService), decorator,
                             v1RequestConverter, v1ResponseConverter);
 
+        if (cfg.isSecurityEnabled()) {
+            sb.annotatedService(API_V1_PATH_PREFIX,
+                                new MetadataApiService(mds), decorator,
+                                v1RequestConverter, v1ResponseConverter);
+            sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(pm, executor, mds),
+                                decorator, v1RequestConverter, v1ResponseConverter);
+        }
+
         if (cfg.isWebAppEnabled()) {
             final RestfulJsonResponseConverter httpApiV0Converter = new RestfulJsonResponseConverter();
 
             // TODO(hyangtack): Simplify this if https://github.com/line/armeria/issues/582 is resolved.
             sb.annotatedService(apiV0PathPrefix, new UserService(safePm, executor),
                                 decorator, httpApiV0Converter)
-              .annotatedService(apiV0PathPrefix, new ProjectService(safePm, executor),
-                                decorator, httpApiV0Converter)
               .annotatedService(apiV0PathPrefix, new RepositoryService(safePm, executor),
-                                decorator, httpApiV0Converter)
-              .annotatedService(apiV0PathPrefix, tokenService, decorator, httpApiV0Converter);
+                                decorator, httpApiV0Converter);
         }
 
         sb.serviceUnder("/", HttpFileService.forClassPath("webapp"));

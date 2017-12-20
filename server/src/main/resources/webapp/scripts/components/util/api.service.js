@@ -1,8 +1,8 @@
 'use strict';
 
 angular.module('CentralDogmaAdmin')
-    .factory('ApiService', function ($rootScope, $http, $q, $window, StringUtil, NotificationUtil, CentralDogmaConstant) {
-               function makeRequest(verb, uri, config, data) {
+    .factory('ApiService', function ($rootScope, $http, $q, $window, StringUtil, NotificationUtil, CentralDogmaConstant, Security) {
+               function makeRequest0(verb, uri, config, data) {
                  var sessionId;
                  var defer = $q.defer();
 
@@ -25,7 +25,7 @@ angular.module('CentralDogmaAdmin')
                    config.headers.authorization = 'bearer ' + sessionId;
                  }
 
-                 if (angular.isDefined(data) && verb.match(/post|put/)) {
+                 if (angular.isDefined(data) && verb.match(/post|put|patch/)) {
                    config.data = data;
                  }
 
@@ -50,6 +50,25 @@ angular.module('CentralDogmaAdmin')
                  return defer.promise;
                }
 
+               function makeRequest(verb, uri, config, data) {
+                 var defer;
+
+                 if (Security.isResolved()) {
+                   return makeRequest0(verb, uri, config, data);
+                 }
+
+                 defer = $q.defer();
+                 Security.resolve().then(function () {
+                   makeRequest0(verb, uri, config, data).then(function (data) {
+                       defer.resolve(data);
+                     }, function (error) {
+                       defer.reject(error);
+                     }
+                   );
+                 });
+                 return defer.promise;
+               }
+
                function rewriteUri(uri) {
                  if (uri.startsWith('/')) {
                    return uri;
@@ -69,6 +88,10 @@ angular.module('CentralDogmaAdmin')
 
                  put: function (uri, data, config) {
                    return makeRequest('put', uri, config, data);
+                 },
+
+                 patch: function (uri, data, config) {
+                   return makeRequest('patch', uri, config, data);
                  },
 
                  delete: function (uri, config) {

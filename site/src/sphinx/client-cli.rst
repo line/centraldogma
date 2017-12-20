@@ -213,3 +213,4 @@ Appending the ``--help`` option after a command will print the detailed usage fo
 
     OPTIONS:
        --revision value, -r value  Specifies the revision to operate
+

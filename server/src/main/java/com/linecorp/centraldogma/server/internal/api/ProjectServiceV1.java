@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -29,8 +29,8 @@ import java.util.concurrent.CompletionStage;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.annotation.ConsumeType;
+import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
@@ -42,13 +42,14 @@ import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
-import com.linecorp.centraldogma.server.internal.admin.model.ProjectInfo;
-import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
-import com.linecorp.centraldogma.server.internal.admin.service.MetadataService;
+import com.linecorp.centraldogma.server.internal.api.auth.AdministratorsOnly;
+import com.linecorp.centraldogma.server.internal.api.auth.ProjectMembersOnly;
+import com.linecorp.centraldogma.server.internal.api.auth.ProjectOwnersOnly;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
+import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 
@@ -93,22 +94,26 @@ public class ProjectServiceV1 extends AbstractService {
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletionStage<ProjectDto> createProject(@RequestObject CreateProjectRequest request,
                                                      @RequestObject Author author) {
-        return mds.createProject(request.name(), author, request.owners(), request.members())
-                  .thenCompose(projectInfo -> execute(Command.createProject(author, projectInfo.name())))
-                  .handle((unused, thrown) -> {
-                      try {
-                          if (thrown == null) {
-                              return DtoConverter.convert(projectManager().get(request.name()));
-                          } else {
-                              return Exceptions.throwUnsafely(thrown);
-                          }
-                      } finally {
-                          if (thrown != null) {
-                              // Remove created project from metadata.
-                              mds.removeProject(request.name(), author);
-                          }
-                      }
-                  });
+        return execute(Command.createProject(author, request.name()))
+                .handle(returnOrThrow(() -> DtoConverter.convert(projectManager().get(request.name()))));
+    }
+
+    /**
+     * GET /projects/{projectName}
+     *
+     * <p>Gets the {@link ProjectMetadata} of the specified {@code projectName}.
+     * If a {@code checkPermissionOnly} parameter is {@code true}, it is returned whether the user has
+     * permission to read the metadata of the specified {@code projectName}.
+     */
+    @Get("/projects/{projectName}")
+    @Decorator(ProjectMembersOnly.class)
+    public CompletionStage<ProjectMetadata> getProjectMetadata(
+            @Param("projectName") String projectName,
+            @Param("checkPermissionOnly") Optional<Boolean> isCheckPermissionOnly) {
+        if (isCheckPermissionOnly.orElse(false)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return mds.getProject(projectName);
     }
 
     /**
@@ -117,11 +122,12 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Removes a project.
      */
     @Delete("/projects/{projectName}")
-    public CompletableFuture<Void> removeProject(@RequestObject Project project,
-                                                 @RequestObject Author author) {
-        return execute(Command.removeProject(author, project.name()))
-                .thenCompose(unused -> mds.removeProject(project.name(), author))
-                .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+    @Decorator(ProjectOwnersOnly.class)
+    public CompletionStage<Void> removeProject(@RequestObject Project project,
+                                               @RequestObject Author author) {
+        return mds.removeProject(author, project.name())
+                  .thenCompose(unused -> execute(Command.removeProject(author, project.name())))
+                  .handle(HttpApiUtil::throwUnsafelyIfNonNull);
     }
 
     /**
@@ -131,96 +137,13 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @ConsumeType("application/json-patch+json")
     @Patch("/projects/{projectName}")
+    @Decorator(AdministratorsOnly.class)
     public CompletionStage<ProjectDto> patchProject(@Param("projectName") String projectName,
                                                     @RequestObject JsonNode node,
                                                     @RequestObject Author author) {
         checkUnremoveArgument(node);
-        return mds.unremoveProject(projectName, author)
-                  .thenCompose(projectInfo -> execute(Command.unremoveProject(author, projectName)))
-                  .handle(returnOrThrow(() -> DtoConverter.convert(projectManager().get(projectName))));
-    }
-
-    // TODO(hyangtack) The following APIs would return ProjectInfo to the client. It is different action
-    //                 from the above API which is returning ProjectDto. We would handle this later.
-
-    /**
-     * POST /projects/{projectName}/members/{user}
-     *
-     * <p>Adds a user as a member of the project.
-     */
-    @Post("/projects/{projectName}/members/{user}")
-    public CompletionStage<ProjectInfo> addMember(@Param("projectName") String projectName,
-                                                  @Param("user") String user,
-                                                  @Param("role") Optional<String> role,
-                                                  @RequestObject Author author) {
-        return mds.addMember(projectName, author, new User(user),
-                             role.map(ProjectRole::of).orElse(ProjectRole.MEMBER));
-    }
-
-    /**
-     * DELETE /projects/{projectName}/members/{user}
-     *
-     * <p>Remove a user from the member of the project.
-     */
-    @Delete("/projects/{projectName}/members/{user}")
-    public CompletionStage<ProjectInfo> removeMember(@Param("projectName") String projectName,
-                                                     @Param("user") String user,
-                                                     @RequestObject Author author) {
-        return mds.removeMember(projectName, author, new User(user));
-    }
-
-    /**
-     * PATCH /projects/{projectName}/members/{user}?role={role}
-     *
-     * <p>Changes the role of a user.
-     */
-    @ConsumeType("application/json-patch+json")
-    @Patch("/projects/{projectName}/members/{user}")
-    public CompletionStage<ProjectInfo> changeMemberRole(@Param("projectName") String projectName,
-                                                         @Param("user") String user,
-                                                         @Param("role") String role,
-                                                         @RequestObject Author author) {
-        return mds.changeMemberRole(projectName, author, new User(user),
-                                    ProjectRole.of(role));
-    }
-
-    /**
-     * POST /projects/{projectName}/tokens/{appId}
-     *
-     * <p>Adds a token to the project.
-     */
-    @Post("/projects/{projectName}/tokens/{appId}")
-    public CompletionStage<ProjectInfo> addToken(@Param("projectName") String projectName,
-                                                 @Param("appId") String appId,
-                                                 @Param("role") Optional<String> role,
-                                                 @RequestObject Author author) {
-        return mds.addToken(projectName, author, appId,
-                            role.map(ProjectRole::of).orElse(ProjectRole.MEMBER));
-    }
-
-    /**
-     * DELETE /projects/{projectName}/tokens/{appId}
-     *
-     * <p>Remove a token from the project.
-     */
-    @Delete("/projects/{projectName}/tokens/{appId}")
-    public CompletionStage<ProjectInfo> removeToken(@Param("projectName") String projectName,
-                                                    @Param("appId") String appId,
-                                                    @RequestObject Author author) {
-        return mds.removeToken(projectName, author, appId);
-    }
-
-    /**
-     * PATCH /projects/{projectName}/members/{user}?role={role}
-     *
-     * <p>Changes the role of a user.
-     */
-    @ConsumeType("application/json-patch+json")
-    @Patch("/projects/{projectName}/tokens/{appId}")
-    public CompletionStage<ProjectInfo> changeTokenRole(@Param("projectName") String projectName,
-                                                        @Param("appId") String appId,
-                                                        @Param("role") String role,
-                                                        @RequestObject Author author) {
-        return mds.changeTokenRole(projectName, author, appId, ProjectRole.of(role));
+        return execute(Command.unremoveProject(author, projectName))
+                .thenCompose(unused -> mds.restoreProject(author, projectName))
+                .handle(returnOrThrow(() -> DtoConverter.convert(projectManager().get(projectName))));
     }
 }

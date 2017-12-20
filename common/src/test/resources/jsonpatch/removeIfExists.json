@@ -1,0 +1,36 @@
+{
+    "errors": [
+    ],
+    "ops": [
+        {
+            "op": { "op": "removeIfExists", "path": "/x/y" },
+            "node": { "x": { "a": "b", "y": {} } },
+            "expected": { "x": { "a": "b" } }
+        },
+        {
+            "op": { "op": "removeIfExists", "path": "/0/2" },
+            "node": [ [ "a", "b", "c"], "d", "e" ],
+            "expected": [ [ "a", "b" ], "d", "e" ]
+        },
+        {
+            "op": { "op": "removeIfExists", "path": "/x/0" },
+            "node": { "x": [ "y", "z" ], "foo": "bar" },
+            "expected": { "x": [ "z" ], "foo": "bar" }
+        },
+        {
+            "op": { "op": "removeIfExists", "path": "/x/z" },
+            "node": { "x": { "a": "b", "y": {} } },
+            "expected": { "x": { "a": "b", "y": {} } }
+        },
+        {
+            "op": { "op": "removeIfExists", "path": "/0/3" },
+            "node": [ [ "a", "b", "c"], "d", "e" ],
+            "expected": [ [ "a", "b", "c"], "d", "e" ]
+        },
+        {
+            "op": { "op": "removeIfExists", "path": "/x/3" },
+            "node": { "x": [ "y", "z" ], "foo": "bar" },
+            "expected": { "x": [ "y", "z" ], "foo": "bar" }
+        }
+    ]
+}

@@ -2,16 +2,35 @@
 
 angular.module('CentralDogmaAdmin')
     .factory('ProjectService',
-             function (ApiService, StringUtil) {
+             function (ApiV1Service, StringUtil, EntitiesUtil) {
                return {
                  createProject: function (projectName) {
-                   projectName = StringUtil.requireNotEmpty(projectName, 'projectName');
-
-                   return ApiService.post('projects', {'name': projectName});
+                   name = StringUtil.requireNotEmpty(projectName, 'projectName');
+                   return ApiV1Service.post('projects', {'name': name});
                  },
 
                  listProjects: function () {
-                   return ApiService.get('projects');
+                   return ApiV1Service.get('projects');
+                 },
+
+                 listRemovedProjects: function () {
+                   return ApiV1Service.get('projects?status=removed');
+                 },
+
+                 checkPermission: function (projectName) {
+                   return ApiV1Service.get(StringUtil.encodeUri(['projects', projectName]) +
+                                           '?checkPermissionOnly=true');
+                 },
+
+                 removeProject: function (projectName) {
+                   name = StringUtil.requireNotEmpty(projectName, 'projectName');
+                   return ApiV1Service.delete(StringUtil.encodeUri(['projects', name]));
+                 },
+
+                 restoreProject: function (projectName) {
+                   name = StringUtil.requireNotEmpty(projectName, 'projectName');
+                   return ApiV1Service.jsonPatch(StringUtil.encodeUri(['projects', name]),
+                     EntitiesUtil.toReplaceJsonPatch('/status', 'active'));
                  }
                };
              });

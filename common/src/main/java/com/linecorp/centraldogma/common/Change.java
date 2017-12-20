@@ -292,12 +292,12 @@ public interface Change<T> {
         }
 
         switch (entryType) {
-        case JSON:
-            return ofJsonUpsert(targetPath, content);
-        case TEXT:
-            return ofTextUpsert(targetPath, content);
-        default:
-            throw new Error("unexpected entry type: " + entryType);
+            case JSON:
+                return ofJsonUpsert(targetPath, content);
+            case TEXT:
+                return ofTextUpsert(targetPath, content);
+            default:
+                throw new Error("unexpected entry type: " + entryType);
         }
     }
 

@@ -2,23 +2,42 @@
 
 angular.module('CentralDogmaAdmin')
     .factory('RepositoryService',
-             function (ApiService, StringUtil) {
+             function (ApiService, ApiV1Service, StringUtil) {
                return {
                  createRepository: function (projectName, repositoryName) {
                    projectName = StringUtil.requireNotEmpty(projectName, 'projectName');
+                   repositoryName = StringUtil.requireNotEmpty(repositoryName, 'repositoryName');
 
-                   return ApiService.post(
-                       'projects/' + StringUtil.encodeParam(projectName) + '/repositories',
-                       {'name': repositoryName}
+                   // NOTE: API v1 uses 'repos' instead of 'repositories'.
+                   return ApiV1Service.post(StringUtil.encodeUri(['projects', projectName, 'repos']),
+                     {name: repositoryName}
                    );
+                 },
+
+                 removeRepository: function (projectName, repositoryName) {
+                   projectName = StringUtil.requireNotEmpty(projectName, 'projectName');
+                   repositoryName = StringUtil.requireNotEmpty(repositoryName, 'repositoryName');
+
+                   // NOTE: API v1 uses 'repos' instead of 'repositories'.
+                   return ApiV1Service.delete(StringUtil.encodeUri(['projects', projectName,
+                                                                    'repos', repositoryName]));
+                 },
+
+                 restoreRepository: function (projectName, repositoryName) {
+                   projectName = StringUtil.requireNotEmpty(projectName, 'projectName');
+                   repositoryName = StringUtil.requireNotEmpty(repositoryName, 'repositoryName');
+
+                   // NOTE: API v1 uses 'repos' instead of 'repositories'.
+                   return ApiV1Service.jsonPatch(StringUtil.encodeUri(['projects', projectName,
+                                                                       'repos', repositoryName]),
+                     EntitiesUtil.toReplaceJsonPatch('/status', 'active'));
                  },
 
                  listRepositories: function (projectName) {
                    projectName = StringUtil.requireNotEmpty(projectName, 'projectName');
 
-                   return ApiService.get(
-                       'projects/' + StringUtil.encodeParam(projectName) + '/repositories'
-                   );
+                   // NOTE: API v1 uses 'repos' instead of 'repositories'.
+                   return ApiV1Service.get(StringUtil.encodeUri(['projects', projectName, 'repos']));
                  },
 
                  normalizeRevision: function (projectName, repositoryName, revision) {
@@ -45,16 +64,9 @@ angular.module('CentralDogmaAdmin')
                    revision = StringUtil.requireNotEmpty(revision, 'revision');
                    path = StringUtil.requireNotEmpty(path, 'path');
 
-                   var sb = [];
-                   sb.push('projects/');
-                   sb.push(StringUtil.encodeParam(projectName));
-                   sb.push('/repositories/');
-                   sb.push(StringUtil.encodeParam(repositoryName));
-                   sb.push('/tree/revisions/');
-                   sb.push(revision);
-                   sb.push(StringUtil.encodePath(path)); // path starts with '/'
-
-                   return ApiService.get(sb.join(''));
+                   return ApiV1Service.get(StringUtil.encodeUri(['projects', projectName,
+                                                                 'repos', repositoryName,
+                                                                 'tree', path]));
                  },
 
                  getFile: function (projectName, repositoryName, revision, query) {

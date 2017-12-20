@@ -1,0 +1,51 @@
+{
+    "errors": [
+        {
+            "op": { "op": "testAbsence", "path": "/x" },
+            "node": { "x": {} },
+            "message": "existent path: /x"
+        },
+        {
+            "op": { "op": "testAbsence", "path": "/x/y" },
+            "node": { "x": { "y" : {} } },
+            "message": "existent path: /x/y"
+        },
+        {
+            "op": { "op": "testAbsence", "path": "/0" },
+            "node": [ 1 ],
+            "message": "existent path: /0"
+        },
+        {
+            "op": { "op": "testAbsence", "path": "/x/0" },
+            "node": { "x": [ 1 ] },
+            "message": "existent path: /x/0"
+        }
+    ],
+    "ops": [
+        {
+            "op": { "op": "testAbsence", "path": "/x" },
+            "node": { },
+            "expected": { }
+        },
+        {
+            "op": { "op": "testAbsence", "path": "/x/z" },
+            "node": { "x": { "y": {} } },
+            "expected": { "x": { "y": {} } }
+        },
+        {
+            "op": { "op": "testAbsence", "path": "/0" },
+            "node": [ ],
+            "expected": [ ]
+        },
+        {
+            "op": { "op": "testAbsence", "path": "/x/1" },
+            "node": { "x": [ 1 ] },
+            "expected": { "x": [ 1 ] }
+        },
+        {
+            "op": { "op": "testAbsence", "path": "/x/-" },
+            "node": { "x": [ 1 ] },
+            "expected": { "x": [ 1 ] }
+        }
+    ]
+}

@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -509,8 +509,6 @@ public class ContentServiceV1Test {
         final HttpHeaders reqHeaders = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
                                                   .contentType(MediaType.JSON);
         final AggregatedHttpMessage res1 = httpClient.execute(reqHeaders, patch).aggregate().join();
-        System.err.println(res1.content().toStringUtf8());
-        System.err.println(res1.headers());
         final String expectedJson =
                 '{' +
                 "   \"path\": \"/a/bar.txt\"," +

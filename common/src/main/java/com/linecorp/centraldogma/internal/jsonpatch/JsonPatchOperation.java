@@ -37,6 +37,7 @@ package com.linecorp.centraldogma.internal.jsonpatch;
 import static com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import static com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -44,6 +45,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializable;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+
+import com.linecorp.centraldogma.internal.Jackson;
 
 @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "op")
 
@@ -52,9 +56,11 @@ import com.fasterxml.jackson.databind.JsonSerializable;
         @Type(name = "copy", value = CopyOperation.class),
         @Type(name = "move", value = MoveOperation.class),
         @Type(name = "remove", value = RemoveOperation.class),
+        @Type(name = "removeIfExists", value = RemoveIfExistsOperation.class),
         @Type(name = "replace", value = ReplaceOperation.class),
         @Type(name = "safeReplace", value = SafeReplaceOperation.class),
-        @Type(name = "test", value = TestOperation.class)
+        @Type(name = "test", value = TestOperation.class),
+        @Type(name = "testAbsence", value = TestAbsenceOperation.class)
 })
 
 /**
@@ -71,7 +77,15 @@ import com.fasterxml.jackson.databind.JsonSerializable;
  * </ul>
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-abstract class JsonPatchOperation implements JsonSerializable {
+public abstract class JsonPatchOperation implements JsonSerializable {
+
+    /**
+     * Converts {@link JsonPatchOperation}s to an array of {@link JsonNode}.
+     */
+    public static JsonNode asJsonArray(JsonPatchOperation... jsonPatchOperations) {
+        requireNonNull(jsonPatchOperations, "jsonPatchOperations");
+        return Jackson.valueToTree(jsonPatchOperations);
+    }
 
     final String op;
 
@@ -94,6 +108,10 @@ abstract class JsonPatchOperation implements JsonSerializable {
         this.path = path;
     }
 
+    public JsonPointer path() {
+        return path;
+    }
+
     /**
      * Applies this operation to a JSON value.
      *
@@ -105,6 +123,13 @@ abstract class JsonPatchOperation implements JsonSerializable {
 
     @Override
     public abstract String toString();
+
+    /**
+     * Converts this {@link JsonPatchOperation} to a {@link JsonNode}.
+     */
+    public JsonNode toJsonNode() {
+        return JsonNodeFactory.instance.arrayNode().add(Jackson.valueToTree(this));
+    }
 
     JsonNode ensureExistence(JsonNode node) {
         final JsonNode found = node.at(path);

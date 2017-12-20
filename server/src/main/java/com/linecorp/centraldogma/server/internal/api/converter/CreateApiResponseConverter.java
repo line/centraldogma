@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -32,6 +32,7 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.metadata.HolderWithLocation;
 
 /**
  * A {@link ResponseConverterFunction} for the HTTP API which creates a resource.
@@ -44,6 +45,10 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
     @Override
     public HttpResponse convertResponse(ServiceRequestContext ctx, Object resObj) throws Exception {
         try {
+            if (resObj instanceof HolderWithLocation) {
+                return handleWithLocation((HolderWithLocation<?>) resObj);
+            }
+
             final JsonNode jsonNode = Jackson.valueToTree(resObj);
             final String url = jsonNode.get("url").asText();
 
@@ -58,5 +63,14 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
             logger.debug("Failed to convert a response:", e);
             return HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private HttpResponse handleWithLocation(HolderWithLocation<?> holderWithLocation)
+            throws JsonProcessingException {
+        return HttpResponse.of(
+                HttpHeaders.of(HttpStatus.CREATED)
+                           .add(HttpHeaderNames.LOCATION, holderWithLocation.location())
+                           .contentType(MediaType.JSON_UTF_8),
+                HttpData.of(Jackson.writeValueAsBytes(holderWithLocation.object())));
     }
 }

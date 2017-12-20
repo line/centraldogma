@@ -2,12 +2,35 @@
 
 angular.module('CentralDogmaAdmin')
     .factory('Principal',
-             function Principal($rootScope, $q, $window, User) {
+             function Principal($rootScope, $q, $window, User, CentralDogmaConstant) {
                var _identity, _authenticated = false;
 
                return {
                  isAuthenticated: function () {
                    return _authenticated;
+                 },
+
+                 projectRole: function (metadata) {
+                   var me = null;
+                   if (!_authenticated ||
+                       angular.isUndefined(metadata) ||
+                       angular.isUndefined(metadata.members) ||
+                       metadata.members === null) {
+                     return CentralDogmaConstant.PROJECT_ROLE_GUEST;
+                   }
+                   // We deal 'admin' as an owner of the project.
+                   if (_identity.roles.indexOf(CentralDogmaConstant.LEVEL_ADMIN) !== -1) {
+                    return CentralDogmaConstant.PROJECT_ROLE_OWNER;
+                   }
+                   Object.keys(metadata.members).forEach(function (value) {
+                    if (angular.equals(value, _identity.email)) {
+                      me = metadata.members[value];
+                    }
+                   });
+                   if (me === null) {
+                     return CentralDogmaConstant.PROJECT_ROLE_GUEST;
+                   }
+                   return me.role;
                  },
 
                  isInRole: function (role) {
@@ -19,7 +42,7 @@ angular.module('CentralDogmaAdmin')
                  },
 
                  isUser: function () {
-                   return this.isInRole('ROLE_USER');
+                   return this.isInRole(CentralDogmaConstant.LEVEL_USER);
                  },
 
                  isInAnyRole: function (roles) {

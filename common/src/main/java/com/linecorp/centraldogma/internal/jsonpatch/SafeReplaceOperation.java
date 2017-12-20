@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Equivalence;
 
-final class SafeReplaceOperation extends JsonPatchOperation {
+public final class SafeReplaceOperation extends JsonPatchOperation {
 
     private static final Equivalence<JsonNode> EQUIVALENCE = JsonNumEquals.getInstance();
 

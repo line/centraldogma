@@ -69,6 +69,28 @@ angular.module('CentralDogmaAdmin')
 
                  encodeParam: function (str) {
                    return encodeURIComponent(str);
+                 },
+
+                 encodeUri: function (uriComponents) {
+                   var uri = [];
+                   uriComponents.forEach(function (uriComponent) {
+                     uriComponent.split('/').filter(function (value) {
+                       // This would replace '//' with '/' in the result URI.
+                       return value.length > 0;
+                     }).forEach(function (value) {
+                       uri.push(encodeURIComponent(value));
+                     })
+                   });
+                   // Allow the first '/' and the last '/' of the string array.
+                   var result = '';
+                   if (this.startsWith(uriComponents[0], '/')) {
+                     result += '/';
+                   }
+                   result += uri.join('/');
+                   if (this.endsWith(uriComponents[uriComponents.length - 1], '/')) {
+                     result += '/';
+                   }
+                   return result;
                  }
                };
              });

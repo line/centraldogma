@@ -18,18 +18,32 @@ package com.linecorp.centraldogma.server.internal.admin.authentication;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.base.MoreObjects;
+
+import com.linecorp.centraldogma.server.internal.metadata.Token;
+
+/**
+ * A {@link User} which accesses the API with a secret.
+ */
 public class UserWithToken extends User {
 
     private static final long serialVersionUID = 6021146546653491444L;
 
-    private final String secret;
+    private final Token token;
 
-    public UserWithToken(String login, String secret) {
+    public UserWithToken(String login, Token token) {
         super(login);
-        this.secret = requireNonNull(secret, "secret");
+        this.token = requireNonNull(token, "token");
     }
 
-    public String secret() {
-        return secret;
+    public Token token() {
+        return token;
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("token", token.withoutSecret())
+                          .toString();
     }
 }

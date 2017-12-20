@@ -52,11 +52,11 @@ import com.fasterxml.jackson.databind.JsonNode;
  * is defined by JSON Schema itself. As such, this operation reuses {@link
  * JsonNumEquals} for testing equality.</p>
  */
-final class TestOperation extends PathValueOperation {
+public final class TestOperation extends PathValueOperation {
 
     @JsonCreator
-    TestOperation(@JsonProperty("path") final JsonPointer path,
-                  @JsonProperty("value") final JsonNode value) {
+    public TestOperation(@JsonProperty("path") final JsonPointer path,
+                         @JsonProperty("value") final JsonNode value) {
         super("test", path, value);
     }
 

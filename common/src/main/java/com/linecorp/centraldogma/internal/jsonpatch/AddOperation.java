@@ -75,13 +75,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  *     [ 1, 2, 3 ]
  * </pre>
  */
-final class AddOperation extends PathValueOperation {
+public final class AddOperation extends PathValueOperation {
 
     private static final String LAST_ARRAY_ELEMENT = "-";
 
     @JsonCreator
-    AddOperation(@JsonProperty("path") final JsonPointer path,
-                 @JsonProperty("value") final JsonNode value) {
+    public AddOperation(@JsonProperty("path") final JsonPointer path,
+                        @JsonProperty("value") final JsonNode value) {
         super("add", path, value);
     }
 

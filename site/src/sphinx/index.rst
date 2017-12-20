@@ -84,6 +84,7 @@ Read more
     client-cli
     client-java
     mirroring
+    auth
     known-issues
 
     Release notes <https://github.com/line/centraldogma/releases>

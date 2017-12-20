@@ -16,9 +16,12 @@
 
 package com.linecorp.centraldogma.server.internal.admin.authentication;
 
+import static com.linecorp.centraldogma.server.internal.admin.authentication.User.LEVEL_ADMIN;
+import static com.linecorp.centraldogma.server.internal.admin.authentication.User.LEVEL_USER;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -41,9 +44,12 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
     private static final Logger logger = LoggerFactory.getLogger(SessionTokenAuthorizer.class);
 
     private final CentralDogmaSecurityManager securityManager;
+    private final Set<String> administrators;
 
-    public SessionTokenAuthorizer(CentralDogmaSecurityManager securityManager) {
+    public SessionTokenAuthorizer(CentralDogmaSecurityManager securityManager,
+                                  Set<String> administrators) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
+        this.administrators = requireNonNull(administrators, "administrators");
     }
 
     @Override
@@ -73,7 +79,8 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
                     return;
                 }
 
-                final User user = new User(principal.toString());
+                final String p = principal.toString();
+                final User user = new User(p, administrators.contains(p) ? LEVEL_ADMIN : LEVEL_USER);
                 AuthenticationUtil.setCurrentUser(ctx, user);
                 isAuthenticated = true;
             } catch (Throwable t) {
