@@ -46,7 +46,7 @@ public class MetadataServiceTest {
     public void test() throws Exception {
         final ProjectManager pm = new DefaultProjectManager(
                 rootDir.newFolder(), ForkJoinPool.commonPool(), null);
-        final CommandExecutor executor = new StandaloneCommandExecutor(pm, ForkJoinPool.commonPool());
+        final CommandExecutor executor = new StandaloneCommandExecutor(pm, null, ForkJoinPool.commonPool());
         executor.start(null, null);
         initializeInternalProject(executor);
 
@@ -167,8 +167,8 @@ public class MetadataServiceTest {
         }
     }
 
-    private void createOneProjectAndValidate(MetadataService mds,
-                                             String projectName) {
+    private static void createOneProjectAndValidate(MetadataService mds,
+                                                    String projectName) {
         final ProjectInfo p1 = mds.createProject(projectName, Author.DEFAULT)
                                   .toCompletableFuture().join();
         assertThat(p1).isNotNull();

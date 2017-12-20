@@ -115,7 +115,6 @@ public final class ProjectInitializer {
             "  \"" + SAMPLE_TEXT[4] + "\" ]";
 
     public static final String INTERNAL_PROJECT_NAME = "dogma";
-    public static final String SESSION_REPOSITORY_NAME = "sessions";
     public static final String TOKEN_REPOSITORY_NAME = "tokens";
 
     static CompletableFuture<Revision> generateSampleFiles(
@@ -142,12 +141,11 @@ public final class ProjectInitializer {
                     .get();
         } catch (Exception e) {
             if (!(e.getCause() instanceof ProjectExistsException)) {
-                throw new Error(e);
+                throw new Error("failed to initialize an internal project", e);
             }
         }
         for (final String repo : ImmutableList.of(Project.REPO_META,
                                                   Project.REPO_MAIN,
-                                                  SESSION_REPOSITORY_NAME,
                                                   TOKEN_REPOSITORY_NAME)) {
             try {
                 executor.execute(createRepository(Author.SYSTEM, INTERNAL_PROJECT_NAME, repo))

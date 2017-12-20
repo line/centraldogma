@@ -13,33 +13,19 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.server.internal.command;
 
-import com.linecorp.centraldogma.common.Revision;
+import javax.annotation.Nullable;
 
-public enum CommandType {
-    CREATE_PROJECT(Void.class),
-    REMOVE_PROJECT(Void.class),
-    UNREMOVE_PROJECT(Void.class),
-    CREATE_REPOSITORY(Void.class),
-    REMOVE_REPOSITORY(Void.class),
-    UNREMOVE_REPOSITORY(Void.class),
-    PUSH(Revision.class),
-    SAVE_NAMED_QUERY(Void.class),
-    REMOVE_NAMED_QUERY(Void.class),
-    SAVE_PLUGIN(Void.class),
-    REMOVE_PLUGIN(Void.class),
-    CREATE_SESSION(Void.class),
-    REMOVE_SESSION(Void.class);
+import com.linecorp.centraldogma.common.Author;
 
-    private final Class<?> resultType;
-
-    CommandType(Class<?> resultType) {
-        this.resultType = resultType;
+public abstract class SessionCommand extends AbstractCommand<Void> {
+    SessionCommand(CommandType type, @Nullable Long timestamp, @Nullable Author author) {
+        super(type, timestamp, author);
     }
 
-    public Class<?> resultType() {
-        return resultType;
+    @Override
+    public final String executionPath() {
+        return "/_sessions";
     }
 }

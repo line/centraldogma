@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -40,14 +39,7 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import org.apache.shiro.cache.MemoryConstrainedCacheManager;
 import org.apache.shiro.config.Ini;
-import org.apache.shiro.config.IniSecurityManagerFactory;
-import org.apache.shiro.mgt.DefaultSecurityManager;
-import org.apache.shiro.mgt.SecurityManager;
-import org.apache.shiro.session.mgt.DefaultSessionManager;
-import org.apache.shiro.session.mgt.SessionManager;
-import org.apache.shiro.util.Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +74,7 @@ import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.ApplicationTokenAuthorizer;
-import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSessionDAO;
+import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSecurityManager;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CsrfTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LoginService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LogoutService;
@@ -148,8 +140,6 @@ public class CentralDogma {
     private ExecutorService repositoryWorker;
     private CommandExecutor executor;
     private DefaultMirroringService mirroringService;
-    private CentralDogmaSessionManager sessionManager;
-    private SecurityManager securityManager;
 
     CentralDogma(CentralDogmaConfig cfg, @Nullable Ini securityConfig) {
         this.cfg = requireNonNull(cfg, "cfg");
@@ -222,8 +212,7 @@ public class CentralDogma {
         DefaultMirroringService mirroringService = null;
         CommandExecutor executor = null;
         Server server = null;
-        CentralDogmaSessionManager sessionManager = null;
-        SecurityManager securityManager = null;
+        CentralDogmaSecurityManager securityManager = null;
         try {
             logger.info("Starting the Central Dogma ..");
             repositoryWorker = new ThreadPoolExecutor(
@@ -246,20 +235,14 @@ public class CentralDogma {
                                                            cfg.maxNumBytesPerMirror());
 
             if (cfg.isSecurityEnabled()) {
-                sessionManager = new CentralDogmaSessionManager();
-                securityManager = createSecurityManager(securityConfig, sessionManager);
+                securityManager = new CentralDogmaSecurityManager(cfg.dataDir(), securityConfig);
             }
 
             logger.info("Starting the command executor ..");
-            executor = startCommandExecutor(pm, mirroringService, repositoryWorker, sessionManager);
+            executor = startCommandExecutor(pm, mirroringService, repositoryWorker, securityManager);
             logger.info("Started the command executor");
 
             initializeInternalProject(executor);
-
-            if (cfg.isSecurityEnabled()) {
-                sessionManager.setSessionDAO(new CentralDogmaSessionDAO(pm, executor));
-                sessionManager.setSessionValidationInterval(Duration.ofMinutes(10).toMillis());
-            }
 
             logger.info("Starting the RPC server");
             server = startServer(pm, executor, securityManager);
@@ -273,8 +256,6 @@ public class CentralDogma {
                 this.executor = executor;
                 this.mirroringService = mirroringService;
                 this.server = server;
-                this.sessionManager = sessionManager;
-                this.securityManager = securityManager;
             } else {
                 stop(server, executor, mirroringService, pm, repositoryWorker);
             }
@@ -282,17 +263,18 @@ public class CentralDogma {
     }
 
     private CommandExecutor startCommandExecutor(
-            ProjectManager pm, DefaultMirroringService mirroringService, Executor repositoryWorker,
-            CentralDogmaSessionManager sessionManager) {
+            ProjectManager pm, DefaultMirroringService mirroringService,
+            Executor repositoryWorker, @Nullable CentralDogmaSecurityManager securityManager) {
+
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
         switch (replicationMethod) {
             case ZOOKEEPER:
-                executor = newZooKeeperCommandExecutor(pm, repositoryWorker);
+                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, securityManager);
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
-                executor = new StandaloneCommandExecutor(pm, repositoryWorker);
+                executor = new StandaloneCommandExecutor(pm, securityManager, repositoryWorker);
                 break;
             default:
                 throw new Error("unknown replication method: " + replicationMethod);
@@ -300,34 +282,33 @@ public class CentralDogma {
 
         final CommandExecutor projInitExecutor = new ProjectInitializingCommandExecutor(executor);
         try {
-            if (cfg.isMirroringEnabled()) {
-                projInitExecutor.start(() -> {
+            projInitExecutor.start(() -> {
+                if (cfg.isMirroringEnabled()) {
                     logger.info("Starting the mirroring service ..");
                     mirroringService.start(projInitExecutor);
                     logger.info("Started the mirroring service");
-                    if (sessionManager != null) {
-                        sessionManager.onTakeLeadership();
-                    }
-                }, () -> {
+                } else {
+                    logger.info("Not starting the mirroring service because it's disabled.");
+                }
+
+                if (securityManager != null) {
+                    logger.info("Starting the periodic session validation ..");
+                    securityManager.enableSessionValidation();
+                    logger.info("Started the periodic session validation");
+                }
+            }, () -> {
+                if (cfg.isMirroringEnabled()) {
                     logger.info("Stopping the mirroring service ..");
                     mirroringService.stop();
                     logger.info("Stopped the mirroring service");
-                    if (sessionManager != null) {
-                        sessionManager.onReleaseLeadership();
-                    }
-                });
-            } else {
-                projInitExecutor.start(() -> {
-                    logger.info("Not starting the mirroring service because it's disabled.");
-                    if (sessionManager != null) {
-                        sessionManager.onTakeLeadership();
-                    }
-                }, () -> {
-                    if (sessionManager != null) {
-                        sessionManager.onReleaseLeadership();
-                    }
-                });
-            }
+                }
+
+                if (securityManager != null) {
+                    logger.info("Stopping the periodic session validation ..");
+                    securityManager.disableSessionValidation();
+                    logger.info("Stopped the periodic session validation");
+                }
+            });
         } catch (Exception e) {
             logger.warn("Failed to start the command executor. Entering read-only.", e);
         }
@@ -335,7 +316,8 @@ public class CentralDogma {
         return projInitExecutor;
     }
 
-    private Server startServer(ProjectManager pm, CommandExecutor executor, SecurityManager securityManager) {
+    private Server startServer(ProjectManager pm, CommandExecutor executor,
+                               @Nullable CentralDogmaSecurityManager securityManager) {
         final ServerBuilder sb = new ServerBuilder();
         for (ServerPort p: cfg.ports()) {
             sb.port(p);
@@ -414,14 +396,15 @@ public class CentralDogma {
                                                "bearer " + CsrfToken.ANONYMOUS))
                                                .build());
 
-        configureHttpApi(sb, pm, executor, securityManager, watchService);
+        configureHttpApi(sb, pm, executor, watchService, securityManager);
 
         final Server s = sb.build();
         s.start().join();
         return s;
     }
 
-    private CommandExecutor newZooKeeperCommandExecutor(ProjectManager pm, Executor repositoryWorker) {
+    private CommandExecutor newZooKeeperCommandExecutor(ProjectManager pm, Executor repositoryWorker,
+                                                        @Nullable CentralDogmaSecurityManager securityManager) {
 
         final ZooKeeperReplicationConfig zkCfg = (ZooKeeperReplicationConfig) cfg.replicationConfig();
 
@@ -465,7 +448,9 @@ public class CentralDogma {
 
         return ZooKeeperCommandExecutor.builder()
                                        .replicaId(replicaId)
-                                       .delegate(new StandaloneCommandExecutor(replicaId, pm, repositoryWorker))
+                                       .delegate(new StandaloneCommandExecutor(replicaId, pm,
+                                                                               securityManager,
+                                                                               repositoryWorker))
                                        .numWorkers(zkCfg.numWorkers())
                                        .connectionString(zkCfg.connectionString())
                                        .timeoutMillis(zkCfg.timeoutMillis())
@@ -497,8 +482,9 @@ public class CentralDogma {
         sb.service("/cd/thrift/v1", thriftService);
     }
 
-    private void configureHttpApi(ServerBuilder sb, ProjectManager pm, CommandExecutor executor,
-                                  SecurityManager securityManager, WatchService watchService) {
+    private void configureHttpApi(ServerBuilder sb,
+                                  ProjectManager pm, CommandExecutor executor, WatchService watchService,
+                                  @Nullable CentralDogmaSecurityManager securityManager) {
         final String apiV0PathPrefix = "/api/v0/";
 
         final TokenService tokenService = new TokenService(pm, executor);
@@ -507,8 +493,8 @@ public class CentralDogma {
                         ? extends Service<HttpRequest, HttpResponse>> decorator;
         if (cfg.isSecurityEnabled()) {
             requireNonNull(securityManager, "securityManager");
-            sb.service(apiV0PathPrefix + "authenticate", new LoginService(securityManager))
-              .service(apiV0PathPrefix + "logout", new LogoutService(securityManager));
+            sb.service(apiV0PathPrefix + "authenticate", new LoginService(securityManager, executor))
+              .service(apiV0PathPrefix + "logout", new LogoutService(securityManager, executor));
 
             final ApplicationTokenAuthorizer ata = new ApplicationTokenAuthorizer(tokenService::findToken);
             final SessionTokenAuthorizer sta = new SessionTokenAuthorizer(securityManager);
@@ -546,19 +532,6 @@ public class CentralDogma {
         sb.serviceUnder("/", HttpFileService.forClassPath("webapp"));
     }
 
-    private static SecurityManager createSecurityManager(Ini securityConfig, SessionManager sessionManager) {
-        final Factory<SecurityManager> factory = new IniSecurityManagerFactory(securityConfig) {
-            @Override
-            protected SecurityManager createDefaultInstance() {
-                DefaultSecurityManager securityManager = new DefaultSecurityManager();
-                securityManager.setSessionManager(sessionManager);
-                securityManager.setCacheManager(new MemoryConstrainedCacheManager());
-                return securityManager;
-            }
-        };
-        return factory.getInstance();
-    }
-
     /**
      * Stops the server. This method does nothing if the server is stopped already.
      */
@@ -578,8 +551,6 @@ public class CentralDogma {
         this.mirroringService = null;
         this.pm = null;
         this.repositoryWorker = null;
-        sessionManager = null;
-        securityManager = null;
 
         logger.info("Stopping the Central Dogma ..");
         if (!stop(server, executor, mirroringService, pm, repositoryWorker)) {
@@ -658,27 +629,5 @@ public class CentralDogma {
             }
         }
         return success;
-    }
-
-    /**
-     * A {@link SessionManager} which makes it possible to call
-     * {@link DefaultSessionManager#enableSessionValidation()} and
-     * {@link DefaultSessionManager#disableSessionValidation()} according to this server's leadership.
-     */
-    static final class CentralDogmaSessionManager extends DefaultSessionManager {
-
-        void onTakeLeadership() {
-            logger.info("Starting the session service ..");
-            setSessionValidationSchedulerEnabled(true);
-            enableSessionValidation();
-            logger.info("Started the session service");
-        }
-
-        void onReleaseLeadership() {
-            logger.info("Stopping the session service ..");
-            setSessionValidationSchedulerEnabled(false);
-            disableSessionValidation();
-            logger.info("Stopped the session service");
-        }
     }
 }

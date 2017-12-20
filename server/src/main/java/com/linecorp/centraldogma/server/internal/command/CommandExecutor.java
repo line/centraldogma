@@ -31,4 +31,6 @@ public interface CommandExecutor {
     String replicaId();
 
     <T> CompletableFuture<T> execute(Command<T> command);
+
+    <T> CompletableFuture<T> execute(String replicaId, Command<T> command);
 }

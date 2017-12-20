@@ -78,13 +78,19 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
 
     @Override
     public final <T> CompletableFuture<T> execute(Command<T> command) {
+        return execute(replicaId, command);
+    }
+
+    @Override
+    public final <T> CompletableFuture<T> execute(String replicaId, Command<T> command) {
+        requireNonNull(replicaId, "replicaId");
         requireNonNull(command, "command");
         if (!isStarted()) {
             throw new IllegalStateException("running in read-only mode");
         }
 
         try {
-            return doExecute(command);
+            return doExecute(replicaId, command);
         } catch (Throwable t) {
             final CompletableFuture<T> f = new CompletableFuture<>();
             f.completeExceptionally(t);
@@ -92,7 +98,8 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         }
     }
 
-    protected abstract <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception;
+    protected abstract <T> CompletableFuture<T> doExecute(
+            String replicaId, Command<T> command) throws Exception;
 
     private void checkState(State expected) {
         if (state.get() != expected) {

@@ -62,6 +62,11 @@ public class ForwardingCommandExecutor implements CommandExecutor {
     }
 
     @Override
+    public <T> CompletableFuture<T> execute(String replicaId, Command<T> command) {
+        return delegate().execute(replicaId, command);
+    }
+
+    @Override
     public String toString() {
         return getClass().getSimpleName() + '(' + delegate() + ')';
     }

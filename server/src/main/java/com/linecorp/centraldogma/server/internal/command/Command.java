@@ -22,6 +22,8 @@ import java.util.Arrays;
 
 import javax.annotation.Nullable;
 
+import org.apache.shiro.session.mgt.SimpleSession;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
@@ -46,6 +48,8 @@ import com.linecorp.centraldogma.common.Revision;
         @Type(value = RemoveNamedQueryCommand.class, name = "REMOVE_NAMED_QUERY"),
         @Type(value = SavePluginCommand.class, name = "SAVE_PLUGIN"),
         @Type(value = RemovePluginCommand.class, name = "REMOVE_PLUGIN"),
+        @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
+        @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
 })
 public interface Command<T> {
 
@@ -188,6 +192,14 @@ public interface Command<T> {
                                       String projectName, String pluginName) {
         requireNonNull(author, "author");
         return new RemovePluginCommand(timestamp, author, projectName, pluginName);
+    }
+
+    static Command<Void> createSession(SimpleSession session) {
+        return new CreateSessionCommand(null, null, session);
+    }
+
+    static Command<Void> removeSession(String sessionId) {
+        return new RemoveSessionCommand(null, null, sessionId);
     }
 
     CommandType type();
