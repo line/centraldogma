@@ -316,7 +316,6 @@ public class ContentServiceV1Test {
         assertThatJson(actualJson).isEqualTo(expectedJson);
 
         final AggregatedHttpMessage res2 = httpClient.get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
-
         assertThat(Jackson.readTree(res2.content().toStringUtf8()).get("content").get("a").textValue())
                 .isEqualToIgnoringCase("baz");
     }
@@ -329,10 +328,10 @@ public class ContentServiceV1Test {
                 "   \"patch\" : [{" +
                 "       \"op\" : \"replace\"," +
                 "       \"value\": \"--- /a/bar.txt\\n" +
-                                    "+++ /a/bar.txt\\n" +
-                                    "@@ -1,1 +1,1 @@\\n" +
-                                    "-text in the file.\\n" +
-                                    "+text in some file.\\n\"" +
+                "+++ /a/bar.txt\\n" +
+                "@@ -1,1 +1,1 @@\\n" +
+                "-text in the file.\\n" +
+                "+text in some file.\\n\"" +
                 "   }]," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Edit bar.txt\"," +
@@ -390,8 +389,8 @@ public class ContentServiceV1Test {
                 "   \"head\" : {" +
                 "       \"revision\" : 3," +
                 "       \"author\" : {" +
-                "           \"name\" : \"User\"," +
-                "           \"email\" : \"user@localhost.localdomain\"" +
+                "           \"name\" : \"${json-unit.ignore}\"," +
+                "           \"email\" : \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\" : \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +
@@ -448,8 +447,8 @@ public class ContentServiceV1Test {
                 "   \"head\" : {" +
                 "       \"revision\" : 4," +
                 "       \"author\" : {" +
-                "           \"name\" : \"User\"," +
-                "           \"email\" : \"user@localhost.localdomain\"" +
+                "           \"name\" : \"${json-unit.ignore}\"," +
+                "           \"email\" : \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\" : \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +

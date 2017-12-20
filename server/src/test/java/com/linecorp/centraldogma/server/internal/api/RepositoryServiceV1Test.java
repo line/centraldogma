@@ -100,7 +100,7 @@ public class RepositoryServiceV1Test {
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
-                "   \"message\": \"repository myRepo already exists\"" +
+                "   \"message\": \"repository: myRepo already exists.\"" +
                 '}';
         assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }
@@ -114,7 +114,7 @@ public class RepositoryServiceV1Test {
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.NOT_FOUND);
         final String expectedJson =
                 '{' +
-                "   \"message\": \"project absentProject not found\"" +
+                "   \"message\": \"absentProject does not exist.\"" +
                 '}';
         assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }

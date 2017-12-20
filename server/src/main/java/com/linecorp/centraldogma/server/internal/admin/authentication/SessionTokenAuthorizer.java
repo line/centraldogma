@@ -67,7 +67,6 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
                         new Subject.Builder(securityManager).sessionCreationEnabled(false)
                                                             .sessionId(sessionId)
                                                             .buildSubject();
-
                 final Object principal = currentUser != null ? currentUser.getPrincipal() : null;
                 if (principal == null) {
                     logNonExistentSession(sessionId);

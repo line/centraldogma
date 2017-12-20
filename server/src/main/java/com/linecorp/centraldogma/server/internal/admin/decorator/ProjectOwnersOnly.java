@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.admin.decorator;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
 
@@ -26,7 +28,7 @@ import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
 public class ProjectOwnersOnly extends ProjectAccessController {
 
     @Override
-    protected boolean isAllowedRole(User user, ProjectRole projectRole) {
-        return User.ADMIN == user || ProjectRole.OWNER == projectRole;
+    protected boolean isAllowedRole(User user, @Nullable ProjectRole projectRole) {
+        return user == User.ADMIN || projectRole == ProjectRole.OWNER;
     }
 }

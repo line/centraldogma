@@ -66,13 +66,13 @@ public class RoleResolvingDecorator extends SimpleDecoratingService<HttpRequest,
     @Override
     public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
 
-        final User user = AuthenticationUtil.currentUser();
+        final User user = AuthenticationUtil.currentUser(ctx);
 
         final CompletionStage<Map<String, ProjectRole>> future;
         if (user instanceof UserWithToken) {
             future = mds.findRole(((UserWithToken) user).secret());
         } else {
-            future = mds.findRoles(AuthenticationUtil.currentUser());
+            future = mds.findRoles(user);
         }
 
         return HttpResponse.from(future.thenApplyAsync(map -> {
