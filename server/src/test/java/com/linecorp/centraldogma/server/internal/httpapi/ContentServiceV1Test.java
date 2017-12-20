@@ -162,7 +162,7 @@ public class ContentServiceV1Test {
     public void getFileWithJsonPath() {
         addFooJson();
         final AggregatedHttpMessage aRes = httpClient
-                .get(CONTENTS_PREFIX + "/foo.json?queryType=JSON_PATH&expression=$.a").aggregate().join();
+                .get(CONTENTS_PREFIX + "/foo.json?expression=$.a").aggregate().join();
 
         final String expectedJson =
                 '{' +
