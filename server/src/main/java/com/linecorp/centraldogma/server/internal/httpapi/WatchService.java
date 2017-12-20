@@ -36,7 +36,7 @@ import io.netty.channel.EventLoop;
 /**
  * A service class for watching repository or a file.
  */
-public class WatchService {
+public final class WatchService {
 
     private static final CancellationException CANCELLATION_EXCEPTION =
             Exceptions.clearTrace(new CancellationException("watch timed out or server stopping"));

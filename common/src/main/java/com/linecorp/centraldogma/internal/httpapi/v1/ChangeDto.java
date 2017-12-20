@@ -28,7 +28,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.ChangeType;
 
-@JsonInclude(Include.NON_DEFAULT)
+@JsonInclude(Include.NON_NULL)
 public class ChangeDto<T> {
 
     private final String path;

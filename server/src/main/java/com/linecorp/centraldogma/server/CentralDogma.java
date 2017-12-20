@@ -370,7 +370,7 @@ public class CentralDogma {
 
             @Override
             public String meterTag() {
-                return "hostnameService";
+                return "hostname";
             }
         }));
 

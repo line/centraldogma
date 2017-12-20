@@ -34,7 +34,7 @@ import io.netty.util.AsciiString;
  * A request converter that converts to {@link WatchRequest} when the request contains
  * {@link HttpHeaderNames#IF_NONE_MATCH}.
  */
-public class WatchRequestConverter implements RequestConverterFunction {
+final class WatchRequestConverter implements RequestConverterFunction {
 
     private static final long DEFAULT_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(120);
 

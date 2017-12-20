@@ -16,15 +16,9 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
-
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
-
-import javax.annotation.Nullable;
-
-import com.google.common.base.Ascii;
 
 /**
  * The type of a {@link Query}.
@@ -51,23 +45,5 @@ public enum QueryType {
      */
     public Set<EntryType> supportedEntryTypes() {
         return supportedEntryTypes;
-    }
-
-    /**
-     * Returns a {@link QueryType} from the specified {@code value}. If none of query type is matched,
-     * this will return {@link #IDENTITY}.
-     */
-    public static QueryType parse(@Nullable String value) {
-        if (isNullOrEmpty(value)) {
-            return IDENTITY;
-        }
-
-        final String queryType = Ascii.toUpperCase(value);
-
-        if ("JSON_PATH".equalsIgnoreCase(queryType)) {
-            return JSON_PATH;
-        }
-
-        return IDENTITY;
     }
 }
