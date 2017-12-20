@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -38,21 +39,18 @@ final class JsonPathQuery implements Query<JsonNode> {
     private String strVal;
 
     JsonPathQuery(String path, String... jsonPaths) {
-        requireNonNull(path, "path");
         requireNonNull(jsonPaths, "jsonPaths");
 
-        this.path = path;
+        this.path = validateJsonFilePath(path, "path");
         this.jsonPaths = Stream.of(jsonPaths).peek(JsonPathQuery::validateJsonPath).collect(toImmutableList());
     }
 
     @JsonCreator
     JsonPathQuery(@JsonProperty("path") String path,
                   @JsonProperty("expressions") Iterable<String> jsonPaths) {
-
-        requireNonNull(path, "path");
         requireNonNull(jsonPaths, "jsonPaths");
 
-        this.path = path;
+        this.path = validateJsonFilePath(path, "path");
         this.jsonPaths = Streams.stream(jsonPaths)
                                 .peek(JsonPathQuery::validateJsonPath)
                                 .collect(toImmutableList());

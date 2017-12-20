@@ -38,6 +38,8 @@ public final class Util {
             "^(?:[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
     private static final Pattern FILE_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
+    private static final Pattern JSON_FILE_PATH_PATTERN = Pattern.compile(
+            "^(?:/[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+\\.(?i)json$");
     private static final Pattern DIR_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
@@ -55,6 +57,11 @@ public final class Util {
                 paramName + ": " + name + " (expected: " + FILE_NAME_PATTERN.pattern() + ')');
     }
 
+    public static boolean isValidFileName(String name) {
+        requireNonNull(name, "name");
+        return !name.isEmpty() && FILE_NAME_PATTERN.matcher(name).matches();
+    }
+
     public static String validateFilePath(String path, String paramName) {
         requireNonNull(path, paramName);
         if (isValidFilePath(path)) {
@@ -65,15 +72,26 @@ public final class Util {
                 paramName + ": " + path + " (expected: " + FILE_PATH_PATTERN.pattern() + ')');
     }
 
-    public static boolean isValidFileName(String name) {
-        requireNonNull(name, "name");
-        return !name.isEmpty() && FILE_NAME_PATTERN.matcher(name).matches();
-    }
-
     public static boolean isValidFilePath(String path) {
         requireNonNull(path, "path");
         return !path.isEmpty() && path.charAt(0) == '/' &&
                FILE_PATH_PATTERN.matcher(path).matches();
+    }
+
+    public static String validateJsonFilePath(String path, String paramName) {
+        requireNonNull(path, paramName);
+        if (isValidJsonFilePath(path)) {
+            return path;
+        }
+
+        throw new IllegalArgumentException(
+                paramName + ": " + path + " (expected: " + JSON_FILE_PATH_PATTERN.pattern() + ')');
+    }
+
+    public static boolean isValidJsonFilePath(String path) {
+        requireNonNull(path, "path");
+        return !path.isEmpty() && path.charAt(0) == '/' &&
+               JSON_FILE_PATH_PATTERN.matcher(path).matches();
     }
 
     public static String validateDirPath(String path, String paramName) {
@@ -87,7 +105,14 @@ public final class Util {
     }
 
     public static boolean isValidDirPath(String path) {
+        return isValidDirPath(path, false);
+    }
+
+    public static boolean isValidDirPath(String path, boolean mustEndWithSlash) {
         requireNonNull(path);
+        if (mustEndWithSlash && !path.endsWith("/")) {
+            return false;
+        }
         return !path.isEmpty() && path.charAt(0) == '/' &&
                DIR_PATH_PATTERN.matcher(path).matches();
     }

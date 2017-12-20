@@ -19,8 +19,8 @@ package com.linecorp.centraldogma.internal;
 import static com.linecorp.centraldogma.internal.Util.validateDirPath;
 import static com.linecorp.centraldogma.internal.Util.validateEmailAddress;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
@@ -58,6 +58,43 @@ public class UtilTest {
         assertFilePathValidationFailure("/bar?.txt");
         assertFilePathValidationFailure("/baz|.txt");
         assertFilePathValidationFailure("/\uAC00\uB098\uB2E4.json"); // 가나다
+    }
+
+    @Test
+    public void testValidateJsonFilePath() {
+        assertJsonFilePathValidationSuccess("/foo.json");
+        assertJsonFilePathValidationSuccess("/foo/bar.json");
+        assertJsonFilePathValidationSuccess("/foo.bar/baz.json");
+
+        // case-insensitive
+        assertJsonFilePathValidationSuccess("/foo.JSON");
+        assertJsonFilePathValidationSuccess("/foo.Json");
+        assertJsonFilePathValidationSuccess("/foo.jsoN");
+
+        // Invalid extensions
+        assertJsonFilePathValidationFailure("/foo.txt");
+        assertJsonFilePathValidationFailure("/foo/bar.txt");
+        assertJsonFilePathValidationFailure("/foo.bar/baz.json.txt");
+        assertJsonFilePathValidationFailure("/foo-bar/baz-json");
+
+        // No directory
+        assertJsonFilePathValidationFailure("/");
+        assertJsonFilePathValidationFailure("/foo/");
+
+        // No leading or trailing dots
+        assertJsonFilePathValidationFailure("/.");
+        assertJsonFilePathValidationFailure("/..");
+        assertJsonFilePathValidationFailure("/.json");
+        assertJsonFilePathValidationFailure("/json.");
+        assertJsonFilePathValidationFailure("/.json.");
+
+        // a-z, 0-9, minus, dot and underscore only
+        assertJsonFilePathValidationFailure("/\t");
+        assertJsonFilePathValidationFailure("/80:20");
+        assertJsonFilePathValidationFailure("/foo*.json");
+        assertJsonFilePathValidationFailure("/bar?.json");
+        assertJsonFilePathValidationFailure("/baz|.json");
+        assertJsonFilePathValidationFailure("/\uAC00\uB098\uB2E4.json"); // 가나다
     }
 
     @Test
@@ -118,26 +155,27 @@ public class UtilTest {
         validateFilePath(path, "path");
     }
 
+    private static void assertFilePathValidationFailure(String path) {
+        assertThatThrownBy(() -> validateFilePath(path, "path"))
+                .isExactlyInstanceOf(IllegalArgumentException.class);
+    }
+
+    private static void assertJsonFilePathValidationSuccess(String path) {
+        validateJsonFilePath(path, "path");
+    }
+
+    private static void assertJsonFilePathValidationFailure(String path) {
+        assertThatThrownBy(() -> validateJsonFilePath(path, "path"))
+                .isExactlyInstanceOf(IllegalArgumentException.class);
+    }
+
     private static void assertDirPathValidationSuccess(String path) {
         validateDirPath(path, "path");
     }
 
-    private static void assertFilePathValidationFailure(String path) {
-        try {
-            validateFilePath(path, "path");
-            fail();
-        } catch (IllegalArgumentException ignored) {
-            // Expected
-        }
-    }
-
     private static void assertDirPathValidationFailure(String path) {
-        try {
-            validateDirPath(path, "path");
-            fail();
-        } catch (IllegalArgumentException ignored) {
-            // Expected
-        }
+        assertThatThrownBy(() -> validateDirPath(path, "path"))
+                .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
     private static void testValidEmail(String email) {
@@ -146,6 +184,6 @@ public class UtilTest {
 
     private static void testInvalidEmail(String invalidEmail) {
         assertThatThrownBy(() -> testValidEmail(invalidEmail))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 }

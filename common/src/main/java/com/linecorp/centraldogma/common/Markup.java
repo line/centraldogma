@@ -15,6 +15,10 @@
  */
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
+import javax.annotation.Nullable;
+
 import com.google.common.base.Ascii;
 
 /**
@@ -45,5 +49,27 @@ public enum Markup {
      */
     public String nameLowercased() {
         return nameLowercased;
+    }
+
+    /**
+     * Returns a {@link Markup} from the specified {@code value}. If none of markup is matched,
+     * this will return {@link #UNKNOWN}.
+     */
+    public static Markup parse(@Nullable String value) {
+        if (isNullOrEmpty(value)) {
+            return UNKNOWN;
+        }
+
+        final String markup = Ascii.toUpperCase(value);
+
+        if ("PLAINTEXT".equalsIgnoreCase(markup)) {
+            return PLAINTEXT;
+        }
+
+        if ("MARKDOWN".equalsIgnoreCase(markup)) {
+            return MARKDOWN;
+        }
+
+        return UNKNOWN;
     }
 }

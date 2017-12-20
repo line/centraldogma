@@ -50,6 +50,7 @@ import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
 import com.linecorp.centraldogma.server.internal.admin.model.RepoInfo;
 import com.linecorp.centraldogma.server.internal.admin.model.TokenInfo;
 import com.linecorp.centraldogma.server.internal.admin.model.UserAndTimestamp;
+import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializer;

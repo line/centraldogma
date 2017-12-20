@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collections;
@@ -31,7 +32,7 @@ final class IdentityQuery implements Query<Object> {
 
     @JsonCreator
     IdentityQuery(@JsonProperty("path") String path) {
-        this.path = requireNonNull(path, "path");
+        this.path = validateFilePath(path, "path");
     }
 
     @Override

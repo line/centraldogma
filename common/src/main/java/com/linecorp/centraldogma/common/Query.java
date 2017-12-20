@@ -30,9 +30,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * A query on an {@link Entry}.
+ * A query on a file.
  *
- * @param <T> the content type of an {@link Entry} being queried
+ * @param <T> the content type of a file being queried
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
@@ -44,7 +44,7 @@ public interface Query<T> extends Function<T, T> {
     /**
      * Returns a newly-created {@link Query} that retrieves the content as it is.
      *
-     * @param path the path of the {@link Entry} being queried on
+     * @param path the path of a file being queried on
      */
     static Query<Object> identity(String path) {
         return new IdentityQuery(path);
@@ -55,7 +55,7 @@ public interface Query<T> extends Function<T, T> {
      * <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path expressions</a>
      * to the content.
      *
-     * @param path the path of the {@link Entry} being queried on
+     * @param path the path of a file being queried on
      * @param jsonPaths the JSON path expressions to apply
      */
     static Query<JsonNode> ofJsonPath(String path, String... jsonPaths) {
@@ -67,7 +67,7 @@ public interface Query<T> extends Function<T, T> {
      * <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path expressions</a>
      * to the content.
      *
-     * @param path the path of the {@link Entry} being queried on
+     * @param path the path of a file being queried on
      * @param jsonPaths the JSON path expressions to apply
      */
     static Query<JsonNode> ofJsonPath(String path, Iterable<String> jsonPaths) {
@@ -78,7 +78,7 @@ public interface Query<T> extends Function<T, T> {
      * Returns a newly-created {@link Query} that applies a series of expressions to the content.
      *
      * @param type the type of the {@link Query}
-     * @param path the path of the {@link Entry} being queried
+     * @param path the path of a file being queried on
      * @param expressions the expressions to apply
      */
     static Query<?> of(QueryType type, String path, @Nullable String... expressions) {

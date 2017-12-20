@@ -29,10 +29,10 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.dto.ProjectDto;
+import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 
 /**
  * Annotated service object for managing projects.
@@ -41,9 +41,8 @@ public class ProjectService extends AbstractService {
 
     private final MetadataService mds;
 
-    public ProjectService(ProjectManager projectManager,
-                          CommandExecutor executor) {
-        super(new SafeProjectManager(projectManager), executor);
+    public ProjectService(ProjectManager projectManager, CommandExecutor executor) {
+        super(projectManager, executor);
         mds = new MetadataService(projectManager, executor);
         mds.initialize();
     }

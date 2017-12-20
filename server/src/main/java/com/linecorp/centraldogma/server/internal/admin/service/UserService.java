@@ -24,18 +24,17 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 
 /**
  * Annotated service object for managing users.
  */
 public class UserService extends AbstractService {
 
-    public UserService(ProjectManager projectManager,
-                       CommandExecutor executor) {
-        super(new SafeProjectManager(projectManager), executor);
+    public UserService(ProjectManager projectManager, CommandExecutor executor) {
+        super(projectManager, executor);
     }
 
     /**
