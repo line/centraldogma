@@ -14,9 +14,9 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.httpapi;
+package com.linecorp.centraldogma.server.internal.api;
 
-import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.newResponseWithErrorMessage;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiV1Util.newResponseWithErrorMessage;
 
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;

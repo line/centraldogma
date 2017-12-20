@@ -14,12 +14,12 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.httpapi;
+package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.CONTENTS;
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.PROJECTS_PREFIX;
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.REPOS;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.CONTENTS;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.collect.Iterables;
@@ -30,12 +30,12 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.httpapi.v1.ChangeDto;
-import com.linecorp.centraldogma.internal.httpapi.v1.CommitDto;
-import com.linecorp.centraldogma.internal.httpapi.v1.EntryDto;
-import com.linecorp.centraldogma.internal.httpapi.v1.ProjectDto;
-import com.linecorp.centraldogma.internal.httpapi.v1.RepositoryDto;
-import com.linecorp.centraldogma.internal.httpapi.v1.WatchResultDto;
+import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
+import com.linecorp.centraldogma.internal.api.v1.CommitDto;
+import com.linecorp.centraldogma.internal.api.v1.EntryDto;
+import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
+import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
+import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 

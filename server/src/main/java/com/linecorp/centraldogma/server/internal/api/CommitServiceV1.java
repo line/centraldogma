@@ -14,11 +14,11 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.httpapi;
+package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.newHttpResponseException;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiV1Util.newHttpResponseException;
 
 import java.util.Collection;
 import java.util.Optional;

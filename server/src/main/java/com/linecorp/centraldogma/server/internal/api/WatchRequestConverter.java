@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.httpapi;
+package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Ascii.toLowerCase;
 import static com.google.common.base.Strings.isNullOrEmpty;

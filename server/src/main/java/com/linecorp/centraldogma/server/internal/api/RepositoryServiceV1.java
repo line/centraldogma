@@ -14,14 +14,14 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.httpapi;
+package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
-import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.newHttpResponseException;
-import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.unremovePatch;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiV1Util.newHttpResponseException;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiV1Util.unremovePatch;
 
 import java.io.IOException;
 import java.util.List;
@@ -42,7 +42,7 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.RequestObject;
-import com.linecorp.centraldogma.internal.httpapi.v1.RepositoryDto;
+import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.command.Command;

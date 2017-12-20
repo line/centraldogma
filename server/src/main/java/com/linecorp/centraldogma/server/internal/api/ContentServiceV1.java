@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.httpapi;
+package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -23,7 +23,7 @@ import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.internal.Util.isValidJsonFilePath;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
-import static com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1Util.newHttpResponseException;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiV1Util.newHttpResponseException;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -65,13 +65,13 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.httpapi.v1.CommitMessageDto;
-import com.linecorp.centraldogma.internal.httpapi.v1.EntryDto;
-import com.linecorp.centraldogma.internal.httpapi.v1.WatchResultDto;
+import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
+import com.linecorp.centraldogma.internal.api.v1.EntryDto;
+import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
+import com.linecorp.centraldogma.server.internal.api.WatchRequestConverter.WatchRequest;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.httpapi.WatchRequestConverter.WatchRequest;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
 import com.linecorp.centraldogma.server.internal.storage.repository.EntryNotFoundException;

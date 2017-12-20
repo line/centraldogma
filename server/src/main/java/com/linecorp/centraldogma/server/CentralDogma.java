@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server;
 
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
 import static java.util.Objects.requireNonNull;
 
@@ -92,15 +92,15 @@ import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService
 import com.linecorp.centraldogma.server.internal.admin.service.TokenService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
+import com.linecorp.centraldogma.server.internal.api.CommitServiceV1;
+import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
+import com.linecorp.centraldogma.server.internal.api.HttpApiV1ResponseConverter;
+import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
+import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
+import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
-import com.linecorp.centraldogma.server.internal.httpapi.CommitServiceV1;
-import com.linecorp.centraldogma.server.internal.httpapi.ContentServiceV1;
-import com.linecorp.centraldogma.server.internal.httpapi.HttpApiV1ResponseConverter;
-import com.linecorp.centraldogma.server.internal.httpapi.ProjectServiceV1;
-import com.linecorp.centraldogma.server.internal.httpapi.RepositoryServiceV1;
-import com.linecorp.centraldogma.server.internal.httpapi.WatchService;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringService;
 import com.linecorp.centraldogma.server.internal.replication.ReplicationException;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;

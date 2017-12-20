@@ -14,11 +14,11 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.internal.httpapi.v1;
+package com.linecorp.centraldogma.internal.api.v1;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.PROJECTS_PREFIX;
-import static com.linecorp.centraldogma.internal.httpapi.v1.HttpApiV1Constants.REPOS;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 import static java.util.Objects.requireNonNull;
 

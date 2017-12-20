@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.internal.httpapi.v1;
+package com.linecorp.centraldogma.internal.api.v1;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
