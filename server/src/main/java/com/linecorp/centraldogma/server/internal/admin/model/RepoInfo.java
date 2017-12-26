@@ -18,9 +18,12 @@ package com.linecorp.centraldogma.server.internal.admin.model;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -29,19 +32,57 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
  */
 public class RepoInfo {
 
+    /**
+     * A name of this repository.
+     */
     private final String name;
+
+    /**
+     * A default permission of this repository which is based on a {@link ProjectRole} of a user.
+     */
+    private final DefaultPermission defaultPermission;
+
+    /**
+     * A map of username and {@link Permission} who has a permission specified by a owner.
+     */
+    private final Map<String, Permission> privilegedMember;
+
+    /**
+     * Specifies when this repository is created by whom.
+     */
     private final UserAndTimestamp creation;
+
+    /**
+     * Creates a new repository with default properties.
+     */
+    public RepoInfo(String name, UserAndTimestamp creation) {
+        this(name, new DefaultPermission(), ImmutableMap.of(), creation);
+    }
 
     @JsonCreator
     public RepoInfo(@JsonProperty("name") String name,
+                    @JsonProperty("defaultPermission") DefaultPermission defaultPermission,
+                    @JsonProperty("privilegedMember") Map<String, Permission> privilegedMember,
                     @JsonProperty("creation") UserAndTimestamp creation) {
         this.name = requireNonNull(name, "name");
+        this.defaultPermission = requireNonNull(defaultPermission, "defaultPermission");
+        this.privilegedMember = ImmutableMap.copyOf(requireNonNull(privilegedMember, "privilegedMember"));
         this.creation = requireNonNull(creation, "creation");
     }
 
     @JsonProperty
     public String name() {
         return name;
+    }
+
+    @JsonProperty
+    public DefaultPermission defaultPermission() {
+        return defaultPermission;
+    }
+
+    @JsonProperty
+    public Map<String, Permission> privilegedMember() {
+        return privilegedMember;
     }
 
     @JsonProperty
@@ -53,7 +94,23 @@ public class RepoInfo {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("name", name())
+                          .add("defaultPermission", defaultPermission())
+                          .add("privilegedMember", privilegedMember())
                           .add("creation", creation())
                           .toString();
+    }
+
+    public RepoInfo duplicateWithDefaultPermission(DefaultPermission defaultPermission) {
+        return new RepoInfo(name(),
+                            requireNonNull(defaultPermission, "defaultPermission"),
+                            privilegedMember(),
+                            creation());
+    }
+
+    public RepoInfo duplicateWithPrivilegedMember(Map<String, Permission> privilegedMember) {
+        return new RepoInfo(name(),
+                            defaultPermission(),
+                            requireNonNull(privilegedMember, "privilegedMember"),
+                            creation());
     }
 }

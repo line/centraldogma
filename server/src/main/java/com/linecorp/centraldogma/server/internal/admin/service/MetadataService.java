@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -47,7 +48,9 @@ import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.model.DefaultPermission;
 import com.linecorp.centraldogma.server.internal.admin.model.MemberInfo;
+import com.linecorp.centraldogma.server.internal.admin.model.Permission;
 import com.linecorp.centraldogma.server.internal.admin.model.ProjectInfo;
 import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
 import com.linecorp.centraldogma.server.internal.admin.model.RepoInfo;
@@ -64,6 +67,7 @@ import com.linecorp.centraldogma.server.internal.storage.project.ProjectNotFound
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNotFoundException;
 
 /**
  * A service class for metadata management. This service stores metadata into the {@value METADATA_PROJECT}
@@ -438,6 +442,46 @@ public class MetadataService extends AbstractService {
                 }));
     }
 
+    /**
+     * Changes a {@link DefaultPermission} of a {@link RepoInfo}.
+     */
+    public CompletionStage<ProjectInfo> changePermission(String projectName, Author author, String repoName,
+                                                         DefaultPermission newPermission) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(newPermission, "newPermission");
+        final String commitSummary = "Change permission of " + repoName + " from a project " + projectName;
+        return getAllProjects().thenCompose(
+                list -> updateRepoInfo(author, commitSummary, list, projectName, repoName,
+                                       project -> { /* noop */ },
+                                       repo -> repo.duplicateWithDefaultPermission(newPermission)));
+    }
+
+    /**
+     * Adds a privileged member to the specified {@code repoName}.
+     */
+    public CompletionStage<ProjectInfo> addPrivilegedMember(String projectName, Author author, String repoName,
+                                                            String member, Permission permission) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(member, "member");
+        requireNonNull(permission, "permission");
+        final String commitSummary = "Add a privileged member '" + member + "' to '" +
+                                     projectName + '/' + repoName;
+        // TODO(hyangtack) check the member does not exist before adding.
+        //                (an exception may be thrown by builder#put)
+        return getAllProjects().thenCompose(
+                list -> updateRepoInfo(author, commitSummary, list, projectName, repoName,
+                                       project -> ProjectInfo.ensureMember(project, member),
+                                       repo -> repo.duplicateWithPrivilegedMember(
+                                               ImmutableMap.<String, Permission>builder()
+                                                       .putAll(repo.privilegedMember())
+                                                       .put(member, permission)
+                                                       .build())));
+    }
+
     @VisibleForTesting
     CompletionStage<String> getRawMetadata() {
         return projectManager()
@@ -450,6 +494,30 @@ public class MetadataService extends AbstractService {
                         return "";
                     }
                 });
+    }
+
+    private CompletionStage<ProjectInfo> updateRepoInfo(Author author, String commitSummary,
+                                                        List<ProjectInfo> list,
+                                                        String projectName, String repoName,
+                                                        Consumer<ProjectInfo> validator,
+                                                        Function<RepoInfo, RepoInfo> updater) {
+        return updateProjectInfo(author, commitSummary, list, projectName, projectInfo -> {
+            validator.accept(projectInfo);
+            boolean found = false;
+            final ImmutableList.Builder<RepoInfo> newList = ImmutableList.builder();
+            for (final RepoInfo r : projectInfo.repos()) {
+                if (r.name().equals(repoName)) {
+                    newList.add(updater.apply(r));
+                    found = true;
+                } else {
+                    newList.add(r);
+                }
+            }
+            if (!found) {
+                throw new RepositoryNotFoundException(repoName);
+            }
+            return projectInfo.duplicateWithRepos(newList.build());
+        }, false);
     }
 
     private CompletionStage<ProjectInfo> updateProjectInfo(Author author, String commitSummary,

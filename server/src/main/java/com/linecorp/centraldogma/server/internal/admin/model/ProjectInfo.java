@@ -154,4 +154,12 @@ public class ProjectInfo {
                                            .map(TokenInfo::withoutSecret)
                                            .collect(Collectors.toList()));
     }
+
+    public static void ensureMember(ProjectInfo project, String login) {
+        requireNonNull(project, "project");
+        requireNonNull(login, "login");
+        if (project.members().stream().noneMatch(member -> member.login().equals(login))) {
+            throw new IllegalArgumentException(login + "is not a member of a project " + project.name());
+        }
+    }
 }
