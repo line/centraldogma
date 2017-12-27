@@ -21,6 +21,9 @@ angular.module(
     })
     .run(function ($rootScope, $location, $window, $http, $state, $translate, $uibModal,
                    Auth, Principal, Language, NotificationUtil) {
+           Auth.isEnabled().then(function (data) {
+             $rootScope.isSecurityEnabled = data;
+           });
 
            $rootScope.showLoginDialog = function () {
              var modalInstance = $uibModal.open({
