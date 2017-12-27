@@ -102,7 +102,7 @@ public class RepositoryService extends AbstractService {
 
         final Author author = AuthenticationUtil.currentAuthor();
         final RepositoryDto dto =
-                Jackson.readValue(message.content().toStringAscii(), RepositoryDto.class);
+                Jackson.readValue(message.content().toStringUtf8(), RepositoryDto.class);
         return execute(Command.createRepository(author, projectName, dto.getName()))
                 .thenApply(unused -> dto);
     }
@@ -191,7 +191,7 @@ public class RepositoryService extends AbstractService {
                                           ServiceRequestContext ctx) {
         final CommitMessageDto commitMessage;
         try {
-            final JsonNode node = Jackson.readTree(message.content().toStringAscii());
+            final JsonNode node = Jackson.readTree(message.content().toStringUtf8());
             commitMessage = Jackson.convertValue(node.get("commitMessage"), CommitMessageDto.class);
         } catch (IOException e) {
             throw new BadRequestException("invalid data to be parsed", e);
@@ -299,7 +299,7 @@ public class RepositoryService extends AbstractService {
 
     private static Entry<CommitMessageDto, Change<?>> commitMessageAndChange(AggregatedHttpMessage message) {
         try {
-            final JsonNode node = Jackson.readTree(message.content().toStringAscii());
+            final JsonNode node = Jackson.readTree(message.content().toStringUtf8());
             final CommitMessageDto commitMessage =
                     Jackson.convertValue(node.get("commitMessage"), CommitMessageDto.class);
             final EntryDto file = Jackson.convertValue(node.get("file"), EntryDto.class);
