@@ -37,7 +37,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     /**
      * Start with an alphanumeric character.
-     * An alphanumeric character, minux, plus, underscore and dot are allowed in the middle.
+     * An alphanumeric character, minus, plus, underscore and dot are allowed in the middle.
      * End with an alphanumeric character.
      */
     private static final Pattern CHILD_NAME =

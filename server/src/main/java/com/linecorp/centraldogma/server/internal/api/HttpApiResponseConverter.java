@@ -34,9 +34,9 @@ import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**
- * A default response converter of HTTP API version 1.
+ * A default {@link ResponseConverterFunction} of HTTP API.
  */
-public final class HttpApiV1ResponseConverter implements ResponseConverterFunction {
+public final class HttpApiResponseConverter implements ResponseConverterFunction {
 
     @Override
     public HttpResponse convertResponse(ServiceRequestContext ctx, Object resObj) throws Exception {

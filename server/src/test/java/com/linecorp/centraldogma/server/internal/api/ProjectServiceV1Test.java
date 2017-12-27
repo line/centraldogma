@@ -87,7 +87,7 @@ public class ProjectServiceV1Test {
         assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
-                "   \"message\": \"project myPro already exists\"" +
+                "   \"message\": \"myPro already exists.\"" +
                 '}';
         assertThatJson(res.content().toStringUtf8()).isEqualTo(expectedJson);
     }

@@ -47,12 +47,10 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
-import com.linecorp.armeria.common.HttpResponseWriter;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.util.EventLoopGroups;
@@ -79,6 +77,7 @@ import com.linecorp.centraldogma.server.internal.admin.authentication.CsrfTokenA
 import com.linecorp.centraldogma.server.internal.admin.authentication.LoginService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LogoutService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.SessionTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.service.MetadataService;
 import com.linecorp.centraldogma.server.internal.admin.service.ProjectService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.TokenService;
@@ -86,7 +85,8 @@ import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.CommitServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
-import com.linecorp.centraldogma.server.internal.api.HttpApiV1ResponseConverter;
+import com.linecorp.centraldogma.server.internal.api.HttpApiRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.HttpApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
@@ -319,7 +319,7 @@ public class CentralDogma {
     private Server startServer(ProjectManager pm, CommandExecutor executor,
                                @Nullable CentralDogmaSecurityManager securityManager) {
         final ServerBuilder sb = new ServerBuilder();
-        for (ServerPort p: cfg.ports()) {
+        for (ServerPort p : cfg.ports()) {
             sb.port(p);
         }
 
@@ -358,21 +358,21 @@ public class CentralDogma {
 
         sb.service("/cache_stats", new AbstractHttpService() {
             @Override
-            protected void doGet(ServiceRequestContext ctx, HttpRequest req, HttpResponseWriter res)
+            protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req)
                     throws Exception {
-                res.respond(HttpStatus.OK,
-                            MediaType.JSON_UTF_8,
-                            Jackson.writeValueAsPrettyString(pm.cacheStats()));
+                return HttpResponse.of(HttpStatus.OK,
+                                       MediaType.JSON_UTF_8,
+                                       Jackson.writeValueAsPrettyString(pm.cacheStats()));
             }
         });
 
         sb.service("/security_enabled", new AbstractHttpService() {
             @Override
-            protected void doGet(ServiceRequestContext ctx, HttpRequest req, HttpResponseWriter res)
+            protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req)
                     throws Exception {
-                res.respond(HttpStatus.OK,
-                            MediaType.JSON_UTF_8,
-                            Jackson.writeValueAsPrettyString(cfg.isSecurityEnabled()));
+                return HttpResponse.of(HttpStatus.OK,
+                                       MediaType.JSON_UTF_8,
+                                       Jackson.writeValueAsPrettyString(cfg.isSecurityEnabled()));
             }
         });
 
@@ -382,11 +382,10 @@ public class CentralDogma {
         //                  It would be removed if this kind of redirection is handled by Armeria.
         sb.service("/docs", new AbstractHttpService() {
             @Override
-            protected void doGet(ServiceRequestContext ctx, HttpRequest req, HttpResponseWriter res)
+            protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req)
                     throws Exception {
-                res.respond(AggregatedHttpMessage.of(
-                        HttpHeaders.of(HttpStatus.TEMPORARY_REDIRECT)
-                                   .set(HttpHeaderNames.LOCATION, "/docs/")));
+                return HttpResponse.of(HttpHeaders.of(HttpStatus.TEMPORARY_REDIRECT)
+                                                  .set(HttpHeaderNames.LOCATION, "/docs/"));
             }
         });
         sb.serviceUnder("/docs/",
@@ -488,9 +487,10 @@ public class CentralDogma {
         final String apiV0PathPrefix = "/api/v0/";
 
         final TokenService tokenService = new TokenService(pm, executor);
+        final MetadataService mds = new MetadataService(pm, executor);
 
         final Function<Service<HttpRequest, HttpResponse>,
-                        ? extends Service<HttpRequest, HttpResponse>> decorator;
+                ? extends Service<HttpRequest, HttpResponse>> decorator;
         if (cfg.isSecurityEnabled()) {
             requireNonNull(securityManager, "securityManager");
             sb.service(apiV0PathPrefix + "authenticate", new LoginService(securityManager, executor))
@@ -504,17 +504,23 @@ public class CentralDogma {
             decorator = HttpAuthService.newDecorator(new CsrfTokenAuthorizer());
         }
 
-        final HttpApiV1ResponseConverter httpApiV1Converter = new HttpApiV1ResponseConverter();
-
         final SafeProjectManager safePm = new SafeProjectManager(pm);
-        sb.annotatedService(API_V1_PATH_PREFIX, new ProjectServiceV1(safePm, executor), decorator,
-                            httpApiV1Converter);
-        sb.annotatedService(API_V1_PATH_PREFIX, new RepositoryServiceV1(safePm, executor), decorator,
-                            httpApiV1Converter);
-        sb.annotatedService(API_V1_PATH_PREFIX, new ContentServiceV1(safePm, executor, watchService), decorator,
-                            httpApiV1Converter);
-        sb.annotatedService(API_V1_PATH_PREFIX, new CommitServiceV1(safePm, executor), decorator,
-                            httpApiV1Converter);
+
+        final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(safePm);
+        final HttpApiResponseConverter v1ResponseConverter = new HttpApiResponseConverter();
+
+        sb.annotatedService(API_V1_PATH_PREFIX,
+                            new ProjectServiceV1(safePm, executor, mds), decorator,
+                            v1RequestConverter, v1ResponseConverter);
+        sb.annotatedService(API_V1_PATH_PREFIX,
+                            new RepositoryServiceV1(safePm, executor, mds), decorator,
+                            v1RequestConverter, v1ResponseConverter);
+        sb.annotatedService(API_V1_PATH_PREFIX,
+                            new ContentServiceV1(safePm, executor, watchService), decorator,
+                            v1RequestConverter, v1ResponseConverter);
+        sb.annotatedService(API_V1_PATH_PREFIX,
+                            new CommitServiceV1(safePm, executor), decorator,
+                            v1RequestConverter, v1ResponseConverter);
 
         if (cfg.isWebAppEnabled()) {
             final RestfulJsonResponseConverter httpApiV0Converter = new RestfulJsonResponseConverter();

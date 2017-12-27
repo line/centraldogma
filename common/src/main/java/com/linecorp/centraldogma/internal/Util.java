@@ -47,6 +47,14 @@ public final class Util {
     private static final Pattern GENERAL_EMAIL_PATTERN = Pattern.compile(
             "^[_A-Za-z0-9-\\+]+(?:\\.[_A-Za-z0-9-]+)*@(.+)$");
 
+    /**
+     * Start with an alphanumeric character.
+     * An alphanumeric character, minus, plus, underscore and dot are allowed in the middle.
+     * End with an alphanumeric character.
+     */
+    private static final Pattern PROJECT_AND_REPO_NAME_PATTERN =
+            Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z\\.]*[0-9A-Za-z])?$");
+
     public static String validateFileName(String name, String paramName) {
         requireNonNull(name, paramName);
         if (isValidFileName(name)) {
@@ -102,6 +110,32 @@ public final class Util {
 
         throw new IllegalArgumentException(
                 paramName + ": " + path + " (expected: " + DIR_PATH_PATTERN.pattern() + ')');
+    }
+
+    public static boolean isValidProjectName(String projectName) {
+        requireNonNull(projectName, "projectName");
+        return PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
+    }
+
+    public static String validateProjectName(String projectName, String paramName) {
+        if (isValidProjectName(projectName)) {
+            return projectName;
+        }
+        throw new IllegalArgumentException(paramName + ": " + projectName +
+                                           " (expected: " + PROJECT_AND_REPO_NAME_PATTERN.pattern() + ')');
+    }
+
+    public static boolean isValidRepositoryName(String repoName) {
+        requireNonNull(repoName, "projectName");
+        return PROJECT_AND_REPO_NAME_PATTERN.matcher(repoName).matches();
+    }
+
+    public static String validateRepositoryName(String repoName, String paramName) {
+        if (isValidRepositoryName(repoName)) {
+            return repoName;
+        }
+        throw new IllegalArgumentException(paramName + ": " + repoName +
+                                           " (expected: " + PROJECT_AND_REPO_NAME_PATTERN.pattern() + ')');
     }
 
     public static boolean isValidDirPath(String path) {

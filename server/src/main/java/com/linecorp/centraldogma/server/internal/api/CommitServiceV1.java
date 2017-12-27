@@ -18,21 +18,17 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.server.internal.api.HttpApiV1Util.newHttpResponseException;
 
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
-import com.google.common.collect.Iterables;
-
-import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.RequestObject;
-import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
@@ -42,7 +38,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 /**
  * Annotated service object for fetching commits and diffs.
  */
-@ExceptionHandler(BadRequestHandler.class)
+@ExceptionHandler(HttpApiExceptionHandler.class)
 public class CommitServiceV1 extends AbstractService {
 
     public CommitServiceV1(ProjectManager projectManager, CommandExecutor executor) {
@@ -55,11 +51,10 @@ public class CommitServiceV1 extends AbstractService {
      * <p>Returns the list of commits in the path.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/commits(?<revision>(|/.*))$")
-    public CompletionStage<?> listCommits(@Param("projectName") String projectName,
-                                          @Param("repoName") String repoName,
-                                          @Param("revision") String revision,
+    public CompletionStage<?> listCommits(@Param("revision") String revision,
                                           @Param("path") @Default("/**") String path,
-                                          @Param("to") Optional<String> to) {
+                                          @Param("to") Optional<String> to,
+                                          @RequestObject Repository repository) {
         final Revision fromRevision;
         final Revision toRevision;
 
@@ -75,14 +70,9 @@ public class CommitServiceV1 extends AbstractService {
             toRevision = to.map(Revision::new).orElse(fromRevision);
         }
 
-        return getRepository(projectName, repoName)
+        return repository
                 .history(fromRevision, toRevision, path)
-                .thenApply(commits -> {
-                    if (commits.size() == 1) {
-                        return DtoConverter.convert(commits.get(0));
-                    }
-                    return commits.stream().map(DtoConverter::convert).collect(toImmutableList());
-                });
+                .thenApply(commits -> objectOrList(commits, DtoConverter::convert));
     }
 
     /**
@@ -92,39 +82,24 @@ public class CommitServiceV1 extends AbstractService {
      * <p>Returns the diffs.
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
-    public CompletionStage<?> getDiff(@Param("projectName") String projectName,
-                                      @Param("repoName") String repoName,
-                                      @Param("path") @Default("/**") String path,
+    public CompletionStage<?> getDiff(@Param("path") @Default("/**") String path,
                                       @Param("from") @Default("-1") String from,
                                       @Param("to") @Default("1") String to,
+                                      @RequestObject Repository repository,
                                       @RequestObject(RequestQueryConverter.class) Optional<Query<?>> query) {
         if (query.isPresent()) {
-            return getRepository(projectName, repoName).diff(new Revision(from), new Revision(to), query.get())
-                                                       .thenApply(DtoConverter::convert);
+            return repository.diff(new Revision(from), new Revision(to), query.get())
+                             .thenApply(DtoConverter::convert);
         }
-        return getRepository(projectName, repoName)
+        return repository
                 .diff(new Revision(from), new Revision(to), path)
-                .thenApply(changeMap -> {
-                    final Collection<Change<?>> changes = changeMap.values();
-                    if (changes.size() == 1) {
-                        return DtoConverter.convert(Iterables.get(changes, 0));
-                    }
-                    return changes.stream().map(DtoConverter::convert).collect(toImmutableList());
-                });
+                .thenApply(changeMap -> objectOrList(changeMap.values(), DtoConverter::convert));
     }
 
-    private Repository getRepository(String projectName, String repoName) {
-        checkRepositoryExists(projectName, repoName);
-        return projectManager().get(projectName).repos().get(repoName);
-    }
-
-    private void checkRepositoryExists(String projectName, String repoName) {
-        if (!projectManager().exists(projectName)) {
-            throw newHttpResponseException(HttpStatus.NOT_FOUND, "project " + projectName + " not found");
+    private static <T> Object objectOrList(Collection<T> collection, Function<T, ?> converter) {
+        if (collection.size() == 1) {
+            return converter.apply(collection.iterator().next());
         }
-
-        if (!projectManager().get(projectName).repos().exists(repoName)) {
-            throw newHttpResponseException(HttpStatus.NOT_FOUND, "repository " + repoName + " not found");
-        }
+        return collection.stream().map(converter).collect(toImmutableList());
     }
 }
