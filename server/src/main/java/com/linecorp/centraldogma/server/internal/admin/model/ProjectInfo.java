@@ -51,8 +51,8 @@ public class ProjectInfo {
     @Nullable
     private final UserAndTimestamp removal;
 
-    public ProjectInfo(String name, UserAndTimestamp creation) {
-        this(name, ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), creation, null);
+    public ProjectInfo(String name, UserAndTimestamp creation, List<MemberInfo> members) {
+        this(name, ImmutableList.of(), members, ImmutableList.of(), creation, null);
     }
 
     @JsonCreator
@@ -153,5 +153,13 @@ public class ProjectInfo {
         return duplicateWithTokens(tokens().stream()
                                            .map(TokenInfo::withoutSecret)
                                            .collect(Collectors.toList()));
+    }
+
+    public static void ensureMember(ProjectInfo project, String login) {
+        requireNonNull(project, "project");
+        requireNonNull(login, "login");
+        if (project.members().stream().noneMatch(member -> member.login().equals(login))) {
+            throw new IllegalArgumentException(login + "is not a member of a project " + project.name());
+        }
     }
 }

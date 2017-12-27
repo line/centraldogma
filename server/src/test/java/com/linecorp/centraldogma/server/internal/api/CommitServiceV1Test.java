@@ -92,8 +92,8 @@ public class CommitServiceV1Test {
                 "   {" +
                 "       \"revision\": 3," +
                 "       \"author\": {" +
-                "           \"name\": \"User\"," +
-                "           \"email\": \"user@localhost.localdomain\"" +
+                "           \"name\": \"${json-unit.ignore}\"," +
+                "           \"email\": \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\": \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +
@@ -105,8 +105,8 @@ public class CommitServiceV1Test {
                 "   {" +
                 "       \"revision\": 2," +
                 "       \"author\": {" +
-                "           \"name\": \"User\"," +
-                "           \"email\": \"user@localhost.localdomain\"" +
+                "           \"name\": \"${json-unit.ignore}\"," +
+                "           \"email\": \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\": \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +
@@ -142,8 +142,8 @@ public class CommitServiceV1Test {
                 '{' +
                 "   \"revision\": 2," +
                 "   \"author\": {" +
-                "       \"name\": \"User\"," +
-                "       \"email\": \"user@localhost.localdomain\"" +
+                "       \"name\": \"${json-unit.ignore}\"," +
+                "       \"email\": \"${json-unit.ignore}\"" +
                 "   }," +
                 "   \"pushedAt\": \"${json-unit.ignore}\"," +
                 "   \"commitMessage\" : {" +
@@ -164,8 +164,8 @@ public class CommitServiceV1Test {
                 '{' +
                 "   \"revision\": 2," +
                 "   \"author\": {" +
-                "       \"name\": \"User\"," +
-                "       \"email\": \"user@localhost.localdomain\"" +
+                "       \"name\": \"${json-unit.ignore}\"," +
+                "       \"email\": \"${json-unit.ignore}\"" +
                 "   }," +
                 "   \"pushedAt\": \"${json-unit.ignore}\"," +
                 "   \"commitMessage\" : {" +
@@ -187,8 +187,8 @@ public class CommitServiceV1Test {
                 "   {" +
                 "       \"revision\": 3," +
                 "       \"author\": {" +
-                "           \"name\": \"User\"," +
-                "           \"email\": \"user@localhost.localdomain\"" +
+                "           \"name\": \"${json-unit.ignore}\"," +
+                "           \"email\": \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\": \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +
@@ -200,8 +200,8 @@ public class CommitServiceV1Test {
                 "   {" +
                 "       \"revision\": 2," +
                 "       \"author\": {" +
-                "           \"name\": \"User\"," +
-                "           \"email\": \"user@localhost.localdomain\"" +
+                "           \"name\": \"${json-unit.ignore}\"," +
+                "           \"email\": \"${json-unit.ignore}\"" +
                 "       }," +
                 "       \"pushedAt\": \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +

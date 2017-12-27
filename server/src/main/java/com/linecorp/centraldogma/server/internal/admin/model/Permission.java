@@ -14,21 +14,22 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.admin.decorator;
-
-import javax.annotation.Nullable;
-
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
-import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
+package com.linecorp.centraldogma.server.internal.admin.model;
 
 /**
- * A decorator for access control. It only allows a request from an administrator and a user who has
- * a {@link ProjectRole#OWNER} role.
+ * Permission for accessing a repository.
  */
-public class ProjectOwnersOnly extends ProjectAccessController {
-
-    @Override
-    protected boolean isAllowedRole(User user, @Nullable ProjectRole projectRole) {
-        return user == User.ADMIN || projectRole == ProjectRole.OWNER;
-    }
+public enum Permission {
+    /**
+     * Able to read files from a repository.
+     */
+    READ_ONLY,
+    /**
+     * Able to read and/or write a file from/to a repository.
+     */
+    READ_WRITE,
+    /**
+     * Not able to access a repository.
+     */
+    NONE
 }

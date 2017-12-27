@@ -67,14 +67,19 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
                         new Subject.Builder(securityManager).sessionCreationEnabled(false)
                                                             .sessionId(sessionId)
                                                             .buildSubject();
-
                 final Object principal = currentUser != null ? currentUser.getPrincipal() : null;
                 if (principal == null) {
                     logNonExistentSession(sessionId);
                     return;
                 }
 
-                final User user = new User(principal.toString());
+                final User user;
+                // TODO(hyangtack) Should confirm how to determine administrator..
+                if ("admin".equalsIgnoreCase(principal.toString())) {
+                    user = User.ADMIN;
+                } else {
+                    user = new User(principal.toString());
+                }
                 AuthenticationUtil.setCurrentUser(ctx, user);
                 isAuthenticated = true;
             } catch (Throwable t) {

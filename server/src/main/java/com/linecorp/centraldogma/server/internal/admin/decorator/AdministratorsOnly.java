@@ -16,16 +16,29 @@
 
 package com.linecorp.centraldogma.server.internal.admin.decorator;
 
+import com.linecorp.armeria.common.HttpRequest;
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.server.DecoratingServiceFunction;
+import com.linecorp.armeria.server.HttpStatusException;
+import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
-import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
 
 /**
  * A decorator only to allow a request from administrator.
  */
-public class AdministratorsOnly extends ProjectAccessController {
+public class AdministratorsOnly implements DecoratingServiceFunction<HttpRequest, HttpResponse> {
 
     @Override
-    protected boolean isAllowedRole(User user, ProjectRole projectRole) {
-        return User.ADMIN == user;
+    public HttpResponse serve(Service<HttpRequest, HttpResponse> delegate,
+                              ServiceRequestContext ctx,
+                              HttpRequest req) throws Exception {
+        final User user = AuthenticationUtil.currentUser(ctx);
+        if (user == User.ADMIN) {
+            return delegate.serve(ctx, req);
+        }
+        throw HttpStatusException.of(HttpStatus.UNAUTHORIZED);
     }
 }

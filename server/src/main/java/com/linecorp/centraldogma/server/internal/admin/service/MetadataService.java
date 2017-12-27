@@ -16,14 +16,20 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
+import static com.linecorp.centraldogma.server.internal.admin.model.RepoInfo.collectPrivilegedMember;
+import static com.linecorp.centraldogma.server.internal.admin.model.RepoInfo.ensureContainPrivilegedMember;
+import static com.linecorp.centraldogma.server.internal.admin.model.RepoInfo.ensureNotContainPrivilegedMember;
 import static com.linecorp.centraldogma.server.internal.admin.service.RepositoryUtil.push;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -34,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -44,7 +51,9 @@ import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.model.DefaultPermission;
 import com.linecorp.centraldogma.server.internal.admin.model.MemberInfo;
+import com.linecorp.centraldogma.server.internal.admin.model.Permission;
 import com.linecorp.centraldogma.server.internal.admin.model.ProjectInfo;
 import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
 import com.linecorp.centraldogma.server.internal.admin.model.RepoInfo;
@@ -55,10 +64,13 @@ import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializer;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectExistsException;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNotFoundException;
 
 /**
  * A service class for metadata management. This service stores metadata into the {@value METADATA_PROJECT}
@@ -76,8 +88,11 @@ public class MetadataService extends AbstractService {
     private static final TypeReference<List<TokenInfo>>
             TOKEN_LIST_TYPE_REF = new TypeReference<List<TokenInfo>>() {};
 
+    private static final String SECRET_PREFIX = "appToken-";
+
     public MetadataService(ProjectManager projectManager, CommandExecutor executor) {
         super(projectManager, executor);
+        initialize();
     }
 
     /**
@@ -197,15 +212,33 @@ public class MetadataService extends AbstractService {
      * the {@code name} here. It should be done by the caller before calling this method.
      */
     public CompletionStage<ProjectInfo> createProject(String projectName, Author author) {
+        return createProject(projectName, author, ImmutableSet.of(), ImmutableSet.of());
+    }
+
+    /**
+     * Adds a {@link ProjectInfo} object to metadata and returns it. We do not check the pattern of
+     * the {@code name} here. It should be done by the caller before calling this method.
+     */
+    public CompletionStage<ProjectInfo> createProject(String projectName, Author author,
+                                                      Set<String> owners, Set<String> members) {
         requireNonNull(projectName, "projectName");
         requireNonNull(author, "author");
+        requireNonNull(owners, "owners");
+        requireNonNull(members, "members");
         return getAllProjects().thenCompose(list -> {
             final boolean isExist = list.stream().anyMatch(e -> projectName.equals(e.name()));
             if (isExist) {
-                throw new IllegalArgumentException("Project '" + projectName + "' already exists.");
+                throw new ProjectExistsException(projectName);
             }
+
             final List<ProjectInfo> oldList = ImmutableList.copyOf(list);
-            final ProjectInfo newProject = new ProjectInfo(projectName, new UserAndTimestamp(author.name()));
+            final UserAndTimestamp userAndTimestamp = new UserAndTimestamp(author.name());
+
+            final ImmutableList.Builder<MemberInfo> memberInfos = new Builder<>();
+            owners.forEach(o -> memberInfos.add(new MemberInfo(o, ProjectRole.OWNER, userAndTimestamp)));
+            members.forEach(m -> memberInfos.add(new MemberInfo(m, ProjectRole.MEMBER, userAndTimestamp)));
+
+            final ProjectInfo newProject = new ProjectInfo(projectName, userAndTimestamp, memberInfos.build());
             list.add(newProject);
             list.sort(Comparator.comparing(ProjectInfo::name));
             final Change<JsonNode> change = Change.ofJsonPatch(METADATA_JSON,
@@ -228,6 +261,20 @@ public class MetadataService extends AbstractService {
                                         p.repos(), p.members(), p.tokens(),
                                         p.creation(),
                                         new UserAndTimestamp(author.name()))));
+    }
+
+    /**
+     * Unremoves a {@link ProjectInfo} whose name equals to the specified {@code name}.
+     */
+    public CompletionStage<ProjectInfo> unremoveProject(String projectName, Author author) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        final String commitSummary = "Unremove a project " + projectName;
+        return getAllProjects().thenCompose(
+                list -> updateProjectInfo(author, commitSummary, list, projectName, p ->
+                        new ProjectInfo(p.name(),
+                                        p.repos(), p.members(), p.tokens(),
+                                        p.creation(), null), true));
     }
 
     /**
@@ -266,8 +313,8 @@ public class MetadataService extends AbstractService {
     /**
      * Changes a {@link ProjectRole} of a {@link User}.
      */
-    public CompletionStage<ProjectInfo> changeRole(String projectName, Author author,
-                                                   User member, ProjectRole projectRole) {
+    public CompletionStage<ProjectInfo> changeMemberRole(String projectName, Author author,
+                                                         User member, ProjectRole projectRole) {
         requireNonNull(projectName, "projectName");
         requireNonNull(author, "author");
         requireNonNull(member, "member");
@@ -326,6 +373,14 @@ public class MetadataService extends AbstractService {
     }
 
     /**
+     * Adds a new {@link TokenInfo} to a {@link ProjectInfo} with an auto-generated secret.
+     */
+    public CompletionStage<ProjectInfo> addToken(String projectName, Author author,
+                                                 String appId, ProjectRole projectRole) {
+        return addToken(projectName, author, appId, SECRET_PREFIX + UUID.randomUUID(), projectRole);
+    }
+
+    /**
      * Adds a new {@link TokenInfo} to a {@link ProjectInfo}.
      */
     public CompletionStage<ProjectInfo> addToken(String projectName, Author author,
@@ -359,6 +414,127 @@ public class MetadataService extends AbstractService {
                                                       .build())));
     }
 
+    /**
+     * Changes a {@link ProjectRole} of a {@link TokenInfo}.
+     */
+    public CompletionStage<ProjectInfo> changeTokenRole(String projectName, Author author,
+                                                        String appId, ProjectRole projectRole) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        requireNonNull(appId, "appId");
+        requireNonNull(projectRole, "projectRole");
+        final String commitSummary = "Change a projectRole of " + appId + " to " + projectRole +
+                                     " from a project " + projectName;
+        return getAllProjects().thenCompose(
+                list -> updateProjectInfo(author, commitSummary, list, projectName, p -> {
+                    final ImmutableList.Builder<TokenInfo> newTokens = new ImmutableList.Builder<>();
+                    for (final TokenInfo tokenInfo : p.tokens()) {
+                        if (tokenInfo.appId().equals(appId)) {
+                            if (tokenInfo.role() == projectRole) {
+                                throw new ChangeConflictException("Same project role: " + projectRole);
+                            }
+                            // We need to keep the old secret. So we handle this in a different way from
+                            // the case of changing a role of a member.
+                            newTokens.add(new TokenInfo(tokenInfo.appId(), tokenInfo.secret(),
+                                                        projectRole, tokenInfo.creation()));
+                        } else {
+                            newTokens.add(tokenInfo);
+                        }
+                    }
+                    return p.duplicateWithTokens(newTokens.build());
+                }));
+    }
+
+    /**
+     * Changes a {@link DefaultPermission} of a {@link RepoInfo}.
+     */
+    public CompletionStage<ProjectInfo> changePermission(String projectName, Author author, String repoName,
+                                                         DefaultPermission newPermission) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(newPermission, "newPermission");
+        final String commitSummary = "Change permission of " + repoName + " from a project " + projectName;
+        return getAllProjects().thenCompose(
+                list -> updateRepoInfo(author, commitSummary, list, projectName, repoName,
+                                       project -> { /* noop */ },
+                                       repo -> repo.duplicateWithDefaultPermission(newPermission)));
+    }
+
+    /**
+     * Adds a privileged member to the specified {@code repoName}.
+     */
+    public CompletionStage<ProjectInfo> addPrivilegedMember(String projectName, Author author, String repoName,
+                                                            String member, Permission permission) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(member, "member");
+        requireNonNull(permission, "permission");
+        final String commitSummary = "Add a privileged member '" + member + "' to " +
+                                     projectName + '/' + repoName;
+        return getAllProjects().thenCompose(
+                list -> updateRepoInfo(author, commitSummary, list, projectName, repoName,
+                                       project -> ProjectInfo.ensureMember(project, member),
+                                       repo -> {
+                                           ensureNotContainPrivilegedMember(repo, member);
+                                           return repo.duplicateWithPrivilegedMember(
+                                                   ImmutableMap.<String, Permission>builder()
+                                                           .putAll(repo.privilegedMember())
+                                                           .put(member, permission)
+                                                           .build());
+                                       }));
+    }
+
+    /**
+     * Removes a privileged member from the specified {@code repoName}.
+     */
+    public CompletionStage<ProjectInfo> removePrivilegedMember(String projectName, Author author,
+                                                               String repoName, String member) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(member, "member");
+        final String commitSummary = "Remove a privileged member '" + member + "' from " +
+                                     projectName + '/' + repoName;
+        return getAllProjects().thenCompose(
+                list -> updateRepoInfo(author, commitSummary, list, projectName, repoName,
+                                       project -> ProjectInfo.ensureMember(project, member),
+                                       repo -> {
+                                           ensureContainPrivilegedMember(repo, member);
+                                           return repo.duplicateWithPrivilegedMember(
+                                                   collectPrivilegedMember(
+                                                           repo, (m, p) -> !m.equals(member))
+                                                           .build());
+                                       }));
+    }
+
+    /**
+     * Removes a privileged member from the specified {@code repoName}.
+     */
+    public CompletionStage<ProjectInfo> changePrivilegedMemberPermission(String projectName, Author author,
+                                                                         String repoName, String member,
+                                                                         Permission permission) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(member, "member");
+        requireNonNull(permission, "permission");
+        final String commitSummary = "Change permission of a privileged member '" + member + "' from " +
+                                     projectName + '/' + repoName;
+        return getAllProjects().thenCompose(
+                list -> updateRepoInfo(author, commitSummary, list, projectName, repoName,
+                                       project -> ProjectInfo.ensureMember(project, member),
+                                       repo -> {
+                                           ensureContainPrivilegedMember(repo, member);
+                                           return repo.duplicateWithPrivilegedMember(
+                                                   collectPrivilegedMember(
+                                                           repo, (m, p) -> !m.equals(member))
+                                                           .put(member, permission)
+                                                           .build());
+                                       }));
+    }
+
     @VisibleForTesting
     CompletionStage<String> getRawMetadata() {
         return projectManager()
@@ -373,13 +549,44 @@ public class MetadataService extends AbstractService {
                 });
     }
 
+    private CompletionStage<ProjectInfo> updateRepoInfo(Author author, String commitSummary,
+                                                        List<ProjectInfo> list,
+                                                        String projectName, String repoName,
+                                                        Consumer<ProjectInfo> validator,
+                                                        Function<RepoInfo, RepoInfo> updater) {
+        return updateProjectInfo(author, commitSummary, list, projectName, projectInfo -> {
+            validator.accept(projectInfo);
+            boolean found = false;
+            final ImmutableList.Builder<RepoInfo> newList = ImmutableList.builder();
+            for (final RepoInfo r : projectInfo.repos()) {
+                if (r.name().equals(repoName)) {
+                    newList.add(updater.apply(r));
+                    found = true;
+                } else {
+                    newList.add(r);
+                }
+            }
+            if (!found) {
+                throw new RepositoryNotFoundException(repoName);
+            }
+            return projectInfo.duplicateWithRepos(newList.build());
+        }, false);
+    }
+
     private CompletionStage<ProjectInfo> updateProjectInfo(Author author, String commitSummary,
                                                            List<ProjectInfo> list, String projectName,
                                                            Function<ProjectInfo, ProjectInfo> updater) {
+        return updateProjectInfo(author, commitSummary, list, projectName, updater, false);
+    }
+
+    private CompletionStage<ProjectInfo> updateProjectInfo(Author author, String commitSummary,
+                                                           List<ProjectInfo> list, String projectName,
+                                                           Function<ProjectInfo, ProjectInfo> updater,
+                                                           boolean forceUpdate) {
         final ImmutableList.Builder<ProjectInfo> newList = ImmutableList.builder();
         ProjectInfo target = null;
         for (ProjectInfo p : list) {
-            if (!p.isRemoved() && p.name().equals(projectName)) {
+            if ((forceUpdate || !p.isRemoved()) && p.name().equals(projectName)) {
                 p = updater.apply(p);
                 if (target != null) {
                     throw new IllegalStateException("Project '" + projectName + "' is not unique.");
@@ -389,7 +596,7 @@ public class MetadataService extends AbstractService {
             newList.add(p);
         }
         if (target == null) {
-            throw new ProjectNotFoundException("Project '" + projectName + "' does not exist.");
+            throw new ProjectNotFoundException(projectName);
         }
 
         final ProjectInfo ret = target;
@@ -423,7 +630,7 @@ public class MetadataService extends AbstractService {
                                                    QueryResult<JsonNode> result) {
         final List<ProjectInfo> list = toProjectInfoList(result);
         if (list.isEmpty()) {
-            throw new ProjectNotFoundException("Project '" + projectName + "' does not exist.");
+            throw new ProjectNotFoundException(projectName);
         }
         if (list.size() > 1) {
             throw new IllegalStateException("Project '" + projectName + "' is not unique.");
