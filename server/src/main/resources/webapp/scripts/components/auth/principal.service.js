@@ -72,7 +72,7 @@ angular.module('CentralDogmaAdmin')
                        }, function () {
                          $this.clear();
                          deferred.resolve(null);
-                         $window.sessionStorage.clear();
+                         $window.localStorage.clear();
                        });
 
                    return deferred.promise;

@@ -14,7 +14,7 @@ angular.module('CentralDogmaAdmin')
                      }
                    }).then(function (sessionId) {
                      if (sessionId !== null) {
-                       $window.sessionStorage.setItem('sessionId', sessionId);
+                       $window.localStorage.setItem('sessionId', sessionId);
                      }
                      return sessionId;
                    });
@@ -22,7 +22,7 @@ angular.module('CentralDogmaAdmin')
 
                  logout: function () {
                    return ApiService.post('logout', '').then(function (data) {
-                     $window.sessionStorage.clear();
+                     $window.localStorage.clear();
                      Principal.refresh(); // Clear user info.
                      return data;
                    });

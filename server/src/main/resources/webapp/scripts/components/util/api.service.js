@@ -14,7 +14,7 @@ angular.module('CentralDogmaAdmin')
                  config.url = rewriteUri(uri);
 
                  if ($rootScope.isSecurityEnabled) {
-                   sessionId = $window.sessionStorage.getItem('sessionId');
+                   sessionId = $window.localStorage.getItem('sessionId');
                  } else {
                    sessionId = "anonymous";
                  }
