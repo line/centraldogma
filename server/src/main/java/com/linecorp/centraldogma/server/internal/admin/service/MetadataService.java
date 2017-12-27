@@ -16,6 +16,9 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
+import static com.linecorp.centraldogma.server.internal.admin.model.RepoInfo.collectPrivilegedMember;
+import static com.linecorp.centraldogma.server.internal.admin.model.RepoInfo.ensureContainPrivilegedMember;
+import static com.linecorp.centraldogma.server.internal.admin.model.RepoInfo.ensureNotContainPrivilegedMember;
 import static com.linecorp.centraldogma.server.internal.admin.service.RepositoryUtil.push;
 import static java.util.Objects.requireNonNull;
 
@@ -468,18 +471,68 @@ public class MetadataService extends AbstractService {
         requireNonNull(repoName, "repoName");
         requireNonNull(member, "member");
         requireNonNull(permission, "permission");
-        final String commitSummary = "Add a privileged member '" + member + "' to '" +
+        final String commitSummary = "Add a privileged member '" + member + "' to " +
                                      projectName + '/' + repoName;
-        // TODO(hyangtack) check the member does not exist before adding.
-        //                (an exception may be thrown by builder#put)
         return getAllProjects().thenCompose(
                 list -> updateRepoInfo(author, commitSummary, list, projectName, repoName,
                                        project -> ProjectInfo.ensureMember(project, member),
-                                       repo -> repo.duplicateWithPrivilegedMember(
-                                               ImmutableMap.<String, Permission>builder()
-                                                       .putAll(repo.privilegedMember())
-                                                       .put(member, permission)
-                                                       .build())));
+                                       repo -> {
+                                           ensureNotContainPrivilegedMember(repo, member);
+                                           return repo.duplicateWithPrivilegedMember(
+                                                   ImmutableMap.<String, Permission>builder()
+                                                           .putAll(repo.privilegedMember())
+                                                           .put(member, permission)
+                                                           .build());
+                                       }));
+    }
+
+    /**
+     * Removes a privileged member from the specified {@code repoName}.
+     */
+    public CompletionStage<ProjectInfo> removePrivilegedMember(String projectName, Author author,
+                                                               String repoName, String member) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(member, "member");
+        final String commitSummary = "Remove a privileged member '" + member + "' from " +
+                                     projectName + '/' + repoName;
+        return getAllProjects().thenCompose(
+                list -> updateRepoInfo(author, commitSummary, list, projectName, repoName,
+                                       project -> ProjectInfo.ensureMember(project, member),
+                                       repo -> {
+                                           ensureContainPrivilegedMember(repo, member);
+                                           return repo.duplicateWithPrivilegedMember(
+                                                   collectPrivilegedMember(
+                                                           repo, (m, p) -> !m.equals(member))
+                                                           .build());
+                                       }));
+    }
+
+    /**
+     * Removes a privileged member from the specified {@code repoName}.
+     */
+    public CompletionStage<ProjectInfo> changePrivilegedMemberPermission(String projectName, Author author,
+                                                                         String repoName, String member,
+                                                                         Permission permission) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(author, "author");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(member, "member");
+        requireNonNull(permission, "permission");
+        final String commitSummary = "Change permission of a privileged member '" + member + "' from " +
+                                     projectName + '/' + repoName;
+        return getAllProjects().thenCompose(
+                list -> updateRepoInfo(author, commitSummary, list, projectName, repoName,
+                                       project -> ProjectInfo.ensureMember(project, member),
+                                       repo -> {
+                                           ensureContainPrivilegedMember(repo, member);
+                                           return repo.duplicateWithPrivilegedMember(
+                                                   collectPrivilegedMember(
+                                                           repo, (m, p) -> !m.equals(member))
+                                                           .put(member, permission)
+                                                           .build());
+                                       }));
     }
 
     @VisibleForTesting

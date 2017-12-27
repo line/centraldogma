@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.admin.model;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
+import java.util.function.BiFunction;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -112,5 +113,35 @@ public class RepoInfo {
                             defaultPermission(),
                             requireNonNull(privilegedMember, "privilegedMember"),
                             creation());
+    }
+
+    public static void ensureContainPrivilegedMember(RepoInfo repo, String username) {
+        requireNonNull(repo, "repo");
+        requireNonNull(username, "username");
+        if (!repo.privilegedMember().containsKey(username)) {
+            // TODO(hyangtack) Use other exception?
+            throw new IllegalArgumentException(username + " is not a privileged member of " + repo.name());
+        }
+    }
+
+    public static void ensureNotContainPrivilegedMember(RepoInfo repo, String username) {
+        requireNonNull(repo, "repo");
+        requireNonNull(username, "username");
+        if (repo.privilegedMember().containsKey(username)) {
+            // TODO(hyangtack) Use other exception?
+            throw new IllegalArgumentException(username + " already exists in " + repo.name());
+        }
+    }
+
+    public static ImmutableMap.Builder<String, Permission> collectPrivilegedMember(
+            RepoInfo repo, BiFunction<String, Permission, Boolean> filter) {
+        final ImmutableMap.Builder<String, Permission> builder =
+                ImmutableMap.builder();
+        repo.privilegedMember().forEach((m, p) -> {
+            if (filter.apply(m, p)) {
+                builder.put(m, p);
+            }
+        });
+        return builder;
     }
 }
