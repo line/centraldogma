@@ -36,10 +36,10 @@ public class User implements Serializable {
     // TODO(hyangtack) Will change the word "role" to something other to avoid conflicting with project "role".
     // System-wide roles for a user. It is different from the role in a project.
     public static final List<String> USER_ROLE = ImmutableList.of("ROLE_USER");
-    public static final List<String> ADMIN_ROLE = ImmutableList.of("ROLE_ADMIN");
+    public static final List<String> ADMIN_ROLE = ImmutableList.of("ROLE_ADMIN", "ROLE_USER");
 
-    public static final User DEFAULT = new User("User@localhost.localdomain", USER_ROLE);
-    public static final User ADMIN = new User("Admin@localhost.localdomain", ADMIN_ROLE);
+    public static final User DEFAULT = new User("user@localhost.localdomain", USER_ROLE);
+    public static final User ADMIN = new User("admin@localhost.localdomain", ADMIN_ROLE);
 
     private String login;
     private String name;
