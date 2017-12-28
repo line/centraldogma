@@ -113,7 +113,7 @@ func (lsp *lsPathCommand) execute(c *cli.Context) error {
 // newLSCommand creates one of the ls project, repository, and path commands according to the
 // command arguments from the CLI. If the revision is not specified, head will be set by default.
 func newLSCommand(c *cli.Context, revision string, style PrintStyle) (Command, error) {
-	remoteURI, err := getRemoteURI(c.Parent().String("host"))
+	remoteURI, err := getRemoteURI(c.Parent().String("connect"))
 	if err != nil {
 		return nil, err
 	}
