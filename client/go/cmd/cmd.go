@@ -88,7 +88,7 @@ type repositoryRequestInfo struct {
 func newRepositoryRequestInfo(c *cli.Context, revision string, needRepositoryPath bool) (
 	repositoryRequestInfo, error) {
 	repo := repositoryRequestInfo{}
-	remoteURI, err := getRemoteURI(c.Parent().String("host"))
+	remoteURI, err := getRemoteURI(c.Parent().String("connect"))
 	if err != nil {
 		return repo, err
 	}
@@ -156,7 +156,7 @@ type repositoryRequestInfoWithFromTo struct {
 func newRepositoryRequestInfoWithFromTo(c *cli.Context, from, to string) (
 	repositoryRequestInfoWithFromTo, error) {
 	repo := repositoryRequestInfoWithFromTo{}
-	remoteInfo, err := getRemoteURI(c.Parent().String("host"))
+	remoteInfo, err := getRemoteURI(c.Parent().String("connect"))
 	if err != nil {
 		return repo, err
 	}

@@ -87,7 +87,7 @@ func newNewCommand(c *cli.Context) (Command, error) {
 	if argLen != 1 {
 		return nil, newCommandLineError(c)
 	}
-	remoteURI, err := getRemoteURI(c.Parent().String("host"))
+	remoteURI, err := getRemoteURI(c.Parent().String("connect"))
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func newPutCommand(c *cli.Context, revision string) (Command, error) {
 	if argLen != 2 {
 		return nil, newCommandLineError(c)
 	}
-	remoteURI, err := getRemoteURI(c.Parent().String("host"))
+	remoteURI, err := getRemoteURI(c.Parent().String("connect"))
 	if err != nil {
 		return nil, err
 	}
