@@ -84,11 +84,114 @@ public class ContentServiceV1Test {
                 "   \"path\": \"/foo.json\"," +
                 "   \"type\": \"JSON\"," +
                 "   \"revision\": 2," +
+                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"," +
                 "   \"modifiedAt\": \"${json-unit.ignore}\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
-        assertThat(aRes.headers().get(HttpHeaderNames.LOCATION))
-                .isEqualToIgnoringCase("/api/v1/projects/myPro/repos/myRepo/foo.json");
+        assertThatJson(actualJson).isEqualTo(expectedJson);
+    }
+
+    @Test
+    public void renameFile() {
+        addFooJson();
+        final String body =
+                '{' +
+                "   \"path\" : \"/foo.json\"," +
+                "   \"type\" : \"RENAME\"," +
+                "   \"content\" : \"/bar.json\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Rename foo.json\"," +
+                "       \"detail\": \"Rename to bar.json\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        final AggregatedHttpMessage aRes = httpClient.execute(headers, body).aggregate().join();
+        final String expectedJson =
+                '{' +
+                "   \"path\": \"/bar.json\"," +
+                "   \"type\": \"JSON\"," +
+                "   \"revision\": 3," +
+                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/bar.json\"," +
+                "   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                '}';
+        final String actualJson = aRes.content().toStringUtf8();
+        assertThatJson(actualJson).isEqualTo(expectedJson);
+    }
+
+    @Test
+    public void renameDirectory() {
+        addBarTxt();
+        final String body =
+                '{' +
+                "   \"path\" : \"/a\"," +
+                "   \"type\" : \"RENAME\"," +
+                "   \"content\" : \"/b\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Rename /a\"," +
+                "       \"detail\": \"Rename to /b\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        final AggregatedHttpMessage aRes = httpClient.execute(headers, body).aggregate().join();
+        final String expectedJson =
+                '{' +
+                "   \"path\": \"/b\"," +
+                "   \"type\": \"DIRECTORY\"," +
+                "   \"revision\": 3," +
+                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/b\"," +
+                "   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                '}';
+        final String actualJson = aRes.content().toStringUtf8();
+        assertThatJson(actualJson).isEqualTo(expectedJson);
+    }
+
+    @Test
+    public void addFiles() {
+        final String body =
+                '{' +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add foo.json\"," +
+                "       \"detail\": \"Add because we need it.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }," +
+                "   \"changes\" : [" +
+                "       {" +
+                "           \"path\" : \"/foo0.json\"," +
+                "           \"type\" : \"UPSERT_JSON\"," +
+                "           \"content\" : {\"a\": \"bar\"}" +
+                "       }," +
+                "       {" +
+                "           \"path\" : \"/foo1.json\"," +
+                "           \"type\" : \"UPSERT_JSON\"," +
+                "           \"content\" : {\"b\": \"bar\"}" +
+                "       }" +
+                "   ]" +
+                '}';
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        final AggregatedHttpMessage aRes = httpClient.execute(headers, body).aggregate().join();
+        final String expectedJson =
+                '[' +
+                "   {" +
+                "       \"path\": \"/foo0.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"revision\": 2," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo0.json\"," +
+                "       \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "   }," +
+                "   {" +
+                "       \"path\": \"/foo1.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"revision\": 2," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo1.json\"," +
+                "       \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "   }" +
+                ']';
+        final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -98,6 +201,7 @@ public class ContentServiceV1Test {
         final String editJsonBody =
                 '{' +
                 "   \"path\" : \"/foo.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
                 "   \"content\" : {\"a\": \"baz\"}," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Edit foo.json\"," +
@@ -112,7 +216,7 @@ public class ContentServiceV1Test {
         // check whether the change is right
         final AggregatedHttpMessage res1 = httpClient
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=2&to=3").aggregate().join();
-        final JsonNode content1 = Jackson.readTree(res1.content().toStringUtf8()).get("content");
+        final JsonNode content1 = Jackson.readTree(res1.content().toStringUtf8()).get(0).get("content");
         assertThat(content1.size()).isOne();
         assertThat(content1.get(0).toString()).isEqualToIgnoringCase(
                 "{\"op\":\"safeReplace\",\"path\":\"/a\",\"oldValue\":\"bar\",\"value\":\"baz\"}");
@@ -121,6 +225,7 @@ public class ContentServiceV1Test {
         final String editTextBody =
                 '{' +
                 "   \"path\" : \"/a/bar.txt\"," +
+                "   \"type\" : \"UPSERT_TEXT\"," +
                 "   \"content\" : \"text in some file.\"," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Edit bar.txt\"," +
@@ -134,12 +239,69 @@ public class ContentServiceV1Test {
         // check whether the change is right
         final AggregatedHttpMessage res2 = httpClient
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=4&to=5").aggregate().join();
-        final JsonNode content2 = Jackson.readTree(res2.content().toStringUtf8()).get("content");
+        final JsonNode content2 = Jackson.readTree(res2.content().toStringUtf8()).get(0).get("content");
         assertThat(content2.textValue()).isEqualToIgnoringCase("--- /a/bar.txt\n" +
                                                                "+++ /a/bar.txt\n" +
                                                                "@@ -1,1 +1,1 @@\n" +
                                                                "-text in the file.\n" +
                                                                "+text in some file.");
+    }
+
+    @Test
+    public void editFiles() {
+        addFooJson();
+        addBarTxt();
+        final String body =
+                '{' +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Edit files\"," +
+                "       \"detail\": \"Edit because we need it.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }," +
+                "   \"changes\" : [" +
+                "       {" +
+                "           \"path\" : \"/foo.json\"," +
+                "           \"type\" : \"UPSERT_JSON\"," +
+                "           \"content\" : {\"b\": \"bar\"}" +
+                "       }," +
+                "       {" +
+                "           \"path\" : \"/a/bar.txt\"," +
+                "           \"type\" : \"UPSERT_TEXT\"," +
+                "           \"content\" : \"text in a file.\\n\"" +
+                "       }" +
+                "   ]" +
+                '}';
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        httpClient.execute(headers, body).aggregate().join();
+        final AggregatedHttpMessage aRes = httpClient
+                .get("/api/v1/projects/myPro/repos/myRepo/compare?from=3&to=4").aggregate().join();
+        final String expectedJson =
+                '[' +
+                "   {" +
+                "       \"path\": \"/a/bar.txt\"," +
+                "       \"type\": \"APPLY_TEXT_PATCH\"," +
+                "       \"content\": \"--- /a/bar.txt\\n" +
+                                      "+++ /a/bar.txt\\n" +
+                                      "@@ -1,1 +1,1 @@\\n" +
+                                      "-text in the file.\\n" +
+                                      "+text in a file.\"" +
+                "   }," +
+                "   {" +
+                "       \"path\": \"/foo.json\"," +
+                "       \"type\": \"APPLY_JSON_PATCH\"," +
+                "       \"content\": [{" +
+                "           \"op\": \"remove\"," +
+                "           \"path\": \"/a\"" +
+                "       },{" +
+                "           \"op\": \"add\"," +
+                "           \"path\": \"/b\"," +
+                "           \"value\": \"bar\"" +
+                "       }]" +
+                "   }" +
+                ']';
+        final String actualJson = aRes.content().toStringUtf8();
+        assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
     @Test
@@ -270,11 +432,13 @@ public class ContentServiceV1Test {
 
         final String body =
                 '{' +
+                "   \"path\": \"/foo.json\"," +
+                "   \"type\": \"REMOVE\"," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Delete foo.json\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.DELETE, CONTENTS_PREFIX + "/foo.json")
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
                                                .contentType(MediaType.JSON);
         final AggregatedHttpMessage res1 = httpClient.execute(headers, body).aggregate().join();
         assertThat(res1.headers().status()).isEqualTo(HttpStatus.NO_CONTENT);
@@ -290,11 +454,13 @@ public class ContentServiceV1Test {
         addBarTxt();
         final String body =
                 '{' +
+                "   \"path\": \"/foo.json\"," +
+                "   \"type\": \"REMOVE\"," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Delete foo.json\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.DELETE, CONTENTS_PREFIX + "/foo.json?revision=2")
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX + "?revision=2")
                                                .contentType(MediaType.JSON);
         final AggregatedHttpMessage res = httpClient.execute(headers, body).aggregate().join();
         assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
@@ -325,14 +491,13 @@ public class ContentServiceV1Test {
         addBarTxt();
         final String patch =
                 '{' +
-                "   \"patch\" : [{" +
-                "       \"op\" : \"replace\"," +
-                "       \"value\": \"--- /a/bar.txt\\n" +
-                "+++ /a/bar.txt\\n" +
-                "@@ -1,1 +1,1 @@\\n" +
-                "-text in the file.\\n" +
-                "+text in some file.\\n\"" +
-                "   }]," +
+                "   \"path\": \"/a/bar.txt\"," +
+                "   \"type\": \"APPLY_TEXT_PATCH\"," +
+                "   \"content\" : \"--- /a/bar.txt\\n" +
+                                   "+++ /a/bar.txt\\n" +
+                                   "@@ -1,1 +1,1 @@\\n" +
+                                   "-text in the file.\\n" +
+                                   "+text in some file.\\n\"," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Edit bar.txt\"," +
                 "       \"detail\": \"Edit because we need it.\"," +
@@ -340,10 +505,11 @@ public class ContentServiceV1Test {
                 "   }" +
                 '}';
 
-        final HttpHeaders reqHeaders = HttpHeaders.of(HttpMethod.PATCH, CONTENTS_PREFIX + "/a/bar.txt")
-                                                  .add(HttpHeaderNames.CONTENT_TYPE,
-                                                       "application/json-patch+json");
+        final HttpHeaders reqHeaders = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                                  .contentType(MediaType.JSON);
         final AggregatedHttpMessage res1 = httpClient.execute(reqHeaders, patch).aggregate().join();
+        System.err.println(res1.content().toStringUtf8());
+        System.err.println(res1.headers());
         final String expectedJson =
                 '{' +
                 "   \"path\": \"/a/bar.txt\"," +
@@ -468,6 +634,7 @@ public class ContentServiceV1Test {
         final String body =
                 '{' +
                 "   \"path\" : \"/foo.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
                 "   \"content\" : {\"a\": \"bar\"}," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Add foo.json\"," +
@@ -481,9 +648,11 @@ public class ContentServiceV1Test {
     }
 
     private static AggregatedHttpMessage editFooJson() {
-        final String patch =
+        final String body =
                 '{' +
-                "   \"patch\" : [{" +
+                "   \"path\" : \"/foo.json\"," +
+                "   \"type\" : \"APPLY_JSON_PATCH\"," +
+                "   \"content\" : [{" +
                 "       \"op\" : \"safeReplace\"," +
                 "       \"path\": \"/a\"," +
                 "       \"oldValue\": \"bar\"," +
@@ -496,15 +665,16 @@ public class ContentServiceV1Test {
                 "   }" +
                 '}';
 
-        final HttpHeaders reqHeaders = HttpHeaders.of(HttpMethod.PATCH, CONTENTS_PREFIX + "/foo.json")
-                                                  .contentType(MediaType.JSON_PATCH);
-        return httpClient.execute(reqHeaders, patch).aggregate().join();
+        final HttpHeaders reqHeaders = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                                  .contentType(MediaType.JSON);
+        return httpClient.execute(reqHeaders, body).aggregate().join();
     }
 
     private static AggregatedHttpMessage addBarTxt() {
         final String body =
                 '{' +
                 "   \"path\" : \"/a/bar.txt\"," +
+                "   \"type\" : \"UPSERT_TEXT\"," +
                 "   \"content\" : \"text in the file.\\n\"," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Add bar.txt\"," +

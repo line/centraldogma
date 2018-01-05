@@ -55,12 +55,12 @@ final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                     .put(EntryNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
                     .put(ProjectExistsException.class, HttpApiExceptionHandler::handleExists)
                     .put(ProjectNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
-                    .put(RedundantChangeException.class, HttpApiExceptionHandler::fallthrough)
+                    .put(RedundantChangeException.class, HttpApiExceptionHandler::handleRedundantChange)
                     .put(RepositoryExistsException.class, HttpApiExceptionHandler::handleExists)
                     .put(RepositoryMetadataException.class, HttpApiExceptionHandler::fallthrough)
                     .put(RepositoryNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
                     .put(RevisionExistsException.class, HttpApiExceptionHandler::fallthrough)
-                    .put(RevisionNotFoundException.class, HttpApiExceptionHandler::fallthrough)
+                    .put(RevisionNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
                     .put(StorageExistsException.class, HttpApiExceptionHandler::handleExists)
                     .put(StorageNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
                     .build();
@@ -96,6 +96,11 @@ final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
     static HttpResponse handleNotFound(RequestContext ctx, HttpRequest req, Throwable cause) {
         return newResponseWithErrorMessage(HttpStatus.NOT_FOUND,
                                            cause.getMessage() + " does not exist.");
+    }
+
+    @SuppressWarnings("unused")
+    static HttpResponse handleRedundantChange(RequestContext ctx, HttpRequest req, Throwable cause) {
+        return newResponseWithErrorMessage(HttpStatus.BAD_REQUEST, cause.getMessage());
     }
 
     @SuppressWarnings("unused")

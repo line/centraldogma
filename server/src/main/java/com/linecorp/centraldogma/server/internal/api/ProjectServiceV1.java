@@ -38,6 +38,7 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.RequestObject;
+import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
@@ -45,6 +46,7 @@ import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.admin.model.ProjectInfo;
 import com.linecorp.centraldogma.server.internal.admin.model.ProjectRole;
 import com.linecorp.centraldogma.server.internal.admin.service.MetadataService;
+import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
@@ -88,6 +90,7 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Creates a new project.
      */
     @Post("/projects")
+    @ResponseConverter(CreateApiResponseConverter.class)
     public CompletionStage<ProjectDto> createProject(@RequestObject CreateProjectRequest request,
                                                      @RequestObject Author author) {
         return mds.createProject(request.name(), author, request.owners(), request.members())

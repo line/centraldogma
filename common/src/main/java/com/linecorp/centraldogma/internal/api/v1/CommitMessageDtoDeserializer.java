@@ -38,8 +38,8 @@ public class CommitMessageDtoDeserializer extends StdDeserializer<CommitMessageD
     public CommitMessageDto deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         final JsonNode jsonNode = p.readValueAsTree();
         final JsonNode summary = jsonNode.get("summary");
-        if (summary.textValue() == null) {
-            ctxt.reportInputMismatch(CommitMessageDto.class, "commit message should have a summary");
+        if (summary == null || summary.textValue() == null) {
+            ctxt.reportInputMismatch(CommitMessageDto.class, "commit message should have a summary.");
             // should never reach here
             throw new Error();
         }

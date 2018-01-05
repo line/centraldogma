@@ -16,7 +16,11 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
+
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Ascii;
 
 /**
  * The type of a {@link Change}.
@@ -67,5 +71,15 @@ public enum ChangeType {
      */
     public Class<?> contentType() {
         return contentType;
+    }
+
+    /**
+     * Returns a {@link ChangeType} from the specified {@code value} case-insensitively.
+     */
+    public static ChangeType parse(String value) {
+        requireNonNull(value, "value");
+        checkArgument(!value.isEmpty(), "the value for ChangeType should not be empty.");
+
+        return ChangeType.valueOf(Ascii.toUpperCase(value));
     }
 }

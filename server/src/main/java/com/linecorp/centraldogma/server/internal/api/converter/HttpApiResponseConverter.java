@@ -14,15 +14,15 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.server.internal.api.converter;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.common.HttpData;
-import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
@@ -38,31 +38,21 @@ import com.linecorp.centraldogma.internal.Jackson;
  */
 public final class HttpApiResponseConverter implements ResponseConverterFunction {
 
+    private static final Logger logger = LoggerFactory.getLogger(HttpApiResponseConverter.class);
+
     @Override
     public HttpResponse convertResponse(ServiceRequestContext ctx, Object resObj) throws Exception {
         try {
             final HttpRequest request = RequestContext.current().request();
-
-            if (HttpMethod.POST == request.method()) {
-                final JsonNode jsonNode = Jackson.valueToTree(resObj);
-                final String url = jsonNode.get("url").asText();
-
-                // Remove the url field and send it with the LOCATION header.
-                ((ObjectNode) jsonNode).remove("url");
-                final HttpHeaders headers = HttpHeaders.of(HttpStatus.CREATED)
-                                                       .add(HttpHeaderNames.LOCATION, url)
-                                                       .contentType(MediaType.JSON_UTF_8);
-
-                return HttpResponse.of(headers, HttpData.of(Jackson.writeValueAsBytes(jsonNode)));
-            }
-
-            if (HttpMethod.DELETE == request.method()) {
+            if (HttpMethod.DELETE == request.method() ||
+                (resObj instanceof Iterable && Iterables.size((Iterable) resObj) == 0)) {
                 return HttpResponse.of(HttpStatus.NO_CONTENT);
             }
 
             final HttpData httpData = HttpData.of(Jackson.writeValueAsBytes(resObj));
             return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, httpData);
         } catch (JsonProcessingException e) {
+            logger.debug("Failed to convert a response:", e);
             return HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -32,7 +32,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 /**
  * A default {@link RequestConverterFunction} of HTTP API.
  */
-public class HttpApiRequestConverter implements RequestConverterFunction {
+public final class HttpApiRequestConverter implements RequestConverterFunction {
 
     private final ProjectManager projectManager;
 
@@ -43,29 +43,28 @@ public class HttpApiRequestConverter implements RequestConverterFunction {
     @Override
     public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
                                  Class<?> expectedResultType) throws Exception {
-
-        if (expectedResultType.isAssignableFrom(Project.class)) {
+        if (expectedResultType == Project.class) {
             final String projectName = ctx.pathParam("projectName");
             checkArgument(!isNullOrEmpty(projectName),
-                          "Project name should not be null or empty.");
+                          "project name should not be null or empty.");
 
             // StorageNotFoundException would be thrown if there is no project.
             return projectManager.get(projectName);
         }
 
-        if (expectedResultType.isAssignableFrom(Repository.class)) {
+        if (expectedResultType == Repository.class) {
             final String projectName = ctx.pathParam("projectName");
             checkArgument(!isNullOrEmpty(projectName),
-                          "Project name should not be null or empty.");
+                          "project name should not be null or empty.");
             final String repositoryName = ctx.pathParam("repoName");
             checkArgument(!isNullOrEmpty(repositoryName),
-                          "Repository name should not be null or empty.");
+                          "repository name should not be null or empty.");
 
             // StorageNotFoundException would be thrown if there is no project or no repository.
             return projectManager.get(projectName).repos().get(repositoryName);
         }
 
-        if (expectedResultType.isAssignableFrom(Author.class)) {
+        if (expectedResultType == Author.class) {
             return AuthenticationUtil.currentAuthor(ctx);
         }
 

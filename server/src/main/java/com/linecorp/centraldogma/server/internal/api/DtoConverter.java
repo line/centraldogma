@@ -88,7 +88,7 @@ final class DtoConverter {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
-        checkArgument(Iterables.size(entries) >= 1, "should have at least one entry");
+        checkArgument(Iterables.size(entries) >= 1, "should have at least one entry.");
 
         final String contentsUrl = contentsUrl(projectName, repoName) + Iterables.get(entries, 0).path();
         return new WatchResultDto(convert(commit), contentsUrl);

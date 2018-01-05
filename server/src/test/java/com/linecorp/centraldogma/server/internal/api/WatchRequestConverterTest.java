@@ -30,7 +30,8 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.api.WatchRequestConverter.WatchRequest;
+import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
 
 public class WatchRequestConverterTest {
 

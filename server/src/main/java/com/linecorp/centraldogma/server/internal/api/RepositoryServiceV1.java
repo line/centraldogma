@@ -38,10 +38,12 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.RequestObject;
+import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.server.internal.admin.service.MetadataService;
+import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
@@ -87,6 +89,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Creates a new repository.
      */
     @Post("/projects/{projectName}/repos")
+    @ResponseConverter(CreateApiResponseConverter.class)
     public CompletionStage<RepositoryDto> createRepository(@RequestObject Project project,
                                                            @RequestObject CreateRepositoryRequest request,
                                                            @RequestObject Author author) {
