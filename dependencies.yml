@@ -45,7 +45,7 @@ com.jcraft:
   jsch: { version: '0.1.54' }
 
 com.linecorp.armeria:
-  armeria-shaded: { version: &ARMERIA_VERSION '0.56.0' }
+  armeria-shaded: { version: &ARMERIA_VERSION '0.56.1' }
   armeria-logback-shaded: { version: *ARMERIA_VERSION }
   armeria-thrift0.9-shaded: { version: *ARMERIA_VERSION }
 
