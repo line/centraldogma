@@ -28,10 +28,11 @@ import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
+import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 
-public class RequestQueryConverterTest {
+public class QueryRequestConverterTest {
 
-    private static final RequestQueryConverter converter = new RequestQueryConverter();
+    private static final QueryRequestConverter converter = new QueryRequestConverter();
 
     @Test
     public void convertIdentityQuery() throws Exception {

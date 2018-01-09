@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.common;
 
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -87,10 +88,15 @@ final class DefaultChange<T> implements Change<T> {
     private final T content;
 
     DefaultChange(String path, ChangeType type, T content) {
-        validateFilePath(path, "path");
+        this.type = requireNonNull(type, "type");
+
+        if (type.contentType() == JsonNode.class) {
+            validateJsonFilePath(path, "path");
+        } else {
+            validateFilePath(path, "path");
+        }
 
         this.path = path;
-        this.type = requireNonNull(type, "type");
         this.content = content;
     }
 

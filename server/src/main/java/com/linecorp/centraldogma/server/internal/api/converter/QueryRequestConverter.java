@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
@@ -33,7 +33,7 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 /**
  * A request converter that converts to {@link Query} when the request has a valid file path.
  */
-final class RequestQueryConverter implements RequestConverterFunction {
+public final class QueryRequestConverter implements RequestConverterFunction {
 
     /**
      * Converts the specified {@code request} to {@link Optional} which contains {@link Query} when

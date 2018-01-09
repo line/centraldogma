@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.api;
+package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static com.google.common.base.Ascii.toLowerCase;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -34,7 +34,7 @@ import io.netty.util.AsciiString;
  * A request converter that converts to {@link WatchRequest} when the request contains
  * {@link HttpHeaderNames#IF_NONE_MATCH}.
  */
-final class WatchRequestConverter implements RequestConverterFunction {
+public final class WatchRequestConverter implements RequestConverterFunction {
 
     private static final long DEFAULT_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(120);
 
@@ -75,7 +75,7 @@ final class WatchRequestConverter implements RequestConverterFunction {
         }
     }
 
-    static class WatchRequest {
+    public static class WatchRequest {
         private final Revision lastKnownRevision;
         private final long timeoutMillis;
 
@@ -84,11 +84,11 @@ final class WatchRequestConverter implements RequestConverterFunction {
             this.timeoutMillis = timeoutMillis;
         }
 
-        Revision lastKnownRevision() {
+        public Revision lastKnownRevision() {
             return lastKnownRevision;
         }
 
-        long timeoutMillis() {
+        public long timeoutMillis() {
             return timeoutMillis;
         }
     }

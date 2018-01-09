@@ -16,65 +16,65 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.internal.Util.isValidJsonFilePath;
-import static com.linecorp.centraldogma.internal.Util.validateFilePath;
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static java.util.Objects.requireNonNull;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.annotation.ConsumeType;
 import com.linecorp.armeria.server.annotation.Default;
-import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
-import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Commit;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
-import com.linecorp.centraldogma.server.internal.api.WatchRequestConverter.WatchRequest;
+import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
+import com.linecorp.centraldogma.server.internal.storage.repository.RedundantChangeException;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**
  * Annotated service object for managing and watching contents.
  */
+@RequestConverter(CommitMessageRequestConverter.class)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class ContentServiceV1 extends AbstractService {
 
@@ -127,60 +127,37 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Adds or edits a file.
      */
     @Post("/projects/{projectName}/repos/{repoName}/contents")
-    public CompletionStage<EntryDto<?>> addOrEditFile(@Param("revision") @Default("-1") String revision,
-                                                      @RequestObject Repository repository,
-                                                      @RequestObject JsonNode node,
-                                                      @RequestObject Author author) {
-        final Entry<CommitMessageDto, Change<?>> commitMessageAndChange = commitMessageAndChange(node);
-        final Change<?> change = commitMessageAndChange.getValue();
-        final CompletableFuture<Revision> revisionFuture = repository.normalize(new Revision(revision));
+    public CompletionStage<?> commit(@Param("revision") @Default("-1") String revision,
+                                     @RequestObject Repository repository,
+                                     @RequestObject Author author,
+                                     @RequestObject CommitMessageDto commitMessage,
+                                     @RequestObject(ChangesRequestConverter.class)
+                                             Iterable<Change<?>> changes) {
+        final CompletableFuture<Revision> normalizeFuture = repository.normalize(new Revision(revision));
 
-        return revisionFuture.thenCompose(normalizedRevision -> {
+        return normalizeFuture.thenCompose(normalizedRevision -> {
             final CompletableFuture<Map<String, Change<?>>> changesFuture =
-                    repository.previewDiff(normalizedRevision, change);
+                    repository.previewDiff(normalizedRevision, changes);
 
             final long commitTimeMillis = System.currentTimeMillis();
-            final CommitMessageDto commitMessage = commitMessageAndChange.getKey();
             final CompletableFuture<Revision> resultRevisionFuture = changesFuture.thenCompose(
-                    changes -> push(commitTimeMillis, author, repository, normalizedRevision,
-                                    commitMessage, changes.values()));
+                    previewDiffs -> {
+                        if (previewDiffs.size() == 0) {
+                            throw new RedundantChangeException("changes did not change anything: " + changes);
+                        }
+                        return push(commitTimeMillis, author, repository, normalizedRevision,
+                                    commitMessage, previewDiffs.values());
+                    });
+            final String pathPattern = joinPaths(changes);
 
-            final EntryType type = entryTypeFromChange(change);
-            return resultRevisionFuture.thenApply(result -> DtoConverter.convert(
-                    result, repository.parent().name(), repository.name(), change.path(), type,
-                    commitTimeMillis));
+            final CompletableFuture<Map<String, Entry<?>>> findFuture =
+                    resultRevisionFuture.thenCompose(result -> repository.find(result, pathPattern));
+
+            return findFuture.thenApply(entries -> objectOrList(
+                    entries.values(), Iterables.size(changes) != 1, (collections) -> convertEntry(
+                            resultRevisionFuture.join(), // resultRevisionFuture is already complete
+                            repository, collections, commitTimeMillis)));
         });
-    }
-
-    private static Entry<CommitMessageDto, Change<?>> commitMessageAndChange(JsonNode node) {
-        checkArgument(node.get("path") != null && node.get("commitMessage") != null &&
-                      node.get("content") != null, "need a path, a content and a commit message to commit");
-
-        final JsonNode contentNode = node.get("content");
-        final String path = node.get("path").textValue();
-        final Change<?> change = getChange(contentNode, path);
-        final CommitMessageDto commitMessage = convertCommitMessage(node.get("commitMessage"));
-        return Maps.immutableEntry(commitMessage, change);
-    }
-
-    private static Change<?> getChange(JsonNode contentNode, String path) {
-        if (contentNode.getNodeType() == JsonNodeType.STRING) {
-            validateFilePath(path, "path");
-            return Change.ofTextUpsert(path, contentNode.textValue());
-        }
-
-        validateJsonFilePath(path, "path");
-        return Change.ofJsonUpsert(path, contentNode);
-    }
-
-    private static CommitMessageDto convertCommitMessage(JsonNode jsonNode) {
-        final CommitMessageDto commitMessage = Jackson.convertValue(jsonNode, CommitMessageDto.class);
-        checkArgument(!isNullOrEmpty(commitMessage.summary()), "summary should be non-null");
-        return commitMessage;
-    }
-
-    private static EntryType entryTypeFromChange(Change<?> change) {
-        return change.type().contentType().isAssignableFrom(JsonNode.class) ? EntryType.JSON : EntryType.TEXT;
     }
 
     private CompletionStage<Revision> push(long commitTimeMills, Author author, Repository repository,
@@ -194,6 +171,25 @@ public class ContentServiceV1 extends AbstractService {
                 Command.push(commitTimeMills, author, repository.parent().name(), repository.name(),
                              normalizedRevision,
                              summary, detail, markup, changes)));
+    }
+
+    private static String joinPaths(Iterable<Change<?>> changes) {
+        final StringBuilder sb = new StringBuilder();
+        for (Change c : changes) {
+            if (c.type() == ChangeType.RENAME) {
+                sb.append(c.contentAsText()); // newPath
+            } else {
+                sb.append(c.path());
+            }
+            sb.append(',');
+        }
+        return sb.toString();
+    }
+
+    private static EntryDto<?> convertEntry(Revision revision, Repository repository,
+                                            Entry<?> entry, long commitTimeMillis) {
+        return DtoConverter.convert(revision, repository.parent().name(), repository.name(),
+                                    entry.path(), entry.type(), commitTimeMillis);
     }
 
     /**
@@ -214,7 +210,7 @@ public class ContentServiceV1 extends AbstractService {
                                        @RequestObject Repository repository,
                                        @RequestObject(WatchRequestConverter.class)
                                                Optional<WatchRequest> watchRequest,
-                                       @RequestObject(RequestQueryConverter.class) Optional<Query<?>> query) {
+                                       @RequestObject(QueryRequestConverter.class) Optional<Query<?>> query) {
         final String path0 = rootDirIfEmpty(path);
 
         // watch repository or a file
@@ -281,73 +277,69 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     /**
-     * DELETE /projects/{projectName}/repos/{repoName}/contents{path}?revision={revision}
+     * GET /projects/{projectName}/repos/{repoName}/commits/{revision}?path={path}&to={to}
      *
-     * <p>Deletes a file.
+     * <p>Returns a commit or the list of commits in the path. If the user specify the {@code revision} only,
+     * this will return the corresponding commit. If the user does not specify the {@code revision} or
+     * specify {@code to}, this will return the list of commits.
      */
-    @Delete("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
-    public CompletionStage<Void> deleteFile(@Param("path") String path,
-                                            @Param("revision") @Default("-1") String revision,
-                                            @RequestObject Repository repository,
-                                            @RequestObject JsonNode node,
-                                            @RequestObject Author author) {
-        final String path0 = rootDirIfEmpty(path);
+    @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/commits(?<revision>(|/.*))$")
+    public CompletionStage<?> listCommits(@Param("revision") String revision,
+                                          @Param("path") @Default("/**") String path,
+                                          @Param("to") Optional<String> to,
+                                          @RequestObject Repository repository) {
+        final Revision fromRevision;
+        final Revision toRevision;
 
-        checkArgument(node.get("commitMessage") != null, "commit message should be non-null");
-        final JsonNode commitMessageNode = node.get("commitMessage");
+        // 1. only the "revision" is specified:       get the "revision" and return just one commit
+        // 2. only the "to" is specified:             get from "HEAD" to "to" and return the list
+        // 3. the "revision" and "to" is specified:   get from the "revision" to "to" and return the list
+        // 4. nothing is specified:                   get from "HEAD" to "INIT" and return the list
+        if (isNullOrEmpty(revision) || "/".equalsIgnoreCase(revision)) {
+            fromRevision = Revision.HEAD;
+            toRevision = to.map(Revision::new).orElse(Revision.INIT);
+        } else {
+            fromRevision = new Revision(revision.substring(1));
+            toRevision = to.map(Revision::new).orElse(fromRevision);
+        }
 
-        final CommitMessageDto commitMessage = convertCommitMessage(commitMessageNode);
-        final long commitTimeMillis = System.currentTimeMillis();
-
-        return push(commitTimeMillis, author, repository, new Revision(revision),
-                    commitMessage, ImmutableList.of(Change.ofRemoval(path0)))
-                .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+        return repository
+                .history(fromRevision, toRevision, path)
+                .thenApply(commits -> {
+                    final boolean toList = isNullOrEmpty(revision) || "/".equalsIgnoreCase(revision) ||
+                                           to.isPresent();
+                    return objectOrList(commits, toList, DtoConverter::convert);
+                });
     }
 
     /**
-     * PATCH /projects/{projectName}/repos/{repoName}/contents{path}?revision={revision}
+     * GET /projects/{projectName}/repos/{repoName}/compare?path={path}&from={from}&to={to}&
+     * queryType={queryType}&expression={expression}
      *
-     * <p>Patches a file with the JSON_PATCH.
+     * <p>Returns the diffs.
      */
-    @ConsumeType("application/json-patch+json")
-    @Patch("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
-    public CompletionStage<EntryDto<?>> patchFile(@Param("path") String path,
-                                                  @Param("revision") @Default("-1") String revision,
-                                                  @RequestObject Repository repository,
-                                                  @RequestObject JsonNode node,
-                                                  @RequestObject Author author) {
-        final String path0 = rootDirIfEmpty(path);
-
-        final Entry<CommitMessageDto, Change<?>> commitMessageAndChange = commitMessageAndPatch(path0, node);
-        final CommitMessageDto commitMessage = commitMessageAndChange.getKey();
-        final Change<?> change = commitMessageAndChange.getValue();
-        final long commitTimeMillis = System.currentTimeMillis();
-
-        return push(commitTimeMillis, author, repository, new Revision(revision),
-                    commitMessage, ImmutableList.of(change))
-                .handle(returnOrThrow((Revision resultRevision) -> DtoConverter.convert(
-                        resultRevision, repository.parent().name(), repository.name(),
-                        path0, entryTypeFromChange(change), commitTimeMillis)));
-    }
-
-    private static Entry<CommitMessageDto, Change<?>> commitMessageAndPatch(String path, JsonNode node) {
-        checkArgument(node.get("patch") != null && node.get("commitMessage") != null,
-                      "patch and commit message should be non-null");
-
-        return Maps.immutableEntry(convertCommitMessage(node.get("commitMessage")),
-                                   getChangeOfPatch(path, node.get("patch")));
-    }
-
-    private static Change<?> getChangeOfPatch(String path, JsonNode jsonNode) {
-        validateFilePath(path, "path");
-
-        if (isValidJsonFilePath(path)) {
-            return Change.ofJsonPatch(path, jsonNode);
+    @Get("/projects/{projectName}/repos/{repoName}/compare")
+    public CompletionStage<?> getDiff(@Param("path") @Default("/**") String path,
+                                      @Param("from") @Default("-1") String from,
+                                      @Param("to") @Default("1") String to,
+                                      @RequestObject Repository repository,
+                                      @RequestObject(QueryRequestConverter.class) Optional<Query<?>> query) {
+        if (query.isPresent()) {
+            return repository.diff(new Revision(from), new Revision(to), query.get())
+                             .thenApply(DtoConverter::convert);
         }
+        return repository
+                .diff(new Revision(from), new Revision(to), path)
+                .thenApply(changeMap -> objectOrList(changeMap.values(), true, DtoConverter::convert));
+    }
 
-        checkArgument(jsonNode.get(0) != null && jsonNode.get(0).get("value") != null &&
-                      !isNullOrEmpty(jsonNode.get(0).get("value").textValue()),
-                      "text patch should be non-null");
-        return Change.ofTextPatch(path, jsonNode.get(0).get("value").textValue());
+    private static <T> Object objectOrList(Collection<T> collection, boolean toList, Function<T, ?> converter) {
+        if (collection.isEmpty()) {
+            return ImmutableList.of();
+        }
+        if (toList) {
+            return collection.stream().map(converter).collect(toImmutableList());
+        }
+        return converter.apply(Iterables.getOnlyElement(collection));
     }
 }

@@ -83,13 +83,12 @@ import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService
 import com.linecorp.centraldogma.server.internal.admin.service.TokenService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
-import com.linecorp.centraldogma.server.internal.api.CommitServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
-import com.linecorp.centraldogma.server.internal.api.HttpApiRequestConverter;
-import com.linecorp.centraldogma.server.internal.api.HttpApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
+import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
@@ -517,9 +516,6 @@ public class CentralDogma {
                             v1RequestConverter, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new ContentServiceV1(safePm, executor, watchService), decorator,
-                            v1RequestConverter, v1ResponseConverter);
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new CommitServiceV1(safePm, executor), decorator,
                             v1RequestConverter, v1ResponseConverter);
 
         if (cfg.isWebAppEnabled()) {

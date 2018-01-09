@@ -56,10 +56,10 @@ public class ChangeTest {
 
     @Test
     public void testJsonConversion() throws Exception {
-        TestUtil.assertJsonConversion(Change.ofJsonUpsert("/1", "{ \"a\": 42 }"), Change.class,
+        TestUtil.assertJsonConversion(Change.ofJsonUpsert("/1.json", "{ \"a\": 42 }"), Change.class,
                              '{' +
                              "  \"type\": \"UPSERT_JSON\"," +
-                             "  \"path\": \"/1\"," +
+                             "  \"path\": \"/1.json\"," +
                              "  \"content\": {" +
                              "    \"a\": 42" +
                              "  }" +
@@ -72,11 +72,11 @@ public class ChangeTest {
                              "  \"content\": \"foo\"" +
                              '}');
 
-        TestUtil.assertJsonConversion(Change.ofJsonPatch("/3", "{ \"foo\": \"bar\" }", "{ \"foo\": \"baz\" }"),
-                                      Change.class,
+        TestUtil.assertJsonConversion(Change.ofJsonPatch("/3.json", "{ \"foo\": \"bar\" }",
+                                                         "{ \"foo\": \"baz\" }"), Change.class,
                              '{' +
                              "  \"type\": \"APPLY_JSON_PATCH\"," +
-                             "  \"path\": \"/3\"," +
+                             "  \"path\": \"/3.json\"," +
                              "  \"content\": [{" +
                              "    \"op\" : \"safeReplace\"," +
                              "    \"path\": \"/foo\"," +

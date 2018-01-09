@@ -33,14 +33,12 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
-public class CommitServiceV1Test {
+public class ListCommitsAndDiffTest {
 
     // TODO(minwoox) replace this unit test using nested structure in junit 5
     // Rule is used instead of ClassRule because the listCommits is affected by other unit tests.
     @Rule
     public final CentralDogmaRule dogma = new CentralDogmaRule();
-
-    private static final String COMMITS_PREFIX = "/api/v1/projects/myPro/repos/myRepo/commits";
 
     private static HttpClient httpClient;
 
@@ -72,6 +70,7 @@ public class CommitServiceV1Test {
             final String body =
                     '{' +
                     "   \"path\": \"/foo" + i + ".json\"," +
+                    "   \"type\": \"UPSERT_JSON\"," +
                     "   \"content\" : {\"a\": \"bar" + i + "\"}," +
                     "   \"commitMessage\" : {" +
                     "       \"summary\" : \"Add foo" + i + ".json\"," +
@@ -161,19 +160,21 @@ public class CommitServiceV1Test {
         final AggregatedHttpMessage aRes = httpClient
                 .get("/api/v1/projects/myPro/repos/myRepo/commits?path=/foo0.json").aggregate().join();
         final String expectedJson =
-                '{' +
-                "   \"revision\": 2," +
-                "   \"author\": {" +
-                "       \"name\": \"${json-unit.ignore}\"," +
-                "       \"email\": \"${json-unit.ignore}\"" +
-                "   }," +
-                "   \"pushedAt\": \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : {" +
-                "       \"summary\" : \"Add foo0.json\"," +
-                "       \"detail\": \"Add because we need it.\"," +
-                "       \"markup\": \"PLAINTEXT\"" +
+                '[' +
+                "   {" +
+                "       \"revision\": 2," +
+                "       \"author\": {" +
+                "           \"name\": \"${json-unit.ignore}\"," +
+                "           \"email\": \"${json-unit.ignore}\"" +
+                "       }," +
+                "       \"pushedAt\": \"${json-unit.ignore}\"," +
+                "       \"commitMessage\" : {" +
+                "           \"summary\" : \"Add foo0.json\"," +
+                "           \"detail\": \"Add because we need it.\"," +
+                "           \"markup\": \"PLAINTEXT\"" +
+                "       }" +
                 "   }" +
-                '}';
+                ']';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
@@ -280,6 +281,7 @@ public class CommitServiceV1Test {
             final String body =
                     '{' +
                     "   \"path\": \"/foo" + i + ".json\"," +
+                    "   \"type\": \"UPSERT_JSON\"," +
                     "   \"content\" : {\"a\": \"baz" + i + "\"}," +
                     "   \"commitMessage\" : {" +
                     "       \"summary\" : \"Edit foo" + i + ".json\"," +
