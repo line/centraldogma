@@ -279,7 +279,9 @@ public class ContentServiceV1 extends AbstractService {
     /**
      * GET /projects/{projectName}/repos/{repoName}/commits/{revision}?path={path}&to={to}
      *
-     * <p>Returns the list of commits in the path.
+     * <p>Returns a commit or the list of commits in the path. If the user specify the {@code revision} only,
+     * this will return the corresponding commit. If the user does not specify the {@code revision} or
+     * specify {@code to}, this will return the list of commits.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/commits(?<revision>(|/.*))$")
     public CompletionStage<?> listCommits(@Param("revision") String revision,
