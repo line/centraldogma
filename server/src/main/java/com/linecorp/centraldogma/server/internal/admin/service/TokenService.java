@@ -98,15 +98,12 @@ public class TokenService extends AbstractService {
     @Post("/tokens")
     public CompletionStage<Token> createToken(@Param("appId") String appId) {
         validateFileName(appId, "appId");
-        return projectManager()
-                .get(INTERNAL_PROJECT_NAME).repos().get(TOKEN_REPOSITORY_NAME)
-                .normalize(Revision.HEAD)
-                .thenCompose(revision -> {
-                    final Token token =
-                            new Token(appId, SECRET_PREFIX + UUID.randomUUID(),
+        final Token token = new Token(appId, SECRET_PREFIX + UUID.randomUUID(),
                                       AuthenticationUtil.currentUser(), new Date());
-                    return createToken0(revision, token);
-                });
+        final Revision normalizedRevision = projectManager().get(INTERNAL_PROJECT_NAME).repos()
+                                                            .get(TOKEN_REPOSITORY_NAME)
+                                                            .normalizeNow(Revision.HEAD);
+        return createToken0(normalizedRevision, token);
     }
 
     private CompletionStage<Token> createToken0(Revision revision, Token newToken) {
@@ -132,10 +129,10 @@ public class TokenService extends AbstractService {
      */
     @Delete("/tokens/{id}")
     public CompletionStage<Token> deleteToken(@Param("id") String id) {
-        return projectManager()
-                .get(INTERNAL_PROJECT_NAME).repos().get(TOKEN_REPOSITORY_NAME)
-                .normalize(Revision.HEAD)
-                .thenCompose(revision -> deleteToken0(revision, id));
+        final Revision normalizedRevision = projectManager().get(INTERNAL_PROJECT_NAME).repos()
+                                                            .get(TOKEN_REPOSITORY_NAME)
+                                                            .normalizeNow(Revision.HEAD);
+        return deleteToken0(normalizedRevision, id);
     }
 
     private CompletionStage<Token> deleteToken0(Revision revision, String id) {

@@ -31,6 +31,7 @@ import java.util.concurrent.CompletionException;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.spotify.futures.CompletableFutures;
@@ -52,6 +53,8 @@ import com.linecorp.centraldogma.server.internal.storage.project.Project;
  * Revision-controlled filesystem-like repository.
  */
 public interface Repository {
+
+    int DEFAULT_MAX_COMMITS = 1024;
 
     String ALL_PATH = "/**";
 
@@ -94,9 +97,56 @@ public interface Repository {
     }
 
     /**
-     * Validates the specified {@link Revision} and converts it into an absolute {@link Revision}.
+     * Returns the {@link CompletableFuture} whose value is the absolute {@link Revision} of the
+     * specified {@link Revision}. This will validate the specified {@link Revision} before converting it.
+     *
+     * @see #normalizeNow(Revision)
      */
     CompletableFuture<Revision> normalize(Revision revision);
+
+    /**
+     * Returns the absolute {@link Revision} of the specified {@link Revision}
+     * This will validate the specified {@link Revision} before converting it.
+     *
+     * @throws RevisionNotFoundException it the specified {@link Revision} is not found
+     *
+     * @see #normalize(Revision)
+     */
+    Revision normalizeNow(Revision revision);
+
+    /**
+     * Returns a {@link NormalizedFromToRevision} which contains an absolute {@code from} {@link Revision} and
+     * an absolute {@code to} {@link Revision}.
+     *
+     * @throws RevisionNotFoundException it the specified {@code from} or {@code to} is not found
+     */
+    default NormalizedFromToRevision normalizeFromToRevision(Revision from, Revision to) {
+        final Revision normalizedFrom = normalizeNow(requireNonNull(from, "from"));
+        final Revision normalizedTo = normalizeNow(requireNonNull(to, "to"));
+
+        return new NormalizedFromToRevision(normalizedFrom, normalizedTo, false);
+    }
+
+    /**
+     * Returns a {@link NormalizedFromToRevision} which contains an absolute {@code from} {@link Revision} and
+     * an absolute {@code to} {@link Revision}. If the specified {@code ascending} is {@code true},
+     * the {@link Revision#major} value of the {@code from} in the {@link NormalizedFromToRevision} will be
+     * lower or equal to the {@link Revision#major} value of the {@code to} in the
+     * {@link NormalizedFromToRevision}.
+     *
+     * @throws RevisionNotFoundException it the specified {@code from} or {@code to} is not found
+     */
+    default NormalizedFromToRevision normalizeFromToRevision(Revision from, Revision to, boolean ascending) {
+        final Revision normalizedFrom = normalizeNow(requireNonNull(from, "from"));
+        final Revision normalizedTo = normalizeNow(requireNonNull(to, "to"));
+
+        final boolean wasAscending = normalizedFrom.compareTo(normalizedTo) < 0;
+        if ((wasAscending && ascending) || ((!wasAscending && !ascending))) {
+            return new NormalizedFromToRevision(normalizedFrom, normalizedTo, false);
+        } else {
+            return new NormalizedFromToRevision(normalizedTo, normalizedFrom, true);
+        }
+    }
 
     /**
      * Returns {@code true} if and only if an {@link Entry} exists at the specified {@code path}.
@@ -219,20 +269,17 @@ public interface Repository {
         requireNonNull(to, "to");
         requireNonNull(query, "query");
 
-        Revision normalizedFrom = normalize(from).join();
-        Revision normalizedTo = normalize(to).join();
-
-        // If the from revision is newer than the to revision,
-        // swap them to compare from old to new one always.
-        if (normalizedFrom.major() > normalizedTo.major()) {
-            Revision temp = normalizedFrom;
-            normalizedFrom = normalizedTo;
-            normalizedTo = temp;
+        final NormalizedFromToRevision normalizedFromToRevision;
+        try {
+            normalizedFromToRevision = normalizeFromToRevision(from, to, true);
+        } catch (RevisionNotFoundException e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
         }
 
         final String path = query.path();
-        final CompletableFuture<Entry<?>> fromEntryFuture = getOrElse(normalizedFrom, path, null);
-        final CompletableFuture<Entry<?>> toEntryFuture = getOrElse(normalizedTo, path, null);
+        final CompletableFuture<Entry<?>> fromEntryFuture = getOrElse(normalizedFromToRevision.from(),
+                                                                      path, null);
+        final CompletableFuture<Entry<?>> toEntryFuture = getOrElse(normalizedFromToRevision.to(), path, null);
 
         final CompletableFuture<Change<?>> future =
                 CompletableFutures.combine(fromEntryFuture, toEntryFuture, (fromEntry, toEntry) -> {
@@ -358,7 +405,7 @@ public interface Repository {
      * @throws StorageException when any internal error occurs.
      */
     default CompletableFuture<List<Commit>> history(Revision from, Revision to, String pathPattern) {
-        return history(from, to, pathPattern, Integer.MAX_VALUE);
+        return history(from, to, pathPattern, DEFAULT_MAX_COMMITS);
     }
 
     /**
@@ -387,5 +434,47 @@ public interface Repository {
      */
     default <T> CompletableFuture<QueryResult<T>> watch(Revision lastKnownRevision, Query<T> query) {
         return RepositoryUtil.watch(this, lastKnownRevision, query);
+    }
+
+    /**
+     * A wrapper class which contains absolute {@code from} and {@code to} {@link Revision}s.
+     * This class is created by {@link #normalizeFromToRevision(Revision, Revision)}
+     * or {@link #normalizeFromToRevision(Revision, Revision, boolean)}.
+     */
+    final class NormalizedFromToRevision {
+        private final Revision from;
+        private final Revision to;
+        private final boolean isSwapped;
+
+        private NormalizedFromToRevision(Revision from, Revision to, boolean isSwapped) {
+            this.from = requireNonNull(from, "from");
+            this.to = requireNonNull(to, "to");
+            this.isSwapped = isSwapped;
+        }
+
+        public Revision from() {
+            return from;
+        }
+
+        public Revision to() {
+            return to;
+        }
+
+        /**
+         * Returns {@code true} if the {@code from} and {@code to} {@link Revision} is swapped during the
+         * creation of this class using {@link Repository#normalizeFromToRevision(Revision, Revision, boolean)}.
+         */
+        public boolean isSwapped() {
+            return isSwapped;
+        }
+
+        @Override
+        public String toString() {
+            return MoreObjects.toStringHelper(this)
+                              .add("from", from)
+                              .add("to", to)
+                              .add("isSwapped", isSwapped)
+                              .toString();
+        }
     }
 }

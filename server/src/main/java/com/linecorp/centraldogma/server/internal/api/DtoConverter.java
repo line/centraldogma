@@ -51,7 +51,7 @@ final class DtoConverter {
 
     public static RepositoryDto convert(Repository repository) {
         requireNonNull(repository, "repository");
-        final Revision headRevision = repository.normalize(Revision.HEAD).join();
+        final Revision headRevision = repository.normalizeNow(Revision.HEAD);
         final String projectName = repository.parent().name();
         final String repoName = repository.name();
 

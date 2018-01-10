@@ -346,13 +346,14 @@ class GitRepository implements Repository {
     @Override
     public CompletableFuture<Revision> normalize(Revision revision) {
         try {
-            return CompletableFuture.completedFuture(blockingNormalize(revision));
+            return CompletableFuture.completedFuture(normalizeNow(revision));
         } catch (RevisionNotFoundException e) {
             return CompletableFutures.exceptionallyCompletedFuture(e);
         }
     }
 
-    private Revision blockingNormalize(Revision revision) {
+    @Override
+    public Revision normalizeNow(Revision revision) {
         requireNonNull(revision, "revision");
 
         final int baseMajor = cachedMainLaneHeadRevision().major();
@@ -393,7 +394,7 @@ class GitRepository implements Repository {
         requireNonNull(revision, "revision");
         requireNonNull(options, "options");
 
-        final Revision normRevision = blockingNormalize(revision);
+        final Revision normRevision = normalizeNow(revision);
         final boolean fetchContent = FindOption.FETCH_CONTENT.get(options);
         final int maxEntries = FindOption.MAX_ENTRIES.get(options);
 
@@ -495,25 +496,10 @@ class GitRepository implements Repository {
             throw new IllegalArgumentException("maxCommits: " + maxCommits + " (expected: > 0)");
         }
 
-        final Revision origFrom = from;
-        final Revision origTo = to;
+        final NormalizedFromToRevision normalizedFromToRevision = normalizeFromToRevision(from, to, false);
 
-        from = blockingNormalize(from);
-        to = blockingNormalize(to);
-
-        final boolean ascending = from.compareTo(to) < 0;
-        final ObjectId fromCommitId;
-        final ObjectId toCommitId;
-
-        if (ascending) {
-            // Swap 'from' and 'to'.
-            Revision temp = to;
-            to = from;
-            from = temp;
-        }
-
-        fromCommitId = commitIdDatabase.get(from);
-        toCommitId = commitIdDatabase.get(to);
+        final ObjectId fromCommitId = commitIdDatabase.get(normalizedFromToRevision.from());
+        final ObjectId toCommitId = commitIdDatabase.get(normalizedFromToRevision.to());
 
         // At this point, we are sure: from.major >= to.major
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
@@ -563,7 +549,7 @@ class GitRepository implements Repository {
                 }
             }
 
-            if (ascending) {
+            if (normalizedFromToRevision.isSwapped()) {
                 Collections.reverse(commitList);
             }
 
@@ -573,7 +559,7 @@ class GitRepository implements Repository {
         } catch (Exception e) {
             throw new StorageException(
                     "failed to retrieve the history: " + jGitRepository +
-                    " (" + pathPattern + ", " + origFrom + ".." + origTo + ')', e);
+                    " (" + pathPattern + ", " + from + ".." + to + ')', e);
         }
     }
 
@@ -613,8 +599,19 @@ class GitRepository implements Repository {
         requireNonNull(to, "to");
         requireNonNull(pathPattern, "pathPattern");
 
-        return toChangeMap(compareTrees(commitIdDatabase.get(blockingNormalize(from)),
-                                        commitIdDatabase.get(blockingNormalize(to)),
+        Revision normalizedFrom = normalizeNow(from);
+        Revision normalizedTo = normalizeNow(to);
+
+        // If the from revision is newer than the to revision,
+        // swap them to compare from old to new one always.
+        if (normalizedFrom.major() > normalizedTo.major()) {
+            Revision temp = normalizedFrom;
+            normalizedFrom = normalizedTo;
+            normalizedTo = temp;
+        }
+
+        return toChangeMap(compareTrees(commitIdDatabase.get(normalizedFrom),
+                                        commitIdDatabase.get(normalizedTo),
                                         PathPatternFilter.of(pathPattern)));
     }
 
@@ -628,7 +625,7 @@ class GitRepository implements Repository {
     private Map<String, Change<?>> blockingPreviewDiff(Revision baseRevision, Iterable<Change<?>> changes) {
         requireNonNull(baseRevision, "baseRevision");
         requireNonNull(changes, "changes");
-        baseRevision = blockingNormalize(baseRevision);
+        baseRevision = normalizeNow(baseRevision);
 
         try (ObjectReader reader = jGitRepository.newObjectReader();
              RevWalk revWalk = new RevWalk(reader);
@@ -758,7 +755,7 @@ class GitRepository implements Repository {
         final CommitResult res;
         writeLock.lock();
         try {
-            final Revision normBaseRevision = blockingNormalize(baseRevision);
+            final Revision normBaseRevision = normalizeNow(baseRevision);
             final Revision headRevision = cachedMainLaneHeadRevision();
             if (headRevision.major() != normBaseRevision.major()) {
                 throw new ChangeConflictException(
@@ -1377,7 +1374,7 @@ class GitRepository implements Repository {
         requireNonNull(format, "format");
         requireNonNull(progressListener, "progressListener");
 
-        final Revision endRevision = blockingNormalize(Revision.HEAD);
+        final Revision endRevision = normalizeNow(Revision.HEAD);
         final GitRepository newRepo = new GitRepository(parent, newRepoDir, format, repositoryWorker,
                                                         creationTimeMillis(), author());
 
