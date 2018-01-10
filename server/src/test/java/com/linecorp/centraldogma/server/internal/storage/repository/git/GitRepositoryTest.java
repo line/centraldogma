@@ -167,7 +167,7 @@ public class GitRepositoryTest {
     }
 
     private void testUpsert(Change<?>[] upserts, EntryType entryType) {
-        final Revision oldHeadRev = repo.normalize(HEAD).join();
+        final Revision oldHeadRev = repo.normalizeNow(HEAD);
         for (int i = 0; i < upserts.length; i++) {
             final Change<?> change = upserts[i];
 
@@ -175,7 +175,7 @@ public class GitRepositoryTest {
 
             // Ensure the revision is incremented.
             assertThat(revision.major()).isEqualTo(oldHeadRev.major() + i + 1);
-            assertThat(repo.normalize(HEAD).join()).isEqualTo(revision);
+            assertThat(repo.normalizeNow(HEAD)).isEqualTo(revision);
 
             // Ensure that the entries which were created in the previous revisions are retrieved
             // as well as the entry in the latest revision.
@@ -226,7 +226,7 @@ public class GitRepositoryTest {
         for (int i = 0; i < NUM_ITERATIONS; i++) {
             assert path.equals(patches[i].path());
 
-            final Revision rev = repo.normalize(HEAD).join();
+            final Revision rev = repo.normalizeNow(HEAD);
 
             // Ensure that we cannot apply patched in an incorrect order.
             for (int j = i + 1; j < NUM_ITERATIONS; j++) {
@@ -238,11 +238,11 @@ public class GitRepositoryTest {
             }
 
             // Ensure that the failed commit does not change the revision.
-            assertThat(repo.normalize(HEAD).join()).isEqualTo(rev);
+            assertThat(repo.normalizeNow(HEAD)).isEqualTo(rev);
 
             // Ensure that the successful commit changes the revision.
             Revision newRev = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, patches[i]).join();
-            assertThat(repo.normalize(HEAD).join()).isEqualTo(newRev);
+            assertThat(repo.normalizeNow(HEAD)).isEqualTo(newRev);
             assertThat(newRev).isEqualTo(new Revision(rev.major() + 1));
 
             // Ensure the entry has been patched as expected.
@@ -736,7 +736,7 @@ public class GitRepositoryTest {
         final String jsonPath = jsonPatches[0].path();
         final String textPath = textPatches[0].path();
 
-        final Revision firstJsonCommit = repo.normalize(HEAD).join().forward(1);
+        final Revision firstJsonCommit = repo.normalizeNow(HEAD).forward(1);
         Revision lastJsonCommit = null;
         for (Change<JsonNode> c : jsonPatches) {
             lastJsonCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, c).join();
@@ -753,10 +753,10 @@ public class GitRepositoryTest {
         final Revision firstTextCommitRel = new Revision(-textPatches.length);
         final Revision lastTextCommitRel = HEAD;
 
-        assertThat(repo.normalize(firstJsonCommitRel).join()).isEqualTo(firstJsonCommit);
-        assertThat(repo.normalize(lastJsonCommitRel).join()).isEqualTo(lastJsonCommit);
-        assertThat(repo.normalize(firstTextCommitRel).join()).isEqualTo(firstTextCommit);
-        assertThat(repo.normalize(lastTextCommitRel).join()).isEqualTo(lastTextCommit);
+        assertThat(repo.normalizeNow(firstJsonCommitRel)).isEqualTo(firstJsonCommit);
+        assertThat(repo.normalizeNow(lastJsonCommitRel)).isEqualTo(lastJsonCommit);
+        assertThat(repo.normalizeNow(firstTextCommitRel)).isEqualTo(firstTextCommit);
+        assertThat(repo.normalizeNow(lastTextCommitRel)).isEqualTo(lastTextCommit);
 
         List<Commit> commits;
         List<Commit> commitsRel;
@@ -845,7 +845,7 @@ public class GitRepositoryTest {
         // Make sure that we added at least one non-initial commit.
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
-        final Revision head = repo.normalize(HEAD).join();
+        final Revision head = repo.normalizeNow(HEAD);
 
         List<Commit> commits;
 
@@ -1041,7 +1041,7 @@ public class GitRepositoryTest {
 
     @Test
     public void testWatch() throws Exception {
-        Revision rev1 = repo.normalize(HEAD).join();
+        Revision rev1 = repo.normalizeNow(HEAD);
         Revision rev2 = rev1.forward(1);
 
         final CompletableFuture<Revision> f = repo.watch(rev1, Repository.ALL_PATH);
@@ -1050,12 +1050,12 @@ public class GitRepositoryTest {
         repo.commit(rev1, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
 
-        assertThat(repo.normalize(HEAD).join()).isEqualTo(rev2);
+        assertThat(repo.normalizeNow(HEAD)).isEqualTo(rev2);
     }
 
     @Test
     public void testWatchWithPathPattern() throws Exception {
-        final Revision rev1 = repo.normalize(HEAD).join();
+        final Revision rev1 = repo.normalizeNow(HEAD);
         final Revision rev2 = rev1.forward(1);
         final Revision rev3 = rev2.forward(1);
 
@@ -1063,21 +1063,21 @@ public class GitRepositoryTest {
 
         // Should not notify when the path pattern does not match.
         repo.commit(rev1, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
-        assertThat(repo.normalize(HEAD).join()).isEqualTo(rev2);
+        assertThat(repo.normalizeNow(HEAD)).isEqualTo(rev2);
         assertThatThrownBy(() -> f.get(500, TimeUnit.MILLISECONDS))
                 .isInstanceOf(TimeoutException.class);
 
         // Should notify when the path pattern matches.
         repo.commit(rev2, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[1]).join();
-        assertThat(repo.normalize(HEAD).join()).isEqualTo(rev3);
+        assertThat(repo.normalizeNow(HEAD)).isEqualTo(rev3);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(rev3);
     }
 
     @Test
     public void testWatchWithOldRevision() throws Exception {
-        final Revision lastKnownRev = repo.normalize(HEAD).join();
+        final Revision lastKnownRev = repo.normalizeNow(HEAD);
         repo.commit(lastKnownRev, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts).join();
-        final Revision latestRev = repo.normalize(HEAD).join();
+        final Revision latestRev = repo.normalizeNow(HEAD);
         assertThat(latestRev).isNotEqualTo(lastKnownRev);
 
         // Should notify very soon.
@@ -1087,9 +1087,9 @@ public class GitRepositoryTest {
 
     @Test
     public void testWatchWithOldRevisionAndPathPattern() throws Exception {
-        final Revision lastKnownRev = repo.normalize(HEAD).join();
+        final Revision lastKnownRev = repo.normalizeNow(HEAD);
         repo.commit(lastKnownRev, 0L, Author.UNKNOWN, SUMMARY, jsonPatches).join();
-        final Revision latestRev = repo.normalize(HEAD).join();
+        final Revision latestRev = repo.normalizeNow(HEAD);
         assertThat(latestRev).isNotEqualTo(lastKnownRev);
 
         // Should not return a successful future because the changes in the prior commit did not affect
@@ -1100,7 +1100,7 @@ public class GitRepositoryTest {
 
         final Revision newLatestRev = repo.commit(latestRev, 0L, Author.UNKNOWN, SUMMARY,
                                                   jsonUpserts[1]).join();
-        assertThat(repo.normalize(HEAD).join()).isEqualTo(newLatestRev);
+        assertThat(repo.normalizeNow(HEAD)).isEqualTo(newLatestRev);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(newLatestRev);
     }
 

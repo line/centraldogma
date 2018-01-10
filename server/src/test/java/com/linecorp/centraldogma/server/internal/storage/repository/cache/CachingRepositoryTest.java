@@ -141,10 +141,10 @@ public class CachingRepositoryTest {
                 new Commit(new Revision(3), SYSTEM, "second", "", Markup.MARKDOWN),
                 new Commit(new Revision(3), SYSTEM, "first",  "", Markup.MARKDOWN));
 
-        doReturn(completedFuture(new Revision(3))).when(delegateRepo).normalize(new Revision(3));
-        doReturn(completedFuture(new Revision(3))).when(delegateRepo).normalize(HEAD);
-        doReturn(completedFuture(INIT)).when(delegateRepo).normalize(INIT);
-        doReturn(completedFuture(INIT)).when(delegateRepo).normalize(new Revision(-3));
+        doReturn(new Revision(3)).when(delegateRepo).normalizeNow(new Revision(3));
+        doReturn(new Revision(3)).when(delegateRepo).normalizeNow(HEAD);
+        doReturn(INIT).when(delegateRepo).normalizeNow(INIT);
+        doReturn(INIT).when(delegateRepo).normalizeNow(new Revision(-3));
 
         // Uncached
         when(delegateRepo.history(any(), any(), any(), anyInt())).thenReturn(completedFuture(commits));
@@ -169,15 +169,15 @@ public class CachingRepositoryTest {
         final Query query = Query.identity("/foo.txt");
         final Change change = Change.ofTextUpsert(query.path(), "bar");
 
-        doReturn(completedFuture(new Revision(10))).when(delegateRepo).normalize(new Revision(10));
-        doReturn(completedFuture(new Revision(10))).when(delegateRepo).normalize(HEAD);
-        doReturn(completedFuture(INIT)).when(delegateRepo).normalize(INIT);
-        doReturn(completedFuture(INIT)).when(delegateRepo).normalize(new Revision(-10));
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
+        doReturn(INIT).when(delegateRepo).normalizeNow(INIT);
+        doReturn(INIT).when(delegateRepo).normalizeNow(new Revision(-10));
 
         // Uncached
         when(delegateRepo.diff(any(), any(), any(Query.class))).thenReturn(completedFuture(change));
         assertThat(repo.diff(HEAD, INIT, query).join()).isEqualTo(change);
-        verify(delegateRepo).diff(new Revision(10), INIT, query);
+        verify(delegateRepo).diff(INIT, new Revision(10), query);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
@@ -196,15 +196,15 @@ public class CachingRepositoryTest {
         final Map<String, Change<?>> changes = ImmutableMap.of(
                 "/foo.txt", Change.ofTextUpsert("/foo.txt", "bar"));
 
-        doReturn(completedFuture(new Revision(10))).when(delegateRepo).normalize(new Revision(10));
-        doReturn(completedFuture(new Revision(10))).when(delegateRepo).normalize(HEAD);
-        doReturn(completedFuture(INIT)).when(delegateRepo).normalize(INIT);
-        doReturn(completedFuture(INIT)).when(delegateRepo).normalize(new Revision(-10));
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
+        doReturn(INIT).when(delegateRepo).normalizeNow(INIT);
+        doReturn(INIT).when(delegateRepo).normalizeNow(new Revision(-10));
 
         // Uncached
         when(delegateRepo.diff(any(), any(), any(String.class))).thenReturn(completedFuture(changes));
         assertThat(repo.diff(HEAD, INIT, "/**").join()).isEqualTo(changes);
-        verify(delegateRepo).diff(new Revision(10), INIT, "/**");
+        verify(delegateRepo).diff(INIT, new Revision(10), "/**");
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached

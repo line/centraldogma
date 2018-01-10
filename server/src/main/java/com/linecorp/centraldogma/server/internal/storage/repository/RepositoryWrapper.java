@@ -72,6 +72,11 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
+    public Revision normalizeNow(Revision revision) {
+        return unwrap().normalizeNow(revision);
+    }
+
+    @Override
     public CompletableFuture<Boolean> exists(Revision revision, String path) {
         return unwrap().exists(revision, path);
     }
