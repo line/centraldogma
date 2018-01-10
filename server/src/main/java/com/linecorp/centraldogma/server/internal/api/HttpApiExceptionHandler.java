@@ -100,7 +100,7 @@ final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
 
     @SuppressWarnings("unused")
     static HttpResponse handleRedundantChange(RequestContext ctx, HttpRequest req, Throwable cause) {
-        return newResponseWithErrorMessage(HttpStatus.BAD_REQUEST, cause.getMessage());
+        return newResponseWithErrorMessage(HttpStatus.BAD_REQUEST, "changes did not change anything.");
     }
 
     @SuppressWarnings("unused")

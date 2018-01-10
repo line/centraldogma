@@ -40,6 +40,7 @@ import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
@@ -96,18 +97,16 @@ public class MetadataService extends AbstractService {
         synchronized (MetadataService.class) {
             final Repository repo = projectManager().get(METADATA_PROJECT).repos()
                                                     .get(REPO);
-            repo.normalize(Revision.HEAD).thenAccept(
-                    revision -> repo.find(revision, "/*").thenAccept(entries -> {
-                        if (!entries.containsKey(METADATA_JSON)) {
-                            //TODO(hyangtack) Need to make metadata of the existing projects in the next PRs.
-                            execute(Command.push(Author.SYSTEM,
-                                                 METADATA_PROJECT, REPO, revision,
-                                                 "Create " + METADATA_JSON, "",
-                                                 Markup.PLAINTEXT,
-                                                 Change.ofJsonUpsert(METADATA_JSON, "[]"))).join();
-                        }
-                    }).join()
-            ).join();
+            final Revision normalizedRevision = repo.normalizeNow(Revision.HEAD);
+            final Map<String, Entry<?>> entries = repo.find(normalizedRevision, "/*").join();
+            if (!entries.containsKey(METADATA_JSON)) {
+                //TODO(hyangtack) Need to make metadata of the existing projects in the next PRs.
+                execute(Command.push(Author.SYSTEM,
+                                     METADATA_PROJECT, REPO, normalizedRevision,
+                                     "Create " + METADATA_JSON, "",
+                                     Markup.PLAINTEXT,
+                                     Change.ofJsonUpsert(METADATA_JSON, "[]"))).join();
+            }
         }
     }
 

@@ -56,6 +56,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
@@ -133,25 +134,22 @@ public class ContentServiceV1 extends AbstractService {
                                      @RequestObject CommitMessageDto commitMessage,
                                      @RequestObject(ChangesRequestConverter.class)
                                              Iterable<Change<?>> changes) {
-        final CompletableFuture<Revision> normalizeFuture = repository.normalize(new Revision(revision));
+        final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
 
-        return normalizeFuture.thenCompose(normalizedRevision -> {
-            final CompletableFuture<Map<String, Change<?>>> changesFuture =
-                    repository.previewDiff(normalizedRevision, changes);
+        final CompletableFuture<Map<String, Change<?>>> changesFuture =
+                repository.previewDiff(normalizedRevision, changes);
 
+        return changesFuture.thenCompose(previewDiffs -> {
             final long commitTimeMillis = System.currentTimeMillis();
-            final CompletableFuture<Revision> resultRevisionFuture = changesFuture.thenCompose(
-                    previewDiffs -> {
-                        if (previewDiffs.size() == 0) {
-                            throw new RedundantChangeException("changes did not change anything: " + changes);
-                        }
-                        return push(commitTimeMillis, author, repository, normalizedRevision,
-                                    commitMessage, previewDiffs.values());
-                    });
+            if (previewDiffs.size() == 0) {
+                throw new RedundantChangeException();
+            }
+            final CompletableFuture<Revision> resultRevisionFuture =
+                    push(commitTimeMillis, author, repository, normalizedRevision,
+                         commitMessage, previewDiffs.values()).toCompletableFuture();
             final String pathPattern = joinPaths(changes);
-
-            final CompletableFuture<Map<String, Entry<?>>> findFuture =
-                    resultRevisionFuture.thenCompose(result -> repository.find(result, pathPattern));
+            final CompletableFuture<Map<String, Entry<?>>> findFuture = resultRevisionFuture.thenCompose(
+                    result -> repository.find(result, pathPattern));
 
             return findFuture.thenApply(entries -> objectOrList(
                     entries.values(), Iterables.size(changes) != 1, (collections) -> convertEntry(
@@ -167,10 +165,9 @@ public class ContentServiceV1 extends AbstractService {
         final String detail = commitMessage.detail();
         final Markup markup = commitMessage.markup();
 
-        return repository.normalize(revision).thenCompose(normalizedRevision -> execute(
-                Command.push(commitTimeMills, author, repository.parent().name(), repository.name(),
-                             normalizedRevision,
-                             summary, detail, markup, changes)));
+        return execute(Command.push(
+                commitTimeMills, author, repository.parent().name(), repository.name(),
+                revision, summary, detail, markup, changes));
     }
 
     private static String joinPaths(Iterable<Change<?>> changes) {
@@ -303,8 +300,10 @@ public class ContentServiceV1 extends AbstractService {
             toRevision = to.map(Revision::new).orElse(fromRevision);
         }
 
+        final RevisionRange range = repository.normalizeNow(fromRevision, toRevision);
+
         return repository
-                .history(fromRevision, toRevision, path)
+                .history(range.from(), range.to(), path)
                 .thenApply(commits -> {
                     final boolean toList = isNullOrEmpty(revision) || "/".equalsIgnoreCase(revision) ||
                                            to.isPresent();

@@ -83,7 +83,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -92,6 +91,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
@@ -269,7 +269,7 @@ class GitRepository implements Repository {
 
         boolean success = false;
         try {
-            headRevision = uncachedMainLaneHeadRevision();
+            headRevision = uncachedHeadRevision();
             commitIdDatabase = new CommitIdDatabase(jGitRepository);
             if (!headRevision.equals(commitIdDatabase.headRevision())) {
                 commitIdDatabase.rebuild(jGitRepository);
@@ -342,20 +342,13 @@ class GitRepository implements Repository {
         return oldTagFile.exists();
     }
 
-    // TODO(minwoox) chagne this method to return just Revision? Does this method have to be async???
     @Override
-    public CompletableFuture<Revision> normalize(Revision revision) {
-        try {
-            return CompletableFuture.completedFuture(blockingNormalize(revision));
-        } catch (RevisionNotFoundException e) {
-            return CompletableFutures.exceptionallyCompletedFuture(e);
-        }
+    public Revision normalizeNow(Revision revision) {
+        return normalizeNow(revision, cachedHeadRevision().major());
     }
 
-    private Revision blockingNormalize(Revision revision) {
+    private static Revision normalizeNow(Revision revision, int baseMajor) {
         requireNonNull(revision, "revision");
-
-        final int baseMajor = cachedMainLaneHeadRevision().major();
 
         int major = revision.major();
 
@@ -379,6 +372,13 @@ class GitRepository implements Repository {
     }
 
     @Override
+    public RevisionRange normalizeNow(Revision from, Revision to) {
+        final int baseMajor = cachedHeadRevision().major();
+
+        return new RevisionRange(normalizeNow(from, baseMajor), normalizeNow(to, baseMajor));
+    }
+
+    @Override
     public CompletableFuture<Map<String, Entry<?>>> find(
             Revision revision, String pathPattern, Map<FindOption<?>, ?> options) {
 
@@ -393,7 +393,7 @@ class GitRepository implements Repository {
         requireNonNull(revision, "revision");
         requireNonNull(options, "options");
 
-        final Revision normRevision = blockingNormalize(revision);
+        final Revision normRevision = normalizeNow(revision);
         final boolean fetchContent = FindOption.FETCH_CONTENT.get(options);
         final int maxEntries = FindOption.MAX_ENTRIES.get(options);
 
@@ -402,7 +402,7 @@ class GitRepository implements Repository {
              RevWalk revWalk = new RevWalk(reader)) {
 
             // Query on a non-exist revision will return empty result.
-            final Revision headRevision = cachedMainLaneHeadRevision();
+            final Revision headRevision = cachedHeadRevision();
             if (normRevision.compareTo(headRevision) > 0) {
                 return Collections.emptyMap();
             }
@@ -495,25 +495,11 @@ class GitRepository implements Repository {
             throw new IllegalArgumentException("maxCommits: " + maxCommits + " (expected: > 0)");
         }
 
-        final Revision origFrom = from;
-        final Revision origTo = to;
+        final RevisionRange range = normalizeNow(from, to);
+        final RevisionRange descendingRange = range.toDescending();
 
-        from = blockingNormalize(from);
-        to = blockingNormalize(to);
-
-        final boolean ascending = from.compareTo(to) < 0;
-        final ObjectId fromCommitId;
-        final ObjectId toCommitId;
-
-        if (ascending) {
-            // Swap 'from' and 'to'.
-            Revision temp = to;
-            to = from;
-            from = temp;
-        }
-
-        fromCommitId = commitIdDatabase.get(from);
-        toCommitId = commitIdDatabase.get(to);
+        final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
+        final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
 
         // At this point, we are sure: from.major >= to.major
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
@@ -563,7 +549,7 @@ class GitRepository implements Repository {
                 }
             }
 
-            if (ascending) {
+            if (!descendingRange.equals(range)) { // from and to is swapped so reverse the list.
                 Collections.reverse(commitList);
             }
 
@@ -573,7 +559,7 @@ class GitRepository implements Repository {
         } catch (Exception e) {
             throw new StorageException(
                     "failed to retrieve the history: " + jGitRepository +
-                    " (" + pathPattern + ", " + origFrom + ".." + origTo + ')', e);
+                    " (" + pathPattern + ", " + from + ".." + to + ')', e);
         }
     }
 
@@ -613,8 +599,10 @@ class GitRepository implements Repository {
         requireNonNull(to, "to");
         requireNonNull(pathPattern, "pathPattern");
 
-        return toChangeMap(compareTrees(commitIdDatabase.get(blockingNormalize(from)),
-                                        commitIdDatabase.get(blockingNormalize(to)),
+        final RevisionRange range = normalizeNow(from, to).toAscending();
+
+        return toChangeMap(compareTrees(commitIdDatabase.get(range.from()),
+                                        commitIdDatabase.get(range.to()),
                                         PathPatternFilter.of(pathPattern)));
     }
 
@@ -628,7 +616,7 @@ class GitRepository implements Repository {
     private Map<String, Change<?>> blockingPreviewDiff(Revision baseRevision, Iterable<Change<?>> changes) {
         requireNonNull(baseRevision, "baseRevision");
         requireNonNull(changes, "changes");
-        baseRevision = blockingNormalize(baseRevision);
+        baseRevision = normalizeNow(baseRevision);
 
         try (ObjectReader reader = jGitRepository.newObjectReader();
              RevWalk revWalk = new RevWalk(reader);
@@ -758,8 +746,8 @@ class GitRepository implements Repository {
         final CommitResult res;
         writeLock.lock();
         try {
-            final Revision normBaseRevision = blockingNormalize(baseRevision);
-            final Revision headRevision = cachedMainLaneHeadRevision();
+            final Revision normBaseRevision = normalizeNow(baseRevision);
+            final Revision headRevision = cachedHeadRevision();
             if (headRevision.major() != normBaseRevision.major()) {
                 throw new ChangeConflictException(
                         "invalid baseRevision: " + baseRevision + " (expected: " + headRevision +
@@ -1234,7 +1222,7 @@ class GitRepository implements Repository {
         final CompletableFuture<Revision> future = new CompletableFuture<>();
 
         normalize(lastKnownRevision).thenAccept(normLastKnownRevision -> {
-            final Revision headRevision = cachedMainLaneHeadRevision();
+            final Revision headRevision = cachedHeadRevision();
             final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
 
             // If lastKnownRevision is outdated already and the recent changes match, there's no need to watch.
@@ -1296,14 +1284,14 @@ class GitRepository implements Repository {
         }
     }
 
-    private Revision cachedMainLaneHeadRevision() {
+    private Revision cachedHeadRevision() {
         return headRevision;
     }
 
     /**
      * Returns the current revision.
      */
-    private Revision uncachedMainLaneHeadRevision() {
+    private Revision uncachedHeadRevision() {
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
             ObjectId headRevisionId = jGitRepository.resolve(R_HEADS_MASTER);
             if (headRevisionId != null) {
@@ -1377,7 +1365,7 @@ class GitRepository implements Repository {
         requireNonNull(format, "format");
         requireNonNull(progressListener, "progressListener");
 
-        final Revision endRevision = blockingNormalize(Revision.HEAD);
+        final Revision endRevision = normalizeNow(Revision.HEAD);
         final GitRepository newRepo = new GitRepository(parent, newRepoDir, format, repositoryWorker,
                                                         creationTimeMillis(), author());
 

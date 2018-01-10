@@ -102,7 +102,7 @@ public final class GitMirror extends Mirror {
             refUpdate.setNewObjectId(id);
             refUpdate.update();
 
-            final Revision localRev = localRepo().normalize(Revision.HEAD).join();
+            final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
 
             try (ObjectReader reader = git.getRepository().newObjectReader();
                  TreeWalk treeWalk = new TreeWalk(reader);

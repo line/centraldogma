@@ -22,6 +22,8 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.MoreObjects;
+
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -90,6 +92,14 @@ public final class WatchRequestConverter implements RequestConverterFunction {
 
         public long timeoutMillis() {
             return timeoutMillis;
+        }
+
+        @Override
+        public String toString() {
+            return MoreObjects.toStringHelper(this)
+                              .add("lastKnownRevision", lastKnownRevision)
+                              .add("timeoutMillis", timeoutMillis)
+                              .toString();
         }
     }
 }

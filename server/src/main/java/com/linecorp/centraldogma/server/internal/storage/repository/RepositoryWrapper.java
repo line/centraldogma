@@ -30,6 +30,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
@@ -67,8 +68,13 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> normalize(Revision revision) {
-        return unwrap().normalize(revision);
+    public Revision normalizeNow(Revision revision) {
+        return unwrap().normalizeNow(revision);
+    }
+
+    @Override
+    public RevisionRange normalizeNow(Revision from, Revision to) {
+        return unwrap().normalizeNow(from, to);
     }
 
     @Override
