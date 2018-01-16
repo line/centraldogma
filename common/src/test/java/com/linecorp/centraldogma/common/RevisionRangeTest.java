@@ -48,16 +48,26 @@ public class RevisionRangeTest {
         assertThat(range.toAscending()).isSameAs(range);
         assertThat(range.toDescending()).isSameAs(range);
 
+        final Revision revisionNegativeThree = new Revision(-3);
+        final Revision revisionNegativeTen = new Revision(-10);
+        range = new RevisionRange(revisionNegativeTen, revisionNegativeThree);
+
+        assertThat(range.isAscending()).isTrue();
+        assertThat(range.isRelative()).isTrue();
+        assertThat(range.toAscending()).isSameAs(range);
+        assertThat(range.toDescending()).isEqualTo(
+                new RevisionRange(revisionNegativeThree, revisionNegativeTen));
+
         final RevisionRange relativeRange = new RevisionRange(INIT, HEAD);
 
         assertThat(relativeRange.isRelative()).isTrue();
         assertThat(relativeRange.from()).isSameAs(INIT);
         assertThat(relativeRange.to()).isSameAs(HEAD);
         assertThatThrownBy(relativeRange::isAscending)
-                .isExactlyInstanceOf(UnsupportedOperationException.class);
+                .isExactlyInstanceOf(IllegalStateException.class);
         assertThatThrownBy(relativeRange::toAscending)
-                .isExactlyInstanceOf(UnsupportedOperationException.class);
+                .isExactlyInstanceOf(IllegalStateException.class);
         assertThatThrownBy(relativeRange::toDescending)
-                .isExactlyInstanceOf(UnsupportedOperationException.class);
+                .isExactlyInstanceOf(IllegalStateException.class);
     }
 }

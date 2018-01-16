@@ -43,19 +43,26 @@ public class RevisionRange {
         this.to = requireNonNull(to, "to");
     }
 
+    /**
+     * Returns the {@code from} {@link Revision}.
+     */
     public Revision from() {
         return from;
     }
 
+    /**
+     * Returns the {@code to} {@link Revision}.
+     */
     public Revision to() {
         return to;
     }
 
     /**
-     * Returns a {@link RevisionRange} whose major value of {@code from} {@link Revision} is lower than
+     * Returns the {@link RevisionRange} whose major value of {@code from} {@link Revision} is lower than
      * or equal to the major value of {@code to} {@link Revision}.
      *
-     * @throws UnsupportedOperationException if {@link #isRelative()} returns {@code true}
+     * @throws IllegalStateException if the {@code from} and {@code to} {@link Revision}s are in the
+     *                               different state. They should be either absolute or relative.
      */
     public RevisionRange toAscending() {
         if (isAscending() || from.equals(to)) {
@@ -66,10 +73,11 @@ public class RevisionRange {
     }
 
     /**
-     * Returns a {@link RevisionRange} whose major value of {@code from} {@link Revision} is greater than
+     * Returns the {@link RevisionRange} whose major value of {@code from} {@link Revision} is greater than
      * or equal to the major value of {@code to} {@link Revision}.
      *
-     * @throws UnsupportedOperationException if {@link #isRelative()} returns {@code true}
+     * @throws IllegalStateException if the {@code from} and {@code to} {@link Revision}s are in the
+     *                               different state. They should be either absolute or relative.
      */
     public RevisionRange toDescending() {
         if (isAscending()) {
@@ -83,12 +91,13 @@ public class RevisionRange {
      * Returns {@code true} if the major value of {@code from} {@link Revision} is lower than the major
      * value of {@code to} {@link Revision}.
      *
-     * @throws UnsupportedOperationException if {@link #isRelative()} returns {@code true}
+     * @throws IllegalStateException if the {@code from} and {@code to} {@link Revision}s are in the
+     *                               different state. They should be either absolute or relative.
      */
     public boolean isAscending() {
-        if (isRelative()) {
-            throw new UnsupportedOperationException("contains relative revision. from: " +
-                                                    from + ", to: " + to + " (expected: absolute revision)");
+        if (from.isRelative() != to.isRelative()) {
+            throw new IllegalStateException("both of from: '" + from + "' and to: '" + to +
+                                            "' should be absolute or relative.");
         }
 
         return from.compareTo(to) < 0;

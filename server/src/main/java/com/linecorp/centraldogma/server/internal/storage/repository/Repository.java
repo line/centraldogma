@@ -100,8 +100,9 @@ public interface Repository {
      * Returns the {@link CompletableFuture} whose value is the absolute {@link Revision} of the
      * specified {@link Revision}.
      *
-     * @see #normalizeNow(Revision)
+     * @deprecated Use {@link #normalizeNow(Revision)} instead.
      */
+    @Deprecated
     default CompletableFuture<Revision> normalize(Revision revision) {
         try {
             return CompletableFuture.completedFuture(normalizeNow(revision));
@@ -113,9 +114,7 @@ public interface Repository {
     /**
      * Returns the absolute {@link Revision} of the specified {@link Revision}.
      *
-     * @throws RevisionNotFoundException it the specified {@link Revision} is not found
-     *
-     * @see #normalize(Revision)
+     * @throws RevisionNotFoundException if the specified {@link Revision} is not found
      */
     Revision normalizeNow(Revision revision);
 
@@ -123,7 +122,7 @@ public interface Repository {
      * Returns a {@link RevisionRange} which contains the absolute {@link Revision}s of the specified
      * {@code from} and {@code to}.
      *
-     * @throws RevisionNotFoundException it the specified {@code from} or {@code to} is not found
+     * @throws RevisionNotFoundException if the specified {@code from} or {@code to} is not found
      */
     RevisionRange normalizeNow(Revision from, Revision to);
 

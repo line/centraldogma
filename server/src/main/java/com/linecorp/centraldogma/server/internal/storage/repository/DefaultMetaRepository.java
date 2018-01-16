@@ -85,7 +85,6 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
     public Set<Mirror> mirrors() {
         mirrorLock.lock();
         try {
-            // TODO(trustin): Asynchronization
             final int headRev = normalizeNow(Revision.HEAD).major();
             final Set<String> repos = parent().repos().list().keySet();
             if (headRev > mirrorRev || !mirrorRepos.equals(repos)) {
