@@ -160,7 +160,7 @@ public class CommitIdDatabaseTest {
         // Open the repository again to see if the commit ID database is regenerated automatically.
         repo = new GitRepository(mock(Project.class), repoDir, commonPool());
         try {
-            assertThat(repo.normalize(Revision.HEAD).join()).isEqualTo(headRevision);
+            assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(headRevision);
             for (int i = 1; i <= numCommits; i++) {
                 assertThat(repo.find(new Revision(i + 1), "/" + i + ".txt").join()).hasSize(1);
             }

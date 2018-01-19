@@ -63,10 +63,9 @@ final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
         return weight;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     CompletableFuture<Change<?>> execute() {
-        return (CompletableFuture<Change<?>>) (CompletableFuture) repo.diff(from, to, query);
+        return repo.diff(from, to, query);
     }
 
     @Override

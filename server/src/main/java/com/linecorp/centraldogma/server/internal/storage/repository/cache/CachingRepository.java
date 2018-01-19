@@ -23,13 +23,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.base.Throwables;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -39,6 +39,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
@@ -114,20 +115,19 @@ final class CachingRepository implements Repository {
             throw new IllegalArgumentException("maxCommits: " + maxCommits + " (expected: > 0)");
         }
 
-        final CompletableFuture<Object> future = normalizeAndCompose(
-                from, to,
-                (normalizedFrom, normalizedTo) -> {
-                    // Make sure maxCommits do not exceed its theoretical limit to increase the chance of
-                    // cache hit.
-                    // e.g. when from = 2 and to = 4, the same result should be yielded when maxCommits >= 3.
-                    final int actualMaxCommits =
-                            Math.min(maxCommits, Math.abs(normalizedFrom.major() - normalizedTo.major()) + 1);
+        final RevisionRange range;
+        try {
+            range = normalizeNow(from, to);
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
 
-                    return cache.get(new CacheableHistoryCall(repo, normalizedFrom, normalizedTo,
-                                                              pathPattern, actualMaxCommits));
-                });
-
-        return unsafeCast(future);
+        // Make sure maxCommits do not exceed its theoretical limit to increase the chance of cache hit.
+        // e.g. when from = 2 and to = 4, the same result should be yielded when maxCommits >= 3.
+        final int actualMaxCommits = Math.min(
+                maxCommits, Math.abs(range.from().major() - range.to().major()) + 1);
+        return unsafeCast(cache.get(
+                new CacheableHistoryCall(repo, range.from(), range.to(), pathPattern, actualMaxCommits)));
     }
 
     @Override
@@ -136,12 +136,14 @@ final class CachingRepository implements Repository {
         requireNonNull(to, "to");
         requireNonNull(query, "query");
 
-        final CompletableFuture<Object> future = normalizeAndCompose(
-                from, to,
-                (normalizedFrom, normalizedTo) ->
-                        cache.get(new CacheableSingleDiffCall(repo, normalizedFrom, normalizedTo, query)));
+        final RevisionRange range;
+        try {
+            range = normalizeNow(from, to).toAscending();
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
 
-        return unsafeCast(future);
+        return unsafeCast(cache.get(new CacheableSingleDiffCall(repo, range.from(), range.to(), query)));
     }
 
     @Override
@@ -150,12 +152,14 @@ final class CachingRepository implements Repository {
         requireNonNull(to, "to");
         requireNonNull(pathPattern, "pathPattern");
 
-        final CompletableFuture<Object> future = normalizeAndCompose(
-                from, to,
-                (normalizedFrom, normalizedTo) ->
-                        cache.get(new CacheableMultiDiffCall(repo, normalizedFrom, normalizedTo, pathPattern)));
+        final RevisionRange range;
+        try {
+            range = normalizeNow(from, to).toAscending();
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
 
-        return unsafeCast(future);
+        return unsafeCast(cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(), pathPattern)));
     }
 
     // Simple delegations
@@ -171,8 +175,13 @@ final class CachingRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> normalize(Revision revision) {
-        return repo.normalize(revision);
+    public Revision normalizeNow(Revision revision) {
+        return repo.normalizeNow(revision);
+    }
+
+    @Override
+    public RevisionRange normalizeNow(Revision from, Revision to) {
+        return repo.normalizeNow(from, to);
     }
 
     @Override
@@ -198,20 +207,5 @@ final class CachingRepository implements Repository {
     private <T> CompletableFuture<T> normalizeAndCompose(
             Revision revision, Function<Revision, CompletableFuture<T>> function) {
         return normalize(revision).thenCompose(function);
-    }
-
-    private <T> CompletableFuture<T> normalizeAndCompose(
-            Revision from, Revision to, BiFunction<Revision, Revision, CompletableFuture<T>> function) {
-        final CompletableFuture<Revision> normalizeFromFuture = normalize(from);
-        final CompletableFuture<Revision> normalizeToFuture = normalize(to);
-        assert normalizeFromFuture != null;
-        assert normalizeToFuture != null;
-
-        return CompletableFuture.allOf(
-                normalizeFromFuture, normalizeToFuture).thenCompose(unused -> {
-            final Revision normalizedFrom = normalizeFromFuture.join();
-            final Revision normalizedTo = normalizeToFuture.join();
-            return function.apply(normalizedFrom, normalizedTo);
-        });
     }
 }

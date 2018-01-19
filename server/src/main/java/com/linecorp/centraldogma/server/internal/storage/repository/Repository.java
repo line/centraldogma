@@ -45,6 +45,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryException;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
@@ -52,6 +53,8 @@ import com.linecorp.centraldogma.server.internal.storage.project.Project;
  * Revision-controlled filesystem-like repository.
  */
 public interface Repository {
+
+    int DEFAULT_MAX_COMMITS = 1024;
 
     String ALL_PATH = "/**";
 
@@ -94,9 +97,34 @@ public interface Repository {
     }
 
     /**
-     * Validates the specified {@link Revision} and converts it into an absolute {@link Revision}.
+     * Returns the {@link CompletableFuture} whose value is the absolute {@link Revision} of the
+     * specified {@link Revision}.
+     *
+     * @deprecated Use {@link #normalizeNow(Revision)} instead.
      */
-    CompletableFuture<Revision> normalize(Revision revision);
+    @Deprecated
+    default CompletableFuture<Revision> normalize(Revision revision) {
+        try {
+            return CompletableFuture.completedFuture(normalizeNow(revision));
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
+    }
+
+    /**
+     * Returns the absolute {@link Revision} of the specified {@link Revision}.
+     *
+     * @throws RevisionNotFoundException if the specified {@link Revision} is not found
+     */
+    Revision normalizeNow(Revision revision);
+
+    /**
+     * Returns a {@link RevisionRange} which contains the absolute {@link Revision}s of the specified
+     * {@code from} and {@code to}.
+     *
+     * @throws RevisionNotFoundException if the specified {@code from} or {@code to} is not found
+     */
+    RevisionRange normalizeNow(Revision from, Revision to);
 
     /**
      * Returns {@code true} if and only if an {@link Entry} exists at the specified {@code path}.
@@ -219,20 +247,11 @@ public interface Repository {
         requireNonNull(to, "to");
         requireNonNull(query, "query");
 
-        Revision normalizedFrom = normalize(from).join();
-        Revision normalizedTo = normalize(to).join();
-
-        // If the from revision is newer than the to revision,
-        // swap them to compare from old to new one always.
-        if (normalizedFrom.major() > normalizedTo.major()) {
-            Revision temp = normalizedFrom;
-            normalizedFrom = normalizedTo;
-            normalizedTo = temp;
-        }
+        final RevisionRange range = normalizeNow(from, to).toAscending();
 
         final String path = query.path();
-        final CompletableFuture<Entry<?>> fromEntryFuture = getOrElse(normalizedFrom, path, null);
-        final CompletableFuture<Entry<?>> toEntryFuture = getOrElse(normalizedTo, path, null);
+        final CompletableFuture<Entry<?>> fromEntryFuture = getOrElse(range.from(), path, null);
+        final CompletableFuture<Entry<?>> toEntryFuture = getOrElse(range.to(), path, null);
 
         final CompletableFuture<Change<?>> future =
                 CompletableFutures.combine(fromEntryFuture, toEntryFuture, (fromEntry, toEntry) -> {
@@ -358,7 +377,7 @@ public interface Repository {
      * @throws StorageException when any internal error occurs.
      */
     default CompletableFuture<List<Commit>> history(Revision from, Revision to, String pathPattern) {
-        return history(from, to, pathPattern, Integer.MAX_VALUE);
+        return history(from, to, pathPattern, DEFAULT_MAX_COMMITS);
     }
 
     /**

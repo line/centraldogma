@@ -54,7 +54,7 @@ public final class PluginManager {
 
     public Revision reload() {
         final Repository metaRepo = project.metaRepo();
-        final Revision revision = metaRepo.normalize(Revision.HEAD).join();
+        final Revision revision = metaRepo.normalizeNow(Revision.HEAD);
         plugins = loadPlugins(metaRepo, revision);
         return revision;
     }
