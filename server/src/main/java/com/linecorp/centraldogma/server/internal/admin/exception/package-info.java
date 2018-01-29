@@ -17,4 +17,7 @@
 /**
  * Central Dogma exceptions.
  */
+@ParametersAreNonnullByDefault
 package com.linecorp.centraldogma.server.internal.admin.exception;
+
+import javax.annotation.ParametersAreNonnullByDefault;

@@ -46,4 +46,7 @@
  * representation (as a {@link com.fasterxml.jackson.databind.JsonNode}).</p>
  *
  */
+@ParametersAreNonnullByDefault
 package com.linecorp.centraldogma.internal.jsonpatch;
+
+import javax.annotation.ParametersAreNonnullByDefault;

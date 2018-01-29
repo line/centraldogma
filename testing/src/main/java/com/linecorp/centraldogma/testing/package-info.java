@@ -16,4 +16,7 @@
 /**
  * Simplifies the integration testing with Central Dogma.
  */
+@ParametersAreNonnullByDefault
 package com.linecorp.centraldogma.testing;
+
+import javax.annotation.ParametersAreNonnullByDefault;

@@ -18,4 +18,7 @@
  *
  * @see <a href="https://line.github.io/centraldogma/client-java.html" target="_blank">Java client library</a>
  */
+@ParametersAreNonnullByDefault
 package com.linecorp.centraldogma.client;
+
+import javax.annotation.ParametersAreNonnullByDefault;
