@@ -16,4 +16,7 @@
 /**
  * <a href="https://spring.io/">Spring framework</a> integration for Central Dogma client.
  */
+@ParametersAreNonnullByDefault
 package com.linecorp.centraldogma.client.spring;
+
+import javax.annotation.ParametersAreNonnullByDefault;

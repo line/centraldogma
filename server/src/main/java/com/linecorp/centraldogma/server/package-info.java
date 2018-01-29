@@ -16,4 +16,7 @@
 /**
  * Central Dogma server.
  */
+@ParametersAreNonnullByDefault
 package com.linecorp.centraldogma.server;
+
+import javax.annotation.ParametersAreNonnullByDefault;

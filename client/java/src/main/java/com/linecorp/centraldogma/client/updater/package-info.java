@@ -16,4 +16,7 @@
 /**
  * Creates a Java bean whose properties are mirrored from Central Dogma automatically.
  */
+@ParametersAreNonnullByDefault
 package com.linecorp.centraldogma.client.updater;
+
+import javax.annotation.ParametersAreNonnullByDefault;

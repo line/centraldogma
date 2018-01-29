@@ -11,4 +11,6 @@
   <suppress checks="UncommentedMain" files="[\\/]Main\.java$" />
   <!-- Suppress all checks in generated sources -->
   <suppress checks=".*" files="[\\/]gen-java[\\/]" />
+  <!-- Enable 'PackageNonnullAnnotation' for package-info.java only -->
+  <suppress id="PackageNonnullAnnotation" files="(?&lt;![\\/]package-info\.java)$" />
 </suppressions>

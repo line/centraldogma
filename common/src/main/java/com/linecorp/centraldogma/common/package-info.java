@@ -16,4 +16,7 @@
 /**
  * Common data types and exceptions.
  */
+@ParametersAreNonnullByDefault
 package com.linecorp.centraldogma.common;
+
+import javax.annotation.ParametersAreNonnullByDefault;
