@@ -22,13 +22,14 @@ import static java.util.Objects.requireNonNull;
 import java.time.Duration;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+import javax.naming.AuthenticationException;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapContext;
 
-import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.AuthenticationInfo;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.UsernamePasswordToken;
@@ -56,7 +57,7 @@ import org.apache.shiro.realm.ldap.LdapUtils;
  */
 public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
 
-    private static final Pattern USERNAME_PLACEHOLDER = Pattern.compile("\\{0\\}");
+    private static final Pattern USERNAME_PLACEHOLDER = Pattern.compile("\\{0}");
     private static final String DEFAULT_SEARCH_FILTER = "cn={0}";
     private static final int DEFAULT_SEARCH_TIMEOUT_MILLIS = (int) Duration.ofSeconds(10).toMillis();
 
@@ -103,11 +104,20 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
 
         final UsernamePasswordToken upToken = ensureUsernamePasswordToken(token);
         final String userDn = findUserDn(ldapContextFactory, upToken.getUsername());
+        if (userDn == null) {
+            return null;
+        }
 
         LdapContext ctx = null;
         try {
             // Binds using the username and password provided by the user.
             ctx = ldapContextFactory.getLdapContext(userDn, upToken.getPassword());
+        } catch (AuthenticationException e) {
+            // According to this page, LDAP error code 49 (invalid credentials) is the only case where
+            // AuthenticationException is raised:
+            // - https://docs.oracle.com/javase/tutorial/jndi/ldap/exceptions.html
+            // - com.sun.jndi.ldap.LdapCtx.mapErrorCode()
+            return null;
         } finally {
             LdapUtils.closeContext(ctx);
         }
@@ -117,7 +127,10 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
     /**
      * Finds a distinguished name(DN) of a user by querying the active directory LDAP context for the
      * specified username.
+     *
+     * @return the DN of the user, or {@code null} if there's no such user
      */
+    @Nullable
     protected String findUserDn(LdapContextFactory ldapContextFactory, String username) throws NamingException {
         LdapContext ctx = null;
         try {
@@ -136,7 +149,7 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
             final NamingEnumeration<SearchResult> result = ctx.search(searchBase, filter, ctrl);
             try {
                 if (!result.hasMore()) {
-                    throw new AuthenticationException("No username: " + username);
+                    return null;
                 }
                 return result.next().getNameInNamespace();
             } finally {
