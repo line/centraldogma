@@ -62,7 +62,7 @@ public class QueryRequestConverterTest {
         final String jsonFilePath = "/a.json";
         when(ctx.pathParam("path")).thenReturn(jsonFilePath);
 
-        final String httpQuery = "?expression=%22%24.a%22";  // "$.a"
+        final String httpQuery = "?jsonpath=%22%24.a%22";  // "$.a"
         when(ctx.query()).thenReturn(httpQuery);
 
         final Optional<Query<?>> query = convert(ctx);

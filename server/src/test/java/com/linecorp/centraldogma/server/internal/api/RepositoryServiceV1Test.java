@@ -246,4 +246,14 @@ public class RepositoryServiceV1Test {
         final AggregatedHttpMessage aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
+
+    @Test
+    public void normalizeRevision() {
+        createRepository("foo");
+        final AggregatedHttpMessage res = httpClient.get(REPOS_PREFIX + "/foo/revision/-1")
+                                                    .aggregate().join();
+        final String expectedJson = "{\"revision\":1}";
+        final String actualJson = res.content().toStringUtf8();
+        assertThatJson(actualJson).isEqualTo(expectedJson);
+    }
 }
