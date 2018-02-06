@@ -29,6 +29,8 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
@@ -86,13 +88,19 @@ public class LoginAndLogoutTest {
         assertThat(loginRes.status()).isEqualTo(HttpStatus.OK);
 
         // Ensure authorization works.
-        final String sessionId = loginRes.content().toStringAscii();
+        final AccessToken accessToken = Jackson.readValue(loginRes.content().toStringUtf8(), AccessToken.class);
+        final String sessionId = accessToken.accessToken();
         assertThat(usersMe(rule, sessionId).status()).isEqualTo(HttpStatus.OK);
 
         // Log out.
         assertThat(logout(rule, sessionId).status()).isEqualTo(HttpStatus.OK);
         assertThat(usersMe(rule, sessionId).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
+    //
+    //@Test
+    //public void loginWithBasicAuth() {
+    //
+    //}
 
     @Test
     public void incorrectLogin() throws Exception {

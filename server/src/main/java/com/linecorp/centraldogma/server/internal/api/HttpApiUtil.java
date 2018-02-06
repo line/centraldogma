@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
@@ -42,7 +43,8 @@ import com.linecorp.centraldogma.internal.Jackson;
 /**
  * A utility class which provides common functions for HTTP API.
  */
-final class HttpApiUtil {
+//TODO(minwoox) change this class to package-local when the admin API is integrated with HTTP API
+public final class HttpApiUtil {
 
     static final JsonNode unremoveRequest = Jackson.valueToTree(
             ImmutableList.of(
@@ -54,18 +56,35 @@ final class HttpApiUtil {
      * Returns a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
      * {@code message}.
      */
-    static HttpResponseException newHttpResponseException(HttpStatus status, String message) {
+    public static HttpResponseException newHttpResponseException(HttpStatus status, String message) {
         return HttpResponseException.of(newResponseWithErrorMessage(status, message));
+    }
+
+    /**
+     * Returns a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
+     * {@link JsonNode}.
+     */
+    public static HttpResponseException newHttpResponseException(HttpStatus status, JsonNode node) {
+        return HttpResponseException.of(newResponseWithJson(status, node));
     }
 
     /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and {@code message}.
      */
-    static HttpResponse newResponseWithErrorMessage(HttpStatus status, String message) {
+    public static HttpResponse newResponseWithErrorMessage(HttpStatus status, String message) {
+        requireNonNull(message, "message");
+        return newResponseWithJson(status, JsonNodeFactory.instance.objectNode().put("message", message));
+    }
+
+    /**
+     * Returns a newly created {@link HttpResponse} with the specified {@link JsonNode}.
+     */
+    public static HttpResponse newResponseWithJson(HttpStatus status, JsonNode node) {
+        requireNonNull(status, "status");
+        requireNonNull(node, "node");
         // TODO(minwoox) refine the error message
-        final ObjectNode content = JsonNodeFactory.instance.objectNode().put("message", message);
         try {
-            return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(content));
+            return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));
         } catch (JsonProcessingException e) {
             // should not reach here
             throw new Error(e);

@@ -16,26 +16,38 @@
 
 package com.linecorp.centraldogma.server.internal.admin.authentication;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newHttpResponseException;
 import static java.util.Objects.requireNonNull;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.shiro.authc.IncorrectCredentialsException;
 import org.apache.shiro.authc.UsernamePasswordToken;
+import org.apache.shiro.session.Session;
 import org.apache.shiro.session.mgt.SimpleSession;
 import org.apache.shiro.subject.Subject;
 import org.apache.shiro.util.ThreadContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
+
+import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.server.AbstractHttpService;
+import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 
@@ -60,14 +72,13 @@ public class LoginService extends AbstractHttpService {
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         final CompletableFuture<HttpResponse> future = new CompletableFuture<>();
         req.aggregate().thenAccept(aMsg -> {
-            final QueryStringDecoder decoder =
-                    new QueryStringDecoder(aMsg.content().toStringUtf8(), false);
-            final String username = decoder.parameters().get("username").get(0);
-            final String password = decoder.parameters().get("password").get(0);
-            final boolean rememberMe = Boolean.valueOf(decoder.parameters().get("remember_me").get(0));
-
-            checkArgument(username != null, "Parameter username should not be null.");
-            checkArgument(password != null, "Parameter password should not be null.");
+            final UsernamePasswordToken usernamePassword;
+            try {
+                usernamePassword = usernamePassword(aMsg);
+            } catch (HttpResponseException e) {
+                future.complete(e.httpResponse());
+                return;
+            }
 
             ctx.blockingTaskExecutor().execute(() -> {
                 // Need to set the thread-local security manager to silence
@@ -77,21 +88,25 @@ public class LoginService extends AbstractHttpService {
                 boolean success = false;
                 try {
                     currentUser = new Subject.Builder(securityManager).buildSubject();
-                    currentUser.login(new UsernamePasswordToken(username, password, rememberMe));
+                    currentUser.login(usernamePassword);
 
-                    final String sessionId = currentUser.getSession(false).getId().toString();
+                    final Session currentUserSession = currentUser.getSession(false);
+                    final long expiresIn = currentUserSession.getTimeout();
+                    final String sessionId = currentUserSession.getId().toString();
                     final SimpleSession session = securityManager.getSerializableSession(sessionId);
                     executor.execute(Command.createSession(session)).join();
                     success = true;
 
-                    logger.info("{} Logged in: {} ({})", ctx, username, sessionId);
-                    future.complete(HttpResponse.of(HttpStatus.OK, MediaType.PLAIN_TEXT_UTF_8, sessionId));
+                    logger.info("{} Logged in: {} ({})", ctx, usernamePassword.getUsername(), sessionId);
+
+                    final AccessToken accessToken = new AccessToken(sessionId, expiresIn);
+                    future.complete(HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(accessToken)));
                 } catch (IncorrectCredentialsException e) {
                     // Not authorized
-                    logger.debug("{} Incorrect login: {}", ctx, username);
+                    logger.debug("{} Incorrect login: {}", ctx, usernamePassword.getUsername());
                     future.complete(HttpResponse.of(HttpStatus.UNAUTHORIZED));
                 } catch (Throwable t) {
-                    logger.warn("{} Failed to authenticate: {}", ctx, username, t);
+                    logger.warn("{} Failed to authenticate: {}", ctx, usernamePassword.getUsername(), t);
                     future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
                 } finally {
                     try {
@@ -109,5 +124,67 @@ public class LoginService extends AbstractHttpService {
             future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
         }));
         return HttpResponse.from(future);
+    }
+
+    /**
+     * Returns {@link UsernamePasswordToken} which holds a username and a password.
+     */
+    private static UsernamePasswordToken usernamePassword(AggregatedHttpMessage req) {
+        final MediaType mediaType = req.headers().contentType();
+        if (mediaType != MediaType.FORM_DATA) {
+            return throwResponseException("invalid_request",
+                                          "request was missing the '" + MediaType.FORM_DATA + "'.");
+        }
+
+        final Map<String, List<String>> parameters = new QueryStringDecoder(
+                req.content().toStringUtf8(), false).parameters();
+
+        if (parameters.get("grant_type") != null &&
+            parameters.get("grant_type").get(0).equals("client_credentials")) {
+
+            // check the basic authentication first
+            final String authHeader = req.headers().get(HttpHeaderNames.AUTHORIZATION);
+            if (authHeader != null) {
+                return usernamePassword(authHeader);
+            }
+
+            // If the Authorization header is not present, check the client credentials.
+            final List<String> clientIds = parameters.get("client_id");
+            final List<String> clientSecrets = parameters.get("client_secret");
+            return usernamePassword(clientIds, clientSecrets);
+        } else {
+            // assume that the grant_type is "password"
+            final List<String> usernames = parameters.get("username");
+            final List<String> passwords = parameters.get("password");
+            return usernamePassword(usernames, passwords);
+        }
+    }
+
+    private static <T> T throwResponseException(String error, String errorDescription) {
+        final ImmutableMap<String, String> errorMessage = ImmutableMap.of(
+                "error", error, "error_description", errorDescription);
+        throw newHttpResponseException(HttpStatus.BAD_REQUEST, Jackson.valueToTree(errorMessage));
+    }
+
+    private static UsernamePasswordToken usernamePassword(String authHeader) {
+        final String[] split = authHeader.split(" ", 2);
+        if (!"basic".equalsIgnoreCase(split[0])) {
+            return throwResponseException("invalid_request", "request was missing the 'Basic'.");
+        }
+
+        final String decodedStr = new String(Base64.getDecoder().decode(split[1].getBytes(
+                StandardCharsets.UTF_8)));
+        final String[] split1 = decodedStr.split(":", 2);
+        return null;
+    }
+
+    private static UsernamePasswordToken usernamePassword(List<String> usernames, List<String> passwords) {
+        if (usernames != null && passwords != null) {
+            final String username = usernames.get(0);
+            final String password = passwords.get(0);
+            return new UsernamePasswordToken(username, password);
+        }
+
+        return throwResponseException("invalid_request", "request was missing the username and password.");
     }
 }
