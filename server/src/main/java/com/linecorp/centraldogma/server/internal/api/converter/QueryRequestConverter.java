@@ -18,10 +18,11 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 
 import java.util.List;
 import java.util.Optional;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -43,11 +44,12 @@ public final class QueryRequestConverter implements RequestConverterFunction {
     public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
                                  Class<?> expectedResultType) throws Exception {
         final String path = getPath(ctx);
-        final Optional<String> expression = getExpression(ctx);
-        if (expression.isPresent()) {
-            validateJsonFilePath(path, "path");
-            return Optional.of(Query.ofJsonPath(path, expression.get()));
-        } else if (isValidFilePath(path)) {
+        final Optional<Iterable<String>> jsonPaths = getJsonPaths(ctx);
+        if (jsonPaths.isPresent()) {
+            return Optional.of(Query.ofJsonPath(path, jsonPaths.get()));
+        }
+
+        if (isValidFilePath(path)) {
             return Optional.of(Query.identity(path));
         }
         return Optional.empty();
@@ -72,13 +74,13 @@ public final class QueryRequestConverter implements RequestConverterFunction {
         return "";
     }
 
-    private static Optional<String> getExpression(ServiceRequestContext ctx) {
+    private static Optional<Iterable<String>> getJsonPaths(ServiceRequestContext ctx) {
         final String query = ctx.query();
         if (query != null) {
-            final List<String> expression = new QueryStringDecoder(query, false).parameters().get(
-                    "expression");
-            if (expression != null) {
-                return Optional.of(expression.get(0));
+            final List<String> jsonPaths = new QueryStringDecoder(query, false).parameters().get(
+                    "jsonpath");
+            if (jsonPaths != null) {
+                return Optional.of(ImmutableList.copyOf(jsonPaths));
             }
         }
         return Optional.empty();

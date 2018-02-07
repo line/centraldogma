@@ -28,6 +28,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.annotation.ConsumeType;
@@ -40,6 +42,7 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.server.internal.admin.service.MetadataService;
@@ -139,5 +142,19 @@ public class RepositoryServiceV1 extends AbstractService {
         return mds.addRepo(project.name(), author, repoName)
                   .thenCompose(p -> execute(Command.unremoveRepository(author, project.name(), repoName)))
                   .handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(repoName))));
+    }
+
+    /**
+     * GET /projects/{projectName}/repos/{repoName}/revision/{revision}
+     *
+     * <p>Normalizes the revision into an absolute revision.
+     */
+    @Get("/projects/{projectName}/repos/{repoName}/revision/{revision}")
+    public CompletableFuture<JsonNode> normalizeRevision(@RequestObject Repository repository,
+                                                         @Param("revision") String revision) {
+        final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
+        final ObjectNode jsonNode = JsonNodeFactory.instance.objectNode()
+                                                            .put("revision", normalizedRevision.major());
+        return CompletableFuture.completedFuture(jsonNode);
     }
 }

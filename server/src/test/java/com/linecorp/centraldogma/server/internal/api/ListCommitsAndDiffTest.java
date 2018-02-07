@@ -256,8 +256,9 @@ public class ListCommitsAndDiffTest {
     public void getJsonDiff() {
         editFooFile();
         final AggregatedHttpMessage aRes = httpClient
-                .get("/api/v1/projects/myPro/repos/myRepo/compare?" +
-                     "path=/foo0.json&queryType=JSON_PATH&expression=$.a&from=3&to=4").aggregate().join();
+                .get("/api/v1/projects/myPro/repos/myRepo/compare?path=/foo0.json&jsonpath=$.a&from=3&to=4")
+                .aggregate().join();
+
         final String expectedJson =
                 '{' +
                 "   \"path\": \"/foo0.json\"," +

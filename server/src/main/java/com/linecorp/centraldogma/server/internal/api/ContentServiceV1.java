@@ -190,8 +190,8 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     /**
-     * GET /projects/{projectName}/repos/{repoName}/contents{path}?revision={revision}&
-     * queryType={queryType}&expression={expression}
+     * GET /projects/{projectName}/repos/{repoName}/contents{path}?revision={revision}&amp;
+     * jsonpath={jsonpath}
      *
      * <p>Returns the entry of files in the path. This is same with
      * {@link #listFiles(String, String, Repository)} except that containing the content of the files.
@@ -274,7 +274,7 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     /**
-     * GET /projects/{projectName}/repos/{repoName}/commits/{revision}?path={path}&to={to}
+     * GET /projects/{projectName}/repos/{repoName}/commits/{revision}?path={path}&amp;to={to}
      *
      * <p>Returns a commit or the list of commits in the path. If the user specify the {@code revision} only,
      * this will return the corresponding commit. If the user does not specify the {@code revision} or
@@ -312,8 +312,8 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     /**
-     * GET /projects/{projectName}/repos/{repoName}/compare?path={path}&from={from}&to={to}&
-     * queryType={queryType}&expression={expression}
+     * GET /projects/{projectName}/repos/{repoName}/compare?
+     * path={path}&amp;from={from}&amp;to={to}&amp;jsonpath={jsonpath}
      *
      * <p>Returns the diffs.
      */
