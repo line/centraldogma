@@ -1,8 +1,5 @@
 dependencies {
-    compile project(':client:client-java')
+    compile project(':client:java')
     compile project(':server')
-}
-
-managedDependencies {
     compile 'junit:junit'
 }

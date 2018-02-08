@@ -24,7 +24,7 @@ def load_yaml(filepath):
 # Load the gradle.properties and dependencies.yml.
 rootDir = os.path.dirname(os.path.abspath(__file__)) + '/../../..'
 properties = load_properties(rootDir + '/gradle.properties')
-dependencies = load_yaml(rootDir + '/dependencies.yml')
+managed_versions = load_yaml(rootDir + '/build/managed_versions.yml')
 
 # Set the basic project information.
 project = 'Central Dogma'
@@ -32,11 +32,7 @@ project_short = 'CentralDogma'
 copyright = properties['inceptionYear'] + '-' + str(date.today().year) + ', LINE Corporation'
 
 # Set the project version and release.
-# Use the last known stable release if the current version ends with '-SNAPSHOT'.
-if re.match(r'^.*-SNAPSHOT$', properties['version']):
-    release = '0.20.1'
-else:
-    release = properties['version']
+release = properties['version']
 version = re.match(r'^[0-9]+\.[0-9]+', release).group(0)
 
 # Export the loaded properties and some useful values into epilogs
@@ -52,11 +48,10 @@ for k in properties.keys():
     if k in [ 'release', 'version' ]:
         continue
     rst_epilog += '.. |' + k + '| replace:: ' + v + '\n'
-for groupId in dependencies.keys():
-    for artifactId in dependencies[groupId]:
-        k = groupId + ':' + artifactId + ':version'
-        v = dependencies[groupId][artifactId]['version']
-        rst_epilog += '.. |' + k + '| replace:: ' + v + '\n'
+for k in managed_versions.keys():
+    v = managed_versions[k]
+    rst_epilog += '.. |' + k + ':version| replace:: ' + v + '\n'
+
 rst_epilog += '\n'
 
 needs_sphinx = '1.0'

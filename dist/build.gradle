@@ -7,16 +7,16 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.boazj.gradle:gradle-log-plugin:0.1.0'
-        classpath('com.bmuschko:gradle-docker-plugin:3.1.0')
+        classpath "com.boazj.gradle:gradle-log-plugin:${managedVersions['com.boazj.gradle:gradle-log-plugin']}"
+        classpath "com.bmuschko:gradle-docker-plugin:${managedVersions['com.bmuschko:gradle-docker-plugin']}"
     }
 }
 
 apply plugin: 'com.boazj.log'
 apply plugin: 'com.bmuschko.docker-remote-api'
 
-evaluationDependsOn(':client:client-go')
-evaluationDependsOn(':client:client-java')
+evaluationDependsOn(':client:go')
+evaluationDependsOn(':client:java')
 evaluationDependsOn(':server')
 
 ext {
@@ -24,7 +24,7 @@ ext {
     relativeDistDir = distDir.substring("${rootProject.projectDir}/".length())
 }
 
-managedDependencies {
+dependencies {
     // Logging
     runtime 'ch.qos.logback:logback-classic'
     runtime 'com.linecorp.armeria:armeria-logback-shaded'
@@ -35,7 +35,6 @@ managedDependencies {
 
 // Do not generate a JAR for this project.
 tasks.jar.enabled = false
-tasks.shadedJar.enabled = false
 
 task copyLicenses(group: 'Build',
                   description: "Copies license information into ${project.ext.relativeDistDir}/licenses",
@@ -51,11 +50,11 @@ task copyLicenses(group: 'Build',
 
 task copyLib(group: 'Build',
              description: "Copies JARs into ${project.ext.relativeDistDir}/lib",
-             dependsOn: [project(':client:client-java').tasks.jar, project(':server').tasks.jar],
+             dependsOn: [project(':client:java').tasks.jar, project(':server').tasks.jar],
              type: Copy) {
 
-    from project(':client:client-java').configurations.runtime
-    from project(':client:client-java').tasks.jar
+    from project(':client:java').configurations.runtime
+    from project(':client:java').tasks.jar
     from project(':server').configurations.runtime
     from project(':server').tasks.jar
     from project.configurations.runtime
@@ -69,9 +68,9 @@ task copyLib(group: 'Build',
 
 task copyClientBinaries(group: 'Build',
         description: "Copies client binaries into ${project.ext.relativeDistDir}/lib",
-        dependsOn: project(':client:client-go').tasks.build,
+        dependsOn: project(':client:go').tasks.build,
         type: Copy) {
-    from project(':client:client-go').ext.binDir
+    from project(':client:go').ext.binDir
     into "${project.ext.distDir}/bin/native"
 }
 

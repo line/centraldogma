@@ -3,13 +3,13 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.craigburke.gradle:client-dependencies:1.4.0'
+        classpath "com.craigburke.gradle:client-dependencies:${managedVersions['com.craigburke.gradle:client-dependencies']}"
     }
 }
 
 apply plugin: 'com.craigburke.client-dependencies'
 
-managedDependencies {
+dependencies {
     // Armeria
     [ 'armeria-shaded', 'armeria-thrift0.9-shaded' ].each {
         compile "com.linecorp.armeria:$it"
@@ -36,12 +36,8 @@ managedDependencies {
 
     // Mockito for mocking a Project
     jmh 'org.mockito:mockito-core'
-}
-
-dependencies {
     // Logging
-    runtime ("ch.qos.logback:logback-classic:" +
-            "${rootProject.ext.dependencyManagement ['ch.qos.logback']['logback-classic'].version}") {
+    runtime('ch.qos.logback:logback-classic') {
         ext.optional = true
     }
 }
