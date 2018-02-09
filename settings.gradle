@@ -1,28 +1,27 @@
 rootProject.name = 'centraldogma'
 
+apply from: "${rootDir}/gradle/scripts/settings-flags.gradle"
+
+// Published BOM projects
+includeWithFlags ':bom', 'bom'
+
 // Published Java projects
-include 'client:java'
-include 'client:java-spring-boot-autoconfigure'
-include 'client:java-spring-boot-starter'
-include 'common'
-include 'server'
-include 'testing'
+includeWithFlags ':client:java',                           'java', 'publish', 'relocate'
+includeWithFlags ':client:java-spring-boot-autoconfigure', 'java', 'publish', 'relocate'
+includeWithFlags ':client:java-spring-boot-starter',       'java', 'publish', 'relocate'
+includeWithFlags ':common',                                'java', 'publish', 'shade', 'trim'
+includeWithFlags ':server',                                'java', 'publish', 'relocate'
+includeWithFlags ':testing',                               'java', 'publish', 'relocate'
 
 // Published Go project
 include 'client:go'
 
 // Unpublished Java projects
-include 'it'
-include 'shaded-test'
-include 'testing-internal'
+includeWithFlags ':it',               'java', 'relocate'
+includeWithFlags ':testing-internal', 'java', 'relocate'
 
 // Site generation project
-include 'site'
+includeWithFlags ':site'
 
 // Distribution
-include 'dist'
-
-project(':client:java').name = 'client-java'
-project(':client:java-spring-boot-autoconfigure').name = 'client-java-spring-boot-autoconfigure'
-project(':client:java-spring-boot-starter').name = 'client-java-spring-boot-starter'
-project(':client:go').name = 'client-go'
+includeWithFlags ':dist', 'java'

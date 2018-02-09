@@ -10,5 +10,5 @@
   <!-- Suppress UncommentedMain for the server entry point -->
   <suppress checks="UncommentedMain" files="[\\/]Main\.java$" />
   <!-- Suppress all checks in generated sources -->
-  <suppress checks=".*" files="[\\/]gen-java[\\/]" />
+  <suppress checks=".*" files="[\\/]gen-src[\\/]" />
 </suppressions>

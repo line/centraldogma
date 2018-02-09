@@ -1,8 +1,17 @@
 import com.google.common.base.CaseFormat
 
-plugins {
-    id 'com.github.blindpirate.gogradle' version '0.7.0'
+buildscript {
+    repositories {
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
+    }
+    dependencies {
+        classpath "gradle.plugin.com.github.blindpirate:gogradle:${managedVersions['gradle.plugin.com.github.blindpirate:gogradle']}"
+    }
 }
+
+apply plugin: 'com.github.blindpirate.gogradle'
 
 golang {
     packagePath = 'github.com/line/centraldogma/client/go'
