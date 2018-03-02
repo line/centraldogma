@@ -24,16 +24,16 @@ type repositoryService service
 
 // Repository represents a repository in the Central Dogma server.
 type Repository struct {
-	Name        string `json:"name"`
-	Creator     string `json:"creator,omitempty"`
+	Name         string `json:"name"`
+	Creator      string `json:"creator,omitempty"`
 	HeadRevision int    `json:"headRevision,omitempty"`
-	URL         string `json:"url,omitempty"`
-	CreatedAt   string `json:"createdAt,omitempty"`
+	URL          string `json:"url,omitempty"`
+	CreatedAt    string `json:"createdAt,omitempty"`
 }
 
 func (r *repositoryService) create(ctx context.Context, projectName, repoName string) (*Repository,
 	*http.Response, error) {
-	u := fmt.Sprintf("%vprojects/%v/repos", DefaultPathPrefix, projectName)
+	u := fmt.Sprintf("%vprojects/%v/repos", defaultPathPrefix, projectName)
 
 	req, err := r.client.newRequest("POST", u, &Repository{Name: repoName})
 	if err != nil {
@@ -50,7 +50,7 @@ func (r *repositoryService) create(ctx context.Context, projectName, repoName st
 }
 
 func (r *repositoryService) remove(ctx context.Context, projectName, repoName string) (*http.Response, error) {
-	u := fmt.Sprintf("%vprojects/%v/repos/%v", DefaultPathPrefix, projectName, repoName)
+	u := fmt.Sprintf("%vprojects/%v/repos/%v", defaultPathPrefix, projectName, repoName)
 
 	req, err := r.client.newRequest("DELETE", u, nil)
 	if err != nil {
@@ -66,7 +66,7 @@ func (r *repositoryService) remove(ctx context.Context, projectName, repoName st
 
 func (r *repositoryService) unremove(ctx context.Context, projectName, repoName string) (*Repository,
 	*http.Response, error) {
-	u := fmt.Sprintf("%vprojects/%v/repos/%v", DefaultPathPrefix, projectName, repoName)
+	u := fmt.Sprintf("%vprojects/%v/repos/%v", defaultPathPrefix, projectName, repoName)
 
 	req, err := r.client.newRequest("PATCH", u, `[{"op":"replace", "path":"/status", "value":"active"}]`)
 	if err != nil {
@@ -83,7 +83,7 @@ func (r *repositoryService) unremove(ctx context.Context, projectName, repoName 
 
 func (r *repositoryService) list(ctx context.Context, projectName string) ([]*Repository,
 	*http.Response, error) {
-	u := fmt.Sprintf("%vprojects/%v/repos", DefaultPathPrefix, projectName)
+	u := fmt.Sprintf("%vprojects/%v/repos", defaultPathPrefix, projectName)
 
 	req, err := r.client.newRequest("GET", u, nil)
 	if err != nil {
@@ -100,7 +100,7 @@ func (r *repositoryService) list(ctx context.Context, projectName string) ([]*Re
 
 func (r *repositoryService) listRemoved(ctx context.Context, projectName string) ([]*Repository,
 	*http.Response, error) {
-	u := fmt.Sprintf("%vprojects/%v/repos?status=removed", DefaultPathPrefix, projectName)
+	u := fmt.Sprintf("%vprojects/%v/repos?status=removed", defaultPathPrefix, projectName)
 
 	req, err := r.client.newRequest("GET", u, nil)
 	if err != nil {
@@ -117,7 +117,7 @@ func (r *repositoryService) listRemoved(ctx context.Context, projectName string)
 
 func (r *repositoryService) normalizeRevision(
 	ctx context.Context, projectName, repoName, revision string) (int, *http.Response, error) {
-	u := fmt.Sprintf("%vprojects/%v/repos/%v/revision/%v", DefaultPathPrefix, projectName, repoName, revision)
+	u := fmt.Sprintf("%vprojects/%v/repos/%v/revision/%v", defaultPathPrefix, projectName, repoName, revision)
 
 	req, err := r.client.newRequest("GET", u, nil)
 	if err != nil {

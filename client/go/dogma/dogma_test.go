@@ -15,13 +15,13 @@
 package dogma
 
 import (
+	"context"
 	"fmt"
+	"golang.org/x/oauth2/clientcredentials"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"golang.org/x/oauth2/clientcredentials"
-	"context"
 )
 
 // setup sets up a test HTTP server along with a github.Client that is
@@ -31,7 +31,7 @@ func setup() (c *Client, mux *http.ServeMux, teardown func()) {
 	mux = http.NewServeMux()
 	server := httptest.NewServer(mux)
 
-	c, _ = NewClient(server.URL, http.DefaultClient)
+	c, _ = NewClientWithHTTPClient(server.URL, http.DefaultClient)
 	return c, mux, server.Close
 }
 
@@ -47,7 +47,7 @@ func testHeader(t *testing.T, req *http.Request, header string, want string) {
 	}
 }
 
-func testQuery(t *testing.T, r *http.Request, key, want string) {
+func testURLQuery(t *testing.T, r *http.Request, key, want string) {
 	if got := r.URL.Query().Get(key); got != want {
 		t.Errorf("Query.Get(%q) returned %q, want %q", key, got, want)
 	}
@@ -76,40 +76,20 @@ func testString(t *testing.T, got, want, name string) {
 }
 
 func TestNewClient(t *testing.T) {
-	var tests = []struct {
-		baseURL string
-		want    string
-	}{
-		{"", DefaultBaseURL},
-		{"central-dogma.com", "http://central-dogma.com:36462/"},
-		{"central-dogma.com:80", "http://central-dogma.com:80/"},
-		{"https://central-dogma.com", "https://central-dogma.com:36462/"},
-	}
-
-	for _, test := range tests {
-		if got, _ := NewClient(test.baseURL, http.DefaultClient); got.BaseURL.String() != test.want {
-			t.Errorf("NewClient BaseURL is %v, want %v", got, test.want)
-		}
-	}
-}
-
-
-
-func TestNewClientWithCredential(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
 	config := clientcredentials.Config{ClientID: "foo", ClientSecret: "bar",
 		TokenURL: server.URL + "/api/v0/authenticate"}
-	c, _ := NewClientWithCredential(server.URL, config)
+	c, _ := NewClient(server.URL, config)
 
 	mux.HandleFunc("/api/v0/authenticate", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "POST")
 		r.ParseForm()
 		testString(t, r.PostForm.Get("grant_type"), "client_credentials", "grant_type")
 
-		username, password, _ :=r.BasicAuth()
+		username, password, _ := r.BasicAuth()
 		testString(t, username, "foo", "username")
 		testString(t, password, "bar", "password")
 
@@ -126,4 +106,22 @@ func TestNewClientWithCredential(t *testing.T) {
 	// the request goes to "/api/v0/authenticate" first to get the token, then goes to "test"
 	res, _ := c.do(context.Background(), req, nil)
 	testStatus(t, res, 200)
+}
+
+func TestNewClientWithHTTPClient(t *testing.T) {
+	var tests = []struct {
+		baseURL string
+		want    string
+	}{
+		{"", defaultBaseURL},
+		{"central-dogma.com", "http://central-dogma.com:36462/"},
+		{"central-dogma.com:80", "http://central-dogma.com:80/"},
+		{"https://central-dogma.com", "https://central-dogma.com:36462/"},
+	}
+
+	for _, test := range tests {
+		if got, _ := NewClientWithHTTPClient(test.baseURL, http.DefaultClient); got.BaseURL.String() != test.want {
+			t.Errorf("NewClientWithHTTPClient BaseURL is %v, want %v", got, test.want)
+		}
+	}
 }

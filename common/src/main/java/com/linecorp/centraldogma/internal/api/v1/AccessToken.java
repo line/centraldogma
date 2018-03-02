@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.linecorp.centraldogma.internal.api.v1;
 
 import static java.util.Objects.requireNonNull;
@@ -17,11 +33,7 @@ public class AccessToken {
 
     private final String refreshToken;
 
-    //TODO(minwoox) add scope when it needs
-
-    public AccessToken(String accessToken) {
-        this(accessToken, 0);
-    }
+    //TODO(minwoox) Add scope if needed.
 
     public AccessToken(String accessToken, long expiresIn) {
         this(accessToken, expiresIn, "");
@@ -44,6 +56,11 @@ public class AccessToken {
     @JsonProperty("expires_in")
     public long expiresIn() {
         return expiresIn;
+    }
+
+    @JsonProperty("token_type")
+    public String tokenType() {
+        return tokenType;
     }
 
     @JsonProperty("refresh_token")

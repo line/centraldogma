@@ -45,7 +45,7 @@ func TestListFiles_WithRevision(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/tree/**", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testQuery(t, r, "revision", "2")
+		testURLQuery(t, r, "revision", "2")
 		fmt.Fprint(w, `[{"path":"/a.json", "type":"JSON"},{"path":"/b.txt", "type":"TEXT"}]`)
 	})
 
@@ -66,7 +66,8 @@ func TestGetFile(t *testing.T) {
 			fmt.Fprint(w, `{"path":"/b.txt", "type":"TEXT", "content":"hello world~!"}`)
 		})
 
-	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "", "/b.txt")
+	query := &Query{Path: "/b.txt", QueryType: "identity"}
+	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "", query)
 	want := &Entry{Path: "/b.txt", Type: "TEXT", Content: "hello world~!"}
 	if !reflect.DeepEqual(entry, want) {
 		t.Errorf("GetFile returned %+v, want %+v", entry, want)
@@ -83,7 +84,8 @@ func TestGetFile_JSON(t *testing.T) {
 			fmt.Fprint(w, `{"path":"/a.json", "type":"JSON", "content":{"a":"b"}}`)
 		})
 
-	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "", "/a.json")
+	query := &Query{Path: "/a.json", QueryType: "identity"}
+	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "", query)
 	want := &Entry{Path: "/a.json", Type: "JSON", Content: map[string]interface{}{"a": "b"}}
 	if !reflect.DeepEqual(entry, want) {
 		t.Errorf("GetFile returned %+v, want %+v", entry, want)
@@ -97,11 +99,12 @@ func TestGetFile_WithJSONPath(t *testing.T) {
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/a.json",
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "GET")
-			testQuery(t, r, "jsonpath", "$.a")
+			testURLQuery(t, r, "jsonpath", "$.a")
 			fmt.Fprint(w, `{"path":"/a.json", "type":"JSON", "content":"b"}`)
 		})
 
-	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "", "/a.json", "$.a")
+	query := &Query{Path: "/a.json", QueryType: "json_path", Expressions: []string{"$.a"}}
+	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "", query)
 	want := &Entry{Path: "/a.json", Type: "JSON", Content: "b"}
 	if !reflect.DeepEqual(entry, want) {
 		t.Errorf("GetFile returned %+v, want %+v", entry, want)
@@ -115,12 +118,13 @@ func TestGetFile_WithJSONPathAndRevision(t *testing.T) {
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/a.json",
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "GET")
-			testQuery(t, r, "jsonpath", "$.a")
-			testQuery(t, r, "revision", "-1")
+			testURLQuery(t, r, "jsonpath", "$.a")
+			testURLQuery(t, r, "revision", "-1")
 			fmt.Fprint(w, `{"path":"/a.json", "type":"JSON", "content":"b"}`)
 		})
 
-	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "-1", "/a.json", "$.a")
+	query := &Query{Path: "/a.json", QueryType: "json_path", Expressions: []string{"$.a"}}
+	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "-1", query)
 	want := &Entry{Path: "/a.json", Type: "JSON", Content: "b"}
 	if !reflect.DeepEqual(entry, want) {
 		t.Errorf("GetFile returned %+v, want %+v", entry, want)
@@ -151,7 +155,7 @@ func TestGetHistory(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/commits/-2", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testQuery(t, r, "to", "head")
+		testURLQuery(t, r, "to", "head")
 		fmt.Fprint(w, `[{"revision":1, "author":"minux@m.x", "commitMessage":{"Summary":"Add a.json"}},
 {"revision":2, "author":"minux@m.x", "commitMessage":{"Summary":"Edit a.json"}}]`)
 	})
@@ -171,10 +175,10 @@ func TestGetDiff(t *testing.T) {
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/compare",
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "GET")
-			testQuery(t, r, "from", "3")
-			testQuery(t, r, "to", "4")
-			testQuery(t, r, "path", "/a.json")
-			testQuery(t, r, "jsonpath", "$.a")
+			testURLQuery(t, r, "from", "3")
+			testURLQuery(t, r, "to", "4")
+			testURLQuery(t, r, "path", "/a.json")
+			testURLQuery(t, r, "jsonpath", "$.a")
 			fmt.Fprint(w, `{"path":"/a.json", "type":"APPLY_JSON_PATCH",
 "content":[{
 "op":"safeReplace",
@@ -184,20 +188,20 @@ func TestGetDiff(t *testing.T) {
 }]}`)
 		})
 
-	var content []map[string]interface{}
+	var content []interface{}
 
 	content = append(content, map[string]interface{}{"op": "safeReplace",
 		"path":     "",
 		"oldValue": "bar",
 		"value":    "baz"})
 
-	_, _, _ = c.GetDiff(context.Background(), "foo", "bar", "3", "4", "/a.json", "$.a")
-	_ = &Change{Path: "/a.json", Type: "APPLY_JSON_PATCH", Content: content}
+	query := &Query{Path: "/a.json", QueryType: "json_path", Expressions: []string{"$.a"}}
+	entry, _, _ := c.GetDiff(context.Background(), "foo", "bar", "3", "4", query)
+	want := &Change{Path: "/a.json", Type: "APPLY_JSON_PATCH", Content: content}
 
-	// TODO(minwoox) fix this working
-	//if !reflect.DeepEqual(entry, want) {
-	//	t.Errorf("GetDiff returned %+v, want %+v", entry, want)
-	//}
+	if !reflect.DeepEqual(entry, want) {
+		t.Errorf("GetDiff returned %+v, want %+v", entry, want)
+	}
 }
 
 func TestGetDiffs(t *testing.T) {
@@ -206,9 +210,9 @@ func TestGetDiffs(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/compare", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testQuery(t, r, "from", "1")
-		testQuery(t, r, "to", "4")
-		testQuery(t, r, "path", "/**")
+		testURLQuery(t, r, "from", "1")
+		testURLQuery(t, r, "to", "4")
+		testURLQuery(t, r, "path", "/**")
 		fmt.Fprint(w, `[{"path":"/a.json", "type":"APPLY_JSON_PATCH", "content":[{
 "op":"safeReplace",
 "path":"",
@@ -220,20 +224,19 @@ func TestGetDiffs(t *testing.T) {
 ]`)
 	})
 
-	_, _, _ = c.GetDiffs(context.Background(), "foo", "bar", "1", "4", "/**")
+	changes, _, _ := c.GetDiffs(context.Background(), "foo", "bar", "1", "4", "/**")
 
-	var content []map[string]interface{}
+	var content []interface{}
 	content = append(content, map[string]interface{}{"op": "safeReplace",
 		"path":     "",
 		"oldValue": "bar",
 		"value":    "baz"})
-	_ = []*Change{{Path: "/a.json", Type: "APPLY_JSON_PATCH", Content: content},
+	want := []*Change{{Path: "/a.json", Type: "APPLY_JSON_PATCH", Content: content},
 		{Path: "/b.txt", Type: "APPLY_TEXT_PATCH", Content: "--- /b.txt\n+++ /b.txt\n@@ -1,1 +1,1 @@\n-foo\n+bar"}}
 
-	// TODO(minwoox) fix this working
-	//if !reflect.DeepEqual(changes, want) {
-	//	t.Errorf("GetDiff returned %+v, want %+v", changes, want)
-	//}
+	if !reflect.DeepEqual(changes, want) {
+		t.Errorf("GetDiff returned %+v, want %+v", changes, want)
+	}
 }
 
 func TestPush(t *testing.T) {
@@ -242,7 +245,7 @@ func TestPush(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "POST")
-		testQuery(t, r, "revision", "-1")
+		testURLQuery(t, r, "revision", "-1")
 
 		var reqBody Push
 		json.NewDecoder(r.Body).Decode(&reqBody)
@@ -272,7 +275,7 @@ func TestPush_TwoFiles(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "POST")
-		testQuery(t, r, "revision", "-1")
+		testURLQuery(t, r, "revision", "-1")
 
 		var reqBody Push
 		json.NewDecoder(r.Body).Decode(&reqBody)

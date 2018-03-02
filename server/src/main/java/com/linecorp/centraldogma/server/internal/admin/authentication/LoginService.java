@@ -20,8 +20,6 @@ import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newHttpResponseException;
 import static java.util.Objects.requireNonNull;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -38,7 +36,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
-import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -46,6 +43,8 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.auth.AuthTokenExtractors;
+import com.linecorp.armeria.server.auth.BasicToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.internal.command.Command;
@@ -100,7 +99,8 @@ public class LoginService extends AbstractHttpService {
                     logger.info("{} Logged in: {} ({})", ctx, usernamePassword.getUsername(), sessionId);
 
                     final AccessToken accessToken = new AccessToken(sessionId, expiresIn);
-                    future.complete(HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(accessToken)));
+                    future.complete(HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
+                                                    Jackson.writeValueAsBytes(accessToken)));
                 } catch (IncorrectCredentialsException e) {
                     // Not authorized
                     logger.debug("{} Incorrect login: {}", ctx, usernamePassword.getUsername());
@@ -130,6 +130,12 @@ public class LoginService extends AbstractHttpService {
      * Returns {@link UsernamePasswordToken} which holds a username and a password.
      */
     private static UsernamePasswordToken usernamePassword(AggregatedHttpMessage req) {
+        // check the Basic HTTP authentication first (https://tools.ietf.org/html/rfc7617)
+        final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(req.headers());
+        if (basicToken != null) {
+            return new UsernamePasswordToken(basicToken.username(), basicToken.password());
+        }
+
         final MediaType mediaType = req.headers().contentType();
         if (mediaType != MediaType.FORM_DATA) {
             return throwResponseException("invalid_request",
@@ -142,13 +148,6 @@ public class LoginService extends AbstractHttpService {
         if (parameters.get("grant_type") != null &&
             parameters.get("grant_type").get(0).equals("client_credentials")) {
 
-            // check the basic authentication first
-            final String authHeader = req.headers().get(HttpHeaderNames.AUTHORIZATION);
-            if (authHeader != null) {
-                return usernamePassword(authHeader);
-            }
-
-            // If the Authorization header is not present, check the client credentials.
             final List<String> clientIds = parameters.get("client_id");
             final List<String> clientSecrets = parameters.get("client_secret");
             return usernamePassword(clientIds, clientSecrets);
@@ -160,24 +159,6 @@ public class LoginService extends AbstractHttpService {
         }
     }
 
-    private static <T> T throwResponseException(String error, String errorDescription) {
-        final ImmutableMap<String, String> errorMessage = ImmutableMap.of(
-                "error", error, "error_description", errorDescription);
-        throw newHttpResponseException(HttpStatus.BAD_REQUEST, Jackson.valueToTree(errorMessage));
-    }
-
-    private static UsernamePasswordToken usernamePassword(String authHeader) {
-        final String[] split = authHeader.split(" ", 2);
-        if (!"basic".equalsIgnoreCase(split[0])) {
-            return throwResponseException("invalid_request", "request was missing the 'Basic'.");
-        }
-
-        final String decodedStr = new String(Base64.getDecoder().decode(split[1].getBytes(
-                StandardCharsets.UTF_8)));
-        final String[] split1 = decodedStr.split(":", 2);
-        return null;
-    }
-
     private static UsernamePasswordToken usernamePassword(List<String> usernames, List<String> passwords) {
         if (usernames != null && passwords != null) {
             final String username = usernames.get(0);
@@ -185,6 +166,12 @@ public class LoginService extends AbstractHttpService {
             return new UsernamePasswordToken(username, password);
         }
 
-        return throwResponseException("invalid_request", "request was missing the username and password.");
+        return throwResponseException("invalid_request", "request must contain username and password.");
+    }
+
+    private static <T> T throwResponseException(String error, String errorDescription) {
+        final ImmutableMap<String, String> errorMessage = ImmutableMap.of(
+                "error", error, "error_description", errorDescription);
+        throw newHttpResponseException(HttpStatus.BAD_REQUEST, Jackson.valueToTree(errorMessage));
     }
 }

@@ -20,14 +20,19 @@ import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
+import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Revision;
 
+@JsonInclude(Include.NON_EMPTY)
 public class CommitDto {
 
     private final Revision revision;
@@ -38,12 +43,15 @@ public class CommitDto {
 
     private final String pushedAt;
 
-    public CommitDto(Commit commit) {
-        requireNonNull(commit, "commit");
-        revision = commit.revision();
-        author = commit.author();
-        commitMessage = new CommitMessageDto(commit.summary(), commit.detail(), commit.markup());
-        pushedAt = ISO_INSTANT.format(Instant.ofEpochMilli(commit.when()));
+    private final List<EntryDto<?>> entries;
+
+    public CommitDto(Revision revision, Author author, CommitMessageDto commitMessage,
+                     long commitTimeMillis, Iterable<EntryDto<?>> entries) {
+        this.revision = requireNonNull(revision, "revision");
+        this.author = requireNonNull(author, "author");
+        this.commitMessage = requireNonNull(commitMessage, "commitMessage");
+        pushedAt = ISO_INSTANT.format(Instant.ofEpochMilli(commitTimeMillis));
+        this.entries = ImmutableList.copyOf(requireNonNull(entries, "entries"));
     }
 
     @JsonProperty("revision")
@@ -56,14 +64,19 @@ public class CommitDto {
         return author;
     }
 
+    @JsonProperty("commitMessage")
+    public CommitMessageDto commitMessage() {
+        return commitMessage;
+    }
+
     @JsonProperty("pushedAt")
     public String pushedAt() {
         return pushedAt;
     }
 
-    @JsonProperty("commitMessage")
-    public CommitMessageDto commitMessage() {
-        return commitMessage;
+    @JsonProperty("entries")
+    public List<EntryDto<?>> entries() {
+        return entries;
     }
 
     @Override
@@ -73,6 +86,7 @@ public class CommitDto {
                           .add("author", author())
                           .add("commitMessage", commitMessage())
                           .add("pushedAt", pushedAt())
+                          .add("entries", '[' + Joiner.on(", ").join(entries()) + ']')
                           .toString();
     }
 }

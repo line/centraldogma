@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static java.util.Objects.requireNonNull;
 
@@ -60,7 +61,6 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
-import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
@@ -112,7 +112,8 @@ public class ContentServiceV1 extends AbstractService {
         return repository.find(revision, pathPattern, options)
                          .thenApply(entries -> entries.values().stream()
                                                       .filter(entry -> entry.type() != EntryType.DIRECTORY)
-                                                      .map(DtoConverter::convert).collect(toImmutableList()));
+                                                      .map(entry -> DtoConverter.convert(repository, entry))
+                                                      .collect(toImmutableList()));
     }
 
     private static String appendWildCardIfDirectory(String path) {
@@ -154,12 +155,13 @@ public class ContentServiceV1 extends AbstractService {
                          commitMessage, previewDiffs.values()).toCompletableFuture();
             final String pathPattern = joinPaths(changes);
             final CompletableFuture<Map<String, Entry<?>>> findFuture = resultRevisionFuture.thenCompose(
-                    result -> repository.find(result, pathPattern));
-
-            return findFuture.thenApply(entries -> objectOrList(
-                    entries.values(), Iterables.size(changes) != 1, (collections) -> convertEntry(
-                            resultRevisionFuture.join(), // resultRevisionFuture is already complete
-                            repository, collections, commitTimeMillis)));
+                    result -> repository.find(result, pathPattern,
+                                              ImmutableMap.of(FindOption.FETCH_CONTENT, false)));
+            return findFuture.thenApply(entries -> {
+                final Revision resultRevision = resultRevisionFuture.join(); // the future is already complete
+                final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entries);
+                return convert(resultRevision, author, commitMessage, commitTimeMillis, entryDtos);
+            });
         });
     }
 
@@ -188,10 +190,11 @@ public class ContentServiceV1 extends AbstractService {
         return sb.toString();
     }
 
-    private static EntryDto<?> convertEntry(Revision revision, Repository repository,
-                                            Entry<?> entry, long commitTimeMillis) {
-        return DtoConverter.convert(revision, repository.parent().name(), repository.name(),
-                                    entry.path(), entry.type(), commitTimeMillis);
+    private static ImmutableList<EntryDto<?>> entryDtos(Repository repository,
+                                                        Map<String, Entry<?>> entries) {
+        return entries.values().stream().map(
+                entry -> convert(repository, entry.path(), entry.type()))
+                      .collect(toImmutableList());
     }
 
     /**
@@ -203,7 +206,7 @@ public class ContentServiceV1 extends AbstractService {
      * Note that if the {@link HttpHeaderNames#IF_NONE_MATCH} in which has a revision is sent with,
      * this will await for the time specified in {@link HttpHeaderNames#PREFER}.
      * During the time if the specified revision becomes different with the latest revision, this will
-     * response back right away to the client with the {@link WatchResultDto}.
+     * response back right away to the client.
      * {@link HttpStatus#NOT_MODIFIED} otherwise.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
@@ -231,7 +234,7 @@ public class ContentServiceV1 extends AbstractService {
             // get a file
             return repository.get(new Revision(revision), query.get())
                              .handle(returnOrThrow((QueryResult<?> result) ->
-                                                           DtoConverter.convert(result, path0)));
+                                                           convert(repository, result, path0)));
         }
 
         // get files
@@ -251,11 +254,11 @@ public class ContentServiceV1 extends AbstractService {
                                                               Revision revision, String pathPattern) {
         final CompletableFuture<List<Commit>> historyFuture =
                 repository.history(revision, revision, pathPattern);
-        return repository.find(revision, pathPattern)
+        return repository.find(revision, pathPattern, ImmutableMap.of(FindOption.FETCH_CONTENT, false))
                          .thenCombine(historyFuture, (entryMap, commits) -> {
+                             final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entryMap);
                              // the size of commits should be 1
-                             return DtoConverter.convert(commits.get(0), entryMap.values(),
-                                                         repository.parent().name(), repository.name());
+                             return convert(commits.get(0), entryDtos);
                          });
     }
 

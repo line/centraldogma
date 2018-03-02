@@ -19,24 +19,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/oauth2/clientcredentials"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"golang.org/x/oauth2/clientcredentials"
-	"time"
 )
 
 const (
-	DefaultScheme     = "http"
-	DefaultHostName   = "localhost"
-	DefaultPort       = 36462
-	DefaultPathPrefix = "api/v1/"
-	PathPrefixV0      = "api/v0/"
-	DefaultBaseURL    = "http://localhost:36462/"
+	DefaultPort = 36462
 
+	defaultScheme       = "http"
+	defaultHostName     = "localhost"
+	defaultPathPrefix   = "api/v1/"
+	defaultBaseURL      = defaultScheme + "://" + defaultHostName + ":36462/"
 	pathSecurityEnabled = "security_enabled"
 )
 
@@ -56,11 +54,11 @@ type service struct {
 	client *Client
 }
 
-func NewClientWithCredential(baseURL string, config clientcredentials.Config) (*Client, error) {
-	return NewClient(baseURL, config.Client(context.Background()))
+func NewClient(baseURL string, config clientcredentials.Config) (*Client, error) {
+	return NewClientWithHTTPClient(baseURL, config.Client(context.Background()))
 }
 
-func NewClient(baseURL string, client *http.Client) (*Client, error) {
+func NewClientWithHTTPClient(baseURL string, client *http.Client) (*Client, error) {
 	var normalizedURL *url.URL
 	var err error
 
@@ -69,7 +67,7 @@ func NewClient(baseURL string, client *http.Client) (*Client, error) {
 			return nil, err
 		}
 	} else {
-		normalizedURL, err = url.Parse(DefaultBaseURL)
+		normalizedURL, err = url.Parse(defaultBaseURL)
 	}
 
 	c := &Client{
@@ -84,38 +82,11 @@ func NewClient(baseURL string, client *http.Client) (*Client, error) {
 	return c, nil
 }
 
-//// NewClient creates a dogma client.
-//func NewClient(baseURL string) (*Client, error) {
-//	var normalizedURL *url.URL
-//	var err error
-//
-//	if len(baseURL) != 0 {
-//		if normalizedURL, err = normalizeURL(baseURL); err != nil {
-//			return nil, err
-//		}
-//	} else {
-//		normalizedURL, err = url.Parse(DefaultBaseURL)
-//	}
-//
-//	c := &Client{
-//		client: &http.Client{
-//			Timeout: time.Second * 10,
-//		},
-//		BaseURL:   normalizedURL,
-//	}
-//	service := &service{client: c}
-//
-//	c.project = (*projectService)(service)
-//	c.repository = (*repositoryService)(service)
-//	c.content = (*contentService)(service)
-//	return c, nil
-//}
-
 func normalizeURL(baseURL string) (*url.URL, error) {
 	if !strings.HasPrefix(baseURL, "http") {
-		// Prepend the DefaultScheme when there is no specified scheme so parse the url properly
+		// Prepend the defaultScheme when there is no specified scheme so parse the url properly
 		// in case of "hostname:port".
-		baseURL = DefaultScheme + "://" + baseURL
+		baseURL = defaultScheme + "://" + baseURL
 	}
 
 	parsedURL, err := url.Parse(baseURL)
@@ -123,7 +94,7 @@ func normalizeURL(baseURL string) (*url.URL, error) {
 		return nil, err
 	}
 	if len(parsedURL.Scheme) == 0 {
-		baseURL = DefaultScheme + "://" + baseURL
+		baseURL = defaultScheme + "://" + baseURL
 	}
 	port := parsedURL.Port()
 	if len(port) == 0 {
@@ -150,7 +121,7 @@ func (c *Client) SecurityEnabled() (bool, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("authenticaion check is failed (status: %s)", res.Status)
+		return false, fmt.Errorf("authenticaion failed (status: %s)", res.Status)
 	}
 	b, _ := ioutil.ReadAll(res.Body)
 	if string(b) == "true" {
@@ -158,41 +129,6 @@ func (c *Client) SecurityEnabled() (bool, error) {
 	}
 	return false, nil
 }
-
-//func (c *Client) Login(username string, password string) error {
-//	enabled, err := c.SecurityEnabled()
-//	if err != nil {
-//		return err
-//	}
-//	if !enabled {
-//		// Do not need to login.
-//		return nil
-//	}
-//
-//	values := url.Values{}
-//	values.Set("username", username)
-//	values.Set("password", password)
-//	buf := new(bytes.Buffer)
-//	buf.WriteString(values.Encode())
-//
-//	u, _ := c.BaseURL.Parse(PathPrefixV0 + "authenticate")
-//	req := &http.Request{Method: http.MethodPost, URL: u, Body: ioutil.NopCloser(buf)}
-//	req.Header = http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
-//	res, err := c.client.Do(req)
-//	if err != nil {
-//		return err
-//	}
-//	defer res.Body.Close()
-//	if res.StatusCode != http.StatusOK {
-//		return fmt.Errorf("cannot login to %s (status: %s)", u.String(), res.Status)
-//	}
-//	b, err := ioutil.ReadAll(res.Body)
-//	if err != nil {
-//		return err
-//	}
-//	c.sessionID = string(b)
-//	return nil
-//}
 
 func (c *Client) newRequest(method, urlStr string, body interface{}) (*http.Request, error) {
 	u, err := c.BaseURL.Parse(urlStr)
@@ -243,6 +179,7 @@ func (c *Client) do(ctx context.Context, req *http.Request, resContent interface
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
+		default:
 		}
 	}
 	defer res.Body.Close()
@@ -331,11 +268,10 @@ func (c *Client) ListFiles(ctx context.Context,
 	return c.content.listFiles(ctx, projectName, repoName, revision, pathPattern)
 }
 
-// GetFile returns the file at the specified revision and path. If the path indicates a JSON file and
-// the jsonPaths are specified, this will return the value of the jsonPaths.
-func (c *Client) GetFile(ctx context.Context, projectName, repoName, revision, path string,
-	jsonPaths ...string) (*Entry, *http.Response, error) {
-	return c.content.getFile(ctx, projectName, repoName, revision, path, jsonPaths)
+// GetFile returns the file at the specified revision and path with the specified Query.
+func (c *Client) GetFile(
+	ctx context.Context, projectName, repoName, revision string, query *Query) (*Entry, *http.Response, error) {
+	return c.content.getFile(ctx, projectName, repoName, revision, query)
 }
 
 // GetFiles returns the files that match the given path pattern. A path pattern is a variant of glob:
@@ -368,9 +304,9 @@ func (c *Client) GetHistory(ctx context.Context,
 
 // GetDiff returns the diff of a file between two revisions. If the from and to are not specified, this will
 // return the diff from the init to the latest revision.
-func (c *Client) GetDiff(ctx context.Context, projectName, repoName, from, to, path string,
-	jsonPaths ...string) (*Change, *http.Response, error) {
-	return c.content.getDiff(ctx, projectName, repoName, from, to, path, jsonPaths)
+func (c *Client) GetDiff(ctx context.Context,
+	projectName, repoName, from, to string, query *Query) (*Change, *http.Response, error) {
+	return c.content.getDiff(ctx, projectName, repoName, from, to, query)
 }
 
 // GetDiffs returns the diffs of the files that match the given path pattern. A path pattern is

@@ -111,7 +111,7 @@ func TestListRemovedRepository(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testQuery(t, r, "status", "removed")
+		testURLQuery(t, r, "status", "removed")
 		fmt.Fprint(w, `[{"name":"bar"}, {"name":"baz"}]`)
 	})
 

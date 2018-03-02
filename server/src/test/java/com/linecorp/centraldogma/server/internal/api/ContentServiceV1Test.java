@@ -81,11 +81,15 @@ public class ContentServiceV1Test {
         final AggregatedHttpMessage aRes = addFooJson();
         final String expectedJson =
                 '{' +
-                "   \"path\": \"/foo.json\"," +
-                "   \"type\": \"JSON\"," +
                 "   \"revision\": 2," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"," +
-                "   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "   \"author\": \"${json-unit.ignore}\"," +
+                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
+                "   \"pushedAt\": \"${json-unit.ignore}\"," +
+                "   \"entries\": [{" +
+                "       \"path\": \"/foo.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -110,11 +114,15 @@ public class ContentServiceV1Test {
         final AggregatedHttpMessage aRes = httpClient.execute(headers, body).aggregate().join();
         final String expectedJson =
                 '{' +
-                "   \"path\": \"/bar.json\"," +
-                "   \"type\": \"JSON\"," +
                 "   \"revision\": 3," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/bar.json\"," +
-                "   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "   \"author\": \"${json-unit.ignore}\"," +
+                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
+                "   \"pushedAt\": \"${json-unit.ignore}\"," +
+                "   \"entries\": [{" +
+                "       \"path\": \"/bar.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/bar.json\"" +
+                "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -139,11 +147,19 @@ public class ContentServiceV1Test {
         final AggregatedHttpMessage aRes = httpClient.execute(headers, body).aggregate().join();
         final String expectedJson =
                 '{' +
-                "   \"path\": \"/b\"," +
-                "   \"type\": \"DIRECTORY\"," +
                 "   \"revision\": 3," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/b\"," +
-                "   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "   \"author\": \"${json-unit.ignore}\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Rename /a\"," +
+                "       \"detail\": \"Rename to /b\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }," +
+                "   \"pushedAt\": \"${json-unit.ignore}\"," +
+                "   \"entries\": [{" +
+                "       \"path\": \"/b\"," +
+                "       \"type\": \"DIRECTORY\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/b\"" +
+                "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -175,22 +191,21 @@ public class ContentServiceV1Test {
                                                .contentType(MediaType.JSON);
         final AggregatedHttpMessage aRes = httpClient.execute(headers, body).aggregate().join();
         final String expectedJson =
-                '[' +
-                "   {" +
+                '{' +
+                "   \"revision\": 2," +
+                "   \"author\": \"${json-unit.ignore}\"," +
+                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
+                "   \"pushedAt\": \"${json-unit.ignore}\"," +
+                "   \"entries\": [{" +
                 "       \"path\": \"/foo0.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"revision\": 2," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo0.json\"," +
-                "       \"modifiedAt\": \"${json-unit.ignore}\"" +
-                "   }," +
-                "   {" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo0.json\"" +
+                "   },{" +
                 "       \"path\": \"/foo1.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"revision\": 2," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo1.json\"," +
-                "       \"modifiedAt\": \"${json-unit.ignore}\"" +
-                "   }" +
-                ']';
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo1.json\"" +
+                "   }]" +
+                '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
@@ -282,10 +297,10 @@ public class ContentServiceV1Test {
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"APPLY_TEXT_PATCH\"," +
                 "       \"content\": \"--- /a/bar.txt\\n" +
-                                      "+++ /a/bar.txt\\n" +
-                                      "@@ -1,1 +1,1 @@\\n" +
-                                      "-text in the file.\\n" +
-                                      "+text in a file.\"" +
+                "+++ /a/bar.txt\\n" +
+                "@@ -1,1 +1,1 @@\\n" +
+                "-text in the file.\\n" +
+                "+text in a file.\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
@@ -313,8 +328,8 @@ public class ContentServiceV1Test {
                 '{' +
                 "   \"path\": \"/foo.json\"," +
                 "   \"type\": \"JSON\"," +
-                "   \"content\" : {\"a\":\"bar\"}" +
-                //"   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "   \"content\" : {\"a\":\"bar\"}," +
+                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -331,8 +346,8 @@ public class ContentServiceV1Test {
                 '{' +
                 "   \"path\": \"/foo.json\"," +
                 "   \"type\": \"JSON\"," +
-                "   \"content\" : \"bar\"" +
-                //"   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "   \"content\" : \"bar\"," +
+                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -349,13 +364,13 @@ public class ContentServiceV1Test {
                 '[' +
                 "   {" +
                 "       \"path\": \"/a/bar.txt\"," +
-                "       \"type\": \"TEXT\"" +
-                //"   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "       \"type\": \"TEXT\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
-                "       \"type\": \"JSON\"" +
-                //"   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson1 = res1.content().toStringUtf8();
@@ -368,8 +383,8 @@ public class ContentServiceV1Test {
                 '[' +
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
-                "       \"type\": \"JSON\"" +
-                //"   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson2 = res2.content().toStringUtf8();
@@ -398,14 +413,14 @@ public class ContentServiceV1Test {
                 "   {" +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
-                "       \"content\" : \"text in the file.\\n\"" +
-                //"   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "       \"content\" : \"text in the file.\\n\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"content\" : {\"a\":\"bar\"}" +
-                //"   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "       \"content\" : {\"a\":\"bar\"}," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson1 = res1.content().toStringUtf8();
@@ -418,8 +433,8 @@ public class ContentServiceV1Test {
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"content\" : {\"a\":\"bar\"}" +
-                //"   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "       \"content\" : {\"a\":\"bar\"}," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson2 = res2.content().toStringUtf8();
@@ -442,7 +457,7 @@ public class ContentServiceV1Test {
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
                                                .contentType(MediaType.JSON);
         final AggregatedHttpMessage res1 = httpClient.execute(headers, body).aggregate().join();
-        assertThat(res1.headers().status()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(res1.headers().status()).isEqualTo(HttpStatus.OK);
 
         final AggregatedHttpMessage res2 = httpClient.get(CONTENTS_PREFIX + "/**").aggregate().join();
         // only /a/bar.txt file is left
@@ -473,11 +488,15 @@ public class ContentServiceV1Test {
         final AggregatedHttpMessage res1 = editFooJson();
         final String expectedJson =
                 '{' +
-                "   \"path\": \"/foo.json\"," +
-                "   \"type\": \"JSON\"," +
                 "   \"revision\": 3," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"," +
-                "   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "   \"author\": \"${json-unit.ignore}\"," +
+                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
+                "   \"pushedAt\": \"${json-unit.ignore}\"," +
+                "   \"entries\": [{" +
+                "       \"path\": \"/foo.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "   }]" +
                 '}';
         final String actualJson = res1.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -495,10 +514,10 @@ public class ContentServiceV1Test {
                 "   \"path\": \"/a/bar.txt\"," +
                 "   \"type\": \"APPLY_TEXT_PATCH\"," +
                 "   \"content\" : \"--- /a/bar.txt\\n" +
-                                   "+++ /a/bar.txt\\n" +
-                                   "@@ -1,1 +1,1 @@\\n" +
-                                   "-text in the file.\\n" +
-                                   "+text in some file.\\n\"," +
+                "+++ /a/bar.txt\\n" +
+                "@@ -1,1 +1,1 @@\\n" +
+                "-text in the file.\\n" +
+                "+text in some file.\\n\"," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Edit bar.txt\"," +
                 "       \"detail\": \"Edit because we need it.\"," +
@@ -511,11 +530,15 @@ public class ContentServiceV1Test {
         final AggregatedHttpMessage res1 = httpClient.execute(reqHeaders, patch).aggregate().join();
         final String expectedJson =
                 '{' +
-                "   \"path\": \"/a/bar.txt\"," +
-                "   \"type\": \"TEXT\"," +
                 "   \"revision\": 3," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"," +
-                "   \"modifiedAt\": \"${json-unit.ignore}\"" +
+                "   \"author\": \"${json-unit.ignore}\"," +
+                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
+                "   \"pushedAt\": \"${json-unit.ignore}\"," +
+                "   \"entries\": [{" +
+                "       \"path\": \"/a/bar.txt\"," +
+                "       \"type\": \"TEXT\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
+                "   }]" +
                 '}';
         final String actualJson = res1.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -551,20 +574,22 @@ public class ContentServiceV1Test {
 
         final String expectedJson =
                 '{' +
-                "   \"head\" : {" +
-                "       \"revision\" : 3," +
-                "       \"author\" : {" +
-                "           \"name\" : \"${json-unit.ignore}\"," +
-                "           \"email\" : \"${json-unit.ignore}\"" +
-                "       }," +
-                "       \"pushedAt\" : \"${json-unit.ignore}\"," +
-                "       \"commitMessage\" : {" +
-                "           \"summary\" : \"Edit foo.json\"," +
-                "           \"detail\" : \"Edit because we need it.\"," +
-                "           \"markup\" : \"PLAINTEXT\"" +
-                "       }" +
+                "   \"revision\" : 3," +
+                "   \"author\" : {" +
+                "       \"name\" : \"${json-unit.ignore}\"," +
+                "       \"email\" : \"${json-unit.ignore}\"" +
                 "   }," +
-                "   \"contentsUrl\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
+                "   \"pushedAt\" : \"${json-unit.ignore}\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Edit foo.json\"," +
+                "       \"detail\" : \"Edit because we need it.\"," +
+                "       \"markup\" : \"PLAINTEXT\"" +
+                "   }," +
+                "   \"entries\": [{" +
+                "       \"path\": \"/foo.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "   }]" +
                 '}';
         final String actualJson = res.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -609,20 +634,22 @@ public class ContentServiceV1Test {
         editFooJson();
         final String expectedJson =
                 '{' +
-                "   \"head\" : {" +
-                "       \"revision\" : 4," +
-                "       \"author\" : {" +
-                "           \"name\" : \"${json-unit.ignore}\"," +
-                "           \"email\" : \"${json-unit.ignore}\"" +
-                "       }," +
-                "       \"pushedAt\" : \"${json-unit.ignore}\"," +
-                "       \"commitMessage\" : {" +
-                "           \"summary\" : \"Edit foo.json\"," +
-                "           \"detail\" : \"Edit because we need it.\"," +
-                "           \"markup\" : \"PLAINTEXT\"" +
-                "       }" +
+                "   \"revision\" : 4," +
+                "   \"author\" : {" +
+                "       \"name\" : \"${json-unit.ignore}\"," +
+                "       \"email\" : \"${json-unit.ignore}\"" +
                 "   }," +
-                "   \"contentsUrl\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
+                "   \"pushedAt\" : \"${json-unit.ignore}\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Edit foo.json\"," +
+                "       \"detail\" : \"Edit because we need it.\"," +
+                "       \"markup\" : \"PLAINTEXT\"" +
+                "   }," +
+                "   \"entries\": [{" +
+                "       \"path\": \"/foo.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "   }]" +
                 '}';
         final AggregatedHttpMessage res = future.join();
         final String actualJson = res.content().toStringUtf8();
