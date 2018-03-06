@@ -55,6 +55,7 @@ public final class CentralDogmaBuilder {
     static final long DEFAULT_MAX_NUM_BYTES_PER_MIRROR = 32 * 1048576; // 32 MiB
     static final String DEFAULT_CACHE_SPEC = "maximumWeight=134217728," + // Cache up to apx. 128-megachars
                                              "expireAfterAccess=5m";      // Expire on 5 minutes of inactivity
+    static final long DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS = 604800000;   // 7 days
 
     // Armeria properties
     // Note that we use nullable types here for optional properties.
@@ -71,6 +72,7 @@ public final class CentralDogmaBuilder {
     private int numRepositoryWorkers = DEFAULT_NUM_REPOSITORY_WORKERS;
     private String cacheSpec = DEFAULT_CACHE_SPEC;
     private boolean webAppEnabled = true;
+    private long webAppSessionTimeoutMillis = DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
     private boolean mirroringEnabled = true;
     private int numMirroringThreads = DEFAULT_NUM_MIRRORING_THREADS;
     private int maxNumFilesPerMirror = DEFAULT_MAX_NUM_FILES_PER_MIRROR;
@@ -207,6 +209,24 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the session timeout for administrative web application, in milliseconds.
+     * If unspecified, {@value #DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS} is used.
+     */
+    public CentralDogmaBuilder webAppSessionTimeoutMillis(long webAppSessionTimeoutMillis) {
+        this.webAppSessionTimeoutMillis = webAppSessionTimeoutMillis;
+        return this;
+    }
+
+    /**
+     * Sets the session timeout for administrative web application.
+     * If unspecified, {@value #DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS} is used.
+     */
+    public CentralDogmaBuilder webAppSessionTimeout(Duration webAppSessionTimeout) {
+        return webAppSessionTimeoutMillis(
+                requireNonNull(webAppSessionTimeout, "webAppSessionTimeout").toMillis());
+    }
+
+    /**
      * Sets whether {@link MirroringService} is enabled or not.
      * If unspecified, {@link MirroringService} is enabled.
      */
@@ -286,7 +306,8 @@ public final class CentralDogmaBuilder {
         return new CentralDogmaConfig(dataDir, ports, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, cacheSpec, gracefulShutdownTimeout,
-                                      webAppEnabled, mirroringEnabled, numMirroringThreads,
+                                      webAppEnabled, webAppSessionTimeoutMillis,
+                                      mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
                                       securityConfig != null, null);
     }

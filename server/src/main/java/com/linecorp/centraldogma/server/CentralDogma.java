@@ -235,7 +235,8 @@ public class CentralDogma {
                                                            cfg.maxNumBytesPerMirror());
 
             if (cfg.isSecurityEnabled()) {
-                securityManager = new CentralDogmaSecurityManager(cfg.dataDir(), securityConfig);
+                securityManager = new CentralDogmaSecurityManager(cfg.dataDir(), securityConfig,
+                                                                  cfg.webAppSessionTimeoutMillis());
             }
 
             logger.info("Starting the command executor ..");

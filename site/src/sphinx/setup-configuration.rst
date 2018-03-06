@@ -28,6 +28,7 @@ defaults:
       "numRepositoryWorkers": 16,
       "cacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
       "webAppEnabled": true,
+      "webAppSessionTimeoutMillis": 604800000,
       "gracefulShutdownTimeout": {
         "quietPeriodMillis": 1000,
         "timeoutMillis": 10000
@@ -111,6 +112,11 @@ Core properties
 - ``webAppEnabled`` (boolean)
 
   - whether to enable the web-based administrative console. Enabled by default.
+
+- ``webAppSessionTimeoutMillis`` (integer)
+
+  - the session timeout for web-based administrative console, in milliseconds. If ``null``, the default value
+    of '604800000 milliseconds' (7 days) is used.
 
 - ``gracefulShutdownTimeout``
 
@@ -203,6 +209,7 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
       "numRepositoryWorkers": 16,
       "cacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
       "webAppEnabled": true,
+      "webAppSessionTimeoutMillis": 604800000,
       "gracefulShutdownTimeout": {
         "quietPeriodMillis": 1000,
         "timeoutMillis": 10000

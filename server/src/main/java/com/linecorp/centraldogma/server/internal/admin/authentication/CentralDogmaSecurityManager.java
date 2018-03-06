@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server.internal.admin.authentication;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
@@ -49,14 +51,17 @@ public final class CentralDogmaSecurityManager implements SecurityManager {
     private final CentralDogmaSessionManager sessionManager;
     private final SecurityManager delegate;
 
-    public CentralDogmaSecurityManager(File dataDir, Ini securityConfig) {
+    public CentralDogmaSecurityManager(File dataDir, Ini securityConfig,
+                                       long sessionTimeoutMillis) {
         try {
             sessionDao = new FileBasedSessionDAO(new File(dataDir, "_sessions").toPath());
         } catch (IOException e) {
             throw new IOError(e);
         }
 
-        sessionManager = new CentralDogmaSessionManager(sessionDao);
+        checkArgument(sessionTimeoutMillis > 0,
+                      "sessionTimeoutMillis: %s (expected: > 0)", sessionTimeoutMillis);
+        sessionManager = new CentralDogmaSessionManager(sessionDao, sessionTimeoutMillis);
         final Factory<SecurityManager> factory = new IniSecurityManagerFactory(securityConfig) {
             @Override
             protected SecurityManager createDefaultInstance() {
@@ -218,9 +223,11 @@ public final class CentralDogmaSecurityManager implements SecurityManager {
 
     private static final class CentralDogmaSessionManager extends DefaultSessionManager {
 
-        CentralDogmaSessionManager(SessionDAO sessionDao) {
+        CentralDogmaSessionManager(SessionDAO sessionDao, long sessionTimeoutMillis) {
             setSessionDAO(sessionDao);
+            // Validating all active sessions for every hour.
             setSessionValidationInterval(Duration.ofHours(1).toMillis());
+            setGlobalSessionTimeout(sessionTimeoutMillis);
         }
 
         @Override
