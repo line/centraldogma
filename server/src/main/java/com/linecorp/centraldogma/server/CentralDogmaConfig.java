@@ -93,10 +93,13 @@ final class CentralDogmaConfig {
     private final boolean securityEnabled;
     private final boolean csrfTokenRequiredForThrift;
 
+    // Access log
+    private final String accessLogFormat;
+
     CentralDogmaConfig(@JsonProperty(value = "dataDir", required = true) File dataDir,
                        @JsonProperty(value = "ports", required = true)
                        @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
-                       List<ServerPort> ports,
+                               List<ServerPort> ports,
                        @JsonProperty("numWorkers") Integer numWorkers,
                        @JsonProperty("maxNumConnections") Integer maxNumConnections,
                        @JsonProperty("requestTimeoutMillis") Long requestTimeoutMillis,
@@ -105,7 +108,7 @@ final class CentralDogmaConfig {
                        @JsonProperty("numRepositoryWorkers") Integer numRepositoryWorkers,
                        @JsonProperty("cacheSpec") String cacheSpec,
                        @JsonProperty("gracefulShutdownTimeout")
-                       GracefulShutdownTimeout gracefulShutdownTimeout,
+                               GracefulShutdownTimeout gracefulShutdownTimeout,
                        @JsonProperty("webAppEnabled") Boolean webAppEnabled,
                        @JsonProperty("mirroringEnabled") Boolean mirroringEnabled,
                        @JsonProperty("numMirroringThreads") Integer numMirroringThreads,
@@ -113,7 +116,8 @@ final class CentralDogmaConfig {
                        @JsonProperty("maxNumBytesPerMirror") Long maxNumBytesPerMirror,
                        @JsonProperty("replication") ReplicationConfig replicationConfig,
                        @JsonProperty("securityEnabled") Boolean securityEnabled,
-                       @JsonProperty("csrfTokenRequiredForThrift") Boolean csrfTokenRequiredForThrift) {
+                       @JsonProperty("csrfTokenRequiredForThrift") Boolean csrfTokenRequiredForThrift,
+                       @JsonProperty("accessLogFormat") String accessLogFormat) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -143,6 +147,7 @@ final class CentralDogmaConfig {
         this.replicationConfig = firstNonNull(replicationConfig, ReplicationConfig.NONE);
         this.securityEnabled = firstNonNull(securityEnabled, false);
         this.csrfTokenRequiredForThrift = firstNonNull(csrfTokenRequiredForThrift, true);
+        this.accessLogFormat = accessLogFormat;
     }
 
     @JsonProperty
@@ -240,6 +245,11 @@ final class CentralDogmaConfig {
     @JsonProperty
     boolean isCsrfTokenRequiredForThrift() {
         return csrfTokenRequiredForThrift;
+    }
+
+    @JsonProperty
+    String accessLogFormat() {
+        return accessLogFormat;
     }
 
     @Override

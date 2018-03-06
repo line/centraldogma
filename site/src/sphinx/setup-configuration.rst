@@ -39,7 +39,8 @@ defaults:
       "mirroringEnabled": true,
       "numMirroringThreads": null,
       "maxNumFilesPerMirror": null,
-      "maxNumBytesPerMirror": null
+      "maxNumBytesPerMirror": null,
+      "accessLogFormat": "common"
     }
 
 Core properties
@@ -167,6 +168,13 @@ Core properties
     this, Central Dogma will reject to mirror the Git repository. If ``null``, the default value of
     '33554432 bytes' (32 MiB) is used.
 
+- ``accessLogFormat`` (string)
+
+  - the format to be used for writing an access log. ``common`` and ``combined`` are pre-defined for NCSA
+    common log format and NCSA combined log format, respectively. Also, a custom log format can be specified
+    here. Read `Writing an access log <https://line.github.io/armeria/server-access-log.html>`_ for more
+    information. Specify ``null`` to disable access logging feature.
+
 Configuring replication
 -----------------------
 Central Dogma features multi-master replication based on `Apache ZooKeeper <https://zookeeper.apache.org/>`_
@@ -216,7 +224,8 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
         "maxLogCount": null,
         "minLogAgeMillis": null
       },
-      "securityEnabled": false
+      "securityEnabled": false,
+      "accessLogFormat": "common"
     }
 
 - ``method`` (string)
