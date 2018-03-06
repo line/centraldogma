@@ -23,6 +23,7 @@ import java.util.List;
 import org.junit.Test;
 
 import com.linecorp.armeria.client.Endpoint;
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroupRegistry;
 
 public class CentralDogmaBuilderTest {
@@ -48,7 +49,7 @@ public class CentralDogmaBuilderTest {
 
         assertThatThrownBy(() -> b.profile("bar"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("contains no host");
+                .hasMessageContaining("no profile matches");
     }
 
     @Test
@@ -63,12 +64,18 @@ public class CentralDogmaBuilderTest {
     @Test
     public void buildingWithProfile() {
         final String groupName = "centraldogma-profile-foo";
+        final String notGroupName = "centraldogma-profile-qux";
         try {
             final CentralDogmaBuilder b = new CentralDogmaBuilder();
-            b.profile("foo");
+            // The last valid profile should win, to be consistent with Spring Boot profiles.
+            b.profile("qux", "foo");
             b.build();
 
-            final List<Endpoint> endpoints = EndpointGroupRegistry.get(groupName).endpoints();
+            final EndpointGroup group = EndpointGroupRegistry.get(groupName);
+            assertThat(group).isNotNull();
+            assertThat(EndpointGroupRegistry.get(notGroupName)).isNull();
+
+            final List<Endpoint> endpoints = group.endpoints();
             assertThat(endpoints).isNotNull();
             assertThat(endpoints).containsExactlyInAnyOrder(
                     Endpoint.of("foo.com", 36462),
