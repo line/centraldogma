@@ -83,6 +83,7 @@ import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService
 import com.linecorp.centraldogma.server.internal.admin.service.TokenService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
+import com.linecorp.centraldogma.server.internal.api.AdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
@@ -508,6 +509,9 @@ public class CentralDogma {
         final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(safePm);
         final HttpApiResponseConverter v1ResponseConverter = new HttpApiResponseConverter();
 
+        sb.annotatedService(API_V1_PATH_PREFIX,
+                            new AdministrativeService(safePm, executor), decorator,
+                            v1RequestConverter, v1ResponseConverter);
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new ProjectServiceV1(safePm, executor, mds), decorator,
                             v1RequestConverter, v1ResponseConverter);

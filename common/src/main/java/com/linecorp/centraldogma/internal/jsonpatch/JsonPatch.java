@@ -47,6 +47,7 @@ import java.util.TreeSet;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonPointer;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializable;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -134,7 +135,11 @@ public final class JsonPatch implements JsonSerializable {
      */
     public static JsonPatch fromJson(final JsonNode node) throws IOException {
         requireNonNull(node, "node");
-        return Jackson.treeToValue(node, JsonPatch.class);
+        try {
+            return Jackson.treeToValue(node, JsonPatch.class);
+        } catch (JsonMappingException e) {
+            throw new JsonPatchException("invalid JSON patch", e);
+        }
     }
 
     /**
