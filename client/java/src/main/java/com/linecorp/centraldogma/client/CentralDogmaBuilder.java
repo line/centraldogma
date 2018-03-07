@@ -29,6 +29,9 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
@@ -52,6 +55,8 @@ import io.netty.util.NetUtil;
  * Builds a {@link CentralDogma} client.
  */
 public class CentralDogmaBuilder {
+
+    private static final Logger logger = LoggerFactory.getLogger(CentralDogmaBuilder.class);
 
     private static final int DEFAULT_PORT = 36462;
 
@@ -203,8 +208,10 @@ public class CentralDogmaBuilder {
         checkState(selectedProfile == null, "profile cannot be loaded more than once.");
         checkState(endpoints.isEmpty(), "profile() and host() cannot be used together.");
 
+        String selectedProfile = null;
+        List<Endpoint> endpoints = null;
         boolean profilesIsEmpty = true;
-        for (String p : profiles) {
+        loop: for (String p : profiles) {
             checkNotNull(p, "profiles contains null: %s", profiles);
             profilesIsEmpty = false;
 
@@ -224,22 +231,32 @@ public class CentralDogmaBuilder {
 
                     if (key.startsWith("centraldogma.hosts.")) {
                         final Endpoint endpoint = Endpoint.parse(value);
-                        checkState(!endpoint.isGroup(),
-                                   "%s contains an endpoint group which is not allowed: %s", path, value);
+                        if (endpoint.isGroup()) {
+                            logger.warn("Ignoring {}: contains an endpoint group which is not allowed (%s)",
+                                        path, value);
+                            continue loop;
+                        }
                         newEndpoints.add(endpoint.withDefaultPort(DEFAULT_PORT));
                     }
                 }
-                checkArgument(!newEndpoints.isEmpty(), "%s contains no hosts.", path);
-                selectedProfile = p;
-                endpoints = newEndpoints;
-                return this;
+
+                if (newEndpoints.isEmpty()) {
+                    logger.warn("Ignoring {}: contains no hosts", path);
+                } else {
+                    selectedProfile = p;
+                    endpoints = newEndpoints;
+                }
             } catch (IOException e) {
                 throw new IllegalArgumentException("failed to load: " + path, e);
             }
         }
 
         checkArgument(!profilesIsEmpty, "profiles is empty.");
-        throw new IllegalArgumentException("no profile matches: " + profiles);
+        checkArgument(selectedProfile != null, "no profile matches: %s", profiles);
+
+        this.selectedProfile = selectedProfile;
+        this.endpoints = endpoints;
+        return this;
     }
 
     /**
