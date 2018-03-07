@@ -21,14 +21,18 @@ import java.net.InetSocketAddress;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
+import com.linecorp.armeria.client.ClientFactoryBuilder;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.SessionProtocol;
-import com.linecorp.armeria.server.ServerPort;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.TlsConfig;
 
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.util.NetUtil;
 
 /**
@@ -50,12 +54,28 @@ import io.netty.util.NetUtil;
  */
 public class CentralDogmaRule extends TemporaryFolder {
 
-    private static final ServerPort TEST_PORT =
-            new ServerPort(new InetSocketAddress(NetUtil.LOCALHOST4, 0), SessionProtocol.HTTP);
+    private static final InetSocketAddress TEST_PORT = new InetSocketAddress(NetUtil.LOCALHOST4, 0);
 
+    private boolean useTls;
     private com.linecorp.centraldogma.server.CentralDogma dogma;
     private CentralDogma client;
     private HttpClient httpClient;
+    private InetSocketAddress serverAddress;
+
+    public CentralDogmaRule() {
+        this(false);
+    }
+
+    public CentralDogmaRule(boolean useTls) {
+        this.useTls = useTls;
+    }
+
+    /**
+     * Returns whether the server is running over TLS or not.
+     */
+    public boolean useTls() {
+        return useTls;
+    }
 
     /**
      * Returns the server.
@@ -103,6 +123,13 @@ public class CentralDogmaRule extends TemporaryFolder {
     }
 
     /**
+     * Returns the server address.
+     */
+    public final InetSocketAddress serverAddress() {
+        return serverAddress;
+    }
+
+    /**
      * Starts an embedded server with {@link #start()} and calls {@link #scaffold(CentralDogma)}.
      */
     @Override
@@ -119,18 +146,42 @@ public class CentralDogmaRule extends TemporaryFolder {
      */
     public final void start() {
         final CentralDogmaBuilder builder = new CentralDogmaBuilder(getRoot())
-                .port(TEST_PORT)
+                .port(TEST_PORT, useTls ? SessionProtocol.HTTPS : SessionProtocol.HTTP)
                 .webAppEnabled(false)
                 .mirroringEnabled(false)
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0));
+
+        if (useTls) {
+            try {
+                final SelfSignedCertificate ssc = new SelfSignedCertificate();
+                builder.tls(new TlsConfig(ssc.certificate(), ssc.privateKey(), null));
+            } catch (Exception e) {
+                Exceptions.throwUnsafely(e);
+            }
+        }
 
         configure(builder);
 
         dogma = builder.build();
         dogma.start();
 
-        final InetSocketAddress serverAddress = dogma.activePort().get().localAddress();
-        client = CentralDogma.forHost(serverAddress.getHostString(), serverAddress.getPort());
+        serverAddress = dogma.activePort().get().localAddress();
+
+        final com.linecorp.centraldogma.client.CentralDogmaBuilder clientBuilder =
+                new com.linecorp.centraldogma.client.CentralDogmaBuilder();
+
+        clientBuilder.host(serverAddress.getHostString(), serverAddress.getPort());
+
+        if (useTls) {
+            clientBuilder.useTls();
+            clientBuilder.clientFactory(
+                    new ClientFactoryBuilder().sslContextCustomizer(
+                            b -> b.trustManager(InsecureTrustManagerFactory.INSTANCE)).build());
+        }
+
+        configureClient(clientBuilder);
+
+        client = clientBuilder.build();
         httpClient = HttpClient.of("h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort());
     }
 
@@ -138,6 +189,11 @@ public class CentralDogmaRule extends TemporaryFolder {
      * Override this method to configure the server.
      */
     protected void configure(CentralDogmaBuilder builder) {}
+
+    /**
+     * Override this method to configure the client.
+     */
+    protected void configureClient(com.linecorp.centraldogma.client.CentralDogmaBuilder builder) {}
 
     /**
      * Override this method to perform the initial updates on the server, such as creating a repository and

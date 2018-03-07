@@ -65,6 +65,7 @@ public class CentralDogmaBuilder {
 
     private ClientFactory clientFactory = ClientFactory.DEFAULT;
     private List<Endpoint> endpoints = new ArrayList<>();
+    private boolean useTls;
     private String selectedProfile;
     private ArmeriaClientConfigurator clientConfigurator = cb -> {
     };
@@ -119,6 +120,21 @@ public class CentralDogmaBuilder {
 
         checkState(selectedProfile == null, "profile() and host() cannot be used together.");
         endpoints.add(Endpoint.parse(host + ':' + port));
+        return this;
+    }
+
+    /**
+     * Sets the client to use TLS.
+     */
+    public CentralDogmaBuilder useTls() {
+        return useTls(true);
+    }
+
+    /**
+     * Sets whether the client uses TLS or not.
+     */
+    public CentralDogmaBuilder useTls(boolean useTls) {
+        this.useTls = useTls;
         return this;
     }
 
@@ -301,7 +317,8 @@ public class CentralDogmaBuilder {
             endpoint = Endpoint.ofGroup(groupName);
         }
 
-        final String uri = "tbinary+http://" + endpoint.authority() + "/cd/thrift/v1";
+        final String scheme = "tbinary+" + (useTls ? "https" : "http") + "://";
+        final String uri = scheme + endpoint.authority() + "/cd/thrift/v1";
         final ClientBuilder builder = new ClientBuilder(uri)
                 .factory(clientFactory)
                 .decorator(RpcRequest.class, RpcResponse.class,

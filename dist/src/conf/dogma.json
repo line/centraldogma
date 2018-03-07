@@ -9,6 +9,7 @@
       "protocol": "http"
     }
   ],
+  "tls": null,
   "numWorkers": null,
   "maxNumConnections": null,
   "requestTimeoutMillis": null,

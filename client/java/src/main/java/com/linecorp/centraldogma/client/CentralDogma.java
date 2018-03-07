@@ -89,6 +89,59 @@ public interface CentralDogma {
     }
 
     /**
+     * Returns a newly-created {@link CentralDogma} instance which connects to the given host at port 36462
+     * using the default {@link ClientFactory}. This {@link CentralDogma} instance connects to the server
+     * with TLS enabled.
+     *
+     * @param host the host name or IP address of the Central Dogma server
+     */
+    static CentralDogma forTlsHost(String host) {
+        return new CentralDogmaBuilder().host(host).useTls().build();
+    }
+
+    /**
+     * Returns a newly-created {@link CentralDogma} instance which connects to the given host and port
+     * using the default {@link ClientFactory}. This {@link CentralDogma} instance connects to the server
+     * with TLS enabled.
+     *
+     * @param host the host name or IP address of the Central Dogma server
+     * @param port the port number of the Central Dogma server
+     */
+    static CentralDogma forTlsHost(String host, int port) {
+        return new CentralDogmaBuilder().host(host, port).useTls().build();
+    }
+
+    /**
+     * Returns a newly-created {@link CentralDogma} instance which connects to the given host at port 36462
+     * using the specified {@link ClientFactory}. This {@link CentralDogma} instance connects to the server
+     * with TLS enabled.
+     *
+     * @param clientFactory the {@link ClientFactory} that will manage the connections
+     * @param host the host name or IP address of the Central Dogma server
+     */
+    static CentralDogma forTlsHost(ClientFactory clientFactory, String host) {
+        return new CentralDogmaBuilder().clientFactory(clientFactory)
+                                        .host(host)
+                                        .useTls()
+                                        .build();
+    }
+
+    /**
+     * Returns a newly-created {@link CentralDogma} instance which connects to the given host and port
+     * using the specified {@link ClientFactory}. This {@link CentralDogma} instance connects to the server
+     * with TLS enabled.
+     *
+     * @param clientFactory the {@link ClientFactory} that will manage the connections
+     * @param host the host name or IP address of the Central Dogma server
+     */
+    static CentralDogma forTlsHost(ClientFactory clientFactory, String host, int port) {
+        return new CentralDogmaBuilder().clientFactory(clientFactory)
+                                        .host(host, port)
+                                        .useTls()
+                                        .build();
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} instance with the given profile names and the default
      * {@link ClientFactory}.
      *
