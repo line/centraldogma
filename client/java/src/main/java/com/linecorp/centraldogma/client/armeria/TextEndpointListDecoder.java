@@ -15,25 +15,21 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
-import static com.linecorp.centraldogma.client.armeria.EndpointListCodecUtils.OBJECT_MAPPER;
 import static com.linecorp.centraldogma.client.armeria.EndpointListCodecUtils.convertToEndpointList;
 
-import java.io.IOException;
 import java.util.List;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Splitter;
 
 import com.linecorp.armeria.client.Endpoint;
 
-public final class DefaultCentralDogmaTextCodec implements EndpointListCodec<String> {
+final class TextEndpointListDecoder implements EndpointListDecoder<String> {
+    private static final Splitter NEWLINE_SPLITTER = Splitter.on(System.getProperty("line.separator", "\n"))
+                                                             .omitEmptyStrings()
+                                                             .trimResults();
+
     @Override
     public List<Endpoint> decode(String object) {
-        final List<String> endpoints;
-        try {
-            endpoints = OBJECT_MAPPER.readValue(object, new TypeReference<List<String>>() {});
-        } catch (IOException e) {
-            throw new IllegalArgumentException("invalid format: " + object);
-        }
-        return convertToEndpointList(endpoints);
+        return convertToEndpointList(NEWLINE_SPLITTER.splitToList(object));
     }
 }

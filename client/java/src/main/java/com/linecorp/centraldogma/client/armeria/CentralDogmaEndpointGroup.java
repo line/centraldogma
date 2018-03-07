@@ -24,6 +24,8 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
@@ -34,21 +36,18 @@ import com.linecorp.centraldogma.common.Query;
 /**
  * A CentralDogma based {@link EndpointGroup} implementation. This {@link EndpointGroup} retrieves the list of
  * {@link Endpoint}s from a route file served by CentralDogma, and update the list when upstream data changes.
- * Route file could be json file or normal text file.
- * <p>
- * <p>In below example, json file with below content will be served as route file:
- * <p>
+ * Route file could be JSON file or normal text file.
+ *
+ * <p>For example, the following JSON file will be served as a route file:
  * <pre>{@code
  *  [
  *      "host1:port1",
  *      "host2:port2",
  *      "host3:port3"
  *  ]
- * }
- * </pre>
- * <p>
- * <p>The route file could be retrieve as {@link EndpointGroup} using below code:
- * <p>
+ * }</pre>
+ *
+ * <p>The route file could be retrieved as an {@link EndpointGroup} using the following code:
  * <pre>{@code
  *  CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofJsonFile(
  *      centralDogma, "myProject", "myRepo",
@@ -56,57 +55,46 @@ import com.linecorp.centraldogma.common.Query;
  *      Query.ofJsonPath("/route.json")
  *  )
  *  endpointGroup.endpoints();
- * }
- * </pre>
+ * }</pre>
  *
- * @param <T> Type of CentralDomgma file (could be JsonNode or String)
+ * @param <T> Type of CentralDomgma file (could be {@link JsonNode} or {@link String})
  */
 public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaEndpointGroup.class);
     private static final long WATCH_INITIALIZATION_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10);
 
     private final Watcher<T> instanceListWatcher;
-    private final EndpointListCodec<T> endpointCodec;
+    private final EndpointListDecoder<T> endpointCodec;
 
     /**
      * Creates a new {@link CentralDogmaEndpointGroup}.
      *
-     * @param endpointCodec A {@link EndpointListCodec}
      * @param watcher A {@link Watcher}
+     * @param endpointCodec A {@link EndpointListDecoder}
      */
-    public static <T> CentralDogmaEndpointGroup<T> ofWatcher(EndpointListCodec<T> endpointCodec,
-                                                             Watcher<T> watcher) {
+    public static <T> CentralDogmaEndpointGroup<T> ofWatcher(Watcher<T> watcher,
+                                                             EndpointListDecoder<T> endpointCodec) {
         return new CentralDogmaEndpointGroup<>(watcher, endpointCodec);
     }
 
     /**
      * Creates a new {@link CentralDogmaEndpointGroup}.
-     * @param uri an uri of CentralDogma server
-     * @param dogmaProject CentralDogma project name
-     * @param dogmaRepo CentralDogma repository name
-     * @param dogmaCodec A {@link CentralDogmaCodec}
-     * @param waitTime a {@code long} define how long we should wait for initial result
-     * @param waitUnit a {@link TimeUnit} define unit of wait time
-     * @throws CentralDogmaEndpointException if couldn't get initial result from CentralDogma server
-     */
-
-    /**
-     * Creates a new {@link CentralDogmaEndpointGroup}.
      *
      * @param centralDogma A {@link CentralDogma}
-     * @param endpointCodec A {@link EndpointListCodec}
      * @param projectName CentralDogma project name
      * @param repositoryName CentralDogma repository name
      * @param query A {@link Query} to route file
+     * @param endpointCodec An {@link EndpointListDecoder}
      */
     public static <T> CentralDogmaEndpointGroup<T> of(CentralDogma centralDogma,
-                                                      EndpointListCodec<T> endpointCodec,
                                                       String projectName, String repositoryName,
-                                                      Query<T> query) {
-        return ofWatcher(endpointCodec, centralDogma.fileWatcher(projectName, repositoryName, query));
+                                                      Query<T> query,
+                                                      EndpointListDecoder<T> endpointCodec
+    ) {
+        return ofWatcher(centralDogma.fileWatcher(projectName, repositoryName, query), endpointCodec);
     }
 
-    private CentralDogmaEndpointGroup(Watcher<T> instanceListWatcher, EndpointListCodec<T> endpointCodec) {
+    private CentralDogmaEndpointGroup(Watcher<T> instanceListWatcher, EndpointListDecoder<T> endpointCodec) {
         this.instanceListWatcher = requireNonNull(instanceListWatcher, "instanceListWatcher");
         this.endpointCodec = requireNonNull(endpointCodec, "endpointCodec");
         registerWatcher();

@@ -24,12 +24,12 @@ import com.linecorp.armeria.client.Endpoint;
 /**
  * Decode and encode between CentralDogma upstream file content and list of {@link Endpoint}s.
  *
- * @param <T> Type of CentralDomgma file (could be JsonNode or String)
+ * @param <T> Type of CentralDomgma file (could be {@link JsonNode} or {@link String})
  */
-public interface EndpointListCodec<T> {
+public interface EndpointListDecoder<T> {
 
     /**
-     * Default {@link EndpointListCodec} implementation for JsonNode object.
+     * Default {@link EndpointListDecoder} implementation for JsonNode object.
      * Retrive object must be a json array (which has format as "[ \"segment1\", \"segment2\" ]"
      * Each segment represents an endpoint whose format is
      * {@code <host>[:<port_number>[:weight]]}, such as:
@@ -41,10 +41,10 @@ public interface EndpointListCodec<T> {
      * </ul>
      * Note that the port number must be specified when you want to specify the weight.
      */
-    EndpointListCodec<JsonNode> DEFAULT_JSON_CODEC = new DefaultCentralDogmaJsonCodec();
+    EndpointListDecoder<JsonNode> JSON = new JsonEndpointListDecoder();
 
     /**
-     * Default {@link EndpointListCodec} implementation for String object.
+     * Default {@link EndpointListDecoder} implementation for String object.
      * Retrive object must be a string which is a list of segments separated by newline.
      * Each segment represents an endpoint whose format is
      * {@code <host>[:<port_number>[:weight]]}, such as:
@@ -56,7 +56,7 @@ public interface EndpointListCodec<T> {
      * </ul>
      * Note that the port number must be specified when you want to specify the weight.
      */
-    EndpointListCodec<String> DEFAULT_STRING_CODEC = new DefaultCentralDogmaTextCodec();
+    EndpointListDecoder<String> TEXT = new TextEndpointListDecoder();
 
     /**
      * Decodes an object into a set of {@link Endpoint}s.

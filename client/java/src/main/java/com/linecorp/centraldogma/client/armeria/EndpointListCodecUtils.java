@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linecorp.armeria.client.Endpoint;
 
 final class EndpointListCodecUtils {
-    static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().disable(FAIL_ON_UNKNOWN_PROPERTIES);
+    static final ObjectMapper objectMapper = new ObjectMapper().disable(FAIL_ON_UNKNOWN_PROPERTIES);
 
     private EndpointListCodecUtils() {}
 

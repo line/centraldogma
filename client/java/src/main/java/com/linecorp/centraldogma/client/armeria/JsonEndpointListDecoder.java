@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
-import static com.linecorp.centraldogma.client.armeria.EndpointListCodecUtils.OBJECT_MAPPER;
+import static com.linecorp.centraldogma.client.armeria.EndpointListCodecUtils.objectMapper;
 import static com.linecorp.centraldogma.client.armeria.EndpointListCodecUtils.convertToEndpointList;
 
 import java.io.IOException;
@@ -26,13 +26,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.client.Endpoint;
 
-public final class DefaultCentralDogmaJsonCodec implements EndpointListCodec<JsonNode> {
+final class JsonEndpointListDecoder implements EndpointListDecoder<JsonNode> {
     @Override
     public List<Endpoint> decode(JsonNode node) {
         final List<String> endpoints;
         try {
-            endpoints = OBJECT_MAPPER.readValue(node.traverse(),
-                                                new TypeReference<List<String>>() {});
+            endpoints = objectMapper.readValue(node.traverse(),
+                                               new TypeReference<List<String>>() {});
         } catch (IOException e) {
             throw new IllegalArgumentException("invalid format: " + node);
         }
