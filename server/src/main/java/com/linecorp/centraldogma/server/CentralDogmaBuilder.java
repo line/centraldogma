@@ -78,6 +78,7 @@ public final class CentralDogmaBuilder {
     private GracefulShutdownTimeout gracefulShutdownTimeout;
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
     private Ini securityConfig;
+    private String accessLogFormat;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -273,6 +274,16 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Configures a format of an access log. It will work only if any logging framework is configured.
+     * Read the <a href="https://line.github.io/armeria/server-access-log.html">Writing an access log</a>
+     * document for more information.
+     */
+    public CentralDogmaBuilder accessLogFormat(String accessLogFormat) {
+        this.accessLogFormat = requireNonNull(accessLogFormat, "accessLogFormat");
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -288,6 +299,7 @@ public final class CentralDogmaBuilder {
                                       numRepositoryWorkers, cacheSpec, gracefulShutdownTimeout,
                                       webAppEnabled, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      securityConfig != null, null);
+                                      securityConfig != null, null,
+                                      accessLogFormat);
     }
 }

@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
 import static java.util.Objects.requireNonNull;
@@ -66,6 +67,7 @@ import com.linecorp.armeria.server.docs.DocServiceBuilder;
 import com.linecorp.armeria.server.file.AbstractHttpVfs;
 import com.linecorp.armeria.server.file.HttpFileService;
 import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
+import com.linecorp.armeria.server.logging.AccessLogWriters;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.internal.CsrfToken;
@@ -396,6 +398,17 @@ public class CentralDogma {
                                                .build());
 
         configureHttpApi(sb, pm, executor, watchService, securityManager);
+
+        final String accessLogFormat = cfg.accessLogFormat();
+        if (isNullOrEmpty(accessLogFormat)) {
+            sb.accessLogWriter(AccessLogWriters.disabled());
+        } else if ("common".equals(accessLogFormat)) {
+            sb.accessLogWriter(AccessLogWriters.common());
+        } else if ("combined".equals(accessLogFormat)) {
+            sb.accessLogWriter(AccessLogWriters.combined());
+        } else {
+            sb.accessLogFormat(accessLogFormat);
+        }
 
         final Server s = sb.build();
         s.start().join();

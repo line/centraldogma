@@ -24,5 +24,6 @@
   "replication": {
     "method": "NONE"
   },
-  "securityEnabled": false
+  "securityEnabled": false,
+  "accessLogFormat": "common"
 }

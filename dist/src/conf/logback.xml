@@ -37,8 +37,26 @@
     <export>req.http_headers.x-forwarded-for</export>
   </appender>
 
+  <appender name="ACCESS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${APP_LOG_DIR:-.}/access.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <!-- daily rollover -->
+      <fileNamePattern>${APP_LOG_DIR:-.}/access.%d{yyyy-MM-dd}-%i.log</fileNamePattern>
+      <!-- each file should be at most 1GB, keep 30 days worth of history, but at most 30GB -->
+      <maxFileSize>1GB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>30GB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%msg%n</pattern>
+    </encoder>
+  </appender>
+
   <logger name="com.linecorp" level="INFO" />
   <logger name="com.linecorp.centraldogma" level="DEBUG" />
+  <logger name="com.linecorp.armeria.logging.access" level="INFO" additivity="false">
+    <appender-ref ref="ACCESS"/>
+  </logger>
   <logger name="io.netty" level="INFO" />
 
   <root level="WARN">
