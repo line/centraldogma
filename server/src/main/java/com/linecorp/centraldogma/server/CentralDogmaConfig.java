@@ -23,6 +23,7 @@ import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_N
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_FILES_PER_MIRROR;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
+import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -76,6 +77,7 @@ final class CentralDogmaConfig {
 
     // Web dashboard
     private final boolean webAppEnabled;
+    private final long webAppSessionTimeoutMillis;
 
     // Mirroring
     private final boolean mirroringEnabled;
@@ -110,6 +112,7 @@ final class CentralDogmaConfig {
                        @JsonProperty("gracefulShutdownTimeout")
                                GracefulShutdownTimeout gracefulShutdownTimeout,
                        @JsonProperty("webAppEnabled") Boolean webAppEnabled,
+                       @JsonProperty("webAppSessionTimeoutMillis") Long webAppSessionTimeoutMillis,
                        @JsonProperty("mirroringEnabled") Boolean mirroringEnabled,
                        @JsonProperty("numMirroringThreads") Integer numMirroringThreads,
                        @JsonProperty("maxNumFilesPerMirror") Integer maxNumFilesPerMirror,
@@ -133,6 +136,10 @@ final class CentralDogmaConfig {
                       "numRepositoryWorkers: %s (expected: > 0)", this.numRepositoryWorkers);
         this.cacheSpec = RepositoryCache.validateCacheSpec(firstNonNull(cacheSpec, DEFAULT_CACHE_SPEC));
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
+        this.webAppSessionTimeoutMillis = firstNonNull(webAppSessionTimeoutMillis,
+                                                       DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS);
+        checkArgument(this.webAppSessionTimeoutMillis > 0,
+                      "webAppSessionTimeoutMillis: %s (expected: > 0)", this.webAppSessionTimeoutMillis);
         this.mirroringEnabled = firstNonNull(mirroringEnabled, true);
         this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
         checkArgument(this.numMirroringThreads > 0,
@@ -210,6 +217,11 @@ final class CentralDogmaConfig {
     @JsonProperty
     boolean isWebAppEnabled() {
         return webAppEnabled;
+    }
+
+    @JsonProperty
+    long webAppSessionTimeoutMillis() {
+        return webAppSessionTimeoutMillis;
     }
 
     @JsonProperty
