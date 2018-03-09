@@ -20,6 +20,7 @@ import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
@@ -175,17 +176,17 @@ public class SerializationTest {
         assertThat(obj.isRemoved()).isTrue();
     }
 
-    private UserAndTimestamp newAdditionTag() {
+    private static UserAndTimestamp newAdditionTag() {
         return new UserAndTimestamp("editor@dogma.org",
-                                    ZonedDateTime.of(2017, 1, 1,
-                                                     0, 0, 0, 0,
-                                                     ZoneId.of("GMT")));
+                                    Instant.from(ZonedDateTime.of(2017, 1, 1,
+                                                                  0, 0, 0, 0,
+                                                                  ZoneId.of("GMT"))));
     }
 
-    private UserAndTimestamp newRemovalTag() {
+    private static UserAndTimestamp newRemovalTag() {
         return new UserAndTimestamp("editor@dogma.org",
-                                    ZonedDateTime.of(2017, 1, 1,
-                                                     0, 0, 0, 0,
-                                                     ZoneId.of("GMT")));
+                                    Instant.from(ZonedDateTime.of(2017, 1, 1,
+                                                                  0, 0, 0, 0,
+                                                                  ZoneId.of("GMT"))));
     }
 }

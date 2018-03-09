@@ -35,7 +35,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
-import com.linecorp.armeria.common.DefaultHttpResponse;
+import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Get;
@@ -183,12 +183,12 @@ public class RepositoryService extends AbstractService {
      */
     @Post("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repositoryName>[^/]+)" +
           "/delete/revisions/(?<revision>[^/]+)(?<path>/.*$)")
-    public DefaultHttpResponse deleteFile(@Param("projectName") String projectName,
-                                          @Param("repositoryName") String repositoryName,
-                                          @Param("revision") String revision,
-                                          @Param("path") String path,
-                                          AggregatedHttpMessage message,
-                                          ServiceRequestContext ctx) {
+    public HttpResponse deleteFile(@Param("projectName") String projectName,
+                                   @Param("repositoryName") String repositoryName,
+                                   @Param("revision") String revision,
+                                   @Param("path") String path,
+                                   AggregatedHttpMessage message,
+                                   ServiceRequestContext ctx) {
         final CommitMessageDto commitMessage;
         try {
             final JsonNode node = Jackson.readTree(message.content().toStringUtf8());
@@ -197,18 +197,17 @@ public class RepositoryService extends AbstractService {
             throw new BadRequestException("invalid data to be parsed", e);
         }
 
-        final DefaultHttpResponse response = new DefaultHttpResponse();
-        push(projectName, repositoryName, new Revision(revision), AuthenticationUtil.currentAuthor(ctx),
-             commitMessage.getSummary(), commitMessage.getDetail().getContent(),
-             Markup.valueOf(commitMessage.getDetail().getMarkup()), Change.ofRemoval(path))
-                .whenComplete((unused, cause) -> {
-                    if (cause == null) {
-                        response.respond(HttpStatus.OK);
-                    } else {
-                        response.respond(HttpStatus.INTERNAL_SERVER_ERROR);
-                    }
-                });
-        return response;
+        return HttpResponse.from(
+                push(projectName, repositoryName, new Revision(revision), AuthenticationUtil.currentAuthor(ctx),
+                     commitMessage.getSummary(), commitMessage.getDetail().getContent(),
+                     Markup.valueOf(commitMessage.getDetail().getMarkup()), Change.ofRemoval(path))
+                        .handle((unused, cause) -> {
+                            if (cause == null) {
+                                return HttpResponse.of(HttpStatus.OK);
+                            } else {
+                                return HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR);
+                            }
+                        }));
     }
 
     /**

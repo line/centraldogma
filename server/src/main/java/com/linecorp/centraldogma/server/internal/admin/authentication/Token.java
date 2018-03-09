@@ -19,14 +19,13 @@ package com.linecorp.centraldogma.server.internal.admin.authentication;
 import static java.util.Objects.requireNonNull;
 
 import java.text.ParseException;
-import java.text.ParsePosition;
-import java.util.Date;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.util.ISO8601Utils;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.server.internal.admin.model.TokenInfo;
@@ -44,7 +43,7 @@ public final class Token {
     private final String appId;
     private final String secret;
     private final User creator;
-    private final Date creationTime;
+    private final Instant creationTime;
     private String creationTimeAsText;
 
     @JsonCreator
@@ -55,12 +54,12 @@ public final class Token {
         this(requireNonNull(appId, "appId"),
              requireNonNull(secret, "secret"),
              requireNonNull(creator, "creator"),
-             ISO8601Utils.parse(requireNonNull(creationTimeAsText, "creationTimeAsText"),
-                                new ParsePosition(0)),
+             Instant.from(DateTimeFormatter.ISO_INSTANT.parse(
+                     requireNonNull(creationTimeAsText, "creationTimeAsText"))),
              creationTimeAsText);
     }
 
-    public Token(String appId, String secret, User creator, Date creationTime) {
+    public Token(String appId, String secret, User creator, Instant creationTime) {
         this(requireNonNull(appId, "appId"),
              requireNonNull(secret, "secret"),
              requireNonNull(creator, "creator"),
@@ -69,7 +68,7 @@ public final class Token {
     }
 
     private Token(String appId, String secret, User creator,
-                  Date creationTime, String creationTimeAsText) {
+                  Instant creationTime, String creationTimeAsText) {
         this.appId = appId;
         this.secret = secret;
         this.creator = creator;
@@ -95,7 +94,7 @@ public final class Token {
     @JsonProperty
     public String creationTime() {
         if (creationTimeAsText == null) {
-            creationTimeAsText = ISO8601Utils.format(creationTime);
+            creationTimeAsText = DateTimeFormatter.ISO_INSTANT.format(creationTime);
         }
         return creationTimeAsText;
     }
