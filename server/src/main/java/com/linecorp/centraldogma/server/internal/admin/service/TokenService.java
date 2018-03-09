@@ -23,10 +23,10 @@ import static com.linecorp.centraldogma.server.internal.command.ProjectInitializ
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.TOKEN_REPOSITORY_NAME;
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -99,7 +99,7 @@ public class TokenService extends AbstractService {
     public CompletionStage<Token> createToken(@Param("appId") String appId) {
         validateFileName(appId, "appId");
         final Token token = new Token(appId, SECRET_PREFIX + UUID.randomUUID(),
-                                      AuthenticationUtil.currentUser(), new Date());
+                                      AuthenticationUtil.currentUser(), Instant.now());
         final Revision normalizedRevision = projectManager().get(INTERNAL_PROJECT_NAME).repos()
                                                             .get(TOKEN_REPOSITORY_NAME)
                                                             .normalizeNow(Revision.HEAD);

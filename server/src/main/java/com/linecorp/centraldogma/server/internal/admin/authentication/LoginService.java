@@ -20,6 +20,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static java.util.Objects.requireNonNull;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.shiro.authc.IncorrectCredentialsException;
 import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.session.mgt.SimpleSession;
@@ -29,7 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.HttpResponseWriter;
+import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.server.AbstractHttpService;
@@ -55,8 +57,8 @@ public class LoginService extends AbstractHttpService {
     }
 
     @Override
-    protected void doPost(ServiceRequestContext ctx, HttpRequest req,
-                          HttpResponseWriter res) throws Exception {
+    protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
+        final CompletableFuture<HttpResponse> future = new CompletableFuture<>();
         req.aggregate().thenAccept(aMsg -> {
             final QueryStringDecoder decoder =
                     new QueryStringDecoder(aMsg.content().toStringUtf8(), false);
@@ -83,14 +85,14 @@ public class LoginService extends AbstractHttpService {
                     success = true;
 
                     logger.info("{} Logged in: {} ({})", ctx, username, sessionId);
-                    res.respond(HttpStatus.OK, MediaType.PLAIN_TEXT_UTF_8, sessionId);
+                    future.complete(HttpResponse.of(HttpStatus.OK, MediaType.PLAIN_TEXT_UTF_8, sessionId));
                 } catch (IncorrectCredentialsException e) {
                     // Not authorized
                     logger.debug("{} Incorrect login: {}", ctx, username);
-                    res.respond(HttpStatus.UNAUTHORIZED);
+                    future.complete(HttpResponse.of(HttpStatus.UNAUTHORIZED));
                 } catch (Throwable t) {
                     logger.warn("{} Failed to authenticate: {}", ctx, username, t);
-                    res.respond(HttpStatus.INTERNAL_SERVER_ERROR);
+                    future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
                 } finally {
                     try {
                         if (!success && currentUser != null) {
@@ -104,7 +106,8 @@ public class LoginService extends AbstractHttpService {
             });
         }).exceptionally(voidFunction(cause -> {
             logger.warn("{} Unexpected exception:", ctx, cause);
-            res.respond(HttpStatus.INTERNAL_SERVER_ERROR);
+            future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
         }));
+        return HttpResponse.from(future);
     }
 }

@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.58.1
+- com.linecorp.armeria:armeria-bom:0.59.0
 
 com.beust:
   jcommander: { version: '1.72' }
@@ -12,7 +12,7 @@ com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
 com.bmuschko:
-  gradle-docker-plugin: { version: '3.2.4' }
+  gradle-docker-plugin: { version: '3.2.5' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
@@ -70,11 +70,8 @@ com.jcraft:
 
 com.linecorp.armeria:
   armeria-shaded:
-    version: &ARMERIA_VERSION '0.58.1'
     javadocs:
     - https://line.github.io/armeria/apidocs/
-  armeria-logback-shaded: { version: *ARMERIA_VERSION }
-  armeria-thrift0.9-shaded: { version: *ARMERIA_VERSION }
 
 com.spotify:
   completable-futures:

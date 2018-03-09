@@ -19,13 +19,15 @@ package com.linecorp.centraldogma.server.internal.admin.authentication;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static java.util.Objects.requireNonNull;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.shiro.subject.Subject;
 import org.apache.shiro.util.ThreadContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.HttpResponseWriter;
+import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -50,12 +52,12 @@ public class LogoutService extends AbstractHttpService {
     }
 
     @Override
-    protected void doPost(ServiceRequestContext ctx, HttpRequest req,
-                          HttpResponseWriter res) throws Exception {
+    protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
+        final CompletableFuture<HttpResponse> future = new CompletableFuture<>();
         req.aggregate().thenAccept(aMsg -> {
             final OAuth2Token token = AuthTokenExtractors.OAUTH2.apply(aMsg.headers());
             if (token == null) {
-                res.respond(HttpStatus.OK);
+                future.complete(HttpResponse.of(HttpStatus.OK));
                 return;
             }
 
@@ -80,17 +82,18 @@ public class LogoutService extends AbstractHttpService {
                     } else {
                         logger.debug("{} Tried to log out a non-existent session: {}", ctx, sessionId);
                     }
-                    res.respond(HttpStatus.OK);
+                    future.complete(HttpResponse.of(HttpStatus.OK));
                 } catch (Throwable t) {
                     logger.warn("{} Failed to log out: {}", ctx, sessionId, t);
-                    res.respond(HttpStatus.INTERNAL_SERVER_ERROR);
+                    future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
                 } finally {
                     ThreadContext.unbindSecurityManager();
                 }
             });
         }).exceptionally(voidFunction(cause -> {
             logger.warn("{} Unexpected exception:", ctx, cause);
-            res.respond(HttpStatus.INTERNAL_SERVER_ERROR);
+            future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
         }));
+        return HttpResponse.from(future);
     }
 }

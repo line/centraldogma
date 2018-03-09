@@ -30,6 +30,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.core.io.JsonStringEncoder;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.util.BufferRecyclers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -199,7 +200,7 @@ public final class Jackson {
     }
 
     public static String escapeText(String text) {
-        final JsonStringEncoder enc = JsonStringEncoder.getInstance();
+        final JsonStringEncoder enc = BufferRecyclers.getJsonStringEncoder();
         return new String(enc.quoteAsString(text));
     }
 

@@ -19,8 +19,6 @@ package com.linecorp.centraldogma.server.internal.admin.model;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -33,14 +31,14 @@ import com.google.common.base.MoreObjects;
 public class UserAndTimestamp {
 
     private final String user;
-    private final ZonedDateTime timestamp;
+    private final Instant timestamp;
     private String timestampAsText;
 
     public UserAndTimestamp(String user) {
-        this(user, ZonedDateTime.now());
+        this(user, Instant.now());
     }
 
-    public UserAndTimestamp(String user, ZonedDateTime timestamp) {
+    public UserAndTimestamp(String user, Instant timestamp) {
         this.user = requireNonNull(user, "user");
         this.timestamp = requireNonNull(timestamp, "timestamp");
     }
@@ -50,7 +48,7 @@ public class UserAndTimestamp {
                      @JsonProperty("timestamp") String timestampAsText) {
         this.user = requireNonNull(user, "user");
         this.timestampAsText = requireNonNull(timestampAsText, "timestampAsText");
-        timestamp = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(timestampAsText)).atZone(ZoneId.of("GMT"));
+        timestamp = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(timestampAsText));
     }
 
     /**
