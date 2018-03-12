@@ -17,7 +17,6 @@ package dogma
 import (
 	"context"
 	"fmt"
-	"golang.org/x/oauth2/clientcredentials"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -80,9 +79,7 @@ func TestNewClient(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	config := clientcredentials.Config{ClientID: "foo", ClientSecret: "bar",
-		TokenURL: server.URL + "/api/v0/authenticate"}
-	c, _ := NewClient(server.URL, config)
+	c, _ := NewClient(server.URL, "foo", "bar")
 
 	mux.HandleFunc("/api/v0/authenticate", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "POST")
@@ -103,7 +100,7 @@ func TestNewClient(t *testing.T) {
 	})
 
 	req, _ := c.newRequest("GET", "/test", nil)
-	// the request goes to "/api/v0/authenticate" first to get the token, then goes to "test"
+	// the request goes to the pathAuthenticate first to get the token, then goes to "/test"
 	res, _ := c.do(context.Background(), req, nil)
 	testStatus(t, res, 200)
 }

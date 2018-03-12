@@ -12,6 +12,38 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
+/*
+Package dogma provides a Go client for using the Central Dogma API.
+
+Usage:
+
+	import "github.com/line/centraldogma/client/go"
+
+Create a client with the clientID and clientSecret, then use the client to access the
+Central Dogma HTTP APIs. For example:
+
+	clientId := "foo"
+	clientSecret := "bar"
+	client, err := dogma.NewClient("http://localhost:36462", clientId, clientSecret)
+
+	projects, res, err := client.ListProjects(context.Background())
+
+Or, you can create a client specifying an http.Client which handles authentication
+for you.
+
+	import "golang.org/x/oauth2/clientcredentials"
+
+	func Client() {
+		config := clientcredentials.Config{ClientID: clientID,
+			ClientSecret: clientSecret, TokenURL: "..."}
+
+		authClient := config.Client(context.Background())
+		client, err := NewClientWithHTTPClient(server.URL, authClient)
+	}
+
+Note that all of the APIs are using the https://godoc.org/context which can pass
+cancellation and deadlines for handling a request.
+*/
 package dogma
 
 import (
@@ -31,11 +63,15 @@ import (
 const (
 	DefaultPort = 36462
 
-	defaultScheme       = "http"
-	defaultHostName     = "localhost"
-	defaultPathPrefix   = "api/v1/"
-	defaultBaseURL      = defaultScheme + "://" + defaultHostName + ":36462/"
+	defaultScheme   = "http"
+	defaultHostName = "localhost"
+	defaultBaseURL  = defaultScheme + "://" + defaultHostName + ":36462/"
+
+	defaultPathPrefix = "api/v1/"
+	v0PathPrefix      = "api/v0/"
+
 	pathSecurityEnabled = "security_enabled"
+	pathAuthenticate    = v0PathPrefix + "authenticate"
 )
 
 // A Client communicates with the Central Dogma server API.
@@ -54,20 +90,24 @@ type service struct {
 	client *Client
 }
 
-func NewClient(baseURL string, config clientcredentials.Config) (*Client, error) {
-	return NewClientWithHTTPClient(baseURL, config.Client(context.Background()))
+// NewClient returns a Central Dogma client with the specified baseURL, clientID and clientSecret.
+func NewClient(baseURL string, clientID, clientSecret string) (*Client, error) {
+	normalizedURL, err := normalizeURL(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	config := clientcredentials.Config{ClientID: clientID, ClientSecret: clientSecret,
+		TokenURL: normalizedURL.String() + pathAuthenticate}
+	return NewClientWithHTTPClient(normalizedURL.String(), config.Client(context.Background()))
 }
 
+// NewClientWithHTTPClient returns a Central Dogma client withe the specified baseURL and client.
+// The client should perform the authentication.
 func NewClientWithHTTPClient(baseURL string, client *http.Client) (*Client, error) {
-	var normalizedURL *url.URL
-	var err error
-
-	if len(baseURL) != 0 {
-		if normalizedURL, err = normalizeURL(baseURL); err != nil {
-			return nil, err
-		}
-	} else {
-		normalizedURL, err = url.Parse(defaultBaseURL)
+	normalizedURL, err := normalizeURL(baseURL)
+	if err != nil {
+		return nil, err
 	}
 
 	c := &Client{
@@ -83,6 +123,10 @@ func NewClientWithHTTPClient(baseURL string, client *http.Client) (*Client, erro
 }
 
 func normalizeURL(baseURL string) (*url.URL, error) {
+	if len(baseURL) == 0 {
+		return url.Parse(defaultBaseURL)
+	}
+
 	if !strings.HasPrefix(baseURL, "http") {
 		// Prepend the defaultScheme when there is no specified scheme so parse the url properly
 		// in case of "hostname:port".
