@@ -54,3 +54,22 @@ tasks.trimShadedJar.configure {
     // Prevent ProGuard from removing all enum values from Option because otherwise it becomes a non-enum class.
     keep "class com.linecorp.centraldogma.internal.shaded.jsonpath.Option { *; }"
 }
+
+tasks.compileThrift.doLast {
+    // Replace 'fromRevision' with 'from' (and 'toRevision' with 'to') because Thrift compiler
+    // does not let us use the parameter name 'from' complaining it's a reserved keyword.
+    // We can't rename it because renaming a field or a parameter is a backward-incompatible
+    // change in TText protocol.
+    project.fileTree("${project.projectDir}/gen-src/main/java") {
+        include '**/*.java'
+    }.each { sourceFile ->
+        def encoding = 'UTF-8'
+        def oldContent = sourceFile.getText(encoding)
+        def content = oldContent
+                .replaceAll('fromRevision', 'from')
+                .replaceAll('toRevision', 'to')
+        if (content != oldContent) {
+            sourceFile.write(content, encoding)
+        }
+    }
+}
