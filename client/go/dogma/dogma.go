@@ -78,7 +78,7 @@ const (
 type Client struct {
 	client *http.Client // HTTP client which sends the request.
 
-	BaseURL *url.URL // Base URL for API requests.
+	baseURL *url.URL // Base URL for API requests.
 
 	// Services are used to communicate for the different parts of the Central Dogma server API.
 	project    *projectService
@@ -112,7 +112,7 @@ func NewClientWithHTTPClient(baseURL string, client *http.Client) (*Client, erro
 
 	c := &Client{
 		client:  client,
-		BaseURL: normalizedURL,
+		baseURL: normalizedURL,
 	}
 	service := &service{client: c}
 
@@ -152,7 +152,7 @@ func normalizeURL(baseURL string) (*url.URL, error) {
 
 // SecurityEnabled returns whether the security of the server is enabled or not.
 func (c *Client) SecurityEnabled() (bool, error) {
-	u, err := c.BaseURL.Parse(pathSecurityEnabled)
+	u, err := c.baseURL.Parse(pathSecurityEnabled)
 	if err != nil {
 		return false, err
 	}
@@ -175,7 +175,7 @@ func (c *Client) SecurityEnabled() (bool, error) {
 }
 
 func (c *Client) newRequest(method, urlStr string, body interface{}) (*http.Request, error) {
-	u, err := c.BaseURL.Parse(urlStr)
+	u, err := c.baseURL.Parse(urlStr)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (c *Client) newRequest(method, urlStr string, body interface{}) (*http.Requ
 		} else {
 			buf = new(bytes.Buffer)
 			enc := json.NewEncoder(buf)
-			//enc.SetEscapeHTML(true)
+			enc.SetEscapeHTML(true)
 			err := enc.Encode(body)
 			if err != nil {
 				return nil, err
