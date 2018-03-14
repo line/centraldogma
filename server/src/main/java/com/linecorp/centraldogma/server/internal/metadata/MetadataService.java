@@ -591,6 +591,9 @@ public class MetadataService extends AbstractService {
     public CompletionStage<Collection<Permission>> findPermissions(String projectName, String repoName,
                                                                    User user) {
         requireNonNull(user, "user");
+        if (user.isAdmin()) {
+            return CompletableFuture.completedFuture(PerRolePermissions.ALL_PERMISSION);
+        }
         if (user instanceof UserWithToken) {
             return findPermissions(projectName, repoName, ((UserWithToken) user).token().appId());
         } else {
@@ -634,9 +637,6 @@ public class MetadataService extends AbstractService {
         requireNonNull(repoName, "repoName");
         requireNonNull(user, "user");
 
-        if (user.isAdmin()) {
-            return CompletableFuture.completedFuture(PerRolePermissions.ALL_PERMISSION);
-        }
         return getProject(projectName).thenApply(metadata -> {
             final RepositoryMetadata repositoryMetadata = metadata.repo(repoName);
             final Member member = metadata.memberOrDefault(user.id(), null);
@@ -696,23 +696,39 @@ public class MetadataService extends AbstractService {
     }
 
     /**
-     * Creates a new {@link Token} with the specified {@code appId} and an auto-generated secret.
+     * Creates a new user-level {@link Token} with the specified {@code appId}. A secret for the {@code appId}
+     * will be automatically generated.
      */
     public CompletionStage<Revision> createToken(Author author, String appId) {
-        return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID());
+        return createToken(author, appId, false);
     }
 
     /**
-     * Creates a new {@link Token} with the specified {@code appId} and {@code secret}.
+     * Creates a new {@link Token} with the specified {@code appId}, {@code isAdmin} and an auto-generated
+     * secret.
+     */
+    public CompletionStage<Revision> createToken(Author author, String appId, boolean isAdmin) {
+        return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID(), isAdmin);
+    }
+
+    /**
+     * Creates a new user-level {@link Token} with the specified {@code appId} and {@code secret}.
      */
     public CompletionStage<Revision> createToken(Author author, String appId, String secret) {
+        return createToken(author, appId, secret, false);
+    }
+
+    /**
+     * Creates a new {@link Token} with the specified {@code appId}, {@code secret} and {@code isAdmin}.
+     */
+    public CompletionStage<Revision> createToken(Author author, String appId, String secret, boolean isAdmin) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
         requireNonNull(secret, "secret");
 
         checkArgument(secret.startsWith(SECRET_PREFIX), "secret must start with: " + SECRET_PREFIX);
 
-        final Token newToken = new Token(appId, secret, UserAndTimestamp.of(author));
+        final Token newToken = new Token(appId, secret, isAdmin, UserAndTimestamp.of(author));
         final JsonPointer appIdPath = JsonPointer.compile("/appIds/" + newToken.id());
         final JsonPointer secretPath = JsonPointer.compile("/secrets/" + newToken.secret());
         final Change<JsonNode> change =

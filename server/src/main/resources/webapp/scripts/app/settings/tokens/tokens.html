@@ -5,14 +5,25 @@
     <thead>
     <tr>
       <th><span translate>settings.token_application_id</span></th>
+      <th><span translate>settings.token_level</span></th>
       <th><span translate>settings.token_creator</span></th>
       <th><span translate>settings.token_creation_time</span></th>
       <th><span translate>settings.token_status</span></th>
+      <th has-role="LEVEL_ADMIN"><span translate>settings.token_secret</span></th>
     </tr>
     </thead>
     <tbody>
     <tr ng-repeat="token in tokens" ng-click="selectToken(token)" ng-class="{info: token === selectedToken}">
-      <td>{{token.appId}}</td>
+      <td>
+        {{token.appId}}
+        <p class="collapse" id="secret-{{token.appId}}">{{token.secret}}</p>
+      </td>
+      <td>
+        <div ng-switch="token.admin">
+          <div ng-switch-when="true">Admin</div>
+          <div ng-switch-default>User</div>
+        </div>
+      </td>
       <td>{{sanitizeEmail(token.creation.user)}}</td>
       <td>{{token.creationTimeStr}}</td>
       <td>
@@ -20,6 +31,10 @@
           <div ng-switch-when="true">Active</div>
           <div ng-switch-default>Inactive</div>
         </div>
+      </td>
+      <td has-role="LEVEL_ADMIN">
+        <p><a class="btn-xs" data-toggle="collapse" data-target="#secret-{{token.appId}}">
+          <span class="glyphicon glyphicon-circle-arrow-down"></span></a></p>
       </td>
     </tr>
     </tbody>

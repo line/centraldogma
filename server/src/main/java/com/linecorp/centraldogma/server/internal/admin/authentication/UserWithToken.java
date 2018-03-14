@@ -41,6 +41,11 @@ public class UserWithToken extends User {
     }
 
     @Override
+    public boolean isAdmin() {
+        return token.isAdmin();
+    }
+
+    @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("token", token.withoutSecret())

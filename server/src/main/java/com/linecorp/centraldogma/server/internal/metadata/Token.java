@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -47,6 +48,11 @@ public class Token implements Identifiable {
     private final String secret;
 
     /**
+     * Specifies whether this token is for administrators.
+     */
+    private final boolean isAdmin;
+
+    /**
      * Specifies when this token is created by whom.
      */
     private final UserAndTimestamp creation;
@@ -57,23 +63,27 @@ public class Token implements Identifiable {
     @Nullable
     private final UserAndTimestamp deactivation;
 
-    Token(String appId, String secret, UserAndTimestamp creation) {
-        this(appId, secret, creation, null);
+    Token(String appId, String secret, boolean isAdmin, UserAndTimestamp creation) {
+        this(appId, secret, isAdmin, creation, null);
     }
 
     @JsonCreator
     public Token(@JsonProperty("appId") String appId,
                  @JsonProperty("secret") String secret,
+                 @JsonProperty("admin") boolean isAdmin,
                  @JsonProperty("creation") UserAndTimestamp creation,
                  @JsonProperty("deactivation") @Nullable UserAndTimestamp deactivation) {
         this.appId = Util.validateFileName(appId, "appId");
         this.secret = Util.validateFileName(secret, "secret");
+        this.isAdmin = isAdmin;
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
     }
 
-    private Token(String appId, UserAndTimestamp creation, @Nullable UserAndTimestamp deactivation) {
+    private Token(String appId, boolean isAdmin, UserAndTimestamp creation,
+                  @Nullable UserAndTimestamp deactivation) {
         this.appId = Util.validateFileName(appId, "appId");
+        this.isAdmin = isAdmin;
         this.creation = requireNonNull(creation, "creation");
         this.deactivation = deactivation;
         secret = null;
@@ -95,6 +105,11 @@ public class Token implements Identifiable {
     }
 
     @JsonProperty
+    public boolean isAdmin() {
+        return isAdmin;
+    }
+
+    @JsonProperty
     public UserAndTimestamp creation() {
         return creation;
     }
@@ -105,6 +120,7 @@ public class Token implements Identifiable {
         return deactivation;
     }
 
+    @JsonIgnore
     public boolean isActive() {
         return deactivation == null;
     }
@@ -114,6 +130,7 @@ public class Token implements Identifiable {
         // Do not add "secret" to prevent it from logging.
         return MoreObjects.toStringHelper(this)
                           .add("appId", appId())
+                          .add("isAdmin", isAdmin())
                           .add("creation", creation())
                           .add("deactivation", deactivation())
                           .toString();
@@ -123,6 +140,6 @@ public class Token implements Identifiable {
      * Returns a new {@link Token} instance without its secret.
      */
     public Token withoutSecret() {
-        return new Token(appId(), creation(), deactivation());
+        return new Token(appId(), isAdmin(), creation(), deactivation());
     }
 }

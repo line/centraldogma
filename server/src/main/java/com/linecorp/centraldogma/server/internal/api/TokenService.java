@@ -83,10 +83,12 @@ public class TokenService extends AbstractService {
      * <p>Returns the list of the tokens generated before.
      */
     @Get("/tokens")
-    public CompletionStage<Collection<Token>> listTokens() {
-        return mds.getTokens()
-                  .thenApply(Tokens::withoutSecret)
-                  .thenApply(tokens -> tokens.appIds().values());
+    public CompletionStage<Collection<Token>> listTokens(@RequestObject User loginUser) {
+        final CompletionStage<Tokens> future = mds.getTokens();
+        if (!loginUser.isAdmin()) {
+            future.thenApply(Tokens::withoutSecret);
+        }
+        return future.thenApply(tokens -> tokens.appIds().values());
     }
 
     /**
@@ -97,8 +99,13 @@ public class TokenService extends AbstractService {
     @Post("/tokens")
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletionStage<HolderWithLocation<Token>> createToken(@Param("appId") String appId,
-                                                                  @RequestObject Author author) {
-        return mds.createToken(author, appId)
+                                                                  @Param("isAdmin") boolean isAdmin,
+                                                                  @RequestObject Author author,
+                                                                  @RequestObject User loginUser) {
+        if (isAdmin && !loginUser.isAdmin()) {
+            throw new IllegalArgumentException("Only administrator can create admin-level token");
+        }
+        return mds.createToken(author, appId, isAdmin)
                   .thenCompose(unused -> mds.findTokenByAppId(appId))
                   .thenApply(token -> HolderWithLocation.of(token, "/tokens/" + appId));
     }

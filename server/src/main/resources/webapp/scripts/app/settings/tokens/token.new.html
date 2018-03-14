@@ -1,4 +1,4 @@
-<form name="genTokenForm" ng-submit="generateToken()">
+<form name="genTokenForm" ng-submit="generateToken(isAdmin)">
 <div class="modal-header">
     <h4 class="modal-title" translate>settings.title_generate_token</h4>
   </div>
@@ -8,6 +8,10 @@
       <input type="text" class="form-control" id="appId"
              placeholder="{{ 'settings.token_application_id.placeholder' | translate }}" ng-model="appId"
              required>
+      <div has-role="LEVEL_ADMIN" class="pull-right">
+        <input type="checkbox" id="isAdminToken" ng-model="isAdmin">
+        <label for="isAdminToken" translate>settings.token_admin_level</label>
+      </div>
     </div>
   </div>
   <div class="modal-footer">

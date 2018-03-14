@@ -63,11 +63,11 @@ public class SerializationTest {
 
     @Test
     public void testValidProject() throws IOException {
-        final Member member = new Member("armeria@dogma.org", ProjectRole.MEMBER,
-                                         newCreationTag());
+        final String userLogin = "armeria@dogma.org";
+        final Member member = new Member(userLogin, ProjectRole.MEMBER, newCreationTag());
         final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),
                                                                              PerRolePermissions.DEFAULT);
-        final Token token = new Token("testApp", "testSecret", newCreationTag(), null);
+        final Token token = new Token("testApp", "testSecret", false, newCreationTag(), null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
@@ -127,7 +127,7 @@ public class SerializationTest {
         assertThat(obj.name()).isEqualTo("test");
         assertThat(obj.repos().size()).isOne();
         assertThat(obj.members().size()).isOne();
-        //assertThat(obj.members().get(0).role()).isEqualTo(ProjectRole.MEMBER);
+        assertThat(obj.members().get(userLogin).role()).isEqualTo(ProjectRole.MEMBER);
         assertThat(obj.tokens().size()).isOne();
         assertThat(obj.creation()).isNotNull();
         assertThat(obj.creation().user()).isEqualTo("editor@dogma.org");
@@ -141,7 +141,7 @@ public class SerializationTest {
                                          newCreationTag());
         final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),
                                                                              PerRolePermissions.DEFAULT);
-        final Token token = new Token("testApp", "testSecret", newCreationTag(), null);
+        final Token token = new Token("testApp", "testSecret", false, newCreationTag(), null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
                                     ImmutableMap.of(repositoryMetadata.name(), repositoryMetadata),
