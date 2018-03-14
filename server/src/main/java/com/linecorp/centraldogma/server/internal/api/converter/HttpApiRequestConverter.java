@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -25,6 +25,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
+import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
@@ -66,6 +67,10 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
 
         if (expectedResultType == Author.class) {
             return AuthenticationUtil.currentAuthor(ctx);
+        }
+
+        if (expectedResultType == User.class) {
+            return AuthenticationUtil.currentUser(ctx);
         }
 
         return RequestConverterFunction.fallthrough();

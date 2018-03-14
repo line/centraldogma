@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -100,7 +100,7 @@ public class RepositoryServiceV1Test {
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
-                "   \"message\": \"repository: myRepo already exists.\"" +
+                "   \"message\": \"myRepo already exists.\"" +
                 '}';
         assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }
@@ -133,7 +133,7 @@ public class RepositoryServiceV1Test {
                 "           \"name\": \"System\"," +
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "       }," +
-                "       \"headRevision\": 2," +
+                "       \"headRevision\": \"${json-unit.ignore}\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/main\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -143,7 +143,7 @@ public class RepositoryServiceV1Test {
                 "           \"name\": \"System\"," +
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "       }," +
-                "       \"headRevision\": 1," +
+                "       \"headRevision\": \"${json-unit.ignore}\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/meta\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }," +
@@ -153,7 +153,7 @@ public class RepositoryServiceV1Test {
                 "           \"name\": \"System\"," +
                 "           \"email\": \"system@localhost.localdomain\"" +
                 "       }," +
-                "       \"headRevision\": 1," +
+                "       \"headRevision\": \"${json-unit.ignore}\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo\"," +
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }" +

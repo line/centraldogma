@@ -3,6 +3,7 @@
 angular.module('CentralDogmaAdmin')
     .factory('NotificationUtil',
              function ($translate, StringUtil, Notification) {
+               var lastLoginNotification = 0;
                return {
                  success: function () {
                    if (arguments.length <= 0 || arguments.length > 2) {
@@ -31,11 +32,20 @@ angular.module('CentralDogmaAdmin')
                        Notification.error(arg.message);
                      } else {
                        var message = arg.status + ' ' + arg.statusText;
-                       if (arg.status == 401 || arg.status == 403) {
-                         Notification.error({
-                           message: message,
-                           templateUrl: 'scripts/components/util/notification-template-with-login.html'
-                         });
+                       if (arg.status === 401) {
+                         // Avoid showing login popup multiple times.
+                         var now = new Date().getTime();
+                         var diff = now - lastLoginNotification;
+                         if (diff > 3000) {
+                           Notification.error({
+                             message: message,
+                             templateUrl: 'scripts/components/util/notification-template-with-login.html'
+                           });
+                           lastLoginNotification = now;
+                         }
+                       } else if (arg.status === 403) {
+                         // TODO(hyangtack) Refine the error message.
+                         Notification.error('Permission denied');
                        } else {
                          Notification.error(message);
                        }

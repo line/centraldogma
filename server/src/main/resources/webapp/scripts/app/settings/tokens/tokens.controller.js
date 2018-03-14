@@ -1,21 +1,17 @@
 'use strict';
 
 angular.module('CentralDogmaAdmin').controller('TokensController',
-  function ($scope, $uibModal, SettingsService) {
+  function ($scope, $uibModal, SettingsService, ConfirmationDialog, NotificationUtil, EntitiesUtil) {
+    $scope.sanitizeEmail = EntitiesUtil.sanitizeEmail;
 
     var refresh = function () {
+      $scope.selectedToken = null;
       SettingsService.listTokens().then(
         function (tokens) {
-          var i;
-          for (i in tokens) {
-            tokens[i].creationTimeStr = moment(tokens[i].creationTime).fromNow();
-          }
           $scope.tokens = tokens;
         }
       );
     };
-
-    $scope.selectedToken = null;
 
     $scope.selectToken = function (token) {
       if (token === $scope.selectedToken) {
@@ -39,7 +35,6 @@ angular.module('CentralDogmaAdmin').controller('TokensController',
           }
         });
     };
-
     $scope.showTokenGeneratedDialog = function () {
       var modalInstance = $uibModal.open({
         templateUrl: 'scripts/app/settings/tokens/token.generated.html',
@@ -53,25 +48,46 @@ angular.module('CentralDogmaAdmin').controller('TokensController',
       });
       modalInstance.result.then(
         function () {
+          $scope.selectedToken = null;
           refresh();
         }
       )
     };
 
-    $scope.showDeleteTokenDialog = function () {
-      var modalInstance = $uibModal.open({
-        templateUrl: 'scripts/app/settings/tokens/token.delete.html',
-        controller: 'TokenDeleteController',
-        resolve: {
-          token: function () {
-            return $scope.selectedToken;
-          }
-        }
-      });
-      modalInstance.result.then(
-        function () {
+    $scope.activateToken = function () {
+      ConfirmationDialog.openModal('settings.title_activate_token', {
+        token: $scope.selectedToken.appId
+      }).then(function () {
+        SettingsService.activateToken($scope.selectedToken.appId).then(function () {
           refresh();
+        }, function (error) {
+          NotificationUtil.error(error);
         });
+      });
+    };
+
+    $scope.deactivateToken = function () {
+      ConfirmationDialog.openModal('settings.title_deactivate_token', {
+        token: $scope.selectedToken.appId
+      }).then(function () {
+        SettingsService.deactivateToken($scope.selectedToken.appId).then(function () {
+          refresh();
+        }, function (error) {
+          NotificationUtil.error(error);
+        });
+      });
+    };
+
+    $scope.deleteToken = function () {
+      ConfirmationDialog.openModal('settings.title_delete_token', {
+        token: $scope.selectedToken.appId
+      }).then(function () {
+        SettingsService.deleteToken($scope.selectedToken.appId).then(function () {
+          refresh();
+        }, function (error) {
+          NotificationUtil.error(error);
+        });
+      });
     };
 
     refresh();

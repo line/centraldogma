@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -27,6 +27,7 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
+import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.StorageExistsException;
 import com.linecorp.centraldogma.server.internal.storage.StorageNotFoundException;
@@ -44,7 +45,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotF
 /**
  * A default {@link ExceptionHandlerFunction} of HTTP API.
  */
-final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
+public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
 
     /**
      * A map of exception handler functions for the classes which inherit {@link StorageException}.
@@ -63,6 +64,7 @@ final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                     .put(RevisionNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
                     .put(StorageExistsException.class, HttpApiExceptionHandler::handleExists)
                     .put(StorageNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
+                    .put(TokenNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
                     .build();
 
     @Override

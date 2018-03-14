@@ -8,7 +8,7 @@ angular.module('CentralDogmaAdmin').controller('TokenNewController',
 
       SettingsService.createToken(data).then(function (token) {
         $scope.newToken = token;
-        $scope.newToken.creationTimeStr = moment(token.creationTime).fromNow();
+        $scope.newToken.creation.timestamp = moment(token.creationTime).fromNow();
         $uibModalInstance.close($scope.newToken);
       }, function (error) {
         if (typeof error.status !== 'undefined' && error.status === 409) {

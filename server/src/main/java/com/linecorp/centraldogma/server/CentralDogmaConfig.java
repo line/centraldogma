@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -48,6 +49,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
@@ -98,6 +100,9 @@ final class CentralDogmaConfig {
     // Access log
     private final String accessLogFormat;
 
+    // Administrator
+    private final Set<String> administrators;
+
     CentralDogmaConfig(@JsonProperty(value = "dataDir", required = true) File dataDir,
                        @JsonProperty(value = "ports", required = true)
                        @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
@@ -120,7 +125,8 @@ final class CentralDogmaConfig {
                        @JsonProperty("replication") ReplicationConfig replicationConfig,
                        @JsonProperty("securityEnabled") Boolean securityEnabled,
                        @JsonProperty("csrfTokenRequiredForThrift") Boolean csrfTokenRequiredForThrift,
-                       @JsonProperty("accessLogFormat") String accessLogFormat) {
+                       @JsonProperty("accessLogFormat") String accessLogFormat,
+                       @JsonProperty("administrators") Set<String> administrators) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -155,6 +161,8 @@ final class CentralDogmaConfig {
         this.securityEnabled = firstNonNull(securityEnabled, false);
         this.csrfTokenRequiredForThrift = firstNonNull(csrfTokenRequiredForThrift, true);
         this.accessLogFormat = accessLogFormat;
+        this.administrators = administrators != null ? ImmutableSet.copyOf(administrators)
+                                                     : ImmutableSet.of();
     }
 
     @JsonProperty
@@ -262,6 +270,10 @@ final class CentralDogmaConfig {
     @JsonProperty
     String accessLogFormat() {
         return accessLogFormat;
+    }
+
+    Set<String> administrators() {
+        return administrators;
     }
 
     @Override

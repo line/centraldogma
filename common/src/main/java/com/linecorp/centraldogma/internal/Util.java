@@ -179,6 +179,19 @@ public final class Util {
                 " (expected: " + EMAIL_PATTERN.pattern() + " or IP address domain)");
     }
 
+    public static String toEmailAddress(String emailAddr, String paramName) {
+        requireNonNull(emailAddr, paramName);
+        if (isValidEmailAddress(emailAddr)) {
+            return emailAddr;
+        }
+        return emailAddr + "@localhost.localdomain";
+    }
+
+    public static String emailToUsername(String emailAddr, String paramName) {
+        validateEmailAddress(emailAddr, paramName);
+        return emailAddr.substring(0, emailAddr.indexOf('@'));
+    }
+
     public static List<String> stringToLines(String str) {
         final BufferedReader reader = new BufferedReader(new StringReader(str));
         final List<String> lines = new ArrayList<>(128);

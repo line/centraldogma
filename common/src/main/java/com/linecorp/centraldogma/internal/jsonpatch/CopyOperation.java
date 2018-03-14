@@ -47,7 +47,7 @@ import com.fasterxml.jackson.databind.JsonNode;
  *
  * <p>It is an error if {@code from} fails to resolve to a JSON value.</p>
  */
-final class CopyOperation extends DualPathOperation {
+public final class CopyOperation extends DualPathOperation {
 
     @JsonCreator
     CopyOperation(@JsonProperty("from") final JsonPointer from,

@@ -59,7 +59,15 @@ angular.module('CentralDogmaAdmin')
                     RepositoryService.getTree(
                         $scope.project.name, $scope.repository.name, $scope.revision, $scope.path).then(
                         function (files) {
-                          $scope.files = files;
+                          if (angular.isArray(files)) {
+                            $scope.files = files;
+                            $scope.files.forEach(function (file) {
+                              const components = file.path.split('/');
+                              file.name = components[components.length - 1];
+                            });
+                          } else {
+                            $scope.files = [];
+                          }
                         });
                   };
                   getTree();

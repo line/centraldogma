@@ -53,10 +53,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * <p>This operation only takes one pointer ({@code path}) as an argument. It
  * is an error condition if no JSON value exists at that pointer.</p>
  */
-final class RemoveOperation extends JsonPatchOperation {
+public final class RemoveOperation extends JsonPatchOperation {
 
     @JsonCreator
-    RemoveOperation(@JsonProperty("path") final JsonPointer path) {
+    public RemoveOperation(@JsonProperty("path") final JsonPointer path) {
         super("remove", path);
     }
 

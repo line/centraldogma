@@ -41,7 +41,8 @@ defaults:
       "numMirroringThreads": null,
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
-      "accessLogFormat": "common"
+      "accessLogFormat": "common",
+      "administrators": []
     }
 
 Core properties
@@ -181,6 +182,11 @@ Core properties
     here. Read `Writing an access log <https://line.github.io/armeria/server-access-log.html>`_ for more
     information. Specify ``null`` to disable access logging feature.
 
+- ``administrators`` (set of string)
+
+  - login IDs of the administrators. They are valid only if ``securityEnabled`` is ``true``.
+    Please refer to :ref:`auth` for more information.
+
 Configuring replication
 -----------------------
 Central Dogma features multi-master replication based on `Apache ZooKeeper <https://zookeeper.apache.org/>`_
@@ -232,7 +238,8 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
         "minLogAgeMillis": null
       },
       "securityEnabled": false,
-      "accessLogFormat": "common"
+      "accessLogFormat": "common",
+      "administrators": []
     }
 
 - ``method`` (string)

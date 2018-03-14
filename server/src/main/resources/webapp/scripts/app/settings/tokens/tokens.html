@@ -7,13 +7,20 @@
       <th><span translate>settings.token_application_id</span></th>
       <th><span translate>settings.token_creator</span></th>
       <th><span translate>settings.token_creation_time</span></th>
+      <th><span translate>settings.token_status</span></th>
     </tr>
     </thead>
     <tbody>
     <tr ng-repeat="token in tokens" ng-click="selectToken(token)" ng-class="{info: token === selectedToken}">
       <td>{{token.appId}}</td>
-      <td>{{token.creator.email}}</td>
+      <td>{{sanitizeEmail(token.creation.user)}}</td>
       <td>{{token.creationTimeStr}}</td>
+      <td>
+        <div ng-switch="token.isActive">
+          <div ng-switch-when="true">Active</div>
+          <div ng-switch-default>Inactive</div>
+        </div>
+      </td>
     </tr>
     </tbody>
   </table>
@@ -21,14 +28,26 @@
   <hr />
 
   <div class="row">
-    <div class="pull-right" has-role="ROLE_USER">
-      <a ng-click="showGenerateTokenDialog()" type="button" class="btn btn-primary">
+    <div class="pull-right" has-role="LEVEL_USER">
+      <button class="btn btn-primary" ng-click="showGenerateTokenDialog()">
         <span class="glyphicon glyphicon-plus"></span> {{ 'settings.button_create_token' | translate }}
-      </a>
+      </button>
+      <button class="btn btn-primary"
+              data-ng-disabled="selectedToken == null || selectedToken.isActive"
+              ng-click="activateToken()">
+        <span class="glyphicon"></span> {{ 'settings.button_activate_token' | translate }}
+      </button>
+      <button class="btn btn-primary"
+              data-ng-disabled="selectedToken == null || !selectedToken.isActive"
+              ng-click="deactivateToken()">
+        <span class="glyphicon"></span> {{ 'settings.button_deactivate_token' | translate }}
+      </button>
       <button class="btn btn-danger"
-              data-ng-disabled="selectedToken == null" ng-click="showDeleteTokenDialog()">
+              data-ng-disabled="selectedToken == null || selectedToken.isActive"
+              ng-click="deleteToken()">
         <span class="glyphicon glyphicon-remove"></span> {{ 'settings.button_delete_token' | translate }}
       </button>
     </div>
   </div>
+
 </div>

@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -87,7 +87,7 @@ public class ProjectServiceV1Test {
         assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
-                "   \"message\": \"myPro already exists.\"" +
+                "   \"message\": \"project: myPro already exists.\"" +
                 '}';
         assertThatJson(res.content().toStringUtf8()).isEqualTo(expectedJson);
     }
@@ -191,7 +191,6 @@ public class ProjectServiceV1Test {
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
         final AggregatedHttpMessage aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
-        System.err.println(aRes.content().toStringUtf8());
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '{' +

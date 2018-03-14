@@ -7,6 +7,13 @@
     <tbody>
     <tr ng-repeat="project in projects">
       <td><a ng-href="#/{{project.name}}">{{project.name}}</a></td>
+      <div has-role="LEVEL_USER">
+        <td align="right">
+          <a ng-click="movePageIfAccessible(project.name)">
+            <span class="glyphicon glyphicon-pencil"></span>
+          </a>
+        </td>
+      </div>
     </tr>
     </tbody>
   </table>
@@ -14,10 +21,30 @@
   <hr />
 
   <div class="row">
-    <div class="pull-right" has-role="ROLE_USER">
+    <div class="pull-right" has-role="LEVEL_USER">
       <a ng-href="#/project/new" type="button" class="btn btn-primary">
         <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_create_project' | translate }}
       </a>
     </div>
   </div>
+
+  <hr />
+
+  <div has-role="LEVEL_ADMIN" ng-if="removedProjects.length > 0">
+    <h4>Removed Projects</h4>
+
+    <table class="table table-hover table-responsive">
+      <tbody>
+      <tr ng-repeat="project in removedProjects">
+        <td>{{project.name}}</td>
+        <td align="right">
+          <a type="button" class="btn btn-xs" ng-click="restoreProject(project.name)">
+            <span class="glyphicon glyphicon-off"></span>
+          </a>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
 </div>

@@ -26,5 +26,8 @@
     "method": "NONE"
   },
   "securityEnabled": false,
-  "accessLogFormat": "common"
+  "accessLogFormat": "common",
+  "administrators": [
+    "admin"
+  ]
 }

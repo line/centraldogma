@@ -14,17 +14,17 @@ angular.module(
      'ui.router'])
     .constant('CentralDogmaConstant', {
       HEAD: 'head',
-      ROLE_USER: 'ROLE_USER',
-      ROLE_ADMIN: 'ROLE_ADMIN',
+      LEVEL_USER: 'LEVEL_USER',
+      LEVEL_ADMIN: 'LEVEL_ADMIN',
       ENTITY_NAME_PATTERN: /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/,
-      API_PREFIX: 'api/v0/'
+      API_PREFIX: 'api/v0/',
+      API_V1_PREFIX: 'api/v1/',
+      PROJECT_ROLE_OWNER: "OWNER",
+      PROJECT_ROLE_MEMBER: "MEMBER",
+      PROJECT_ROLE_GUEST: "GUEST"
     })
     .run(function ($rootScope, $location, $window, $http, $state, $translate, $uibModal,
-                   Auth, Principal, Language, NotificationUtil) {
-           Auth.isEnabled().then(function (data) {
-             $rootScope.isSecurityEnabled = data;
-           });
-
+                   Principal, Language, NotificationUtil, Security) {
            $rootScope.showLoginDialog = function () {
              var modalInstance = $uibModal.open({
                templateUrl: 'scripts/app/user/login/login.html',
@@ -40,14 +40,9 @@ angular.module(
              $rootScope.toState = toState;
              $rootScope.toStateParams = toStateParams;
 
-             if (angular.isUndefined($rootScope.isSecurityEnabled)) {
-               Auth.isEnabled().then(function (data) {
-                 $rootScope.isSecurityEnabled = data;
-                 Principal.refresh();
-               });
-             } else {
+             Security.resolve().then(function () {
                Principal.refresh();
-             }
+             });
 
              // Update the language
              Language.getCurrent().then(function (language) {

@@ -327,6 +327,13 @@ public final class JsonPatch implements JsonSerializable {
     }
 
     /**
+     * Returns the list of operations.
+     */
+    public List<JsonPatchOperation> operations() {
+        return operations;
+    }
+
+    /**
      * Applies this patch to a JSON value.
      *
      * @param node the value to apply the patch to

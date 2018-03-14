@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -39,6 +39,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
@@ -60,6 +61,8 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
+import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
+import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
@@ -93,6 +96,7 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns the list of files in the path.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/tree(?<path>(|/.*))$")
+    @Decorator(HasReadPermission.class)
     public CompletionStage<List<EntryDto<?>>> listFiles(@Param("path") String path,
                                                         @Param("revision") @Default("-1") String revision,
                                                         @RequestObject Repository repository) {
@@ -128,6 +132,7 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Adds or edits a file.
      */
     @Post("/projects/{projectName}/repos/{repoName}/contents")
+    @Decorator(HasWritePermission.class)
     public CompletionStage<?> commit(@Param("revision") @Default("-1") String revision,
                                      @RequestObject Repository repository,
                                      @RequestObject Author author,
@@ -141,7 +146,7 @@ public class ContentServiceV1 extends AbstractService {
 
         return changesFuture.thenCompose(previewDiffs -> {
             final long commitTimeMillis = System.currentTimeMillis();
-            if (previewDiffs.size() == 0) {
+            if (previewDiffs.isEmpty()) {
                 throw new RedundantChangeException();
             }
             final CompletableFuture<Revision> resultRevisionFuture =
@@ -202,6 +207,7 @@ public class ContentServiceV1 extends AbstractService {
      * {@link HttpStatus#NOT_MODIFIED} otherwise.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
+    @Decorator(HasReadPermission.class)
     public CompletionStage<?> getFiles(@Param("path") String path,
                                        @Param("revision") @Default("-1") String revision,
                                        @RequestObject Repository repository,
@@ -281,6 +287,7 @@ public class ContentServiceV1 extends AbstractService {
      * specify {@code to}, this will return the list of commits.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/commits(?<revision>(|/.*))$")
+    @Decorator(HasReadPermission.class)
     public CompletionStage<?> listCommits(@Param("revision") String revision,
                                           @Param("path") @Default("/**") String path,
                                           @Param("to") Optional<String> to,
@@ -318,6 +325,7 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns the diffs.
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
+    @Decorator(HasReadPermission.class)
     public CompletionStage<?> getDiff(@Param("path") @Default("/**") String path,
                                       @Param("from") @Default("-1") String from,
                                       @Param("to") @Default("1") String to,

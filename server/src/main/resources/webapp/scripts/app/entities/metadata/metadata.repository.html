@@ -1,0 +1,156 @@
+<div ng-cloak>
+  <h2><a ng-href="#">Projects</a> / <a ng-href="#/metadata/{{project.name}}">{{project.name}}</a> /
+    {{repository.name}}</h2>
+  <hr />
+
+  <div ng-if="$root.isSecurityEnabled">
+    <h4>Role Permission</h4>
+    <table class="table table-hover table-responsive">
+      <thead>
+      <tr>
+        <th>{{ 'entities.title_role' | translate }}</th>
+        <th>{{ 'entities.title_read' | translate }}</th>
+        <th>{{ 'entities.title_write' | translate }}</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr ng-repeat="(role, perm) in rolePermTable">
+        <td>{{role}}</td>
+        <td><input type="checkbox" ng-model="perm.read"
+                   ng-change="onPerRolePermissionsTableCheckboxClicked(perm)"
+                   ng-disabled="isNotOwnerOr(perm.write)"></td>
+        <td><input type="checkbox" ng-model="perm.write"
+                   ng-change="onPerRolePermissionsTableCheckboxClicked(perm)"
+                   ng-disabled="isNotOwner()"></td>
+      </tr>
+      </tbody>
+    </table>
+    <hr />
+    <div class="row">
+      <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+        <button class="btn btn-primary" ng-click="updatePerRolePermissions()">
+          <span class="glyphicon"></span> {{ 'entities.button_update_role_permission' | translate }}
+        </button>
+      </div>
+    </div>
+
+    <!-- TODO(hyangtack) Group permission would be here in the future. -->
+
+    <h4>User Permission</h4>
+    <table class="table table-hover table-responsive">
+      <thead>
+      <tr>
+        <th>{{ 'entities.title_login_id' | translate }}</th>
+        <th>{{ 'entities.title_read' | translate }}</th>
+        <th>{{ 'entities.title_write' | translate }}</th>
+        <th></th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr ng-repeat="(user, perm) in userPermTable">
+        <td>{{sanitizeEmail(user)}}</td>
+        <td><input type="checkbox" ng-model="perm.read" ng-disabled="isNotOwnerOr(perm.write)"></td>
+        <td><input type="checkbox" ng-model="perm.write" ng-change="onCheckboxClicked(perm)"
+                   ng-disabled="isNotOwner()"></td>
+        <td>
+          <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+            <button class="btn btn-xs" ng-click="updatePerUserPermissions(user, perm)"
+                    data-ng-disabled="!isUserPermissionChanged(user, perm)">Update
+            </button>
+            <button class="btn btn-xs" ng-click="removePerUserPermissions(user)">Remove</button>
+          </div>
+        </td>
+      </tr>
+      <tr ng-repeat="userWithPermission in newUserPermission.elements">
+        <td>
+          <select class="form-control input-sm" ng-model="userWithPermission.name"
+                  ng-options="sanitizeEmail(id) for id in memberList"></select>
+        </td>
+        <td><input type="checkbox" ng-model="userWithPermission.read"
+                   ng-disabled="userWithPermission.write"></td>
+        <td><input type="checkbox" ng-model="userWithPermission.write"
+                   ng-change="newUserPermission.validate(userWithPermission)"></td>
+        <td>
+          <div class="pull-right" has-role="LEVEL_USER">
+            <button class="btn btn-xs" ng-click="saveNewPerUserPermissions(userWithPermission)"
+                    data-ng-disabled="userWithPermission.name == null">
+              <span class="glyphicon"></span> {{ 'entities.button_save' | translate }}
+            </button>
+            <button class="btn btn-xs" ng-click="newUserPermission.remove(userWithPermission)">
+              <span class="glyphicon"></span> {{ 'entities.button_cancel' | translate }}
+            </button>
+          </div>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+    <hr />
+    <div class="row">
+      <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+        <button class="btn btn-primary" ng-click="newUserPermission.pushNew()"
+                data-ng-disabled="memberList.length == 0">
+          <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_add_user_permission' | translate }}
+        </button>
+      </div>
+    </div>
+
+    <h4>Token Permission</h4>
+    <table class="table table-hover table-responsive">
+      <thead>
+      <tr>
+        <th>{{ 'entities.title_app_id' | translate }}</th>
+        <th>{{ 'entities.title_read' | translate }}</th>
+        <th>{{ 'entities.title_write' | translate }}</th>
+        <th></th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr ng-repeat="(token, perm) in tokenPermTable">
+        <td>{{token}}</td>
+        <td><input type="checkbox" ng-model="perm.read" ng-disabled="isNotOwnerOr(perm.write)"></td>
+        <td><input type="checkbox" ng-model="perm.write" ng-change="onCheckboxClicked(perm)"
+                   ng-disabled="isNotOwner()"></td>
+        <td>
+          <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+            <button class="btn btn-xs" ng-click="updatePerTokenPermissions(token, perm)"
+                    data-ng-disabled="!isTokenPermissionChanged(token, perm)">Update
+            </button>
+            <button class="btn btn-xs" ng-click="removePerTokenPermissions(token)">Remove</button>
+          </div>
+        </td>
+      </tr>
+      <tr ng-repeat="tokenWithPermission in newTokenPermission.elements">
+        <td>
+          <select class="form-control input-sm" ng-model="tokenWithPermission.name"
+                  ng-options="id for id in appIdList"></select>
+        </td>
+        <td><input type="checkbox" ng-model="tokenWithPermission.read"
+                   ng-disabled="tokenWithPermission.write"></td>
+        <td><input type="checkbox" ng-model="tokenWithPermission.write"
+                   ng-change="newTokenPermission.validate(tokenWithPermission)"></td>
+        <td>
+          <div class="pull-right" has-role="LEVEL_USER">
+            <button class="btn btn-xs" ng-click="saveNewPerTokenPermissions(tokenWithPermission)"
+                    data-ng-disabled="tokenWithPermission.name == null">
+              <span class="glyphicon"></span> {{ 'entities.button_save' | translate }}
+            </button>
+            <button class="btn btn-xs" ng-click="newTokenPermission.remove(tokenWithPermission)">
+              <span class="glyphicon"></span> {{ 'entities.button_cancel' | translate }}
+            </button>
+          </div>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+    <hr />
+    <div class="row">
+      <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+        <button class="btn btn-primary" ng-click="newTokenPermission.pushNew()"
+                data-ng-disabled="appIdList.length == 0">
+          <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_add_token_permission' | translate
+          }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

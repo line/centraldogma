@@ -3,13 +3,10 @@
 angular.module('CentralDogmaAdmin')
     .controller('LoginController',
                 function ($scope, $state, $timeout, $uibModalInstance, Auth, NotificationUtil) {
-                  $scope.rememberMe = true;
-
                   $scope.login = function () {
                     Auth.login({
                       username: $scope.username,
-                      password: $scope.password,
-                      rememberMe: $scope.rememberMe
+                      password: $scope.password
                     }).then(function () {
                       $uibModalInstance.close({
                         translationId: 'login.logged_in',
