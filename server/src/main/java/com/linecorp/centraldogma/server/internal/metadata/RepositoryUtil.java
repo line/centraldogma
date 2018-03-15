@@ -59,27 +59,27 @@ final class RepositoryUtil<T> {
         return projectManager;
     }
 
-    CompletionStage<HolderWithRevision<T>> fetch(String projectName, String repoName, String path) {
+    CompletableFuture<HolderWithRevision<T>> fetch(String projectName, String repoName, String path) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         return fetch(projectManager().get(projectName).repos().get(repoName), path);
     }
 
-    CompletionStage<HolderWithRevision<T>> fetch(String projectName, String repoName, String path,
-                                                 Revision revision) {
+    CompletableFuture<HolderWithRevision<T>> fetch(String projectName, String repoName, String path,
+                                                   Revision revision) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(revision, "revision");
         return fetch(projectManager().get(projectName).repos().get(repoName), path, revision);
     }
 
-    CompletionStage<HolderWithRevision<T>> fetch(Repository repository, String path) {
+    CompletableFuture<HolderWithRevision<T>> fetch(Repository repository, String path) {
         requireNonNull(path, "path");
         final Revision revision = normalize(repository);
         return fetch(repository, path, revision);
     }
 
-    CompletionStage<HolderWithRevision<T>> fetch(Repository repository, String path, Revision revision) {
+    CompletableFuture<HolderWithRevision<T>> fetch(Repository repository, String path, Revision revision) {
         requireNonNull(repository, "repository");
         requireNonNull(path, "path");
         requireNonNull(revision, "revision");
@@ -88,13 +88,13 @@ final class RepositoryUtil<T> {
                          .thenApply((T obj) -> HolderWithRevision.of(obj, revision));
     }
 
-    CompletionStage<Revision> push(String projectName, String repoName,
-                                   Author author, String commitSummary, Change<?> change) {
+    CompletableFuture<Revision> push(String projectName, String repoName,
+                                     Author author, String commitSummary, Change<?> change) {
         return push(projectName, repoName, author, commitSummary, change, Revision.HEAD);
     }
 
-    CompletionStage<Revision> push(String projectName, String repoName,
-                                   Author author, String commitSummary, Change<?> change, Revision revision) {
+    CompletableFuture<Revision> push(String projectName, String repoName,
+                                     Author author, String commitSummary, Change<?> change, Revision revision) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(author, "author");
@@ -109,8 +109,8 @@ final class RepositoryUtil<T> {
                              Markup.PLAINTEXT, changes.values())));
     }
 
-    CompletionStage<Revision> push(String projectName, String repoName, Author author, String commitSummary,
-                                   Supplier<CompletionStage<HolderWithRevision<Change<?>>>> changeSupplier) {
+    CompletableFuture<Revision> push(String projectName, String repoName, Author author, String commitSummary,
+                                     Supplier<CompletionStage<HolderWithRevision<Change<?>>>> changeSupplier) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(author, "author");

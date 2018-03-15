@@ -127,6 +127,7 @@
     "title_delete_token": "Delete the application token '{{token}}'?",
     "title_generate_token": "Generate a new application token",
     "title_token_generated": "Application token generated",
+    "token_admin_level": "Administrator-Level Token",
     "token_application_id": "Application ID",
     "token_application_id.exist": "Application ID '{{appId}}' exists. Please try a different ID again.",
     "token_application_id.placeholder": "Your application name",
@@ -135,6 +136,7 @@
     "token_deactivation_time": "Deactivated At",
     "token_deactivator": "Deactivated By",
     "token_forbidden": "No permission for {{action}}",
+    "token_level": "Level",
     "token_role": "Role",
     "token_secret": "Secret",
     "token_status": "Status"

@@ -37,7 +37,7 @@ import io.netty.util.NetUtil;
  * <pre>{@code
  * > public class MyTest {
  * >     @ClassRule
- * >     public final CentralDogmaRule rule = new CentralDogmaRule();
+ * >     public static final CentralDogmaRule rule = new CentralDogmaRule();
  * >
  * >     @Test
  * >     public void test() throws Exception {

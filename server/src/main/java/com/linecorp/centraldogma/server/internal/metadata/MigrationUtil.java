@@ -192,7 +192,7 @@ public final class MigrationUtil {
     }
 
     private static Token migrateToken(LegacyToken legacyToken) {
-        return new Token(legacyToken.appId(), legacyToken.secret(),
+        return new Token(legacyToken.appId(), legacyToken.secret(), false,
                          new UserAndTimestamp(legacyToken.creator().email(), legacyToken.creationTime()));
     }
 

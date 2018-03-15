@@ -38,11 +38,10 @@ public class MetadataServiceTest {
     @Rule
     public final ProjectManagerRule rule = new ProjectManagerRule() {
         @Override
-        protected void initialize() {
-            super.initialize();
+        protected void afterExecutorStarted() {
             MigrationUtil.migrate(projectManager(), executor());
             // Create a project and its metadata here.
-            executor().execute(Command.createProject(author, project1)).toCompletableFuture().join();
+            executor().execute(Command.createProject(author, project1)).join();
         }
     };
 
@@ -64,10 +63,10 @@ public class MetadataServiceTest {
         final MetadataService mds = newMetadataService(rule);
 
         ProjectMetadata metadata;
-        metadata = mds.getProject(project1).toCompletableFuture().join();
+        metadata = mds.getProject(project1).join();
 
         assertThatThrownBy(() -> rule.executor().execute(Command.createProject(author, project1))
-                                     .toCompletableFuture().join())
+                                     .join())
                 .hasCauseInstanceOf(ProjectExistsException.class);
 
         assertThat(metadata.name()).isEqualTo(project1);
@@ -75,8 +74,8 @@ public class MetadataServiceTest {
         assertThat(metadata.removal()).isNull();
 
         // Remove a project and check whether the project is removed.
-        mds.removeProject(author, project1).toCompletableFuture().join();
-        metadata = mds.getProject(project1).toCompletableFuture().join();
+        mds.removeProject(author, project1).join();
+        metadata = mds.getProject(project1).join();
 
         assertThat(metadata.name()).isEqualTo(project1);
         assertThat(metadata.creation().user()).isEqualTo(author.email());
@@ -84,8 +83,8 @@ public class MetadataServiceTest {
         assertThat(metadata.removal().user()).isEqualTo(author.email());
 
         // Restore the removed project.
-        mds.restoreProject(author, project1).toCompletableFuture().join();
-        assertThat(mds.getProject(project1).toCompletableFuture().join().removal()).isNull();
+        mds.restoreProject(author, project1).join();
+        assertThat(mds.getProject(project1).join().removal()).isNull();
     }
 
     @Test
@@ -94,19 +93,19 @@ public class MetadataServiceTest {
 
         ProjectMetadata metadata;
         RepositoryMetadata repositoryMetadata;
-        metadata = mds.getProject(project1).toCompletableFuture().join();
+        metadata = mds.getProject(project1).join();
         assertThat(metadata).isNotNull();
 
-        mds.addRepo(author, project1, repo1, PerRolePermissions.ofPublic()).toCompletableFuture().join();
+        mds.addRepo(author, project1, repo1, PerRolePermissions.ofPublic()).join();
         assertThat(getProject(mds, project1).repos().get(repo1).name()).isEqualTo(repo1);
 
         // Fail due to duplicated addition.
-        assertThatThrownBy(() -> mds.addRepo(author, project1, repo1).toCompletableFuture().join())
+        assertThatThrownBy(() -> mds.addRepo(author, project1, repo1).join())
                 .hasCauseInstanceOf(RepositoryExistsException.class);
 
         // Remove a repository.
-        mds.removeRepo(author, project1, repo1).toCompletableFuture().join();
-        assertThatThrownBy(() -> mds.removeRepo(author, project1, repo1).toCompletableFuture().join())
+        mds.removeRepo(author, project1, repo1).join();
+        assertThatThrownBy(() -> mds.removeRepo(author, project1, repo1).join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
         repositoryMetadata = getRepo1(mds);
@@ -116,7 +115,7 @@ public class MetadataServiceTest {
         assertThat(repositoryMetadata.removal().user()).isEqualTo(author.email());
 
         // Restore the removed repository.
-        mds.restoreRepo(author, project1, repo1).toCompletableFuture().join();
+        mds.restoreRepo(author, project1, repo1).join();
 
         repositoryMetadata = getRepo1(mds);
         assertThat(repositoryMetadata.name()).isEqualTo(repo1);
@@ -130,10 +129,10 @@ public class MetadataServiceTest {
 
         ProjectMetadata metadata;
         RepositoryMetadata repositoryMetadata;
-        metadata = mds.getProject(project1).toCompletableFuture().join();
+        metadata = mds.getProject(project1).join();
         assertThat(metadata).isNotNull();
 
-        mds.addRepo(author, project1, repo1, PerRolePermissions.ofPublic()).toCompletableFuture().join();
+        mds.addRepo(author, project1, repo1, PerRolePermissions.ofPublic()).join();
 
         repositoryMetadata = getRepo1(mds);
         assertThat(repositoryMetadata.perRolePermissions().owner()).containsExactly(Permission.READ,
@@ -143,8 +142,7 @@ public class MetadataServiceTest {
         assertThat(repositoryMetadata.perRolePermissions().guest()).containsExactly(Permission.READ,
                                                                                     Permission.WRITE);
 
-        mds.updatePerRolePermissions(author, project1, repo1, PerRolePermissions.ofPrivate())
-           .toCompletableFuture().join();
+        mds.updatePerRolePermissions(author, project1, repo1, PerRolePermissions.ofPrivate()).join();
 
         repositoryMetadata = getRepo1(mds);
         assertThat(repositoryMetadata.perRolePermissions().owner()).containsExactly(Permission.READ,
@@ -154,9 +152,9 @@ public class MetadataServiceTest {
         assertThat(repositoryMetadata.perRolePermissions().guest())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
-        assertThat(mds.findPermissions(project1, repo1, owner).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, owner).join())
                 .containsExactly(Permission.READ, Permission.WRITE);
-        assertThat(mds.findPermissions(project1, repo1, guest).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, guest).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
     }
 
@@ -164,42 +162,39 @@ public class MetadataServiceTest {
     public void perUserPermissions() throws Exception {
         final MetadataService mds = newMetadataService(rule);
 
-        mds.addRepo(author, project1, repo1, ownerOnly).toCompletableFuture().join();
+        mds.addRepo(author, project1, repo1, ownerOnly).join();
 
         // Not a member yet.
-        assertThatThrownBy(() -> mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY)
-                                    .toCompletableFuture().join())
+        assertThatThrownBy(() -> mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY).join())
                 .hasCauseInstanceOf(IllegalArgumentException.class);
 
         // Be a member of the project.
-        mds.addMember(author, project1, user1, ProjectRole.MEMBER).toCompletableFuture().join();
+        mds.addMember(author, project1, user1, ProjectRole.MEMBER).join();
 
         // A member of the project has no permission.
-        assertThat(mds.findPermissions(project1, repo1, user1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
         // Add 'user1' to per-user permissions table.
-        mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY)
-           .toCompletableFuture().join();
+        mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY).join();
+
         // Fail due to duplicated addition.
-        assertThatThrownBy(() -> mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY)
-                                    .toCompletableFuture().join())
+        assertThatThrownBy(() -> mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY).join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
-        assertThat(mds.findPermissions(project1, repo1, user1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactly(Permission.READ);
 
-        mds.updatePerUserPermission(author, project1, repo1, user1, READ_WRITE).toCompletableFuture().join();
+        mds.updatePerUserPermission(author, project1, repo1, user1, READ_WRITE).join();
 
-        assertThat(mds.findPermissions(project1, repo1, user1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactly(Permission.READ, Permission.WRITE);
 
-        mds.removePerUserPermission(author, project1, repo1, user1).toCompletableFuture().join();
-        assertThatThrownBy(() -> mds.removePerUserPermission(author, project1, repo1, user1)
-                                    .toCompletableFuture().join())
+        mds.removePerUserPermission(author, project1, repo1, user1).join();
+        assertThatThrownBy(() -> mds.removePerUserPermission(author, project1, repo1, user1).join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
-        assertThat(mds.findPermissions(project1, repo1, user1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
     }
 
@@ -207,44 +202,39 @@ public class MetadataServiceTest {
     public void perTokenPermissions() throws Exception {
         final MetadataService mds = newMetadataService(rule);
 
-        mds.addRepo(author, project1, repo1, ownerOnly).toCompletableFuture().join();
-        mds.createToken(author, app1).toCompletableFuture().join();
-        final Token token = mds.findTokenByAppId(app1).toCompletableFuture().join();
+        mds.addRepo(author, project1, repo1, ownerOnly).join();
+        mds.createToken(author, app1).join();
+        final Token token = mds.findTokenByAppId(app1).join();
         assertThat(token).isNotNull();
 
         // Token 'app2' is not created yet.
-        assertThatThrownBy(() -> mds.addToken(author, project1, app2, ProjectRole.MEMBER)
-                                    .toCompletableFuture().join())
+        assertThatThrownBy(() -> mds.addToken(author, project1, app2, ProjectRole.MEMBER).join())
                 .hasCauseInstanceOf(IllegalArgumentException.class);
 
         // Not a member yet.
-        assertThatThrownBy(() -> mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY)
-                                    .toCompletableFuture().join())
+        assertThatThrownBy(() -> mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY).join())
                 .hasCauseInstanceOf(IllegalArgumentException.class);
 
-        assertThat(mds.findPermissions(project1, repo1, app1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
         // Be a token of the project.
-        mds.addToken(author, project1, app1, ProjectRole.MEMBER).toCompletableFuture().join();
-        mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY)
-           .toCompletableFuture().join();
+        mds.addToken(author, project1, app1, ProjectRole.MEMBER).join();
+        mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY).join();
 
-        assertThat(mds.findPermissions(project1, repo1, app1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactly(Permission.READ);
 
-        mds.updatePerTokenPermission(author, project1, repo1, app1, READ_WRITE)
-           .toCompletableFuture().join();
+        mds.updatePerTokenPermission(author, project1, repo1, app1, READ_WRITE).join();
 
-        assertThat(mds.findPermissions(project1, repo1, app1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactly(Permission.READ, Permission.WRITE);
 
-        mds.removePerTokenPermission(author, project1, repo1, app1).toCompletableFuture().join();
-        assertThatThrownBy(() -> mds.removePerTokenPermission(author, project1, repo1, app1)
-                                    .toCompletableFuture().join())
+        mds.removePerTokenPermission(author, project1, repo1, app1).join();
+        assertThatThrownBy(() -> mds.removePerTokenPermission(author, project1, repo1, app1).join())
                 .hasCauseInstanceOf(ChangeConflictException.class);
 
-        assertThat(mds.findPermissions(project1, repo1, app1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
     }
 
@@ -252,26 +242,26 @@ public class MetadataServiceTest {
     public void removeMember() throws Exception {
         final MetadataService mds = newMetadataService(rule);
 
-        mds.addRepo(author, project1, repo1, ownerOnly).toCompletableFuture().join();
+        mds.addRepo(author, project1, repo1, ownerOnly).join();
 
-        mds.addMember(author, project1, user1, ProjectRole.MEMBER).toCompletableFuture().join();
-        mds.addMember(author, project1, user2, ProjectRole.MEMBER).toCompletableFuture().join();
-        mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY).toCompletableFuture().join();
-        mds.addPerUserPermission(author, project1, repo1, user2, READ_ONLY).toCompletableFuture().join();
+        mds.addMember(author, project1, user1, ProjectRole.MEMBER).join();
+        mds.addMember(author, project1, user2, ProjectRole.MEMBER).join();
+        mds.addPerUserPermission(author, project1, repo1, user1, READ_ONLY).join();
+        mds.addPerUserPermission(author, project1, repo1, user2, READ_ONLY).join();
 
-        assertThat(mds.getMember(project1, user1).toCompletableFuture().join().id()).isNotNull();
-        assertThat(mds.getMember(project1, user2).toCompletableFuture().join().id()).isNotNull();
+        assertThat(mds.getMember(project1, user1).join().id()).isNotNull();
+        assertThat(mds.getMember(project1, user2).join().id()).isNotNull();
 
-        assertThat(mds.findPermissions(project1, repo1, user1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactly(Permission.READ);
 
         // Remove 'user1' from the project.
-        mds.removeMember(author, project1, user1).toCompletableFuture().join();
+        mds.removeMember(author, project1, user1).join();
         // Remove per-user permission of 'user1', too.
-        assertThat(mds.findPermissions(project1, repo1, user1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, user1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
-        assertThat(mds.findPermissions(project1, repo1, user2).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, user2).join())
                 .containsExactly(Permission.READ);
     }
 
@@ -279,25 +269,25 @@ public class MetadataServiceTest {
     public void removeToken() throws Exception {
         final MetadataService mds = newMetadataService(rule);
 
-        mds.addRepo(author, project1, repo1, ownerOnly).toCompletableFuture().join();
-        mds.createToken(author, app1).toCompletableFuture().join();
-        mds.createToken(author, app2).toCompletableFuture().join();
+        mds.addRepo(author, project1, repo1, ownerOnly).join();
+        mds.createToken(author, app1).join();
+        mds.createToken(author, app2).join();
 
-        mds.addToken(author, project1, app1, ProjectRole.MEMBER).toCompletableFuture().join();
-        mds.addToken(author, project1, app2, ProjectRole.MEMBER).toCompletableFuture().join();
-        mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY).toCompletableFuture().join();
-        mds.addPerTokenPermission(author, project1, repo1, app2, READ_ONLY).toCompletableFuture().join();
+        mds.addToken(author, project1, app1, ProjectRole.MEMBER).join();
+        mds.addToken(author, project1, app2, ProjectRole.MEMBER).join();
+        mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY).join();
+        mds.addPerTokenPermission(author, project1, repo1, app2, READ_ONLY).join();
 
-        assertThat(mds.findPermissions(project1, repo1, app1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactly(Permission.READ);
 
         // Remove 'app1' from the project.
-        mds.removeToken(author, project1, app1).toCompletableFuture().join();
+        mds.removeToken(author, project1, app1).join();
         // Remove per-token permission of 'app1', too.
-        assertThat(mds.findPermissions(project1, repo1, app1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
-        assertThat(mds.findPermissions(project1, repo1, app2).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app2).join())
                 .containsExactly(Permission.READ);
     }
 
@@ -305,27 +295,27 @@ public class MetadataServiceTest {
     public void destroyToken() throws Exception {
         final MetadataService mds = newMetadataService(rule);
 
-        mds.addRepo(author, project1, repo1, ownerOnly).toCompletableFuture().join();
-        mds.createToken(author, app1).toCompletableFuture().join();
-        mds.createToken(author, app2).toCompletableFuture().join();
+        mds.addRepo(author, project1, repo1, ownerOnly).join();
+        mds.createToken(author, app1).join();
+        mds.createToken(author, app2).join();
 
-        mds.addToken(author, project1, app1, ProjectRole.MEMBER).toCompletableFuture().join();
-        mds.addToken(author, project1, app2, ProjectRole.MEMBER).toCompletableFuture().join();
+        mds.addToken(author, project1, app1, ProjectRole.MEMBER).join();
+        mds.addToken(author, project1, app2, ProjectRole.MEMBER).join();
 
-        mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY).toCompletableFuture().join();
-        mds.addPerTokenPermission(author, project1, repo1, app2, READ_ONLY).toCompletableFuture().join();
+        mds.addPerTokenPermission(author, project1, repo1, app1, READ_ONLY).join();
+        mds.addPerTokenPermission(author, project1, repo1, app2, READ_ONLY).join();
 
-        assertThat(mds.findPermissions(project1, repo1, app1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactly(Permission.READ);
 
         // Remove 'app1' from the system completely.
-        mds.destroyToken(author, app1).toCompletableFuture().join();
+        mds.destroyToken(author, app1).join();
 
         // Remove per-token permission of 'app1', too.
-        assertThat(mds.findPermissions(project1, repo1, app1).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app1).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
 
-        assertThat(mds.findPermissions(project1, repo1, app2).toCompletableFuture().join())
+        assertThat(mds.findPermissions(project1, repo1, app2).join())
                 .containsExactly(Permission.READ);
     }
 
@@ -334,22 +324,22 @@ public class MetadataServiceTest {
         final MetadataService mds = newMetadataService(rule);
 
         Token token;
-        mds.createToken(author, app1).toCompletableFuture().join();
-        token = mds.getTokens().toCompletableFuture().join().get(app1);
+        mds.createToken(author, app1).join();
+        token = mds.getTokens().join().get(app1);
         assertThat(token).isNotNull();
         assertThat(token.creation().user()).isEqualTo(owner.id());
 
-        mds.deactivateToken(author, app1).toCompletableFuture().join();
-        token = mds.getTokens().toCompletableFuture().join().get(app1);
+        mds.deactivateToken(author, app1).join();
+        token = mds.getTokens().join().get(app1);
         assertThat(token.isActive()).isFalse();
         assertThat(token.deactivation().user()).isEqualTo(owner.id());
 
-        mds.activateToken(author, app1).toCompletableFuture().join();
-        assertThat(mds.getTokens().toCompletableFuture().join().get(app1).isActive()).isTrue();
+        mds.activateToken(author, app1).join();
+        assertThat(mds.getTokens().join().get(app1).isActive()).isTrue();
     }
 
     private static RepositoryMetadata getRepo1(MetadataService mds) {
-        final ProjectMetadata metadata = mds.getProject(project1).toCompletableFuture().join();
+        final ProjectMetadata metadata = mds.getProject(project1).join();
         return metadata.repo(repo1);
     }
 
@@ -358,6 +348,6 @@ public class MetadataServiceTest {
     }
 
     private ProjectMetadata getProject(MetadataService mds, String projectName) {
-        return mds.getProject(projectName).toCompletableFuture().join();
+        return mds.getProject(projectName).join();
     }
 }

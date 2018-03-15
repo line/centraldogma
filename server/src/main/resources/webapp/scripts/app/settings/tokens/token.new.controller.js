@@ -3,8 +3,10 @@
 angular.module('CentralDogmaAdmin').controller('TokenNewController',
   function ($scope, $timeout, $uibModal, $uibModalInstance, $filter, SettingsService, NotificationUtil) {
 
-    $scope.generateToken = function () {
-      var data = 'appId=' + encodeURIComponent($scope.appId);
+    $scope.isAdmin = false;
+
+    $scope.generateToken = function (isAdmin) {
+      var data = 'appId=' + encodeURIComponent($scope.appId) + '&isAdmin=' + isAdmin;
 
       SettingsService.createToken(data).then(function (token) {
         $scope.newToken = token;
