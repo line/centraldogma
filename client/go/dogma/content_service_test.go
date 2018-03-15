@@ -249,7 +249,7 @@ func TestPush(t *testing.T) {
 
 		var reqBody Push
 		json.NewDecoder(r.Body).Decode(&reqBody)
-		changes := []Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}}}
+		changes := []*Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}}}
 		want := Push{CommitMessage: &CommitMessage{Summary: "Add a.json"}, Changes: changes}
 		if !reflect.DeepEqual(reqBody, want) {
 			t.Errorf("Push request body %+v, want %+v", changes, want)
@@ -259,7 +259,7 @@ func TestPush(t *testing.T) {
 	})
 
 	commitMessage := CommitMessage{Summary: "Add a.json"}
-	change := Change{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}}
+	change := []*Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}}}
 	commit, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, change)
 
 	entries := []*Entry{{Path: "/a.json", Type: "JSON"}}
@@ -279,7 +279,7 @@ func TestPush_TwoFiles(t *testing.T) {
 
 		var reqBody Push
 		json.NewDecoder(r.Body).Decode(&reqBody)
-		changes := []Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}},
+		changes := []*Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}},
 			{Path: "/b.txt", Type: "UPSERT_TEXT", Content: "myContent"}}
 		want := Push{CommitMessage: &CommitMessage{Summary: "Add a.json and b.txt"}, Changes: changes}
 		if !reflect.DeepEqual(reqBody, want) {
@@ -291,10 +291,10 @@ func TestPush_TwoFiles(t *testing.T) {
 	})
 
 	commitMessage := CommitMessage{Summary: "Add a.json and b.txt"}
-	changes := []Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}},
+	changes := []*Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}},
 		{Path: "/b.txt", Type: "UPSERT_TEXT", Content: "myContent"}}
 
-	commit, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, changes...)
+	commit, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, changes)
 
 	entries := []*Entry{{Path: "/a.json", Type: "JSON"}, {Path: "/b.txt", Type: "TEXT"}}
 	want := &Commit{Revision: 3, Author: "minux@m.x", Entries: entries}

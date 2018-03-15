@@ -28,19 +28,6 @@ Central Dogma HTTP APIs. For example:
 
 	projects, res, err := client.ListProjects(context.Background())
 
-Or, you can create a client specifying an http.Client which handles authentication
-for you.
-
-	import "golang.org/x/oauth2/clientcredentials"
-
-	func Client() {
-		config := clientcredentials.Config{ClientID: clientID,
-			ClientSecret: clientSecret, TokenURL: "..."}
-
-		authClient := config.Client(context.Background())
-		client, err := NewClientWithHTTPClient(server.URL, authClient)
-	}
-
 Note that all of the APIs are using the https://godoc.org/context which can pass
 cancellation and deadlines for handling a request.
 */
@@ -99,12 +86,12 @@ func NewClient(baseURL string, clientID, clientSecret string) (*Client, error) {
 
 	config := clientcredentials.Config{ClientID: clientID, ClientSecret: clientSecret,
 		TokenURL: normalizedURL.String() + pathAuthenticate}
-	return NewClientWithHTTPClient(normalizedURL.String(), config.Client(context.Background()))
+	return newClientWithHTTPClient(normalizedURL.String(), config.Client(context.Background()))
 }
 
-// NewClientWithHTTPClient returns a Central Dogma client withe the specified baseURL and client.
+// newClientWithHTTPClient returns a Central Dogma client withe the specified baseURL and client.
 // The client should perform the authentication.
-func NewClientWithHTTPClient(baseURL string, client *http.Client) (*Client, error) {
+func newClientWithHTTPClient(baseURL string, client *http.Client) (*Client, error) {
 	normalizedURL, err := normalizeURL(baseURL)
 	if err != nil {
 		return nil, err
@@ -370,6 +357,6 @@ func (c *Client) GetDiffs(ctx context.Context,
 
 // Push pushes the specified changes to the repository.
 func (c *Client) Push(ctx context.Context, projectName, repoName, baseRevision string,
-	commitMessage CommitMessage, changes ...Change) (*Commit, *http.Response, error) {
+	commitMessage CommitMessage, changes []*Change) (*Commit, *http.Response, error) {
 	return c.content.push(ctx, projectName, repoName, baseRevision, commitMessage, changes)
 }

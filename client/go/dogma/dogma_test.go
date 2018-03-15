@@ -30,7 +30,7 @@ func setup() (c *Client, mux *http.ServeMux, teardown func()) {
 	mux = http.NewServeMux()
 	server := httptest.NewServer(mux)
 
-	c, _ = NewClientWithHTTPClient(server.URL, http.DefaultClient)
+	c, _ = newClientWithHTTPClient(server.URL, http.DefaultClient)
 	return c, mux, server.Close
 }
 
@@ -117,8 +117,8 @@ func TestNewClientWithHTTPClient(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if got, _ := NewClientWithHTTPClient(test.baseURL, http.DefaultClient); got.baseURL.String() != test.want {
-			t.Errorf("NewClientWithHTTPClient BaseURL is %v, want %v", got, test.want)
+		if got, _ := newClientWithHTTPClient(test.baseURL, http.DefaultClient); got.baseURL.String() != test.want {
+			t.Errorf("newClientWithHTTPClient BaseURL is %v, want %v", got, test.want)
 		}
 	}
 }

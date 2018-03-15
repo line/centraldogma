@@ -13,14 +13,12 @@ angular.module('CentralDogmaAdmin')
                        'Content-Type': 'application/x-www-form-urlencoded'
                      }
                    }).then(function (accessToken) {
-                     var sessionId;
-                     if (accessToken !== null) {
-                       sessionId = angular.fromJson(accessToken).access_token;
-                       if (sessionId !== null) {
-                         $window.localStorage.setItem('sessionId', sessionId);
-                       }
+                     if (accessToken === null || angular.isUndefined(accessToken.access_token) ||
+                         accessToken.access_token === null) {
+                       return null;
                      }
-                     return sessionId;
+                     $window.localStorage.setItem('sessionId', accessToken.access_token);
+                     return accessToken.access_token
                    });
                  },
 

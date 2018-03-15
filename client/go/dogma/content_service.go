@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -73,9 +74,10 @@ func (con *contentService) listFiles(ctx context.Context,
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/tree%v", defaultPathPrefix, projectName, repoName, pathPattern)
 
 	if len(revision) != 0 {
-		u += "?revision=" + revision
+		v := &url.Values{}
+		v.Set("revision", revision)
+		u += encodeValues(v)
 	}
-
 	req, err := con.client.newRequest("GET", u, nil)
 	if err != nil {
 		return nil, nil, err
@@ -89,6 +91,13 @@ func (con *contentService) listFiles(ctx context.Context,
 	return entries, res, nil
 }
 
+func encodeValues(v *url.Values) string {
+	if encoded := v.Encode(); len(encoded) != 0 {
+		return "?" + encoded
+	}
+	return ""
+}
+
 func (con *contentService) getFile(
 	ctx context.Context, projectName, repoName, revision string, query *Query) (*Entry, *http.Response, error) {
 	path := query.Path
@@ -97,11 +106,12 @@ func (con *contentService) getFile(
 	}
 
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/contents%v", defaultPathPrefix, projectName, repoName, path)
-	urlQuery, err := getFileURLQuery(revision, path, query.Expressions)
-	if err != nil {
+	v := &url.Values{}
+	if err := getFileURLValues(v, revision, path, query); err != nil {
 		return nil, nil, err
 	}
-	u += urlQuery
+
+	u += encodeValues(v)
 
 	req, err := con.client.newRequest("GET", u, nil)
 	if err != nil {
@@ -117,38 +127,29 @@ func (con *contentService) getFile(
 	return entry, res, nil
 }
 
-// getFileURLQuery currently only supports JSON path.
-func getFileURLQuery(revision, path string, jsonPaths []string) (urlQuery string, err error) {
-	if len(jsonPaths) != 0 {
-		if urlQuery, err = getJSONPaths(path, jsonPaths); err != nil {
-			return "", err
+// getFileURLValues currently only supports JSON path.
+func getFileURLValues(v *url.Values, revision, path string, query *Query) error {
+	if query.QueryType == "json_path" {
+		if err := setJSONPaths(v, path, query.Expressions); err != nil {
+			return err
 		}
-
-		if len(revision) != 0 {
-			// have both of the jsonpath and the revision
-			urlQuery += "&revision=" + revision
-		}
-	} else if len(revision) != 0 {
-		// have the revision only
-		urlQuery += "?revision=" + revision
 	}
-	return urlQuery, nil
+
+	if len(revision) != 0 {
+		// have both of the jsonpath and the revision
+		v.Set("revision", revision)
+	}
+	return nil
 }
 
-func getJSONPaths(path string, jsonPaths []string) (urlQuery string, err error) {
+func setJSONPaths(v *url.Values, path string, jsonPaths []string) error {
 	if !strings.HasSuffix(strings.ToLower(path), "json") {
-		return "", fmt.Errorf("the extension of the file should be .json (path: %v)", path)
+		return fmt.Errorf("the extension of the file should be .json (path: %v)", path)
 	}
-	for i, jsonPath := range jsonPaths {
-		if i == 0 {
-			urlQuery = "?"
-		} else {
-			urlQuery += "&"
-		}
-		urlQuery += fmt.Sprintf("jsonpath=%v", jsonPath)
+	for _, jsonPath := range jsonPaths {
+		v.Add("jsonpath", jsonPath)
 	}
-	// the urlQuery starts with '?'
-	return urlQuery, nil
+	return nil
 }
 
 func (con *contentService) getFiles(ctx context.Context,
@@ -156,7 +157,9 @@ func (con *contentService) getFiles(ctx context.Context,
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/contents%v", defaultPathPrefix, projectName, repoName, pathPattern)
 
 	if len(revision) != 0 {
-		u += "?revision=" + revision
+		v := &url.Values{}
+		v.Set("revision", revision)
+		u += encodeValues(v)
 	}
 
 	req, err := con.client.newRequest("GET", u, nil)
@@ -176,16 +179,14 @@ func (con *contentService) getHistory(ctx context.Context,
 	projectName, repoName, from, to, pathPattern string) ([]*Commit, *http.Response, error) {
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/commits/%v", defaultPathPrefix, projectName, repoName, from)
 
-	urlQuery := ""
+	v := &url.Values{}
 	if len(pathPattern) != 0 {
-		urlQuery = fmt.Sprintf("?path=%v", pathPattern)
-		if len(to) != 0 {
-			urlQuery += fmt.Sprintf("&to=%v", to)
-		}
-	} else if len(to) != 0 {
-		urlQuery = fmt.Sprintf("?to=%v", to)
+		v.Set("path", pathPattern)
 	}
-	u += urlQuery
+	if len(to) != 0 {
+		v.Set("to", to)
+	}
+	u += encodeValues(v)
 
 	req, err := con.client.newRequest("GET", u, nil)
 	if err != nil {
@@ -211,11 +212,11 @@ func (con *contentService) getDiff(ctx context.Context,
 	}
 
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/compare", defaultPathPrefix, projectName, repoName)
-	urlQuery, err := getDiffURLQuery(from, to, path, query.Expressions)
-	if err != nil {
+	v := &url.Values{}
+	if err := setDiffURLValues(v, from, to, path, query); err != nil {
 		return nil, nil, err
 	}
-	u += urlQuery
+	u += encodeValues(v)
 
 	req, err := con.client.newRequest("GET", u, nil)
 	if err != nil {
@@ -231,29 +232,24 @@ func (con *contentService) getDiff(ctx context.Context,
 	return change, res, nil
 }
 
-// getDiffURLQuery currently only supports JSON path.
-func getDiffURLQuery(from, to, path string, jsonPaths []string) (urlQuery string, err error) {
-	if len(jsonPaths) != 0 {
-		if urlQuery, err = getJSONPaths(path, jsonPaths); err != nil {
-			return "", err
+func setDiffURLValues(v *url.Values, from, to, path string, query *Query) error {
+	if query != nil && query.QueryType == "json_path" {
+		if err := setJSONPaths(v, path, query.Expressions); err != nil {
+			return err
 		}
 	}
 
-	if !strings.HasPrefix(urlQuery, "?") {
-		urlQuery = fmt.Sprintf("?path=%v", path)
-	} else {
-		urlQuery += fmt.Sprintf("&path=%v", path)
-	}
+	v.Set("path", path)
 
 	if len(from) != 0 {
-		urlQuery += fmt.Sprintf("&from=%v", from)
+		v.Set("from", from)
 	}
 
 	if len(to) != 0 {
-		urlQuery += fmt.Sprintf("&to=%v", to)
+		v.Set("to", to)
 	}
 
-	return urlQuery, nil
+	return nil
 }
 
 func (con *contentService) getDiffs(ctx context.Context,
@@ -263,11 +259,11 @@ func (con *contentService) getDiffs(ctx context.Context,
 	}
 
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/compare", defaultPathPrefix, projectName, repoName)
-	urlQuery, err := getDiffURLQuery(from, to, pathPattern, nil)
-	if err != nil {
+	v := &url.Values{}
+	if err := setDiffURLValues(v, from, to, pathPattern, nil); err != nil {
 		return nil, nil, err
 	}
-	u += urlQuery
+	u += encodeValues(v)
 
 	req, err := con.client.newRequest("GET", u, nil)
 	if err != nil {
@@ -284,11 +280,11 @@ func (con *contentService) getDiffs(ctx context.Context,
 
 type Push struct {
 	CommitMessage *CommitMessage `json:"commitMessage"`
-	Changes       []Change       `json:"changes"`
+	Changes       []*Change      `json:"changes"`
 }
 
 func (con *contentService) push(ctx context.Context, projectName, repoName, baseRevision string,
-	commitMessage CommitMessage, changes []Change) (*Commit, *http.Response, error) {
+	commitMessage CommitMessage, changes []*Change) (*Commit, *http.Response, error) {
 	if len(commitMessage.Summary) == 0 {
 		return nil, nil, fmt.Errorf(
 			"summary of commitMessage cannot be empty. commitMessage: %+v", commitMessage)

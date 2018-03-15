@@ -522,15 +522,15 @@ public class CentralDogma {
             decorator = MetadataServiceInjector.newDecorator(mds)
                                                .andThen(HttpAuthService.newDecorator(ata, sta));
         } else {
-            decorator = MetadataServiceInjector.newDecorator(mds)
-                                               .andThen(HttpAuthService.newDecorator(
-                                                       new CsrfTokenAuthorizer()));
             // If the security is not enabled, '/api/v0/authenticate' will return the 'anonymous' token.
             sb.service(apiV0PathPrefix + "authenticate", (ServiceRequestContext ctx, HttpRequest req) -> {
                 final AccessToken accessToken = new AccessToken(CsrfToken.ANONYMOUS, Integer.MAX_VALUE);
                 return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
                                        Jackson.writeValueAsBytes(accessToken));
             });
+            decorator = MetadataServiceInjector.newDecorator(mds)
+                                               .andThen(HttpAuthService.newDecorator(
+                                                       new CsrfTokenAuthorizer()));
         }
 
         final SafeProjectManager safePm = new SafeProjectManager(pm);
