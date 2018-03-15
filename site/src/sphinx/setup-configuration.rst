@@ -20,6 +20,7 @@ defaults:
           "protocol": "http"
         }
       ],
+      "tls": null,
       "numWorkers": null,
       "maxNumConnections": null,
       "requestTimeoutMillis": null,
@@ -67,7 +68,12 @@ Core properties
 
   - ``protocol`` (string)
 
-    - the protocol. ``http`` is the only supported protocol at the moment.
+    - the protocol. ``http`` and ``https`` are supported.
+
+- ``tls``
+
+  - the configuration for Transport Layer Security(TLS) support. Specify ``null`` to disable TLS.
+    See :ref:`tls` for more information.
 
 - ``numWorkers`` (integer)
 
@@ -140,8 +146,8 @@ Core properties
   - the replication configuration.
   - ``method`` (string)
 
-    - the replication method. ``NONE`` indicates 'standalone mode' without replication. ZooKeeper-based
-      multi-master replication will be explained later in this page.
+    - the replication method. ``NONE`` indicates 'standalone mode' without replication. See :ref:`replication`
+      to learn how to configure ZooKeeper-based multi-master replication.
 
 - ``securityEnabled`` (boolean)
 
@@ -187,6 +193,8 @@ Core properties
   - login IDs of the administrators. They are valid only if ``securityEnabled`` is ``true``.
     Please refer to :ref:`auth` for more information.
 
+.. _replication:
+
 Configuring replication
 -----------------------
 Central Dogma features multi-master replication based on `Apache ZooKeeper <https://zookeeper.apache.org/>`_
@@ -215,6 +223,7 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
           "protocol": "http"
         }
       ],
+      "tls": null,
       "numWorkers": null,
       "maxNumConnections": null,
       "requestTimeoutMillis": null,
@@ -275,3 +284,83 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
 
   -  the minimum allowed age of log items before they are removed from ZooKeeper. If ``null`` the default
      value of '3600000 milliseconds' (1 hour) is used.
+
+.. _tls:
+
+Configuring TLS
+---------------
+Central Dogma supports TLS for its API and web pages. To enable TLS, a user may configure ``tls`` property
+in ``dogma.json`` as follows.
+
+.. code-block:: json
+
+    {
+      "dataDir": "./data",
+      "ports": [
+        {
+          "localAddress": {
+            "host": "*",
+            "port": 36462
+          },
+          "protocol": "https"
+        }
+      ],
+      "tls": {
+        "keyCertChainFile": "./cert/centraldogma.crt",
+        "keyFile": "./cert/centraldogma.key",
+        "keyPassword": null
+      },
+      "numWorkers": null,
+      "maxNumConnections": null,
+      "requestTimeoutMillis": null,
+      "idleTimeoutMillis": null,
+      "maxFrameLength": null,
+      "numRepositoryWorkers": 16,
+      "cacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+      "webAppEnabled": true,
+      "gracefulShutdownTimeout": {
+        "quietPeriodMillis": 1000,
+        "timeoutMillis": 10000
+      },
+      "replication": {
+        "method": "NONE"
+      },
+      "securityEnabled": false,
+      "mirroringEnabled": true,
+      "numMirroringThreads": null,
+      "maxNumFilesPerMirror": null,
+      "maxNumBytesPerMirror": null,
+      "accessLogFormat": "common"
+    }
+
+- ``tls``
+
+  - the configuration for TLS support. It will be applied to the port which is configured with ``https``
+    protocol. If ``null``, a self-signed certificate will be generated for ``https`` protocol.
+  - ``keyCertChainFile`` (string)
+
+    - the path to the certificate chain file.
+
+  - ``keyFile`` (string)
+
+    - the path to the private key file.
+
+  - ``keyPassword`` (string)
+
+    - the password of the private key file. Specify ``null`` if no password is set. Note that ``null``
+      (no password) and ``"null"`` (password is 'null') are different.
+
+If you run your Central Dogma with TLS, you need to enable TLS of your ``CentralDogma`` client instance.
+You can get it by ``CentralDogma.forTlsHost()`` methods.
+
+.. code-block:: java
+
+    CentralDogma dogma = CentralDogma.forTlsHost("centraldogma.example.com", 36462);
+
+Also, ``CentralDogmaBuilder`` provides ``useTls()`` method.
+
+.. code-block:: java
+
+    CentralDogma dogma = new CentralDogmaBuilder().host("centraldogma.example.com", 36462)
+                                                  .useTls()
+                                                  .build();

@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -58,7 +60,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.cache.Reposi
 
 import io.netty.util.NetUtil;
 
-// TODO(trustin): Expose SSL configuration properties.
 final class CentralDogmaConfig {
 
     private final File dataDir;
@@ -70,6 +71,7 @@ final class CentralDogmaConfig {
     private final Long requestTimeoutMillis;
     private final Long idleTimeoutMillis;
     private final Integer maxFrameLength;
+    private final TlsConfig tls;
 
     // Repository
     private final Integer numRepositoryWorkers;
@@ -107,6 +109,7 @@ final class CentralDogmaConfig {
                        @JsonProperty(value = "ports", required = true)
                        @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
                                List<ServerPort> ports,
+                       @JsonProperty("tls") TlsConfig tls,
                        @JsonProperty("numWorkers") Integer numWorkers,
                        @JsonProperty("maxNumConnections") Integer maxNumConnections,
                        @JsonProperty("requestTimeoutMillis") Long requestTimeoutMillis,
@@ -131,6 +134,7 @@ final class CentralDogmaConfig {
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
+        this.tls = tls;
         this.numWorkers = numWorkers;
 
         this.maxNumConnections = maxNumConnections;
@@ -174,6 +178,12 @@ final class CentralDogmaConfig {
     @JsonSerialize(contentUsing = ServerPortSerializer.class)
     List<ServerPort> ports() {
         return ports;
+    }
+
+    @Nullable
+    @JsonProperty
+    TlsConfig tls() {
+        return tls;
     }
 
     @JsonProperty

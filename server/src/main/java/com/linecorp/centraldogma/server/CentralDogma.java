@@ -55,6 +55,7 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.util.EventLoopGroups;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
@@ -108,6 +109,7 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 
+import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
@@ -327,8 +329,30 @@ public class CentralDogma {
     private Server startServer(ProjectManager pm, CommandExecutor executor,
                                @Nullable CentralDogmaSecurityManager securityManager) {
         final ServerBuilder sb = new ServerBuilder();
-        for (ServerPort p : cfg.ports()) {
+
+        boolean requiresTls = false;
+        for (final ServerPort p : cfg.ports()) {
             sb.port(p);
+            if (p.protocol().isTls()) {
+                requiresTls = true;
+            }
+        }
+        if (requiresTls) {
+            try {
+                final TlsConfig tlsConfig = cfg.tls();
+                if (tlsConfig != null) {
+                    sb.tls(tlsConfig.keyCertChainFile(), tlsConfig.keyFile(), tlsConfig.keyPassword());
+                } else {
+                    // TODO(hyangtack) Replace sb.tls() with sb.tlsSelfSigned() later.
+                    // https://github.com/line/armeria/pull/1085
+                    logger.warn(
+                            "Missing TLS configuration. Generating a self-signed certificate for TLS support.");
+                    final SelfSignedCertificate ssc = new SelfSignedCertificate();
+                    sb.tls(ssc.certificate(), ssc.privateKey());
+                }
+            } catch (Exception e) {
+                Exceptions.throwUnsafely(e);
+            }
         }
 
         cfg.numWorkers().ifPresent(

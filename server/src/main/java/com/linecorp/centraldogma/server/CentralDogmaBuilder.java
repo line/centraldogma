@@ -63,6 +63,7 @@ public final class CentralDogmaBuilder {
     // Note that we use nullable types here for optional properties.
     // When a property is null, the default value will be used implicitly.
     private final List<ServerPort> ports = new ArrayList<>(2);
+    private TlsConfig tls;
     private Integer numWorkers;
     private Integer maxNumConnections;
     private Long requestTimeoutMillis;
@@ -120,6 +121,14 @@ public final class CentralDogmaBuilder {
      */
     public CentralDogmaBuilder port(ServerPort port) {
         ports.add(requireNonNull(port, "port"));
+        return this;
+    }
+
+    /**
+     * Sets a {@link TlsConfig} for supporting TLS on the server.
+     */
+    public CentralDogmaBuilder tls(TlsConfig tls) {
+        this.tls = requireNonNull(tls, "tls");
         return this;
     }
 
@@ -337,7 +346,7 @@ public final class CentralDogmaBuilder {
         final List<ServerPort> ports = !this.ports.isEmpty() ? this.ports
                                                              : Collections.singletonList(DEFAULT_PORT);
 
-        return new CentralDogmaConfig(dataDir, ports, numWorkers, maxNumConnections,
+        return new CentralDogmaConfig(dataDir, ports, tls, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, cacheSpec, gracefulShutdownTimeout,
                                       webAppEnabled, webAppSessionTimeoutMillis,
