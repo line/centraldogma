@@ -72,9 +72,9 @@ public class ProjectManagerRule extends TemporaryFolder {
     protected final void before() throws Throwable {
         super.before();
 
-        final Executor worker = configureWorker();
-        projectManager = configureProjectManager(worker);
-        executor = configureCommandExecutor(projectManager, worker);
+        final Executor worker = newWorker();
+        projectManager = newProjectManager(worker);
+        executor = newCommandExecutor(projectManager, worker);
 
         executor.start(null, null);
         ProjectInitializer.initializeInternalProject(executor);
@@ -90,14 +90,14 @@ public class ProjectManagerRule extends TemporaryFolder {
     /**
      * Override this method to customize an {@link Executor}.
      */
-    protected Executor configureWorker() {
+    protected Executor newWorker() {
         return ForkJoinPool.commonPool();
     }
 
     /**
      * Override this method to customize a {@link ProjectManager}.
      */
-    protected ProjectManager configureProjectManager(Executor worker) {
+    protected ProjectManager newProjectManager(Executor worker) {
         try {
             return new DefaultProjectManager(newFolder(), worker, null);
         } catch (Exception e) {
@@ -109,7 +109,7 @@ public class ProjectManagerRule extends TemporaryFolder {
     /**
      * Override this method to customize a {@link CommandExecutor}.
      */
-    protected CommandExecutor configureCommandExecutor(ProjectManager projectManager, Executor worker) {
+    protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker) {
         return new ProjectInitializingCommandExecutor(
                 new StandaloneCommandExecutor(projectManager, null, worker));
     }

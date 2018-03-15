@@ -107,7 +107,7 @@ public class TokenService extends AbstractService {
                                                                   @RequestObject Author author,
                                                                   @RequestObject User loginUser) {
         checkArgument(!isAdmin || loginUser.isAdmin(),
-                      "Only administrators are allowed to create admin-level token.");
+                      "Only administrators are allowed to create an admin-level token.");
         return mds.createToken(author, appId, isAdmin)
                   .thenCompose(unused -> mds.findTokenByAppId(appId))
                   .thenApply(token -> HolderWithLocation.of(token, "/tokens/" + appId));

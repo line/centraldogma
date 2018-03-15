@@ -58,8 +58,8 @@ public class MigrationUtilTest {
     @Rule
     public final ProjectManagerRule rule = new ProjectManagerRule() {
         @Override
-        protected CommandExecutor configureCommandExecutor(ProjectManager projectManager,
-                                                           Executor worker) {
+        protected CommandExecutor newCommandExecutor(ProjectManager projectManager,
+                                                     Executor worker) {
             return new LegacyProjectInitializingCommandExecutor(
                     new StandaloneCommandExecutor(projectManager, null, worker));
         }
