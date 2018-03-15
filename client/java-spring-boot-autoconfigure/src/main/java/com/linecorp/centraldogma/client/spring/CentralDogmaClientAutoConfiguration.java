@@ -17,7 +17,6 @@ package com.linecorp.centraldogma.client.spring;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.lang.reflect.Method;
 import java.util.Optional;
 
 import javax.inject.Qualifier;
@@ -38,7 +37,6 @@ import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.core.type.MethodMetadata;
-import org.springframework.core.type.StandardMethodMetadata;
 
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.centraldogma.client.ArmeriaClientConfigurator;
@@ -49,10 +47,11 @@ import com.linecorp.centraldogma.client.CentralDogmaBuilder;
  * Spring bean configuration for {@link CentralDogma} client.
  */
 @Configuration
-public class CentralDogmaConfiguration {
+@ConditionalOnMissingBean(CentralDogma.class)
+public class CentralDogmaClientAutoConfiguration {
 
     /**
-     * A {@link Qualifier} annotation that tells {@link CentralDogmaConfiguration} to use a specific
+     * A {@link Qualifier} annotation that tells {@link CentralDogmaClientAutoConfiguration} to use a specific
      * {@link ClientFactory} bean when creating a {@link CentralDogma} client.
      */
     @Retention(RetentionPolicy.RUNTIME)
@@ -65,9 +64,9 @@ public class CentralDogmaConfiguration {
      * {@link CentralDogma} client.
      */
     @Bean
-    @ForCentralDogma
     @Conditional(MissingCentralDogmaClientFactory.class)
-    public ClientFactory clientFactory() {
+    @ForCentralDogma
+    public ClientFactory dogmaClientFactory() {
         return ClientFactory.DEFAULT;
     }
 
@@ -75,7 +74,6 @@ public class CentralDogmaConfiguration {
      * Returns a newly created {@link CentralDogma} client.
      */
     @Bean
-    @ConditionalOnMissingBean(CentralDogma.class)
     public CentralDogma client(
             Environment env,
             @ForCentralDogma ClientFactory clientFactory,
@@ -118,11 +116,8 @@ public class CentralDogmaConfiguration {
                 if (beanDef instanceof AnnotatedBeanDefinition) {
                     final AnnotatedBeanDefinition abd = (AnnotatedBeanDefinition) beanDef;
                     final MethodMetadata fmm = abd.getFactoryMethodMetadata();
-                    if (fmm instanceof StandardMethodMetadata) {
-                        final Method method = ((StandardMethodMetadata) fmm).getIntrospectedMethod();
-                        if (AnnotationUtils.getAnnotation(method, ForCentralDogma.class) != null) {
-                            return true;
-                        }
+                    if (fmm.isAnnotated(ForCentralDogma.class.getName())) {
+                        return true;
                     }
                 }
 

@@ -31,13 +31,13 @@ import org.springframework.test.context.junit4.SpringRunner;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.ClientFactoryBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.spring.CentralDogmaConfiguration.ForCentralDogma;
-import com.linecorp.centraldogma.client.spring.CentralDogmaConfigurationWithClientFactoryTest.TestConfiguration;
+import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfiguration.ForCentralDogma;
+import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationWithClientFactoryTest.TestConfiguration;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestConfiguration.class)
 @ActiveProfiles({ "local", "confTest" })
-public class CentralDogmaConfigurationWithClientFactoryTest {
+public class CentralDogmaClientAutoConfigurationWithClientFactoryTest {
     @SpringBootApplication
     public static class TestConfiguration {
         private static final ClientFactory dogmaClientFactory = new ClientFactoryBuilder().build();

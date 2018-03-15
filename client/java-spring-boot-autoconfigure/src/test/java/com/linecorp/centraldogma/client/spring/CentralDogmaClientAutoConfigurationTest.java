@@ -28,14 +28,14 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.spring.CentralDogmaConfigurationTest.TestConfiguration;
+import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationTest.TestConfiguration;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestConfiguration.class)
 @ActiveProfiles({ "local", "confTest" })
-public class CentralDogmaConfigurationTest {
+public class CentralDogmaClientAutoConfigurationTest {
     @Configuration
-    @Import(CentralDogmaConfiguration.class)
+    @Import(CentralDogmaClientAutoConfiguration.class)
     public static class TestConfiguration {
     }
 
