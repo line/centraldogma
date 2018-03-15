@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.testing.internal;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
+import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
@@ -28,19 +29,45 @@ import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecut
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 
+/**
+ * JUnit {@link Rule} that starts a {@link ProjectManager}.
+ *
+ * <pre>{@code
+ * > public class MyTest {
+ * >     @ClassRule
+ * >     public static final ProjectManagerRule rule = new ProjectManagerRule();
+ * >
+ * >     @Test
+ * >     public void test() throws Exception {
+ * >         MetadataService mds = new MetadataService(rule.projectManager(), rule.executor());
+ * >         ...
+ * >     }
+ * > }
+ * }</pre>
+ */
 public class ProjectManagerRule extends TemporaryFolder {
 
     private ProjectManager projectManager;
     private CommandExecutor executor;
 
+    /**
+     * Returns a {@link ProjectManager}.
+     */
     public ProjectManager projectManager() {
         return projectManager;
     }
 
+    /**
+     * Returns a {@link CommandExecutor}.
+     */
     public CommandExecutor executor() {
         return executor;
     }
 
+    /**
+     * Configures an {@link Executor}, {@link ProjectManager} and {@link CommandExecutor}, then starts the
+     * {@link CommandExecutor} and initializes internal projects.
+     */
     @Override
     protected final void before() throws Throwable {
         super.before();
@@ -49,18 +76,27 @@ public class ProjectManagerRule extends TemporaryFolder {
         projectManager = configureProjectManager(worker);
         executor = configureCommandExecutor(projectManager, worker);
 
-        initialize();
-    }
-
-    protected void initialize() {
         executor.start(null, null);
         ProjectInitializer.initializeInternalProject(executor);
+
+        afterExecutorStarted();
     }
 
+    /**
+     * Override this method to configure a project after the executor started.
+     */
+    protected void afterExecutorStarted() {}
+
+    /**
+     * Override this method to customize an {@link Executor}.
+     */
     protected Executor configureWorker() {
         return ForkJoinPool.commonPool();
     }
 
+    /**
+     * Override this method to customize a {@link ProjectManager}.
+     */
     protected ProjectManager configureProjectManager(Executor worker) {
         try {
             return new DefaultProjectManager(newFolder(), worker, null);
@@ -70,14 +106,21 @@ public class ProjectManagerRule extends TemporaryFolder {
         }
     }
 
+    /**
+     * Override this method to customize a {@link CommandExecutor}.
+     */
     protected CommandExecutor configureCommandExecutor(ProjectManager projectManager, Executor worker) {
         return new ProjectInitializingCommandExecutor(
                 new StandaloneCommandExecutor(projectManager, null, worker));
     }
 
+    /**
+     * Stops the {@link CommandExecutor} and the {@link ProjectManager}.
+     */
     @Override
     protected void after() {
         super.after();
         executor.stop();
+        projectManager.close();
     }
 }

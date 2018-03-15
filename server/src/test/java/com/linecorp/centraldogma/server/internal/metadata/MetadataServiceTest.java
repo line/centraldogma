@@ -38,8 +38,7 @@ public class MetadataServiceTest {
     @Rule
     public final ProjectManagerRule rule = new ProjectManagerRule() {
         @Override
-        protected void initialize() {
-            super.initialize();
+        protected void afterExecutorStarted() {
             MigrationUtil.migrate(projectManager(), executor());
             // Create a project and its metadata here.
             executor().execute(Command.createProject(author, project1)).toCompletableFuture().join();

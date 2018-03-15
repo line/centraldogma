@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -84,11 +85,14 @@ public class TokenService extends AbstractService {
      */
     @Get("/tokens")
     public CompletionStage<Collection<Token>> listTokens(@RequestObject User loginUser) {
-        final CompletionStage<Tokens> future = mds.getTokens();
-        if (!loginUser.isAdmin()) {
-            future.thenApply(Tokens::withoutSecret);
+        if (loginUser.isAdmin()) {
+            return mds.getTokens()
+                      .thenApply(tokens -> tokens.appIds().values());
+        } else {
+            return mds.getTokens()
+                      .thenApply(Tokens::withoutSecret)
+                      .thenApply(tokens -> tokens.appIds().values());
         }
-        return future.thenApply(tokens -> tokens.appIds().values());
     }
 
     /**
@@ -102,9 +106,8 @@ public class TokenService extends AbstractService {
                                                                   @Param("isAdmin") boolean isAdmin,
                                                                   @RequestObject Author author,
                                                                   @RequestObject User loginUser) {
-        if (isAdmin && !loginUser.isAdmin()) {
-            throw new IllegalArgumentException("Only administrator can create admin-level token");
-        }
+        checkArgument(!isAdmin || loginUser.isAdmin(),
+                      "Only administrators are allowed to create admin-level token.");
         return mds.createToken(author, appId, isAdmin)
                   .thenCompose(unused -> mds.findTokenByAppId(appId))
                   .thenApply(token -> HolderWithLocation.of(token, "/tokens/" + appId));
