@@ -60,34 +60,34 @@ public class TokenServiceTest {
     @Test
     public void adminToken() {
         assertThat(tokenService.createToken("forAdmin1", true, adminAuthor, admin)
-                               .toCompletableFuture().join().object().isActive()).isTrue();
+                               .join().object().isActive()).isTrue();
         assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, guestAuthor, guest)
-                                             .toCompletableFuture().join())
+                                             .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
-        final Collection<Token> tokens = tokenService.listTokens(admin).toCompletableFuture().join();
+        final Collection<Token> tokens = tokenService.listTokens(admin).join();
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(1);
 
         assertThatThrownBy(() -> tokenService.deleteToken("forAdmin1", guestAuthor, guest)
-                                             .toCompletableFuture().join())
+                                             .join())
                 .hasCauseInstanceOf(HttpStatusException.class);
 
-        assertThat(tokenService.deleteToken("forAdmin1", adminAuthor, admin).toCompletableFuture().join());
+        assertThat(tokenService.deleteToken("forAdmin1", adminAuthor, admin).join());
     }
 
     @Test
     public void userToken() {
         assertThat(tokenService.createToken("forUser1", false, adminAuthor, admin)
-                               .toCompletableFuture().join().object().isActive()).isTrue();
+                               .join().object().isActive()).isTrue();
         assertThat(tokenService.createToken("forUser2", false, guestAuthor, guest)
-                               .toCompletableFuture().join().object().isActive()).isTrue();
+                               .join().object().isActive()).isTrue();
 
-        final Collection<Token> tokens = tokenService.listTokens(guest).toCompletableFuture().join();
+        final Collection<Token> tokens = tokenService.listTokens(guest).join();
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
 
-        assertThat(tokenService.deleteToken("forUser1", adminAuthor, admin).toCompletableFuture().join());
-        assertThat(tokenService.deleteToken("forUser2", guestAuthor, guest).toCompletableFuture().join());
+        assertThat(tokenService.deleteToken("forUser1", adminAuthor, admin).join());
+        assertThat(tokenService.deleteToken("forUser2", guestAuthor, guest).join());
     }
 }

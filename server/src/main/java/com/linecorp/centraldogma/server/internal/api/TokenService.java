@@ -20,7 +20,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +84,7 @@ public class TokenService extends AbstractService {
      * <p>Returns the list of the tokens generated before.
      */
     @Get("/tokens")
-    public CompletionStage<Collection<Token>> listTokens(@RequestObject User loginUser) {
+    public CompletableFuture<Collection<Token>> listTokens(@RequestObject User loginUser) {
         if (loginUser.isAdmin()) {
             return mds.getTokens()
                       .thenApply(tokens -> tokens.appIds().values());
@@ -102,10 +102,10 @@ public class TokenService extends AbstractService {
      */
     @Post("/tokens")
     @ResponseConverter(CreateApiResponseConverter.class)
-    public CompletionStage<HolderWithLocation<Token>> createToken(@Param("appId") String appId,
-                                                                  @Param("isAdmin") boolean isAdmin,
-                                                                  @RequestObject Author author,
-                                                                  @RequestObject User loginUser) {
+    public CompletableFuture<HolderWithLocation<Token>> createToken(@Param("appId") String appId,
+                                                                    @Param("isAdmin") boolean isAdmin,
+                                                                    @RequestObject Author author,
+                                                                    @RequestObject User loginUser) {
         checkArgument(!isAdmin || loginUser.isAdmin(),
                       "Only administrators are allowed to create an admin-level token.");
         return mds.createToken(author, appId, isAdmin)
@@ -119,9 +119,9 @@ public class TokenService extends AbstractService {
      * <p>Deletes a token of the specified ID then returns it.
      */
     @Delete("/tokens/{appId}")
-    public CompletionStage<Token> deleteToken(@Param("appId") String appId,
-                                              @RequestObject Author author,
-                                              @RequestObject User loginUser) {
+    public CompletableFuture<Token> deleteToken(@Param("appId") String appId,
+                                                @RequestObject Author author,
+                                                @RequestObject User loginUser) {
         return getTokenOrRespondForbidden(appId, loginUser).thenCompose(
                 token -> mds.destroyToken(author, appId)
                             .thenApply(unused -> token.withoutSecret()));
@@ -134,10 +134,10 @@ public class TokenService extends AbstractService {
      */
     @Patch("/tokens/{appId}")
     @ConsumeType("application/json-patch+json")
-    public CompletionStage<Token> updateToken(@Param("appId") String appId,
-                                              @RequestObject JsonNode node,
-                                              @RequestObject Author author,
-                                              @RequestObject User loginUser) {
+    public CompletableFuture<Token> updateToken(@Param("appId") String appId,
+                                                @RequestObject JsonNode node,
+                                                @RequestObject Author author,
+                                                @RequestObject User loginUser) {
         if (node.equals(activation)) {
             return getTokenOrRespondForbidden(appId, loginUser).thenCompose(
                     token -> mds.activateToken(author, appId)
@@ -152,8 +152,8 @@ public class TokenService extends AbstractService {
                                            " (expected: " + activation + " or " + deactivation + ')');
     }
 
-    private CompletionStage<Token> getTokenOrRespondForbidden(String appId,
-                                                              User loginUser) {
+    private CompletableFuture<Token> getTokenOrRespondForbidden(String appId,
+                                                                User loginUser) {
         return mds.findTokenByAppId(appId).thenApply(token -> {
             // Give permission to the administrators.
             if (!loginUser.isAdmin() &&

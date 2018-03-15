@@ -77,7 +77,7 @@ public class MigrationUtilTest {
         // There is no legacy tokens.
         MigrationUtil.migrate(pm, executor);
 
-        final Tokens tokens1 = mds.getTokens().toCompletableFuture().join();
+        final Tokens tokens1 = mds.getTokens().join();
         assertThat(tokens1.appIds().isEmpty()).isTrue();
         assertThat(tokens1.secrets().isEmpty()).isTrue();
     }
@@ -111,15 +111,15 @@ public class MigrationUtilTest {
             // Try to migrate again at the second time. The result should be the same as before.
             MigrationUtil.migrate(pm, executor);
 
-            final Tokens tokens2 = mds.getTokens().toCompletableFuture().join();
+            final Tokens tokens2 = mds.getTokens().join();
             assertThat(tokens2.appIds().size()).isEqualTo(2);
             assertThat(tokens2.appIds().get("app1").secret()).isEqualTo(legacyToken1.secret());
             assertThat(tokens2.appIds().get("app2").secret()).isEqualTo(legacyToken2.secret());
 
             final List<ProjectMetadata> metadataList = ImmutableList.of(
-                    mds.getProject("legacyProject1").toCompletableFuture().join(),
-                    mds.getProject("legacyProject2").toCompletableFuture().join(),
-                    mds.getProject("legacyProject3").toCompletableFuture().join());
+                    mds.getProject("legacyProject1").join(),
+                    mds.getProject("legacyProject2").join(),
+                    mds.getProject("legacyProject3").join());
 
             for (final ProjectMetadata m : metadataList) {
                 assertThat(m.tokens().size()).isEqualTo(2);

@@ -27,7 +27,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -98,19 +97,19 @@ public class MetadataService extends AbstractService {
     /**
      * Returns a {@link ProjectMetadata} whose name equals to the specified {@code projectName}.
      */
-    public CompletionStage<ProjectMetadata> getProject(String projectName) {
+    public CompletableFuture<ProjectMetadata> getProject(String projectName) {
         requireNonNull(projectName, "projectName");
         return fetchMetadata(projectName).thenApply(HolderWithRevision::object);
     }
 
-    private CompletionStage<HolderWithRevision<ProjectMetadata>> fetchMetadata(String projectName) {
+    private CompletableFuture<HolderWithRevision<ProjectMetadata>> fetchMetadata(String projectName) {
         return metadataRepo.fetch(projectName, METADATA_REPO, METADATA_JSON);
     }
 
     /**
      * Removes a {@link ProjectMetadata} whose name equals to the specified {@code projectName}.
      */
-    public CompletionStage<Revision> removeProject(Author author, String projectName) {
+    public CompletableFuture<Revision> removeProject(Author author, String projectName) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
 
@@ -126,7 +125,7 @@ public class MetadataService extends AbstractService {
     /**
      * Restores a {@link ProjectMetadata} whose name equals to the specified {@code projectName}.
      */
-    public CompletionStage<Revision> restoreProject(Author author, String projectName) {
+    public CompletableFuture<Revision> restoreProject(Author author, String projectName) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
 
@@ -139,7 +138,7 @@ public class MetadataService extends AbstractService {
     /**
      * Returns a {@link Member} if the specified {@link User} is a member of the specified {@code projectName}.
      */
-    public CompletionStage<Member> getMember(String projectName, User user) {
+    public CompletableFuture<Member> getMember(String projectName, User user) {
         requireNonNull(projectName, "projectName");
         requireNonNull(user, "user");
 
@@ -151,8 +150,8 @@ public class MetadataService extends AbstractService {
      * Adds the specified {@code member} to the {@link ProjectMetadata} of the specified {@code projectName}
      * with the specified {@code projectRole}.
      */
-    public CompletionStage<Revision> addMember(Author author, String projectName,
-                                               User member, ProjectRole projectRole) {
+    public CompletableFuture<Revision> addMember(Author author, String projectName,
+                                                 User member, ProjectRole projectRole) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(member, "member");
@@ -173,7 +172,7 @@ public class MetadataService extends AbstractService {
      * {@code projectName}. It also removes permission of the specified {@code member} from every
      * {@link RepositoryMetadata}.
      */
-    public CompletionStage<Revision> removeMember(Author author, String projectName, User member) {
+    public CompletableFuture<Revision> removeMember(Author author, String projectName, User member) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(member, "member");
@@ -200,8 +199,8 @@ public class MetadataService extends AbstractService {
     /**
      * Updates a {@link ProjectRole} for the specified {@code member} in the specified {@code projectName}.
      */
-    public CompletionStage<Revision> updateMemberRole(Author author, String projectName,
-                                                      User member, ProjectRole projectRole) {
+    public CompletableFuture<Revision> updateMemberRole(Author author, String projectName,
+                                                        User member, ProjectRole projectRole) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(member, "member");
@@ -220,7 +219,7 @@ public class MetadataService extends AbstractService {
      * Returns a {@link RepositoryMetadata} of the specified {@code repoName} in the specified
      * {@code projectName}.
      */
-    public CompletionStage<RepositoryMetadata> getRepo(String projectName, String repoName) {
+    public CompletableFuture<RepositoryMetadata> getRepo(String projectName, String repoName) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
@@ -231,7 +230,7 @@ public class MetadataService extends AbstractService {
      * Adds a {@link RepositoryMetadata} of the specified {@code repoName} to the specified {@code projectName}
      * with a default {@link PerRolePermissions}.
      */
-    public CompletionStage<Revision> addRepo(Author author, String projectName, String repoName) {
+    public CompletableFuture<Revision> addRepo(Author author, String projectName, String repoName) {
         return addRepo(author, projectName, repoName, PerRolePermissions.DEFAULT);
     }
 
@@ -239,8 +238,8 @@ public class MetadataService extends AbstractService {
      * Adds a {@link RepositoryMetadata} of the specified {@code repoName} to the specified {@code projectName}
      * with the specified {@link PerRolePermissions}.
      */
-    public CompletionStage<Revision> addRepo(Author author, String projectName, String repoName,
-                                             PerRolePermissions permission) {
+    public CompletableFuture<Revision> addRepo(Author author, String projectName, String repoName,
+                                               PerRolePermissions permission) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -274,7 +273,7 @@ public class MetadataService extends AbstractService {
      * Removes a {@link RepositoryMetadata} of the specified {@code repoName} from the specified
      * {@code projectName}.
      */
-    public CompletionStage<Revision> removeRepo(Author author, String projectName, String repoName) {
+    public CompletableFuture<Revision> removeRepo(Author author, String projectName, String repoName) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -293,7 +292,7 @@ public class MetadataService extends AbstractService {
      * Restores a {@link RepositoryMetadata} of the specified {@code repoName} in the specified
      * {@code projectName}.
      */
-    public CompletionStage<Revision> restoreRepo(Author author, String projectName, String repoName) {
+    public CompletableFuture<Revision> restoreRepo(Author author, String projectName, String repoName) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -310,9 +309,9 @@ public class MetadataService extends AbstractService {
      * Updates a {@link PerRolePermissions} of the specified {@code repoName} in the specified
      * {@code projectName}.
      */
-    public CompletionStage<Revision> updatePerRolePermissions(Author author,
-                                                              String projectName, String repoName,
-                                                              PerRolePermissions perRolePermissions) {
+    public CompletableFuture<Revision> updatePerRolePermissions(Author author,
+                                                                String projectName, String repoName,
+                                                                PerRolePermissions perRolePermissions) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -331,16 +330,16 @@ public class MetadataService extends AbstractService {
     /**
      * Adds the specified {@link Token} to the specified {@code projectName}.
      */
-    public CompletionStage<Revision> addToken(Author author, String projectName,
-                                              Token token, ProjectRole role) {
+    public CompletableFuture<Revision> addToken(Author author, String projectName,
+                                                Token token, ProjectRole role) {
         return addToken(author, projectName, requireNonNull(token, "token").appId(), role);
     }
 
     /**
      * Adds a {@link Token} of the specified {@code appId} to the specified {@code projectName}.
      */
-    public CompletionStage<Revision> addToken(Author author, String projectName,
-                                              String appId, ProjectRole role) {
+    public CompletableFuture<Revision> addToken(Author author, String projectName,
+                                                String appId, ProjectRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(appId, "appId");
@@ -367,7 +366,7 @@ public class MetadataService extends AbstractService {
      * Removes the specified {@link Token} from the specified {@code projectName}. It also removes
      * every token permission belonging to the {@link Token} from every {@link RepositoryMetadata}.
      */
-    public CompletionStage<Revision> removeToken(Author author, String projectName, Token token) {
+    public CompletableFuture<Revision> removeToken(Author author, String projectName, Token token) {
         return removeToken(author, projectName, requireNonNull(token, "token").appId());
     }
 
@@ -375,7 +374,7 @@ public class MetadataService extends AbstractService {
      * Removes the {@link Token} of the specified {@code appId} from the specified {@code projectName}.
      * It also removes every token permission belonging to {@link Token} from every {@link RepositoryMetadata}.
      */
-    public CompletionStage<Revision> removeToken(Author author, String projectName, String appId) {
+    public CompletableFuture<Revision> removeToken(Author author, String projectName, String appId) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(appId, "appId");
@@ -383,8 +382,8 @@ public class MetadataService extends AbstractService {
         return removeToken(projectName, author, appId, false);
     }
 
-    private CompletionStage<Revision> removeToken(String projectName, Author author, String appId,
-                                                  boolean quiet) {
+    private CompletableFuture<Revision> removeToken(String projectName, Author author, String appId,
+                                                    boolean quiet) {
         final String commitSummary = "Remove the token '" + appId + "' from the project " + projectName;
         return metadataRepo.push(
                 projectName, METADATA_REPO, author, commitSummary,
@@ -410,8 +409,8 @@ public class MetadataService extends AbstractService {
     /**
      * Updates a {@link ProjectRole} for the {@link Token} of the specified {@code appId}.
      */
-    public CompletionStage<Revision> updateTokenRole(Author author, String projectName,
-                                                     Token token, ProjectRole role) {
+    public CompletableFuture<Revision> updateTokenRole(Author author, String projectName,
+                                                       Token token, ProjectRole role) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(token, "token");
@@ -433,9 +432,9 @@ public class MetadataService extends AbstractService {
      * Adds {@link Permission}s for the specified {@code member} to the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletionStage<Revision> addPerUserPermission(Author author, String projectName,
-                                                          String repoName, User member,
-                                                          Collection<Permission> permission) {
+    public CompletableFuture<Revision> addPerUserPermission(Author author, String projectName,
+                                                            String repoName, User member,
+                                                            Collection<Permission> permission) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -455,8 +454,8 @@ public class MetadataService extends AbstractService {
      * Removes {@link Permission}s for the specified {@code member} from the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletionStage<Revision> removePerUserPermission(Author author, String projectName,
-                                                             String repoName, User member) {
+    public CompletableFuture<Revision> removePerUserPermission(Author author, String projectName,
+                                                               String repoName, User member) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -473,9 +472,9 @@ public class MetadataService extends AbstractService {
      * Updates {@link Permission}s for the specified {@code member} of the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletionStage<Revision> updatePerUserPermission(Author author, String projectName,
-                                                             String repoName, User member,
-                                                             Collection<Permission> permission) {
+    public CompletableFuture<Revision> updatePerUserPermission(Author author, String projectName,
+                                                               String repoName, User member,
+                                                               Collection<Permission> permission) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -493,9 +492,9 @@ public class MetadataService extends AbstractService {
      * Adds {@link Permission}s for the {@link Token} of the specified {@code appId} to the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletionStage<Revision> addPerTokenPermission(Author author, String projectName,
-                                                           String repoName, String appId,
-                                                           Collection<Permission> permission) {
+    public CompletableFuture<Revision> addPerTokenPermission(Author author, String projectName,
+                                                             String repoName, String appId,
+                                                             Collection<Permission> permission) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -515,8 +514,8 @@ public class MetadataService extends AbstractService {
      * Removes {@link Permission}s for the {@link Token} of the specified {@code appId} from the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletionStage<Revision> removePerTokenPermission(Author author, String projectName,
-                                                              String repoName, String appId) {
+    public CompletableFuture<Revision> removePerTokenPermission(Author author, String projectName,
+                                                                String repoName, String appId) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -532,9 +531,9 @@ public class MetadataService extends AbstractService {
      * Updates {@link Permission}s for the {@link Token} of the specified {@code appId} of the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletionStage<Revision> updatePerTokenPermission(Author author, String projectName,
-                                                              String repoName, String appId,
-                                                              Collection<Permission> permission) {
+    public CompletableFuture<Revision> updatePerTokenPermission(Author author, String projectName,
+                                                                String repoName, String appId,
+                                                                Collection<Permission> permission) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
@@ -550,10 +549,10 @@ public class MetadataService extends AbstractService {
     /**
      * Adds {@link Permission}s to the specified {@code path}.
      */
-    private CompletionStage<Revision> addPermissionAtPointer(Author author,
-                                                             String projectName, JsonPointer path,
-                                                             Collection<Permission> permission,
-                                                             String commitSummary) {
+    private CompletableFuture<Revision> addPermissionAtPointer(Author author,
+                                                               String projectName, JsonPointer path,
+                                                               Collection<Permission> permission,
+                                                               String commitSummary) {
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    asJsonArray(new TestAbsenceOperation(path),
@@ -564,8 +563,8 @@ public class MetadataService extends AbstractService {
     /**
      * Removes {@link Permission}s from the specified {@code path}.
      */
-    private CompletionStage<Revision> removePermissionAtPointer(Author author, String projectName,
-                                                                JsonPointer path, String commitSummary) {
+    private CompletableFuture<Revision> removePermissionAtPointer(Author author, String projectName,
+                                                                  JsonPointer path, String commitSummary) {
         final Change<JsonNode> change = Change.ofJsonPatch(METADATA_JSON,
                                                            new RemoveOperation(path).toJsonNode());
         return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
@@ -574,10 +573,10 @@ public class MetadataService extends AbstractService {
     /**
      * Replaces {@link Permission}s of the specified {@code path} with the specified {@code permission}.
      */
-    private CompletionStage<Revision> replacePermissionAtPointer(Author author,
-                                                                 String projectName, JsonPointer path,
-                                                                 Collection<Permission> permission,
-                                                                 String commitSummary) {
+    private CompletableFuture<Revision> replacePermissionAtPointer(Author author,
+                                                                   String projectName, JsonPointer path,
+                                                                   Collection<Permission> permission,
+                                                                   String commitSummary) {
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    new ReplaceOperation(path, Jackson.valueToTree(permission)).toJsonNode());
@@ -588,8 +587,8 @@ public class MetadataService extends AbstractService {
      * Finds {@link Permission}s which belong to the specified {@link User} or {@link UserWithToken}
      * from the specified {@code repoName} in the specified {@code projectName}.
      */
-    public CompletionStage<Collection<Permission>> findPermissions(String projectName, String repoName,
-                                                                   User user) {
+    public CompletableFuture<Collection<Permission>> findPermissions(String projectName, String repoName,
+                                                                     User user) {
         requireNonNull(user, "user");
         if (user.isAdmin()) {
             return CompletableFuture.completedFuture(PerRolePermissions.ALL_PERMISSION);
@@ -605,8 +604,8 @@ public class MetadataService extends AbstractService {
      * Finds {@link Permission}s which belong to the specified {@code appId} from the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    public CompletionStage<Collection<Permission>> findPermissions(String projectName, String repoName,
-                                                                   String appId) {
+    public CompletableFuture<Collection<Permission>> findPermissions(String projectName, String repoName,
+                                                                     String appId) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(appId, "appId");
@@ -631,8 +630,8 @@ public class MetadataService extends AbstractService {
      * Finds {@link Permission}s which belong to the specified {@link User} from the specified
      * {@code repoName} in the specified {@code projectName}.
      */
-    private CompletionStage<Collection<Permission>> findPermissions0(String projectName, String repoName,
-                                                                     User user) {
+    private CompletableFuture<Collection<Permission>> findPermissions0(String projectName, String repoName,
+                                                                       User user) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(user, "user");
@@ -668,7 +667,7 @@ public class MetadataService extends AbstractService {
     /**
      * Finds a {@link ProjectRole} of the specified {@link User} in the specified {@code projectName}.
      */
-    public CompletionStage<ProjectRole> findRole(String projectName, User user) {
+    public CompletableFuture<ProjectRole> findRole(String projectName, User user) {
         requireNonNull(projectName, "projectName");
         requireNonNull(user, "user");
 
@@ -690,7 +689,7 @@ public class MetadataService extends AbstractService {
     /**
      * Returns a {@link Tokens}.
      */
-    public CompletionStage<Tokens> getTokens() {
+    public CompletableFuture<Tokens> getTokens() {
         return tokenRepo.fetch(INTERNAL_PROJECT_NAME, TOKEN_REPO, TOKEN_JSON)
                         .thenApply(HolderWithRevision::object);
     }
@@ -699,7 +698,7 @@ public class MetadataService extends AbstractService {
      * Creates a new user-level {@link Token} with the specified {@code appId}. A secret for the {@code appId}
      * will be automatically generated.
      */
-    public CompletionStage<Revision> createToken(Author author, String appId) {
+    public CompletableFuture<Revision> createToken(Author author, String appId) {
         return createToken(author, appId, false);
     }
 
@@ -707,21 +706,22 @@ public class MetadataService extends AbstractService {
      * Creates a new {@link Token} with the specified {@code appId}, {@code isAdmin} and an auto-generated
      * secret.
      */
-    public CompletionStage<Revision> createToken(Author author, String appId, boolean isAdmin) {
+    public CompletableFuture<Revision> createToken(Author author, String appId, boolean isAdmin) {
         return createToken(author, appId, SECRET_PREFIX + UUID.randomUUID(), isAdmin);
     }
 
     /**
      * Creates a new user-level {@link Token} with the specified {@code appId} and {@code secret}.
      */
-    public CompletionStage<Revision> createToken(Author author, String appId, String secret) {
+    public CompletableFuture<Revision> createToken(Author author, String appId, String secret) {
         return createToken(author, appId, secret, false);
     }
 
     /**
      * Creates a new {@link Token} with the specified {@code appId}, {@code secret} and {@code isAdmin}.
      */
-    public CompletionStage<Revision> createToken(Author author, String appId, String secret, boolean isAdmin) {
+    public CompletableFuture<Revision> createToken(Author author, String appId, String secret,
+                                                   boolean isAdmin) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
         requireNonNull(secret, "secret");
@@ -745,7 +745,7 @@ public class MetadataService extends AbstractService {
     /**
      * Removes the {@link Token} of the specified {@code appId} completely from the system.
      */
-    public CompletionStage<Revision> destroyToken(Author author, String appId) {
+    public CompletableFuture<Revision> destroyToken(Author author, String appId) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
@@ -777,7 +777,7 @@ public class MetadataService extends AbstractService {
     /**
      * Activates the {@link Token} of the specified {@code appId}.
      */
-    public CompletionStage<Revision> activateToken(Author author, String appId) {
+    public CompletableFuture<Revision> activateToken(Author author, String appId) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
@@ -804,7 +804,7 @@ public class MetadataService extends AbstractService {
     /**
      * Deactivates the {@link Token} of the specified {@code appId}.
      */
-    public CompletionStage<Revision> deactivateToken(Author author, String appId) {
+    public CompletableFuture<Revision> deactivateToken(Author author, String appId) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
@@ -831,7 +831,7 @@ public class MetadataService extends AbstractService {
     /**
      * Returns a {@link Token} which has the specified {@code appId}.
      */
-    public CompletionStage<Token> findTokenByAppId(String appId) {
+    public CompletableFuture<Token> findTokenByAppId(String appId) {
         requireNonNull(appId, "appId");
         return tokenRepo.fetch(INTERNAL_PROJECT_NAME, TOKEN_REPO, TOKEN_JSON)
                         .thenApply(tokens -> tokens.object().get(appId));
@@ -840,7 +840,7 @@ public class MetadataService extends AbstractService {
     /**
      * Returns a {@link Token} which has the specified {@code secret}.
      */
-    public CompletionStage<Token> findTokenBySecret(String secret) {
+    public CompletableFuture<Token> findTokenBySecret(String secret) {
         requireNonNull(secret, "secret");
         validateSecret(secret);
         return tokenRepo.fetch(INTERNAL_PROJECT_NAME, TOKEN_REPO, TOKEN_JSON)
