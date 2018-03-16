@@ -89,7 +89,7 @@ func NewClient(baseURL string, clientID, clientSecret string) (*Client, error) {
 	return newClientWithHTTPClient(normalizedURL.String(), config.Client(context.Background()))
 }
 
-// newClientWithHTTPClient returns a Central Dogma client withe the specified baseURL and client.
+// newClientWithHTTPClient returns a Central Dogma client with the specified baseURL and client.
 // The client should perform the authentication.
 func newClientWithHTTPClient(baseURL string, client *http.Client) (*Client, error) {
 	normalizedURL, err := normalizeURL(baseURL)

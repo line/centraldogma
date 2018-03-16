@@ -33,7 +33,7 @@ func TestListFiles(t *testing.T) {
 	})
 
 	entries, _, _ := c.ListFiles(context.Background(), "foo", "bar", "", "/**")
-	want := []*Entry{{Path: "/a.json", Type: "JSON"}, {Path: "/b.txt", Type: "TEXT"}}
+	want := []*Entry{{Path: "/a.json", Type: JSON}, {Path: "/b.txt", Type: Text}}
 	if !reflect.DeepEqual(entries, want) {
 		t.Errorf("ListFiles returned %+v, want %+v", entries, want)
 	}
@@ -50,7 +50,7 @@ func TestListFiles_WithRevision(t *testing.T) {
 	})
 
 	entries, _, _ := c.ListFiles(context.Background(), "foo", "bar", "2", "/**")
-	want := []*Entry{{Path: "/a.json", Type: "JSON"}, {Path: "/b.txt", Type: "TEXT"}}
+	want := []*Entry{{Path: "/a.json", Type: JSON}, {Path: "/b.txt", Type: Text}}
 	if !reflect.DeepEqual(entries, want) {
 		t.Errorf("ListFiles returned %+v, want %+v", entries, want)
 	}
@@ -66,9 +66,9 @@ func TestGetFile(t *testing.T) {
 			fmt.Fprint(w, `{"path":"/b.txt", "type":"TEXT", "content":"hello world~!"}`)
 		})
 
-	query := &Query{Path: "/b.txt", QueryType: "identity"}
+	query := &Query{Path: "/b.txt", Type: Identity}
 	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "", query)
-	want := &Entry{Path: "/b.txt", Type: "TEXT", Content: "hello world~!"}
+	want := &Entry{Path: "/b.txt", Type: Text, Content: "hello world~!"}
 	if !reflect.DeepEqual(entry, want) {
 		t.Errorf("GetFile returned %+v, want %+v", entry, want)
 	}
@@ -84,9 +84,9 @@ func TestGetFile_JSON(t *testing.T) {
 			fmt.Fprint(w, `{"path":"/a.json", "type":"JSON", "content":{"a":"b"}}`)
 		})
 
-	query := &Query{Path: "/a.json", QueryType: "identity"}
+	query := &Query{Path: "/a.json", Type: Identity}
 	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "", query)
-	want := &Entry{Path: "/a.json", Type: "JSON", Content: map[string]interface{}{"a": "b"}}
+	want := &Entry{Path: "/a.json", Type: JSON, Content: map[string]interface{}{"a": "b"}}
 	if !reflect.DeepEqual(entry, want) {
 		t.Errorf("GetFile returned %+v, want %+v", entry, want)
 	}
@@ -103,9 +103,9 @@ func TestGetFile_WithJSONPath(t *testing.T) {
 			fmt.Fprint(w, `{"path":"/a.json", "type":"JSON", "content":"b"}`)
 		})
 
-	query := &Query{Path: "/a.json", QueryType: "json_path", Expressions: []string{"$.a"}}
+	query := &Query{Path: "/a.json", Type: JSONPath, Expressions: []string{"$.a"}}
 	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "", query)
-	want := &Entry{Path: "/a.json", Type: "JSON", Content: "b"}
+	want := &Entry{Path: "/a.json", Type: JSON, Content: "b"}
 	if !reflect.DeepEqual(entry, want) {
 		t.Errorf("GetFile returned %+v, want %+v", entry, want)
 	}
@@ -123,9 +123,9 @@ func TestGetFile_WithJSONPathAndRevision(t *testing.T) {
 			fmt.Fprint(w, `{"path":"/a.json", "type":"JSON", "content":"b"}`)
 		})
 
-	query := &Query{Path: "/a.json", QueryType: "json_path", Expressions: []string{"$.a"}}
+	query := &Query{Path: "/a.json", Type: JSONPath, Expressions: []string{"$.a"}}
 	entry, _, _ := c.GetFile(context.Background(), "foo", "bar", "-1", query)
-	want := &Entry{Path: "/a.json", Type: "JSON", Content: "b"}
+	want := &Entry{Path: "/a.json", Type: JSON, Content: "b"}
 	if !reflect.DeepEqual(entry, want) {
 		t.Errorf("GetFile returned %+v, want %+v", entry, want)
 	}
@@ -142,8 +142,8 @@ func TestGetFiles(t *testing.T) {
 	})
 
 	entries, _, _ := c.GetFiles(context.Background(), "foo", "bar", "", "/**")
-	want := []*Entry{{Path: "/a.json", Type: "JSON", Content: map[string]interface{}{"a": "b"}},
-		{Path: "/b.txt", Type: "TEXT", Content: "hello world~!"}}
+	want := []*Entry{{Path: "/a.json", Type: JSON, Content: map[string]interface{}{"a": "b"}},
+		{Path: "/b.txt", Type: Text, Content: "hello world~!"}}
 	if !reflect.DeepEqual(entries, want) {
 		t.Errorf("GetFiles returned %+v, want %+v", entries, want)
 	}
@@ -195,9 +195,9 @@ func TestGetDiff(t *testing.T) {
 		"oldValue": "bar",
 		"value":    "baz"})
 
-	query := &Query{Path: "/a.json", QueryType: "json_path", Expressions: []string{"$.a"}}
+	query := &Query{Path: "/a.json", Type: JSONPath, Expressions: []string{"$.a"}}
 	entry, _, _ := c.GetDiff(context.Background(), "foo", "bar", "3", "4", query)
-	want := &Change{Path: "/a.json", Type: "APPLY_JSON_PATCH", Content: content}
+	want := &Change{Path: "/a.json", Type: ApplyJSONPatch, Content: content}
 
 	if !reflect.DeepEqual(entry, want) {
 		t.Errorf("GetDiff returned %+v, want %+v", entry, want)
@@ -231,8 +231,8 @@ func TestGetDiffs(t *testing.T) {
 		"path":     "",
 		"oldValue": "bar",
 		"value":    "baz"})
-	want := []*Change{{Path: "/a.json", Type: "APPLY_JSON_PATCH", Content: content},
-		{Path: "/b.txt", Type: "APPLY_TEXT_PATCH", Content: "--- /b.txt\n+++ /b.txt\n@@ -1,1 +1,1 @@\n-foo\n+bar"}}
+	want := []*Change{{Path: "/a.json", Type: ApplyJSONPatch, Content: content},
+		{Path: "/b.txt", Type: ApplyTextPatch, Content: "--- /b.txt\n+++ /b.txt\n@@ -1,1 +1,1 @@\n-foo\n+bar"}}
 
 	if !reflect.DeepEqual(changes, want) {
 		t.Errorf("GetDiff returned %+v, want %+v", changes, want)
@@ -249,7 +249,7 @@ func TestPush(t *testing.T) {
 
 		var reqBody Push
 		json.NewDecoder(r.Body).Decode(&reqBody)
-		changes := []*Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}}}
+		changes := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}}}
 		want := Push{CommitMessage: &CommitMessage{Summary: "Add a.json"}, Changes: changes}
 		if !reflect.DeepEqual(reqBody, want) {
 			t.Errorf("Push request body %+v, want %+v", changes, want)
@@ -259,10 +259,10 @@ func TestPush(t *testing.T) {
 	})
 
 	commitMessage := CommitMessage{Summary: "Add a.json"}
-	change := []*Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}}}
+	change := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}}}
 	commit, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, change)
 
-	entries := []*Entry{{Path: "/a.json", Type: "JSON"}}
+	entries := []*Entry{{Path: "/a.json", Type: JSON}}
 	want := &Commit{Revision: 2, Author: "minux@m.x", Entries: entries}
 	if !reflect.DeepEqual(commit, want) {
 		t.Errorf("Push returned %+v, want %+v", commit, want)
@@ -279,8 +279,8 @@ func TestPush_TwoFiles(t *testing.T) {
 
 		var reqBody Push
 		json.NewDecoder(r.Body).Decode(&reqBody)
-		changes := []*Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}},
-			{Path: "/b.txt", Type: "UPSERT_TEXT", Content: "myContent"}}
+		changes := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}},
+			{Path: "/b.txt", Type: UpsertText, Content: "myContent"}}
 		want := Push{CommitMessage: &CommitMessage{Summary: "Add a.json and b.txt"}, Changes: changes}
 		if !reflect.DeepEqual(reqBody, want) {
 			t.Errorf("Push request body %+v, want %+v", changes, want)
@@ -291,12 +291,12 @@ func TestPush_TwoFiles(t *testing.T) {
 	})
 
 	commitMessage := CommitMessage{Summary: "Add a.json and b.txt"}
-	changes := []*Change{{Path: "/a.json", Type: "UPSERT_JSON", Content: map[string]interface{}{"a": "b"}},
-		{Path: "/b.txt", Type: "UPSERT_TEXT", Content: "myContent"}}
+	changes := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}},
+		{Path: "/b.txt", Type: UpsertText, Content: "myContent"}}
 
 	commit, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, changes)
 
-	entries := []*Entry{{Path: "/a.json", Type: "JSON"}, {Path: "/b.txt", Type: "TEXT"}}
+	entries := []*Entry{{Path: "/a.json", Type: JSON}, {Path: "/b.txt", Type: Text}}
 	want := &Commit{Revision: 3, Author: "minux@m.x", Entries: entries}
 	if !reflect.DeepEqual(commit, want) {
 		t.Errorf("Push returned %+v, want %+v", commit, want)

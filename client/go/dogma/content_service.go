@@ -16,6 +16,7 @@ package dogma
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -30,18 +31,52 @@ type Query struct {
 	// QueryType can be "identity" or "json_path". "identity" is used to retrieve the content as it is.
 	// "json_path" applies a series of JSON path to the content.
 	// See https://github.com/json-path/JsonPath/blob/master/README.md
-	QueryType   string
+	Type        QueryType
 	Expressions []string
 }
+
+type QueryType int
+
+const (
+	Identity QueryType = iota + 1
+	JSONPath
+)
 
 // Entry represents an entry in the repository.
 type Entry struct {
 	Path       string      `json:"path"`
-	Type       string      `json:"type"` // can be JSON, TEXT or DIRECTORY
+	Type       EntryType   `json:"type"` // can be JSON, TEXT or DIRECTORY
 	Content    interface{} `json:"content,omitempty"`
 	Revision   string      `json:"revision,omitempty"`
 	URL        string      `json:"url,omitempty"`
 	ModifiedAt string      `json:"modifiedAt,omitempty"`
+}
+
+func (c *Entry) MarshalJSON() ([]byte, error) {
+	type Alias Entry
+	return json.Marshal(&struct {
+		Type string `json:"type"`
+		*Alias
+	}{
+		Type:  entryTypeValues[c.Type],
+		Alias: (*Alias)(c),
+	})
+}
+
+func (c *Entry) UnmarshalJSON(b []byte) error {
+	type Alias Entry
+	auxiliary := &struct {
+		Type string `json:"type"`
+		*Alias
+	}{
+		Alias: (*Alias)(c),
+	}
+
+	if err := json.Unmarshal(b, &auxiliary); err != nil {
+		return err
+	}
+	c.Type = entryTypeMap[auxiliary.Type]
+	return nil
 }
 
 // Commit represents a commit in the repository.
@@ -62,11 +97,36 @@ type CommitMessage struct {
 
 // Change represents a change to commit in the repository.
 type Change struct {
-	Path string `json:"path"`
-
-	// can be UPSERT_JSON, UPSERT_TEXT, REMOVE, RENAME, APPLY_JSON_PATCH or APPLY_TEXT_PATCH
-	Type    string      `json:"type"`
+	Path    string      `json:"path"`
+	Type    ChangeType  `json:"type"`
 	Content interface{} `json:"content,omitempty"`
+}
+
+func (c *Change) MarshalJSON() ([]byte, error) {
+	type Alias Change
+	return json.Marshal(&struct {
+		Type string `json:"type"`
+		*Alias
+	}{
+		Type:  changeTypeValues[c.Type],
+		Alias: (*Alias)(c),
+	})
+}
+
+func (c *Change) UnmarshalJSON(b []byte) error {
+	type Alias Change
+	auxiliary := &struct {
+		Type string `json:"type"`
+		*Alias
+	}{
+		Alias: (*Alias)(c),
+	}
+
+	if err := json.Unmarshal(b, &auxiliary); err != nil {
+		return err
+	}
+	c.Type = changeTypeMap[auxiliary.Type]
+	return nil
 }
 
 func (con *contentService) listFiles(ctx context.Context,
@@ -129,7 +189,7 @@ func (con *contentService) getFile(
 
 // getFileURLValues currently only supports JSON path.
 func getFileURLValues(v *url.Values, revision, path string, query *Query) error {
-	if query.QueryType == "json_path" {
+	if query.Type == JSONPath {
 		if err := setJSONPaths(v, path, query.Expressions); err != nil {
 			return err
 		}
@@ -233,7 +293,7 @@ func (con *contentService) getDiff(ctx context.Context,
 }
 
 func setDiffURLValues(v *url.Values, from, to, path string, query *Query) error {
-	if query != nil && query.QueryType == "json_path" {
+	if query != nil && query.Type == JSONPath {
 		if err := setJSONPaths(v, path, query.Expressions); err != nil {
 			return err
 		}
