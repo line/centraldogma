@@ -70,16 +70,6 @@ public class LoginAndLogoutTest {
                    .aggregate().join();
     }
 
-    static AggregatedHttpMessage loginWithClientCredentials(
-            CentralDogmaRule rule, String username, String password) {
-        return rule.httpClient().execute(
-                HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v0/authenticate",
-                               HttpHeaderNames.CONTENT_TYPE, MediaType.FORM_DATA.toString()),
-                "grant_type=client_credentials&client_id=" + username + "&client_secret=" + password,
-                StandardCharsets.US_ASCII).aggregate().join();
-    }
-
     static AggregatedHttpMessage logout(CentralDogmaRule rule, String sessionId) {
         return rule.httpClient().execute(
                 HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
@@ -126,11 +116,6 @@ public class LoginAndLogoutTest {
     @Test
     public void basicAuth() throws Exception { // grant_type=client_credentials with auth header
         loginAndLogout(loginWithBasicAuth(rule, USERNAME, PASSWORD));
-    }
-
-    @Test
-    public void clientCredentials() throws Exception { // grant_type=client_credentials
-        loginAndLogout(loginWithClientCredentials(rule, USERNAME, PASSWORD));
     }
 
     @Test

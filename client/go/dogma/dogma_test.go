@@ -79,16 +79,13 @@ func TestNewClient(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	c, _ := NewClient(server.URL, "foo", "bar")
-
 	mux.HandleFunc("/api/v0/authenticate", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "POST")
 		r.ParseForm()
-		testString(t, r.PostForm.Get("grant_type"), "client_credentials", "grant_type")
+		testString(t, r.PostForm.Get("grant_type"), "password", "grant_type")
 
-		username, password, _ := r.BasicAuth()
-		testString(t, username, "foo", "username")
-		testString(t, password, "bar", "password")
+		testString(t, r.PostForm.Get("username"), "foo", "username")
+		testString(t, r.PostForm.Get("password"), "bar", "password")
 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"access_token":"fdbe78b0-1d0c-4978-bbb1-9bc7106dad36","token_type":"Bearer"}`)
@@ -99,8 +96,9 @@ func TestNewClient(t *testing.T) {
 		testHeader(t, r, "Authorization", "Bearer fdbe78b0-1d0c-4978-bbb1-9bc7106dad36")
 	})
 
+	c, _ := NewClient(server.URL, "foo", "bar")
 	req, _ := c.newRequest("GET", "/test", nil)
-	// the request goes to the pathAuthenticate first to get the token, then goes to "/test"
+
 	res, _ := c.do(context.Background(), req, nil)
 	testStatus(t, res, 200)
 }

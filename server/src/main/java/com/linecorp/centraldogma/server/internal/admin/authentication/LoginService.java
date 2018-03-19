@@ -145,21 +145,9 @@ public class LoginService extends AbstractHttpService {
         final Map<String, List<String>> parameters = new QueryStringDecoder(
                 req.content().toStringUtf8(), false).parameters();
 
-        if (parameters.get("grant_type") != null &&
-            parameters.get("grant_type").get(0).equals("client_credentials")) {
-
-            final List<String> clientIds = parameters.get("client_id");
-            final List<String> clientSecrets = parameters.get("client_secret");
-            return usernamePassword(clientIds, clientSecrets);
-        } else {
-            // assume that the grant_type is "password"
-            final List<String> usernames = parameters.get("username");
-            final List<String> passwords = parameters.get("password");
-            return usernamePassword(usernames, passwords);
-        }
-    }
-
-    private static UsernamePasswordToken usernamePassword(List<String> usernames, List<String> passwords) {
+        // assume that the grant_type is "password"
+        final List<String> usernames = parameters.get("username");
+        final List<String> passwords = parameters.get("password");
         if (usernames != null && passwords != null) {
             final String username = usernames.get(0);
             final String password = passwords.get(0);

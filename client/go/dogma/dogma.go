@@ -19,12 +19,12 @@ Usage:
 
 	import "github.com/line/centraldogma/client/go"
 
-Create a client with the clientID and clientSecret, then use the client to access the
+Create a client with the username and password, then use the client to access the
 Central Dogma HTTP APIs. For example:
 
-	clientId := "foo"
-	clientSecret := "bar"
-	client, err := dogma.NewClient("http://localhost:36462", clientId, clientSecret)
+	username := "foo"
+	password := "bar"
+	client, err := dogma.NewClient("http://localhost:36462", username, password)
 
 	projects, res, err := client.ListProjects(context.Background())
 
@@ -38,13 +38,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/oauth2/clientcredentials"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -77,16 +78,20 @@ type service struct {
 	client *Client
 }
 
-// NewClient returns a Central Dogma client with the specified baseURL, clientID and clientSecret.
-func NewClient(baseURL string, clientID, clientSecret string) (*Client, error) {
+// NewClient returns a Central Dogma client with the specified baseURL, username and password.
+func NewClient(baseURL, username, password string) (*Client, error) {
 	normalizedURL, err := normalizeURL(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	config := clientcredentials.Config{ClientID: clientID, ClientSecret: clientSecret,
-		TokenURL: normalizedURL.String() + pathAuthenticate}
-	return newClientWithHTTPClient(normalizedURL.String(), config.Client(context.Background()))
+	config := oauth2.Config{Endpoint: oauth2.Endpoint{TokenURL: normalizedURL.String() + pathAuthenticate}}
+	token, err := config.PasswordCredentialsToken(context.Background(), username, password)
+	if err != nil {
+		return nil, err
+	}
+
+	return newClientWithHTTPClient(normalizedURL.String(), config.Client(context.Background(), token))
 }
 
 // newClientWithHTTPClient returns a Central Dogma client with the specified baseURL and client.
