@@ -43,7 +43,8 @@ defaults:
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
       "accessLogFormat": "common",
-      "administrators": []
+      "administrators": [],
+      "caseSensitiveLoginNames": false
     }
 
 Core properties
@@ -193,6 +194,11 @@ Core properties
   - login IDs of the administrators. They are valid only if ``securityEnabled`` is ``true``.
     Please refer to :ref:`auth` for more information.
 
+- ``caseSensitiveLoginNames`` (boolean)
+
+  - whether case-sensitive matching is performed when login names are compared. Disabled by default
+    (case-insensitive).
+
 .. _replication:
 
 Configuring replication
@@ -248,7 +254,8 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
       },
       "securityEnabled": false,
       "accessLogFormat": "common",
-      "administrators": []
+      "administrators": [],
+      "caseSensitiveLoginNames": false
     }
 
 - ``method`` (string)
@@ -330,7 +337,9 @@ in ``dogma.json`` as follows.
       "numMirroringThreads": null,
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
-      "accessLogFormat": "common"
+      "accessLogFormat": "common",
+      "administrators": [],
+      "caseSensitiveLoginNames": false
     }
 
 - ``tls``

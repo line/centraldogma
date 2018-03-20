@@ -30,5 +30,6 @@
   "accessLogFormat": "common",
   "administrators": [
     "admin"
-  ]
+  ],
+  "caseSensitiveLoginNames": false
 }

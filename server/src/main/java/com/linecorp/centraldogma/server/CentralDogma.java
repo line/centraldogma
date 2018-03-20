@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -520,6 +521,8 @@ public class CentralDogma {
                                   @Nullable CentralDogmaSecurityManager securityManager) {
         // TODO(hyangtack) Replace the prefix with something like "/api/web/" or "/api/admin/".
         final String apiV0PathPrefix = "/api/v0/";
+        final Function<String, String> loginNameNormalizer =
+                cfg.caseSensitiveLoginNames() ? Function.identity() : Ascii::toLowerCase;
 
         final MetadataService mds = new MetadataService(pm, executor);
 
@@ -528,7 +531,8 @@ public class CentralDogma {
 
         if (cfg.isSecurityEnabled()) {
             requireNonNull(securityManager, "securityManager");
-            sb.service(apiV0PathPrefix + "authenticate", new LoginService(securityManager, executor))
+            sb.service(apiV0PathPrefix + "authenticate",
+                       new LoginService(securityManager, executor, loginNameNormalizer))
               .service(apiV0PathPrefix + "logout", new LogoutService(securityManager, executor));
 
             sb.service("/security_enabled", new AbstractHttpService() {
@@ -577,7 +581,7 @@ public class CentralDogma {
 
         if (cfg.isSecurityEnabled()) {
             sb.annotatedService(API_V1_PATH_PREFIX,
-                                new MetadataApiService(mds), decorator,
+                                new MetadataApiService(mds, loginNameNormalizer), decorator,
                                 v1RequestConverter, v1ResponseConverter);
             sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(pm, executor, mds),
                                 decorator, v1RequestConverter, v1ResponseConverter);

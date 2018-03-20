@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -64,9 +65,11 @@ public class MetadataApiService {
             new TypeReference<Collection<Permission>>() {};
 
     private final MetadataService mds;
+    private final Function<String, String> loginNameNormalizer;
 
-    public MetadataApiService(MetadataService mds) {
+    public MetadataApiService(MetadataService mds, Function<String, String> loginNameNormalizer) {
         this.mds = requireNonNull(mds, "mds");
+        this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
     }
 
     /**
@@ -80,7 +83,8 @@ public class MetadataApiService {
                                                  @RequestObject IdentifierWithRole request,
                                                  @RequestObject Author author) {
         final ProjectRole role = toProjectRole(request.role());
-        return mds.addMember(author, projectName, new User(request.id()), role);
+        final User member = new User(loginNameNormalizer.apply(request.id()));
+        return mds.addMember(author, projectName, member, role);
     }
 
     /**
@@ -98,7 +102,7 @@ public class MetadataApiService {
                                                     @RequestObject Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/role");
         final ProjectRole role = ProjectRole.of(operation.value());
-        final User member = new User(urlDecode(memberId));
+        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
         return mds.getMember(projectName, member)
                   .thenCompose(unused -> mds.updateMemberRole(author, projectName, member, role));
     }
@@ -113,7 +117,7 @@ public class MetadataApiService {
     public CompletableFuture<Revision> removeMember(@Param("projectName") String projectName,
                                                     @Param("memberId") String memberId,
                                                     @RequestObject Author author) {
-        final User member = new User(urlDecode(memberId));
+        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
         return mds.getMember(projectName, member)
                   .thenCompose(unused -> mds.removeMember(author, projectName, member));
     }
@@ -194,7 +198,7 @@ public class MetadataApiService {
                                                                  @RequestObject IdentifierWithPermissions
                                                                          memberWithPermissions,
                                                                  @RequestObject Author author) {
-        final User member = new User(urlDecode(memberWithPermissions.id()));
+        final User member = new User(loginNameNormalizer.apply(memberWithPermissions.id()));
         return mds.addPerUserPermission(author, projectName, repoName,
                                         member, memberWithPermissions.permissions());
     }
@@ -215,10 +219,10 @@ public class MetadataApiService {
                                                                     @RequestObject Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
         final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
-        final User user = new User(urlDecode(memberId));
-        return mds.findPermissions(projectName, repoName, user)
+        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
+        return mds.findPermissions(projectName, repoName, member)
                   .thenCompose(unused -> mds.updatePerUserPermission(author,
-                                                                     projectName, repoName, user,
+                                                                     projectName, repoName, member,
                                                                      permissions));
     }
 
@@ -234,10 +238,10 @@ public class MetadataApiService {
                                                                     @Param("repoName") String repoName,
                                                                     @Param("memberId") String memberId,
                                                                     @RequestObject Author author) {
-        final User user = new User(urlDecode(memberId));
-        return mds.findPermissions(projectName, repoName, user)
+        final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
+        return mds.findPermissions(projectName, repoName, member)
                   .thenCompose(unused -> mds.removePerUserPermission(author, projectName,
-                                                                     repoName, user));
+                                                                     repoName, member));
     }
 
     /**
