@@ -1,5 +1,5 @@
 dependencies {
-    compile project(':client:java')
+    compile project(':client:java-armeria-legacy')
     compile project(':server')
     compile 'junit:junit'
 }

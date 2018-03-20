@@ -25,9 +25,9 @@ import javax.annotation.Nullable;
 
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 
+import com.linecorp.centraldogma.common.ProjectExistsException;
+import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
-import com.linecorp.centraldogma.server.internal.storage.StorageExistsException;
-import com.linecorp.centraldogma.server.internal.storage.StorageNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache;
 
 public class DefaultProjectManager extends DirectoryBasedStorageManager<Project> implements ProjectManager {
@@ -67,17 +67,17 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
 
     @Override
     protected void closeChild(File childDir, Project child) {
-        DefaultProject c = (DefaultProject) child;
+        final DefaultProject c = (DefaultProject) child;
         c.repos.close();
     }
 
     @Override
-    protected StorageExistsException newStorageExistsException(String name) {
+    protected RuntimeException newStorageExistsException(String name) {
         return new ProjectExistsException(name);
     }
 
     @Override
-    protected StorageNotFoundException newStorageNotFoundException(String name) {
+    protected RuntimeException newStorageNotFoundException(String name) {
         return new ProjectNotFoundException(name);
     }
 }

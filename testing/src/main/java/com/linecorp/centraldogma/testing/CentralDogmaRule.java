@@ -25,7 +25,9 @@ import com.linecorp.armeria.client.ClientFactoryBuilder;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -56,7 +58,7 @@ public class CentralDogmaRule extends TemporaryFolder {
 
     private static final InetSocketAddress TEST_PORT = new InetSocketAddress(NetUtil.LOCALHOST4, 0);
 
-    private boolean useTls;
+    private final boolean useTls;
     private com.linecorp.centraldogma.server.CentralDogma dogma;
     private CentralDogma client;
     private HttpClient httpClient;
@@ -167,8 +169,8 @@ public class CentralDogmaRule extends TemporaryFolder {
 
         serverAddress = dogma.activePort().get().localAddress();
 
-        final com.linecorp.centraldogma.client.CentralDogmaBuilder clientBuilder =
-                new com.linecorp.centraldogma.client.CentralDogmaBuilder();
+        final LegacyCentralDogmaBuilder clientBuilder =
+                new LegacyCentralDogmaBuilder();
 
         clientBuilder.host(serverAddress.getHostString(), serverAddress.getPort());
 
@@ -193,7 +195,7 @@ public class CentralDogmaRule extends TemporaryFolder {
     /**
      * Override this method to configure the client.
      */
-    protected void configureClient(com.linecorp.centraldogma.client.CentralDogmaBuilder builder) {}
+    protected void configureClient(AbstractCentralDogmaBuilder builder) {}
 
     /**
      * Override this method to perform the initial updates on the server, such as creating a repository and

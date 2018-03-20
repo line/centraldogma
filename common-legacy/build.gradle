@@ -1,0 +1,23 @@
+dependencies {
+    // Thrift
+    compile 'org.apache.thrift:libthrift'
+}
+
+tasks.compileThrift.doLast {
+    // Replace 'fromRevision' with 'from' (and 'toRevision' with 'to') because Thrift compiler
+    // does not let us use the parameter name 'from' complaining it's a reserved keyword.
+    // We can't rename it because renaming a field or a parameter is a backward-incompatible
+    // change in TText protocol.
+    project.fileTree("${project.projectDir}/gen-src/main/java") {
+        include '**/*.java'
+    }.each { sourceFile ->
+        def encoding = 'UTF-8'
+        def oldContent = sourceFile.getText(encoding)
+        def content = oldContent
+                .replaceAll('fromRevision', 'from')
+                .replaceAll('toRevision', 'to')
+        if (content != oldContent) {
+            sourceFile.write(content, encoding)
+        }
+    }
+}

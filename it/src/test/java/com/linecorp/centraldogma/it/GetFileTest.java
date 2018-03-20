@@ -16,25 +16,20 @@
 
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.ENTRY_NOT_FOUND;
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.PROJECT_NOT_FOUND;
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.QUERY_FAILURE;
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.REPOSITORY_NOT_FOUND;
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CompletionException;
 
-import org.apache.thrift.TException;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.QueryExecutionException;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.EntryNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNotFoundException;
 
 public class GetFileTest {
 
@@ -42,12 +37,11 @@ public class GetFileTest {
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
 
     @Test
-    public void testInvalidJsonPath() throws TException {
+    public void testInvalidJsonPath() {
         assertThatThrownBy(() -> rule.client().getFile(
                 rule.project(), rule.repo1(), Revision.HEAD,
                 Query.ofJsonPath("/test/test2.json", "$.non_exist_path")).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == QUERY_FAILURE);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(QueryExecutionException.class);
     }
 
     @Test
@@ -55,8 +49,7 @@ public class GetFileTest {
         assertThatThrownByWithExpectedException(EntryNotFoundException.class, "non_existing_file", () ->
                 rule.client().getFile(rule.project(), rule.repo1(), Revision.HEAD,
                                       Query.ofJsonPath("/test/non_existing_file.json", "$.a")).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == ENTRY_NOT_FOUND);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(EntryNotFoundException.class);
     }
 
     @Test
@@ -64,8 +57,7 @@ public class GetFileTest {
         assertThatThrownByWithExpectedException(RepositoryNotFoundException.class, "non_exist_repo", () ->
                 rule.client().getFile(rule.project(), "non_exist_repo", Revision.HEAD,
                                       Query.ofJsonPath("/test/test2.json", "$.a")).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REPOSITORY_NOT_FOUND);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RepositoryNotFoundException.class);
     }
 
     @Test
@@ -73,7 +65,6 @@ public class GetFileTest {
         assertThatThrownByWithExpectedException(ProjectNotFoundException.class, "non_exist_proj", () ->
                 rule.client().getFile("non_exist_proj", rule.repo1(), Revision.HEAD,
                                       Query.ofJsonPath("/test/test2.json", "$.non_exist_path")).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == PROJECT_NOT_FOUND);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ProjectNotFoundException.class);
     }
 }

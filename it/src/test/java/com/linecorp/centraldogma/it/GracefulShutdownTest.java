@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.it;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CompletableFuture;
@@ -28,8 +27,7 @@ import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
-import com.linecorp.centraldogma.internal.thrift.ErrorCode;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 
@@ -68,8 +66,6 @@ public class GracefulShutdownTest {
 
         assertThatThrownBy(future::join)
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(CentralDogmaException.class)
-                .satisfies(cause -> assertThat(((CentralDogmaException) cause.getCause()).getErrorCode())
-                        .isEqualTo(ErrorCode.SHUTTING_DOWN));
+                .hasCauseInstanceOf(ShuttingDownException.class);
     }
 }

@@ -18,13 +18,9 @@ package com.linecorp.centraldogma.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.List;
+import java.net.InetSocketAddress;
 
 import org.junit.Test;
-
-import com.linecorp.armeria.client.Endpoint;
-import com.linecorp.armeria.client.endpoint.EndpointGroup;
-import com.linecorp.armeria.client.endpoint.EndpointGroupRegistry;
 
 public class CentralDogmaBuilderTest {
 
@@ -63,58 +59,30 @@ public class CentralDogmaBuilderTest {
 
     @Test
     public void buildingWithProfile() {
-        final String groupName = "centraldogma-profile-foo";
-        final String notGroupName = "centraldogma-profile-qux";
-        try {
-            final CentralDogmaBuilder b = new CentralDogmaBuilder();
-            // The last valid profile should win, to be consistent with Spring Boot profiles.
-            b.profile("qux", "foo");
-            b.build();
-
-            final EndpointGroup group = EndpointGroupRegistry.get(groupName);
-            assertThat(group).isNotNull();
-            assertThat(EndpointGroupRegistry.get(notGroupName)).isNull();
-
-            final List<Endpoint> endpoints = group.endpoints();
-            assertThat(endpoints).isNotNull();
-            assertThat(endpoints).containsExactlyInAnyOrder(
-                    Endpoint.of("foo.com", 36462),
-                    Endpoint.of("bar.com", 8080));
-        } finally {
-            EndpointGroupRegistry.unregister(groupName);
-        }
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        // The last valid profile should win, to be consistent with Spring Boot profiles.
+        b.profile("qux", "foo");
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                InetSocketAddress.createUnresolved("foo.com", 36462),
+                InetSocketAddress.createUnresolved("bar.com", 8080));
     }
 
     @Test
     public void buildingWithSingleHost() {
-        final long id = CentralDogmaBuilder.nextAnonymousGroupId.get();
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.host("foo");
-        b.build();
-
-        // No new group should be registered.
-        assertThat(CentralDogmaBuilder.nextAnonymousGroupId).hasValue(id);
-        assertThat(EndpointGroupRegistry.get("centraldogma-anonymous-" + id)).isNull();
+        assertThat(b.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 36462));
     }
 
     @Test
     public void buildingWithMultipleHosts() {
-        final long id = CentralDogmaBuilder.nextAnonymousGroupId.get();
-        final String groupName = "centraldogma-anonymous-" + id;
-        try {
-            final CentralDogmaBuilder b = new CentralDogmaBuilder();
-            b.host("foo", 1);
-            b.host("bar", 2);
-            b.build();
-            assertThat(CentralDogmaBuilder.nextAnonymousGroupId).hasValue(id + 1);
-
-            final List<Endpoint> endpoints =
-                    EndpointGroupRegistry.get(groupName).endpoints();
-            assertThat(endpoints).isNotNull();
-            assertThat(endpoints).containsExactlyInAnyOrder(
-                    Endpoint.of("foo", 1), Endpoint.of("bar", 2));
-        } finally {
-            EndpointGroupRegistry.unregister(groupName);
-        }
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.host("foo", 1);
+        b.host("bar", 2);
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                InetSocketAddress.createUnresolved("foo", 1),
+                InetSocketAddress.createUnresolved("bar", 2));
     }
+
+    private static final class CentralDogmaBuilder extends AbstractCentralDogmaBuilder<CentralDogmaBuilder> {}
 }

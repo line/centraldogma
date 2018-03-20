@@ -16,12 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
@@ -35,7 +31,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.linecorp.centraldogma.server.internal.storage.StorageExistsException;
+import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -55,80 +52,71 @@ public class GitRepositoryManagerTest {
      */
     @Test
     public void testCreate() throws Exception {
-        GitRepositoryManager gitRepositoryManager = newRepositoryManager();
-        Repository repository = gitRepositoryManager.create(TEST_REPO);
-        assertTrue(repository instanceof GitRepository);
-
-        try {
-            gitRepositoryManager.create(TEST_REPO);
-            fail();
-        } catch (StorageExistsException ignored) {
-            // Expected
-        }
+        final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
+        final Repository repository = gitRepositoryManager.create(TEST_REPO);
+        assertThat(repository).isInstanceOf(GitRepository.class);
+        assertThatThrownBy(() -> gitRepositoryManager.create(TEST_REPO))
+                .isInstanceOf(RepositoryExistsException.class);
     }
 
     @Test
     public void testGet() throws Exception {
-        GitRepositoryManager gitRepositoryManager = newRepositoryManager();
-        assertThat(gitRepositoryManager.exists(TEST_REPO), is(false));
+        final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
+        assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
 
-        Repository repository = gitRepositoryManager.create(TEST_REPO);
-        assertTrue(repository instanceof GitRepository);
-        assertSame(repository, gitRepositoryManager.get(TEST_REPO));
-        assertSame(repository, gitRepositoryManager.get(TEST_REPO));
+        final Repository repository = gitRepositoryManager.create(TEST_REPO);
+        assertThat(repository).isInstanceOf(GitRepository.class);
+        assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repository);
+        assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repository);
     }
 
     @Test
     public void testGetAndHas() {
-        GitRepositoryManager gitRepositoryManager = newRepositoryManager();
-        assertFalse(gitRepositoryManager.exists(TEST_REPO));
-        Repository repo = gitRepositoryManager.create(TEST_REPO);
-        assertTrue(gitRepositoryManager.exists(TEST_REPO));
-        assertSame(repo, gitRepositoryManager.get(TEST_REPO));
+        final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
+        assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
+        final Repository repo = gitRepositoryManager.create(TEST_REPO);
+        assertThat(gitRepositoryManager.exists(TEST_REPO)).isTrue();
+        assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repo);
     }
 
     @Test
     public void testDelete() throws Exception {
-        GitRepositoryManager gitRepositoryManager = newRepositoryManager();
+        final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         gitRepositoryManager.create(TEST_REPO);
-        assertTrue(gitRepositoryManager.exists(TEST_REPO));
+        assertThat(gitRepositoryManager.exists(TEST_REPO)).isTrue();
         gitRepositoryManager.remove(TEST_REPO);
-        try {
-            gitRepositoryManager.remove(TEST_REPO);
-            fail();
-        } catch (Exception ignored) {
-            // Expected
-        }
-        assertTrue(!gitRepositoryManager.exists(TEST_REPO));
+        assertThatThrownBy(() -> gitRepositoryManager.remove(TEST_REPO))
+                .isInstanceOf(RepositoryNotFoundException.class);
+        assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
     }
 
     @Test
     public void testList() {
-        GitRepositoryManager gitRepositoryManager = newRepositoryManager();
-        int numRepoFiles = 1;
-        String repoNamePattern = "repo%d";
+        final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
+        final int numRepoFiles = 1;
+        final String repoNamePattern = "repo%d";
         for (int i = 0; i < numRepoFiles; i++) {
-            String targetRepoName = String.format(repoNamePattern, i);
+            final String targetRepoName = String.format(repoNamePattern, i);
             gitRepositoryManager.create(targetRepoName);
         }
 
-        int numDummyFiles = 1;
+        final int numDummyFiles = 1;
         for (int i = 0; i < numDummyFiles; i++) {
             if (!Paths.get(rootDir.getRoot().toString(), String.format("dummyDir%d", i)).toFile().mkdirs()) {
                 fail("failed to test on testList");
             }
         }
 
-        Map<String, Repository> repoNameList = gitRepositoryManager.list();
-        assertEquals(numRepoFiles, repoNameList.size());
+        final Map<String, Repository> repoNameList = gitRepositoryManager.list();
+        assertThat(repoNameList).hasSize(numRepoFiles);
     }
 
     @Test
     public void testHas() throws IOException {
-        GitRepositoryManager gitRepositoryManager = newRepositoryManager();
-        assertTrue(!gitRepositoryManager.exists(TEST_REPO));
+        final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
+        assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
         gitRepositoryManager.create(TEST_REPO);
-        assertTrue(gitRepositoryManager.exists(TEST_REPO));
+        assertThat(gitRepositoryManager.exists(TEST_REPO)).isTrue();
         gitRepositoryManager.remove(TEST_REPO);
     }
 

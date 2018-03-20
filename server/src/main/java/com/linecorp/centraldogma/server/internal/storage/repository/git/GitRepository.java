@@ -85,12 +85,17 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.RedundantChangeException;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
@@ -98,11 +103,8 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
-import com.linecorp.centraldogma.server.internal.storage.repository.RedundantChangeException;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
-import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotFoundException;
 
 import difflib.DiffUtils;
 import difflib.Patch;
@@ -247,7 +249,7 @@ class GitRepository implements Repository {
         try {
             jGitRepository = repositoryBuilder.build();
             if (!exist(repoDir)) {
-                throw new StorageException("failed to open a repository at: " + repoDir + " (does not exist)");
+                throw new RepositoryNotFoundException(repoDir.toString());
             }
 
             // Retrieve the tag format.
@@ -471,7 +473,7 @@ class GitRepository implements Repository {
             }
 
             return Util.unsafeCast(result);
-        } catch (StorageException e) {
+        } catch (CentralDogmaException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException(
@@ -554,7 +556,7 @@ class GitRepository implements Repository {
             }
 
             return commitList;
-        } catch (StorageException e) {
+        } catch (CentralDogmaException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException(
@@ -842,7 +844,7 @@ class GitRepository implements Repository {
             doRefUpdate(revWalk, R_HEADS_MASTER, nextCommitId);
 
             return new CommitResult(nextRevision, prevTreeId, nextTreeId);
-        } catch (IllegalArgumentException | StorageException e) {
+        } catch (CentralDogmaException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException("failed to push at " + jGitRepository, e);
@@ -1038,7 +1040,7 @@ class GitRepository implements Repository {
                     break;
                 }
             }
-        } catch (StorageException | IllegalArgumentException e) {
+        } catch (CentralDogmaException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException("failed to apply changes on revision " + baseRevision, e);
@@ -1298,7 +1300,7 @@ class GitRepository implements Repository {
                 RevCommit revCommit = revWalk.parseCommit(headRevisionId);
                 return CommitUtil.extractRevision(revCommit.getFullMessage());
             }
-        } catch (StorageException e) {
+        } catch (CentralDogmaException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException("failed to get the current revision", e);

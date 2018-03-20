@@ -32,10 +32,10 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.ProjectExistsException;
+import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectExistsException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryExistsException;
 
 // TODO(trustin): Generate more useful set of sample files.
 public final class ProjectInitializer {

@@ -27,20 +27,17 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
+import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.ProjectExistsException;
+import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.RedundantChangeException;
+import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
-import com.linecorp.centraldogma.server.internal.storage.StorageExistsException;
-import com.linecorp.centraldogma.server.internal.storage.StorageNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectExistsException;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
-import com.linecorp.centraldogma.server.internal.storage.repository.EntryNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RedundantChangeException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryExistsException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RevisionExistsException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotFoundException;
 
 /**
  * A default {@link ExceptionHandlerFunction} of HTTP API.
@@ -50,7 +47,7 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
     /**
      * A map of exception handler functions for the classes which inherit {@link StorageException}.
      */
-    private final Map<Class<?>, ExceptionHandlerFunction> storageExceptionHandlers =
+    private final Map<Class<?>, ExceptionHandlerFunction> exceptionHandlers =
             ImmutableMap.<Class<?>, ExceptionHandlerFunction>builder()
                     .put(ChangeConflictException.class, HttpApiExceptionHandler::handleConflict)
                     .put(EntryNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
@@ -60,10 +57,7 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                     .put(RepositoryExistsException.class, HttpApiExceptionHandler::handleExists)
                     .put(RepositoryMetadataException.class, HttpApiExceptionHandler::fallthrough)
                     .put(RepositoryNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
-                    .put(RevisionExistsException.class, HttpApiExceptionHandler::fallthrough)
                     .put(RevisionNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
-                    .put(StorageExistsException.class, HttpApiExceptionHandler::handleExists)
-                    .put(StorageNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
                     .put(TokenNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
                     .build();
 
@@ -77,12 +71,10 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
             return HttpResponse.of(HttpStatus.BAD_REQUEST);
         }
 
-        if (cause instanceof StorageException) {
-            // Use precomputed map if the cause is instance of StorageException to access in a faster way.
-            final ExceptionHandlerFunction func = storageExceptionHandlers.get(cause.getClass());
-            if (func != null) {
-                return func.handleException(ctx, req, cause);
-            }
+        // Use precomputed map if the cause is instance of CentralDogmaException to access in a faster way.
+        final ExceptionHandlerFunction func = exceptionHandlers.get(cause.getClass());
+        if (func != null) {
+            return func.handleException(ctx, req, cause);
         }
 
         return ExceptionHandlerFunction.fallthrough();

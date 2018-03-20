@@ -24,9 +24,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
 
+import com.linecorp.centraldogma.common.ProjectExistsException;
+import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.plugin.PluginManager;
-import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
@@ -48,11 +49,11 @@ class DefaultProject implements Project {
 
         if (create) {
             if (rootDir.exists()) {
-                throw new StorageException("project exists already: " + rootDir);
+                throw new ProjectExistsException(rootDir.toString());
             }
         } else {
             if (!rootDir.exists()) {
-                throw new StorageException("non-existent project: " + rootDir);
+                throw new ProjectNotFoundException(rootDir.toString());
             }
         }
 

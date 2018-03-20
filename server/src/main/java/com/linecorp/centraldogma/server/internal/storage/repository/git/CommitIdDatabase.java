@@ -40,8 +40,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotFoundException;
 
 /**
  * Simple file-based database of {@link Revision}-to-{@link ObjectId} mappings.
@@ -261,8 +261,6 @@ final class CommitIdDatabase implements AutoCloseable {
 
             // All commit IDs except the head have been stored. Store the head finally.
             put(headRevision, headCommitId);
-        } catch (StorageException e) {
-            throw e;
         } catch (Exception e) {
             throw new StorageException("failed to rebuild the commit ID database", e);
         }

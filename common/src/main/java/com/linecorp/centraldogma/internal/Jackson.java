@@ -47,7 +47,8 @@ import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
 
-import com.linecorp.centraldogma.common.QueryException;
+import com.linecorp.centraldogma.common.QueryExecutionException;
+import com.linecorp.centraldogma.common.QuerySyntaxException;
 
 public final class Jackson {
 
@@ -188,14 +189,14 @@ public final class Jackson {
         try {
             compiledJsonPath = JsonPath.compile(jsonPath);
         } catch (Exception e) {
-            throw new QueryException("invalid JSON path: " + jsonPath, e);
+            throw new QuerySyntaxException("invalid JSON path: " + jsonPath, e);
         }
 
         try {
             return JsonPath.parse(jsonNode, Configuration.defaultConfiguration())
                            .read(compiledJsonPath, JsonNode.class);
         } catch (Exception e) {
-            throw new QueryException("JSON path evaluation failed: " + jsonPath, e);
+            throw new QueryExecutionException("JSON path evaluation failed: " + jsonPath, e);
         }
     }
 

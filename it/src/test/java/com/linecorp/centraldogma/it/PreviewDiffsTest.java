@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.CHANGE_CONFLICT;
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.REVISION_NOT_FOUND;
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,11 +28,10 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
-import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotFoundException;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
 public class PreviewDiffsTest {
 
@@ -48,8 +45,7 @@ public class PreviewDiffsTest {
                                                     "{ \"a\": \"apple\" }", "{ \"a\": \"angle\" }");
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "/test/new_json_file.json", () ->
                 rule.client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, change).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == CHANGE_CONFLICT);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
     }
 
     @Test
@@ -58,8 +54,7 @@ public class PreviewDiffsTest {
         final Change<?> change = Change.ofRemoval("/non_existent_path.txt");
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "non_existent_path.txt", () ->
                 rule.client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, change).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == CHANGE_CONFLICT);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
     }
 
     @Test
@@ -68,8 +63,7 @@ public class PreviewDiffsTest {
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "2147483647", () ->
                 rule.client().getPreviewDiffs(
                         rule.project(), rule.repo1(), new Revision(Integer.MAX_VALUE), change).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REVISION_NOT_FOUND);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RevisionNotFoundException.class);
     }
 
     @Test

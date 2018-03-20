@@ -16,9 +16,6 @@
 
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.BAD_REQUEST;
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.REPOSITORY_EXISTS;
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.REPOSITORY_NOT_FOUND;
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,10 +28,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.client.RepositoryInfo;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Commit;
-import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryExistsException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 
 public class RepositoryManagementTest {
 
@@ -62,20 +59,18 @@ public class RepositoryManagementTest {
     public void testCreateRepositoryFailures() throws Exception {
         assertThatThrownByWithExpectedException(RepositoryExistsException.class, "repository: r", () ->
                 rule.client().createRepository(rule.project(), rule.repo1()).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REPOSITORY_EXISTS);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RepositoryExistsException.class);
 
         assertThatThrownByWithExpectedException(RepositoryExistsException.class, "repository: rr", () ->
                 // It is not allowed to create a new repository whose name is same with the removed repository.
                 rule.client().createRepository(rule.project(), rule.removedRepo()).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REPOSITORY_EXISTS);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RepositoryExistsException.class);
 
         assertThatThrownByWithExpectedException(
                 IllegalArgumentException.class, "invalid repository name: ..", () ->
                         rule.client().createRepository(rule.project(), "..").join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == BAD_REQUEST);
+                .matches(e -> e.getCause().getMessage().contains("bad request"));
     }
 
     @Test
@@ -83,8 +78,7 @@ public class RepositoryManagementTest {
         assertThatThrownByWithExpectedException(
                 RepositoryNotFoundException.class, "repository: mr", () ->
                         rule.client().removeRepository(rule.project(), rule.missingRepo()).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REPOSITORY_NOT_FOUND);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RepositoryNotFoundException.class);
     }
 
     @Test

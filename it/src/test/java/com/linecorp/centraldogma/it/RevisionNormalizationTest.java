@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.internal.thrift.ErrorCode.REVISION_NOT_FOUND;
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,8 +25,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotFoundException;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
 public class RevisionNormalizationTest {
 
@@ -52,8 +50,7 @@ public class RevisionNormalizationTest {
         final Revision outOfRange = new Revision(Integer.MAX_VALUE);
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "2147483647", () ->
                 rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REVISION_NOT_FOUND);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RevisionNotFoundException.class);
     }
 
     @Test
@@ -71,7 +68,6 @@ public class RevisionNormalizationTest {
         final Revision outOfRange = new Revision(Integer.MIN_VALUE);
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "-2147483648", () ->
                 rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> ((CentralDogmaException) e.getCause()).getErrorCode() == REVISION_NOT_FOUND);
+                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RevisionNotFoundException.class);
     }
 }

@@ -16,15 +16,24 @@
 
 package com.linecorp.centraldogma.server.internal.thrift;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.linecorp.centraldogma.common.QueryException;
+import javax.annotation.Nullable;
+
+import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.ProjectExistsException;
+import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.QueryExecutionException;
+import com.linecorp.centraldogma.common.RedundantChangeException;
+import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.internal.thrift.Author;
 import com.linecorp.centraldogma.internal.thrift.AuthorConverter;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
@@ -45,19 +54,11 @@ import com.linecorp.centraldogma.internal.thrift.QueryConverter;
 import com.linecorp.centraldogma.internal.thrift.Repository;
 import com.linecorp.centraldogma.internal.thrift.Revision;
 import com.linecorp.centraldogma.internal.thrift.RevisionConverter;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectExistsException;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
-import com.linecorp.centraldogma.server.internal.storage.repository.EntryNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RedundantChangeException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryExistsException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RevisionExistsException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotFoundException;
 
 final class Converter {
 
-    static <T, U> List<T> convert(Collection<U> list, Function<U, T> mapper) {
+    @Nullable
+    static <T, U> List<T> convert(@Nullable Collection<U> list, Function<U, T> mapper) {
         if (list == null) {
             return null;
         }
@@ -125,7 +126,8 @@ final class Converter {
     ////////////////
 
     ////// ChangeType
-    static ChangeType convert(com.linecorp.centraldogma.common.ChangeType type) {
+    @Nullable
+    static ChangeType convert(@Nullable com.linecorp.centraldogma.common.ChangeType type) {
         if (type == null) {
             return null;
         }
@@ -164,10 +166,7 @@ final class Converter {
 
     ////// CentralDogmaException
     static CentralDogmaException convert(Throwable t) {
-        if ((t instanceof InvocationTargetException ||
-             t instanceof CompletionException) && t.getCause() != null) {
-            t = t.getCause();
-        }
+        t = Exceptions.peel(t);
 
         if (t instanceof CentralDogmaException) {
             return (CentralDogmaException) t;
@@ -180,9 +179,7 @@ final class Converter {
             code = ErrorCode.ENTRY_NOT_FOUND;
         } else if (t instanceof RevisionNotFoundException) {
             code = ErrorCode.REVISION_NOT_FOUND;
-        } else if (t instanceof RevisionExistsException) {
-            code = ErrorCode.REVISION_EXISTS;
-        } else if (t instanceof QueryException) {
+        } else if (t instanceof QueryExecutionException) {
             code = ErrorCode.QUERY_FAILURE;
         } else if (t instanceof RedundantChangeException) {
             code = ErrorCode.REDUNDANT_CHANGE;

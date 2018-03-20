@@ -31,6 +31,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.base.Throwables;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -62,7 +63,7 @@ final class CachingRepository implements Repository {
             final List<Commit> history = repo.history(Revision.INIT, Revision.INIT, ALL_PATH, 1).join();
             firstCommit = history.get(0);
         } catch (CompletionException e) {
-            final Throwable cause = Throwables.getRootCause(e);
+            final Throwable cause = Exceptions.peel(e);
             Throwables.throwIfUnchecked(cause);
             throw new StorageException("failed to retrieve the initial commit", cause);
         }
