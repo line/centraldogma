@@ -42,6 +42,8 @@ import org.junit.rules.TemporaryFolder;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
@@ -93,7 +95,8 @@ public class ReplicatedLoginAndLogoutTest {
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount + 1);
 
         // Ensure authorization works at the 2nd replica.
-        final String sessionId = loginRes.content().toStringAscii();
+        final AccessToken accessToken = Jackson.readValue(loginRes.content().toStringUtf8(), AccessToken.class);
+        final String sessionId = accessToken.accessToken();
         await().pollDelay(Duration.TWO_HUNDRED_MILLISECONDS)
                .pollInterval(Duration.ONE_SECOND)
                .untilAsserted(() -> assertThat(usersMe(replica2, sessionId).status()).isEqualTo(HttpStatus.OK));

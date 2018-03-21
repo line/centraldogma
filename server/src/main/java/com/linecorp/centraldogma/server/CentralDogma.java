@@ -73,6 +73,7 @@ import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSecurityManager;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CsrfTokenAuthorizer;
@@ -524,6 +525,7 @@ public class CentralDogma {
 
         final Function<Service<HttpRequest, HttpResponse>,
                 ? extends Service<HttpRequest, HttpResponse>> decorator;
+
         if (cfg.isSecurityEnabled()) {
             requireNonNull(securityManager, "securityManager");
             sb.service(apiV0PathPrefix + "authenticate", new LoginService(securityManager, executor))
@@ -544,6 +546,12 @@ public class CentralDogma {
             decorator = MetadataServiceInjector.newDecorator(mds)
                                                .andThen(HttpAuthService.newDecorator(ata, sta));
         } else {
+            // If the security is not enabled, '/api/v0/authenticate' will return the 'anonymous' token.
+            sb.service(apiV0PathPrefix + "authenticate", (ServiceRequestContext ctx, HttpRequest req) -> {
+                final AccessToken accessToken = new AccessToken(CsrfToken.ANONYMOUS, Integer.MAX_VALUE);
+                return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
+                                       Jackson.writeValueAsBytes(accessToken));
+            });
             decorator = MetadataServiceInjector.newDecorator(mds)
                                                .andThen(HttpAuthService.newDecorator(
                                                        new CsrfTokenAuthorizer()));

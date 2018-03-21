@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.server.internal.admin.authentication;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Base64.Encoder;
 
 import org.apache.shiro.config.Ini;
 import org.junit.Rule;
@@ -29,6 +31,8 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
@@ -38,6 +42,8 @@ public class LoginAndLogoutTest {
     static final String PASSWORD = "bar";
     static final String WRONG_PASSWORD = "baz";
     static final String WRONG_SESSION_ID = "00000000-0000-0000-0000-000000000000";
+
+    private static final Encoder encoder = Base64.getEncoder();
 
     static Ini newSecurityConfig() {
         final Ini ini = new Ini();
@@ -50,8 +56,18 @@ public class LoginAndLogoutTest {
                 HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
                                HttpHeaderNames.PATH, "/api/v0/authenticate",
                                HttpHeaderNames.CONTENT_TYPE, MediaType.FORM_DATA.toString()),
-                "username=" + username + "&password=" + password + "&remember_me=true",
+                "grant_type=password&username=" + username + "&password=" + password,
                 StandardCharsets.US_ASCII).aggregate().join();
+    }
+
+    static AggregatedHttpMessage loginWithBasicAuth(
+            CentralDogmaRule rule, String username, String password) {
+        return rule.httpClient().execute(
+                HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
+                               HttpHeaderNames.PATH, "/api/v0/authenticate",
+                               HttpHeaderNames.AUTHORIZATION, "basic " + encoder.encodeToString(
+                                       (USERNAME + ':' + PASSWORD).getBytes(StandardCharsets.US_ASCII))))
+                   .aggregate().join();
     }
 
     static AggregatedHttpMessage logout(CentralDogmaRule rule, String sessionId) {
@@ -80,18 +96,26 @@ public class LoginAndLogoutTest {
     };
 
     @Test
-    public void loginAndLogout() throws Exception {
-        // Log in.
-        final AggregatedHttpMessage loginRes = login(rule, USERNAME, PASSWORD);
+    public void password() throws Exception { // grant_type=password
+        loginAndLogout(login(rule, USERNAME, PASSWORD));
+    }
+
+    private void loginAndLogout(AggregatedHttpMessage loginRes) throws Exception {
         assertThat(loginRes.status()).isEqualTo(HttpStatus.OK);
 
         // Ensure authorization works.
-        final String sessionId = loginRes.content().toStringAscii();
+        final AccessToken accessToken = Jackson.readValue(loginRes.content().toStringUtf8(), AccessToken.class);
+        final String sessionId = accessToken.accessToken();
         assertThat(usersMe(rule, sessionId).status()).isEqualTo(HttpStatus.OK);
 
         // Log out.
         assertThat(logout(rule, sessionId).status()).isEqualTo(HttpStatus.OK);
         assertThat(usersMe(rule, sessionId).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    public void basicAuth() throws Exception { // grant_type=client_credentials with auth header
+        loginAndLogout(loginWithBasicAuth(rule, USERNAME, PASSWORD));
     }
 
     @Test

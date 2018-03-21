@@ -16,14 +16,13 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.CONTENTS;
-import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
-import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.Iterables;
+import javax.annotation.Nullable;
 
+import com.google.common.collect.ImmutableList;
+
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
@@ -32,10 +31,10 @@ import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitDto;
+import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
-import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -59,44 +58,48 @@ final class DtoConverter {
                                  repository.creationTimeMillis());
     }
 
-    public static <T> EntryDto<T> convert(Entry<T> entry) {
-        return new EntryDto<T>(entry);
+    public static <T> EntryDto<T> convert(Repository repository, Entry<T> entry) {
+        requireNonNull(entry, "entry");
+        return convert(repository, entry.path(), entry.type(), entry.content());
     }
 
-    public static <T> EntryDto<T> convert(QueryResult<T> result, String path) {
+    public static <T> EntryDto<T> convert(Repository repository, QueryResult<T> result, String path) {
         requireNonNull(result, "result");
-        return new EntryDto<>(path, result.type(), result.content());
+        return convert(repository, path, result.type(), result.content());
     }
 
-    public static EntryDto<?> convert(Revision revision, String projectName, String repoName, String path,
-                                   EntryType type, long commitTimeMillis) {
-        return new EntryDto(path, type, projectName, repoName, revision, commitTimeMillis);
+    public static <T> EntryDto<T> convert(Repository repository, String path, EntryType type) {
+        return convert(repository, path, type, null);
+    }
+
+    public static <T> EntryDto<T> convert(Repository repository, String path, EntryType type,
+                                          @Nullable T content) {
+        requireNonNull(repository, "repository");
+        return new EntryDto<T>(requireNonNull(path, "path"), requireNonNull(type, "type"),
+                               repository.parent().name(), repository.name(), content);
     }
 
     public static CommitDto convert(Commit commit) {
-        return new CommitDto(commit);
+        return convert(commit, ImmutableList.of());
+    }
+
+    public static CommitDto convert(Commit commit, Iterable<EntryDto<?>> entries) {
+        requireNonNull(commit, "commit");
+        requireNonNull(entries, "entries");
+
+        return convert(commit.revision(), commit.author(),
+                       new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
+                       commit.when(), entries);
+    }
+
+    public static CommitDto convert(Revision revision, Author author, CommitMessageDto commitMessage,
+                                    long commitTimeMillis, Iterable<EntryDto<?>> entries) {
+        return new CommitDto(revision, author, commitMessage, commitTimeMillis, ImmutableList.copyOf(entries));
     }
 
     public static <T> ChangeDto<T> convert(Change<T> change) {
         requireNonNull(change, "change");
         return new ChangeDto<>(change.path(), change.type(), change.content());
-    }
-
-    public static WatchResultDto convert(Commit commit, Iterable<Entry<?>> entries,
-                                         String projectName, String repoName) {
-        requireNonNull(entries, "entries");
-        requireNonNull(projectName, "projectName");
-        requireNonNull(repoName, "repoName");
-
-        checkArgument(Iterables.size(entries) >= 1, "should have at least one entry.");
-
-        final String contentsUrl = contentsUrl(projectName, repoName) + Iterables.get(entries, 0).path();
-        return new WatchResultDto(convert(commit), contentsUrl);
-    }
-
-    // TODO(minwoox) replace with URI template processor implementing RFC6570
-    private static String contentsUrl(String projectName, String repoName) {
-        return PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName + CONTENTS;
     }
 
     private DtoConverter() {}

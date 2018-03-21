@@ -12,11 +12,13 @@ angular.module('CentralDogmaAdmin')
                      headers: {
                        'Content-Type': 'application/x-www-form-urlencoded'
                      }
-                   }).then(function (sessionId) {
-                     if (sessionId !== null) {
-                       $window.localStorage.setItem('sessionId', sessionId);
+                   }).then(function (accessToken) {
+                     if (accessToken === null || angular.isUndefined(accessToken.access_token) ||
+                         accessToken.access_token === null) {
+                       return null;
                      }
-                     return sessionId;
+                     $window.localStorage.setItem('sessionId', accessToken.access_token);
+                     return accessToken.access_token
                    });
                  },
 

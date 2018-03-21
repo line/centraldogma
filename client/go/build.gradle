@@ -31,6 +31,12 @@ dependencies {
             transitive = false
         }
         build name: 'golang.org/x/sys', url: 'https://github.com/golang/sys', commit: '314a259e304ff91bd6985da2a7149bbf91237993'
+        build(name: 'golang.org/x/oauth2', url: 'https://github.com/golang/oauth2', commit: '2f32c3ac0fa4fb807a0fcefb0b6f2468a0d99bd0') {
+            transitive = false
+        }
+        build(name: 'golang.org/x/net', url: 'https://go.googlesource.com/net', commit: 'd0aafc73d5cdc42264b0af071c261abac580695e') {
+            transitive = false
+        }
     }
 }
 

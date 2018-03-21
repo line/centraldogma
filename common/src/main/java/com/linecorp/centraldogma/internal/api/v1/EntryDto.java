@@ -19,14 +19,10 @@ package com.linecorp.centraldogma.internal.api.v1;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
-import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 import static java.util.Objects.requireNonNull;
-
-import java.time.Instant;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -34,9 +30,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
-import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
-import com.linecorp.centraldogma.common.Revision;
 
 @JsonInclude(Include.NON_NULL)
 public class EntryDto<T> {
@@ -47,17 +41,9 @@ public class EntryDto<T> {
 
     private final T content;
 
-    private Revision revision;
-
     private String url;
 
-    private String modifiedAt;
-
-    public EntryDto(Entry<T> entry) {
-        this(requireNonNull(entry, "entry").path(), entry.type(), entry.content());
-    }
-
-    public EntryDto(String path, EntryType type, T content) {
+    public EntryDto(String path, EntryType type, String projectName, String repoName, @Nullable T content) {
         this.path = requireNonNull(path, "path");
         this.type = requireNonNull(type, "type");
         if (content instanceof NullNode || (content instanceof String && isNullOrEmpty((String) content))) {
@@ -65,17 +51,7 @@ public class EntryDto<T> {
         } else {
             this.content = content;
         }
-    }
-
-    @JsonCreator
-    public EntryDto(String path, EntryType type, String projectName, String repoName, Revision revision,
-                    long commitTimeMillis) {
-        this.path = requireNonNull(path, "path");
-        this.type = requireNonNull(type, "type");
-        this.content = null;
-        this.revision = requireNonNull(revision, "revision");
         url = PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName + path;
-        modifiedAt = ISO_INSTANT.format(Instant.ofEpochMilli(commitTimeMillis));
     }
 
     @JsonProperty("path")
@@ -94,22 +70,10 @@ public class EntryDto<T> {
         return content;
     }
 
-    @JsonProperty("revision")
-    @Nullable
-    public Revision revision() {
-        return revision;
-    }
-
     @JsonProperty("url")
     @Nullable
     public String url() {
         return url;
-    }
-
-    @JsonProperty("modifiedAt")
-    @Nullable
-    public String modifiedAt() {
-        return modifiedAt;
     }
 
     @Override
@@ -119,14 +83,6 @@ public class EntryDto<T> {
                                                        .add("type", type());
         if (content() != null) {
             stringHelper.add("content", content());
-        }
-
-        if (revision() != null) {
-            stringHelper.add("revision", revision());
-        }
-
-        if (modifiedAt() != null) {
-            stringHelper.add("modifiedAt", modifiedAt());
         }
 
         return stringHelper.toString();
