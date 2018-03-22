@@ -105,6 +105,9 @@ final class CentralDogmaConfig {
     // Administrator
     private final Set<String> administrators;
 
+    // Whether case-sensitive matching is performed when login names are compared
+    private final boolean caseSensitiveLoginNames;
+
     CentralDogmaConfig(@JsonProperty(value = "dataDir", required = true) File dataDir,
                        @JsonProperty(value = "ports", required = true)
                        @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
@@ -129,7 +132,8 @@ final class CentralDogmaConfig {
                        @JsonProperty("securityEnabled") Boolean securityEnabled,
                        @JsonProperty("csrfTokenRequiredForThrift") Boolean csrfTokenRequiredForThrift,
                        @JsonProperty("accessLogFormat") String accessLogFormat,
-                       @JsonProperty("administrators") Set<String> administrators) {
+                       @JsonProperty("administrators") Set<String> administrators,
+                       @JsonProperty("caseSensitiveLoginNames") Boolean caseSensitiveLoginNames) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -167,6 +171,7 @@ final class CentralDogmaConfig {
         this.accessLogFormat = accessLogFormat;
         this.administrators = administrators != null ? ImmutableSet.copyOf(administrators)
                                                      : ImmutableSet.of();
+        this.caseSensitiveLoginNames = firstNonNull(caseSensitiveLoginNames, false);
     }
 
     @JsonProperty
@@ -282,8 +287,14 @@ final class CentralDogmaConfig {
         return accessLogFormat;
     }
 
+    @JsonProperty
     Set<String> administrators() {
         return administrators;
+    }
+
+    @JsonProperty
+    boolean caseSensitiveLoginNames() {
+        return caseSensitiveLoginNames;
     }
 
     @Override

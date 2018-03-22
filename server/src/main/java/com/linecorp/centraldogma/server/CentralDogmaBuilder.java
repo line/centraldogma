@@ -85,6 +85,7 @@ public final class CentralDogmaBuilder {
     private Ini securityConfig;
     private String accessLogFormat;
     private final ImmutableSet.Builder<String> administrators = new Builder<>();
+    private boolean caseSensitiveLoginNames;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -336,6 +337,14 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets whether case-sensitive matching is performed when login names are compared.
+     */
+    public CentralDogmaBuilder caseSensitiveLoginNames(boolean caseSensitiveLoginNames) {
+        this.caseSensitiveLoginNames = caseSensitiveLoginNames;
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -353,6 +362,6 @@ public final class CentralDogmaBuilder {
                                       mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
                                       securityConfig != null, null,
-                                      accessLogFormat, administrators.build());
+                                      accessLogFormat, administrators.build(), caseSensitiveLoginNames);
     }
 }

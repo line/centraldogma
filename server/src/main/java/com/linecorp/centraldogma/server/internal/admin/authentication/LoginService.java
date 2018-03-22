@@ -23,6 +23,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import org.apache.shiro.authc.IncorrectCredentialsException;
 import org.apache.shiro.authc.UsernamePasswordToken;
@@ -61,10 +62,13 @@ public class LoginService extends AbstractHttpService {
 
     private final CentralDogmaSecurityManager securityManager;
     private final CommandExecutor executor;
+    private final Function<String, String> loginNameNormalizer;
 
-    public LoginService(CentralDogmaSecurityManager securityManager, CommandExecutor executor) {
+    public LoginService(CentralDogmaSecurityManager securityManager, CommandExecutor executor,
+                        Function<String, String> loginNameNormalizer) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
         this.executor = requireNonNull(executor, "executor");
+        this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
     }
 
     @Override
@@ -129,7 +133,7 @@ public class LoginService extends AbstractHttpService {
     /**
      * Returns {@link UsernamePasswordToken} which holds a username and a password.
      */
-    private static UsernamePasswordToken usernamePassword(AggregatedHttpMessage req) {
+    private UsernamePasswordToken usernamePassword(AggregatedHttpMessage req) {
         // check the Basic HTTP authentication first (https://tools.ietf.org/html/rfc7617)
         final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(req.headers());
         if (basicToken != null) {
@@ -151,7 +155,7 @@ public class LoginService extends AbstractHttpService {
         if (usernames != null && passwords != null) {
             final String username = usernames.get(0);
             final String password = passwords.get(0);
-            return new UsernamePasswordToken(username, password);
+            return new UsernamePasswordToken(loginNameNormalizer.apply(username), password);
         }
 
         return throwResponseException("invalid_request", "request must contain username and password.");
