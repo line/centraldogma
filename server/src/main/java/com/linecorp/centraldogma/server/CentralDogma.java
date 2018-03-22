@@ -523,13 +523,16 @@ public class CentralDogma {
 
         final MetadataService mds = new MetadataService(pm, executor);
 
+        final Service<HttpRequest, HttpResponse> loginService;
+        final Service<HttpRequest, HttpResponse> logoutService;
         final Function<Service<HttpRequest, HttpResponse>,
                 ? extends Service<HttpRequest, HttpResponse>> decorator;
 
         if (cfg.isSecurityEnabled()) {
             requireNonNull(securityManager, "securityManager");
-            sb.service(apiV0PathPrefix + "authenticate", new LoginService(securityManager, executor))
-              .service(apiV0PathPrefix + "logout", new LogoutService(securityManager, executor));
+
+            loginService = new LoginService(securityManager, executor);
+            logoutService = new LogoutService(securityManager, executor);
 
             sb.service("/security_enabled", new AbstractHttpService() {
                 @Override
@@ -546,16 +549,23 @@ public class CentralDogma {
             decorator = MetadataServiceInjector.newDecorator(mds)
                                                .andThen(HttpAuthService.newDecorator(ata, sta));
         } else {
-            // If the security is not enabled, '/api/v0/authenticate' will return the 'anonymous' token.
-            sb.service(apiV0PathPrefix + "authenticate", (ServiceRequestContext ctx, HttpRequest req) -> {
+            // If the security is not enabled, return the 'anonymous' token.
+            loginService = (ServiceRequestContext ctx, HttpRequest req) -> {
                 final AccessToken accessToken = new AccessToken(CsrfToken.ANONYMOUS, Integer.MAX_VALUE);
                 return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
                                        Jackson.writeValueAsBytes(accessToken));
-            });
+            };
+            logoutService = (ServiceRequestContext ctx, HttpRequest req) -> HttpResponse.of(HttpStatus.OK);
+
             decorator = MetadataServiceInjector.newDecorator(mds)
                                                .andThen(HttpAuthService.newDecorator(
                                                        new CsrfTokenAuthorizer()));
         }
+
+        sb.service(apiV0PathPrefix + "authenticate", loginService)
+          .service(API_V1_PATH_PREFIX + "login", loginService)
+          .service(apiV0PathPrefix + "logout", logoutService)
+          .service(API_V1_PATH_PREFIX + "logout", logoutService);
 
         final SafeProjectManager safePm = new SafeProjectManager(pm);
 
