@@ -56,10 +56,9 @@ const (
 	defaultBaseURL  = defaultScheme + "://" + defaultHostName + ":36462/"
 
 	defaultPathPrefix = "api/v1/"
-	v0PathPrefix      = "api/v0/"
 
 	pathSecurityEnabled = "security_enabled"
-	pathAuthenticate    = v0PathPrefix + "authenticate"
+	pathLogin           = defaultPathPrefix + "login"
 )
 
 // A Client communicates with the Central Dogma server API.
@@ -85,7 +84,7 @@ func NewClient(baseURL, username, password string) (*Client, error) {
 		return nil, err
 	}
 
-	config := oauth2.Config{Endpoint: oauth2.Endpoint{TokenURL: normalizedURL.String() + pathAuthenticate}}
+	config := oauth2.Config{Endpoint: oauth2.Endpoint{TokenURL: normalizedURL.String() + pathLogin}}
 	token, err := config.PasswordCredentialsToken(context.Background(), username, password)
 	if err != nil {
 		return nil, err
