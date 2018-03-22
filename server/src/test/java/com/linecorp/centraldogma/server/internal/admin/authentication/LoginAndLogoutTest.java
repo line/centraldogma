@@ -54,7 +54,7 @@ public class LoginAndLogoutTest {
     static AggregatedHttpMessage login(CentralDogmaRule rule, String username, String password) {
         return rule.httpClient().execute(
                 HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v0/authenticate",
+                               HttpHeaderNames.PATH, "/api/v1/login",
                                HttpHeaderNames.CONTENT_TYPE, MediaType.FORM_DATA.toString()),
                 "grant_type=password&username=" + username + "&password=" + password,
                 StandardCharsets.US_ASCII).aggregate().join();
@@ -64,7 +64,7 @@ public class LoginAndLogoutTest {
             CentralDogmaRule rule, String username, String password) {
         return rule.httpClient().execute(
                 HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v0/authenticate",
+                               HttpHeaderNames.PATH, "/api/v1/login",
                                HttpHeaderNames.AUTHORIZATION, "basic " + encoder.encodeToString(
                                        (USERNAME + ':' + PASSWORD).getBytes(StandardCharsets.US_ASCII))))
                    .aggregate().join();
@@ -73,7 +73,7 @@ public class LoginAndLogoutTest {
     static AggregatedHttpMessage logout(CentralDogmaRule rule, String sessionId) {
         return rule.httpClient().execute(
                 HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v0/logout",
+                               HttpHeaderNames.PATH, "/api/v1/logout",
                                HttpHeaderNames.AUTHORIZATION,
                                "bearer " + sessionId)).aggregate().join();
     }

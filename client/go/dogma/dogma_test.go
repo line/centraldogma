@@ -79,7 +79,7 @@ func TestNewClient(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	mux.HandleFunc("/api/v0/authenticate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/login", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "POST")
 		r.ParseForm()
 		testString(t, r.PostForm.Get("grant_type"), "password", "grant_type")
