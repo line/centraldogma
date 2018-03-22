@@ -273,7 +273,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     }
 
     /**
-     * Returne the name of the selected profile.
+     * Returns the name of the selected profile.
      *
      * @return the profile name, or {@code null} if no profile was specified or matched
      */

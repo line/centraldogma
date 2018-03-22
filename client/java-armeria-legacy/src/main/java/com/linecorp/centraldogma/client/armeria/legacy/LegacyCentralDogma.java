@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 import org.apache.thrift.TException;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.common.thrift.ThriftCompletableFuture;
@@ -447,9 +448,7 @@ final class LegacyCentralDogma implements CentralDogma {
             call.apply(future);
             return future.exceptionally(cause -> Exceptions.throwUnsafely(convertCause(cause)));
         } catch (Exception e) {
-            final CompletableFuture<T> failedFuture = new CompletableFuture<>();
-            failedFuture.completeExceptionally(convertCause(e));
-            return failedFuture;
+            return CompletableFutures.exceptionallyCompletedFuture(convertCause(e));
         }
     }
 
