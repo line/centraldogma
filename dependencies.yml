@@ -59,8 +59,6 @@ com.googlecode.java-diff-utils:
 com.jayway.jsonpath:
   json-path: 
     version: '2.2.0'
-    exclusions:
-    - net.minidev:json-smart
     relocations:
     - from: com.jayway.jsonpath
       to:   com.linecorp.centraldogma.internal.shaded.jsonpath

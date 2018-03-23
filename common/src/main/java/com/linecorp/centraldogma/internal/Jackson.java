@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.EnumSet;
 import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -65,28 +64,33 @@ public final class Jackson {
 
     private static final JsonFactory compactFactory = new JsonFactory(compactMapper);
     private static final JsonFactory prettyFactory = new JsonFactory(prettyMapper);
+    private static final Configuration jsonPathCfg =
+            Configuration.builder()
+                         .jsonProvider(new JacksonJsonNodeJsonProvider())
+                         .mappingProvider(new JacksonMappingProvider(prettyMapper))
+                         .build();
 
     static {
-        // Configure the json-path library so it does not require other JSON libraries such as json-smart.
-        final JsonProvider jsonProvider = new JacksonJsonNodeJsonProvider(prettyMapper);
-        final MappingProvider mappingProvider = new JacksonMappingProvider(prettyMapper);
-        final Set<Option> options = EnumSet.noneOf(Option.class);
-        Configuration.setDefaults(new Defaults() {
-            @Override
-            public JsonProvider jsonProvider() {
-                return jsonProvider;
-            }
+        // If the json-path library is shaded, its transitive dependency 'json-smart' should not be required.
+        // Override the default configuration so that json-path does not attempt to load the json-smart classes.
+        if (Configuration.class.getPackage().getName().endsWith(".shaded.jsonpath")) {
+            Configuration.setDefaults(new Defaults() {
+                @Override
+                public JsonProvider jsonProvider() {
+                    return jsonPathCfg.jsonProvider();
+                }
 
-            @Override
-            public Set<Option> options() {
-                return options;
-            }
+                @Override
+                public Set<Option> options() {
+                    return jsonPathCfg.getOptions();
+                }
 
-            @Override
-            public MappingProvider mappingProvider() {
-                return mappingProvider;
-            }
-        });
+                @Override
+                public MappingProvider mappingProvider() {
+                    return jsonPathCfg.mappingProvider();
+                }
+            });
+        }
     }
 
     public static final NullNode nullNode = NullNode.instance;
@@ -171,7 +175,7 @@ public final class Jackson {
     }
 
     public static JsonGenerator createPrettyGenerator(Writer writer) throws IOException {
-        JsonGenerator generator = prettyFactory.createGenerator(writer);
+        final JsonGenerator generator = prettyFactory.createGenerator(writer);
         generator.useDefaultPrettyPrinter();
         return generator;
     }
@@ -192,7 +196,7 @@ public final class Jackson {
         }
 
         try {
-            return JsonPath.parse(jsonNode, Configuration.defaultConfiguration())
+            return JsonPath.parse(jsonNode, jsonPathCfg)
                            .read(compiledJsonPath, JsonNode.class);
         } catch (Exception e) {
             throw new QueryException("JSON path evaluation failed: " + jsonPath, e);
