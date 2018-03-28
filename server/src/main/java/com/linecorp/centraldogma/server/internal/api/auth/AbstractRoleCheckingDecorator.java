@@ -27,12 +27,13 @@ import com.linecorp.armeria.server.DecoratingServiceFunction;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
-import com.linecorp.centraldogma.server.internal.storage.StorageNotFoundException;
 
 /**
  * An abstract class for checking the project role of the user sent a request.
@@ -71,7 +72,8 @@ abstract class AbstractRoleCheckingDecorator
 
     static HttpResponse handleException(Throwable cause) {
         cause = Exceptions.peel(cause);
-        if (cause instanceof StorageNotFoundException) {
+        if (cause instanceof RepositoryNotFoundException ||
+            cause instanceof ProjectNotFoundException) {
             return HttpResponse.of(HttpStatus.NOT_FOUND);
         } else {
             return Exceptions.throwUnsafely(cause);

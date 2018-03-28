@@ -60,7 +60,7 @@ final class JsonPathQuery implements Query<JsonNode> {
         try {
             JsonPath.compile(expr);
         } catch (Exception e) {
-            throw new QueryException("expression syntax error: " + expr, e);
+            throw new QuerySyntaxException("expression syntax error: " + expr, e);
         }
     }
 

@@ -61,20 +61,20 @@ import com.fasterxml.jackson.databind.node.TextNode;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryResult;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.repository.ChangeConflictException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RedundantChangeException;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
-import com.linecorp.centraldogma.server.internal.storage.repository.RevisionNotFoundException;
 
 public class GitRepositoryTest {
 
@@ -234,7 +234,7 @@ public class GitRepositoryTest {
                 assertThatThrownBy(
                         () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, patches[finalJ]).join())
                         .isInstanceOf(CompletionException.class)
-                        .hasCauseInstanceOf(StorageException.class);
+                        .hasCauseInstanceOf(ChangeConflictException.class);
             }
 
             // Ensure that the failed commit does not change the revision.
@@ -548,11 +548,11 @@ public class GitRepositoryTest {
 
         assertThatThrownBy(() -> repo.diff(revision1, new Revision(revision2.major() + 1), path).join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(StorageException.class);
+                .hasCauseInstanceOf(RevisionNotFoundException.class);
 
         assertThatThrownBy(() -> repo.diff(new Revision(revision2.major() + 1), revision2, path).join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(StorageException.class);
+                .hasCauseInstanceOf(RevisionNotFoundException.class);
     }
 
     @Test
@@ -563,12 +563,12 @@ public class GitRepositoryTest {
         // Invalid patch
         assertThatThrownBy(() -> repo.previewDiff(HEAD, jsonPatches[1]).join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(StorageException.class);
+                .hasCauseInstanceOf(ChangeConflictException.class);
 
         // Invalid removal
         assertThatThrownBy(() -> repo.previewDiff(HEAD, Change.ofRemoval(jsonPaths[0])).join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(StorageException.class);
+                .hasCauseInstanceOf(ChangeConflictException.class);
 
         // Apply a series of changes
         List<Change<?>> changes = Arrays.asList(jsonUpserts[0], jsonPatches[1], jsonPatches[2],
@@ -864,11 +864,11 @@ public class GitRepositoryTest {
 
         assertThatThrownBy(() -> repo.history(head.forward(1), head.forward(2), "non_existing_path").join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(StorageException.class);
+                .hasCauseInstanceOf(RevisionNotFoundException.class);
 
         assertThatThrownBy(() -> repo.history(head.forward(1), head.backward(1), "non_existing_path").join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(StorageException.class);
+                .hasCauseInstanceOf(RevisionNotFoundException.class);
 
         assertThatThrownBy(() -> repo.history(null, HEAD, "non_existing_path").join())
                 .isInstanceOf(CompletionException.class)

@@ -49,7 +49,7 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
             checkArgument(!isNullOrEmpty(projectName),
                           "project name should not be null or empty.");
 
-            // StorageNotFoundException would be thrown if there is no project.
+            // ProjectNotFoundException would be thrown if there is no project.
             return projectManager.get(projectName);
         }
 
@@ -61,7 +61,7 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
             checkArgument(!isNullOrEmpty(repositoryName),
                           "repository name should not be null or empty.");
 
-            // StorageNotFoundException would be thrown if there is no project or no repository.
+            // RepositoryNotFoundException would be thrown if there is no project or no repository.
             return projectManager.get(projectName).repos().get(repositoryName);
         }
 

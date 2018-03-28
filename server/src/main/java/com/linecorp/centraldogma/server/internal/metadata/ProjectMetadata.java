@@ -29,9 +29,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.repository.EntryNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNotFoundException;
 
 /**
  * Specifies details of a {@link Project}.

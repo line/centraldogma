@@ -25,7 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.thrift.TException;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -46,7 +45,7 @@ public class WatchTest {
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
 
     @Before
-    public void revertTestFiles() throws Exception {
+    public void revertTestFiles() {
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test1.json", "[ 1, 2, 3 ]");
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test2.json", "{ \"a\": \"apple\" }");
 
@@ -83,7 +82,7 @@ public class WatchTest {
     }
 
     @Test
-    public void testWatchRepositoryTimeout() throws TException {
+    public void testWatchRepositoryTimeout() {
         final Revision rev = rule.client().watchRepository(
                 rule.project(), rule.repo1(), Revision.HEAD, "/**", 1000).join();
         assertThat(rev).isNull();
@@ -160,7 +159,7 @@ public class WatchTest {
     }
 
     @Test
-    public void testWatchFileWithTimeout() throws TException {
+    public void testWatchFileWithTimeout() {
         final QueryResult<JsonNode> res = rule.client().watchFile(
                 rule.project(), rule.repo1(), Revision.HEAD,
                 Query.ofJsonPath("/test/test1.json", "$"), 1000).join();

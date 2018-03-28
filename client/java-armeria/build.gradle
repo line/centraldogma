@@ -1,0 +1,5 @@
+dependencies {
+    compile project(':client:java')
+    // Armeria
+    compile 'com.linecorp.armeria:armeria-shaded'
+}

@@ -1,8 +1,9 @@
 dependencies {
-    compile project(':client:java')
+    compile project(':client:java-armeria-legacy')
     compile 'javax.validation:validation-api'
     compile 'org.springframework.boot:spring-boot-starter'
 
+    testCompile project(':client:java-armeria')
     testCompile 'org.springframework.boot:spring-boot-starter-test'
     testRuntime 'org.hibernate.validator:hibernate-validator'
 }

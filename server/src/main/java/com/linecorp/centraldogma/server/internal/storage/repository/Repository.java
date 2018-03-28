@@ -36,15 +36,18 @@ import com.google.common.collect.ImmutableMap;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryException;
+import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
@@ -207,17 +210,17 @@ public interface Repository {
             final EntryType entryType = entry.type();
 
             if (!query.type().supportedEntryTypes().contains(entryType)) {
-                throw new QueryException("unsupported entry type: " + entryType);
+                throw new QueryExecutionException("unsupported entry type: " + entryType);
             }
 
             @SuppressWarnings("unchecked")
             final T entryContent = (T) entry.content();
             try {
                 return new QueryResult<>(revision, entryType, query.apply(entryContent));
-            } catch (QueryException e) {
+            } catch (CentralDogmaException e) {
                 throw e;
             } catch (Exception e) {
-                throw new QueryException(e);
+                throw new QueryExecutionException(e);
             }
         });
     }
@@ -268,7 +271,7 @@ public interface Repository {
                         // The entry has been created.
                         final EntryType toEntryType = toEntry.type();
                         if (!query.type().supportedEntryTypes().contains(toEntryType)) {
-                            throw new QueryException("unsupported entry type: " + toEntryType);
+                            throw new QueryExecutionException("unsupported entry type: " + toEntryType);
                         }
 
                         final Object toContent = castQuery.apply(toEntry.content());
@@ -289,10 +292,10 @@ public interface Repository {
                     // Handle the case where the entry exists both at 'from' and at 'to'.
                     final EntryType entryType = fromEntry.type();
                     if (!query.type().supportedEntryTypes().contains(entryType)) {
-                        throw new QueryException("unsupported entry type: " + entryType);
+                        throw new QueryExecutionException("unsupported entry type: " + entryType);
                     }
                     if (entryType != toEntry.type()) {
-                        throw new QueryException(
+                        throw new QueryExecutionException(
                                 "mismatching entry type: " + entryType + " != " + toEntry.type());
                     }
 

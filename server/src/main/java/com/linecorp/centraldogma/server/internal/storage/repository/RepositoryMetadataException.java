@@ -16,9 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
-import com.linecorp.centraldogma.server.internal.storage.StorageException;
-
-public class RepositoryMetadataException extends StorageException {
+public class RepositoryMetadataException extends RuntimeException {
 
     private static final long serialVersionUID = -4229179602105829056L;
 

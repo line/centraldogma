@@ -40,6 +40,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LegacyToken;
@@ -51,7 +52,6 @@ import com.linecorp.centraldogma.server.internal.command.ForwardingCommandExecut
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryNotFoundException;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
 
 public class MigrationUtilTest {

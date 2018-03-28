@@ -7,9 +7,12 @@ includeWithFlags ':bom', 'bom'
 
 // Published Java projects
 includeWithFlags ':client:java',                           'java', 'publish', 'relocate'
+includeWithFlags ':client:java-armeria',                   'java', 'publish', 'relocate'
+includeWithFlags ':client:java-armeria-legacy',            'java', 'publish', 'relocate'
 includeWithFlags ':client:java-spring-boot-autoconfigure', 'java', 'publish', 'relocate'
 includeWithFlags ':client:java-spring-boot-starter',       'java', 'publish', 'relocate'
 includeWithFlags ':common',                                'java', 'publish', 'shade', 'trim'
+includeWithFlags ':common-legacy',                         'java', 'publish', 'relocate'
 includeWithFlags ':server',                                'java', 'publish', 'relocate'
 includeWithFlags ':testing',                               'java', 'publish', 'relocate'
 

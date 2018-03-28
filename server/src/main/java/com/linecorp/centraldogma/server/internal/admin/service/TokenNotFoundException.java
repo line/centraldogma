@@ -16,9 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import com.linecorp.centraldogma.server.internal.storage.StorageException;
-
-public class TokenNotFoundException extends StorageException {
+public class TokenNotFoundException extends RuntimeException {
 
     private static final long serialVersionUID = 7795045154004749414L;
 

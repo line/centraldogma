@@ -16,6 +16,10 @@
 
 package com.linecorp.centraldogma.server.internal.storage;
 
+/**
+ * A {@link RuntimeException} that is raised when a potentially irrecoverable storage access failure has
+ * occurred.
+ */
 public class StorageException extends RuntimeException {
     private static final long serialVersionUID = -1863726420582803362L;
 

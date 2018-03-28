@@ -21,7 +21,7 @@ Gradle:
     ...
     dependencies {
         ...
-        compile 'com.linecorp.centraldogma:centraldogma-client:\ |release|\ '
+        compile 'com.linecorp.centraldogma:centraldogma-client-armeria-legacy:\ |release|\ '
         ...
     }
     ...
@@ -35,7 +35,7 @@ Maven:
       ...
       <dependency>
         <groupId>com.linecorp.centraldogma</groupId>
-        <artifactId>centraldogma-client</artifactId>
+        <artifactId>centraldogma-client-armeria-legacy</artifactId>
         <version>\ |release|\ </version>
       </dependency>
       ...
@@ -49,17 +49,21 @@ First, we should create a new instance of ``CentralDogma``:
 .. code-block:: java
 
     import com.linecorp.centraldogma.client.CentralDogma;
+    import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 
     // The default port 36462 is used if unspecified.
-    CentralDogma dogma = CentralDogma.forHost("127.0.0.1");
+    CentralDogma dogma = new LegacyCentralDogmaBuilder()
+            .host("127.0.0.1")
+            .build();
     // You can specify an alternative port as well:
-    CentralDogma dogma2 = CentralDogma.forHost("example.com", 8888);
+    CentralDogma dogma2 = new LegacyCentralDogmaBuilder()
+            .host("example.com", 8888);
+            .build();
 
 .. note::
 
-    Internally, the client uses `Armeria`_ as its networking layer. You may want to use ``CentralDogmaBuilder``
-    to customize the client settings, such as specifying alternative Armeria ``ClientFactory`` or configuring
-    Armeria ``ClientBuilder``.
+    Internally, the client uses `Armeria`_ as its networking layer. You may want to customize the client
+    settings, such as specifying alternative Armeria ``ClientFactory`` or configuring Armeria ``ClientBuilder``.
 
 Getting a file
 --------------
@@ -73,6 +77,7 @@ Once a client is created, you can get a file from a repository:
     import com.linecorp.centraldogma.common.Revision;
     import com.linecorp.centraldogma.common.Query;
 
+    CentralDogma dogma = ...;
     CompletableFuture<Entry<Object>> future =
             dogma.getFile("myProj", "myRepo", Revision.HEAD, Query.identity("/a.txt"));
 
@@ -96,6 +101,7 @@ Alternatively, if the file is JSON, you can use ``Query.ofJsonPath()``:
 
     import com.fasterxml.jackson.databind.JsonNode;
 
+    CentralDogma dogma = ...;
     CompletableFuture<Entry<JsonNode>> future =
             dogma.getFile("myProj", "myRepo", Revision.HEAD,
                           Query.ofJsonPath("/b.json", "$.someValue"));
@@ -130,6 +136,7 @@ You can also push a commit into a repository programmatically:
     import com.linecorp.centraldogma.common.Change;
     import com.linecorp.centraldogma.common.Commit;
 
+    CentralDogma dogma = ...;
     CompletableFuture<Commit> future =
             dogma.push("myProj", "myRepo", Revision.HEAD,
                        new Author("John Doe", "john@doe.com"),
@@ -151,17 +158,15 @@ absolutely sure that nobody pushed a commit while you prepare yours: (pun intend
 
     import java.util.concurrent.CompletionException;
 
+    CentralDogma dogma = ...;
     CompletableFuture<Commit> future = dogma.push(..., new Revision(3), ...);
     try {
         future.join();
     } catch (CompletionException e) {
         Throwable cause = e.getCause();
-        if (cause instanceof CentralDogmaException) {
-            CentralDogmaException cde = (CentralDogmaException) cause;
-            if (cde.getErrorCode() == ErrorCode.CHANGE_CONFLICT) {
-                // Somebody pushed a commit newer than revision 3 or
-                // our changes cannot be applied to the revision 3 cleanly.
-            }
+        if (cause instanceof ChangeConflictException) {
+            // Somebody pushed a commit newer than revision 3 or
+            // our changes cannot be applied to the revision 3 cleanly.
         }
     }
 
@@ -175,6 +180,7 @@ the process. The client library provides an easy way to watch a file:
     import com.linecorp.centraldogma.client.Latest;
     import com.linecorp.centraldogma.client.Watcher;
 
+    CentralDogma dogma = ...;
     Watcher<JsonNode> watcher = dogma.fileWatcher("myProj", "myRepo", Query.ofJsonPath("$.foo"));
 
     // Register a callback for changes.
@@ -195,9 +201,9 @@ You can use ``CentralDogmaBuilder`` to add more than one host:
 
 .. code-block:: java
 
-    import com.linecorp.centraldogma.client.CentralDogmaBuilder;
+    import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 
-    CentralDogmaBuilder builder = new CentralDogmaBuilder();
+    LegacyCentralDogmaBuilder builder = new LegacyCentralDogmaBuilder();
     // The default port 36462 is used if unspecified.
     builder.host("replica1.example.com");
     // You can specify an alternative port number.
@@ -209,11 +215,11 @@ You can use ``CentralDogmaBuilder`` to add more than one host:
 Using client profiles
 ---------------------
 You can load the list of the Central Dogma servers from ``.properties`` resource file in the class path using
-``CentralDogma.forProfile()`` or ``CentralDogmaBuilder.profile()``:
+``LegacyCentralDogmaBuilder.profile()``:
 
 .. code-block:: java
 
-    CentralDogmauBuilder builder = new CentralDogmaBuilder();
+    LegacyCentralDogmaBuilder builder = new LegacyCentralDogmaBuilder();
     // Loads the host list from /centraldogma-profile-beta.properties.
     builder.profile("beta");
     CentralDogma dogma = builder.build();

@@ -10,6 +10,8 @@ buildscript {
 apply plugin: 'com.craigburke.client-dependencies'
 
 dependencies {
+    compile project(':common-legacy')
+
     // Armeria
     [ 'armeria-shaded', 'armeria-thrift0.9-shaded' ].each {
         compile "com.linecorp.armeria:$it"

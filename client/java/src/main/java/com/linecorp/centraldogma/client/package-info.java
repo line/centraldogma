@@ -14,7 +14,7 @@
  * under the License.
  */
 /**
- * Central Dogma client.
+ * Central Dogma client API.
  *
  * @see <a href="https://line.github.io/centraldogma/client-java.html" target="_blank">Java client library</a>
  */

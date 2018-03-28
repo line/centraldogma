@@ -41,7 +41,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
      * End with an alphanumeric character.
      */
     private static final Pattern CHILD_NAME =
-            Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z\\.]*[0-9A-Za-z])?$");
+            Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
     private static final String SUFFIX_REMOVED = ".removed";
 
     private final String childTypeName;
@@ -95,7 +95,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     }
 
     private T loadChild(File f) {
-        String name = f.getName();
+        final String name = f.getName();
         if (!isValidChildName(name)) {
             return null;
         }
@@ -109,10 +109,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
 
         try {
-            T child = openChild(f, childArgs);
+            final T child = openChild(f, childArgs);
             children.put(name, child);
             return child;
-        } catch (StorageException e) {
+        } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException("failed to open " + childTypeName + ": " + f, e);
@@ -130,9 +130,9 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     protected void closeChild(File childDir, T child) {}
 
-    protected abstract StorageExistsException newStorageExistsException(String name);
+    protected abstract RuntimeException newStorageExistsException(String name);
 
-    protected abstract StorageNotFoundException newStorageNotFoundException(String name);
+    protected abstract RuntimeException newStorageNotFoundException(String name);
 
     @Override
     public void close() {
@@ -170,9 +170,9 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         ensureOpen();
         validateChildName(name);
 
-        AtomicBoolean created = new AtomicBoolean();
-        T child = children.computeIfAbsent(name, n -> {
-            T c = create0(n, creationTimeMillis);
+        final AtomicBoolean created = new AtomicBoolean();
+        final T child = children.computeIfAbsent(name, n -> {
+            final T c = create0(n, creationTimeMillis);
             created.set(true);
             return c;
         });
@@ -189,10 +189,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             throw newStorageExistsException(childTypeName + ": " + name + " (removed)");
         }
 
-        File f = new File(rootDir, name);
+        final File f = new File(rootDir, name);
         try {
             return createChild(f, childArgs, creationTimeMillis);
-        } catch (StorageException e) {
+        } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException("failed to create a new " + childTypeName + ": " + f, e);
@@ -209,7 +209,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
         final Map<String, T> ret = new LinkedHashMap<>(estimatedSize);
         for (String k : names) {
-            T v = children.get(k);
+            final T v = children.get(k);
             if (v != null) {
                 ret.put(k, v);
             }
@@ -249,7 +249,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     @Override
     public void remove(String name) {
         ensureOpen();
-        T child = children.remove(validateChildName(name));
+        final T child = children.remove(validateChildName(name));
         if (child == null) {
             throw newStorageNotFoundException(childTypeName + ": " + name);
         }

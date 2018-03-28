@@ -17,12 +17,12 @@
 package com.linecorp.centraldogma.common;
 
 /**
- * An {@link IllegalArgumentException} exception that is raised when building a {@link Change} or
+ * An {@link IllegalArgumentException} that is raised when building a {@link Change} or
  * an {@link Entry} failed due to invalid data format.
  */
 public class ChangeFormatException extends IllegalArgumentException {
 
-    private static final long serialVersionUID = -582002681359825096L;
+    private static final long serialVersionUID = 337034992785307988L;
 
     /**
      * Creates a new instance.

@@ -39,9 +39,9 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.core.type.MethodMetadata;
 
 import com.linecorp.armeria.client.ClientFactory;
-import com.linecorp.centraldogma.client.ArmeriaClientConfigurator;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.CentralDogmaBuilder;
+import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
+import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 
 /**
  * Spring bean configuration for {@link CentralDogma} client.
@@ -79,7 +79,7 @@ public class CentralDogmaClientAutoConfiguration {
             @ForCentralDogma ClientFactory clientFactory,
             Optional<ArmeriaClientConfigurator> armeriaClientConfigurator) {
 
-        return new CentralDogmaBuilder()
+        return new LegacyCentralDogmaBuilder()
                 .clientFactory(clientFactory)
                 .profile(env.getActiveProfiles())
                 .clientConfigurator(cb -> armeriaClientConfigurator.ifPresent(

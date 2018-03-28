@@ -15,8 +15,6 @@
  */
 package com.linecorp.centraldogma.client;
 
-import static java.util.Objects.requireNonNull;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,7 +23,6 @@ import java.util.function.Function;
 
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -40,181 +37,6 @@ import com.linecorp.centraldogma.common.Revision;
  * Central Dogma client.
  */
 public interface CentralDogma {
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance which connects to the given host at port 36462
-     * using the default {@link ClientFactory}.
-     *
-     * @param host the host name or IP address of the Central Dogma server
-     */
-    static CentralDogma forHost(String host) {
-        return new CentralDogmaBuilder().host(host).build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance which connects to the given host and port
-     * using the default {@link ClientFactory}.
-     *
-     * @param host the host name or IP address of the Central Dogma server
-     * @param port the port number of the Central Dogma server
-     */
-    static CentralDogma forHost(String host, int port) {
-        return new CentralDogmaBuilder().host(host, port).build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance which connects to the given host at port 36462
-     * using the specified {@link ClientFactory}.
-     *
-     * @param clientFactory the {@link ClientFactory} that will manage the connections
-     * @param host the host name or IP address of the Central Dogma server
-     */
-    static CentralDogma forHost(ClientFactory clientFactory, String host) {
-        return new CentralDogmaBuilder().clientFactory(clientFactory)
-                                        .host(host)
-                                        .build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance which connects to the given host and port
-     * using the specified {@link ClientFactory}.
-     *
-     * @param clientFactory the {@link ClientFactory} that will manage the connections
-     * @param host the host name or IP address of the Central Dogma server
-     */
-    static CentralDogma forHost(ClientFactory clientFactory, String host, int port) {
-        return new CentralDogmaBuilder().clientFactory(clientFactory)
-                                        .host(host, port)
-                                        .build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance which connects to the given host at port 36462
-     * using the default {@link ClientFactory}. This {@link CentralDogma} instance connects to the server
-     * with TLS enabled.
-     *
-     * @param host the host name or IP address of the Central Dogma server
-     */
-    static CentralDogma forTlsHost(String host) {
-        return new CentralDogmaBuilder().host(host).useTls().build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance which connects to the given host and port
-     * using the default {@link ClientFactory}. This {@link CentralDogma} instance connects to the server
-     * with TLS enabled.
-     *
-     * @param host the host name or IP address of the Central Dogma server
-     * @param port the port number of the Central Dogma server
-     */
-    static CentralDogma forTlsHost(String host, int port) {
-        return new CentralDogmaBuilder().host(host, port).useTls().build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance which connects to the given host at port 36462
-     * using the specified {@link ClientFactory}. This {@link CentralDogma} instance connects to the server
-     * with TLS enabled.
-     *
-     * @param clientFactory the {@link ClientFactory} that will manage the connections
-     * @param host the host name or IP address of the Central Dogma server
-     */
-    static CentralDogma forTlsHost(ClientFactory clientFactory, String host) {
-        return new CentralDogmaBuilder().clientFactory(clientFactory)
-                                        .host(host)
-                                        .useTls()
-                                        .build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance which connects to the given host and port
-     * using the specified {@link ClientFactory}. This {@link CentralDogma} instance connects to the server
-     * with TLS enabled.
-     *
-     * @param clientFactory the {@link ClientFactory} that will manage the connections
-     * @param host the host name or IP address of the Central Dogma server
-     */
-    static CentralDogma forTlsHost(ClientFactory clientFactory, String host, int port) {
-        return new CentralDogmaBuilder().clientFactory(clientFactory)
-                                        .host(host, port)
-                                        .useTls()
-                                        .build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance with the given profile names and the default
-     * {@link ClientFactory}.
-     *
-     * @param profiles the list of the profile names, in the order of preference
-     */
-    static CentralDogma forProfile(String... profiles) {
-        return new CentralDogmaBuilder().profile(profiles).build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance with the given profile names and the default
-     * {@link ClientFactory}.
-     *
-     * @param profiles the list of the profile names, in the order of preference
-     */
-    static CentralDogma forProfile(Iterable<String> profiles) {
-        return new CentralDogmaBuilder().profile(profiles).build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance with the given profile names using the specified
-     * {@link ClientFactory}.
-     *
-     * @param clientFactory the {@link ClientFactory} that will manage the connections
-     * @param profiles the list of the profile names, in the order of preference
-     */
-    static CentralDogma forProfile(ClientFactory clientFactory, String... profiles) {
-        return new CentralDogmaBuilder().clientFactory(clientFactory)
-                                        .profile(profiles)
-                                        .build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance with the given profile names using the specified
-     * {@link ClientFactory}.
-     *
-     * @param clientFactory the {@link ClientFactory} that will manage the connections
-     * @param profiles the list of the profile names, in the order of preference
-     */
-    static CentralDogma forProfile(ClientFactory clientFactory, Iterable<String> profiles) {
-        return new CentralDogmaBuilder().clientFactory(clientFactory)
-                                        .profile(profiles)
-                                        .build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance with the given URI and
-     * the default {@link ClientFactory}.
-     *
-     * @deprecated Use {@link #forHost(String)} or {@link #forProfile(String...)} instead.
-     *
-     * @param uri the URI of the Central Dogma server. e.g. tbinary+http://example.com:36462/cd/thrift/v1
-     */
-    @Deprecated
-    static CentralDogma newClient(String uri) {
-        return new CentralDogmaBuilder().uri(uri).build();
-    }
-
-    /**
-     * Returns a newly-created {@link CentralDogma} instance with the given {@link ClientFactory} and URI.
-     *
-     * @deprecated Use {@link #forHost(String)} or {@link #forProfile(String...)} instead.
-     *
-     * @param clientFactory the {@link ClientFactory} that will manage the connections
-     * @param uri the URI of the Central Dogma server. e.g. tbinary+http://example.com:36462/cd/thrift/v1
-     */
-    @Deprecated
-    static CentralDogma newClient(ClientFactory clientFactory, String uri) {
-        return new CentralDogmaBuilder().clientFactory(requireNonNull(clientFactory, "clientFactory"))
-                                        .uri(requireNonNull(uri, "uri"))
-                                        .build();
-    }
-
     /**
      * Creates a project.
      */
