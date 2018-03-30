@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.59.0
+- com.linecorp.armeria:armeria-bom:0.60.0
 
 com.beust:
   jcommander: { version: '1.72' }
@@ -77,7 +77,7 @@ com.spotify:
     - from: com.spotify.futures
       to:   com.linecorp.centraldogma.internal.shaded.futures
   futures-extra:
-    version: '3.0.0'
+    version: '3.1.1'
     relocations:
     - from: com.spotify.futures
       to:   com.linecorp.centraldogma.internal.shaded.futures
@@ -89,16 +89,22 @@ commons-daemon:
     - https://commons.apache.org/proper/commons-daemon/apidocs/
 
 gradle.plugin.com.github.blindpirate:
-  gogradle: { version: '0.8.1' }
+  gogradle: { version: '0.9' }
 
 junit:
   junit:
     javadocs:
-    - http://junit.org/junit4/javadoc/4.12/
+    - https://junit.org/junit4/javadoc/4.12/
 
 org.apache.curator:
-  curator-recipes: { version: &CURATOR_VERSION '2.12.0' }
-  curator-test: { version: *CURATOR_VERSION }
+  curator-recipes:
+    version: &CURATOR_VERSION '4.0.1'
+    exclusions:
+    - org.apache.zookeeper:zookeeper
+  curator-test:
+    version: '2.12.0'
+    exclusions:
+    - org.apache.zookeeper:zookeeper
 
 org.apache.shiro:
   shiro-core:
@@ -110,7 +116,7 @@ org.apache.thrift:
   libthrift: { version: '0.9.3' }
 
 org.eclipse.jgit:
-  org.eclipse.jgit: { version: '4.10.0.201712302008-r' }
+  org.eclipse.jgit: { version: '4.11.0.201803080745-r' }
 
 org.testng:
   testng: { version: '6.14.2' }
