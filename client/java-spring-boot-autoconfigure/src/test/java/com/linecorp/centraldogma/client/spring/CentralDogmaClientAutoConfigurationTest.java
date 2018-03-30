@@ -36,8 +36,7 @@ import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurati
 public class CentralDogmaClientAutoConfigurationTest {
     @Configuration
     @Import(CentralDogmaClientAutoConfiguration.class)
-    public static class TestConfiguration {
-    }
+    public static class TestConfiguration {}
 
     @Inject
     CentralDogma client;

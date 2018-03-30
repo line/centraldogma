@@ -36,8 +36,7 @@ public final class EntryConverter extends Converter<com.linecorp.centraldogma.co
     public static final Converter<Entry, com.linecorp.centraldogma.common.Entry<?>> TO_MODEL =
             TO_DATA.reverse();
 
-    private EntryConverter() {
-    }
+    private EntryConverter() {}
 
     @Override
     protected Entry doForward(com.linecorp.centraldogma.common.Entry<?> entry) {

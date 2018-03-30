@@ -31,8 +31,7 @@ public final class QueryConverter extends Converter<com.linecorp.centraldogma.co
     public static final Converter<Query, com.linecorp.centraldogma.common.Query<?>> TO_MODEL =
             TO_DATA.reverse();
 
-    private QueryConverter() {
-    }
+    private QueryConverter() {}
 
     @Override
     protected Query doForward(com.linecorp.centraldogma.common.Query<?> query) {

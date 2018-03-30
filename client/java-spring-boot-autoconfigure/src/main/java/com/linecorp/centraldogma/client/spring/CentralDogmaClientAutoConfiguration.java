@@ -56,8 +56,7 @@ public class CentralDogmaClientAutoConfiguration {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Qualifier
-    public @interface ForCentralDogma {
-    }
+    public @interface ForCentralDogma {}
 
     /**
      * Returns {@link ClientFactory#DEFAULT} which is used as the default {@link ClientFactory} of a

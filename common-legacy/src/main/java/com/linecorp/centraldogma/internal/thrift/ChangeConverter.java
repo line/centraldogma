@@ -33,8 +33,7 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
     public static final Converter<Change, com.linecorp.centraldogma.common.Change<?>> TO_MODEL =
             TO_DATA.reverse();
 
-    private ChangeConverter() {
-    }
+    private ChangeConverter() {}
 
     @Override
     protected Change doForward(com.linecorp.centraldogma.common.Change<?> value) {

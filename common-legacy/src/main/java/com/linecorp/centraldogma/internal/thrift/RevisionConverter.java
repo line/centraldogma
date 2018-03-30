@@ -29,8 +29,7 @@ public final class RevisionConverter extends Converter<com.linecorp.centraldogma
     public static final Converter<Revision, com.linecorp.centraldogma.common.Revision> TO_MODEL =
             TO_DATA.reverse();
 
-    private RevisionConverter() {
-    }
+    private RevisionConverter() {}
 
     @Override
     protected Revision doForward(com.linecorp.centraldogma.common.Revision rev) {

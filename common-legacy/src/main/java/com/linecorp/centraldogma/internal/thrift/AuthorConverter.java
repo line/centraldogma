@@ -29,8 +29,7 @@ public final class AuthorConverter extends Converter<com.linecorp.centraldogma.c
     public static final Converter<Author, com.linecorp.centraldogma.common.Author> TO_MODEL =
             TO_DATA.reverse();
 
-    private AuthorConverter() {
-    }
+    private AuthorConverter() {}
 
     @Override
     protected Author doForward(com.linecorp.centraldogma.common.Author author) {

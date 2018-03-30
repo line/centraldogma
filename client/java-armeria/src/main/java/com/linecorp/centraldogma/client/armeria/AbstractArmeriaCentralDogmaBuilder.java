@@ -45,8 +45,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     static final AtomicLong nextAnonymousGroupId = new AtomicLong();
 
     private ClientFactory clientFactory = ClientFactory.DEFAULT;
-    private ArmeriaClientConfigurator clientConfigurator = cb -> {
-    };
+    private ArmeriaClientConfigurator clientConfigurator = cb -> {};
 
     /**
      * Returns the {@link ClientFactory} that will create an underlying
