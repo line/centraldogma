@@ -21,8 +21,9 @@ dependencies {
     // Commons Daemon
     compile 'commons-daemon:commons-daemon'
 
-    // Curator
+    // Curator & ZooKeeper
     compile 'org.apache.curator:curator-recipes'
+    compile 'org.apache.zookeeper:zookeeper'
     testCompile 'org.apache.curator:curator-test'
 
     // jCommander
