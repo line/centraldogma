@@ -40,13 +40,13 @@ func TestCreateRepository(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Location", "/api/v1/projects/foo/repos/bar")
-		fmt.Fprint(w, `{"name":"bar", "creator":"minux@m.x", "headRevision": 2}`)
+		fmt.Fprint(w, `{"name":"bar", "creator":{"name":"minux", "email":"minux@m.x"}, "headRevision": 2}`)
 	})
 
 	repo, res, _ := c.CreateRepository(context.Background(), "foo", "bar")
 	testStatus(t, res, 201)
 
-	want := &Repository{Name: "bar", Creator: "minux@m.x", HeadRevision: 2}
+	want := &Repository{Name: "bar", Creator: &Author{Name: "minux", Email: "minux@m.x"}, HeadRevision: 2}
 	if !reflect.DeepEqual(repo, want) {
 		t.Errorf("CreateRepository returned %+v, want %+v", repo, want)
 	}
@@ -74,12 +74,16 @@ func TestUnremoveRepository(t *testing.T) {
 		testHeader(t, r, "Content-Type", "application/json-patch+json")
 		testBody(t, r, `[{"op":"replace", "path":"/status", "value":"active"}]`)
 		fmt.Fprint(w,
-			`{"name":"bar", "creator":"minux@m.x", "url":"/api/v1/projects/foo/repos/bar", "headRevision":2}`)
+			`{"name":"bar",
+"creator":{"name":"minux", "email":"minux@m.x"},
+"url":"/api/v1/projects/foo/repos/bar",
+"headRevision":2}`)
 	})
 
 	repo, _, _ := c.UnremoveRepository(context.Background(), "foo", "bar")
 	want :=
-		&Repository{Name: "bar", Creator: "minux@m.x", URL: "/api/v1/projects/foo/repos/bar", HeadRevision: 2}
+		&Repository{Name: "bar", Creator: &Author{Name: "minux", Email: "minux@m.x"},
+			URL: "/api/v1/projects/foo/repos/bar", HeadRevision: 2}
 	if !reflect.DeepEqual(repo, want) {
 		t.Errorf("UnremoveRepository returned %+v, want %+v", repo, want)
 	}
@@ -92,14 +96,23 @@ func TestListRepositories(t *testing.T) {
 	mux.HandleFunc("/api/v1/projects/foo/repos", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
 		fmt.Fprint(w,
-			`[{"name":"bar", "creator":"minux@m.x", "url":"/api/v1/projects/foo/repos/bar", "headRevision":2},
-{"name":"baz", "creator":"minux@m.x", "url":"/api/v1/projects/foo/repos/baz", "headRevision":3}]`)
+			`[{
+"name":"bar",
+"creator":{"name":"minux", "email":"minux@m.x"},
+"url":"/api/v1/projects/foo/repos/bar",
+"headRevision":2},{
+"name":"baz",
+"creator":{"name":"minux", "email":"minux@m.x"},
+"url":"/api/v1/projects/foo/repos/baz",
+"headRevision":3}]`)
 	})
 
 	repos, _, _ := c.ListRepositories(context.Background(), "foo")
 	want := []*Repository{
-		{Name: "bar", Creator: "minux@m.x", URL: "/api/v1/projects/foo/repos/bar", HeadRevision: 2},
-		{Name: "baz", Creator: "minux@m.x", URL: "/api/v1/projects/foo/repos/baz", HeadRevision: 3}}
+		{Name: "bar", Creator: &Author{Name: "minux", Email: "minux@m.x"},
+			URL: "/api/v1/projects/foo/repos/bar", HeadRevision: 2},
+		{Name: "baz", Creator: &Author{Name: "minux", Email: "minux@m.x"},
+			URL: "/api/v1/projects/foo/repos/baz", HeadRevision: 3}}
 	if !reflect.DeepEqual(repos, want) {
 		t.Errorf("ListRepositories returned %+v, want %+v", repos, want)
 	}

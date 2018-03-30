@@ -40,13 +40,13 @@ func TestCreateProject(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Location", "/api/v1/projects/foo")
-		fmt.Fprint(w, `{"name":"foo", "creator":"minux@m.x"}`)
+		fmt.Fprint(w, `{"name":"foo", "creator":{"name":"minux", "email":"minux@m.x"}}`)
 	})
 
 	project, res, _ := c.CreateProject(context.Background(), input.Name)
 	testStatus(t, res, 201)
 
-	want := &Project{Name: "foo", Creator: "minux@m.x"}
+	want := &Project{Name: "foo", Creator: &Author{Name: "minux", Email: "minux@m.x"}}
 	if !reflect.DeepEqual(project, want) {
 		t.Errorf("CreateProject returned %+v, want %+v", project, want)
 	}
@@ -73,12 +73,13 @@ func TestUnremoveProject(t *testing.T) {
 		testMethod(t, r, "PATCH")
 		testHeader(t, r, "Content-Type", "application/json-patch+json")
 		testBody(t, r, `[{"op":"replace", "path":"/status", "value":"active"}]`)
-		fmt.Fprint(w, `{"name":"foo", "creator":"minux@m.x", "url":"/api/v1/projects/foo"}`)
+		fmt.Fprint(w,
+			`{"name":"foo", "creator":{"name":"minux", "email":"minux@m.x"}, "url":"/api/v1/projects/foo"}`)
 	})
 
 	project, _, _ := c.UnremoveProject(context.Background(), "foo")
 
-	want := &Project{Name: "foo", Creator: "minux@m.x", URL: "/api/v1/projects/foo"}
+	want := &Project{Name: "foo", Creator: &Author{Name: "minux", Email: "minux@m.x"}, URL: "/api/v1/projects/foo"}
 	if !reflect.DeepEqual(project, want) {
 		t.Errorf("UnremoveProject returned %+v, want %+v", project, want)
 	}
@@ -90,13 +91,15 @@ func TestListProject(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		fmt.Fprint(w, `[{"name":"foo", "creator":"minux@m.x", "url":"/api/v1/projects/foo"},
-{"name":"bar", "creator":"minux@m.x", "url":"/api/v1/projects/bar"}]`)
+		fmt.Fprint(w, `[
+{"name":"foo", "creator":{"name":"minux", "email":"minux@m.x"}, "url":"/api/v1/projects/foo"},
+{"name":"bar", "creator":{"name":"minux", "email":"minux@m.x"}, "url":"/api/v1/projects/bar"}]`)
 	})
 
 	projects, _, _ := c.ListProjects(context.Background())
-	want := []*Project{{Name: "foo", Creator: "minux@m.x", URL: "/api/v1/projects/foo"},
-		{Name: "bar", Creator: "minux@m.x", URL: "/api/v1/projects/bar"}}
+	want := []*Project{
+		{Name: "foo", Creator: &Author{Name: "minux", Email: "minux@m.x"}, URL: "/api/v1/projects/foo"},
+		{Name: "bar", Creator: &Author{Name: "minux", Email: "minux@m.x"}, URL: "/api/v1/projects/bar"}}
 	if !reflect.DeepEqual(projects, want) {
 		t.Errorf("ListProjects returned %+v, want %+v", projects, want)
 	}

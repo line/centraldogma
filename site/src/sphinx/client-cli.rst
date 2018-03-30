@@ -46,10 +46,22 @@ To list projects, specify no arguments::
     $ dogma ls
     [
         {
-            "name": "projBar"
+            "name": "projFoo",
+            "creator": {
+                "name": "System",
+                "email": "system@localhost.localdomain"
+            },
+            "url": "/api/v1/projects/projFoo",
+            "createdAt": "2018-03-27T12:36:00Z"
         },
         {
-            "name": "projFoo"
+            "name": "projBar",
+            "creator": {
+                "name": "System",
+                "email": "system@localhost.localdomain"
+            },
+            "url": "/api/v1/projects/projBar",
+            "createdAt": "2018-03-26T02:27:26Z"
         }
     ]
 
@@ -58,19 +70,14 @@ To list repositories, specify a project name::
     $ dogma ls projFoo
     [
         {
-            "name": "repoA",
-            "head": {
-                "revision": {
-                    "major": 1,
-                    "minor": 0,
-                },
-                "timestamp": "2017-09-23T00:48:13Z",
-                "summary": "Create a new repository",
-                "detail": {
-                    "content": "",
-                    "markup": "PLAINTEXT"
-                }
-            }
+            "name": "main",
+            "creator": {
+                "name": "System",
+                "email": "system@localhost.localdomain"
+            },
+            "headRevision": 2,
+            "url": "/api/v1/projects/projFoo/repos/main",
+            "createdAt": "2018-03-27T12:36:00Z"
         },
         ...
     ]
@@ -82,17 +89,17 @@ To list files or directories in a directory, specify a project name, a repositor
         {
             "path": "/samples/bar.json",
             "type": "JSON",
-            "content": "..."
+            "url": "/api/v1/projects/projFoo/repos/main/samples/bar.json"
         },
         {
             "path": "/samples/foo.txt",
             "type": "TEXT",
-            "content": "..."
+            "url": "/api/v1/projects/projFoo/repos/main/samples/foo.txt"
         },
         {
             "path": "/samples/qux.json",
             "type": "JSON",
-            "content": "..."
+            "url": "/api/v1/projects/projFoo/repos/main/samples/qux.json"
         }
     ]
 
@@ -108,6 +115,10 @@ You can also query a JSON file using JSON path::
     $ dogma cat --jsonpath '$.a' projFoo/main/samples/bar.json
     "Pellentesque feugiat, est sit amet condimentum sagittis...
 
+You can use multiple JSON paths as well::
+    $ dogma cat --jsonpath '$[?(@.a == "bar")]' --jsonpath '$[0].a' projFoo/main/samples/bar.json
+    "Pellentesque feugiat, est sit amet condimentum sagittis...
+
 Alternatively, you can use the ``get`` command to download the file::
 
     $ dogma get projFoo/main/samples/bar.json
@@ -119,15 +130,15 @@ You can add, edit or remove an individual file in a repository using ``put``, ``
 
 First, let's create a JSON file and add it::
 
-    $ echo '[1, 2, 3, 4, 5, 6, 7, 8, 9]' > nine.json
+    $ echo '[1, 2, 3]' > three.json
 
-    $ dogma put projFoo/main/numbers/9.json nine.json
-    Put: /projFoo/main/numbers/9.json
+    $ dogma put projFoo/main/numbers/3.json three.json
+    Put: /projFoo/main/numbers/3.json
 
-The command above uploads ``nine.json`` as ``9.json`` under ``/projFoo/main/numbers/``.
+The command above uploads ``three.json`` as ``3.json`` under ``/projFoo/main/numbers/``.
 
 If you don't specify the file name, the file name will be attached automatically. For example,
-if you do ``dogma put projFoo/main/numbers/ nine.json``, then ``/projFoo/main/numbers/nine.json`` will be added.
+if you do ``dogma put projFoo/main/numbers/ three.json``, then ``/projFoo/main/numbers/three.json`` will be added.
 
 .. note::
 
@@ -138,22 +149,21 @@ if you do ``dogma put projFoo/main/numbers/ nine.json``, then ``/projFoo/main/nu
 
 And then, check it out::
 
-    $ dogma ls projFoo/main/numbers
+    $ dogma cat projFoo/main/numbers/3.json
     [
-        {
-            "path": "/numbers/9.json",
-            "type": "JSON",
-            "content": "[1,2,3,4,5,6,7,8,9]"
-        }
+        1,
+        2,
+        3
     ]
 
 .. note::
 
     When you make a change, you'll be prompted to enter a commit message via a text editor such as ``vim``.
+    If you want to simply add a commit message, use the ``--message`` option.
 
 With the ``edit`` command, you can edit a file using a text editor::
 
-    $ dogma edit projFoo/main/numbers/9.json
+    $ dogma edit projFoo/main/numbers/3.json
     ... Text editor shows up ...
 
 Use the ``rm`` command to remove a file::
@@ -166,10 +176,10 @@ Specifying a revision
 Most commands have an option called ``--revision`` which makes the commands retrieve a file at a specific
 revision. If not specified, the client assumes ``-1`` which means the latest revision in the repository::
 
-    $ dogma cat --revision -1 projFoo/main/numbers/9.json
+    $ dogma cat --revision -1 projFoo/main/numbers/3.json
     ... Success ...
-    $ dogma cat --revision 1 projFoo/main/numbers/9.json
-    ... Failure, because 9.json does not exist at revision 1 ...
+    $ dogma cat --revision 1 projFoo/main/numbers/3.json
+    ... Failure, because 3.json does not exist at revision 1 ...
 
 Use the ``--help`` option
 -------------------------
@@ -193,13 +203,12 @@ option will show the full usage of the client::
          diff       Gets diff of given path
          log        Shows commit logs of the path
          normalize  Normalizes a revision into an absolute revision
-         search     Searches files matched by the term
          help, h    Shows a list of commands or help for one command
 
     GLOBAL OPTIONS:
        --connect value, -c value   Specifies host or IP address with port to connect to:[hostname:port] or [http://hostname:port]
        --username value, -u value  Specifies the username to log in as
-       --token value, -t value     Specifies the token to authenticate
+       --token value, -t value     Specifies an authorization token to access resources on the server
        --help, -h                  Shows help
 
 

@@ -1,4 +1,4 @@
-// Copyright 2017 LINE Corporation
+// Copyright 2018 LINE Corporation
 //
 // LINE Corporation licenses this file to you under the Apache License,
 // version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,42 +15,35 @@
 package cmd
 
 import (
-	"flag"
-	"net/url"
 	"reflect"
 	"testing"
-
-	"github.com/line/centraldogma/client/go/json"
-	"github.com/urfave/cli"
 )
 
 func TestNewNewCommand(t *testing.T) {
-	defaultRemoteURI, _ := url.Parse("http://localhost:36462/api/v0/")
+	defaultRemoteURL := "http://localhost:36462/"
 
 	var tests = []struct {
 		arguments []string
 		want      interface{}
 	}{
-		{[]string{"foo"}, newProjectCommand{remote: defaultRemoteURI, projectName: "foo"}},
-		{[]string{"/foo/"}, newProjectCommand{remote: defaultRemoteURI, projectName: "foo"}},
+		{[]string{"foo"}, newProjectCommand{remoteURL: defaultRemoteURL, name: "foo"}},
+		{[]string{"/foo/"}, newProjectCommand{remoteURL: defaultRemoteURL, name: "foo"}},
 		{[]string{"foo/bar"}, newRepositoryCommand{
-			remote:      defaultRemoteURI,
-			projectName: "foo",
-			repository:  &json.Repository{Name: "bar"}},
+			remoteURL: defaultRemoteURL,
+			projName:  "foo",
+			repoName:  "bar"},
 		},
 		{[]string{"/foo/bar/"}, newRepositoryCommand{
-			remote:      defaultRemoteURI,
-			projectName: "foo",
-			repository:  &json.Repository{Name: "bar"}},
+			remoteURL: defaultRemoteURL,
+			projName:  "foo",
+			repoName:  "bar"},
 		},
 	}
 
 	for _, test := range tests {
-		flags := flag.FlagSet{}
-		flags.Parse(test.arguments)
-		parent := cli.NewContext(nil, &flag.FlagSet{}, nil)
-		c := cli.NewContext(nil, &flags, parent)
+		c := newContext(test.arguments, defaultRemoteURL, "")
 		got, _ := newNewCommand(c)
+
 		switch comType := got.(type) {
 		case *newProjectCommand:
 			got2 := newProjectCommand(*comType)
@@ -60,7 +53,7 @@ func TestNewNewCommand(t *testing.T) {
 		case *newRepositoryCommand:
 			got2 := newRepositoryCommand(*comType)
 			want, _ := test.want.(newRepositoryCommand)
-			if !equalNewRepositoryCommand(got2, want) {
+			if !reflect.DeepEqual(got2, want) {
 				t.Errorf("newNewCommand(%q) = %q, want: %q", test.arguments, got2, want)
 			}
 		default:
@@ -69,16 +62,8 @@ func TestNewNewCommand(t *testing.T) {
 	}
 }
 
-func equalNewRepositoryCommand(repo1 newRepositoryCommand, repo2 newRepositoryCommand) bool {
-	if repo1.projectName != repo2.projectName ||
-		repo1.repository.Name != repo2.repository.Name {
-		return false
-	}
-	return true
-}
-
 func TestNewAddCommand(t *testing.T) {
-	defaultRemoteURI, _ := url.Parse("http://localhost:36462/api/v0/")
+	defaultRemoteURL := "http://localhost:36462/"
 
 	var tests = []struct {
 		arguments []string
@@ -88,98 +73,96 @@ func TestNewAddCommand(t *testing.T) {
 		{[]string{"foo/bar", "a.txt"}, "",
 			putFileCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/a.txt",
-					revision:       "head"},
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/a.txt",
+					revision:  "-1"},
 				localFilePath: "a.txt"},
 		},
 
 		{[]string{"foo/bar/b.txt", "a.txt"}, "",
 			putFileCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/b.txt",
-					revision:       "head"},
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/b.txt",
+					revision:  "-1"},
 				localFilePath: "a.txt"},
 		},
 
 		{[]string{"foo/bar", "/Users/my/a.txt"}, "15",
 			putFileCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/a.txt",
-					revision:       "15"},
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/a.txt",
+					revision:  "15"},
 				localFilePath: "/Users/my/a.txt"},
 		},
 
 		{[]string{"foo/bar", "Users/my/a.txt"}, "1",
 			putFileCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/a.txt",
-					revision:       "1"},
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/a.txt",
+					revision:  "1"},
 				localFilePath: "Users/my/a.txt"},
 		},
 
 		{[]string{"/foo/bar/", "./b.txt"}, "-1",
 			putFileCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/b.txt",
-					revision:       "-1"},
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/b.txt",
+					revision:  "-1"},
 				localFilePath: "./b.txt"},
 		},
 
 		{[]string{"foo/bar/b.txt", "c.txt"}, "-100",
 			putFileCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/b.txt",
-					revision:       "-100"},
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/b.txt",
+					revision:  "-100"},
 				localFilePath: "c.txt"},
 		},
 
 		{[]string{"foo/bar/d", "e.txt"}, "1",
 			putFileCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/d",
-					revision:       "1"},
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/d",
+					revision:  "1"},
 				localFilePath: "e.txt"},
 		},
 
 		{[]string{"foo/bar/d/", "g.txt"}, "",
 			putFileCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/d/g.txt",
-					revision:       "head"},
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/d/g.txt",
+					revision:  "-1"},
 				localFilePath: "g.txt"},
 		},
 	}
 
 	for _, test := range tests {
-		flags := flag.FlagSet{}
-		flags.Parse(test.arguments)
-		parent := cli.NewContext(nil, &flag.FlagSet{}, nil)
-		c := cli.NewContext(nil, &flags, parent)
-		got, _ := newPutCommand(c, test.revision)
+		c := newContext(test.arguments, defaultRemoteURL, test.revision)
+
+		got, _ := newPutCommand(c)
 		switch comType := got.(type) {
 		case *putFileCommand:
 			got2 := putFileCommand(*comType)

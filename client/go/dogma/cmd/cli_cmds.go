@@ -1,4 +1,4 @@
-// Copyright 2017 LINE Corporation
+// Copyright 2018 LINE Corporation
 //
 // LINE Corporation licenses this file to you under the Apache License,
 // version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,16 +17,20 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/line/centraldogma/client/go/json"
 	"github.com/urfave/cli"
 )
 
-var revisionFlag = []cli.Flag{cli.StringFlag{
+var commitMessageFlag = cli.StringFlag{
+	Name:  "message, m",
+	Usage: "Specifies the commit message",
+}
+
+var revisionFlag = cli.StringFlag{
 	Name:  "revision, r",
 	Usage: "Specifies the revision to operate",
-}}
+}
 
-var jsonPathFlag = cli.StringFlag{
+var jsonPathFlag = cli.StringSliceFlag{
 	Name:  "jsonpath, j",
 	Usage: "Specifies the JSON path expressions to apply",
 }
@@ -92,7 +96,7 @@ func getPrintStyle(c *cli.Context) (PrintStyle, error) {
 
 func printWithStyle(data interface{}, format PrintStyle) {
 	// TODO implement this method
-	buf, _ := json.MarshalIndent(data)
+	buf, _ := marshalIndent(data)
 	fmt.Printf("%s\n", buf)
 }
 
@@ -107,13 +111,13 @@ func CLICommands() []cli.Command {
 			Name:      "ls",
 			Usage:     "Lists the projects, repositories or files",
 			ArgsUsage: "[<project_name>[/<repository_name>[/<path>]]]",
-			Flags:     append(printFormatFlags, revisionFlag[0]),
+			Flags:     append(printFormatFlags, revisionFlag),
 			Action: func(c *cli.Context) error {
 				style, err := getPrintStyle(c)
 				if err != nil {
 					return err
 				}
-				command, err := newLSCommand(c, c.String("revision"), style)
+				command, err := newLSCommand(c, style)
 				if err != nil {
 					return newCommandLineError(c)
 				}
@@ -144,9 +148,9 @@ func CLICommands() []cli.Command {
 			Name:      "put",
 			Usage:     "Puts a file to the repository",
 			ArgsUsage: "<project_name>/<repository_name>[/<path>] file_path",
-			Flags:     revisionFlag,
+			Flags:     []cli.Flag{revisionFlag, commitMessageFlag},
 			Action: func(c *cli.Context) error {
-				command, err := newPutCommand(c, c.String("revision"))
+				command, err := newPutCommand(c)
 				if err != nil {
 					return newCommandLineError(c)
 				}
@@ -161,9 +165,9 @@ func CLICommands() []cli.Command {
 			Name:      "edit",
 			Usage:     "Edits a file in the path",
 			ArgsUsage: "<project_name>/<repository_name>/<path>",
-			Flags:     revisionFlag,
+			Flags:     []cli.Flag{revisionFlag, commitMessageFlag},
 			Action: func(c *cli.Context) error {
-				command, err := newEditCommand(c, c.String("revision"))
+				command, err := newEditCommand(c)
 				if err != nil {
 					return newCommandLineError(c)
 				}
@@ -178,9 +182,9 @@ func CLICommands() []cli.Command {
 			Name:      "get",
 			Usage:     "Downloads a file in the path",
 			ArgsUsage: "<project_name>/<repository_name>/<path>",
-			Flags:     append(revisionFlag, jsonPathFlag),
+			Flags:     []cli.Flag{revisionFlag, jsonPathFlag},
 			Action: func(c *cli.Context) error {
-				command, err := newGetCommand(c, c.String("revision"), c.String("jsonpath"))
+				command, err := newGetCommand(c)
 				if err != nil {
 					return newCommandLineError(c)
 				}
@@ -195,9 +199,9 @@ func CLICommands() []cli.Command {
 			Name:      "cat",
 			Usage:     "Prints a file in the path",
 			ArgsUsage: "<project_name>/<repository_name>/<path>",
-			Flags:     append(revisionFlag, jsonPathFlag),
+			Flags:     []cli.Flag{revisionFlag, jsonPathFlag},
 			Action: func(c *cli.Context) error {
-				command, err := newCatCommand(c, c.String("revision"), c.String("jsonpath"))
+				command, err := newCatCommand(c)
 				if err != nil {
 					return newCommandLineError(c)
 				}
@@ -212,9 +216,9 @@ func CLICommands() []cli.Command {
 			Name:      "rm",
 			Usage:     "Removes a file in the path",
 			ArgsUsage: "<project_name>/<repository_name>/<path>",
-			Flags:     revisionFlag,
+			Flags:     []cli.Flag{revisionFlag, commitMessageFlag},
 			Action: func(c *cli.Context) error {
-				command, err := newRMCommand(c, c.String("revision"))
+				command, err := newRMCommand(c)
 				if err != nil {
 					return newCommandLineError(c)
 				}
@@ -235,7 +239,7 @@ func CLICommands() []cli.Command {
 				if err != nil {
 					return err
 				}
-				command, err := newDiffCommand(c, c.String("from"), c.String("to"), style)
+				command, err := newDiffCommand(c, style)
 				if err != nil {
 					return newCommandLineError(c)
 				}
@@ -256,7 +260,7 @@ func CLICommands() []cli.Command {
 				if err != nil {
 					return err
 				}
-				command, err := newLogCommand(c, c.String("from"), c.String("to"), style)
+				command, err := newLogCommand(c, style)
 				if err != nil {
 					return newCommandLineError(c)
 				}
@@ -271,30 +275,9 @@ func CLICommands() []cli.Command {
 			Name:      "normalize",
 			Usage:     "Normalizes a revision into an absolute revision",
 			ArgsUsage: "<project_name>/<repository_name>",
-			Flags:     revisionFlag,
+			Flags:     []cli.Flag{revisionFlag},
 			Action: func(c *cli.Context) error {
-				command, err := newNormalizeCommand(c, c.String("revision"))
-				if err != nil {
-					return newCommandLineError(c)
-				}
-				err = command.execute(c)
-				if err != nil {
-					return cli.NewExitError(err, 1)
-				}
-				return nil
-			},
-		},
-		{
-			Name:      "search",
-			Usage:     "Searches files matched by the term",
-			ArgsUsage: "<project_name>/<repository_name> term",
-			Flags:     append(printFormatFlags, revisionFlag[0]),
-			Action: func(c *cli.Context) error {
-				style, err := getPrintStyle(c)
-				if err != nil {
-					return err
-				}
-				command, err := newSearchCommand(c, c.String("revision"), style)
+				command, err := newNormalizeCommand(c)
 				if err != nil {
 					return newCommandLineError(c)
 				}

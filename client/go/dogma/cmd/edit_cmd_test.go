@@ -1,4 +1,4 @@
-// Copyright 2017 LINE Corporation
+// Copyright 2018 LINE Corporation
 //
 // LINE Corporation licenses this file to you under the Apache License,
 // version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,16 +15,12 @@
 package cmd
 
 import (
-	"flag"
-	"net/url"
 	"reflect"
 	"testing"
-
-	"github.com/urfave/cli"
 )
 
 func TestNewEditCommand(t *testing.T) {
-	defaultRemoteURI, _ := url.Parse("http://localhost:36462/api/v0/")
+	defaultRemoteURL := "http://localhost:36462/"
 
 	var tests = []struct {
 		arguments []string
@@ -33,21 +29,19 @@ func TestNewEditCommand(t *testing.T) {
 	}{
 		{[]string{"foo/bar/a.txt"}, "",
 			editFileCommand{repo: repositoryRequestInfo{
-				remote: defaultRemoteURI, projectName: "foo", repositoryName: "bar",
-				repositoryPath: "/a.txt", revision: "head"}}},
+				remoteURL: defaultRemoteURL, projName: "foo", repoName: "bar",
+				path: "/a.txt", revision: "-1"}}},
 
 		{[]string{"foo/bar/b/a.txt"}, "10",
 			editFileCommand{repo: repositoryRequestInfo{
-				remote: defaultRemoteURI, projectName: "foo", repositoryName: "bar",
-				repositoryPath: "/b/a.txt", revision: "10"}}},
+				remoteURL: defaultRemoteURL, projName: "foo", repoName: "bar",
+				path: "/b/a.txt", revision: "10"}}},
 	}
 
 	for _, test := range tests {
-		flags := flag.FlagSet{}
-		flags.Parse(test.arguments)
-		parent := cli.NewContext(nil, &flag.FlagSet{}, nil)
-		c := cli.NewContext(nil, &flags, parent)
-		got, _ := newEditCommand(c, test.revision)
+		c := newContext(test.arguments, defaultRemoteURL, test.revision)
+
+		got, _ := newEditCommand(c)
 		switch comType := got.(type) {
 		case *editFileCommand:
 			got2 := editFileCommand(*comType)

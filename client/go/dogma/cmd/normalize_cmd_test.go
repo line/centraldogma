@@ -1,4 +1,4 @@
-// Copyright 2017 LINE Corporation
+// Copyright 2018 LINE Corporation
 //
 // LINE Corporation licenses this file to you under the Apache License,
 // version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,16 +15,12 @@
 package cmd
 
 import (
-	"flag"
-	"net/url"
 	"reflect"
 	"testing"
-
-	"github.com/urfave/cli"
 )
 
 func TestNewNormalizeCommand(t *testing.T) {
-	defaultRemoteURI, _ := url.Parse("http://localhost:36462/api/v0/")
+	defaultRemoteURL := "http://localhost:36462/"
 
 	var tests = []struct {
 		arguments []string
@@ -33,27 +29,26 @@ func TestNewNormalizeCommand(t *testing.T) {
 	}{
 		{[]string{"foo/bar"}, "",
 			normalizeRevisionCommand{repo: repositoryRequestInfo{
-				remote:         defaultRemoteURI,
-				projectName:    "foo",
-				repositoryName: "bar",
-				revision:       "head"}},
+				remoteURL: defaultRemoteURL,
+				projName:  "foo",
+				repoName:  "bar",
+				path:      "/",
+				revision:  "-1"}},
 		},
 
 		{[]string{"foo/bar/"}, "10",
 			normalizeRevisionCommand{repo: repositoryRequestInfo{
-				remote:         defaultRemoteURI,
-				projectName:    "foo",
-				repositoryName: "bar",
-				revision:       "10"}},
+				remoteURL: defaultRemoteURL,
+				projName:  "foo",
+				repoName:  "bar",
+				path:      "/",
+				revision:  "10"}},
 		},
 	}
 
 	for _, test := range tests {
-		flags := flag.FlagSet{}
-		flags.Parse(test.arguments)
-		parent := cli.NewContext(nil, &flag.FlagSet{}, nil)
-		c := cli.NewContext(nil, &flags, parent)
-		got, _ := newNormalizeCommand(c, test.revision)
+		c := newContext(test.arguments, defaultRemoteURL, test.revision)
+		got, _ := newNormalizeCommand(c)
 		switch comType := got.(type) {
 		case *normalizeRevisionCommand:
 			got2 := normalizeRevisionCommand(*comType)

@@ -1,4 +1,4 @@
-// Copyright 2017 LINE Corporation
+// Copyright 2018 LINE Corporation
 //
 // LINE Corporation licenses this file to you under the Apache License,
 // version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,7 +17,7 @@ package main
 import (
 	"os"
 
-	"github.com/line/centraldogma/client/go/cmd"
+	"github.com/line/centraldogma/client/go/dogma/cmd"
 	"github.com/urfave/cli"
 )
 
@@ -45,7 +45,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "token, t",
-			Usage: "Specifies the token to authenticate",
+			Usage: "Specifies an authorization token to access resources on the server",
 		},
 	}
 

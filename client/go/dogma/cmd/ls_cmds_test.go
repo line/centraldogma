@@ -1,4 +1,4 @@
-// Copyright 2017 LINE Corporation
+// Copyright 2018 LINE Corporation
 //
 // LINE Corporation licenses this file to you under the Apache License,
 // version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,89 +15,83 @@
 package cmd
 
 import (
-	"flag"
-	"net/url"
 	"reflect"
 	"testing"
-
-	"github.com/urfave/cli"
 )
 
 func TestNewLSCommand(t *testing.T) {
-	defaultRemoteURI, _ := url.Parse("http://localhost:36462/api/v0/")
+	defaultRemoteURL := "http://localhost:36462/"
 
 	var tests = []struct {
 		arguments []string
 		revision  string
 		want      interface{}
 	}{
-		{[]string{""}, "", lsProjectCommand{remote: defaultRemoteURI}},
-		{[]string{"/foo/"}, "", lsRepositoryCommand{remote: defaultRemoteURI, projectName: "foo"}},
-		{[]string{"foo/"}, "", lsRepositoryCommand{remote: defaultRemoteURI, projectName: "foo"}},
-		{[]string{"foo"}, "", lsRepositoryCommand{remote: defaultRemoteURI, projectName: "foo"}},
+		{[]string{""}, "", lsProjectCommand{remoteURL: defaultRemoteURL}},
+		{[]string{"/foo/"}, "", lsRepositoryCommand{remoteURL: defaultRemoteURL, projName: "foo"}},
+		{[]string{"foo/"}, "", lsRepositoryCommand{remoteURL: defaultRemoteURL, projName: "foo"}},
+		{[]string{"foo"}, "", lsRepositoryCommand{remoteURL: defaultRemoteURL, projName: "foo"}},
 		{[]string{"foo/bar"}, "",
 			lsPathCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/",
-					revision:       "head",
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/",
+					revision:  "-1",
 				},
 			},
 		},
 		{[]string{"foo/bar/"}, "",
 			lsPathCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/",
-					revision:       "head",
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/",
+					revision:  "-1",
 				},
 			},
 		},
 		{[]string{"foo/bar/a"}, "",
 			lsPathCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/a",
-					revision:       "head",
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/a",
+					revision:  "-1",
 				},
 			},
 		},
 		{[]string{"foo/bar/a/"}, "100",
 			lsPathCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/a/",
-					revision:       "100",
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/a/",
+					revision:  "100",
 				},
 			},
 		},
 		{[]string{"foo/bar/a.txt"}, "",
 			lsPathCommand{
 				repo: repositoryRequestInfo{
-					remote:         defaultRemoteURI,
-					projectName:    "foo",
-					repositoryName: "bar",
-					repositoryPath: "/a.txt",
-					revision:       "head",
+					remoteURL: defaultRemoteURL,
+					projName:  "foo",
+					repoName:  "bar",
+					path:      "/a.txt",
+					revision:  "-1",
 				},
 			},
 		},
 	}
 
 	for _, test := range tests {
-		flags := flag.FlagSet{}
-		flags.Parse(test.arguments)
-		parent := cli.NewContext(nil, &flag.FlagSet{}, nil)
-		c := cli.NewContext(nil, &flags, parent)
-		got, _ := newLSCommand(c, test.revision, 0)
+		c := newContext(test.arguments, defaultRemoteURL, test.revision)
+
+		got, _ := newLSCommand(c, 0)
 		switch comType := got.(type) {
 		case *lsProjectCommand:
 			got2 := lsProjectCommand(*comType)
