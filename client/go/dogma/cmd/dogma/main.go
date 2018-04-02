@@ -15,10 +15,9 @@
 package main
 
 import (
-	"os"
-
 	"github.com/line/centraldogma/client/go/dogma/cmd"
 	"github.com/urfave/cli"
+	"os"
 )
 
 var (
@@ -55,6 +54,18 @@ func main() {
 		Usage: "Shows help",
 	}
 	cli.CommandHelpTemplate = commandHelpTemplate
+
+	// You can use this arguments to test easily.
+	//app.Run([]string{"dogma", "--connect", "localhost:36462", "new", "projFoo"})
+	//app.Run([]string{"dogma", "--connect", "localhost:36462", "ls"})
+	//app.Run([]string{"dogma", "--connect", "localhost:36462", "new", "projFoo/repoA"})
+	//app.Run([]string{"dogma", "--connect", "localhost:36462", "ls", "projFoo"})
+	//app.Run([]string{"dogma", "--connect", "localhost:36462", "put",
+	//	"projFoo/repoA/samples/a.json", "a.json", "-m", "Add a.json"})
+	//app.Run([]string{"dogma", "--connect", "localhost:36462", "cat", "projFoo/repoA/samples/a.json"})
+	//app.Run([]string{"dogma", "--connect", "localhost:36462", "cat",
+	//  "projFoo/repoA/samples/a.json", "--jsonpath", "$.a"})
+
 	app.Run(os.Args)
 }
 

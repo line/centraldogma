@@ -79,10 +79,10 @@ func getCommitMessage(c *cli.Context, filePath string, commitType commitType) (*
 
 func messageFromCLI() (*dogma.CommitMessage, error) {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter summary: ")
+	fmt.Print("Enter commit message: ")
 	summary, _ := reader.ReadString('\n')
 	if len(summary) == 0 {
-		return nil, errors.New("you must input summary")
+		return nil, errors.New("you must input commit message")
 	}
 	commitMessage := &dogma.CommitMessage{Summary: summary}
 
@@ -280,5 +280,5 @@ func newUpsertChangeFromFile(fileName, repositoryPath string) (*dogma.Change, er
 }
 
 func marshalIndent(data interface{}) ([]byte, error) {
-	return json.MarshalIndent(data, "", "    ")
+	return json.MarshalIndent(data, "", "  ")
 }
