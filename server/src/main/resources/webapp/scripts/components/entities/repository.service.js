@@ -2,7 +2,7 @@
 
 angular.module('CentralDogmaAdmin')
     .factory('RepositoryService',
-             function (ApiService, ApiV1Service, StringUtil) {
+             function (ApiService, ApiV1Service, StringUtil, EntitiesUtil) {
                return {
                  createRepository: function (projectName, repositoryName) {
                    projectName = StringUtil.requireNotEmpty(projectName, 'projectName');
