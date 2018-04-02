@@ -410,7 +410,7 @@ class GitRepository implements Repository {
             }
 
             if ("/".equals(pathPattern)) {
-                return Collections.singletonMap(pathPattern, Entry.rootDir());
+                return Collections.singletonMap(pathPattern, Entry.ofDirectory(normRevision, "/"));
             }
 
             final Map<String, Entry<?>> result = new LinkedHashMap<>();
@@ -428,7 +428,7 @@ class GitRepository implements Repository {
                 if (treeWalk.isSubtree()) {
                     if (matches) {
                         // Add the directory itself to the result set if its path matches the pattern.
-                        result.put(path, Entry.ofDirectory(path));
+                        result.put(path, Entry.ofDirectory(normRevision, path));
                     }
 
                     treeWalk.enterSubtree();
@@ -447,11 +447,11 @@ class GitRepository implements Repository {
                     switch (entryType) {
                     case JSON:
                         final JsonNode jsonNode = Jackson.readTree(content);
-                        entry = Entry.ofJson(path, jsonNode);
+                        entry = Entry.ofJson(normRevision, path, jsonNode);
                         break;
                     case TEXT:
                         final String strVal = sanitizeText(new String(content, UTF_8));
-                        entry = Entry.ofText(path, strVal);
+                        entry = Entry.ofText(normRevision, path, strVal);
                         break;
                     default:
                         throw new Error("unexpected entry type: " + entryType);
@@ -459,10 +459,10 @@ class GitRepository implements Repository {
                 } else {
                     switch (entryType) {
                     case JSON:
-                        entry = Entry.ofJson(path, Jackson.nullNode);
+                        entry = Entry.ofJson(normRevision, path, Jackson.nullNode);
                         break;
                     case TEXT:
-                        entry = Entry.ofText(path, "");
+                        entry = Entry.ofText(normRevision, path, "");
                         break;
                     default:
                         throw new Error("unexpected entry type: " + entryType);

@@ -16,28 +16,23 @@
 
 package com.linecorp.centraldogma.server.internal.admin.dto;
 
-import static java.util.Objects.requireNonNull;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.MoreObjects;
-
-import com.linecorp.centraldogma.internal.thrift.Entry;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EntryDto {
 
+    private String revision;
     private String path;
     private String type;
     private String content;
 
-    public EntryDto() {}
+    public String getRevision() {
+        return revision;
+    }
 
-    public EntryDto(Entry file) {
-        requireNonNull(file, "file");
-
-        path = file.getPath();
-        type = file.getType().name();
-        content = file.getContent();
+    public void setRevision(String revision) {
+        this.revision = revision;
     }
 
     public String getPath() {
@@ -75,6 +70,7 @@ public class EntryDto {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .add("revision", revision)
                           .add("path", path)
                           .add("type", type)
                           .add("content", content)

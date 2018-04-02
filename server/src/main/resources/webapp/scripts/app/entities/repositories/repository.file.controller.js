@@ -56,8 +56,7 @@ angular.module('CentralDogmaAdmin')
 
                   RepositoryService.getFile($scope.project.name, $scope.repository.name, $scope.revision,
                                             {path: $scope.path}).then(
-                      function (fileWithRevision) {
-                        var file = fileWithRevision.file;
+                      function (file) {
                         if (file.type === 'JSON') {
                           file.content = JSON.stringify(JSON.parse(file.content), null, 2) + '\n';
                         }

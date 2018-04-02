@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.client;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +32,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
@@ -110,10 +112,16 @@ public interface CentralDogma {
     /**
      * Retrieves the file at the specified revision and path. This method is a shortcut of
      * {@code getFile(projectName, repositoryName, revision, Query.identity(path)}.
+     *
+     * @deprecated Use {@link #getFile(String, String, Revision, Query)} with {@link Query#ofText(String)} or
+     *             {@link Query#ofJson(String)}.
      */
+    @Deprecated
     default CompletableFuture<Entry<Object>> getFile(String projectName, String repositoryName,
                                                      Revision revision, String path) {
-        return getFile(projectName, repositoryName, revision, Query.identity(path));
+        @SuppressWarnings("unchecked")
+        final Query<Object> query = (Query<Object>) Query.of(QueryType.IDENTITY, path);
+        return getFile(projectName, repositoryName, revision, query);
     }
 
     /**
@@ -166,7 +174,7 @@ public interface CentralDogma {
                                                  Revision from, Revision to, String path) {
         @SuppressWarnings({ "unchecked", "rawtypes" })
         final CompletableFuture<Change<?>> diff = (CompletableFuture<Change<?>>) (CompletableFuture)
-                getDiff(projectName, repositoryName, from, to, Query.identity(path));
+                getDiff(projectName, repositoryName, from, to, Query.of(QueryType.IDENTITY, path));
         return diff;
     }
 
@@ -211,13 +219,53 @@ public interface CentralDogma {
      * Pushes the specified {@link Change}s to the repository.
      */
     default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
+                                           String summary, Change<?>... changes) {
+        return push(projectName, repositoryName, baseRevision, summary,
+                    ImmutableList.copyOf(requireNonNull(changes, "changes")));
+    }
+
+    /**
+     * Pushes the specified {@link Change}s to the repository.
+     */
+    default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
+                                           String summary, Iterable<? extends Change<?>> changes) {
+        return push(projectName, repositoryName, baseRevision, summary, "", Markup.PLAINTEXT, changes);
+    }
+
+    /**
+     * Pushes the specified {@link Change}s to the repository.
+     */
+    default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
+                                           String summary, String detail, Markup markup,
+                                           Change<?>... changes) {
+        return push(projectName, repositoryName, baseRevision, summary, detail, markup,
+                    ImmutableList.copyOf(requireNonNull(changes, "changes")));
+    }
+
+    /**
+     * Pushes the specified {@link Change}s to the repository.
+     */
+    CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
+                                   String summary, String detail, Markup markup,
+                                   Iterable<? extends Change<?>> changes);
+
+    /**
+     * Pushes the specified {@link Change}s to the repository.
+     *
+     * @deprecated Use {@link #push(String, String, Revision, String, Change...)}.
+     */
+    @Deprecated
+    default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
                                            Author author, String summary, Change<?>... changes) {
         return push(projectName, repositoryName, baseRevision, author, summary, ImmutableList.copyOf(changes));
     }
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     *
+     * @deprecated Use {@link #push(String, String, Revision, String, Iterable)}.
      */
+    @Deprecated
     default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
                                            Author author, String summary,
                                            Iterable<? extends Change<?>> changes) {
@@ -226,7 +274,10 @@ public interface CentralDogma {
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     *
+     * @deprecated Use {@link #push(String, String, Revision, String, String, Markup, Change...)}.
      */
+    @Deprecated
     default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
                                            Author author, String summary, String detail, Markup markup,
                                            Change<?>... changes) {
@@ -236,7 +287,10 @@ public interface CentralDogma {
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     *
+     * @deprecated Use {@link #push(String, String, Revision, String, String, Markup, Iterable)}.
      */
+    @Deprecated
     CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
                                    Author author, String summary, String detail, Markup markup,
                                    Iterable<? extends Change<?>> changes);
@@ -251,18 +305,18 @@ public interface CentralDogma {
     /**
      * Awaits and returns the query result of the specified file since the specified last known revision.
      */
-    <T> CompletableFuture<QueryResult<T>> watchFile(String projectName, String repositoryName,
-                                                    Revision lastKnownRevision, Query<T> query,
-                                                    long timeoutMillis);
+    <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
+                                              Revision lastKnownRevision, Query<T> query,
+                                              long timeoutMillis);
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the result of the
      * given {@link Query} becomes available or changes. e.g:
      * <pre>{@code
-     * Watcher<Object> watcher = client.fileWatcher("foo", "bar", Query.identity("/baz.json"));
+     * Watcher<JsonNode> watcher = client.fileWatcher("foo", "bar", Query.ofJson("/baz.json"));
      *
      * watcher.watch((revision, content) -> {
-     *     JsonNode json = (JsonNode) content;
+     *     assert content instanceof JsonNode;
      *     ...
      * });}</pre>
      */
@@ -275,8 +329,8 @@ public interface CentralDogma {
      * {@link Function} when the result of the given {@link Query} becomes available or changes. e.g:
      * <pre>{@code
      * Watcher<MyType> watcher = client.fileWatcher(
-     *         "foo", "bar", Query.identity("/baz.json"),
-     *         content -> new ObjectMapper().treeToValue((TreeNode) content, MyType.class));
+     *         "foo", "bar", Query.ofJson("/baz.json"),
+     *         content -> new ObjectMapper().treeToValue(content, MyType.class));
      *
      * watcher.watch((revision, myValue) -> {
      *     assert myValue instanceof MyType;

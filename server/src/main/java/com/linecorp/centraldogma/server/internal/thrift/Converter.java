@@ -137,7 +137,7 @@ final class Converter {
     ////////////////
 
     static Entry convert(com.linecorp.centraldogma.common.Entry<?> entry) {
-        return EntryConverter.TO_DATA.convert(entry);
+        return EntryConverter.convert(entry);
     }
 
     // The parameter 'project' is not used at the moment, but will be used once schema and plugin support lands.

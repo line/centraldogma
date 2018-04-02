@@ -55,7 +55,6 @@ import com.linecorp.centraldogma.server.internal.admin.dto.ChangeDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.CommitDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.CommitMessageDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
-import com.linecorp.centraldogma.server.internal.admin.dto.EntryWithRevisionDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
@@ -102,19 +101,19 @@ public class RepositoryService extends AbstractService {
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/files/revisions/(?<revision>[^/]+)(?<path>/.*$)")
     @Decorator(HasReadPermission.class)
-    public CompletionStage<EntryWithRevisionDto> getFile(@Param("projectName") String projectName,
-                                                         @Param("repoName") String repoName,
-                                                         @Param("revision") String revision,
-                                                         @Param("path") String path,
-                                                         @Param("queryType") Optional<String> queryType,
-                                                         @Param("expression") Optional<String> expressions) {
+    public CompletionStage<EntryDto> getFile(@Param("projectName") String projectName,
+                                             @Param("repoName") String repoName,
+                                             @Param("revision") String revision,
+                                             @Param("path") String path,
+                                             @Param("queryType") Optional<String> queryType,
+                                             @Param("expression") Optional<String> expressions) {
 
         final Query<?> query = Query.of(QueryType.valueOf(queryType.orElse("IDENTITY")),
                                         path, expressions.orElse(""));
         final Repository repo = projectManager().get(projectName).repos().get(repoName);
         return repo.normalize(new Revision(revision))
                    .thenCompose(normalized -> repo.get(normalized, query))
-                   .thenApply(queryResult -> DtoConverter.convert(path, queryResult));
+                   .thenApply(DtoConverter::convert);
     }
 
     /**
@@ -307,7 +306,7 @@ public class RepositoryService extends AbstractService {
                 sb.append(',');
             }
 
-            if (term0.matches(".*[/\\*]+.*")) {
+            if (term0.matches(".*[/*]+.*")) {
                 sb.append(term0);
             } else {
                 sb.append('*').append(term0).append('*');

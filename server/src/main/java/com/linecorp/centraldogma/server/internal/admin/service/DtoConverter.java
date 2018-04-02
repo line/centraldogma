@@ -24,14 +24,12 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.admin.dto.AuthorDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.ChangeDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.CommentDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.CommitDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
-import com.linecorp.centraldogma.server.internal.admin.dto.EntryWithRevisionDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.ProjectDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RepositoryDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
@@ -92,19 +90,11 @@ final class DtoConverter {
 
     static EntryDto convert(Entry<?> entry) {
         EntryDto dto = new EntryDto();
+        dto.setRevision(entry.revision().text());
         dto.setPath(entry.path());
         dto.setType(entry.type().name());
         dto.setContent(entry.contentAsText());
         return dto;
-    }
-
-    static EntryWithRevisionDto convert(String path, QueryResult<?> queryResult) {
-        EntryDto entryDto = new EntryDto();
-        entryDto.setPath(path);
-        entryDto.setType(queryResult.type().name());
-        entryDto.setContent(queryResult.contentAsText());
-
-        return new EntryWithRevisionDto(entryDto, queryResult.revision().text());
     }
 
     static RepositoryDto fromCommit(String name, List<Commit> history) {

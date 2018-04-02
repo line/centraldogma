@@ -21,7 +21,6 @@ import java.io.UncheckedIOException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.Converter;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
@@ -29,17 +28,9 @@ import com.linecorp.centraldogma.internal.Jackson;
  * Provides a function converting back and forth between {@link Entry} and
  * {@link com.linecorp.centraldogma.common.Entry}.
  */
-public final class EntryConverter extends Converter<com.linecorp.centraldogma.common.Entry<?>, Entry> {
-    public static final Converter<com.linecorp.centraldogma.common.Entry<?>, Entry> TO_DATA =
-            new EntryConverter();
+public final class EntryConverter {
 
-    public static final Converter<Entry, com.linecorp.centraldogma.common.Entry<?>> TO_MODEL =
-            TO_DATA.reverse();
-
-    private EntryConverter() {}
-
-    @Override
-    protected Entry doForward(com.linecorp.centraldogma.common.Entry<?> entry) {
+    public static Entry convert(com.linecorp.centraldogma.common.Entry<?> entry) {
         Entry file = new Entry(entry.path(), convertEntryType(entry.type()));
         switch (entry.type()) {
             case JSON:
@@ -61,20 +52,21 @@ public final class EntryConverter extends Converter<com.linecorp.centraldogma.co
         return file;
     }
 
-    @Override
-    protected com.linecorp.centraldogma.common.Entry<?> doBackward(Entry entry) {
+    public static com.linecorp.centraldogma.common.Entry<?> convert(
+            com.linecorp.centraldogma.common.Revision revision, Entry entry) {
         switch (entry.getType()) {
             case JSON:
                 try {
                     JsonNode value = Jackson.readTree(entry.getContent());
-                    return com.linecorp.centraldogma.common.Entry.ofJson(entry.getPath(), value);
+                    return com.linecorp.centraldogma.common.Entry.ofJson(revision, entry.getPath(), value);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
             case TEXT:
-                return com.linecorp.centraldogma.common.Entry.ofText(entry.getPath(), entry.getContent());
+                return com.linecorp.centraldogma.common.Entry.ofText(revision, entry.getPath(),
+                                                                     entry.getContent());
             case DIRECTORY:
-                return com.linecorp.centraldogma.common.Entry.ofDirectory(entry.getPath());
+                return com.linecorp.centraldogma.common.Entry.ofDirectory(revision, entry.getPath());
             default:
                 throw new IllegalArgumentException("unsupported entry type: " + entry.getType());
         }
@@ -119,4 +111,6 @@ public final class EntryConverter extends Converter<com.linecorp.centraldogma.co
 
         throw new Error();
     }
+
+    private EntryConverter() {}
 }

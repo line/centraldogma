@@ -30,7 +30,7 @@ public class SaveNamedQueryCommandTest {
     @Test
     public void testJsonConversion() {
         assertJsonConversion(new SaveNamedQueryCommand(1234L, Author.SYSTEM, "foo", "bar", true, "qux",
-                                                       Query.identity("/first.txt"),
+                                                       Query.ofText("/first.txt"),
                                                        "plaintext comment", Markup.PLAINTEXT),
                              Command.class,
                              '{' +
@@ -100,7 +100,7 @@ public class SaveNamedQueryCommandTest {
         assertThat(c.queryName()).isEqualTo("bar");
         assertThat(c.isEnabled()).isTrue();
         assertThat(c.repositoryName()).isEqualTo("qux");
-        assertThat(c.query()).isEqualTo(Query.identity("/first.txt"));
+        assertThat(c.query()).isEqualTo(Query.ofText("/first.txt"));
         assertThat(c.comment()).isEqualTo("plaintext comment");
         assertThat(c.markup()).isSameAs(Markup.PLAINTEXT);
     }

@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
 
@@ -24,16 +25,14 @@ import java.util.concurrent.CompletableFuture;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
-import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
-final class CacheableQueryCall extends CacheableCall<QueryResult<?>> {
+final class CacheableQueryCall extends CacheableCall<Entry<?>> {
 
-    static final QueryResult<Object> EMPTY =
-            new QueryResult<>(new Revision(Integer.MAX_VALUE), EntryType.TEXT, null);
+    static final Entry<?> EMPTY = Entry.ofDirectory(new Revision(Integer.MAX_VALUE), "/");
 
     final Revision revision;
     final Query<Object> query;
@@ -51,13 +50,13 @@ final class CacheableQueryCall extends CacheableCall<QueryResult<?>> {
     }
 
     @Override
-    int weigh(QueryResult<?> value) {
+    int weigh(Entry<?> value) {
         int weight = 0;
         weight += query.path().length();
         for (String e : query.expressions()) {
             weight += e.length();
         }
-        if (value != null) {
+        if (value != null && value.hasContent()) {
             final String content = value.contentAsText();
             if (content != null) {
                 weight += content.length();
@@ -66,10 +65,9 @@ final class CacheableQueryCall extends CacheableCall<QueryResult<?>> {
         return weight;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
-    CompletableFuture<QueryResult<?>> execute() {
-        return (CompletableFuture<QueryResult<?>>) (CompletableFuture) repo.getOrElse(revision, query, EMPTY);
+    CompletableFuture<Entry<?>> execute() {
+        return repo.getOrNull(revision, query).thenApply(e -> firstNonNull(e, EMPTY));
     }
 
     @Override

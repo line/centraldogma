@@ -49,7 +49,8 @@ public final class QueryConverter extends Converter<com.linecorp.centraldogma.co
     protected com.linecorp.centraldogma.common.Query<?> doBackward(Query query) {
         switch (query.getType()) {
             case IDENTITY:
-                return com.linecorp.centraldogma.common.Query.identity(query.getPath());
+                return com.linecorp.centraldogma.common.Query.of(
+                        com.linecorp.centraldogma.common.QueryType.IDENTITY, query.getPath());
             case JSON_PATH:
                 return com.linecorp.centraldogma.common.Query.ofJsonPath(query.getPath(),
                                                                          query.getExpressions());

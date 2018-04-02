@@ -23,7 +23,7 @@ import com.linecorp.centraldogma.testing.internal.TestUtil;
 public class QueryTest {
     @Test
     public void testJsonConversion() {
-        TestUtil.assertJsonConversion(Query.identity("/foo.txt"), Query.class,
+        TestUtil.assertJsonConversion(Query.ofText("/foo.txt"), Query.class,
                              '{' +
                              "  \"type\": \"IDENTITY\"," +
                              "  \"path\": \"/foo.txt\"" +

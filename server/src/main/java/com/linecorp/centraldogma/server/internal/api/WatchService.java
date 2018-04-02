@@ -26,8 +26,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -42,7 +42,7 @@ public final class WatchService {
             Exceptions.clearTrace(new CancellationException("watch timed out or server stopping"));
 
     private final Set<CompletableFuture<?>> pendingFutures =
-            Collections.newSetFromMap(new ConcurrentHashMap<CompletableFuture<?>, Boolean>());
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private volatile boolean serverStopping;
 
@@ -110,9 +110,9 @@ public final class WatchService {
      * {@code timeoutMillis} passes. If there's no change during the time, the returned future will be
      * exceptionally completed with the {@link CancellationException}.
      */
-    public <T> CompletableFuture<QueryResult<T>> watchFile(Repository repo, Revision lastKnownRevision,
-                                                           Query<T> query, long timeoutMillis) {
-        final CompletableFuture<QueryResult<T>> result = repo.watch(lastKnownRevision, query);
+    public <T> CompletableFuture<Entry<T>> watchFile(Repository repo, Revision lastKnownRevision,
+                                                     Query<T> query, long timeoutMillis) {
+        final CompletableFuture<Entry<T>> result = repo.watch(lastKnownRevision, query);
         if (result.isDone()) {
             return result;
         }

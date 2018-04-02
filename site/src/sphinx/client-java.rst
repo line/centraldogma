@@ -78,10 +78,10 @@ Once a client is created, you can get a file from a repository:
     import com.linecorp.centraldogma.common.Query;
 
     CentralDogma dogma = ...;
-    CompletableFuture<Entry<Object>> future =
-            dogma.getFile("myProj", "myRepo", Revision.HEAD, Query.identity("/a.txt"));
+    CompletableFuture<Entry<String>> future =
+            dogma.getFile("myProj", "myRepo", Revision.HEAD, Query.ofText("/a.txt"));
 
-    Entry<Object> entry = future.join();
+    Entry<String> entry = future.join();
     assert entry.type() == EntryType.TEXT
     assert entry.content() instanceof String; // Text file's content type is String.
     System.err.println(entry.content());
@@ -94,8 +94,8 @@ you desire. e.g. ``new Revision(42)`` or ``new Revision(-7)``
 
     Not sure what the meaning of a negative revision number is? Read :ref:`concepts`.
 
-Note that we used ``Query.identity()``, which tells Central Dogma to fetch the content in verbatim.
-Alternatively, if the file is JSON, you can use ``Query.ofJsonPath()``:
+Note that we used ``Query.ofText()``, which tells Central Dogma to fetch the textual content. For a JSON file,
+you need to use ``Query.ofJson()``:
 
 .. code-block:: java
 
@@ -103,12 +103,24 @@ Alternatively, if the file is JSON, you can use ``Query.ofJsonPath()``:
 
     CentralDogma dogma = ...;
     CompletableFuture<Entry<JsonNode>> future =
+            dogma.getFile("myProj", "myRepo", Revision.HEAD, Query.ofJson("/b.json"));
+
+Did you notice the return type changed slightly? The type parameter of ``Entry`` is not ``String`` anymore but
+``JsonNode`` (from `Jackson <https://github.com/FasterXML/jackson>`_), because we know we are fetching a JSON
+file.
+
+Alternatively, you can use ``Query.ofJsonPath()`` to retrieve the result of JSON path evaluation instead of
+the whole content, which would be useful especially when you are interested only in a certain part of a
+large JSON file:
+
+.. code-block:: java
+
+    CentralDogma dogma = ...;
+    CompletableFuture<Entry<JsonNode>> future =
             dogma.getFile("myProj", "myRepo", Revision.HEAD,
                           Query.ofJsonPath("/b.json", "$.someValue"));
 
-Did you notice the return type changed slightly? The type parameter of ``Entry`` is not ``Object`` anymore but
-``JsonNode`` (from `Jackson <https://github.com/FasterXML/jackson>`_), because we know we are fetching a JSON
-file. Central Dogma server will apply the JSON path expression ``$.someValue`` to the content of ``/b.json``
+Central Dogma server will apply the JSON path expression ``$.someValue`` to the content of ``/b.json``
 and return the query result to the client. For example, if ``/b.json`` contains the following:
 
 .. code-block:: json
@@ -132,14 +144,12 @@ You can also push a commit into a repository programmatically:
 
 .. code-block:: java
 
-    import com.linecorp.centraldogma.common.Author;
     import com.linecorp.centraldogma.common.Change;
     import com.linecorp.centraldogma.common.Commit;
 
     CentralDogma dogma = ...;
     CompletableFuture<Commit> future =
             dogma.push("myProj", "myRepo", Revision.HEAD,
-                       new Author("John Doe", "john@doe.com"),
                        "Add /c.json and remove /b.json",
                        Change.ofUpsert("/c.json", "{ \"foo\": \"bar\" }"),
                        Change.ofRemoval("/b.json"));
@@ -181,15 +191,16 @@ the process. The client library provides an easy way to watch a file:
     import com.linecorp.centraldogma.client.Watcher;
 
     CentralDogma dogma = ...;
-    Watcher<JsonNode> watcher = dogma.fileWatcher("myProj", "myRepo", Query.ofJsonPath("$.foo"));
-
+    Watcher<JsonNode> watcher = dogma.fileWatcher("myProj", "myRepo",
+                                                  Query.ofJsonPath("/some_file.json", "$.foo"));
     // Register a callback for changes.
     watcher.watch((revision, value) -> {
         System.err.println("Foo has been updated to " + value + " (revision: " + revision + ')');
     });
 
     // Alternatively, without using a callback:
-    Latest<JsonNode> latest = watcher.latest();
+    watcher.awaitInitialValue();                // Wait until the initial value is available.
+    Latest<JsonNode> latest = watcher.latest(); // Get the latest value.
     System.err.println("Current foo: " + latest.value() + " (revision: " + latest.revision() + ')');
 
 You would want to register a callback to the ``Watcher`` or check the return value of ``Watcher.latest()``

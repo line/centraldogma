@@ -28,8 +28,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-import javax.annotation.Nullable;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -45,7 +43,6 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
@@ -142,10 +139,10 @@ public interface Repository {
      *
      * @throws EntryNotFoundException if there's no entry at the specified {@code path}
      *
-     * @see #getOrElse(Revision, String, Entry)
+     * @see #getOrNull(Revision, String)
      */
     default CompletableFuture<Entry<?>> get(Revision revision, String path) {
-        return getOrElse(revision, path, null).thenApply(entry -> {
+        return getOrNull(revision, path).thenApply(entry -> {
             if (entry == null) {
                 throw new EntryNotFoundException(revision, path);
             }
@@ -159,10 +156,10 @@ public interface Repository {
      *
      * @throws EntryNotFoundException if there's no entry at the path specified in the {@link Query}
      *
-     * @see #getOrElse(Revision, Query, QueryResult)
+     * @see #getOrNull(Revision, Query)
      */
-    default <T> CompletableFuture<QueryResult<T>> get(Revision revision, Query<T> query) {
-        return getOrElse(revision, query, null).thenApply(res -> {
+    default <T> CompletableFuture<Entry<T>> get(Revision revision, Query<T> query) {
+        return getOrNull(revision, query).thenApply(res -> {
             if (res == null) {
                 throw new EntryNotFoundException(revision, query.path());
             }
@@ -179,32 +176,28 @@ public interface Repository {
      *
      * @see #get(Revision, String)
      */
-    default CompletableFuture<Entry<?>> getOrElse(Revision revision, String path, @Nullable Entry<?> other) {
+    default CompletableFuture<Entry<?>> getOrNull(Revision revision, String path) {
         validateFilePath(path, "path");
 
-        return find(revision, path, GET_FIND_OPTIONS).thenApply(findResult -> {
-            final Entry<?> entry = findResult.get(path);
-            return entry != null ? entry : other;
-        });
+        return find(revision, path, GET_FIND_OPTIONS).thenApply(findResult -> findResult.get(path));
     }
 
     /**
      * Performs the specified {@link Query}.
      *
-     * @return the {@link QueryResult} on a successful query.
+     * @return the {@link Entry} on a successful query.
      *         The specified {@code other} on a failure due to missing entry.
      *
      * @see #get(Revision, Query)
      */
-    default <T> CompletableFuture<QueryResult<T>> getOrElse(
-            Revision revision, Query<T> query, @Nullable QueryResult<T> other) {
+    default <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query) {
 
         requireNonNull(query, "query");
         requireNonNull(revision, "revision");
 
-        return getOrElse(revision, query.path(), null).thenApply(entry -> {
+        return getOrNull(revision, query.path()).thenApply(entry -> {
             if (entry == null) {
-                return other;
+                return null;
             }
 
             final EntryType entryType = entry.type();
@@ -216,7 +209,7 @@ public interface Repository {
             @SuppressWarnings("unchecked")
             final T entryContent = (T) entry.content();
             try {
-                return new QueryResult<>(revision, entryType, query.apply(entryContent));
+                return Entry.of(entry.revision(), query.path(), entryType, query.apply(entryContent));
             } catch (CentralDogmaException e) {
                 throw e;
             } catch (Exception e) {
@@ -253,8 +246,8 @@ public interface Repository {
         final RevisionRange range = normalizeNow(from, to).toAscending();
 
         final String path = query.path();
-        final CompletableFuture<Entry<?>> fromEntryFuture = getOrElse(range.from(), path, null);
-        final CompletableFuture<Entry<?>> toEntryFuture = getOrElse(range.to(), path, null);
+        final CompletableFuture<Entry<?>> fromEntryFuture = getOrNull(range.from(), path);
+        final CompletableFuture<Entry<?>> toEntryFuture = getOrNull(range.to(), path);
 
         final CompletableFuture<Change<?>> future =
                 CompletableFutures.combine(fromEntryFuture, toEntryFuture, (fromEntry, toEntry) -> {
@@ -407,7 +400,7 @@ public interface Repository {
      * Awaits and retrieves the change in the query result of the specified file asynchronously since the
      * specified last known revision.
      */
-    default <T> CompletableFuture<QueryResult<T>> watch(Revision lastKnownRevision, Query<T> query) {
+    default <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query) {
         return RepositoryUtil.watch(this, lastKnownRevision, query);
     }
 }

@@ -56,7 +56,6 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
@@ -112,7 +111,7 @@ public class ContentServiceV1 extends AbstractService {
         return repository.find(revision, pathPattern, options)
                          .thenApply(entries -> entries.values().stream()
                                                       .filter(entry -> entry.type() != EntryType.DIRECTORY)
-                                                      .map(entry -> DtoConverter.convert(repository, entry))
+                                                      .map(entry -> convert(repository, entry))
                                                       .collect(toImmutableList()));
     }
 
@@ -233,8 +232,7 @@ public class ContentServiceV1 extends AbstractService {
         if (query.isPresent()) {
             // get a file
             return repository.get(new Revision(revision), query.get())
-                             .handle(returnOrThrow((QueryResult<?> result) ->
-                                                           convert(repository, result, path0)));
+                             .handle(returnOrThrow((Entry<?> result) -> convert(repository, result)));
         }
 
         // get files
@@ -243,7 +241,7 @@ public class ContentServiceV1 extends AbstractService {
 
     private CompletionStage<?> watchFile(Repository repository, Revision lastKnownRevision,
                                          Query<?> query, long timeOutMillis) {
-        final CompletableFuture<? extends QueryResult<?>> future = watchService.watchFile(
+        final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis);
 
         return future.thenCompose(result -> handleWatchSuccess(repository, result.revision(), query.path()))

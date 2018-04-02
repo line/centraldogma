@@ -67,7 +67,6 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
@@ -187,14 +186,16 @@ public class GitRepositoryTest {
         }
 
         // Check the content of all entries.
-        Map<String, Entry<?>> entries = Util.unsafeCast(repo.find(HEAD, allPattern).join());
+        final Revision headRev = repo.normalizeNow(HEAD);
+        final Map<String, Entry<?>> entries = Util.unsafeCast(repo.find(headRev, allPattern).join());
         for (Change<?> c : upserts) {
             final String path = c.path();
             if (entryType == EntryType.TEXT) {
                 // Text must be sanitized so that the last line ends with \n.
-                assertThat(entries).containsEntry(path, Entry.of(path, c.content() + "\n", EntryType.TEXT));
+                assertThat(entries).containsEntry(path, Entry.of(headRev, path, EntryType.TEXT,
+                                                                 c.content() + "\n"));
             } else {
-                assertThat(entries).containsEntry(path, Entry.of(path, c.content(), entryType));
+                assertThat(entries).containsEntry(path, Entry.of(headRev, path, entryType, c.content()));
             }
         }
     }
@@ -952,15 +953,15 @@ public class GitRepositoryTest {
         //               +- bb
         //
 
-        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                    Change.ofTextUpsert(prefix + "a/file", ""),
-                    Change.ofTextUpsert(prefix + "b/ba/file", ""),
-                    Change.ofTextUpsert(prefix + "b/bb/file", "")).join();
+        final Revision rev = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                         Change.ofTextUpsert(prefix + "a/file", ""),
+                                         Change.ofTextUpsert(prefix + "b/ba/file", ""),
+                                         Change.ofTextUpsert(prefix + "b/bb/file", "")).join();
 
-        final Entry<Void> a = Entry.ofDirectory(prefix + 'a');
-        final Entry<Void> b = Entry.ofDirectory(prefix + 'b');
-        final Entry<Void> b_ba = Entry.ofDirectory(prefix + "b/ba");
-        final Entry<Void> b_bb = Entry.ofDirectory(prefix + "b/bb");
+        final Entry<Void> a = Entry.ofDirectory(rev, prefix + 'a');
+        final Entry<Void> b = Entry.ofDirectory(rev, prefix + 'b');
+        final Entry<Void> b_ba = Entry.ofDirectory(rev, prefix + "b/ba");
+        final Entry<Void> b_bb = Entry.ofDirectory(rev, prefix + "b/bb");
 
         // Recursive search
         final Collection<Entry<?>> entries = repo.find(HEAD, allPattern).join().entrySet().stream()
@@ -1001,7 +1002,7 @@ public class GitRepositoryTest {
                                         "  }" +
                                         ']')).join();
 
-        final QueryResult<JsonNode> res1 = repo.get(HEAD, Query.ofJsonPath(
+        final Entry<JsonNode> res1 = repo.get(HEAD, Query.ofJsonPath(
                 "/instances.json", "$[?(@.name == 'b')]")).join();
 
         assertThatJson(res1.content()).isEqualTo("[{" +
@@ -1015,7 +1016,7 @@ public class GitRepositoryTest {
                                                  "  }]" +
                                                  "}]");
 
-        final QueryResult<JsonNode> res2 = repo.get(HEAD, Query.ofJsonPath(
+        final Entry<JsonNode> res2 = repo.get(HEAD, Query.ofJsonPath(
                 "/instances.json", "$..groups[?(@.type == 'not_phase' && @.name == 'alpha')]")).join();
 
         assertThatJson(res2.content()).isEqualTo("[{" +
@@ -1023,7 +1024,7 @@ public class GitRepositoryTest {
                                                  "  \"name\": \"alpha\"" +
                                                  "}]");
 
-        final QueryResult<JsonNode> res3 = repo.get(HEAD, Query.ofJsonPath(
+        final Entry<JsonNode> res3 = repo.get(HEAD, Query.ofJsonPath(
                 "/instances.json", "$[?(@.groups[?(@.type == 'phase' && @.name == 'alpha')] empty false)]"))
                                                .join();
 
@@ -1110,7 +1111,7 @@ public class GitRepositoryTest {
                 HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofJsonUpsert(jsonPaths[0], "{ \"hello\": \"mars\" }")).join();
 
-        CompletableFuture<QueryResult<JsonNode>> f =
+        CompletableFuture<Entry<JsonNode>> f =
                 repo.watch(rev1, Query.ofJsonPath(jsonPaths[0], "$.hello"));
 
         // Make sure the initial change does not trigger a notification.
@@ -1130,7 +1131,7 @@ public class GitRepositoryTest {
                 HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofJsonUpsert(jsonPaths[0], "{ \"hello\": \"jupiter\", \"goodbye\": \"mars\" }")).join();
 
-        final QueryResult<JsonNode> res = f.get(3, TimeUnit.SECONDS);
+        final Entry<JsonNode> res = f.get(3, TimeUnit.SECONDS);
         assertThat(res.revision()).isEqualTo(rev3);
         assertThat(res.type()).isEqualTo(EntryType.JSON);
         assertThat(res.content()).isEqualTo(TextNode.valueOf("jupiter"));
@@ -1140,11 +1141,11 @@ public class GitRepositoryTest {
     public void testWatchWithIdentityQuery() throws Exception {
         final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, textUpserts[0]).join();
 
-        CompletableFuture<QueryResult<Object>> f =
-                repo.watch(rev1, Query.identity(textPaths[0]));
+        CompletableFuture<Entry<String>> f =
+                repo.watch(rev1, Query.ofText(textPaths[0]));
 
         final Revision rev2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, textPatches[1]).join();
-        final QueryResult<Object> res = f.get(3, TimeUnit.SECONDS);
+        final Entry<String> res = f.get(3, TimeUnit.SECONDS);
         assertThat(res.revision()).isEqualTo(rev2);
         assertThat(res.type()).isEqualTo(EntryType.TEXT);
         // Text must be sanitized so that the last line ends with \n.
@@ -1153,19 +1154,39 @@ public class GitRepositoryTest {
 
     @Test
     public void testWatchRemoval() throws Exception {
-        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
+        final String path = jsonPaths[0];
+        final Change<JsonNode> upsert1 = Change.ofJsonUpsert(path, "1");
+        final Change<JsonNode> upsert2 = Change.ofJsonUpsert(path, "2");
 
-        CompletableFuture<QueryResult<JsonNode>> f =
-                repo.watch(rev1, Query.ofJsonPath(jsonPaths[0], "$"));
+        final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, upsert1).join();
+        final CompletableFuture<Entry<JsonNode>> f = repo.watch(rev1, Query.ofJson(path));
 
         // Remove the file being watched.
-        final Revision rev2 = repo.commit(
-                HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(jsonPaths[0])).join();
-        final QueryResult<JsonNode> res = f.get(3, TimeUnit.SECONDS);
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(path)).join();
+
+        // Should wait patiently until the file reappears.
+        assertThatThrownBy(() -> f.get(1, TimeUnit.SECONDS)).isInstanceOf(TimeoutException.class);
+
+        // Add the file back again without changing the content.
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, upsert1).join();
+
+        // Should wait patiently until the file changes really.
+        assertThatThrownBy(() -> f.get(1, TimeUnit.SECONDS)).isInstanceOf(TimeoutException.class);
+
+        // Remove the file being watched again.
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(path)).join();
+
+        // Should wait patiently until the file reappears.
+        assertThatThrownBy(() -> f.get(1, TimeUnit.SECONDS)).isInstanceOf(TimeoutException.class);
+
+        // Add the file back again with different content.
+        final Revision rev2 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, upsert2).join();
+
+        // Should be notified this time because the content has changed really.
+        final Entry<JsonNode> res = f.get(3, TimeUnit.SECONDS);
         assertThat(res.revision()).isEqualTo(rev2);
-        assertThat(res.type()).isNull();
-        assertThat(res.content()).isNull();
-        assertThat(res.contentAsText()).isNull();
+        assertThat(res.type()).isEqualTo(EntryType.JSON);
+        assertThatJson(res.content()).isEqualTo(upsert2.content());
     }
 
     @Test
@@ -1184,7 +1205,7 @@ public class GitRepositoryTest {
         };
 
         // Start a watch that never finishes.
-        final CompletableFuture<QueryResult<JsonNode>> f =
+        final CompletableFuture<Entry<JsonNode>> f =
                 repo.watch(HEAD, Query.ofJsonPath(jsonPaths[0], "$"));
         assertThatThrownBy(() -> f.get(500, TimeUnit.MILLISECONDS))
                 .isInstanceOf(TimeoutException.class);

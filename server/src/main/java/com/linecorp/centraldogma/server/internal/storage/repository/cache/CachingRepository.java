@@ -25,8 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
-import javax.annotation.Nullable;
-
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.base.Throwables;
 import com.spotify.futures.CompletableFutures;
@@ -38,7 +36,6 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
@@ -80,15 +77,14 @@ final class CachingRepository implements Repository {
     }
 
     @Override
-    public <T> CompletableFuture<QueryResult<T>> getOrElse(Revision revision, Query<T> query,
-                                                           @Nullable QueryResult<T> other) {
+    public <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query) {
         requireNonNull(revision, "revision");
         requireNonNull(query, "query");
 
         final CompletableFuture<Object> future = normalizeAndCompose(
                 revision,
                 rev -> cache.get(new CacheableQueryCall(repo, rev, query))
-                            .thenApply(result -> result != CacheableQueryCall.EMPTY ? result : other));
+                            .thenApply(result -> result != CacheableQueryCall.EMPTY ? result : null));
         return unsafeCast(future);
     }
 

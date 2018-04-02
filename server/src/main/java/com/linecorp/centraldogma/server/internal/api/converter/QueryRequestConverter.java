@@ -28,6 +28,7 @@ import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.QueryType;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 
@@ -50,7 +51,7 @@ public final class QueryRequestConverter implements RequestConverterFunction {
         }
 
         if (isValidFilePath(path)) {
-            return Optional.of(Query.identity(path));
+            return Optional.of(Query.of(QueryType.IDENTITY, path));
         }
         return Optional.empty();
     }

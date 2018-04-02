@@ -25,7 +25,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-final class IdentityQuery implements Query<Object> {
+final class IdentityQuery<T> implements Query<T> {
 
     private final String path;
     private String strVal;
@@ -51,7 +51,7 @@ final class IdentityQuery implements Query<Object> {
     }
 
     @Override
-    public Object apply(Object input) {
+    public T apply(T input) {
         return requireNonNull(input, "input");
     }
 
@@ -70,7 +70,7 @@ final class IdentityQuery implements Query<Object> {
             return true;
         }
 
-        final IdentityQuery that = (IdentityQuery) obj;
+        final IdentityQuery<?> that = (IdentityQuery<?>) obj;
 
         return path().equals(that.path());
     }

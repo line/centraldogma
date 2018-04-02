@@ -37,9 +37,8 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBean;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanConfigBuilder;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanFactory;
-import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
@@ -77,19 +76,17 @@ public class CentralDogmaBeanTest {
         assertThat(property.getQux()).containsExactly("x", "y", "z");
         assertThat(property.getRevision()).isNull();
 
-        client.push("a", "b", Revision.HEAD, Author.SYSTEM, "Add a.json",
-                    Change.ofJsonUpsert("/c.json",
-                                        '{' +
-                                        "  \"foo\": 20," +
-                                        "  \"bar\": \"Y\"," +
-                                        "  \"qux\": [\"0\", \"1\"]" +
-                                        '}'))
-              .join();
-
-        client.watchFile("a", "b", Revision.INIT, Query.identity("/a.json"), 5000).join();
+        final Commit rev = client.push("a", "b", Revision.HEAD, "Add c.json",
+                                        Change.ofJsonUpsert("/c.json",
+                                                            '{' +
+                                                            "  \"foo\": 20," +
+                                                            "  \"bar\": \"Y\"," +
+                                                            "  \"qux\": [\"0\", \"1\"]" +
+                                                            '}'))
+                                  .join();
 
         // Wait until the changes are handled.
-        await().atMost(5, TimeUnit.SECONDS).until(() -> property.getFoo() == 20);
+        await().atMost(5000, TimeUnit.SECONDS).until(() -> property.getFoo() == 20);
 
         assertThat(property.getBar()).isEqualTo("Y");
         assertThat(property.getQux()).containsExactly("0", "1");
@@ -98,7 +95,7 @@ public class CentralDogmaBeanTest {
 
         // test that after close a watcher, it could not receive change anymore
         property.closeWatcher();
-        client.push("a", "b", Revision.HEAD, Author.SYSTEM, "Modify a.json",
+        client.push("a", "b", Revision.HEAD, "Modify c.json",
                     Change.ofJsonUpsert("/c.json",
                                         '{' +
                                         "  \"foo\": 50," +
@@ -118,7 +115,7 @@ public class CentralDogmaBeanTest {
             throw new RuntimeException("test runtime exception");
         };
         final TestProperty failProp = factory.get(new TestProperty(), TestProperty.class, failListener);
-        client.push("a", "b", Revision.HEAD, Author.SYSTEM, "Add a.json",
+        client.push("a", "b", Revision.HEAD, "Add a.json",
                     Change.ofJsonUpsert("/c.json",
                                         '{' +
                                         "  \"foo\": 211," +
@@ -139,7 +136,7 @@ public class CentralDogmaBeanTest {
     public void overrideSettings() throws Exception {
         final CentralDogma client = dogma.client();
 
-        client.push("alice", "bob", Revision.HEAD, Author.SYSTEM, "Add charlie.json",
+        client.push("alice", "bob", Revision.HEAD, "Add charlie.json",
                     Change.ofJsonUpsert("/charlie.json",
                                         "[{" +
                                         "  \"foo\": 200," +

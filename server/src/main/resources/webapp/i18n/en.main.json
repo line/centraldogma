@@ -35,6 +35,7 @@
     "button_add_user_permission": "Add a user permission",
     "button_cancel": "Cancel",
     "button_change": "Change",
+    "button_commit": "Commit",
     "button_create": "Create",
     "button_create_project": "Create a project",
     "button_create_repository": "Create a repository",

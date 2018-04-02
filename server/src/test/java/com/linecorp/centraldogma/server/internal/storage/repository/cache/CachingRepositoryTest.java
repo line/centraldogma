@@ -47,10 +47,8 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
-import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
@@ -68,23 +66,23 @@ public class CachingRepositoryTest {
     @SuppressWarnings("unchecked")
     public void query() {
         final Repository repo = setMockNames(newCachingRepo());
-        final Query<Object> query = Query.identity("/baz.txt");
-        final QueryResult<Object> queryResult = new QueryResult<>(new Revision(10), EntryType.TEXT, "qux");
+        final Query<String> query = Query.ofText("/baz.txt");
+        final Entry<String> queryResult = Entry.ofText(new Revision(10), query.path(), "qux");
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrElse(any(), any(Query.class), any())).thenReturn(completedFuture(queryResult));
+        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(queryResult));
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
-        verify(delegateRepo).getOrElse(new Revision(10), query, CacheableQueryCall.EMPTY);
+        verify(delegateRepo).getOrNull(new Revision(10), query);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
         assertThat(repo.get(new Revision(10), query).join()).isEqualTo(queryResult);
-        verify(delegateRepo, never()).getOrElse(any(), any(Query.class), any());
+        verify(delegateRepo, never()).getOrNull(any(), any(Query.class));
         verifyNoMoreInteractions(delegateRepo);
     }
 
@@ -92,30 +90,30 @@ public class CachingRepositoryTest {
     @SuppressWarnings("unchecked")
     public void queryMissingEntry() {
         final Repository repo = setMockNames(newCachingRepo());
-        final Query<Object> query = Query.identity("/baz.txt");
+        final Query<String> query = Query.ofText("/baz.txt");
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrElse(any(), any(Query.class), any()))
-                .thenReturn(completedFuture(CacheableQueryCall.EMPTY));
-        assertThat(repo.getOrElse(HEAD, query, null).join()).isNull();
-        verify(delegateRepo).getOrElse(new Revision(10), query, CacheableQueryCall.EMPTY);
+        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(null));
+        assertThat(repo.getOrNull(HEAD, query).join()).isNull();
+        verify(delegateRepo).getOrNull(new Revision(10), query);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
-        assertThat(repo.getOrElse(HEAD, query, null).join()).isNull();
-        assertThat(repo.getOrElse(new Revision(10), query, null).join()).isNull();
-        verify(delegateRepo, never()).getOrElse(any(), any(Query.class), any());
+        assertThat(repo.getOrNull(HEAD, query).join()).isNull();
+        assertThat(repo.getOrNull(new Revision(10), query).join()).isNull();
+        verify(delegateRepo, never()).getOrNull(any(), any(Query.class));
         verifyNoMoreInteractions(delegateRepo);
     }
 
     @Test
     public void find() {
         final Repository repo = setMockNames(newCachingRepo());
-        final Map<String, Entry<?>> entries = ImmutableMap.of("/baz.txt", Entry.ofText("/baz.txt", "qux"));
+        final Map<String, Entry<?>> entries =
+                ImmutableMap.of("/baz.txt", Entry.ofText(new Revision(10), "/baz.txt", "qux"));
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
@@ -164,11 +162,10 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     public void singleDiff() {
         final Repository repo = setMockNames(newCachingRepo());
-        final Query query = Query.identity("/foo.txt");
-        final Change change = Change.ofTextUpsert(query.path(), "bar");
+        final Query<String> query = Query.ofText("/foo.txt");
+        final Change<String> change = Change.ofTextUpsert(query.path(), "bar");
 
         doReturn(new RevisionRange(10, 1)).when(delegateRepo).normalizeNow(HEAD, INIT);
         doReturn(new RevisionRange(10, 1)).when(delegateRepo).normalizeNow(new Revision(10), INIT);

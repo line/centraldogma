@@ -63,7 +63,7 @@ public final class PluginManager {
         logger.info("Loading plugins for project: {} (revision: {})", project.name(), revision.text());
 
         @SuppressWarnings("unchecked")
-        final Entry<JsonNode> entry = (Entry<JsonNode>) metaRepo.getOrElse(revision, PLUGINS_JSON, null);
+        final Entry<JsonNode> entry = (Entry<JsonNode>) metaRepo.getOrNull(revision, PLUGINS_JSON).join();
         if (entry == null) {
             logger.info("Project '{}' contains no plugins.", project.name());
             return NO_PLUGINS;
@@ -122,7 +122,7 @@ public final class PluginManager {
             logger.warn("{} does not have '.js' extension; ignoring.", path);
             return false;
         }
-        final Entry<?> e = metaRepo.getOrElse(revision, path, null).join();
+        final Entry<?> e = metaRepo.getOrNull(revision, path).join();
         if (e == null) {
             logger.warn("{} does not exist; ignoring.", path);
             return false;

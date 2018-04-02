@@ -51,11 +51,9 @@ import com.google.common.base.Strings;
 import com.google.common.io.Files;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.it.TestConstants;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -129,8 +127,6 @@ public class GitMirrorTest {
 
     @Test
     public void remoteToLocal() throws Exception {
-        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState("/");
-
         pushMirrorSettings(null, null);
 
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
@@ -145,6 +141,7 @@ public class GitMirrorTest {
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         //// Make sure /mirror_state.json exists (and nothing else.)
+        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/");
         assertThat(client.getFiles(projName, REPO_FOO, rev1, "/**").join().values())
                 .containsExactly(expectedInitialMirrorState);
 
@@ -162,7 +159,6 @@ public class GitMirrorTest {
         addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}");
         git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
 
-        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState("/");
         mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
@@ -170,12 +166,13 @@ public class GitMirrorTest {
         assertThat(rev3).isEqualTo(rev2.forward(1));
 
         //// Make sure the two files are all there.
+        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
         assertThat(client.getFiles(projName, REPO_FOO, rev3, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
-                                           Entry.ofDirectory("/first"),
-                                           Entry.ofText("/first/light.txt", "26-Aug-2014\n"),
-                                           Entry.ofDirectory("/second"),
-                                           Entry.ofJson("/second/son.json",
+                                           Entry.ofDirectory(rev3, "/first"),
+                                           Entry.ofText(rev3, "/first/light.txt", "26-Aug-2014\n"),
+                                           Entry.ofDirectory(rev3, "/second"),
+                                           Entry.ofJson(rev3, "/second/son.json",
                                                         "{\"release_date\": \"21-Mar-2014\"}"));
 
         // Rewrite the history of the git repository and mirror.
@@ -183,7 +180,6 @@ public class GitMirrorTest {
         addToGitIndex("final_fantasy_xv.txt", "29-Nov-2016");
         git.commit().setMessage("Add the release date of the 'Final Fantasy XV'").call();
 
-        final Entry<JsonNode> expectedThirdMirrorState = expectedMirrorState("/");
         mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
@@ -191,18 +187,17 @@ public class GitMirrorTest {
         assertThat(rev4).isEqualTo(rev3.forward(1));
 
         //// Make sure the rewritten content is mirrored.
+        final Entry<JsonNode> expectedThirdMirrorState = expectedMirrorState(rev4, "/");
         assertThat(client.getFiles(projName, REPO_FOO, rev4, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedThirdMirrorState,
-                                           Entry.ofText("/final_fantasy_xv.txt", "29-Nov-2016\n"));
+                                           Entry.ofText(rev4, "/final_fantasy_xv.txt", "29-Nov-2016\n"));
     }
 
     @Test
     public void remoteToLocal_subdirectory() throws Exception {
-        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState("/target/");
-
         pushMirrorSettings("/target", "/source/main");
 
-        client.push(projName, REPO_FOO, Revision.HEAD, Author.SYSTEM, "Add a file that's not part of mirror",
+        client.push(projName, REPO_FOO, Revision.HEAD, "Add a file that's not part of mirror",
                     Change.ofTextUpsert("/not_mirrored.txt", "")).join();
 
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
@@ -217,6 +212,7 @@ public class GitMirrorTest {
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         //// Make sure /target/mirror_state.json exists (and nothing else.)
+        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/target/");
         assertThat(client.getFiles(projName, REPO_FOO, rev1, "/target/**").join().values())
                 .containsExactly(expectedInitialMirrorState);
 
@@ -226,7 +222,6 @@ public class GitMirrorTest {
         addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}"); // not mirrored
         git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
 
-        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState("/target/");
         mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
@@ -234,10 +229,11 @@ public class GitMirrorTest {
         assertThat(rev2).isEqualTo(rev1.forward(1));
 
         //// Make sure 'target/first/light.txt' is mirrored.
+        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev2, "/target/");
         assertThat(client.getFiles(projName, REPO_FOO, rev2, "/target/**").join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
-                                           Entry.ofDirectory("/target/first"),
-                                           Entry.ofText("/target/first/light.txt", "26-Aug-2014\n"));
+                                           Entry.ofDirectory(rev2, "/target/first"),
+                                           Entry.ofText(rev2, "/target/first/light.txt", "26-Aug-2014\n"));
 
         //// Make sure the files not under '/target' are not touched. (sample files)
         assertThat(client.getFiles(projName, REPO_FOO, rev2, "/not_mirrored.txt").join().values())
@@ -285,8 +281,10 @@ public class GitMirrorTest {
         // Run the mirror and ensure alphabets.txt contains all alphabets.
         mirroringService.mirror().join();
 
-        final Entry<JsonNode> expectedMirrorState = expectedMirrorState("/");
+        final Revision headRev = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        final Entry<JsonNode> expectedMirrorState = expectedMirrorState(headRev, "/");
         final Entry<String> expectedAlphabets = Entry.ofText(
+                headRev,
                 "/alphabets.txt",
                 "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n");
 
@@ -344,7 +342,7 @@ public class GitMirrorTest {
     }
 
     private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath) {
-        client.push(projName, Project.REPO_META, Revision.HEAD, TestConstants.AUTHOR, "Add /mirrors.json",
+        client.push(projName, Project.REPO_META, Revision.HEAD, "Add /mirrors.json",
                     Change.ofJsonUpsert("/mirrors.json",
                                         "[{" +
                                         "  \"type\": \"single\"," +
@@ -355,12 +353,13 @@ public class GitMirrorTest {
                                         "}]")).join();
     }
 
-    private Entry<JsonNode> expectedMirrorState(String localPath) throws IOException {
+    private Entry<JsonNode> expectedMirrorState(Revision revision, String localPath) throws IOException {
         final String sha1 = git.getRepository()
                                .exactRef(Constants.R_HEADS + Constants.MASTER)
                                .getObjectId().getName();
 
-        return Entry.ofJson(localPath + "mirror_state.json", "{ \"sourceRevision\": \"" + sha1 + "\" }");
+        return Entry.ofJson(revision, localPath + "mirror_state.json",
+                            "{ \"sourceRevision\": \"" + sha1 + "\" }");
     }
 
     private void addToGitIndex(String path, String content) throws IOException, GitAPIException {

@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,7 +58,7 @@ public class CacheTest {
         client.createRepository(project, REPO_FOO).join();
 
         final CacheStats stats1 = cacheStatsSupplier.get();
-        final Commit commit = client.push(project, REPO_FOO, HEAD, SYSTEM, "Add a file",
+        final Commit commit = client.push(project, REPO_FOO, HEAD, "Add a file",
                                           Change.ofTextUpsert("/foo.txt", "bar")).join();
 
         // NB: A push operation involves a history() operation to retrieve the last commit.
@@ -68,7 +67,7 @@ public class CacheTest {
         assertThat(stats2.missCount()).isEqualTo(stats1.missCount() + 1);
 
         // First getFile() should miss.
-        final Query<Object> query = Query.identity("/foo.txt");
+        final Query<String> query = Query.ofText("/foo.txt");
         final Entry<?> entry = client.getFile(project, REPO_FOO, HEAD, query).join();
         final CacheStats stats3 = cacheStatsSupplier.get();
         assertThat(stats3.missCount()).isEqualTo(stats2.missCount() + 1);
@@ -99,7 +98,7 @@ public class CacheTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
-        final Commit commit1 = client.push(project, REPO_FOO, HEAD, SYSTEM, "Add a file",
+        final Commit commit1 = client.push(project, REPO_FOO, HEAD, "Add a file",
                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
 
         final CacheStats stats1 = cacheStatsSupplier.get();
@@ -133,7 +132,7 @@ public class CacheTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
-        final Commit commit1 = client.push(project, REPO_FOO, HEAD, SYSTEM, "Add a file",
+        final Commit commit1 = client.push(project, REPO_FOO, HEAD, "Add a file",
                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
 
         final CacheStats stats1 = cacheStatsSupplier.get();

@@ -90,9 +90,9 @@ angular.module('CentralDogmaAdmin')
                           path: $scope.path,
                           type: 'IDENTITY'
                         }).then(
-                        function (fileWithRevision) {
-                          $scope.file = fileWithRevision.file;
-                          $scope.queryResult = JSON.stringify(JSON.parse(fileWithRevision.file.content), null, 2) + '\n';
+                        function (file) {
+                          $scope.file = file;
+                          $scope.queryResult = JSON.stringify(JSON.parse(file.content), null, 2) + '\n';
                         });
                   } else {
                     RepositoryService.getFile($scope.project.name, $scope.repository.name, $scope.revision,
@@ -101,9 +101,9 @@ angular.module('CentralDogmaAdmin')
                           type: $scope.queryType,
                           expressions: converted
                         }).then(
-                        function (fileWithRevision) {
-                          $scope.file = fileWithRevision.file;
-                          $scope.queryResult = JSON.stringify(JSON.parse(fileWithRevision.file.content), null, 2) + '\n';
+                        function (file) {
+                          $scope.file = file;
+                          $scope.queryResult = JSON.stringify(JSON.parse(file.content), null, 2) + '\n';
                         });
                   }
                 });
