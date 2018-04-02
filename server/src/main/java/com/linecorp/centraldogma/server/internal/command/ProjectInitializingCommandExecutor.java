@@ -17,9 +17,7 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.generateSampleFiles;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_MAIN;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 
 import java.util.concurrent.CompletableFuture;
@@ -35,10 +33,8 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.metadata.Member;
-import com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
-import com.linecorp.centraldogma.server.internal.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.internal.metadata.UserAndTimestamp;
 
 public class ProjectInitializingCommandExecutor extends ForwardingCommandExecutor {
@@ -63,10 +59,7 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
         final CompletableFuture<Void> f = delegate().execute(c);
         return f.thenCompose(unused -> delegate().execute(Command.createRepository(creationTimeMillis, author,
                                                                                    projectName, REPO_META)))
-                .thenCompose(unused -> delegate().execute(Command.createRepository(creationTimeMillis, author,
-                                                                                   projectName, REPO_MAIN)))
                 .thenCompose(unused -> initializeMetadata(delegate(), projectName, author))
-                .thenCompose(unused -> generateSampleFiles(delegate(), projectName, REPO_MAIN))
                 .thenApply(unused -> null);
     }
 
@@ -81,12 +74,9 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
         logger.info("Initializing metadata: {}", projectName);
 
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
-        final RepositoryMetadata mainRepositoryMetadata =
-                new RepositoryMetadata(REPO_MAIN, userAndTimestamp, PerRolePermissions.ofPublic());
         final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
         final ProjectMetadata metadata = new ProjectMetadata(projectName,
-                                                             ImmutableMap.of(mainRepositoryMetadata.id(),
-                                                                             mainRepositoryMetadata),
+                                                             ImmutableMap.of(),
                                                              ImmutableMap.of(member.id(), member),
                                                              ImmutableMap.of(),
                                                              userAndTimestamp, null);

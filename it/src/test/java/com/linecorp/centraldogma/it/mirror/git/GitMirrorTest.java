@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_MAIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -52,6 +51,7 @@ import com.google.common.base.Strings;
 import com.google.common.io.Files;
 
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
@@ -66,6 +66,8 @@ public class GitMirrorTest {
 
     private static final int MAX_NUM_FILES = 32;
     private static final long MAX_NUM_BYTES = 1048576; // 1 MiB
+
+    private static final String REPO_FOO = "foo";
 
     @ClassRule
     public static final CentralDogmaRule rule = new CentralDogmaRule() {
@@ -117,6 +119,7 @@ public class GitMirrorTest {
     public void initDogmaRepo() throws Exception {
         projName = testName.getMethodName();
         client.createProject(projName).join();
+        client.createRepository(projName, REPO_FOO).join();
     }
 
     @After
@@ -130,7 +133,7 @@ public class GitMirrorTest {
 
         pushMirrorSettings(null, null);
 
-        final Revision rev0 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
+        final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
 
         // Mirror an empty git repository, which will;
         // - Create /mirror_state.json
@@ -138,18 +141,18 @@ public class GitMirrorTest {
         mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
-        final Revision rev1 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
+        final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         //// Make sure /mirror_state.json exists (and nothing else.)
-        assertThat(client.getFiles(projName, REPO_MAIN, rev1, "/**").join().values())
+        assertThat(client.getFiles(projName, REPO_FOO, rev1, "/**").join().values())
                 .containsExactly(expectedInitialMirrorState);
 
         // Try to mirror again with no changes in the git repository.
         mirroringService.mirror().join();
 
         //// Make sure it does not try to produce an empty commit.
-        final Revision rev2 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
+        final Revision rev2 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
         assertThat(rev2).isEqualTo(rev1);
 
         // Now, add some files to the git repository and mirror.
@@ -163,11 +166,11 @@ public class GitMirrorTest {
         mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
-        final Revision rev3 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
+        final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
         assertThat(rev3).isEqualTo(rev2.forward(1));
 
         //// Make sure the two files are all there.
-        assertThat(client.getFiles(projName, REPO_MAIN, rev3, "/**").join().values())
+        assertThat(client.getFiles(projName, REPO_FOO, rev3, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
                                            Entry.ofDirectory("/first"),
                                            Entry.ofText("/first/light.txt", "26-Aug-2014\n"),
@@ -184,11 +187,11 @@ public class GitMirrorTest {
         mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
-        final Revision rev4 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
+        final Revision rev4 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
         assertThat(rev4).isEqualTo(rev3.forward(1));
 
         //// Make sure the rewritten content is mirrored.
-        assertThat(client.getFiles(projName, REPO_MAIN, rev4, "/**").join().values())
+        assertThat(client.getFiles(projName, REPO_FOO, rev4, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedThirdMirrorState,
                                            Entry.ofText("/final_fantasy_xv.txt", "29-Nov-2016\n"));
     }
@@ -199,7 +202,10 @@ public class GitMirrorTest {
 
         pushMirrorSettings("/target", "/source/main");
 
-        final Revision rev0 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
+        client.push(projName, REPO_FOO, Revision.HEAD, Author.SYSTEM, "Add a file that's not part of mirror",
+                    Change.ofTextUpsert("/not_mirrored.txt", "")).join();
+
+        final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
 
         // Mirror an empty git repository, which will;
         // - Create /target/mirror_state.json
@@ -207,11 +213,11 @@ public class GitMirrorTest {
         mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
-        final Revision rev1 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
+        final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         //// Make sure /target/mirror_state.json exists (and nothing else.)
-        assertThat(client.getFiles(projName, REPO_MAIN, rev1, "/target/**").join().values())
+        assertThat(client.getFiles(projName, REPO_FOO, rev1, "/target/**").join().values())
                 .containsExactly(expectedInitialMirrorState);
 
         // Now, add some files to the git repository and mirror.
@@ -224,17 +230,17 @@ public class GitMirrorTest {
         mirroringService.mirror().join();
 
         //// Make sure a new commit is added.
-        final Revision rev2 = client.normalizeRevision(projName, REPO_MAIN, Revision.HEAD).join();
+        final Revision rev2 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
         assertThat(rev2).isEqualTo(rev1.forward(1));
 
         //// Make sure 'target/first/light.txt' is mirrored.
-        assertThat(client.getFiles(projName, REPO_MAIN, rev2, "/target/**").join().values())
+        assertThat(client.getFiles(projName, REPO_FOO, rev2, "/target/**").join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
                                            Entry.ofDirectory("/target/first"),
                                            Entry.ofText("/target/first/light.txt", "26-Aug-2014\n"));
 
         //// Make sure the files not under '/target' are not touched. (sample files)
-        assertThat(client.getFiles(projName, REPO_MAIN, rev2, "/samples/**").join().values())
+        assertThat(client.getFiles(projName, REPO_FOO, rev2, "/not_mirrored.txt").join().values())
                 .isNotEmpty();
     }
 
@@ -284,7 +290,7 @@ public class GitMirrorTest {
                 "/alphabets.txt",
                 "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n");
 
-        assertThat(client.getFiles(projName, REPO_MAIN, Revision.HEAD, "/**").join().values())
+        assertThat(client.getFiles(projName, REPO_FOO, Revision.HEAD, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedMirrorState, expectedAlphabets);
     }
 
@@ -343,7 +349,7 @@ public class GitMirrorTest {
                                         "[{" +
                                         "  \"type\": \"single\"," +
                                         "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                                        "  \"localRepo\": \"" + REPO_MAIN + "\"," +
+                                        "  \"localRepo\": \"" + REPO_FOO + "\"," +
                                         (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
                                         "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
                                         "}]")).join();

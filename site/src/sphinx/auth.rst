@@ -90,7 +90,7 @@ of ``Owner`` and ``Member`` role in the UI. More information about the role is a
     brings you to the ``Application Token`` management page.
 
 You can see the configuration UI for a repository when you click the name of repository in the
-``Repository Permission`` list. The following image shows the configuration of the ``main`` repository.
+``Repository Permission`` list. The following image shows the configuration of the repository called ``main``.
 In this page, you can do the followings.
 
 - Changing the role of a member or a token in a project

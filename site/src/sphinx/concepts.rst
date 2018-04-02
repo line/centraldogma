@@ -7,20 +7,18 @@ Concepts
     @startuml
     object Central_Dogma
     object Project
-    object Main_repo
     object Meta_repo
-    object Other_repos
+    object User_repos
 
     Central_Dogma *-- "*" Project
-    Project *-- "1" Main_repo
     Project *-- "1" Meta_repo
-    Project *-- "*" Other_repos
+    Project *-- "*" User_repos
     @enduml
 
 - Project
 
-  - A *project* is a top-level element in Central Dogma storage model. Each project contains at least two
-    repositories: ``main`` and ``meta``. A project can have more than two repositories.
+  - A *project* is a top-level element in Central Dogma storage model. Each project contains at least one
+    repository called ``meta``. A project can have more than one repository.
 
     .. note::
 
@@ -30,12 +28,16 @@ Concepts
 
   - A *repository* is where the configuration files of your application are stored actually. It keeps the
     history of each change (commit), such as who added what change when.
-  - Main repository
 
-    - A *main repository* is a repository whose name is ``main`` in a project. It is often a primary place
-      to store the configuration files of your application, although a user can create another repository in
-      a project. When a project is created, its main repository will contain some sample files that are OK to
-      delete.
+    .. note::
+
+        You may find it easier to understand a repository as a 'repository' under an organization in GitHub.
+
+  - User repository
+
+    - A *user repository* is a repository where a user (i.e. you) store the application configuration files.
+      A user can create more than one repository under a project, just like a user creates multiple
+      repositories under an organization.
 
   - Meta repository
 

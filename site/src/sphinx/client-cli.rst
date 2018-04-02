@@ -58,14 +58,14 @@ To list repositories, specify a project name::
     $ dogma ls projFoo
     [
         {
-            "name": "main",
+            "name": "repoA",
             "head": {
                 "revision": {
-                    "major": 2,
+                    "major": 1,
                     "minor": 0,
                 },
                 "timestamp": "2017-09-23T00:48:13Z",
-                "summary": "Add the sample files",
+                "summary": "Create a new repository",
                 "detail": {
                     "content": "",
                     "markup": "PLAINTEXT"
