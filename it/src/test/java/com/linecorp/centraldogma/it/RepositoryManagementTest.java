@@ -86,7 +86,7 @@ public class RepositoryManagementTest {
         final Map<String, RepositoryInfo> repos = rule.client().listRepositories(rule.project()).join();
 
         // Should contain 2 "rNNN"s
-        assertThat(repos.keySet()).containsExactlyInAnyOrder("meta", "main", rule.repo1(), rule.repo2());
+        assertThat(repos.keySet()).containsExactlyInAnyOrder("meta", rule.repo1(), rule.repo2());
 
         for (RepositoryInfo r : repos.values()) {
             final Commit headCommit = r.lastCommit();

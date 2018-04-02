@@ -19,12 +19,10 @@ package com.linecorp.centraldogma.server.internal.storage.project;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.internal.plugin.PluginManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.MetaRepository;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
 
 public interface Project {
     String REPO_META = "meta";
-    String REPO_MAIN = "main";
 
     String name();
 
@@ -37,8 +35,6 @@ public interface Project {
     }
 
     MetaRepository metaRepo();
-
-    Repository mainRepo();
 
     RepositoryManager repos();
 

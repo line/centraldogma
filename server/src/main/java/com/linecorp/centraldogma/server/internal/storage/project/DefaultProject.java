@@ -30,7 +30,6 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.plugin.PluginManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.MetaRepository;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache;
@@ -82,11 +81,6 @@ class DefaultProject implements Project {
         } else {
             return this.metaRepo.get();
         }
-    }
-
-    @Override
-    public Repository mainRepo() {
-        return repos.get(REPO_MAIN);
     }
 
     @Override

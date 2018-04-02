@@ -17,9 +17,9 @@
 package com.linecorp.centraldogma.server.internal.metadata;
 
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
-import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.RepositoryUtil.convertWithJackson;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toMap;
@@ -97,7 +97,8 @@ public final class MigrationUtil {
 
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
-        final Entry<?> tokenEntry = projectManager.get(INTERNAL_PROJECT_NAME).repos().get(TOKEN_REPO)
+        final Entry<?> tokenEntry = projectManager.get(INTERNAL_PROJECT_NAME).repos()
+                                                  .get(INTERNAL_REPOSITORY_NAME)
                                                   .getOrElse(Revision.HEAD, TOKEN_JSON, null).join();
         final Collection<Token> migratedTokens =
                 tokenEntry == null || force ? migrateTokens(projectManager, executor) : ImmutableSet.of();
@@ -179,7 +180,7 @@ public final class MigrationUtil {
                 Change.ofJsonUpsert(TOKEN_JSON, Jackson.valueToTree(new Tokens(tokenMap, secretMap)));
 
         try {
-            tokensRepo.push(INTERNAL_PROJECT_NAME, TOKEN_REPO, author, "Add the token list file",
+            tokensRepo.push(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, author, "Add the token list file",
                             change).toCompletableFuture().join();
         } catch (Throwable cause) {
             cause = Exceptions.peel(cause);

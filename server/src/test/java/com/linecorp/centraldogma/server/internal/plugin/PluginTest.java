@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.plugin;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_MAIN;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 import static java.util.Objects.requireNonNull;
 import static org.hamcrest.Matchers.is;
@@ -53,6 +52,8 @@ public class PluginTest {
 
     @ClassRule
     public static final TemporaryFolder rootDir = new TemporaryFolder();
+
+    private static final String REPO_FOO = "foo";
 
     private static ProjectManager pm;
 
@@ -112,7 +113,7 @@ public class PluginTest {
     private Project newProject() {
         final Project p = pm.create(testName.getMethodName());
         p.repos().create(REPO_META);
-        p.repos().create(REPO_MAIN);
+        p.repos().create(REPO_FOO);
         p.metaRepo().commit(Revision.HEAD, 0L, Author.SYSTEM, "", loadChanges("meta"));
         p.plugins().reload();
         return p;

@@ -128,16 +128,6 @@ public class RepositoryServiceV1Test {
         final String expectedJson =
                 '[' +
                 "   {" +
-                "       \"name\": \"main\"," +
-                "       \"creator\": {" +
-                "           \"name\": \"System\"," +
-                "           \"email\": \"system@localhost.localdomain\"" +
-                "       }," +
-                "       \"headRevision\": \"${json-unit.ignore}\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/main\"," +
-                "       \"createdAt\": \"${json-unit.ignore}\"" +
-                "   }," +
-                "   {" +
                 "       \"name\": \"meta\"," +
                 "       \"creator\": {" +
                 "           \"name\": \"System\"," +
@@ -204,8 +194,8 @@ public class RepositoryServiceV1Test {
         final String remains = remainedRes.content().toStringUtf8();
         final JsonNode jsonNode = Jackson.readTree(remains);
 
-        // main, meta and trustin repositories are left
-        assertThat(jsonNode.size()).isEqualTo(3);
+        // meta and trustin repositories are left
+        assertThat(jsonNode.size()).isEqualTo(2);
     }
 
     @Test

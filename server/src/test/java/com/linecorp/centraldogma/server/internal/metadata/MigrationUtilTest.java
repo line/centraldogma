@@ -20,7 +20,6 @@ import static com.linecorp.centraldogma.server.internal.command.ProjectInitializ
 import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_MAIN;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -66,6 +65,7 @@ public class MigrationUtilTest {
     };
 
     private static final Author author = Author.SYSTEM;
+    private static final String REPO_FOO = "foo";
 
     @Test
     public void migrationWithoutLegacyTokens() throws Exception {
@@ -129,17 +129,17 @@ public class MigrationUtilTest {
                 assertThat(m.tokens().get("app2").role()).isEqualTo(ProjectRole.MEMBER);
 
                 // Every repository is "public", so everyone has read/write permission to the repository.
-                assertThat(m.repo(REPO_MAIN).perRolePermissions().owner())
+                assertThat(m.repo(REPO_FOO).perRolePermissions().owner())
                         .containsExactly(Permission.READ, Permission.WRITE);
                 assertThat(m.repo("oneMoreThing").perRolePermissions().owner())
                         .containsExactly(Permission.READ, Permission.WRITE);
 
-                assertThat(m.repo(REPO_MAIN).perRolePermissions().member())
+                assertThat(m.repo(REPO_FOO).perRolePermissions().member())
                         .containsExactly(Permission.READ, Permission.WRITE);
                 assertThat(m.repo("oneMoreThing").perRolePermissions().member())
                         .containsExactly(Permission.READ, Permission.WRITE);
 
-                assertThat(m.repo(REPO_MAIN).perRolePermissions().guest())
+                assertThat(m.repo(REPO_FOO).perRolePermissions().guest())
                         .containsExactly(Permission.READ, Permission.WRITE);
                 assertThat(m.repo("oneMoreThing").perRolePermissions().guest())
                         .containsExactly(Permission.READ, Permission.WRITE);
@@ -154,7 +154,7 @@ public class MigrationUtilTest {
     private void createProject(String projectName) {
         final RepositoryManager manager = rule.projectManager().create(projectName).repos();
         manager.create(REPO_META);
-        manager.create(REPO_MAIN);
+        manager.create(REPO_FOO);
         manager.create("oneMoreThing");
     }
 
@@ -180,7 +180,7 @@ public class MigrationUtilTest {
             return f.thenCompose(unused -> delegate().execute(
                     Command.createRepository(creationTimeMillis, author, projectName, REPO_META)))
                     .thenCompose(unused -> delegate().execute(
-                            Command.createRepository(creationTimeMillis, author, projectName, REPO_MAIN)))
+                            Command.createRepository(creationTimeMillis, author, projectName, REPO_FOO)))
                     .thenApply(unused -> null);
         }
     }

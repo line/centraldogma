@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.metadata;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
 import static com.linecorp.centraldogma.server.internal.metadata.RepositoryUtil.convertWithJackson;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.validateSecret;
@@ -72,11 +73,6 @@ public class MetadataService extends AbstractService {
      * The name of metadata repository.
      */
     static final String METADATA_REPO = Project.REPO_META;
-
-    /**
-     * The name of token list repository.
-     */
-    static final String TOKEN_REPO = Project.REPO_MAIN;
 
     /**
      * A {@link JsonPointer} of project removal information.
@@ -690,7 +686,7 @@ public class MetadataService extends AbstractService {
      * Returns a {@link Tokens}.
      */
     public CompletableFuture<Tokens> getTokens() {
-        return tokenRepo.fetch(INTERNAL_PROJECT_NAME, TOKEN_REPO, TOKEN_JSON)
+        return tokenRepo.fetch(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, TOKEN_JSON)
                         .thenApply(HolderWithRevision::object);
     }
 
@@ -738,7 +734,7 @@ public class MetadataService extends AbstractService {
                                                new AddOperation(appIdPath, Jackson.valueToTree(newToken)),
                                                new AddOperation(secretPath,
                                                                 Jackson.valueToTree(newToken.id()))));
-        return tokenRepo.push(INTERNAL_PROJECT_NAME, TOKEN_REPO, author,
+        return tokenRepo.push(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, author,
                               "Add a token: '" + newToken.id(), change);
     }
 
@@ -757,8 +753,8 @@ public class MetadataService extends AbstractService {
             futures[i++] = removeToken(p.name(), author, appId, true).toCompletableFuture();
         }
         return CompletableFuture.allOf(futures).thenCompose(unused -> tokenRepo.push(
-                INTERNAL_PROJECT_NAME, TOKEN_REPO, author, "Remove the token: '" + appId,
-                () -> tokenRepo.fetch(INTERNAL_PROJECT_NAME, TOKEN_REPO, TOKEN_JSON)
+                INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, author, "Remove the token: '" + appId,
+                () -> tokenRepo.fetch(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, TOKEN_JSON)
                                .thenApply(tokens -> {
                                    final Token token = tokens.object().get(appId);
                                    final JsonPointer appIdPath =
@@ -781,10 +777,10 @@ public class MetadataService extends AbstractService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        return tokenRepo.push(INTERNAL_PROJECT_NAME, TOKEN_REPO, author,
+        return tokenRepo.push(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, author,
                               "Enable the token: '" + appId,
                               () -> tokenRepo
-                                      .fetch(INTERNAL_PROJECT_NAME, TOKEN_REPO, TOKEN_JSON)
+                                      .fetch(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, TOKEN_JSON)
                                       .thenApply(tokens -> {
                                           final Token token = tokens.object().get(appId);
                                           final JsonPointer removalPath =
@@ -808,10 +804,10 @@ public class MetadataService extends AbstractService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        return tokenRepo.push(INTERNAL_PROJECT_NAME, TOKEN_REPO, author,
+        return tokenRepo.push(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, author,
                               "Disable the token: '" + appId,
                               () -> tokenRepo
-                                      .fetch(INTERNAL_PROJECT_NAME, TOKEN_REPO, TOKEN_JSON)
+                                      .fetch(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, TOKEN_JSON)
                                       .thenApply(tokens -> {
                                           final Token token = tokens.object().get(appId);
                                           final JsonPointer removalPath =
@@ -833,7 +829,7 @@ public class MetadataService extends AbstractService {
      */
     public CompletableFuture<Token> findTokenByAppId(String appId) {
         requireNonNull(appId, "appId");
-        return tokenRepo.fetch(INTERNAL_PROJECT_NAME, TOKEN_REPO, TOKEN_JSON)
+        return tokenRepo.fetch(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, TOKEN_JSON)
                         .thenApply(tokens -> tokens.object().get(appId));
     }
 
@@ -843,7 +839,7 @@ public class MetadataService extends AbstractService {
     public CompletableFuture<Token> findTokenBySecret(String secret) {
         requireNonNull(secret, "secret");
         validateSecret(secret);
-        return tokenRepo.fetch(INTERNAL_PROJECT_NAME, TOKEN_REPO, TOKEN_JSON)
+        return tokenRepo.fetch(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, TOKEN_JSON)
                         .thenApply(tokens -> tokens.object().findBySecret(secret));
     }
 
