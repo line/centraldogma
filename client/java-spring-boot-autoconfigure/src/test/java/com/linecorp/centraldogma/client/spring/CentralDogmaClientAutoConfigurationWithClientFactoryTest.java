@@ -61,8 +61,7 @@ public class CentralDogmaClientAutoConfigurationWithClientFactoryTest {
         }
     }
 
-    private static class TestBean {
-    }
+    private static class TestBean {}
 
     @Inject
     CentralDogma client;

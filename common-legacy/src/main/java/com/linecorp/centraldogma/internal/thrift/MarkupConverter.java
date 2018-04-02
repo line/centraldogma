@@ -29,8 +29,7 @@ public final class MarkupConverter extends Converter<com.linecorp.centraldogma.c
     public static final Converter<Markup, com.linecorp.centraldogma.common.Markup> TO_MODEL =
             TO_DATA.reverse();
 
-    private MarkupConverter() {
-    }
+    private MarkupConverter() {}
 
     @Override
     protected Markup doForward(com.linecorp.centraldogma.common.Markup markup) {

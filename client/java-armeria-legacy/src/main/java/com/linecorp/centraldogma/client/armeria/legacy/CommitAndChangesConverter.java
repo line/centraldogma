@@ -36,8 +36,7 @@ final class CommitAndChangesConverter extends Converter<CommitAndChanges<?>, Com
 
     static final Converter<Commit, CommitAndChanges<?>> TO_MODEL = TO_DATA.reverse();
 
-    private CommitAndChangesConverter() {
-    }
+    private CommitAndChangesConverter() {}
 
     @Override
     protected Commit doForward(CommitAndChanges<?> commitAndChanges) {

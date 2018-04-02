@@ -34,8 +34,7 @@ public final class CommitConverter extends Converter<com.linecorp.centraldogma.c
     public static final Converter<Commit, com.linecorp.centraldogma.common.Commit> TO_MODEL =
             TO_DATA.reverse();
 
-    private CommitConverter() {
-    }
+    private CommitConverter() {}
 
     @Override
     protected Commit doForward(com.linecorp.centraldogma.common.Commit commit) {

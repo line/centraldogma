@@ -20,8 +20,7 @@ public class PluginException extends RuntimeException {
 
     private static final long serialVersionUID = -1593252955146366329L;
 
-    public PluginException() {
-    }
+    public PluginException() {}
 
     public PluginException(String message) {
         super(message);
