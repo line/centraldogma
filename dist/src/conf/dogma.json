@@ -6,7 +6,9 @@
         "host": "*",
         "port": 36462
       },
-      "protocol": "http"
+      "protocols": [
+        "http"
+      ]
     }
   ],
   "tls": null,

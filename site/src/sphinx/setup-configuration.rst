@@ -17,7 +17,9 @@ defaults:
             "host": "*",
             "port": 36462
           },
-          "protocol": "http"
+          "protocols": [
+            "http"
+          ]
         }
       ],
       "tls": null,
@@ -67,9 +69,9 @@ Core properties
 
       - the port number. 36462 is preferred.
 
-  - ``protocol`` (string)
+  - ``protocols`` (string array)
 
-    - the protocol. ``http`` and ``https`` are supported.
+    - protocols which are served on the port. ``http``, ``https`` and ``proxy`` are supported.
 
 - ``tls``
 
@@ -189,7 +191,7 @@ Core properties
     here. Read `Writing an access log <https://line.github.io/armeria/server-access-log.html>`_ for more
     information. Specify ``null`` to disable access logging feature.
 
-- ``administrators`` (set of string)
+- ``administrators`` (string array)
 
   - login IDs of the administrators. They are valid only if ``securityEnabled`` is ``true``.
     Please refer to :ref:`auth` for more information.
@@ -226,7 +228,9 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
             "host": "*",
             "port": 36462
           },
-          "protocol": "http"
+          "protocols": [
+            "http"
+          ]
         }
       ],
       "tls": null,
@@ -309,7 +313,9 @@ in ``dogma.json`` as follows.
             "host": "*",
             "port": 36462
           },
-          "protocol": "https"
+          "protocols": [
+            "https"
+          ]
         }
       ],
       "tls": {

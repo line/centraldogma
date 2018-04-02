@@ -49,7 +49,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.util.StdConverter;
-import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -313,7 +312,6 @@ final class CentralDogmaConfig {
 
             final InetSocketAddress localAddr = value.localAddress();
             final int port = localAddr.getPort();
-            final String proto = Ascii.toLowerCase(value.protocol().uriText());
             final String host;
 
             if (localAddr.getAddress().isAnyLocalAddress()) {
@@ -333,7 +331,11 @@ final class CentralDogmaConfig {
             gen.writeStringField("host", host);
             gen.writeNumberField("port", port);
             gen.writeEndObject();
-            gen.writeStringField("protocol", proto);
+            gen.writeArrayFieldStart("protocols");
+            for (final SessionProtocol protocol : value.protocols()) {
+                gen.writeString(protocol.uriText());
+            }
+            gen.writeEndArray();
             gen.writeEndObject();
         }
     }
@@ -358,9 +360,20 @@ final class CentralDogmaConfig {
                 return fail(ctx, root);
             }
 
-            final JsonNode proto = root.get("protocol");
-            if (proto == null || proto.getNodeType() != JsonNodeType.STRING) {
-                return fail(ctx, root);
+            final ImmutableSet.Builder<SessionProtocol> protocolsBuilder = ImmutableSet.builder();
+            final JsonNode protocols = root.get("protocols");
+            if (protocols != null) {
+                if (protocols.getNodeType() != JsonNodeType.ARRAY) {
+                    return fail(ctx, root);
+                }
+                protocols.elements().forEachRemaining(
+                        protocol -> protocolsBuilder.add(SessionProtocol.of(protocol.textValue())));
+            } else {
+                final JsonNode protocol = root.get("protocol");
+                if (protocol == null || protocol.getNodeType() != JsonNodeType.STRING) {
+                    return fail(ctx, root);
+                }
+                protocolsBuilder.add(SessionProtocol.of(protocol.textValue()));
             }
 
             final String hostVal = host.textValue();
@@ -373,9 +386,7 @@ final class CentralDogmaConfig {
                 localAddressVal = new InetSocketAddress(hostVal, portVal);
             }
 
-            final SessionProtocol protoVal = SessionProtocol.of(Ascii.toUpperCase(proto.textValue()));
-
-            return new ServerPort(localAddressVal, protoVal);
+            return new ServerPort(localAddressVal, protocolsBuilder.build());
         }
 
         private static ServerPort fail(DeserializationContext ctx, JsonNode root) throws JsonMappingException {
