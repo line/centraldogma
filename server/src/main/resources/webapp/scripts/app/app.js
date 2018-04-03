@@ -21,7 +21,8 @@ angular.module(
       API_V1_PREFIX: 'api/v1/',
       PROJECT_ROLE_OWNER: "OWNER",
       PROJECT_ROLE_MEMBER: "MEMBER",
-      PROJECT_ROLE_GUEST: "GUEST"
+      PROJECT_ROLE_GUEST: "GUEST",
+      REFRESH_DELAY_MSEC: 500
     })
     .run(function ($rootScope, $location, $window, $http, $state, $translate, $uibModal,
                    Principal, Language, NotificationUtil, Security) {
