@@ -2,8 +2,8 @@
   <h2>
     <a ng-href="#">Projects</a> / {{project.name}}
     <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
-      <a type="button" class="close" aria-label="Close" ng-click="removeProject()">
-        <span aria-hidden="true">&times;</span>
+      <a type="button" class="btn btn-xs" ng-click="removeProject()">
+        <span class="glyphicon glyphicon-trash"></span>
       </a>
     </div>
   </h2>
@@ -34,8 +34,8 @@
       <td ng-switch-default><span class="glyphicon" style="color:red">Deleted</span></td>
       <td ng-switch-when="true">
         <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
-          <a type="button" class="close" aria-label="Close" ng-click="removeRepository(repo)">
-            <span aria-hidden="true">&times;</span>
+          <a type="button" class="btn btn-xs" ng-click="removeRepository(repo)">
+            <span class="glyphicon glyphicon-trash"></span>
           </a>
         </div>
       </td>
@@ -122,7 +122,7 @@
         <td ng-switch-default>
           {{member.role}}
           <a type="button" class="btn btn-xs" ng-click="member.isEditing = true" ng-if="isOwner()">
-            <span class="glyphicon glyphicon-pencil"></span>
+            <span class="glyphicon glyphicon-edit"></span>
           </a>
         </td>
         <td>{{sanitizeEmail(member.creation.user)}}</td>
@@ -141,9 +141,9 @@
         </td>
         <td ng-switch-default>
           <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
-            <button type="button" class="close" aria-label="Close" ng-click="removeMember(member)">
-              <span aria-hidden="true">&times;</span>
-            </button>
+            <a type="button" class="btn btn-xs" ng-click="removeMember(member)">
+              <span class="glyphicon glyphicon-trash"></span>
+            </a>
           </div>
         </td>
       </tr>
@@ -184,7 +184,7 @@
       <div has-role="LEVEL_USER">
         Tokens
         <a ng-href="#/settings/tokens" type="button" class="btn btn-xs">
-          <span class="glyphicon glyphicon-pencil"></span>
+          <span class="glyphicon glyphicon-cog"></span>
         </a>
       </div>
     </h4>
@@ -208,7 +208,7 @@
         <td ng-switch-default>
           {{token.role}}
           <a type="button" class="btn btn-xs" ng-click="token.isEditing = true" ng-if="isOwner()">
-            <span class="glyphicon glyphicon-pencil"></span>
+            <span class="glyphicon glyphicon-edit"></span>
           </a>
         </td>
         <td>{{sanitizeEmail(token.creation.user)}}</td>
@@ -227,9 +227,9 @@
         </td>
         <td ng-switch-default>
           <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
-            <button type="button" class="close" aria-label="Close" ng-click="removeToken(token)">
-              <span aria-hidden="true">&times;</span>
-            </button>
+            <a type="button" class="btn btn-xs" ng-click="removeToken(token)">
+              <span class="glyphicon glyphicon-trash"></span>
+            </a>
           </div>
         </td>
       </tr>
