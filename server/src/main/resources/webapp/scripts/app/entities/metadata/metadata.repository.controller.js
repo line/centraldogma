@@ -3,7 +3,7 @@
 angular.module('CentralDogmaAdmin')
     .controller('MetadataRepositoryController',
                 function ($scope, $state, $stateParams, ApiV1Service, $uibModal, Permission, ConfirmationDialog,
-                          Principal, CentralDogmaConstant, StringUtil, NotificationUtil, EntitiesUtil) {
+                          Principal, CentralDogmaConstant, StringUtil, NotificationUtil, EntitiesUtil, $timeout) {
                   $scope.project = {
                     name: $stateParams.projectName
                   };
@@ -125,7 +125,7 @@ angular.module('CentralDogmaAdmin')
                     removePermTable('tokens', appId, 'entities.title_remove_token');
                   };
 
-                  $scope.refresh = function() {
+                  $scope.refreshNow = function() {
                     ApiV1Service.get("projects/" + $scope.project.name).then(function (metadata) {
                       var registeredAppIdList, registeredMemberList;
 
@@ -167,6 +167,12 @@ angular.module('CentralDogmaAdmin')
                     });
                   };
 
-                  $scope.refresh();
+                  $scope.refresh = function() {
+                    $timeout(function () {
+                      $scope.refreshNow();
+                    }, CentralDogmaConstant.REFRESH_DELAY_MSEC);
+                  };
+
+                  $scope.refreshNow();
                 });
 

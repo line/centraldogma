@@ -5,7 +5,7 @@ angular.module('CentralDogmaAdmin')
                 function ($scope, $state, $stateParams, ApiService, ApiV1Service, $location, $window, $uibModal,
                           SettingsService, ConfirmationDialog, IdentifierWithRole, EntitiesUtil,
                           ProjectService, RepositoryService, Principal, CentralDogmaConstant,
-                          NotificationUtil, StringUtil, Security) {
+                          NotificationUtil, StringUtil, Security, $timeout) {
                   $scope.project = {
                     name: $stateParams.projectName,
                     roles: [
@@ -140,7 +140,7 @@ angular.module('CentralDogmaAdmin')
                     });
                   };
 
-                  $scope.refresh = function() {
+                  $scope.refreshNow = function() {
                     function refresh0(tokens) {
                       ApiV1Service.get(StringUtil.encodeUri(['projects', $scope.project.name])).then(function (metadata) {
                         var addedAppIds, allAppIds;
@@ -204,5 +204,11 @@ angular.module('CentralDogmaAdmin')
                     });
                   };
 
-                  $scope.refresh();
+                  $scope.refresh = function() {
+                    $timeout(function () {
+                      $scope.refreshNow();
+                    }, CentralDogmaConstant.REFRESH_DELAY_MSEC);
+                  };
+
+                  $scope.refreshNow();
                 });

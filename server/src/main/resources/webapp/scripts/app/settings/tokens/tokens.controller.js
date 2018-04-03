@@ -1,16 +1,23 @@
 'use strict';
 
 angular.module('CentralDogmaAdmin').controller('TokensController',
-  function ($scope, $uibModal, SettingsService, ConfirmationDialog, NotificationUtil, EntitiesUtil) {
+  function ($scope, $uibModal, SettingsService, ConfirmationDialog, NotificationUtil, EntitiesUtil,
+            $timeout, CentralDogmaConstant) {
     $scope.sanitizeEmail = EntitiesUtil.sanitizeEmail;
 
-    var refresh = function () {
+    var refreshNow = function () {
       $scope.selectedToken = null;
       SettingsService.listTokens().then(
         function (tokens) {
           $scope.tokens = tokens;
         }
       );
+    };
+
+    var refresh = function () {
+      $timeout(function () {
+        refreshNow();
+      }, CentralDogmaConstant.REFRESH_DELAY_MSEC);
     };
 
     $scope.selectToken = function (token) {
@@ -90,5 +97,5 @@ angular.module('CentralDogmaAdmin').controller('TokensController',
       });
     };
 
-    refresh();
+    refreshNow();
   });
