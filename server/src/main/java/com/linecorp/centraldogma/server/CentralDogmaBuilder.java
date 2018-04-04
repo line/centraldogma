@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -26,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.shiro.config.Ini;
+import org.apache.shiro.session.Session;
 
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
 import com.google.common.collect.ImmutableSet;
@@ -33,7 +35,7 @@ import com.google.common.collect.ImmutableSet.Builder;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache;
+import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**
  * Builds a {@link CentralDogma} server.
@@ -55,9 +57,15 @@ public final class CentralDogmaBuilder {
     static final int DEFAULT_NUM_MIRRORING_THREADS = 16;
     static final int DEFAULT_MAX_NUM_FILES_PER_MIRROR = 8192;
     static final long DEFAULT_MAX_NUM_BYTES_PER_MIRROR = 32 * 1048576; // 32 MiB
-    static final String DEFAULT_CACHE_SPEC = "maximumWeight=134217728," + // Cache up to apx. 128-megachars
-                                             "expireAfterAccess=5m";      // Expire on 5 minutes of inactivity
+
     static final long DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS = 604800000;   // 7 days
+    static final String DEFAULT_REPOSITORY_CACHE_SPEC =
+            "maximumWeight=134217728," + // Cache up to apx. 128-megachars.
+            "expireAfterAccess=5m";      // Expire on 5 minutes of inactivity.
+
+    static final String DEFAULT_SESSION_CACHE_SPEC =
+            // Expire after the duration of session timeout.
+            "maximumSize=8192,expireAfterWrite=" + (DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS / 1000) + "s";
 
     // Armeria properties
     // Note that we use nullable types here for optional properties.
@@ -73,7 +81,8 @@ public final class CentralDogmaBuilder {
     // Central Dogma properties
     private final File dataDir;
     private int numRepositoryWorkers = DEFAULT_NUM_REPOSITORY_WORKERS;
-    private String cacheSpec = DEFAULT_CACHE_SPEC;
+    private String repositoryCacheSpec = DEFAULT_REPOSITORY_CACHE_SPEC;
+    private String sessionCacheSpec = DEFAULT_SESSION_CACHE_SPEC;
     private boolean webAppEnabled = true;
     private long webAppSessionTimeoutMillis = DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
     private boolean mirroringEnabled = true;
@@ -205,11 +214,35 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets the cache specification of the server. See {@link CaffeineSpec} for the syntax of the spec.
-     * If unspecified, the default cache spec of {@value #DEFAULT_CACHE_SPEC} is used.
+     * Sets the cache specification which determines the capacity and behavior of the cache for the return
+     * values of methods in {@link Repository} of the server. See {@link CaffeineSpec} for the syntax
+     * of the spec. If unspecified, the default cache spec of {@value #DEFAULT_REPOSITORY_CACHE_SPEC} is used.
+     *
+     * @deprecated Use {@link #repositoryCacheSpec(String)}.
      */
+    @Deprecated
     public CentralDogmaBuilder cacheSpec(String cacheSpec) {
-        this.cacheSpec = RepositoryCache.validateCacheSpec(cacheSpec);
+        this.repositoryCacheSpec = validateCacheSpec(cacheSpec);
+        return this;
+    }
+
+    /**
+     * Sets the cache specification which determines the capacity and behavior of the cache for the return
+     * values of methods in {@link Repository} of the server. See {@link CaffeineSpec} for the syntax
+     * of the spec. If unspecified, the default cache spec of {@value #DEFAULT_REPOSITORY_CACHE_SPEC} is used.
+     */
+    public CentralDogmaBuilder repositoryCacheSpec(String repositoryCacheSpec) {
+        this.repositoryCacheSpec = validateCacheSpec(repositoryCacheSpec);
+        return this;
+    }
+
+    /**
+     * Sets the cache specification which determines the capacity and behavior of the cache for {@link Session}
+     * of the server. See {@link CaffeineSpec} for the syntax of the spec.
+     * If unspecified, the default cache spec of {@value #DEFAULT_SESSION_CACHE_SPEC} is used.
+     */
+    public CentralDogmaBuilder sessionCacheSpec(String sessionCacheSpec) {
+        this.sessionCacheSpec = validateCacheSpec(sessionCacheSpec);
         return this;
     }
 
@@ -357,9 +390,9 @@ public final class CentralDogmaBuilder {
 
         return new CentralDogmaConfig(dataDir, ports, tls, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
-                                      numRepositoryWorkers, cacheSpec, gracefulShutdownTimeout,
-                                      webAppEnabled, webAppSessionTimeoutMillis,
-                                      mirroringEnabled, numMirroringThreads,
+                                      numRepositoryWorkers, null, repositoryCacheSpec,
+                                      sessionCacheSpec, gracefulShutdownTimeout, webAppEnabled,
+                                      webAppSessionTimeoutMillis, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
                                       securityConfig != null, null,
                                       accessLogFormat, administrators.build(), caseSensitiveLoginNames);

@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Base64.Encoder;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.shiro.config.Ini;
 import org.junit.Rule;
@@ -114,7 +115,18 @@ public class LoginAndLogoutTest {
     }
 
     @Test
-    public void basicAuth() throws Exception { // grant_type=client_credentials with auth header
+    public void consecutiveLoginShouldResponseSameToken() throws Exception {
+        final AggregatedHttpMessage res1 = login(rule, USERNAME, PASSWORD);
+        TimeUnit.MILLISECONDS.sleep(100); // Sleep a little bit to get a response with different expiresIn.
+        final AggregatedHttpMessage res2 = login(rule, USERNAME, PASSWORD);
+        final AccessToken token1 = Jackson.readValue(res1.content().array(), AccessToken.class);
+        final AccessToken token2 = Jackson.readValue(res2.content().array(), AccessToken.class);
+        assertThat(token1.accessToken()).isEqualTo(token2.accessToken());
+        assertThat(token1.expiresIn()).isGreaterThan(token2.expiresIn());
+    }
+
+    @Test
+    public void basicAuth() throws Exception {
         loginAndLogout(loginWithBasicAuth(rule, USERNAME, PASSWORD));
     }
 

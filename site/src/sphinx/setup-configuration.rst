@@ -1,4 +1,6 @@
 .. _`Apache Shiro`: https://shiro.apache.org/
+.. _`the Caffeine API documentation`: https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.5.5/index.html?com/github/benmanes/caffeine/cache/CaffeineSpec.html
+
 
 .. _setup-configuration:
 
@@ -27,7 +29,8 @@ defaults:
       "idleTimeoutMillis": null,
       "maxFrameLength": null,
       "numRepositoryWorkers": 16,
-      "cacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+      "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+      "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
       "webAppEnabled": true,
       "webAppSessionTimeoutMillis": 604800000,
       "gracefulShutdownTimeout": {
@@ -110,13 +113,16 @@ Core properties
   - the number of worker threads dedicated to handling repository reads and writes.
     If ``null``, the default value of '16 threads' is used.
 
-- ``cacheSpec`` (string)
+- ``repositoryCacheSpec`` (string)
 
   - the cache specification string which determines the capacity and behavior of the repository
-    access cache. Refer to `the Caffeine API documentation
-    <https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.5.5/index.html?com/github/benmanes/caffeine/cache/CaffeineSpec.html>`_
-    for more information. Note that the weight of the cache has been tuned to be roughly proportional to its
-    memory usage.
+    access cache. Refer to `the Caffeine API documentation`_ for more information.
+    Note that the weight of the cache has been tuned to be roughly proportional to its memory usage.
+
+- ``sessionCacheSpec`` (string)
+
+  - the cache specification string which determines the capacity and behavior of the cache for the session
+    information of the server. Refer to `the Caffeine API documentation`_ for more information.
 
 - ``webAppEnabled`` (boolean)
 
@@ -236,7 +242,8 @@ Once you have an access to a ZooKeeper cluster, update the ``replication`` secti
       "idleTimeoutMillis": null,
       "maxFrameLength": null,
       "numRepositoryWorkers": 16,
-      "cacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+      "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+      "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
       "webAppEnabled": true,
       "webAppSessionTimeoutMillis": 604800000,
       "gracefulShutdownTimeout": {
@@ -323,7 +330,8 @@ in ``dogma.json`` as follows.
       "idleTimeoutMillis": null,
       "maxFrameLength": null,
       "numRepositoryWorkers": 16,
-      "cacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+      "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
+      "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
       "webAppEnabled": true,
       "gracefulShutdownTimeout": {
         "quietPeriodMillis": 1000,

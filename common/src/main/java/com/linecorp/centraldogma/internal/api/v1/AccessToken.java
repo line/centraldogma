@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
 
 public class AccessToken {
 
@@ -32,6 +33,8 @@ public class AccessToken {
     private final long expiresIn;
 
     private final String refreshToken;
+
+    private final long deadline;
 
     //TODO(minwoox) Add scope if needed.
 
@@ -46,6 +49,7 @@ public class AccessToken {
         this.accessToken = requireNonNull(accessToken, "accessToken");
         this.expiresIn = expiresIn;
         this.refreshToken = requireNonNull(refreshToken, "refreshToken");
+        this.deadline = System.currentTimeMillis() + expiresIn;
     }
 
     @JsonProperty("access_token")
@@ -66,5 +70,19 @@ public class AccessToken {
     @JsonProperty("refresh_token")
     public String refreshToken() {
         return refreshToken;
+    }
+
+    public long deadline() {
+        return deadline;
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("accessToken", accessToken)
+                          .add("expiresIn", expiresIn)
+                          .add("tokenType", tokenType)
+                          .add("deadline", deadline)
+                          .toString();
     }
 }

@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.internal.admin.authentication;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 
 import java.io.File;
 import java.io.IOError;
@@ -23,11 +24,13 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.shiro.authc.AuthenticationInfo;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authz.Permission;
-import org.apache.shiro.cache.MemoryConstrainedCacheManager;
+import org.apache.shiro.cache.AbstractCacheManager;
+import org.apache.shiro.cache.CacheException;
 import org.apache.shiro.config.Ini;
 import org.apache.shiro.config.IniSecurityManagerFactory;
 import org.apache.shiro.mgt.DefaultSecurityManager;
@@ -43,6 +46,10 @@ import org.apache.shiro.subject.Subject;
 import org.apache.shiro.subject.SubjectContext;
 import org.apache.shiro.util.Factory;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.primitives.Ints;
+
 import com.linecorp.centraldogma.server.support.shiro.FileBasedSessionDAO;
 
 public final class CentralDogmaSecurityManager implements SecurityManager {
@@ -52,7 +59,7 @@ public final class CentralDogmaSecurityManager implements SecurityManager {
     private final SecurityManager delegate;
 
     public CentralDogmaSecurityManager(File dataDir, Ini securityConfig,
-                                       long sessionTimeoutMillis) {
+                                       long sessionTimeoutMillis, String sessionCacheSpec) {
         try {
             sessionDao = new FileBasedSessionDAO(new File(dataDir, "_sessions").toPath());
         } catch (IOException e) {
@@ -62,12 +69,13 @@ public final class CentralDogmaSecurityManager implements SecurityManager {
         checkArgument(sessionTimeoutMillis > 0,
                       "sessionTimeoutMillis: %s (expected: > 0)", sessionTimeoutMillis);
         sessionManager = new CentralDogmaSessionManager(sessionDao, sessionTimeoutMillis);
+        validateCacheSpec(sessionCacheSpec);
         final Factory<SecurityManager> factory = new IniSecurityManagerFactory(securityConfig) {
             @Override
             protected SecurityManager createDefaultInstance() {
                 DefaultSecurityManager securityManager = new DefaultSecurityManager();
                 securityManager.setSessionManager(sessionManager);
-                securityManager.setCacheManager(new MemoryConstrainedCacheManager());
+                securityManager.setCacheManager(new CaffeineCacheManager(sessionCacheSpec));
                 return securityManager;
             }
         };
@@ -82,6 +90,10 @@ public final class CentralDogmaSecurityManager implements SecurityManager {
     public void disableSessionValidation() {
         sessionManager.setSessionValidationSchedulerEnabled(false);
         sessionManager.disableSessionValidation();
+    }
+
+    public long globalSessionTimeout() {
+        return sessionManager.getGlobalSessionTimeout();
     }
 
     public boolean sessionExists(String sessionId) {
@@ -238,6 +250,67 @@ public final class CentralDogmaSecurityManager implements SecurityManager {
         @Override
         protected synchronized void disableSessionValidation() {
             super.disableSessionValidation();
+        }
+    }
+
+    private static final class CaffeineCacheManager extends AbstractCacheManager {
+        private final Caffeine<Object, Object> caffeine;
+
+        CaffeineCacheManager(String sessionCacheSpec) {
+            caffeine = Caffeine.from(sessionCacheSpec);
+        }
+
+        @Override
+        protected org.apache.shiro.cache.Cache createCache(String unused) throws CacheException {
+            return new CaffeineCacheWrapper(caffeine);
+        }
+    }
+
+    private static final class CaffeineCacheWrapper implements org.apache.shiro.cache.Cache<Object, Object> {
+        private final Cache<Object, Object> cache;
+
+        CaffeineCacheWrapper(Caffeine<Object, Object> caffeine) {
+            cache = caffeine.build();
+        }
+
+        @Override
+        public Object get(Object key) throws CacheException {
+            return cache.getIfPresent(key);
+        }
+
+        @Override
+        public Object put(Object key, Object value) throws CacheException {
+            final Object prevValue = cache.getIfPresent(key);
+            cache.put(key, value);
+            return prevValue;
+        }
+
+        @Override
+        public Object remove(Object key) throws CacheException {
+            final Object prevValue = cache.getIfPresent(key);
+            cache.invalidate(key);
+            return prevValue;
+        }
+
+        @Override
+        public void clear() throws CacheException {
+            cache.invalidateAll();
+            cache.cleanUp();
+        }
+
+        @Override
+        public int size() {
+            return Ints.saturatedCast(cache.estimatedSize());
+        }
+
+        @Override
+        public Set<Object> keys() {
+            return cache.asMap().keySet();
+        }
+
+        @Override
+        public Collection<Object> values() {
+            return cache.asMap().values();
         }
     }
 }

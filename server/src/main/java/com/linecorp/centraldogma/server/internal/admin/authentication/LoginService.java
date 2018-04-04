@@ -18,12 +18,15 @@ package com.linecorp.centraldogma.server.internal.admin.authentication;
 
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newHttpResponseException;
+import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import org.apache.shiro.authc.IncorrectCredentialsException;
 import org.apache.shiro.authc.UsernamePasswordToken;
@@ -34,6 +37,8 @@ import org.apache.shiro.util.ThreadContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
@@ -63,12 +68,14 @@ public class LoginService extends AbstractHttpService {
     private final CentralDogmaSecurityManager securityManager;
     private final CommandExecutor executor;
     private final Function<String, String> loginNameNormalizer;
+    private final Cache<String, AccessToken> cache;
 
     public LoginService(CentralDogmaSecurityManager securityManager, CommandExecutor executor,
-                        Function<String, String> loginNameNormalizer) {
+                        Function<String, String> loginNameNormalizer, String sessionCacheSpec) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
         this.executor = requireNonNull(executor, "executor");
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
+        cache = Caffeine.from(validateCacheSpec(sessionCacheSpec)).build();
     }
 
     @Override
@@ -90,6 +97,13 @@ public class LoginService extends AbstractHttpService {
                 Subject currentUser = null;
                 boolean success = false;
                 try {
+                    final AccessToken currentUserToken = currentUserTokenIfPresent(usernamePassword);
+                    if (currentUserToken != null) {
+                        future.complete(HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
+                                                        Jackson.writeValueAsBytes(currentUserToken)));
+                        return;
+                    }
+
                     currentUser = new Subject.Builder(securityManager).buildSubject();
                     currentUser.login(usernamePassword);
 
@@ -103,6 +117,7 @@ public class LoginService extends AbstractHttpService {
                     logger.info("{} Logged in: {} ({})", ctx, usernamePassword.getUsername(), sessionId);
 
                     final AccessToken accessToken = new AccessToken(sessionId, expiresIn);
+                    cache.put(usernamePassword.getUsername(), accessToken);
                     future.complete(HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
                                                     Jackson.writeValueAsBytes(accessToken)));
                 } catch (IncorrectCredentialsException e) {
@@ -159,6 +174,23 @@ public class LoginService extends AbstractHttpService {
         }
 
         return throwResponseException("invalid_request", "request must contain username and password.");
+    }
+
+    @Nullable
+    private AccessToken currentUserTokenIfPresent(UsernamePasswordToken usernamePassword) {
+        securityManager.authenticate(usernamePassword);
+        // Because securityManager.authenticate does not throw any Exception, the user is authenticated.
+        final AccessToken currentUserToken = cache.getIfPresent(usernamePassword.getUsername());
+
+        if (currentUserToken != null) {
+            final long currentTimeMillis = System.currentTimeMillis();
+            if (currentUserToken.deadline() >
+                currentTimeMillis + Math.min(securityManager.globalSessionTimeout(), 60000 /* 1 minute */)) {
+                return new AccessToken(currentUserToken.accessToken(),
+                                       currentUserToken.deadline() - currentTimeMillis);
+            }
+        }
+        return null;
     }
 
     private static <T> T throwResponseException(String error, String errorDescription) {

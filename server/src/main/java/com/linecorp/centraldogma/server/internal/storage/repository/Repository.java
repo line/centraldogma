@@ -103,7 +103,7 @@ public interface Repository {
      * Returns the {@link CompletableFuture} whose value is the absolute {@link Revision} of the
      * specified {@link Revision}.
      *
-     * @deprecated Use {@link #normalizeNow(Revision)} instead.
+     * @deprecated Use {@link #normalizeNow(Revision)}.
      */
     @Deprecated
     default CompletableFuture<Revision> normalize(Revision revision) {
