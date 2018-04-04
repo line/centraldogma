@@ -59,11 +59,7 @@ final class DtoConverter {
 
     public static <T> EntryDto<T> convert(Repository repository, Entry<T> entry) {
         requireNonNull(entry, "entry");
-        if (entry.hasContent()) {
-            return convert(repository, entry.path(), entry.type(), entry.content());
-        } else {
-            return convert(repository, entry.path(), entry.type());
-        }
+        return convert(repository, entry.path(), entry.type(), entry.content());
     }
 
     public static <T> EntryDto<T> convert(Repository repository, String path, EntryType type) {
