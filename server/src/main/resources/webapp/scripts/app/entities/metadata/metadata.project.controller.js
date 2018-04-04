@@ -175,7 +175,16 @@ angular.module('CentralDogmaAdmin')
                             entry[1].originalRole = entry[1].role;
                             outputList.push(entry[1]);
                           });
-                          return outputList;
+                          return outputList.sort(function (a, b) {
+                            if (a.originalRole === b.originalRole) {
+                              return a - b;
+                            }
+                            if (a.originalRole === CentralDogmaConstant.PROJECT_ROLE_OWNER) {
+                              return -1;
+                            } else {
+                              return 1;
+                            }
+                          });
                         }
                         $scope.memberList = convertList(metadata.members);
                         $scope.tokenList = convertList(metadata.tokens);

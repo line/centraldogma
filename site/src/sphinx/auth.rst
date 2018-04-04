@@ -48,7 +48,7 @@ You may configure a project with HTTP APIs, but we recommend the web UI because 
 
 Everyone who is logged in is able to create a new project, and he or she would be an owner of the project.
 If you have the right to configure a project, in other words, if you are an owner of the project,
-you can access the configuration UI of the project by clicking the pencil icon which is shown on the right
+you can access the configuration UI of the project by clicking the cog icon which is shown on the right
 of the project name.
 
 .. image:: _images/auth_1.png
@@ -86,7 +86,7 @@ of ``Owner`` and ``Member`` role in the UI. More information about the role is a
 .. note::
 
     Do not forget to make a new ``Application Token`` before adding a token to a project. ``Add a token``
-    button would be disabled if there is no token. The pencil icon on the right of the ``Tokens`` title
+    button would be disabled if there is no token. The cog icon on the right of the ``Tokens`` title
     brings you to the ``Application Token`` management page.
 
 You can see the configuration UI for a repository when you click the name of repository in the
@@ -128,6 +128,10 @@ request comes from.
 Anyone who is logged into the Central Dogma can create a new ``Application Token``, and the token is shared
 for everyone. So any owner of a project can add any token to their project. However only both the token
 creator and the administrator are allowed to deactivate and/or remove the token.
+
+There are two levels of a token, which are ``Admin`` and ``User``. ``Admin`` level token can be created by
+only the administrators. A client who sends a request with the token is allowed to access administrator-level
+APIs.
 
 .. note::
 
