@@ -16,7 +16,7 @@ apply plugin: 'com.github.blindpirate.gogradle'
 golang {
     packagePath = 'github.com/line/centraldogma/client/go'
 
-    goVersion = '1.9'
+    goVersion = '1.10.1'
 }
 
 dependencies {
