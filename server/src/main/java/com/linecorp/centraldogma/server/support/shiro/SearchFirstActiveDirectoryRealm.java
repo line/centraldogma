@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import javax.naming.AuthenticationException;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
+import javax.naming.ServiceUnavailableException;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapContext;
@@ -100,6 +101,16 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
      */
     @Override
     protected AuthenticationInfo queryForAuthenticationInfo(
+            AuthenticationToken token, LdapContextFactory ldapContextFactory) throws NamingException {
+        try {
+            return queryForAuthenticationInfo0(token, ldapContextFactory);
+        } catch (ServiceUnavailableException e) {
+            // It might be a temporary failure, so try again.
+            return queryForAuthenticationInfo0(token, ldapContextFactory);
+        }
+    }
+
+    private AuthenticationInfo queryForAuthenticationInfo0(
             AuthenticationToken token, LdapContextFactory ldapContextFactory) throws NamingException {
 
         final UsernamePasswordToken upToken = ensureUsernamePasswordToken(token);
