@@ -50,9 +50,9 @@ import (
 const (
 	DefaultPort = 36462
 
-	defaultScheme   = "http"
-	defaultHostName = "localhost"
-	defaultBaseURL  = defaultScheme + "://" + defaultHostName + ":36462/"
+	defaultScheme     = "http"
+	defaultHostName   = "localhost"
+	defaultBaseURL    = defaultScheme + "://" + defaultHostName + ":36462/"
 	defaultPathPrefix = "api/v1/"
 
 	pathSecurityEnabled = "security_enabled"
