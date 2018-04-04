@@ -57,7 +57,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     /**
      * Adds the {@link URI} of the Central Dogma server.
      *
-     * @deprecated Use {@link #host(String)} or {@link #profile(String...)} instead.
+     * @deprecated Use {@link #host(String)} or {@link #profile(String...)}.
      *
      * @param uri the URI of the Central Dogma server. e.g.
      *            {@code tbinary+http://example.com:36462/cd/thrift/v1}

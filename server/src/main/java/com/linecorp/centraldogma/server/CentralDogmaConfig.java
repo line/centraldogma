@@ -18,12 +18,14 @@ package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_CACHE_SPEC;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_FILES_PER_MIRROR;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
+import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
+import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_SESSION_CACHE_SPEC;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
+import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -55,7 +57,6 @@ import com.google.common.collect.ImmutableSet;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache;
 
 import io.netty.util.NetUtil;
 
@@ -76,7 +77,8 @@ final class CentralDogmaConfig {
     private final Integer numRepositoryWorkers;
 
     // Cache
-    private final String cacheSpec;
+    private final String repositoryCacheSpec;
+    private final String sessionCacheSpec;
 
     // Web dashboard
     private final boolean webAppEnabled;
@@ -118,7 +120,9 @@ final class CentralDogmaConfig {
                        @JsonProperty("idleTimeoutMillis") Long idleTimeoutMillis,
                        @JsonProperty("maxFrameLength") Integer maxFrameLength,
                        @JsonProperty("numRepositoryWorkers") Integer numRepositoryWorkers,
-                       @JsonProperty("cacheSpec") String cacheSpec,
+                       @JsonProperty("cacheSpec") String cacheSpec, // for backward compatibility
+                       @JsonProperty("repositoryCacheSpec") String repositoryCacheSpec,
+                       @JsonProperty("sessionCacheSpec") String sessionCacheSpec,
                        @JsonProperty("gracefulShutdownTimeout")
                                GracefulShutdownTimeout gracefulShutdownTimeout,
                        @JsonProperty("webAppEnabled") Boolean webAppEnabled,
@@ -147,7 +151,15 @@ final class CentralDogmaConfig {
         this.numRepositoryWorkers = firstNonNull(numRepositoryWorkers, DEFAULT_NUM_REPOSITORY_WORKERS);
         checkArgument(this.numRepositoryWorkers > 0,
                       "numRepositoryWorkers: %s (expected: > 0)", this.numRepositoryWorkers);
-        this.cacheSpec = RepositoryCache.validateCacheSpec(firstNonNull(cacheSpec, DEFAULT_CACHE_SPEC));
+
+        if (repositoryCacheSpec != null) {
+            this.repositoryCacheSpec = validateCacheSpec(repositoryCacheSpec);
+        } else {
+            this.repositoryCacheSpec = validateCacheSpec(
+                    firstNonNull(cacheSpec, DEFAULT_REPOSITORY_CACHE_SPEC));
+        }
+
+        this.sessionCacheSpec = validateCacheSpec(firstNonNull(sessionCacheSpec, DEFAULT_SESSION_CACHE_SPEC));
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
         this.webAppSessionTimeoutMillis = firstNonNull(webAppSessionTimeoutMillis,
                                                        DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS);
@@ -225,9 +237,25 @@ final class CentralDogmaConfig {
         return numRepositoryWorkers;
     }
 
+    /**
+     * Returns the {@code repositoryCacheSpec}.
+     *
+     * @deprecated Use {@link #repositoryCacheSpec()}.
+     */
     @JsonProperty
+    @Deprecated
     String cacheSpec() {
-        return cacheSpec;
+        return repositoryCacheSpec;
+    }
+
+    @JsonProperty
+    String repositoryCacheSpec() {
+        return repositoryCacheSpec;
+    }
+
+    @JsonProperty
+    String sessionCacheSpec() {
+        return sessionCacheSpec;
     }
 
     @JsonProperty

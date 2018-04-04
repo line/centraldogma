@@ -33,7 +33,7 @@ import com.linecorp.centraldogma.server.internal.metadata.Token;
 /**
  * Specifies details of an application token.
  *
- * @deprecated Use {@link Token} instead.
+ * @deprecated Use {@link Token}.
  */
 @Deprecated
 @JsonInclude(Include.NON_NULL)

@@ -230,7 +230,7 @@ public class CentralDogma {
 
             logger.info("Starting the project manager: {}", cfg.dataDir());
 
-            pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, cfg.cacheSpec());
+            pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, cfg.repositoryCacheSpec());
             logger.info("Started the project manager: {}", pm);
 
             logger.info("Current settings:\n{}", cfg);
@@ -243,7 +243,8 @@ public class CentralDogma {
 
             if (cfg.isSecurityEnabled()) {
                 securityManager = new CentralDogmaSecurityManager(cfg.dataDir(), securityConfig,
-                                                                  cfg.webAppSessionTimeoutMillis());
+                                                                  cfg.webAppSessionTimeoutMillis(),
+                                                                  cfg.sessionCacheSpec());
             }
 
             logger.info("Starting the command executor ..");
@@ -524,7 +525,8 @@ public class CentralDogma {
         if (cfg.isSecurityEnabled()) {
             requireNonNull(securityManager, "securityManager");
 
-            loginService = new LoginService(securityManager, executor, loginNameNormalizer);
+            loginService = new LoginService(securityManager, executor,
+                                            loginNameNormalizer, cfg.sessionCacheSpec());
             logoutService = new LogoutService(securityManager, executor);
 
             sb.service("/security_enabled", new AbstractHttpService() {
