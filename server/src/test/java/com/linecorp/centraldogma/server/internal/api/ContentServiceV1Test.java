@@ -64,7 +64,6 @@ public class ContentServiceV1Test {
                 .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer anonymous").build();
 
         // the default project used for unit tests
-        // the default project used for unit tests
         HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, "/api/v1/projects").contentType(MediaType.JSON);
         String body = "{\"name\": \"myPro\"}";
         httpClient.execute(headers, body).aggregate().join();

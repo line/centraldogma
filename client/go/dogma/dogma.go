@@ -39,7 +39,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -54,7 +53,6 @@ const (
 	defaultScheme   = "http"
 	defaultHostName = "localhost"
 	defaultBaseURL  = defaultScheme + "://" + defaultHostName + ":36462/"
-
 	defaultPathPrefix = "api/v1/"
 
 	pathSecurityEnabled = "security_enabled"
@@ -91,6 +89,19 @@ func NewClient(baseURL, username, password string) (*Client, error) {
 	}
 
 	return newClientWithHTTPClient(normalizedURL.String(), config.Client(context.Background(), token))
+}
+
+// NewClientWithToken returns a Central Dogma client with the specified baseURL and token.
+func NewClientWithToken(baseURL, token string) (*Client, error) {
+	normalizedURL, err := normalizeURL(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	config := oauth2.Config{Endpoint: oauth2.Endpoint{TokenURL: normalizedURL.String() + pathLogin}}
+	oauthToken := &oauth2.Token{AccessToken: token}
+
+	return newClientWithHTTPClient(normalizedURL.String(), config.Client(context.Background(), oauthToken))
 }
 
 // newClientWithHTTPClient returns a Central Dogma client with the specified baseURL and client.
@@ -143,26 +154,21 @@ func normalizeURL(baseURL string) (*url.URL, error) {
 
 // SecurityEnabled returns whether the security of the server is enabled or not.
 func (c *Client) SecurityEnabled() (bool, error) {
-	u, err := c.baseURL.Parse(pathSecurityEnabled)
+	req, err := c.newRequest("POST", pathSecurityEnabled, nil)
 	if err != nil {
 		return false, err
 	}
 
-	req := &http.Request{Method: http.MethodGet, URL: u}
 	res, err := c.client.Do(req)
 	if err != nil {
 		return false, err
 	}
-	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("authenticaion failed (status: %s)", res.Status)
+		// The security is not enabled.
+		return false, nil
 	}
-	b, _ := ioutil.ReadAll(res.Body)
-	if string(b) == "true" {
-		return true, nil
-	}
-	return false, nil
+	return true, nil
 }
 
 func (c *Client) newRequest(method, urlStr string, body interface{}) (*http.Request, error) {
@@ -210,7 +216,6 @@ func (c *Client) do(ctx context.Context, req *http.Request, resContent interface
 
 	res, err := c.client.Do(req)
 	if err != nil {
-		fmt.Println(err)
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -218,6 +223,10 @@ func (c *Client) do(ctx context.Context, req *http.Request, resContent interface
 		}
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return res, fmt.Errorf("status: %v", res.StatusCode)
+	}
 
 	if resContent != nil {
 		err = json.NewDecoder(res.Body).Decode(resContent)
@@ -361,6 +370,6 @@ func (c *Client) GetDiffs(ctx context.Context,
 
 // Push pushes the specified changes to the repository.
 func (c *Client) Push(ctx context.Context, projectName, repoName, baseRevision string,
-	commitMessage CommitMessage, changes []*Change) (*Commit, *http.Response, error) {
+	commitMessage *CommitMessage, changes []*Change) (*Commit, *http.Response, error) {
 	return c.content.push(ctx, projectName, repoName, baseRevision, commitMessage, changes)
 }

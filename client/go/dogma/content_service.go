@@ -82,7 +82,7 @@ func (c *Entry) UnmarshalJSON(b []byte) error {
 // Commit represents a commit in the repository.
 type Commit struct {
 	Revision      int            `json:"revision"`
-	Author        string         `json:"author"`
+	Author        *Author        `json:"author"`
 	CommitMessage *CommitMessage `json:"commitMessage,omitempty"`
 	PushedAt      string         `json:"pushedAt,omitempty"`
 	Entries       []*Entry       `json:"entries,omitempty"`
@@ -196,7 +196,7 @@ func getFileURLValues(v *url.Values, revision, path string, query *Query) error 
 	}
 
 	if len(revision) != 0 {
-		// have both of the jsonpath and the revision
+		// have both of the jsonPath and the revision
 		v.Set("revision", revision)
 	}
 	return nil
@@ -273,9 +273,13 @@ func (con *contentService) getDiff(ctx context.Context,
 
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/compare", defaultPathPrefix, projectName, repoName)
 	v := &url.Values{}
-	if err := setDiffURLValues(v, from, to, path, query); err != nil {
-		return nil, nil, err
+	v.Set("path", path)
+	if query != nil && query.Type == JSONPath {
+		if err := setJSONPaths(v, path, query.Expressions); err != nil {
+			return nil, nil, err
+		}
 	}
+	setFromTo(v, from, to)
 	u += encodeValues(v)
 
 	req, err := con.client.newRequest("GET", u, nil)
@@ -292,15 +296,7 @@ func (con *contentService) getDiff(ctx context.Context,
 	return change, res, nil
 }
 
-func setDiffURLValues(v *url.Values, from, to, path string, query *Query) error {
-	if query != nil && query.Type == JSONPath {
-		if err := setJSONPaths(v, path, query.Expressions); err != nil {
-			return err
-		}
-	}
-
-	v.Set("path", path)
-
+func setFromTo(v *url.Values, from, to string) {
 	if len(from) != 0 {
 		v.Set("from", from)
 	}
@@ -308,8 +304,6 @@ func setDiffURLValues(v *url.Values, from, to, path string, query *Query) error 
 	if len(to) != 0 {
 		v.Set("to", to)
 	}
-
-	return nil
 }
 
 func (con *contentService) getDiffs(ctx context.Context,
@@ -320,9 +314,8 @@ func (con *contentService) getDiffs(ctx context.Context,
 
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/compare", defaultPathPrefix, projectName, repoName)
 	v := &url.Values{}
-	if err := setDiffURLValues(v, from, to, pathPattern, nil); err != nil {
-		return nil, nil, err
-	}
+	v.Set("pathPattern", pathPattern)
+	setFromTo(v, from, to)
 	u += encodeValues(v)
 
 	req, err := con.client.newRequest("GET", u, nil)
@@ -338,13 +331,13 @@ func (con *contentService) getDiffs(ctx context.Context,
 	return changes, res, nil
 }
 
-type Push struct {
+type push struct {
 	CommitMessage *CommitMessage `json:"commitMessage"`
 	Changes       []*Change      `json:"changes"`
 }
 
 func (con *contentService) push(ctx context.Context, projectName, repoName, baseRevision string,
-	commitMessage CommitMessage, changes []*Change) (*Commit, *http.Response, error) {
+	commitMessage *CommitMessage, changes []*Change) (*Commit, *http.Response, error) {
 	if len(commitMessage.Summary) == 0 {
 		return nil, nil, fmt.Errorf(
 			"summary of commitMessage cannot be empty. commitMessage: %+v", commitMessage)
@@ -360,7 +353,7 @@ func (con *contentService) push(ctx context.Context, projectName, repoName, base
 		u += fmt.Sprintf("?revision=%v", baseRevision)
 	}
 
-	body := Push{CommitMessage: &commitMessage, Changes: changes}
+	body := push{CommitMessage: commitMessage, Changes: changes}
 
 	req, err := con.client.newRequest("POST", u, body)
 	if err != nil {

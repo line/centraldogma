@@ -1,4 +1,4 @@
-// Copyright 2017 LINE Corporation
+// Copyright 2018 LINE Corporation
 //
 // LINE Corporation licenses this file to you under the Apache License,
 // version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,9 +15,23 @@
 package cmd
 
 import (
+	"flag"
 	"reflect"
 	"testing"
+
+	"github.com/urfave/cli"
 )
+
+func newContext(flagArguments []string, connectURL, revision string) *cli.Context {
+	parentFlags := flag.NewFlagSet("test", 0)
+	parentFlags.String("connect", connectURL, "")
+	parent := cli.NewContext(nil, parentFlags, nil)
+
+	flags := flag.FlagSet{}
+	flags.Parse(flagArguments)
+	flags.String("revision", revision, "")
+	return cli.NewContext(nil, &flags, parent)
+}
 
 func TestSplitPath(t *testing.T) {
 	var tests = []struct {
@@ -37,8 +51,8 @@ func TestSplitPath(t *testing.T) {
 		{"/foo/bar/a/b//f.txt", []string{"foo", "bar", "/a/b/f.txt"}},
 	}
 	for _, test := range tests {
-		if got := SplitPath(test.path); !reflect.DeepEqual(got, test.want) {
-			t.Errorf("SplitPath(%q) = %q, want:%q", test.path, got, test.want)
+		if got := splitPath(test.path); !reflect.DeepEqual(got, test.want) {
+			t.Errorf("splitPath(%q) = %q, want:%q", test.path, got, test.want)
 		}
 	}
 }

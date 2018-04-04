@@ -155,14 +155,17 @@ func TestGetHistory(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/commits/-2", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		testURLQuery(t, r, "to", "head")
-		fmt.Fprint(w, `[{"revision":1, "author":"minux@m.x", "commitMessage":{"Summary":"Add a.json"}},
-{"revision":2, "author":"minux@m.x", "commitMessage":{"Summary":"Edit a.json"}}]`)
+		testURLQuery(t, r, "to", "-1")
+		fmt.Fprint(w, `[{"revision":1, "author":{"name":"minux", "email":"minux@m.x"}, "commitMessage":{"Summary":"Add a.json"}},
+{"revision":2, "author":{"name":"minux", "email":"minux@m.x"}, "commitMessage":{"Summary":"Edit a.json"}}]`)
 	})
 
-	history, _, _ := c.GetHistory(context.Background(), "foo", "bar", "-2", "head", "/**")
-	want := []*Commit{{Revision: 1, Author: "minux@m.x", CommitMessage: &CommitMessage{Summary: "Add a.json"}},
-		{Revision: 2, Author: "minux@m.x", CommitMessage: &CommitMessage{Summary: "Edit a.json"}}}
+	history, _, _ := c.GetHistory(context.Background(), "foo", "bar", "-2", "-1", "/**")
+	want := []*Commit{
+		{Revision: 1, Author: &Author{Name: "minux", Email: "minux@m.x"},
+			CommitMessage: &CommitMessage{Summary: "Add a.json"}},
+		{Revision: 2, Author: &Author{Name: "minux", Email: "minux@m.x"},
+			CommitMessage: &CommitMessage{Summary: "Edit a.json"}}}
 	if !reflect.DeepEqual(history, want) {
 		t.Errorf("GetHistory returned %+v, want %+v", history, want)
 	}
@@ -212,7 +215,7 @@ func TestGetDiffs(t *testing.T) {
 		testMethod(t, r, "GET")
 		testURLQuery(t, r, "from", "1")
 		testURLQuery(t, r, "to", "4")
-		testURLQuery(t, r, "path", "/**")
+		testURLQuery(t, r, "pathPattern", "/**")
 		fmt.Fprint(w, `[{"path":"/a.json", "type":"APPLY_JSON_PATCH", "content":[{
 "op":"safeReplace",
 "path":"",
@@ -247,23 +250,23 @@ func TestPush(t *testing.T) {
 		testMethod(t, r, "POST")
 		testURLQuery(t, r, "revision", "-1")
 
-		var reqBody Push
+		var reqBody push
 		json.NewDecoder(r.Body).Decode(&reqBody)
 		changes := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}}}
-		want := Push{CommitMessage: &CommitMessage{Summary: "Add a.json"}, Changes: changes}
+		want := push{CommitMessage: &CommitMessage{Summary: "Add a.json"}, Changes: changes}
 		if !reflect.DeepEqual(reqBody, want) {
 			t.Errorf("Push request body %+v, want %+v", changes, want)
 		}
 
-		fmt.Fprint(w, `{"revision":2, "author":"minux@m.x", "entries":[{"path":"/a.json", "type":"JSON"}]}`)
+		fmt.Fprint(w, `{"revision":2, "author":{"name":"minux", "email":"minux@m.x"}, "entries":[{"path":"/a.json", "type":"JSON"}]}`)
 	})
 
-	commitMessage := CommitMessage{Summary: "Add a.json"}
+	commitMessage := &CommitMessage{Summary: "Add a.json"}
 	change := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}}}
 	commit, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, change)
 
 	entries := []*Entry{{Path: "/a.json", Type: JSON}}
-	want := &Commit{Revision: 2, Author: "minux@m.x", Entries: entries}
+	want := &Commit{Revision: 2, Author: &Author{Name: "minux", Email: "minux@m.x"}, Entries: entries}
 	if !reflect.DeepEqual(commit, want) {
 		t.Errorf("Push returned %+v, want %+v", commit, want)
 	}
@@ -277,27 +280,30 @@ func TestPush_TwoFiles(t *testing.T) {
 		testMethod(t, r, "POST")
 		testURLQuery(t, r, "revision", "-1")
 
-		var reqBody Push
+		var reqBody push
 		json.NewDecoder(r.Body).Decode(&reqBody)
 		changes := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}},
 			{Path: "/b.txt", Type: UpsertText, Content: "myContent"}}
-		want := Push{CommitMessage: &CommitMessage{Summary: "Add a.json and b.txt"}, Changes: changes}
+		want := push{CommitMessage: &CommitMessage{Summary: "Add a.json and b.txt"}, Changes: changes}
 		if !reflect.DeepEqual(reqBody, want) {
 			t.Errorf("Push request body %+v, want %+v", changes, want)
 		}
 
-		fmt.Fprint(w, `{"revision":3, "author":"minux@m.x", "entries":[{"path":"/a.json", "type":"JSON"},
+		fmt.Fprint(w, `{"revision":3,
+"author":{"name":"minux", "email":"minux@m.x"},
+"entries":
+[{"path":"/a.json", "type":"JSON"},
 {"path":"/b.txt", "type":"TEXT"}]}`)
 	})
 
-	commitMessage := CommitMessage{Summary: "Add a.json and b.txt"}
+	commitMessage := &CommitMessage{Summary: "Add a.json and b.txt"}
 	changes := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}},
 		{Path: "/b.txt", Type: UpsertText, Content: "myContent"}}
 
 	commit, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, changes)
 
 	entries := []*Entry{{Path: "/a.json", Type: JSON}, {Path: "/b.txt", Type: Text}}
-	want := &Commit{Revision: 3, Author: "minux@m.x", Entries: entries}
+	want := &Commit{Revision: 3, Author: &Author{Name: "minux", Email: "minux@m.x"}, Entries: entries}
 	if !reflect.DeepEqual(commit, want) {
 		t.Errorf("Push returned %+v, want %+v", commit, want)
 	}

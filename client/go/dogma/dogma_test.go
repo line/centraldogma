@@ -115,8 +115,9 @@ func TestNewClientWithHTTPClient(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if got, _ := newClientWithHTTPClient(test.baseURL, http.DefaultClient); got.baseURL.String() != test.want {
-			t.Errorf("newClientWithHTTPClient BaseURL is %v, want %v", got, test.want)
+		var got *Client
+		if got, _ = newClientWithHTTPClient(test.baseURL, http.DefaultClient); got.baseURL.String() != test.want {
+			t.Errorf("newClientWithHTTPClient BaseURL is %v, want %v", got.baseURL, test.want)
 		}
 	}
 }

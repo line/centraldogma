@@ -24,11 +24,11 @@ type repositoryService service
 
 // Repository represents a repository in the Central Dogma server.
 type Repository struct {
-	Name         string `json:"name"`
-	Creator      string `json:"creator,omitempty"`
-	HeadRevision int    `json:"headRevision,omitempty"`
-	URL          string `json:"url,omitempty"`
-	CreatedAt    string `json:"createdAt,omitempty"`
+	Name         string  `json:"name"`
+	Creator      *Author `json:"creator,omitempty"`
+	HeadRevision int     `json:"headRevision,omitempty"`
+	URL          string  `json:"url,omitempty"`
+	CreatedAt    string  `json:"createdAt,omitempty"`
 }
 
 func (r *repositoryService) create(ctx context.Context, projectName, repoName string) (*Repository,

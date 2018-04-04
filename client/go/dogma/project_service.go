@@ -23,10 +23,15 @@ type projectService service
 
 // Project represents a project in the Central Dogma server.
 type Project struct {
-	Name      string `json:"name"`
-	Creator   string `json:"creator,omitempty"`
-	URL       string `json:"url,omitempty"`
-	CreatedAt string `json:"createdAt,omitempty"`
+	Name      string  `json:"name"`
+	Creator   *Author `json:"creator,omitempty"`
+	URL       string  `json:"url,omitempty"`
+	CreatedAt string  `json:"createdAt,omitempty"`
+}
+
+type Author struct {
+	Name  string `json:"name,omitempty"`
+	Email string `json:"email,omitempty"`
 }
 
 func (p *projectService) create(ctx context.Context, name string) (*Project, *http.Response, error) {
@@ -86,6 +91,7 @@ func (p *projectService) list(ctx context.Context) ([]*Project, *http.Response, 
 
 	var projects []*Project
 	res, err := p.client.do(ctx, req, &projects)
+
 	if err != nil {
 		return nil, res, err
 	}

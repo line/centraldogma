@@ -310,7 +310,7 @@ public class ContentServiceV1 extends AbstractService {
             toRevision = to.map(Revision::new).orElse(fromRevision);
         }
 
-        final RevisionRange range = repository.normalizeNow(fromRevision, toRevision);
+        final RevisionRange range = repository.normalizeNow(fromRevision, toRevision).toDescending();
 
         return repository
                 .history(range.from(), range.to(), path)
@@ -323,15 +323,18 @@ public class ContentServiceV1 extends AbstractService {
 
     /**
      * GET /projects/{projectName}/repos/{repoName}/compare?
-     * path={path}&amp;from={from}&amp;to={to}&amp;jsonpath={jsonpath}
+     * path={path}&amp;from={from}&amp;to={to}&amp;jsonpath={jsonpath} returns a diff.
      *
-     * <p>Returns the diffs.
+     * <p>or,
+     *
+     * <p>GET /projects/{projectName}/repos/{repoName}/compare?
+     * pathPattern={pathPattern}&amp;from={from}&amp;to={to} returns diffs.
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
     @Decorator(HasReadPermission.class)
-    public CompletionStage<?> getDiff(@Param("path") @Default("/**") String path,
-                                      @Param("from") @Default("-1") String from,
-                                      @Param("to") @Default("1") String to,
+    public CompletionStage<?> getDiff(@Param("path") @Default("/**") String pathPattern,
+                                      @Param("from") @Default("1") String from,
+                                      @Param("to") @Default("head") String to,
                                       @RequestObject Repository repository,
                                       @RequestObject(QueryRequestConverter.class) Optional<Query<?>> query) {
         if (query.isPresent()) {
@@ -339,8 +342,9 @@ public class ContentServiceV1 extends AbstractService {
                              .thenApply(DtoConverter::convert);
         }
         return repository
-                .diff(new Revision(from), new Revision(to), path)
-                .thenApply(changeMap -> objectOrList(changeMap.values(), true, DtoConverter::convert));
+                .diff(new Revision(from), new Revision(to), pathPattern)
+                .thenApply(changeMap -> changeMap.values().stream()
+                                                 .map(DtoConverter::convert).collect(toImmutableList()));
     }
 
     private static <T> Object objectOrList(Collection<T> collection, boolean toList, Function<T, ?> converter) {
