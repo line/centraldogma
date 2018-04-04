@@ -362,6 +362,11 @@ public class ContentServiceV1Test {
         final String expectedJson1 =
                 '[' +
                 "   {" +
+                "       \"path\": \"/a\"," +
+                "       \"type\": \"DIRECTORY\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a\"" +
+                "   }," +
+                "   {" +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
@@ -381,6 +386,11 @@ public class ContentServiceV1Test {
         final String expectedJson2 =
                 '[' +
                 "   {" +
+                "       \"path\": \"/a\"," +
+                "       \"type\": \"DIRECTORY\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a\"" +
+                "   }," +
+                "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
@@ -392,7 +402,15 @@ public class ContentServiceV1Test {
         // get the list of all files with revision 2, so only foo.json will be fetched
         final AggregatedHttpMessage res3 = httpClient
                 .get("/api/v1/projects/myPro/repos/myRepo/tree/**?revision=2").aggregate().join();
-        assertThatJson(expectedJson2).isEqualTo(res3.content().toStringUtf8());
+        final String expectedJson3 =
+                '[' +
+                "   {" +
+                "       \"path\": \"/foo.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "   }" +
+                ']';
+        assertThatJson(res3.content().toStringUtf8()).isEqualTo(expectedJson3);
 
         // get the list with a file path
         final AggregatedHttpMessage res4 = httpClient
@@ -409,6 +427,11 @@ public class ContentServiceV1Test {
         final AggregatedHttpMessage res1 = httpClient.get(CONTENTS_PREFIX + "/**").aggregate().join();
         final String expectedJson1 =
                 '[' +
+                "   {" +
+                "       \"path\": \"/a\"," +
+                "       \"type\": \"DIRECTORY\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a\"" +
+                "   }," +
                 "   {" +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
@@ -445,6 +468,10 @@ public class ContentServiceV1Test {
         addFooJson();
         addBarTxt();
 
+        final AggregatedHttpMessage res0 = httpClient.get(CONTENTS_PREFIX + "/**").aggregate().join();
+        // /foo.json, /a and /a/bar.txt
+        assertThat(Jackson.readTree(res0.content().toStringUtf8()).size()).isEqualTo(3);
+
         final String body =
                 '{' +
                 "   \"path\": \"/foo.json\"," +
@@ -459,8 +486,8 @@ public class ContentServiceV1Test {
         assertThat(res1.headers().status()).isEqualTo(HttpStatus.OK);
 
         final AggregatedHttpMessage res2 = httpClient.get(CONTENTS_PREFIX + "/**").aggregate().join();
-        // only /a/bar.txt file is left
-        assertThat(Jackson.readTree(res2.content().toStringUtf8()).size()).isOne();
+        // only /a and /a/bar.txt are left.
+        assertThat(Jackson.readTree(res2.content().toStringUtf8()).size()).isEqualTo(2);
     }
 
     @Test

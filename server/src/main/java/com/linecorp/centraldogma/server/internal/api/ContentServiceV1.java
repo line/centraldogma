@@ -53,7 +53,6 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
-import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
@@ -100,7 +99,7 @@ public class ContentServiceV1 extends AbstractService {
                                                         @Param("revision") @Default("-1") String revision,
                                                         @RequestObject Repository repository) {
         final String path0 = rootDirIfEmpty(path);
-        return listFiles(repository, path0, new Revision(revision),
+        return listFiles(repository, path0.endsWith("/") ? path0 : path0 + '/', new Revision(revision),
                          ImmutableMap.of(FindOption.FETCH_CONTENT, false));
     }
 
@@ -110,7 +109,6 @@ public class ContentServiceV1 extends AbstractService {
         final String pathPattern = appendWildCardIfDirectory(path);
         return repository.find(revision, pathPattern, options)
                          .thenApply(entries -> entries.values().stream()
-                                                      .filter(entry -> entry.type() != EntryType.DIRECTORY)
                                                       .map(entry -> convert(repository, entry))
                                                       .collect(toImmutableList()));
     }
