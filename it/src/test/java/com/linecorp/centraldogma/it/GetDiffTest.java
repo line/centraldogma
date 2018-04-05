@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.it;
 
 import static com.linecorp.centraldogma.common.Revision.HEAD;
-import static com.linecorp.centraldogma.it.TestConstants.AUTHOR;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,7 +48,7 @@ public class GetDiffTest {
             final Change<JsonNode> change = Change.ofJsonUpsert(path, String.format("{ \"key\" : \"%d\"}", i));
             rule.client().push(
                     rule.project(), rule.repo1(), HEAD,
-                    AUTHOR, TestConstants.randomText(), change).join();
+                    TestConstants.randomText(), change).join();
         }
 
         final Change<JsonNode> res = rule.client().getDiff(
@@ -72,20 +71,20 @@ public class GetDiffTest {
     public void testDiff_remove() throws Exception {
         final CentralDogma client = rule.client();
 
-        final Revision rev1 = client.push(rule.project(), rule.repo1(), HEAD, AUTHOR, "summary1",
+        final Revision rev1 = client.push(rule.project(), rule.repo1(), HEAD, "summary1",
                                           Change.ofTextUpsert("/foo.txt", "hello")).join().revision();
 
-        final Revision rev2 = client.push(rule.project(), rule.repo1(), HEAD, AUTHOR, "summary2",
+        final Revision rev2 = client.push(rule.project(), rule.repo1(), HEAD, "summary2",
                                           Change.ofRemoval("/foo.txt")).join().revision();
 
         assertThat(rev1.forward(1)).isEqualTo(rev2);
 
         assertThat(client.getDiff(rule.project(), rule.repo1(), rev1, rev1,
-                                  Query.identity("/foo.txt")).join().type())
+                                  Query.ofText("/foo.txt")).join().type())
                 .isEqualTo(ChangeType.APPLY_TEXT_PATCH);
 
         assertThat(client.getDiff(rule.project(), rule.repo1(), rev1, rev2,
-                                  Query.identity("/foo.txt")).join())
+                                  Query.ofText("/foo.txt")).join())
                 .isEqualTo(Change.ofRemoval("/foo.txt"));
     }
 
@@ -93,16 +92,16 @@ public class GetDiffTest {
     public void testDiff_rename() throws Exception {
         final CentralDogma client = rule.client();
 
-        final Revision rev1 = client.push(rule.project(), rule.repo1(), HEAD, AUTHOR, "summary1",
+        final Revision rev1 = client.push(rule.project(), rule.repo1(), HEAD, "summary1",
                                           Change.ofTextUpsert("/bar.txt", "hello")).join().revision();
 
-        final Revision rev2 = client.push(rule.project(), rule.repo1(), HEAD, AUTHOR, "summary2",
+        final Revision rev2 = client.push(rule.project(), rule.repo1(), HEAD, "summary2",
                                           Change.ofRename("/bar.txt", "/baz.txt")).join().revision();
 
         assertThat(rev1.forward(1)).isEqualTo(rev2);
 
         assertThat(client.getDiff(rule.project(), rule.repo1(), rev1, rev2,
-                                  Query.identity("/bar.txt")).join())
+                                  Query.ofText("/bar.txt")).join())
                 .isEqualTo(Change.ofRemoval("/bar.txt"));
     }
 }

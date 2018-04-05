@@ -28,7 +28,6 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Util;
@@ -88,19 +87,18 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public <T> CompletableFuture<QueryResult<T>> get(Revision revision, Query<T> query) {
+    public <T> CompletableFuture<Entry<T>> get(Revision revision, Query<T> query) {
         return unwrap().get(revision, query);
     }
 
     @Override
-    public CompletableFuture<Entry<?>> getOrElse(Revision revision, String path, Entry<?> other) {
-        return unwrap().getOrElse(revision, path, other);
+    public CompletableFuture<Entry<?>> getOrNull(Revision revision, String path) {
+        return unwrap().getOrNull(revision, path);
     }
 
     @Override
-    public <T> CompletableFuture<QueryResult<T>> getOrElse(Revision revision,
-                                                           Query<T> query, QueryResult<T> other) {
-        return unwrap().getOrElse(revision, query, other);
+    public <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query) {
+        return unwrap().getOrNull(revision, query);
     }
 
     @Override
@@ -178,7 +176,7 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public <T> CompletableFuture<QueryResult<T>> watch(Revision lastKnownRevision, Query<T> query) {
+    public <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query) {
         return unwrap().watch(lastKnownRevision, query);
     }
 

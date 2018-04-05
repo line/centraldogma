@@ -33,11 +33,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
-import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 
 public class WatchTest {
 
@@ -54,7 +52,7 @@ public class WatchTest {
                  .getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, changes)
                  .join().isEmpty()) {
             rule.client().push(
-                    rule.project(), rule.repo1(), Revision.HEAD, TestConstants.AUTHOR,
+                    rule.project(), rule.repo1(), Revision.HEAD,
                     "Revert test files", changes).join();
         }
     }
@@ -73,7 +71,7 @@ public class WatchTest {
         final Change<JsonNode> change = Change.ofJsonUpsert("/test/test3.json", "[ 3, 2, 1 ]");
 
         final Commit commit = rule.client().push(
-                rule.project(), rule.repo1(), rev1, TestConstants.AUTHOR, "Add test3.json", change).join();
+                rule.project(), rule.repo1(), rev1, "Add test3.json", change).join();
 
         final Revision rev2 = commit.revision();
 
@@ -94,7 +92,7 @@ public class WatchTest {
                                   .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
                                   .join();
 
-        final CompletableFuture<QueryResult<JsonNode>> future =
+        final CompletableFuture<Entry<JsonNode>> future =
                 rule.client().watchFile(rule.project(), rule.repo1(), rev0,
                                         Query.ofJsonPath("/test/test1.json", "$[0]"), 3000);
 
@@ -104,7 +102,7 @@ public class WatchTest {
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
         final Commit commit1 = rule.client().push(
-                rule.project(), rule.repo1(), rev0, TestConstants.AUTHOR, "Add test2.json", change1).join();
+                rule.project(), rule.repo1(), rev0, "Add test2.json", change1).join();
 
         final Revision rev1 = commit1.revision();
 
@@ -114,13 +112,13 @@ public class WatchTest {
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
         final Commit commit2 = rule.client().push(
-                rule.project(), rule.repo1(), rev1, TestConstants.AUTHOR, "Add test1.json", change2).join();
+                rule.project(), rule.repo1(), rev1, "Add test1.json", change2).join();
 
         final Revision rev2 = commit2.revision();
 
         assertThat(rev2).isEqualTo(rev0.forward(2));
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
-                new QueryResult<>(rev2, EntryType.JSON, Jackson.readTree("-1")));
+                Entry.ofJson(rev2, "/test/test1.json", "-1"));
     }
 
     @Test
@@ -129,9 +127,9 @@ public class WatchTest {
                                   .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
                                   .join();
 
-        final CompletableFuture<QueryResult<Object>> future = rule.client().watchFile(
+        final CompletableFuture<Entry<JsonNode>> future = rule.client().watchFile(
                 rule.project(), rule.repo1(), rev0,
-                Query.identity("/test/test1.json"), 3000);
+                Query.ofJson("/test/test1.json"), 3000);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
@@ -139,7 +137,7 @@ public class WatchTest {
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
         final Commit commit1 = rule.client().push(
-                rule.project(), rule.repo1(), rev0, TestConstants.AUTHOR, "Add test2.json", change1).join();
+                rule.project(), rule.repo1(), rev0, "Add test2.json", change1).join();
 
         final Revision rev1 = commit1.revision();
 
@@ -149,18 +147,18 @@ public class WatchTest {
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
         final Commit commit2 = rule.client().push(
-                rule.project(), rule.repo1(), rev1, TestConstants.AUTHOR, "Update test1.json", change2).join();
+                rule.project(), rule.repo1(), rev1, "Update test1.json", change2).join();
 
         final Revision rev2 = commit2.revision();
 
         assertThat(rev2).isEqualTo(rev0.forward(2));
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
-                new QueryResult<>(rev2, EntryType.JSON, Jackson.readTree("[-1,-2,-3]")));
+                Entry.ofJson(rev2, "/test/test1.json", "[-1,-2,-3]"));
     }
 
     @Test
     public void testWatchFileWithTimeout() {
-        final QueryResult<JsonNode> res = rule.client().watchFile(
+        final Entry<JsonNode> res = rule.client().watchFile(
                 rule.project(), rule.repo1(), Revision.HEAD,
                 Query.ofJsonPath("/test/test1.json", "$"), 1000).join();
 

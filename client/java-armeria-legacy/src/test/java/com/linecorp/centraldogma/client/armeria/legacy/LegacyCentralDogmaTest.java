@@ -57,7 +57,6 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 import com.linecorp.centraldogma.internal.thrift.ChangeType;
@@ -236,6 +235,12 @@ public class LegacyCentralDogmaTest {
     @Test
     public void getFiles() throws Exception {
         doAnswer(invocation -> {
+            final AsyncMethodCallback<com.linecorp.centraldogma.internal.thrift.Revision> callback =
+                    invocation.getArgument(3);
+            callback.onComplete(new com.linecorp.centraldogma.internal.thrift.Revision(1, 0));
+            return null;
+        }).when(iface).normalizeRevision(any(), any(), any(), any());
+        doAnswer(invocation -> {
             final AsyncMethodCallback<List<TEntry>> callback = invocation.getArgument(4);
             final TEntry entry = new TEntry("/b.txt", TEntryType.TEXT);
             entry.setContent("world");
@@ -243,7 +248,7 @@ public class LegacyCentralDogmaTest {
             return null;
         }).when(iface).getFiles(anyString(), anyString(), any(), anyString(), any());
         assertThat(client.getFiles("project", "repo", new Revision(1), "path").get())
-                .isEqualTo(ImmutableMap.of("/b.txt", Entry.ofText("/b.txt", "world")));
+                .isEqualTo(ImmutableMap.of("/b.txt", Entry.ofText(new Revision(1), "/b.txt", "world")));
         verify(iface).getFiles(anyString(), anyString(), any(), anyString(), any());
     }
 
@@ -329,24 +334,36 @@ public class LegacyCentralDogmaTest {
     @Test
     public void getFile() throws Exception {
         doAnswer(invocation -> {
+            final AsyncMethodCallback<com.linecorp.centraldogma.internal.thrift.Revision> callback =
+                    invocation.getArgument(3);
+            callback.onComplete(new com.linecorp.centraldogma.internal.thrift.Revision(1, 0));
+            return null;
+        }).when(iface).normalizeRevision(any(), any(), any(), any());
+        doAnswer(invocation -> {
             final AsyncMethodCallback<GetFileResult> callback = invocation.getArgument(4);
             callback.onComplete(new GetFileResult(TEntryType.TEXT, "content"));
             return null;
         }).when(iface).getFile(any(), any(), any(), any(), any());
-        assertThat(client.getFile("project", "repo", new Revision(1), Query.identity("/a.txt")).get())
-                .isEqualTo(Entry.ofText("/a.txt", "content"));
+        assertThat(client.getFile("project", "repo", new Revision(1), Query.ofText("/a.txt")).get())
+                .isEqualTo(Entry.ofText(new Revision(1), "/a.txt", "content"));
         verify(iface).getFile(eq("project"), eq("repo"), any(), any(), any());
     }
 
     @Test
     public void getFile_path() throws Exception {
         doAnswer(invocation -> {
+            final AsyncMethodCallback<com.linecorp.centraldogma.internal.thrift.Revision> callback =
+                    invocation.getArgument(3);
+            callback.onComplete(new com.linecorp.centraldogma.internal.thrift.Revision(1, 0));
+            return null;
+        }).when(iface).normalizeRevision(any(), any(), any(), any());
+        doAnswer(invocation -> {
             final AsyncMethodCallback<GetFileResult> callback = invocation.getArgument(4);
             callback.onComplete(new GetFileResult(TEntryType.TEXT, "content"));
             return null;
         }).when(iface).getFile(any(), any(), any(), any(), any());
         assertThat(client.getFile("project", "repo", new Revision(1), "/a.txt").get())
-                .isEqualTo(Entry.ofText("/a.txt", "content"));
+                .isEqualTo(Entry.ofText(new Revision(1), "/a.txt", "content"));
         verify(iface).getFile(eq("project"), eq("repo"), any(), any(), any());
     }
 
@@ -358,7 +375,7 @@ public class LegacyCentralDogmaTest {
             return null;
         }).when(iface).diffFile(any(), any(), any(), any(), any(), any());
         assertThat(client.getDiff("project", "repo", new Revision(1), new Revision(3),
-                                  Query.identity("/a.txt")).get())
+                                  Query.ofText("/a.txt")).get())
                 .isEqualTo(Change.ofTextUpsert("/a.txt", "some_text"));
         verify(iface).diffFile(eq("project"), eq("repo"), any(), any(), any(), any());
     }
@@ -396,8 +413,8 @@ public class LegacyCentralDogmaTest {
                                                      .setContent("foo"));
             return null;
         }).when(iface).watchFile(any(), any(), any(), any(), anyLong(), any());
-        assertThat(client.watchFile("project", "repo", new Revision(1), Query.identity("/a.txt"), 100).get())
-                .isEqualTo(new QueryResult<>(new Revision(42), EntryType.TEXT, "foo"));
+        assertThat(client.watchFile("project", "repo", new Revision(1), Query.ofText("/a.txt"), 100).get())
+                .isEqualTo(Entry.ofText(new Revision(42), "/a.txt", "foo"));
         verify(iface).watchFile(eq("project"), eq("repo"), any(), any(), eq(100L), any());
     }
 
@@ -409,7 +426,7 @@ public class LegacyCentralDogmaTest {
             return null;
         }).when(iface).watchFile(any(), any(), any(), any(), anyLong(), any());
         assertThat(client.watchFile("project", "repo", new Revision(1),
-                                    Query.identity("/a.txt"), 100).get()).isNull();
+                                    Query.ofText("/a.txt"), 100).get()).isNull();
         verify(iface).watchFile(eq("project"), eq("repo"), any(), any(), eq(100L), any());
     }
 }

@@ -16,11 +16,20 @@
 
 package com.linecorp.centraldogma.common;
 
-import java.io.IOException;
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
+
+import java.util.Objects;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.TreeNode;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
@@ -29,98 +38,265 @@ import com.linecorp.centraldogma.internal.Jackson;
  *
  * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
  */
-public interface Entry<T> {
-
-    /**
-     * Returns an {@link Entry} of a root directory. This method is similar to {@code ofDirectory("/")}
-     * except that this method returns a singleton.
-     */
-    static Entry<Void> rootDir() {
-        return DefaultEntry.ROOT_DIR;
-    }
+public final class Entry<T> {
 
     /**
      * Returns a newly-created {@link Entry} of a directory.
+     *
+     * @param revision the revision of the directory
      * @param path the path of the directory
      */
-    static Entry<Void> ofDirectory(String path) {
-        return new DefaultEntry<>(path, null, EntryType.DIRECTORY);
+    public static Entry<Void> ofDirectory(Revision revision, String path) {
+        return new Entry<>(revision, path, EntryType.DIRECTORY, null);
     }
 
     /**
      * Returns a newly-created {@link Entry} of a JSON file.
      *
+     * @param revision the revision of the JSON file
      * @param path the path of the JSON file
      * @param content the content of the JSON file
      */
-    static Entry<JsonNode> ofJson(String path, JsonNode content) {
-        return new JsonEntry(path, content);
+    public static Entry<JsonNode> ofJson(Revision revision, String path, JsonNode content) {
+        return new Entry<>(revision, path, EntryType.JSON, content);
     }
 
     /**
      * Returns a newly-created {@link Entry} of a JSON file.
      *
+     * @param revision the revision of the JSON file
      * @param path the path of the JSON file
      * @param content the content of the JSON file
      *
-     * @throws IOException if the {@code content} is not a valid JSON
+     * @throws JsonParseException if the {@code content} is not a valid JSON
      */
-    static Entry<JsonNode> ofJson(String path, String content) throws IOException {
-        return ofJson(path, Jackson.readTree(content));
+    public static Entry<JsonNode> ofJson(Revision revision, String path, String content)
+            throws JsonParseException {
+        return ofJson(revision, path, Jackson.readTree(content));
     }
 
     /**
      * Returns a newly-created {@link Entry} of a text file.
      *
+     * @param revision the revision of the text file
      * @param path the path of the text file
      * @param content the content of the text file
      */
-    static Entry<String> ofText(String path, String content) {
-        return new DefaultEntry<>(path, content, EntryType.TEXT);
+    public static Entry<String> ofText(Revision revision, String path, String content) {
+        return new Entry<>(revision, path, EntryType.TEXT, content);
     }
 
     /**
      * Returns a newly-created {@link Entry}.
      *
+     * @param revision the revision of the {@link Entry}
      * @param path the path of the {@link Entry}
      * @param content the content of the {@link Entry}
      * @param type the type of the {@link Entry}
      * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
      */
-    static <T> Entry<T> of(String path, T content, EntryType type) {
-        if (type == EntryType.JSON) {
-            @SuppressWarnings("unchecked")
-            final Entry<T> e = (Entry<T>) ofJson(path, (JsonNode) content);
-            return e;
-        }
+    public static <T> Entry<T> of(Revision revision, String path, EntryType type, @Nullable T content) {
+        return new Entry<>(revision, path, type, content);
+    }
 
-        return new DefaultEntry<>(path, content, type);
+    private final Revision revision;
+    private final String path;
+    @Nullable
+    private final T content;
+    private final EntryType type;
+    @Nullable
+    private String contentAsText;
+    @Nullable
+    private String contentAsPrettyText;
+
+    /**
+     * Creates a new instance.
+     *
+     * @param revision the revision of the entry
+     * @param path the path of the entry
+     * @param type the type of given {@code content}
+     * @param content an object of given type {@code T}
+     */
+    private Entry(Revision revision, String path, EntryType type, @Nullable T content) {
+        requireNonNull(revision, "revision");
+        checkArgument(!revision.isRelative(), "revision: %s (expected: absolute revision)", revision);
+        this.revision = revision;
+        this.path = requireNonNull(path, "path");
+        this.type = requireNonNull(type, "type");
+
+        final Class<?> entryContentType = type.type();
+        if (entryContentType == Void.class) {
+            checkArgument(content == null, "content: %s (expected: null)", content);
+            this.content = null;
+        } else {
+            @SuppressWarnings("unchecked")
+            final T castContent = (T) entryContentType.cast(requireNonNull(content, "content"));
+            this.content = castContent;
+        }
+    }
+
+    /**
+     * Returns the revision of this {@link Entry}.
+     */
+    public Revision revision() {
+        return revision;
     }
 
     /**
      * Returns the type of this {@link Entry}.
      */
-    EntryType type();
+    public EntryType type() {
+        return type;
+    }
 
     /**
      * Returns the path of this {@link Entry}.
      */
-    String path();
+    public String path() {
+        return path;
+    }
+
+    /**
+     * Returns if this {@link Entry} has content, which is always {@code true} if it's not a directory.
+     */
+    public boolean hasContent() {
+        return content != null;
+    }
+
+    /**
+     * If this {@link Entry} has content, invoke the specified {@link Consumer} with the content.
+     */
+    public void ifHasContent(Consumer<? super T> consumer) {
+        requireNonNull(consumer, "consumer");
+        if (content != null) {
+            consumer.accept(content);
+        }
+    }
 
     /**
      * Returns the content of this {@link Entry}.
      *
-     * @return the content if this {@link Entry} is not a directory. {@code null} if directory.
+     * @throws IllegalStateException if this {@link Entry} is a directory
      */
-    @Nullable
-    T content();
+    public T content() {
+        ensureContent();
+        return content;
+    }
 
     /**
      * Returns the textual representation of {@link #content()}.
      *
-     * @return the textual representation of {@link #content()} if this {@link Entry} is not a directory.
-     *         {@code null} if directory.
+     * @throws IllegalStateException if this {@link Entry} is a directory
      */
-    @Nullable
-    String contentAsText();
+    public String contentAsText() {
+        ensureContent();
+        if (contentAsText == null) {
+            if (content instanceof JsonNode) {
+                try {
+                    contentAsText = Jackson.writeValueAsString(content);
+                } catch (JsonProcessingException e) {
+                    // Should never happen because it's a JSON tree already.
+                    throw new Error(e);
+                }
+            } else {
+                contentAsText = content.toString();
+            }
+        }
+        return contentAsText;
+    }
+
+    /**
+     * Returns the prettified textual representation of {@link #content()}. Only a {@link TreeNode} is
+     * prettified currently.
+     *
+     * @throws IllegalStateException if this {@link Entry} is a directory
+     */
+    public String contentAsPrettyText() {
+        ensureContent();
+        if (contentAsPrettyText == null) {
+            if (content instanceof TreeNode) {
+                try {
+                    contentAsPrettyText = Jackson.writeValueAsPrettyString(content);
+                } catch (JsonProcessingException e) {
+                    // Should never happen because it's a JSON tree already.
+                    throw new Error(e);
+                }
+            } else {
+                contentAsPrettyText = content.toString();
+            }
+        }
+        return contentAsPrettyText;
+    }
+
+    /**
+     * Returns the JSON representation of {@link #content()}.
+     *
+     * @return the {@link JsonNode} parsed from the {@link #content()}
+     *
+     * @throws IllegalStateException if this {@link Entry} is a directory
+     * @throws JsonParseException if failed to parse the {@link #content()} as JSON
+     */
+    public JsonNode contentAsJson() throws JsonParseException {
+        final T content = content();
+        if (content instanceof JsonNode) {
+            return (JsonNode) content;
+        }
+
+        return Jackson.readTree(contentAsText());
+    }
+
+    /**
+     * Returns the value converted from the JSON representation of {@link #content()}.
+     *
+     * @return the value converted from {@link #content()}
+     *
+     * @throws IllegalStateException if this {@link Entry} is a directory
+     * @throws JsonParseException if failed to parse the {@link #content()} as JSON
+     * @throws JsonMappingException if failed to convert the parsed JSON into {@code valueType}
+     */
+    public <U> U contentAsJson(Class<U> valueType) throws JsonParseException, JsonMappingException {
+        final T content = content();
+        if (content instanceof TreeNode) {
+            return Jackson.treeToValue((TreeNode) content, valueType);
+        }
+
+        return Jackson.readValue(contentAsText(), valueType);
+    }
+
+    private void ensureContent() {
+        if (content == null) {
+            throw new IllegalStateException(type() + " cannot have content: " + path);
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return (revision.hashCode() * 31 + type.hashCode()) * 31 + path.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Entry)) {
+            return false;
+        }
+
+        @SuppressWarnings("unchecked")
+        final Entry<T> that = (Entry<T>) o;
+
+        return type == that.type && revision.equals(that.revision) && path.equals(that.path) &&
+               Objects.equals(content, that.content);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("revision", revision.text())
+                          .add("path", path)
+                          .add("type", type)
+                          .add("content", contentAsText())
+                          .toString();
+    }
 }

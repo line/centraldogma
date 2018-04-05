@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.it;
 
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
 
@@ -52,10 +53,15 @@ public class FileManagementTest {
 
     @Test
     public void testGetFiles() throws Exception {
+        final Revision headRev = rule.client().normalizeRevision(
+                rule.project(), rule.repo1(), Revision.HEAD).join();
         final Map<String, Entry<?>> files = rule.client().getFiles(
                 rule.project(), rule.repo1(), Revision.HEAD, TEST_ROOT + "*.json").join();
         assertThat(files).hasSize(NUM_FILES);
-        files.values().forEach(f -> assertThatJson(f.content()).isEqualTo("{}"));
+        files.values().forEach(f -> {
+            assertThat(f.revision()).isEqualTo(headRev);
+            assertThatJson(f.content()).isEqualTo("{}");
+        });
     }
 
     @Test
@@ -70,7 +76,8 @@ public class FileManagementTest {
         final Entry<?> dir = files.get(testRootWithoutSlash);
         assertThat(dir.type()).isEqualTo(EntryType.DIRECTORY);
         assertThat(dir.path()).isEqualTo(testRootWithoutSlash);
-        assertThat(dir.content()).isNull();
+        assertThat(dir.hasContent()).isFalse();
+        assertThatThrownBy(dir::content).isInstanceOf(IllegalStateException.class);
 
         files.values().forEach(f -> {
             if (f.type() != EntryType.DIRECTORY) {

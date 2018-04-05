@@ -22,14 +22,16 @@ import org.junit.Test;
 
 public class EntryConverterTest {
 
+    private static final com.linecorp.centraldogma.common.Revision REV =
+            new com.linecorp.centraldogma.common.Revision(42);
     private static final com.linecorp.centraldogma.common.Entry<String> COMMON =
-            com.linecorp.centraldogma.common.Entry.ofText("/a.txt", "hello");
+            com.linecorp.centraldogma.common.Entry.ofText(REV, "/a.txt", "hello");
     private static final Entry THRIFT = new Entry("/a.txt", EntryType.TEXT).setContent("hello");
 
     @Test
     public void test() throws Exception {
-        assertThat(EntryConverter.TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
-        assertThat(EntryConverter.TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
-        assertThat(EntryConverter.TO_DATA.convert(EntryConverter.TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);
+        assertThat(EntryConverter.convert(COMMON)).isEqualTo(THRIFT);
+        assertThat(EntryConverter.convert(REV, THRIFT)).isEqualTo(COMMON);
+        assertThat(EntryConverter.convert(EntryConverter.convert(REV, THRIFT))).isEqualTo(THRIFT);
     }
 }

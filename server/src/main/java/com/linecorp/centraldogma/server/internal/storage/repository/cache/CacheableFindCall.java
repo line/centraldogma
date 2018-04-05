@@ -55,9 +55,11 @@ final class CacheableFindCall extends CacheableCall<Map<String, Entry<?>>> {
         weight += options.size();
         for (Entry<?> e : value.values()) {
             weight += e.path().length();
-            final String content = e.contentAsText();
-            if (content != null) {
-                weight += content.length();
+            if (e.hasContent()) {
+                final String content = e.contentAsText();
+                if (content != null) {
+                    weight += content.length();
+                }
             }
         }
         return weight;

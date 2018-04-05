@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 
 import org.apache.thrift.TException;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.google.common.annotations.VisibleForTesting;
 import com.spotify.futures.CompletableFutures;
 
@@ -60,7 +61,6 @@ import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -179,49 +179,56 @@ final class LegacyCentralDogma implements CentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
                                                    Revision revision, Query<T> query) {
-        final CompletableFuture<GetFileResult> future =
-                run(callback -> client.getFile(projectName, repositoryName,
-                                               RevisionConverter.TO_DATA.convert(revision),
-                                               QueryConverter.TO_DATA.convert(query), callback));
 
-        return future.thenApply(r -> {
-            if (r == null) {
-                return null;
-            }
+        return normalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
 
-            final Entry<T> converted;
-            switch (r.getType()) {
-                case JSON:
-                    try {
-                        converted = unsafeCast(Entry.ofJson(query.path(), Jackson.readTree(r.getContent())));
-                    } catch (IOException e) {
-                        throw new CompletionException(
-                                "failed to parse the query result: " + query, e);
-                    }
-                    break;
-                case TEXT:
-                    converted = unsafeCast(Entry.ofText(query.path(), r.getContent()));
-                    break;
-                case DIRECTORY:
-                    converted = unsafeCast(Entry.ofDirectory(query.path()));
-                    break;
-                default:
-                    throw new Error("unknown entry type: " + r.getType());
-            }
+            final CompletableFuture<GetFileResult> future =
+                    run(callback -> client.getFile(projectName, repositoryName,
+                                                   RevisionConverter.TO_DATA.convert(normRev),
+                                                   QueryConverter.TO_DATA.convert(query), callback));
+            return future.thenApply(r -> {
+                if (r == null) {
+                    return null;
+                }
 
-            return converted;
+                final Entry<T> converted;
+                switch (r.getType()) {
+                    case JSON:
+                        try {
+                            converted = unsafeCast(
+                                    Entry.ofJson(normRev, query.path(), Jackson.readTree(r.getContent())));
+                        } catch (IOException e) {
+                            throw new CompletionException(
+                                    "failed to parse the query result: " + query, e);
+                        }
+                        break;
+                    case TEXT:
+                        converted = unsafeCast(Entry.ofText(normRev, query.path(), r.getContent()));
+                        break;
+                    case DIRECTORY:
+                        converted = unsafeCast(Entry.ofDirectory(normRev, query.path()));
+                        break;
+                    default:
+                        throw new Error("unknown entry type: " + r.getType());
+                }
+
+                return converted;
+            });
         });
     }
 
     @Override
     public CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
                                                              Revision revision, String pathPattern) {
-        final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Entry>> future =
-                run(callback -> client.getFiles(projectName, repositoryName,
-                                                RevisionConverter.TO_DATA.convert(revision),
-                                                pathPattern, callback));
-        return future.thenApply(list -> convertToMap(list, EntryConverter.TO_MODEL::convert,
-                                                     Entry::path, Function.identity()));
+
+        return normalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
+            final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Entry>> future =
+                    run(callback -> client.getFiles(projectName, repositoryName,
+                                                    RevisionConverter.TO_DATA.convert(normRev),
+                                                    pathPattern, callback));
+            return future.thenApply(list -> convertToMap(list, e -> EntryConverter.convert(normRev, e),
+                                                         Entry::path, Function.identity()));
+        });
     }
 
     @Override
@@ -303,6 +310,14 @@ final class LegacyCentralDogma implements CentralDogma {
 
     @Override
     public CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
+                                          String summary, String detail, Markup markup,
+                                          Iterable<? extends Change<?>> changes) {
+        return push(projectName, repositoryName, baseRevision,
+                    Author.UNKNOWN, summary, detail, markup, changes);
+    }
+
+    @Override
+    public CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
                                           Author author, String summary, String detail, Markup markup,
                                           Iterable<? extends Change<?>> changes) {
         final CompletableFuture<com.linecorp.centraldogma.internal.thrift.Commit> future =
@@ -336,9 +351,9 @@ final class LegacyCentralDogma implements CentralDogma {
     }
 
     @Override
-    public <T> CompletableFuture<QueryResult<T>> watchFile(String projectName, String repositoryName,
-                                                           Revision lastKnownRevision, Query<T> query,
-                                                           long timeoutMillis) {
+    public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
+                                                     Revision lastKnownRevision, Query<T> query,
+                                                     long timeoutMillis) {
 
         final CompletableFuture<WatchFileResult> future =
                 run(callback -> client.watchFile(projectName, repositoryName,
@@ -355,21 +370,20 @@ final class LegacyCentralDogma implements CentralDogma {
                 return null;
             }
 
-            final QueryResult<T> converted;
+            final Entry<T> converted;
             switch (r.getType()) {
                 case JSON:
                     try {
-                        converted = unsafeCast(new QueryResult<>(revision, EntryType.JSON,
-                                                                 Jackson.readTree(r.getContent())));
-                    } catch (IOException e) {
+                        converted = unsafeCast(Entry.ofJson(revision, query.path(), r.getContent()));
+                    } catch (JsonParseException e) {
                         throw new CompletionException("failed to parse the query result: " + query, e);
                     }
                     break;
                 case TEXT:
-                    converted = unsafeCast(new QueryResult<>(revision, EntryType.TEXT, r.getContent()));
+                    converted = unsafeCast(Entry.ofText(revision, query.path(), r.getContent()));
                     break;
                 case DIRECTORY:
-                    converted = new QueryResult<>(revision, EntryType.DIRECTORY, null);
+                    converted = unsafeCast(Entry.ofDirectory(revision, query.path()));
                     break;
                 default:
                     throw new Error("unknown entry type: " + r.getType());

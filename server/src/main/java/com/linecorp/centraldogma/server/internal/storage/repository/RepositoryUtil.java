@@ -28,11 +28,9 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
-import com.google.common.base.MoreObjects;
-
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
@@ -53,16 +51,15 @@ final class RepositoryUtil {
         GET_FIND_OPTIONS.put(FindOption.MAX_ENTRIES, 1);
     }
 
-    static <T> CompletableFuture<QueryResult<T>> watch(Repository repo, Revision lastKnownRev, Query<T> query) {
+    static <T> CompletableFuture<Entry<T>> watch(Repository repo, Revision lastKnownRev, Query<T> query) {
 
         requireNonNull(repo, "repo");
         requireNonNull(lastKnownRev, "lastKnownRev");
         requireNonNull(query, "query");
 
-        @SuppressWarnings("unchecked")
-        final Query<Object> castQuery = (Query<Object>) query;
-        final CompletableFuture<QueryResult<Object>> parentFuture = new CompletableFuture<>();
-        repo.getOrElse(lastKnownRev, castQuery, null)
+        final Query<Object> castQuery = unsafeCast(query);
+        final CompletableFuture<Entry<Object>> parentFuture = new CompletableFuture<>();
+        repo.getOrNull(lastKnownRev, castQuery)
             .thenAccept(oldResult -> watch(repo, castQuery, lastKnownRev, oldResult, parentFuture))
             .exceptionally(voidFunction(parentFuture::completeExceptionally));
 
@@ -70,28 +67,16 @@ final class RepositoryUtil {
     }
 
     private static void watch(Repository repo, Query<Object> query,
-                              Revision lastKnownRev, @Nullable QueryResult<Object> oldResult,
-                              CompletableFuture<QueryResult<Object>> parentFuture) {
+                              Revision lastKnownRev, @Nullable Entry<Object> oldResult,
+                              CompletableFuture<Entry<Object>> parentFuture) {
 
         final CompletableFuture<Revision> future = repo.watch(lastKnownRev, query.path());
         parentFuture.whenComplete((res, cause) -> future.completeExceptionally(CANCELLATION_EXCEPTION));
 
-        future.thenCompose(newRev -> {
-            //noinspection CodeBlock2Expr (too long to make an expression)
-            return repo.getOrElse(newRev, query, null)
-                       .thenApply(queryResult -> new RevisionAndQueryResult(newRev, queryResult));
-        }).thenAccept(res -> {
-            final Revision newRev = res.revision;
-            final QueryResult<Object> newResult = res.queryResult;
-
-            if (newResult == null) {
-                // Removed
-                parentFuture.complete(new QueryResult<>(newRev, null, null));
-                return;
-            }
-
-            if (oldResult != null && Objects.equals(oldResult.content(), newResult.content())) {
-                // The commit did not change the query result; watch again for more changes.
+        future.thenCompose(newRev -> repo.getOrNull(newRev, query).thenAccept(newResult -> {
+            if (newResult == null ||
+                oldResult != null && Objects.equals(oldResult.content(), newResult.content())) {
+                // Entry does not exist or did not change; watch again for more changes.
                 if (!parentFuture.isDone()) {
                     // ... only when the parent future has not been cancelled.
                     watch(repo, query, newRev, oldResult, parentFuture);
@@ -99,26 +84,8 @@ final class RepositoryUtil {
             } else {
                 parentFuture.complete(newResult);
             }
-        }).exceptionally(voidFunction(parentFuture::completeExceptionally));
+        })).exceptionally(voidFunction(parentFuture::completeExceptionally));
     }
 
     private RepositoryUtil() {}
-
-    private static final class RevisionAndQueryResult {
-        final Revision revision;
-        final QueryResult<Object> queryResult;
-
-        RevisionAndQueryResult(Revision revision, QueryResult<Object> queryResult) {
-            this.revision = revision;
-            this.queryResult = queryResult;
-        }
-
-        @Override
-        public String toString() {
-            return MoreObjects.toStringHelper(this)
-                              .add("revision", revision)
-                              .add("queryResult", queryResult)
-                              .toString();
-        }
-    }
 }

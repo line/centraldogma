@@ -33,7 +33,6 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.thrift.async.AsyncMethodCallback;
 
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.internal.thrift.Author;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaConstants;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
@@ -311,14 +310,15 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             String projectName, String repositoryName, Revision lastKnownRevision,
             Query query, long timeoutMillis, AsyncMethodCallback resultHandler) {
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
-        final CompletableFuture<QueryResult<Object>> future =
+        final CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future =
                 watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis);
 
         handleWatchFileResult(future, resultHandler);
     }
 
     private void handleWatchFileResult(
-            CompletableFuture<QueryResult<Object>> future, AsyncMethodCallback resultHandler) {
+            CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future,
+            AsyncMethodCallback resultHandler) {
         future.handle(voidFunction((res, cause) -> {
             if (cause == null) {
                 final WatchFileResult wfr = new WatchFileResult();

@@ -56,7 +56,7 @@ public class GracefulShutdownTest {
     @Test(timeout = 10000)
     public void testWatchFileGracefulShutdown() throws Exception {
         testGracefulShutdown(rule.client().watchFile(
-                rule.project(), rule.repo1(), Revision.HEAD, Query.identity("/test.json"), 60000));
+                rule.project(), rule.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000));
     }
 
     private static void testGracefulShutdown(CompletableFuture<?> future) throws Exception {

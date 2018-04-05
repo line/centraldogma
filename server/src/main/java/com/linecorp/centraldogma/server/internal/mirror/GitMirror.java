@@ -113,7 +113,7 @@ public final class GitMirror extends Mirror {
 
                 // Check if local repository needs update.
                 final String mirrorStatePath = localPath() + "mirror_state.json";
-                final Entry<?> mirrorState = localRepo().getOrElse(localRev, mirrorStatePath, null).join();
+                final Entry<?> mirrorState = localRepo().getOrNull(localRev, mirrorStatePath).join();
                 final String localSourceRevision;
                 if (mirrorState == null || mirrorState.type() != EntryType.JSON) {
                     localSourceRevision = null;

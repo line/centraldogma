@@ -27,7 +27,6 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
-import com.linecorp.centraldogma.common.QueryResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitDto;
@@ -63,11 +62,6 @@ final class DtoConverter {
         return convert(repository, entry.path(), entry.type(), entry.content());
     }
 
-    public static <T> EntryDto<T> convert(Repository repository, QueryResult<T> result, String path) {
-        requireNonNull(result, "result");
-        return convert(repository, path, result.type(), result.content());
-    }
-
     public static <T> EntryDto<T> convert(Repository repository, String path, EntryType type) {
         return convert(repository, path, type, null);
     }
@@ -75,8 +69,8 @@ final class DtoConverter {
     public static <T> EntryDto<T> convert(Repository repository, String path, EntryType type,
                                           @Nullable T content) {
         requireNonNull(repository, "repository");
-        return new EntryDto<T>(requireNonNull(path, "path"), requireNonNull(type, "type"),
-                               repository.parent().name(), repository.name(), content);
+        return new EntryDto<>(requireNonNull(path, "path"), requireNonNull(type, "type"),
+                              repository.parent().name(), repository.name(), content);
     }
 
     public static CommitDto convert(Commit commit) {

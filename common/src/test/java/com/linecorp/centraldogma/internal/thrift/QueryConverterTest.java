@@ -29,8 +29,8 @@ import com.google.common.collect.ImmutableList;
 
 public class QueryConverterTest {
 
-    private static final com.linecorp.centraldogma.common.Query<Object> IDENTITY_MODEL =
-            com.linecorp.centraldogma.common.Query.identity("/a.txt");
+    private static final com.linecorp.centraldogma.common.Query<String> IDENTITY_MODEL =
+            com.linecorp.centraldogma.common.Query.ofText("/a.txt");
     private static final Query IDENTITY_DATA = new Query().setPath("/a.txt").setType(QueryType.IDENTITY)
                                                           .setExpressions(Collections.emptyList());
 

@@ -99,7 +99,7 @@ public final class MigrationUtil {
 
         final Entry<?> tokenEntry = projectManager.get(INTERNAL_PROJECT_NAME).repos()
                                                   .get(INTERNAL_REPOSITORY_NAME)
-                                                  .getOrElse(Revision.HEAD, TOKEN_JSON, null).join();
+                                                  .getOrNull(Revision.HEAD, TOKEN_JSON).join();
         final Collection<Token> migratedTokens =
                 tokenEntry == null || force ? migrateTokens(projectManager, executor) : ImmutableSet.of();
         migratedTokens.forEach(token -> logger.info("Token '{}' has been migrated", token.id()));
@@ -117,7 +117,7 @@ public final class MigrationUtil {
         safeProjectManager.list().values().forEach(p -> {
             final Revision revision = metadataRepo.normalize(p.metaRepo());
             final Entry<?> metadataEntry =
-                    p.metaRepo().getOrElse(revision, METADATA_JSON, null).join();
+                    p.metaRepo().getOrNull(revision, METADATA_JSON).join();
             if (metadataEntry == null || force) {
                 final Map<String, RepositoryMetadata> repos =
                         p.repos().list().values().stream()
@@ -158,7 +158,7 @@ public final class MigrationUtil {
         if (project.repos().exists(LEGACY_TOKEN_REPO)) {
             // Legacy tokens are stored in "dogma/tokens/token.json".
             legacyTokens = project.repos().get(LEGACY_TOKEN_REPO)
-                                  .getOrElse(Revision.HEAD, LEGACY_TOKEN_JSON, null)
+                                  .getOrNull(Revision.HEAD, LEGACY_TOKEN_JSON)
                                   .thenApply(entry -> {
                                       if (entry != null) {
                                           return Jackson.<Map<String, LegacyToken>>convertValue(
