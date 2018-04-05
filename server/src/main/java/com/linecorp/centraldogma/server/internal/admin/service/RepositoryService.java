@@ -206,7 +206,11 @@ public class RepositoryService extends AbstractService {
                                                   @Param("repoName") String repoName,
                                                   @Param("revision") String revision,
                                                   @Param("term") String term) {
-        return listFiles(projectName, repoName, new Revision(revision), normalizeSearchTerm(term));
+        return projectManager().get(projectName).repos().get(repoName)
+                               .find(new Revision(revision), normalizeSearchTerm(term), LIST_FILES_FIND_OPTIONS)
+                               .thenApply(entries -> entries.values().stream()
+                                                            .map(DtoConverter::convert)
+                                                            .collect(toList()));
     }
 
     /**
@@ -249,19 +253,6 @@ public class RepositoryService extends AbstractService {
         return f.thenCompose(
                 changes -> execute(Command.push(author, projectName, repoName, normalizedRev,
                                                 commitSummary, commitDetail, commitMarkup, changes.values())));
-    }
-
-    private CompletionStage<List<EntryDto>> listFiles(String projectName,
-                                                      String repoName,
-                                                      Revision revision,
-                                                      String pathPattern) {
-        pathPattern += pathPattern.endsWith("/") ? '*' : "/*";
-        return projectManager().get(projectName).repos().get(repoName)
-                               .find(revision, pathPattern, LIST_FILES_FIND_OPTIONS)
-                               .thenApply(
-                                       entries -> entries.values().stream()
-                                                         .map(DtoConverter::convert)
-                                                         .collect(toList()));
     }
 
     private static Entry<CommitMessageDto, Change<?>> commitMessageAndChange(AggregatedHttpMessage message) {
