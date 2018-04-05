@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.60.0
+- com.linecorp.armeria:armeria-bom:0.62.0
 
 com.beust:
   jcommander: { version: '1.72' }
@@ -12,7 +12,7 @@ com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
 com.bmuschko:
-  gradle-docker-plugin: { version: '3.2.5' }
+  gradle-docker-plugin: { version: '3.2.6' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
