@@ -25,7 +25,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -72,7 +71,7 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Returns the list of projects or removed projects.
      */
     @Get("/projects")
-    public CompletionStage<List<ProjectDto>> listProjects(@Param("status") Optional<String> status) {
+    public CompletableFuture<List<ProjectDto>> listProjects(@Param("status") Optional<String> status) {
         if (status.isPresent()) {
             checkStatusArgument(status.get());
             return CompletableFuture.supplyAsync(() -> projectManager().listRemoved().stream()
@@ -92,8 +91,8 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Post("/projects")
     @ResponseConverter(CreateApiResponseConverter.class)
-    public CompletionStage<ProjectDto> createProject(@RequestObject CreateProjectRequest request,
-                                                     @RequestObject Author author) {
+    public CompletableFuture<ProjectDto> createProject(@RequestObject CreateProjectRequest request,
+                                                       @RequestObject Author author) {
         return execute(Command.createProject(author, request.name()))
                 .handle(returnOrThrow(() -> DtoConverter.convert(projectManager().get(request.name()))));
     }
@@ -107,7 +106,7 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}")
     @Decorator(ProjectMembersOnly.class)
-    public CompletionStage<ProjectMetadata> getProjectMetadata(
+    public CompletableFuture<ProjectMetadata> getProjectMetadata(
             @Param("projectName") String projectName,
             @Param("checkPermissionOnly") Optional<Boolean> isCheckPermissionOnly) {
         if (isCheckPermissionOnly.orElse(false)) {
@@ -123,8 +122,8 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Delete("/projects/{projectName}")
     @Decorator(ProjectOwnersOnly.class)
-    public CompletionStage<Void> removeProject(@RequestObject Project project,
-                                               @RequestObject Author author) {
+    public CompletableFuture<Void> removeProject(@RequestObject Project project,
+                                                 @RequestObject Author author) {
         return mds.removeProject(author, project.name())
                   .thenCompose(unused -> execute(Command.removeProject(author, project.name())))
                   .handle(HttpApiUtil::throwUnsafelyIfNonNull);
@@ -138,9 +137,9 @@ public class ProjectServiceV1 extends AbstractService {
     @ConsumeType("application/json-patch+json")
     @Patch("/projects/{projectName}")
     @Decorator(AdministratorsOnly.class)
-    public CompletionStage<ProjectDto> patchProject(@Param("projectName") String projectName,
-                                                    @RequestObject JsonNode node,
-                                                    @RequestObject Author author) {
+    public CompletableFuture<ProjectDto> patchProject(@Param("projectName") String projectName,
+                                                      @RequestObject JsonNode node,
+                                                      @RequestObject Author author) {
         checkUnremoveArgument(node);
         return execute(Command.unremoveProject(author, projectName))
                 .thenCompose(unused -> mds.restoreProject(author, projectName))
