@@ -27,7 +27,7 @@ func TestListFiles(t *testing.T) {
 	c, mux, teardown := setup()
 	defer teardown()
 
-	mux.HandleFunc("/api/v1/projects/foo/repos/bar/tree/**", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/projects/foo/repos/bar/list/**", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
 		fmt.Fprint(w, `[{"path":"/a.json", "type":"JSON"},{"path":"/b.txt", "type":"TEXT"}]`)
 	})
@@ -43,7 +43,7 @@ func TestListFiles_WithRevision(t *testing.T) {
 	c, mux, teardown := setup()
 	defer teardown()
 
-	mux.HandleFunc("/api/v1/projects/foo/repos/bar/tree/**", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/projects/foo/repos/bar/list/**", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
 		testURLQuery(t, r, "revision", "2")
 		fmt.Fprint(w, `[{"path":"/a.json", "type":"JSON"},{"path":"/b.txt", "type":"TEXT"}]`)

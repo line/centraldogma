@@ -27,7 +27,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('repositoryTree', {
                     parent: 'entity',
-                    url: '/:projectName/:repositoryName/tree/:revision/{path:repositoryPath}',
+                    url: '/:projectName/:repositoryName/list/:revision/{path:repositoryPath}',
                     data: {},
                     views: {
                       'content@': {

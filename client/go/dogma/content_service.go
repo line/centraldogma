@@ -131,7 +131,7 @@ func (c *Change) UnmarshalJSON(b []byte) error {
 
 func (con *contentService) listFiles(ctx context.Context,
 	projectName, repoName, revision, pathPattern string) ([]*Entry, *http.Response, error) {
-	u := fmt.Sprintf("%vprojects/%v/repos/%v/tree%v", defaultPathPrefix, projectName, repoName, pathPattern)
+	u := fmt.Sprintf("%vprojects/%v/repos/%v/list%v", defaultPathPrefix, projectName, repoName, pathPattern)
 
 	if len(revision) != 0 {
 		v := &url.Values{}

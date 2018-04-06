@@ -18,6 +18,10 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.armeria.common.util.Functions.voidFunction;
+import static com.linecorp.centraldogma.common.EntryType.DIRECTORY;
+import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
+import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static java.util.Objects.requireNonNull;
@@ -28,7 +32,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
 import com.google.common.base.Throwables;
@@ -53,7 +56,6 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
-import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
@@ -81,6 +83,9 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class ContentServiceV1 extends AbstractService {
 
+    private static final Map<FindOption<?>, ?> FIND_WITHOUT_CONTENT =
+            ImmutableMap.of(FindOption.FETCH_CONTENT, false);
+
     private final WatchService watchService;
 
     public ContentServiceV1(ProjectManager projectManager, CommandExecutor executor,
@@ -90,40 +95,66 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     /**
-     * GET /projects/{projectName}/repos/{repoName}/tree{path}?revision={revision}
+     * GET /projects/{projectName}/repos/{repoName}/list{path}?revision={revision}
      *
      * <p>Returns the list of files in the path.
      */
-    @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/tree(?<path>(|/.*))$")
+    @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/list(?<path>(|/.*))$")
     @Decorator(HasReadPermission.class)
-    public CompletionStage<List<EntryDto<?>>> listFiles(@Param("path") String path,
-                                                        @Param("revision") @Default("-1") String revision,
-                                                        @RequestObject Repository repository) {
-        final String path0 = rootDirIfEmpty(path);
-        return listFiles(repository, path0, new Revision(revision),
-                         ImmutableMap.of(FindOption.FETCH_CONTENT, false));
+    public CompletableFuture<List<EntryDto<?>>> listFiles(@Param("path") String path,
+                                                          @Param("revision") @Default("-1") String revision,
+                                                          @RequestObject Repository repository) {
+        final String normalizedPath = normalizePath(path);
+        final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
+        listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)),
+                  FIND_WITHOUT_CONTENT, future);
+        return future;
     }
 
-    private static CompletionStage<List<EntryDto<?>>> listFiles(Repository repository, String path,
-                                                                Revision revision,
-                                                                Map<FindOption<?>, ?> options) {
-        final String pathPattern = appendWildCardIfDirectory(path);
-        return repository.find(revision, pathPattern, options)
-                         .thenApply(entries -> entries.values().stream()
-                                                      .filter(entry -> entry.type() != EntryType.DIRECTORY)
-                                                      .map(entry -> convert(repository, entry))
-                                                      .collect(toImmutableList()));
-    }
-
-    private static String appendWildCardIfDirectory(String path) {
-        return path.endsWith("/") ? path + '*' : path;
+    private static void listFiles(Repository repository, String pathPattern, Revision normalizedRevision,
+                                  Map<FindOption<?>, ?> options, CompletableFuture<List<EntryDto<?>>> result) {
+        repository.find(normalizedRevision, pathPattern, options).handle(voidFunction((entries, thrown) -> {
+            if (thrown != null) {
+                result.completeExceptionally(thrown);
+                return;
+            }
+            // If the pathPattern is a valid file path and the result is a directory, the client forgets to add
+            // "/*" to the end of the path. So, let's do it and invoke once more.
+            // This is called once at most, because the pathPattern is not a valid file path anymore.
+            if (isValidFilePath(pathPattern) && entries.size() == 1 &&
+                entries.values().iterator().next().type() == DIRECTORY) {
+                listFiles(repository, pathPattern + "/*", normalizedRevision, options, result);
+            } else {
+                result.complete(entries.values().stream()
+                                       .map(entry -> convert(repository, entry))
+                                       .collect(toImmutableList()));
+            }
+        }));
     }
 
     /**
-     * Returns "/" if the specified path is null or empty.
+     * Normalizes the path according to the following order.
+     * <ul>
+     *   <li>if the path is {@code null}, empty string or "/", normalize to {@code "/*"}</li>
+     *   <li>if the path is a valid file path, return the path as it is</li>
+     *   <li>if the path is a valid directory path, append "*" at the end</li>
+     * </ul>
      */
-    private static String rootDirIfEmpty(String path) {
-        return isNullOrEmpty(path) ? "/" : path;
+    private static String normalizePath(String path) {
+        if (path == null || "".equals(path) || "/".equals(path)) {
+            return "/*";
+        }
+        if (isValidFilePath(path)) {
+            return path;
+        }
+        if (isValidDirPath(path)) {
+            if (path.endsWith("/")) {
+                return path + "*";
+            } else {
+                return path + "/*";
+            }
+        }
+        return path;
     }
 
     /**
@@ -133,12 +164,12 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @Decorator(HasWritePermission.class)
-    public CompletionStage<?> commit(@Param("revision") @Default("-1") String revision,
-                                     @RequestObject Repository repository,
-                                     @RequestObject Author author,
-                                     @RequestObject CommitMessageDto commitMessage,
-                                     @RequestObject(ChangesRequestConverter.class)
-                                             Iterable<Change<?>> changes) {
+    public CompletableFuture<?> commit(@Param("revision") @Default("-1") String revision,
+                                       @RequestObject Repository repository,
+                                       @RequestObject Author author,
+                                       @RequestObject CommitMessageDto commitMessage,
+                                       @RequestObject(ChangesRequestConverter.class)
+                                               Iterable<Change<?>> changes) {
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
 
         final CompletableFuture<Map<String, Change<?>>> changesFuture =
@@ -154,8 +185,7 @@ public class ContentServiceV1 extends AbstractService {
                          commitMessage, previewDiffs.values()).toCompletableFuture();
             final String pathPattern = joinPaths(changes);
             final CompletableFuture<Map<String, Entry<?>>> findFuture = resultRevisionFuture.thenCompose(
-                    result -> repository.find(result, pathPattern,
-                                              ImmutableMap.of(FindOption.FETCH_CONTENT, false)));
+                    result -> repository.find(result, pathPattern, FIND_WITHOUT_CONTENT));
             return findFuture.thenApply(entries -> {
                 final Revision resultRevision = resultRevisionFuture.join(); // the future is already complete
                 final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entries);
@@ -164,9 +194,9 @@ public class ContentServiceV1 extends AbstractService {
         });
     }
 
-    private CompletionStage<Revision> push(long commitTimeMills, Author author, Repository repository,
-                                           Revision revision, CommitMessageDto commitMessage,
-                                           Iterable<Change<?>> changes) {
+    private CompletableFuture<Revision> push(long commitTimeMills, Author author, Repository repository,
+                                             Revision revision, CommitMessageDto commitMessage,
+                                             Iterable<Change<?>> changes) {
         final String summary = commitMessage.summary();
         final String detail = commitMessage.detail();
         final Markup markup = commitMessage.markup();
@@ -210,13 +240,13 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
     @Decorator(HasReadPermission.class)
-    public CompletionStage<?> getFiles(@Param("path") String path,
-                                       @Param("revision") @Default("-1") String revision,
-                                       @RequestObject Repository repository,
-                                       @RequestObject(WatchRequestConverter.class)
-                                               Optional<WatchRequest> watchRequest,
-                                       @RequestObject(QueryRequestConverter.class) Optional<Query<?>> query) {
-        final String path0 = rootDirIfEmpty(path);
+    public CompletableFuture<?> getFiles(@Param("path") String path,
+                                         @Param("revision") @Default("-1") String revision,
+                                         @RequestObject Repository repository,
+                                         @RequestObject(WatchRequestConverter.class)
+                                                 Optional<WatchRequest> watchRequest,
+                                         @RequestObject(QueryRequestConverter.class) Optional<Query<?>> query) {
+        final String normalizedPath = normalizePath(path);
 
         // watch repository or a file
         if (watchRequest.isPresent()) {
@@ -226,7 +256,7 @@ public class ContentServiceV1 extends AbstractService {
                 return watchFile(repository, lastKnownRevision, query.get(), timeOutMillis);
             }
 
-            return watchRepository(repository, lastKnownRevision, path0, timeOutMillis);
+            return watchRepository(repository, lastKnownRevision, normalizedPath, timeOutMillis);
         }
 
         if (query.isPresent()) {
@@ -236,11 +266,14 @@ public class ContentServiceV1 extends AbstractService {
         }
 
         // get files
-        return listFiles(repository, path0, new Revision(revision), ImmutableMap.of());
+        final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
+        listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)),
+                  ImmutableMap.of(), future);
+        return future;
     }
 
-    private CompletionStage<?> watchFile(Repository repository, Revision lastKnownRevision,
-                                         Query<?> query, long timeOutMillis) {
+    private CompletableFuture<?> watchFile(Repository repository, Revision lastKnownRevision,
+                                           Query<?> query, long timeOutMillis) {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis);
 
@@ -248,11 +281,11 @@ public class ContentServiceV1 extends AbstractService {
                      .exceptionally(this::handleWatchFailure);
     }
 
-    private static CompletionStage<Object> handleWatchSuccess(Repository repository,
-                                                              Revision revision, String pathPattern) {
+    private static CompletableFuture<Object> handleWatchSuccess(Repository repository,
+                                                                Revision revision, String pathPattern) {
         final CompletableFuture<List<Commit>> historyFuture =
                 repository.history(revision, revision, pathPattern);
-        return repository.find(revision, pathPattern, ImmutableMap.of(FindOption.FETCH_CONTENT, false))
+        return repository.find(revision, pathPattern, FIND_WITHOUT_CONTENT)
                          .thenCombine(historyFuture, (entryMap, commits) -> {
                              final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entryMap);
                              // the size of commits should be 1
@@ -270,9 +303,8 @@ public class ContentServiceV1 extends AbstractService {
         return Exceptions.throwUnsafely(thrown);
     }
 
-    private CompletionStage<?> watchRepository(Repository repository, Revision lastKnownRevision,
-                                               String path, long timeOutMillis) {
-        final String pathPattern = appendWildCardIfDirectory(path);
+    private CompletableFuture<?> watchRepository(Repository repository, Revision lastKnownRevision,
+                                                 String pathPattern, long timeOutMillis) {
         final CompletableFuture<Revision> future =
                 watchService.watchRepository(repository, lastKnownRevision, pathPattern, timeOutMillis);
 
@@ -289,10 +321,10 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/commits(?<revision>(|/.*))$")
     @Decorator(HasReadPermission.class)
-    public CompletionStage<?> listCommits(@Param("revision") String revision,
-                                          @Param("path") @Default("/**") String path,
-                                          @Param("to") Optional<String> to,
-                                          @RequestObject Repository repository) {
+    public CompletableFuture<?> listCommits(@Param("revision") String revision,
+                                            @Param("path") @Default("/**") String path,
+                                            @Param("to") Optional<String> to,
+                                            @RequestObject Repository repository) {
         final Revision fromRevision;
         final Revision toRevision;
 
@@ -330,11 +362,11 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
     @Decorator(HasReadPermission.class)
-    public CompletionStage<?> getDiff(@Param("path") @Default("/**") String pathPattern,
-                                      @Param("from") @Default("1") String from,
-                                      @Param("to") @Default("head") String to,
-                                      @RequestObject Repository repository,
-                                      @RequestObject(QueryRequestConverter.class) Optional<Query<?>> query) {
+    public CompletableFuture<?> getDiff(@Param("path") @Default("/**") String pathPattern,
+                                        @Param("from") @Default("1") String from,
+                                        @Param("to") @Default("head") String to,
+                                        @RequestObject Repository repository,
+                                        @RequestObject(QueryRequestConverter.class) Optional<Query<?>> query) {
         if (query.isPresent()) {
             return repository.diff(new Revision(from), new Revision(to), query.get())
                              .thenApply(DtoConverter::convert);

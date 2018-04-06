@@ -24,7 +24,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
@@ -78,9 +78,9 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Returns the list of the repositories or removed repositories.
      */
     @Get("/projects/{projectName}/repos")
-    public CompletionStage<List<RepositoryDto>> listRepositories(@RequestObject Project project,
-                                                                 @Param("status") Optional<String> status,
-                                                                 @RequestObject User user) {
+    public CompletableFuture<List<RepositoryDto>> listRepositories(@RequestObject Project project,
+                                                                   @Param("status") Optional<String> status,
+                                                                   @RequestObject User user) {
         status.ifPresent(HttpApiUtil::checkStatusArgument);
         return mds.findRole(project.name(), user).handle((role, throwable) -> {
             final boolean hasOwnerRole = role == ProjectRole.OWNER;
@@ -108,9 +108,9 @@ public class RepositoryServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos")
     @ResponseConverter(CreateApiResponseConverter.class)
     @Decorator(ProjectOwnersOnly.class)
-    public CompletionStage<RepositoryDto> createRepository(@RequestObject Project project,
-                                                           @RequestObject CreateRepositoryRequest request,
-                                                           @RequestObject Author author) {
+    public CompletableFuture<RepositoryDto> createRepository(@RequestObject Project project,
+                                                             @RequestObject CreateRepositoryRequest request,
+                                                             @RequestObject Author author) {
         return mds.addRepo(author, project.name(), request.name())
                   .thenCompose(p -> execute(Command.createRepository(author, project.name(), request.name())))
                   .handle((unused, cause) -> {
@@ -136,8 +136,8 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Delete("/projects/{projectName}/repos/{repoName}")
     @Decorator(ProjectOwnersOnly.class)
-    public CompletionStage<Void> removeRepository(@RequestObject Repository repository,
-                                                  @RequestObject Author author) {
+    public CompletableFuture<Void> removeRepository(@RequestObject Repository repository,
+                                                    @RequestObject Author author) {
         return execute(Command.removeRepository(author, repository.parent().name(), repository.name()))
                 .thenCompose(unused -> mds.removeRepo(author, repository.parent().name(), repository.name()))
                 .handle(HttpApiUtil::throwUnsafelyIfNonNull);
@@ -151,10 +151,10 @@ public class RepositoryServiceV1 extends AbstractService {
     @ConsumeType("application/json-patch+json")
     @Patch("/projects/{projectName}/repos/{repoName}")
     @Decorator(ProjectOwnersOnly.class)
-    public CompletionStage<RepositoryDto> patchRepository(@Param("repoName") String repoName,
-                                                          @RequestObject Project project,
-                                                          @RequestObject JsonNode node,
-                                                          @RequestObject Author author) {
+    public CompletableFuture<RepositoryDto> patchRepository(@Param("repoName") String repoName,
+                                                            @RequestObject Project project,
+                                                            @RequestObject JsonNode node,
+                                                            @RequestObject Author author) {
         checkUnremoveArgument(node);
         return execute(Command.unremoveRepository(author, project.name(), repoName))
                 .thenCompose(unused -> mds.restoreRepo(author, project.name(), repoName))

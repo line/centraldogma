@@ -87,7 +87,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
@@ -120,7 +120,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/bar.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/bar.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/bar.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
@@ -157,7 +157,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/b\"," +
                 "       \"type\": \"DIRECTORY\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/b\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/b\"" +
                 "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
@@ -198,11 +198,11 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo0.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo0.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo0.json\"" +
                 "   },{" +
                 "       \"path\": \"/foo1.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo1.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo1.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
@@ -328,7 +328,7 @@ public class ContentServiceV1Test {
                 "   \"path\": \"/foo.json\"," +
                 "   \"type\": \"JSON\"," +
                 "   \"content\" : {\"a\":\"bar\"}," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -346,7 +346,7 @@ public class ContentServiceV1Test {
                 "   \"path\": \"/foo.json\"," +
                 "   \"type\": \"JSON\"," +
                 "   \"content\" : \"bar\"," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -358,18 +358,23 @@ public class ContentServiceV1Test {
         addBarTxt();
         // get the list of all files
         final AggregatedHttpMessage res1 = httpClient
-                .get("/api/v1/projects/myPro/repos/myRepo/tree/**").aggregate().join();
+                .get("/api/v1/projects/myPro/repos/myRepo/list/**").aggregate().join();
         final String expectedJson1 =
                 '[' +
                 "   {" +
+                "       \"path\": \"/a\"," +
+                "       \"type\": \"DIRECTORY\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
+                "   }," +
+                "   {" +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson1 = res1.content().toStringUtf8();
@@ -377,13 +382,18 @@ public class ContentServiceV1Test {
 
         // get the list of files only under root
         final AggregatedHttpMessage res2 = httpClient
-                .get("/api/v1/projects/myPro/repos/myRepo/tree/").aggregate().join();
+                .get("/api/v1/projects/myPro/repos/myRepo/list/").aggregate().join();
         final String expectedJson2 =
                 '[' +
                 "   {" +
+                "       \"path\": \"/a\"," +
+                "       \"type\": \"DIRECTORY\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
+                "   }," +
+                "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson2 = res2.content().toStringUtf8();
@@ -391,13 +401,21 @@ public class ContentServiceV1Test {
 
         // get the list of all files with revision 2, so only foo.json will be fetched
         final AggregatedHttpMessage res3 = httpClient
-                .get("/api/v1/projects/myPro/repos/myRepo/tree/**?revision=2").aggregate().join();
-        assertThatJson(expectedJson2).isEqualTo(res3.content().toStringUtf8());
+                .get("/api/v1/projects/myPro/repos/myRepo/list/**?revision=2").aggregate().join();
+        final String expectedJson3 =
+                '[' +
+                "   {" +
+                "       \"path\": \"/foo.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
+                "   }" +
+                ']';
+        assertThatJson(expectedJson3).isEqualTo(res3.content().toStringUtf8());
 
         // get the list with a file path
         final AggregatedHttpMessage res4 = httpClient
-                .get("/api/v1/projects/myPro/repos/myRepo/tree/foo.json").aggregate().join();
-        assertThatJson(expectedJson2).isEqualTo(res4.content().toStringUtf8());
+                .get("/api/v1/projects/myPro/repos/myRepo/list/foo.json").aggregate().join();
+        assertThatJson(expectedJson3).isEqualTo(res4.content().toStringUtf8());
     }
 
     @Test
@@ -410,16 +428,21 @@ public class ContentServiceV1Test {
         final String expectedJson1 =
                 '[' +
                 "   {" +
+                "       \"path\": \"/a\"," +
+                "       \"type\": \"DIRECTORY\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
+                "   }," +
+                "   {" +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
                 "       \"content\" : \"text in the file.\\n\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\" : {\"a\":\"bar\"}," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson1 = res1.content().toStringUtf8();
@@ -433,7 +456,7 @@ public class ContentServiceV1Test {
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\" : {\"a\":\"bar\"}," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson2 = res2.content().toStringUtf8();
@@ -459,8 +482,8 @@ public class ContentServiceV1Test {
         assertThat(res1.headers().status()).isEqualTo(HttpStatus.OK);
 
         final AggregatedHttpMessage res2 = httpClient.get(CONTENTS_PREFIX + "/**").aggregate().join();
-        // only /a/bar.txt file is left
-        assertThat(Jackson.readTree(res2.content().toStringUtf8()).size()).isOne();
+        // /a directory and /a/bar.txt file are left
+        assertThat(Jackson.readTree(res2.content().toStringUtf8()).size()).isEqualTo(2);
     }
 
     @Test
@@ -494,7 +517,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = res1.content().toStringUtf8();
@@ -536,7 +559,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                 "   }]" +
                 '}';
         final String actualJson = res1.content().toStringUtf8();
@@ -587,7 +610,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = res.content().toStringUtf8();
@@ -647,12 +670,45 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }]" +
                 '}';
         final AggregatedHttpMessage res = future.join();
         final String actualJson = res.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
+    }
+
+    @Test
+    public void listADirectoryWithoutSlash() {
+        final String body =
+                '{' +
+                "   \"path\" : \"/a.json/b.json/c.json/d.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : {\"a\": \"bar\"}," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add d.json in weird directory structure\"" +
+                "   }" +
+                '}';
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        httpClient.execute(headers, body).aggregate().join();
+        final String expectedJson =
+                '[' +
+                "   {" +
+                "       \"path\": \"/a.json/b.json\"," +
+                "       \"type\": \"DIRECTORY\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a.json/b.json\"" +
+                "   }" +
+                ']';
+        // List directory without slash.
+        final AggregatedHttpMessage res1 = httpClient
+                .get("/api/v1/projects/myPro/repos/myRepo/list/a.json").aggregate().join();
+        assertThatJson(res1.content().toStringUtf8()).isEqualTo(expectedJson);
+
+        // Listing directory with a slash is same with the listing director without slash which is res1.
+        final AggregatedHttpMessage res2 = httpClient
+                .get("/api/v1/projects/myPro/repos/myRepo/list/a.json/").aggregate().join();
+        assertThatJson(res2.content().toStringUtf8()).isEqualTo(expectedJson);
     }
 
     private static AggregatedHttpMessage addFooJson() {

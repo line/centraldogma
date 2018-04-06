@@ -35,7 +35,7 @@
       </td>
       <td>
         <a ng-if="file.type === 'DIRECTORY'"
-           ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{file.path}}">
+           ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{file.path}}">
           {{file.path}}
         </a>
         <a ng-if="file.type !== 'DIRECTORY'"

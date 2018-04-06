@@ -24,13 +24,13 @@
 
   <p>
     <span>
-      <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}/">
+      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}/">
         <strong>{{repository.name}}</strong>
       </a>
     </span>
     <span ng-repeat="parsedPath in parsedPaths" ng-if="!$first">
       /
-      <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{parsedPath.path}}">
+      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
         {{parsedPath.name}}
       </a>
     </span>
@@ -41,7 +41,7 @@
     <tr ng-if="parsedPaths.length > 1">
       <td style="width: 20px;"><span class="glyphicon glyphicon-level-up"></span></td>
       <td>
-        <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{parsedPaths[parsedPaths.length-2].path}}">..</a>
+        <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPaths[parsedPaths.length-2].path}}">..</a>
       </td>
     </tr>
     <tr ng-if="files.length == 0">
@@ -55,7 +55,7 @@
       </td>
       <td>
         <a ng-if="file.type === 'DIRECTORY'"
-           ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{file.path}}">{{file.name}}</a>
+           ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{file.path}}">{{file.name}}</a>
         <a ng-if="file.type !== 'DIRECTORY'"
            ng-href="#/{{project.name}}/{{repository.name}}/files/{{revision}}{{file.path}}">{{file.name}}</a>
       </td>
