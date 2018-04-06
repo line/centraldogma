@@ -83,6 +83,9 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class ContentServiceV1 extends AbstractService {
 
+    private static final Map<FindOption<?>, ?> FIND_WITHOUT_CONTENT =
+            ImmutableMap.of(FindOption.FETCH_CONTENT, false);
+
     private final WatchService watchService;
 
     public ContentServiceV1(ProjectManager projectManager, CommandExecutor executor,
@@ -104,7 +107,7 @@ public class ContentServiceV1 extends AbstractService {
         final String normalizedPath = normalizePath(path);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
         listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)),
-                  ImmutableMap.of(FindOption.FETCH_CONTENT, false), future);
+                  FIND_WITHOUT_CONTENT, future);
         return future;
     }
 
@@ -182,8 +185,7 @@ public class ContentServiceV1 extends AbstractService {
                          commitMessage, previewDiffs.values()).toCompletableFuture();
             final String pathPattern = joinPaths(changes);
             final CompletableFuture<Map<String, Entry<?>>> findFuture = resultRevisionFuture.thenCompose(
-                    result -> repository.find(result, pathPattern,
-                                              ImmutableMap.of(FindOption.FETCH_CONTENT, false)));
+                    result -> repository.find(result, pathPattern, FIND_WITHOUT_CONTENT));
             return findFuture.thenApply(entries -> {
                 final Revision resultRevision = resultRevisionFuture.join(); // the future is already complete
                 final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entries);
@@ -283,7 +285,7 @@ public class ContentServiceV1 extends AbstractService {
                                                                 Revision revision, String pathPattern) {
         final CompletableFuture<List<Commit>> historyFuture =
                 repository.history(revision, revision, pathPattern);
-        return repository.find(revision, pathPattern, ImmutableMap.of(FindOption.FETCH_CONTENT, false))
+        return repository.find(revision, pathPattern, FIND_WITHOUT_CONTENT)
                          .thenCombine(historyFuture, (entryMap, commits) -> {
                              final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entryMap);
                              // the size of commits should be 1

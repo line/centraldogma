@@ -24,13 +24,13 @@
 
   <p>
     <span>
-      <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}/">
+      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}/">
         <strong>{{repository.name}}</strong>
       </a>
     </span>
     <span ng-repeat="parsedPath in parsedPaths" ng-if="!$first">
       /
-      <a ng-if="!$last" ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{parsedPath.path}}">
+      <a ng-if="!$last" ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
         {{parsedPath.name}}
       </a>
       <a ng-if="$last && file.type !== 'DIRECTORY'"
@@ -38,7 +38,7 @@
         {{parsedPath.name}}
       </a>
       <a ng-if="$last && file.type === 'DIRECTORY'"
-         ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{parsedPath.path}}">
+         ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
         {{parsedPath.name}}
       </a>
     </span>
@@ -56,7 +56,7 @@
     <tbody>
     <tr ng-repeat="commit in commits">
       <td>
-        <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{commit.revision.revisionNumber}}{{path}}">
+        <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{commit.revision.revisionNumber}}{{path}}">
           {{commit.revision.revisionNumber}}
         </a>
       </td>

@@ -24,13 +24,13 @@
 
   <p>
     <span>
-      <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}/">
+      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}/">
         <strong>{{repository.name}}</strong>
       </a>
     </span>
     <span ng-repeat="parsedPath in parsedPaths" ng-if="!$first && !$last">
       /
-      <a ng-href="#/{{project.name}}/{{repository.name}}/tree/{{revision}}{{parsedPath.path}}">
+      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
         {{parsedPath.name}}
       </a>
     </span>

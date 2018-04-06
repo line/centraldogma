@@ -87,7 +87,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
@@ -120,7 +120,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/bar.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/bar.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/bar.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
@@ -157,7 +157,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/b\"," +
                 "       \"type\": \"DIRECTORY\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/b\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/b\"" +
                 "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
@@ -198,11 +198,11 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo0.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo0.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo0.json\"" +
                 "   },{" +
                 "       \"path\": \"/foo1.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo1.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo1.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
@@ -328,7 +328,7 @@ public class ContentServiceV1Test {
                 "   \"path\": \"/foo.json\"," +
                 "   \"type\": \"JSON\"," +
                 "   \"content\" : {\"a\":\"bar\"}," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -346,7 +346,7 @@ public class ContentServiceV1Test {
                 "   \"path\": \"/foo.json\"," +
                 "   \"type\": \"JSON\"," +
                 "   \"content\" : \"bar\"," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -364,17 +364,17 @@ public class ContentServiceV1Test {
                 "   {" +
                 "       \"path\": \"/a\"," +
                 "       \"type\": \"DIRECTORY\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson1 = res1.content().toStringUtf8();
@@ -388,12 +388,12 @@ public class ContentServiceV1Test {
                 "   {" +
                 "       \"path\": \"/a\"," +
                 "       \"type\": \"DIRECTORY\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson2 = res2.content().toStringUtf8();
@@ -407,7 +407,7 @@ public class ContentServiceV1Test {
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
         assertThatJson(expectedJson3).isEqualTo(res3.content().toStringUtf8());
@@ -430,19 +430,19 @@ public class ContentServiceV1Test {
                 "   {" +
                 "       \"path\": \"/a\"," +
                 "       \"type\": \"DIRECTORY\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
                 "       \"content\" : \"text in the file.\\n\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                 "   }," +
                 "   {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\" : {\"a\":\"bar\"}," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson1 = res1.content().toStringUtf8();
@@ -456,7 +456,7 @@ public class ContentServiceV1Test {
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\" : {\"a\":\"bar\"}," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
         final String actualJson2 = res2.content().toStringUtf8();
@@ -517,7 +517,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = res1.content().toStringUtf8();
@@ -559,7 +559,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a/bar.txt\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                 "   }]" +
                 '}';
         final String actualJson = res1.content().toStringUtf8();
@@ -610,7 +610,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }]" +
                 '}';
         final String actualJson = res.content().toStringUtf8();
@@ -670,7 +670,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/foo.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }]" +
                 '}';
         final AggregatedHttpMessage res = future.join();
@@ -697,7 +697,7 @@ public class ContentServiceV1Test {
                 "   {" +
                 "       \"path\": \"/a.json/b.json\"," +
                 "       \"type\": \"DIRECTORY\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/a.json/b.json\"" +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a.json/b.json\"" +
                 "   }" +
                 ']';
         // List directory without slash.
