@@ -233,6 +233,9 @@ public abstract class Mirror {
                     mirrorRemoteToLocal(workDir, executor, maxNumFiles, maxNumBytes);
                     break;
             }
+        } catch (InterruptedException e) {
+            // Propagate the interruption.
+            Thread.currentThread().interrupt();
         } catch (MirrorException e) {
             throw e;
         } catch (Exception e) {

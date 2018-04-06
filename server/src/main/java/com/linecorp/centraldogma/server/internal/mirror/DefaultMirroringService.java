@@ -100,9 +100,22 @@ public final class DefaultMirroringService implements MirroringService {
         scheduler = MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("mirroring-scheduler", true)));
 
-        worker = MoreExecutors.listeningDecorator(
-                new ThreadPoolExecutor(0, numThreads, 1, TimeUnit.MINUTES, new SynchronousQueue<>(),
-                                       new DefaultThreadFactory("mirroring-worker", true)));
+        // Use SynchronousQueue to prevent the work queue from growing infinitely
+        // when the workers cannot handle the mirroring tasks fast enough.
+        final SynchronousQueue<Runnable> workQueue = new SynchronousQueue<>();
+        worker = MoreExecutors.listeningDecorator(new ThreadPoolExecutor(
+                0, numThreads, 1, TimeUnit.MINUTES, workQueue,
+                new DefaultThreadFactory("mirroring-worker", true),
+                (rejectedTask, executor) -> {
+                    // We do not want the mirroring tasks to be rejected.
+                    // Just wait until a worker thread takes it.
+                    try {
+                        workQueue.put(rejectedTask);
+                    } catch (InterruptedException e) {
+                        // Propagate the interrupt to the scheduler.
+                        Thread.currentThread().interrupt();
+                    }
+                }));
 
         final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
                 this::schedulePendingMirrors,
