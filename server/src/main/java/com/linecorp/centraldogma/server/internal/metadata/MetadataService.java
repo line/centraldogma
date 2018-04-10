@@ -72,7 +72,7 @@ public class MetadataService extends AbstractService {
     /**
      * The name of metadata repository.
      */
-    static final String METADATA_REPO = Project.REPO_META;
+    static final String METADATA_REPO = INTERNAL_REPOSITORY_NAME;
 
     /**
      * A {@link JsonPointer} of project removal information.

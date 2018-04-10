@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 
@@ -57,7 +58,11 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
         final Author author = c.author();
 
         final CompletableFuture<Void> f = delegate().execute(c);
+        // Metadata is stored in 'INTERNAL_REPOSITORY_NAME' repository.
         return f.thenCompose(unused -> delegate().execute(Command.createRepository(creationTimeMillis, author,
+                                                                                   projectName,
+                                                                                   INTERNAL_REPOSITORY_NAME)))
+                .thenCompose(unused -> delegate().execute(Command.createRepository(creationTimeMillis, author,
                                                                                    projectName, REPO_META)))
                 .thenCompose(unused -> initializeMetadata(delegate(), projectName, author))
                 .thenApply(unused -> null);

@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.internal.admin.authentication;
 
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newHttpResponseException;
-import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -38,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
@@ -71,11 +69,11 @@ public class LoginService extends AbstractHttpService {
     private final Cache<String, AccessToken> cache;
 
     public LoginService(CentralDogmaSecurityManager securityManager, CommandExecutor executor,
-                        Function<String, String> loginNameNormalizer, String sessionCacheSpec) {
+                        Function<String, String> loginNameNormalizer, Cache<String, AccessToken> cache) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
         this.executor = requireNonNull(executor, "executor");
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
-        cache = Caffeine.from(validateCacheSpec(sessionCacheSpec)).build();
+        this.cache = requireNonNull(cache, "cache");
     }
 
     @Override

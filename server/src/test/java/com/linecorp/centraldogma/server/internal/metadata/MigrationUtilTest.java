@@ -17,12 +17,14 @@
 package com.linecorp.centraldogma.server.internal.metadata;
 
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
+import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
+import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.List;
@@ -39,7 +41,6 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LegacyToken;
@@ -49,6 +50,7 @@ import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.CreateProjectCommand;
 import com.linecorp.centraldogma.server.internal.command.ForwardingCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
@@ -144,11 +146,70 @@ public class MigrationUtilTest {
                 assertThat(m.repo("oneMoreThing").perRolePermissions().guest())
                         .containsExactly(Permission.READ, Permission.WRITE);
 
-                // Do not add "meta" repository to the metadata.
-                assertThatThrownBy(() -> m.repo(REPO_META))
-                        .isInstanceOf(RepositoryNotFoundException.class);
+                // "meta" repository is now one of user repositories.
+                assertThat(m.repo(REPO_META)).isNotNull();
             }
         }
+    }
+
+    @Test
+    public void migrationFrom0_23_0() {
+        final ProjectManager pm = rule.projectManager();
+        final CommandExecutor executor = rule.executor();
+
+        // Create a legacy token repository.
+        pm.get(INTERNAL_PROJECT_NAME).repos().create("main");
+        final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
+        final Tokens tokens = new Tokens(
+                ImmutableMap.of("app1", new Token("app1", "secret1", false,
+                                                  userAndTimestamp, null)),
+                ImmutableMap.of("secret1", "app1"));
+        executor.execute(
+                Command.push(author, INTERNAL_PROJECT_NAME, "main",
+                             Revision.HEAD, "", "", Markup.PLAINTEXT,
+                             Change.ofJsonUpsert(TOKEN_JSON, Jackson.valueToTree(tokens)))).join();
+
+        // Create a project with metadata.
+        final Project project = pm.create("project1");
+        project.repos().create(REPO_FOO);
+        project.repos().create(REPO_META);
+        final ProjectMetadata metadata =
+                new ProjectMetadata(project.name(),
+                                    ImmutableMap.of(REPO_FOO,
+                                                    new RepositoryMetadata(REPO_FOO, userAndTimestamp,
+                                                                           PerRolePermissions.ofPublic())),
+                                    ImmutableMap.of(), ImmutableMap.of(),
+                                    userAndTimestamp, null);
+        executor.execute(
+                Command.push(author, project.name(), REPO_META,
+                             Revision.HEAD, "", "", Markup.PLAINTEXT,
+                             Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata)))).join();
+
+        MigrationUtil.migrate(pm, executor);
+
+        final MetadataService mds = new MetadataService(pm, executor);
+
+        final ProjectMetadata meta = mds.getProject("project1").join();
+        assertThat(meta).isNotNull();
+        assertThat(meta.repo(REPO_FOO)).isNotNull();
+        assertThat(meta.repo(REPO_META)).isNotNull();   // Created by migrator.
+        assertThat(meta.creation()).isEqualToComparingFieldByField(userAndTimestamp);
+
+        // Ensure that "/project1/meta/metadata.json" has moved to "/project1/dogma/metadata.json".
+        assertThat(project.repos().get(INTERNAL_REPOSITORY_NAME)
+                          .getOrNull(Revision.HEAD, METADATA_JSON).join()).isNotNull();
+
+        final Token token = mds.findTokenByAppId("app1").join();
+        assertThat(token).isNotNull();
+        assertThat(token.secret()).isEqualTo("secret1");
+        assertThat(token.isAdmin()).isFalse();
+        assertThat(token.isActive()).isTrue();
+        assertThat(token.creation()).isEqualToComparingFieldByField(userAndTimestamp);
+
+        // Ensure that "/dogma/main/tokens.json" has moved to "/dogma/dogma/tokens.json".
+        assertThat(pm.get(INTERNAL_PROJECT_NAME).repos()
+                     .get(INTERNAL_REPOSITORY_NAME)
+                     .getOrNull(Revision.HEAD, TOKEN_JSON).join()).isNotNull();
     }
 
     private void createProject(String projectName) {
