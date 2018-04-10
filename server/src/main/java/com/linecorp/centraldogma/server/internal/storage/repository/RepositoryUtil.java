@@ -20,13 +20,14 @@ import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
 
-import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Entry;
@@ -38,18 +39,12 @@ import com.linecorp.centraldogma.common.Revision;
  */
 final class RepositoryUtil {
 
-    static final Map<FindOption<?>, Object> EXISTS_FIND_OPTIONS = new IdentityHashMap<>();
-    static final Map<FindOption<?>, Object> GET_FIND_OPTIONS = new IdentityHashMap<>();
+    static final Map<FindOption<?>, Object> EXISTS_FIND_OPTIONS =
+            ImmutableMap.of(FindOption.FETCH_CONTENT, false, FindOption.MAX_ENTRIES, 1);
+    static final Map<FindOption<?>, Object> GET_FIND_OPTIONS = ImmutableMap.of(FindOption.MAX_ENTRIES, 1);
 
     private static final CancellationException CANCELLATION_EXCEPTION =
             Exceptions.clearTrace(new CancellationException("parent complete"));
-
-    static {
-        EXISTS_FIND_OPTIONS.put(FindOption.FETCH_CONTENT, false);
-        EXISTS_FIND_OPTIONS.put(FindOption.MAX_ENTRIES, 1);
-
-        GET_FIND_OPTIONS.put(FindOption.MAX_ENTRIES, 1);
-    }
 
     static <T> CompletableFuture<Entry<T>> watch(Repository repo, Revision lastKnownRev, Query<T> query) {
 
