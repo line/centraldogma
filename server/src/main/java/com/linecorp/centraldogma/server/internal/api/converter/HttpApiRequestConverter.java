@@ -18,9 +18,12 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static java.util.Objects.requireNonNull;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Author;
@@ -61,6 +64,10 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
             checkArgument(!isNullOrEmpty(repositoryName),
                           "repository name should not be null or empty.");
 
+            if (INTERNAL_REPO.equals(repositoryName) &&
+                !AuthenticationUtil.currentUser(ctx).isAdmin()) {
+                throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+            }
             // RepositoryNotFoundException would be thrown if there is no project or no repository.
             return projectManager.get(projectName).repos().get(repositoryName);
         }

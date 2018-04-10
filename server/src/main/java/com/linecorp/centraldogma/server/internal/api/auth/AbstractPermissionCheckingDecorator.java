@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.api.auth;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.server.internal.api.auth.AbstractRoleCheckingDecorator.handleException;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 
 import java.util.Collection;
 import java.util.concurrent.CompletionStage;
@@ -36,8 +37,6 @@ import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.Permission;
-import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
 /**
  * An abstract class for checking permission of an incoming request.
@@ -58,27 +57,28 @@ abstract class AbstractPermissionCheckingDecorator
         final String repoName = ctx.pathParam("repoName");
         checkArgument(!isNullOrEmpty(repoName), "no repository name is specified");
 
-        if (Project.REPO_META.equals(repoName)) {
-            return serveMetaRepo(delegate, ctx, req, mds, user, projectName);
+        if (INTERNAL_REPO.equals(repoName)) {
+            return serveInternalRepo(delegate, ctx, req, mds, user, projectName);
         } else {
-            return serveNonMetaRepo(delegate, ctx, req, mds, user, projectName, repoName);
+            return serveUserRepo(delegate, ctx, req, mds, user, projectName, repoName);
         }
     }
 
-    private static HttpResponse serveMetaRepo(Service<HttpRequest, HttpResponse> delegate,
-                                              ServiceRequestContext ctx, HttpRequest req,
-                                              MetadataService mds, User user,
-                                              String projectName) throws Exception {
+    private static HttpResponse serveInternalRepo(Service<HttpRequest, HttpResponse> delegate,
+                                                  ServiceRequestContext ctx, HttpRequest req,
+                                                  MetadataService mds, User user,
+                                                  String projectName) throws Exception {
         if (user.isAdmin()) {
             return delegate.serve(ctx, req);
         }
-        // We do not manage permission for "meta" repository. Actually we do not have a metadata of that.
-        // So we need to check "role" here when the request is accessing to "meta" repository.
+        // We do not manage permission for the internal repository. Actually we do not have a metadata of that.
+        // So we need to check whether the current user is an 'administrator' or not when the request is
+        // accessing to the internal repository.
         return HttpResponse.from(mds.findRole(projectName, user).handle((role, cause) -> {
             if (cause != null) {
                 return handleException(cause);
             }
-            if (role != ProjectRole.OWNER) {
+            if (!user.isAdmin()) {
                 throw HttpStatusException.of(HttpStatus.FORBIDDEN);
             }
             try {
@@ -89,10 +89,10 @@ abstract class AbstractPermissionCheckingDecorator
         }));
     }
 
-    private HttpResponse serveNonMetaRepo(Service<HttpRequest, HttpResponse> delegate,
-                                          ServiceRequestContext ctx, HttpRequest req,
-                                          MetadataService mds, User user,
-                                          String projectName, String repoName) throws Exception {
+    private HttpResponse serveUserRepo(Service<HttpRequest, HttpResponse> delegate,
+                                       ServiceRequestContext ctx, HttpRequest req,
+                                       MetadataService mds, User user,
+                                       String projectName, String repoName) throws Exception {
         final CompletionStage<Collection<Permission>> f;
         try {
             f = mds.findPermissions(projectName, repoName, user);

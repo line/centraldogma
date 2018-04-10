@@ -26,6 +26,8 @@ import org.apache.shiro.util.ThreadContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.benmanes.caffeine.cache.Cache;
+
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -33,6 +35,7 @@ import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.OAuth2Token;
+import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 
@@ -45,10 +48,13 @@ public class LogoutService extends AbstractHttpService {
 
     private final CentralDogmaSecurityManager securityManager;
     private final CommandExecutor executor;
+    private final Cache<String, AccessToken> cache;
 
-    public LogoutService(CentralDogmaSecurityManager securityManager, CommandExecutor executor) {
+    public LogoutService(CentralDogmaSecurityManager securityManager, CommandExecutor executor,
+                         Cache<String, AccessToken> cache) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
         this.executor = requireNonNull(executor, "executor");
+        this.cache = requireNonNull(cache, "cache");
     }
 
     @Override
@@ -75,10 +81,11 @@ public class LogoutService extends AbstractHttpService {
                                 .buildSubject();
 
                         // Get the principal before logging out because otherwise it will be cleared out.
-                        final Object principal = currentUser.getPrincipal();
+                        final String username = (String) currentUser.getPrincipal();
                         currentUser.logout();
+                        cache.invalidate(username);
                         executor.execute(Command.removeSession(sessionId)).join();
-                        logger.info("{} Logged out: {} ({})", ctx, principal, sessionId);
+                        logger.info("{} Logged out: {} ({})", ctx, username, sessionId);
                     } else {
                         logger.debug("{} Tried to log out a non-existent session: {}", ctx, sessionId);
                     }

@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.metadata;
 
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.RepositoryUtil.convertWithJackson;
@@ -40,6 +40,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -48,6 +49,7 @@ import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**
  * A utility class for upgrading Central Dogma servers.
@@ -82,12 +84,7 @@ public final class MigrationUtil {
      * them one by one. Also, it is not necessary to be executed asynchronously because it has to be called
      * before binding RPC server, so every change is pushed synchronously.
      */
-    public static void migrate(ProjectManager projectManager, CommandExecutor executor) {
-        migrate(projectManager, executor, false);
-    }
-
-    public static synchronized void migrate(ProjectManager projectManager, CommandExecutor executor,
-                                            boolean force) {
+    public static synchronized void migrate(ProjectManager projectManager, CommandExecutor executor) {
         requireNonNull(projectManager, "projectManager");
         requireNonNull(executor, "executor");
 
@@ -97,12 +94,44 @@ public final class MigrationUtil {
 
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
-        final Entry<?> tokenEntry = projectManager.get(INTERNAL_PROJECT_NAME).repos()
-                                                  .get(INTERNAL_REPOSITORY_NAME)
+        // Check whether tokens are migrated or not.
+        final Entry<?> tokenEntry = projectManager.get(INTERNAL_PROJ).repos()
+                                                  .get(INTERNAL_REPO)
                                                   .getOrNull(Revision.HEAD, TOKEN_JSON).join();
         final Collection<Token> migratedTokens =
-                tokenEntry == null || force ? migrateTokens(projectManager, executor) : ImmutableSet.of();
+                tokenEntry == null ? migrateTokens(projectManager, executor) : ImmutableSet.of();
         migratedTokens.forEach(token -> logger.info("Token '{}' has been migrated", token.id()));
+
+        // Create a metadata.json file if it does not exist in the meta repository of the project.
+        // Use SafeProjectManager in order not to migrate internal projects.
+        final SafeProjectManager safeProjectManager = new SafeProjectManager(projectManager);
+
+        // Check whether "${project}/meta/metadata.json" exists or not in case of upgrading from 0.23.0.
+        safeProjectManager.list().values().forEach(p -> {
+            if (alreadyMigrated(p)) {
+                return;
+            }
+            if (!p.repos().exists(Project.REPO_META)) {
+                return;
+            }
+            try {
+                final ProjectMetadata metadata =
+                        metadataRepo.fetch(p.name(), Project.REPO_META, METADATA_JSON).join().object();
+                // "meta" repository is changed as a user repository now.
+                metadata.repos().put(Project.REPO_META,
+                                     new RepositoryMetadata(Project.REPO_META, userAndTimestamp,
+                                                            PerRolePermissions.ofPublic()));
+                commitProjectMetadata(metadataRepo, p.name(), metadata);
+
+                metadataRepo.push(p.name(), Project.REPO_META, author,
+                                  "Remove the old metadata file", Change.ofRemoval(METADATA_JSON)).join();
+            } catch (Throwable cause) {
+                cause = Exceptions.peel(cause);
+                if (!(cause instanceof EntryNotFoundException)) {
+                    Exceptions.throwUnsafely(cause);
+                }
+            }
+        });
 
         // Create a token registration map for metadata migration.
         final UserAndTimestamp creationTime = UserAndTimestamp.of(author);
@@ -111,85 +140,137 @@ public final class MigrationUtil {
                               .map(t -> new TokenRegistration(t.id(), ProjectRole.MEMBER, creationTime))
                               .collect(toMap(TokenRegistration::id, Function.identity()));
 
-        // Create a metadata.json file if it does not exist in the meta repository of the project.
-        // Use SafeProjectManager in order not to migrate internal projects.
-        final SafeProjectManager safeProjectManager = new SafeProjectManager(projectManager);
         safeProjectManager.list().values().forEach(p -> {
-            final Revision revision = metadataRepo.normalize(p.metaRepo());
-            final Entry<?> metadataEntry =
-                    p.metaRepo().getOrNull(revision, METADATA_JSON).join();
-            if (metadataEntry == null || force) {
-                final Map<String, RepositoryMetadata> repos =
-                        p.repos().list().values().stream()
-                         .filter(r -> !r.name().equals(Project.REPO_META))
-                         .map(r -> new RepositoryMetadata(r.name(), userAndTimestamp,
-                                                          PerRolePermissions.ofPublic()))
-                         .collect(toMap(RepositoryMetadata::name, Function.identity()));
-
-                final ProjectMetadata metadata =
-                        new ProjectMetadata(p.name(), repos, ImmutableMap.of(), registrations,
-                                            userAndTimestamp, null);
-
-                try {
-                    metadataRepo.push(p.name(), p.metaRepo().name(), author,
-                                      "Add the metadata file",
-                                      Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata)))
-                                .toCompletableFuture().join();
-                    logger.info("Project '{}' has been migrated", p.name());
-                } catch (Throwable cause) {
-                    cause = Exceptions.peel(cause);
-                    if (!(cause instanceof RedundantChangeException)) {
-                        Exceptions.throwUnsafely(cause);
-                    }
-                }
+            if (alreadyMigrated(p)) {
+                return;
             }
+            final Map<String, RepositoryMetadata> repos =
+                    p.repos().list().values().stream()
+                     .filter(r -> !r.name().equals(INTERNAL_REPO))
+                     .map(r -> new RepositoryMetadata(r.name(), userAndTimestamp,
+                                                      PerRolePermissions.ofPublic()))
+                     .collect(toMap(RepositoryMetadata::name, Function.identity()));
+
+            final ProjectMetadata metadata = new ProjectMetadata(p.name(), repos, ImmutableMap.of(),
+                                                                 registrations, userAndTimestamp, null);
+            commitProjectMetadata(metadataRepo, p.name(), metadata);
         });
     }
 
-    private static Collection<Token> migrateTokens(ProjectManager projectManager,
-                                                   CommandExecutor executor) {
-        final RepositoryUtil<Tokens> tokensRepo =
-                new RepositoryUtil<>(projectManager, executor,
-                                     entry -> convertWithJackson(entry, Tokens.class));
-
-        final Collection<LegacyToken> legacyTokens;
-
-        final Project project = projectManager.get(INTERNAL_PROJECT_NAME);
-        if (project.repos().exists(LEGACY_TOKEN_REPO)) {
-            // Legacy tokens are stored in "dogma/tokens/token.json".
-            legacyTokens = project.repos().get(LEGACY_TOKEN_REPO)
-                                  .getOrNull(Revision.HEAD, LEGACY_TOKEN_JSON)
-                                  .thenApply(entry -> {
-                                      if (entry != null) {
-                                          return Jackson.<Map<String, LegacyToken>>convertValue(
-                                                  entry.content(), TOKEN_MAP_TYPE_REFERENCE).values();
-                                      } else {
-                                          return ImmutableList.<LegacyToken>of();
-                                      }
-                                  }).join();
-        } else {
-            legacyTokens = ImmutableList.of();
-        }
-
-        // Read legacy tokens then make a new Tokens instance for the current Central Dogma.
-        final Map<String, Token> tokenMap = legacyTokens.stream().map(MigrationUtil::migrateToken)
-                                                        .collect(toMap(Token::id, Function.identity()));
-        final Map<String, String> secretMap = tokenMap.values().stream()
-                                                      .collect(toMap(Token::secret, Token::id));
-        final Change<?> change =
-                Change.ofJsonUpsert(TOKEN_JSON, Jackson.valueToTree(new Tokens(tokenMap, secretMap)));
-
+    private static boolean alreadyMigrated(Project project) {
         try {
-            tokensRepo.push(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, author, "Add the token list file",
-                            change).toCompletableFuture().join();
+            final Repository internalRepo = project.repos().get(INTERNAL_REPO);
+            return internalRepo != null &&
+                   internalRepo.getOrNull(Revision.HEAD, METADATA_JSON) != null;
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    private static void commitProjectMetadata(RepositoryUtil<ProjectMetadata> metadataRepo,
+                                              String projectName, ProjectMetadata metadata) {
+        try {
+            final Project project = metadataRepo.projectManager().get(projectName);
+            assert project != null;
+            if (!project.repos().exists(INTERNAL_REPO)) {
+                project.repos().create(INTERNAL_REPO);
+            }
+            metadataRepo.push(projectName, INTERNAL_REPO, author,
+                              "Add the metadata file",
+                              Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata)))
+                        .toCompletableFuture().join();
+            logger.info("Project '{}' has been migrated", projectName);
         } catch (Throwable cause) {
             cause = Exceptions.peel(cause);
             if (!(cause instanceof RedundantChangeException)) {
                 Exceptions.throwUnsafely(cause);
             }
         }
+    }
 
-        return tokenMap.values();
+    private static Collection<Token> migrateTokens(ProjectManager projectManager,
+                                                   CommandExecutor executor) {
+
+        final RepositoryUtil<Tokens> tokensRepo =
+                new RepositoryUtil<>(projectManager, executor,
+                                     entry -> convertWithJackson(entry, Tokens.class));
+
+        final Project project = projectManager.get(INTERNAL_PROJ);
+
+        Runnable successCallback = null;
+        Tokens tokens = null;
+        // Check whether "dogma/main/tokens.json" exists or not in case of upgrading from 0.23.0.
+        // The difference between 0.23.0 and now is only the repository name.
+        if (project.repos().exists("main")) {
+            try {
+                tokens = tokensRepo.fetch(INTERNAL_PROJ, "main", TOKEN_JSON)
+                                   .thenApply(HolderWithRevision::object)
+                                   .join();
+                successCallback = () ->
+                        tokensRepo.push(INTERNAL_PROJ, "main", author,
+                                        "Remove the old token list file",
+                                        Change.ofRemoval(TOKEN_JSON)).join();
+            } catch (Throwable cause) {
+                cause = Exceptions.peel(cause);
+                if (!(cause instanceof EntryNotFoundException)) {
+                    Exceptions.throwUnsafely(cause);
+                }
+            }
+        }
+
+        if (tokens == null) {
+            Collection<LegacyToken> legacyTokens = null;
+            if (project.repos().exists(LEGACY_TOKEN_REPO)) {
+                // Legacy tokens are stored in "dogma/tokens/token.json".
+                try {
+                    legacyTokens = project.repos().get(LEGACY_TOKEN_REPO)
+                                          .getOrNull(Revision.HEAD, LEGACY_TOKEN_JSON)
+                                          .thenApply(entry -> {
+                                              if (entry != null) {
+                                                  return Jackson.<Map<String, LegacyToken>>convertValue(
+                                                          entry.content(), TOKEN_MAP_TYPE_REFERENCE).values();
+                                              } else {
+                                                  return ImmutableList.<LegacyToken>of();
+                                              }
+                                          }).join();
+                    successCallback = () ->
+                            tokensRepo.push(INTERNAL_PROJ, LEGACY_TOKEN_REPO, author,
+                                            "Remove the old token list file",
+                                            Change.ofRemoval(LEGACY_TOKEN_JSON)).join();
+                } catch (Throwable cause) {
+                    cause = Exceptions.peel(cause);
+                    if (!(cause instanceof EntryNotFoundException)) {
+                        Exceptions.throwUnsafely(cause);
+                    }
+                }
+            }
+            if (legacyTokens == null) {
+                legacyTokens = ImmutableList.of();
+            }
+
+            // Read legacy tokens then make a new Tokens instance for the current Central Dogma.
+            final Map<String, Token> tokenMap = legacyTokens.stream().map(MigrationUtil::migrateToken)
+                                                            .collect(toMap(Token::id, Function.identity()));
+            final Map<String, String> secretMap = tokenMap.values().stream()
+                                                          .collect(toMap(Token::secret, Token::id));
+            tokens = new Tokens(tokenMap, secretMap);
+        }
+
+        try {
+            final Change<?> change = Change.ofJsonUpsert(TOKEN_JSON, Jackson.valueToTree(tokens));
+            tokensRepo.push(INTERNAL_PROJ, INTERNAL_REPO, author,
+                            "Add the token list file", change).toCompletableFuture().join();
+
+            if (successCallback != null) {
+                successCallback.run();
+            }
+        } catch (Throwable cause) {
+            cause = Exceptions.peel(cause);
+            if (!(cause instanceof RedundantChangeException)) {
+                Exceptions.throwUnsafely(cause);
+            }
+        }
+        return tokens.appIds().values();
     }
 
     private static Token migrateToken(LegacyToken legacyToken) {

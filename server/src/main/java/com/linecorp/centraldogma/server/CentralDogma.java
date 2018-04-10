@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
+import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -45,6 +46,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
@@ -525,9 +528,11 @@ public class CentralDogma {
         if (cfg.isSecurityEnabled()) {
             requireNonNull(securityManager, "securityManager");
 
-            loginService = new LoginService(securityManager, executor,
-                                            loginNameNormalizer, cfg.sessionCacheSpec());
-            logoutService = new LogoutService(securityManager, executor);
+            final Cache<String, AccessToken> sessionCache =
+                    Caffeine.from(validateCacheSpec(cfg.sessionCacheSpec())).build();
+
+            loginService = new LoginService(securityManager, executor, loginNameNormalizer, sessionCache);
+            logoutService = new LogoutService(securityManager, executor, sessionCache);
 
             sb.service("/security_enabled", new AbstractHttpService() {
                 @Override
