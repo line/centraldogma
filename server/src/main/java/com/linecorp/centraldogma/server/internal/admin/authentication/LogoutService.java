@@ -81,11 +81,11 @@ public class LogoutService extends AbstractHttpService {
                                 .buildSubject();
 
                         // Get the principal before logging out because otherwise it will be cleared out.
-                        final Object principal = currentUser.getPrincipal();
+                        final String username = (String) currentUser.getPrincipal();
                         currentUser.logout();
-                        cache.invalidate(principal);
+                        cache.invalidate(username);
                         executor.execute(Command.removeSession(sessionId)).join();
-                        logger.info("{} Logged out: {} ({})", ctx, principal, sessionId);
+                        logger.info("{} Logged out: {} ({})", ctx, username, sessionId);
                     } else {
                         logger.debug("{} Tried to log out a non-existent session: {}", ctx, sessionId);
                     }
