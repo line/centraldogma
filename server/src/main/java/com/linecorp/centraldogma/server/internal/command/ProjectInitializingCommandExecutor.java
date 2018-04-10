@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.command;
 
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_REPO;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
@@ -59,10 +59,10 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
         final Author author = c.author();
 
         final CompletableFuture<Void> f = delegate().execute(c);
-        // Metadata is stored in 'INTERNAL_REPOSITORY_NAME' repository.
+        // Metadata is stored in 'INTERNAL_REPO' repository.
         return f.thenCompose(unused -> delegate().execute(Command.createRepository(creationTimeMillis, author,
                                                                                    projectName,
-                                                                                   INTERNAL_REPOSITORY_NAME)))
+                                                                                   INTERNAL_REPO)))
                 .thenCompose(unused -> delegate().execute(Command.createRepository(creationTimeMillis, author,
                                                                                    projectName, REPO_META)))
                 .thenCompose(unused -> initializeMetadata(delegate(), projectName, author))
@@ -73,7 +73,7 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
                                                                   String projectName,
                                                                   Author author) {
         // Do not generate a metadata file for internal projects.
-        if (projectName.equals(INTERNAL_PROJECT_NAME)) {
+        if (projectName.equals(INTERNAL_PROJ)) {
             return CompletableFuture.completedFuture(Revision.INIT);
         }
 

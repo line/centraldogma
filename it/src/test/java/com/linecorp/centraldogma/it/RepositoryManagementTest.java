@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -88,7 +88,7 @@ public class RepositoryManagementTest {
         final Map<String, RepositoryInfo> repos = rule.client().listRepositories(rule.project()).join();
 
         // Should contain 2 "rNNN"s
-        assertThat(repos.keySet()).containsExactlyInAnyOrder(INTERNAL_REPOSITORY_NAME, Project.REPO_META,
+        assertThat(repos.keySet()).containsExactlyInAnyOrder(INTERNAL_REPO, Project.REPO_META,
                                                              rule.repo1(), rule.repo2());
 
         for (RepositoryInfo r : repos.values()) {

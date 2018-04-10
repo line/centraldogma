@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server.internal.api.auth;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.server.internal.api.auth.AbstractRoleCheckingDecorator.handleException;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 
 import java.util.Collection;
 import java.util.concurrent.CompletionStage;
@@ -57,7 +57,7 @@ abstract class AbstractPermissionCheckingDecorator
         final String repoName = ctx.pathParam("repoName");
         checkArgument(!isNullOrEmpty(repoName), "no repository name is specified");
 
-        if (INTERNAL_REPOSITORY_NAME.equals(repoName)) {
+        if (INTERNAL_REPO.equals(repoName)) {
             return serveInternalRepo(delegate, ctx, req, mds, user, projectName);
         } else {
             return serveUserRepo(delegate, ctx, req, mds, user, projectName, repoName);

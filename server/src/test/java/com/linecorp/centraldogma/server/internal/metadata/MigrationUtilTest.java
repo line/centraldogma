@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.metadata;
 
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_JSON;
@@ -92,7 +92,7 @@ public class MigrationUtilTest {
         final MetadataService mds = new MetadataService(pm, executor);
 
         // Create a legacy token repository.
-        pm.get(INTERNAL_PROJECT_NAME).repos().create(LEGACY_TOKEN_REPO);
+        pm.get(INTERNAL_PROJ).repos().create(LEGACY_TOKEN_REPO);
         createProject("legacyProject1");
         createProject("legacyProject2");
         createProject("legacyProject3");
@@ -106,7 +106,7 @@ public class MigrationUtilTest {
                                 SECRET_PREFIX + "app2", legacyToken2);
         final Change<?> change = Change.ofJsonUpsert(LEGACY_TOKEN_JSON,
                                                      Jackson.valueToTree(legacyTokens));
-        executor.execute(Command.push(author, INTERNAL_PROJECT_NAME, LEGACY_TOKEN_REPO,
+        executor.execute(Command.push(author, INTERNAL_PROJ, LEGACY_TOKEN_REPO,
                                       Revision.HEAD, "", "", Markup.PLAINTEXT,
                                       change)).join();
         for (int i = 0; i < 2; i++) {
@@ -158,14 +158,14 @@ public class MigrationUtilTest {
         final CommandExecutor executor = rule.executor();
 
         // Create a legacy token repository.
-        pm.get(INTERNAL_PROJECT_NAME).repos().create("main");
+        pm.get(INTERNAL_PROJ).repos().create("main");
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
         final Tokens tokens = new Tokens(
                 ImmutableMap.of("app1", new Token("app1", "secret1", false,
                                                   userAndTimestamp, null)),
                 ImmutableMap.of("secret1", "app1"));
         executor.execute(
-                Command.push(author, INTERNAL_PROJECT_NAME, "main",
+                Command.push(author, INTERNAL_PROJ, "main",
                              Revision.HEAD, "", "", Markup.PLAINTEXT,
                              Change.ofJsonUpsert(TOKEN_JSON, Jackson.valueToTree(tokens)))).join();
 
@@ -196,7 +196,7 @@ public class MigrationUtilTest {
         assertThat(meta.creation()).isEqualToComparingFieldByField(userAndTimestamp);
 
         // Ensure that "/project1/meta/metadata.json" has moved to "/project1/dogma/metadata.json".
-        assertThat(project.repos().get(INTERNAL_REPOSITORY_NAME)
+        assertThat(project.repos().get(INTERNAL_REPO)
                           .getOrNull(Revision.HEAD, METADATA_JSON).join()).isNotNull();
         assertThat(project.repos().get(Project.REPO_META)
                           .getOrNull(Revision.HEAD, METADATA_JSON).join()).isNull();
@@ -209,10 +209,10 @@ public class MigrationUtilTest {
         assertThat(token.creation()).isEqualToComparingFieldByField(userAndTimestamp);
 
         // Ensure that "/dogma/main/tokens.json" has moved to "/dogma/dogma/tokens.json".
-        assertThat(pm.get(INTERNAL_PROJECT_NAME).repos()
-                     .get(INTERNAL_REPOSITORY_NAME)
+        assertThat(pm.get(INTERNAL_PROJ).repos()
+                     .get(INTERNAL_REPO)
                      .getOrNull(Revision.HEAD, TOKEN_JSON).join()).isNotNull();
-        assertThat(pm.get(INTERNAL_PROJECT_NAME).repos()
+        assertThat(pm.get(INTERNAL_PROJ).repos()
                      .get("main")
                      .getOrNull(Revision.HEAD, TOKEN_JSON).join()).isNull();
     }

@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -95,7 +95,7 @@ public class RepositoryServiceV1 extends AbstractService {
 
             // Do not add internal repository to the list if the user is not an administrator.
             return project.repos().list().values().stream()
-                          .filter(r -> user.isAdmin() || !INTERNAL_REPOSITORY_NAME.equals(r.name()))
+                          .filter(r -> user.isAdmin() || !INTERNAL_REPO.equals(r.name()))
                           .map(DtoConverter::convert)
                           .collect(toImmutableList());
         });

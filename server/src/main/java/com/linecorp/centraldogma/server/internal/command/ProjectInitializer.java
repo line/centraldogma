@@ -30,15 +30,15 @@ import com.linecorp.centraldogma.server.internal.storage.project.Project;
 // TODO(trustin): Generate more useful set of sample files.
 public final class ProjectInitializer {
 
-    public static final String INTERNAL_PROJECT_NAME = "dogma";
-    public static final String INTERNAL_REPOSITORY_NAME = "dogma";
+    public static final String INTERNAL_PROJ = "dogma";
+    public static final String INTERNAL_REPO = "dogma";
 
     /**
      * Creates an internal project and repositories such as a token storage.
      */
     public static void initializeInternalProject(CommandExecutor executor) {
         try {
-            executor.execute(createProject(Author.SYSTEM, INTERNAL_PROJECT_NAME))
+            executor.execute(createProject(Author.SYSTEM, INTERNAL_PROJ))
                     .get();
         } catch (Throwable cause) {
             cause = Exceptions.peel(cause);
@@ -48,10 +48,9 @@ public final class ProjectInitializer {
         }
         // These repositories might be created when creating an internal project, but we try to create them
         // again here in order to make sure them exist because sometimes their names are changed.
-        for (final String repo : ImmutableList.of(Project.REPO_META,
-                                                  INTERNAL_REPOSITORY_NAME)) {
+        for (final String repo : ImmutableList.of(Project.REPO_META, INTERNAL_REPO)) {
             try {
-                executor.execute(createRepository(Author.SYSTEM, INTERNAL_PROJECT_NAME, repo))
+                executor.execute(createRepository(Author.SYSTEM, INTERNAL_PROJ, repo))
                         .get();
             } catch (Throwable cause) {
                 cause = Exceptions.peel(cause);

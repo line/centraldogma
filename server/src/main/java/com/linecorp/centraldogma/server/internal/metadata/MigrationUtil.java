@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.metadata;
 
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.RepositoryUtil.convertWithJackson;
@@ -95,8 +95,8 @@ public final class MigrationUtil {
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
         // Check whether tokens are migrated or not.
-        final Entry<?> tokenEntry = projectManager.get(INTERNAL_PROJECT_NAME).repos()
-                                                  .get(INTERNAL_REPOSITORY_NAME)
+        final Entry<?> tokenEntry = projectManager.get(INTERNAL_PROJ).repos()
+                                                  .get(INTERNAL_REPO)
                                                   .getOrNull(Revision.HEAD, TOKEN_JSON).join();
         final Collection<Token> migratedTokens =
                 tokenEntry == null ? migrateTokens(projectManager, executor) : ImmutableSet.of();
@@ -146,7 +146,7 @@ public final class MigrationUtil {
             }
             final Map<String, RepositoryMetadata> repos =
                     p.repos().list().values().stream()
-                     .filter(r -> !r.name().equals(INTERNAL_REPOSITORY_NAME))
+                     .filter(r -> !r.name().equals(INTERNAL_REPO))
                      .map(r -> new RepositoryMetadata(r.name(), userAndTimestamp,
                                                       PerRolePermissions.ofPublic()))
                      .collect(toMap(RepositoryMetadata::name, Function.identity()));
@@ -159,7 +159,7 @@ public final class MigrationUtil {
 
     private static boolean alreadyMigrated(Project project) {
         try {
-            final Repository internalRepo = project.repos().get(INTERNAL_REPOSITORY_NAME);
+            final Repository internalRepo = project.repos().get(INTERNAL_REPO);
             return internalRepo != null &&
                    internalRepo.getOrNull(Revision.HEAD, METADATA_JSON) != null;
         } catch (Throwable ignore) {
@@ -172,10 +172,10 @@ public final class MigrationUtil {
         try {
             final Project project = metadataRepo.projectManager().get(projectName);
             assert project != null;
-            if (!project.repos().exists(INTERNAL_REPOSITORY_NAME)) {
-                project.repos().create(INTERNAL_REPOSITORY_NAME);
+            if (!project.repos().exists(INTERNAL_REPO)) {
+                project.repos().create(INTERNAL_REPO);
             }
-            metadataRepo.push(projectName, INTERNAL_REPOSITORY_NAME, author,
+            metadataRepo.push(projectName, INTERNAL_REPO, author,
                               "Add the metadata file",
                               Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata)))
                         .toCompletableFuture().join();
@@ -195,7 +195,7 @@ public final class MigrationUtil {
                 new RepositoryUtil<>(projectManager, executor,
                                      entry -> convertWithJackson(entry, Tokens.class));
 
-        final Project project = projectManager.get(INTERNAL_PROJECT_NAME);
+        final Project project = projectManager.get(INTERNAL_PROJ);
 
         Runnable successCallback = null;
         Tokens tokens = null;
@@ -203,11 +203,11 @@ public final class MigrationUtil {
         // The difference between 0.23.0 and now is only the repository name.
         if (project.repos().exists("main")) {
             try {
-                tokens = tokensRepo.fetch(INTERNAL_PROJECT_NAME, "main", TOKEN_JSON)
+                tokens = tokensRepo.fetch(INTERNAL_PROJ, "main", TOKEN_JSON)
                                    .thenApply(HolderWithRevision::object)
                                    .join();
                 successCallback = () ->
-                        tokensRepo.push(INTERNAL_PROJECT_NAME, "main", author,
+                        tokensRepo.push(INTERNAL_PROJ, "main", author,
                                         "Remove the old token list file",
                                         Change.ofRemoval(TOKEN_JSON)).join();
             } catch (Throwable cause) {
@@ -234,7 +234,7 @@ public final class MigrationUtil {
                                               }
                                           }).join();
                     successCallback = () ->
-                            tokensRepo.push(INTERNAL_PROJECT_NAME, LEGACY_TOKEN_REPO, author,
+                            tokensRepo.push(INTERNAL_PROJ, LEGACY_TOKEN_REPO, author,
                                             "Remove the old token list file",
                                             Change.ofRemoval(LEGACY_TOKEN_JSON)).join();
                 } catch (Throwable cause) {
@@ -258,7 +258,7 @@ public final class MigrationUtil {
 
         try {
             final Change<?> change = Change.ofJsonUpsert(TOKEN_JSON, Jackson.valueToTree(tokens));
-            tokensRepo.push(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, author,
+            tokensRepo.push(INTERNAL_PROJ, INTERNAL_REPO, author,
                             "Add the token list file", change).toCompletableFuture().join();
 
             if (successCallback != null) {
