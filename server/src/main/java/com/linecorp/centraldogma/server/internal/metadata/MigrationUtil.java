@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.metadata;
 
+import static com.linecorp.centraldogma.server.internal.command.Command.createRepository;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
@@ -42,6 +43,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
+import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.authentication.LegacyToken;
@@ -121,7 +123,7 @@ public final class MigrationUtil {
                 metadata.repos().put(Project.REPO_META,
                                      new RepositoryMetadata(Project.REPO_META, userAndTimestamp,
                                                             PerRolePermissions.ofPublic()));
-                commitProjectMetadata(metadataRepo, p.name(), metadata);
+                commitProjectMetadata(metadataRepo, executor, p.name(), metadata);
 
                 metadataRepo.push(p.name(), Project.REPO_META, author,
                                   "Remove the old metadata file", Change.ofRemoval(METADATA_JSON)).join();
@@ -153,7 +155,7 @@ public final class MigrationUtil {
 
             final ProjectMetadata metadata = new ProjectMetadata(p.name(), repos, ImmutableMap.of(),
                                                                  registrations, userAndTimestamp, null);
-            commitProjectMetadata(metadataRepo, p.name(), metadata);
+            commitProjectMetadata(metadataRepo, executor, p.name(), metadata);
         });
     }
 
@@ -168,13 +170,17 @@ public final class MigrationUtil {
     }
 
     private static void commitProjectMetadata(RepositoryUtil<ProjectMetadata> metadataRepo,
-                                              String projectName, ProjectMetadata metadata) {
+                                              CommandExecutor executor, String projectName,
+                                              ProjectMetadata metadata) {
         try {
-            final Project project = metadataRepo.projectManager().get(projectName);
-            assert project != null;
-            if (!project.repos().exists(INTERNAL_REPO)) {
-                project.repos().create(INTERNAL_REPO);
+            executor.execute(createRepository(author, projectName, INTERNAL_REPO)).join();
+        } catch (Throwable cause) {
+            cause = Exceptions.peel(cause);
+            if (!(cause instanceof RepositoryExistsException)) {
+                Exceptions.throwUnsafely(cause);
             }
+        }
+        try {
             metadataRepo.push(projectName, INTERNAL_REPO, author,
                               "Add the metadata file",
                               Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata)))
