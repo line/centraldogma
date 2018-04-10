@@ -40,6 +40,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -110,17 +111,25 @@ public final class MigrationUtil {
             if (alreadyMigrated(p)) {
                 return;
             }
+            if (!p.repos().exists(Project.REPO_META)) {
+                return;
+            }
             try {
                 final ProjectMetadata metadata =
                         metadataRepo.fetch(p.name(), Project.REPO_META, METADATA_JSON).join().object();
-                if (metadata != null) {
-                    // "meta" repository is changed as a user repository now.
-                    metadata.repos().put(Project.REPO_META,
-                                         new RepositoryMetadata(Project.REPO_META, userAndTimestamp,
-                                                                PerRolePermissions.ofPublic()));
-                    commitProjectMetadata(metadataRepo, p.name(), metadata);
+                // "meta" repository is changed as a user repository now.
+                metadata.repos().put(Project.REPO_META,
+                                     new RepositoryMetadata(Project.REPO_META, userAndTimestamp,
+                                                            PerRolePermissions.ofPublic()));
+                commitProjectMetadata(metadataRepo, p.name(), metadata);
+
+                metadataRepo.push(p.name(), Project.REPO_META, author,
+                                  "Remove the old metadata file", Change.ofRemoval(METADATA_JSON)).join();
+            } catch (Throwable cause) {
+                cause = Exceptions.peel(cause);
+                if (!(cause instanceof EntryNotFoundException)) {
+                    Exceptions.throwUnsafely(cause);
                 }
-            } catch (Throwable ignore) {
             }
         });
 
@@ -188,6 +197,7 @@ public final class MigrationUtil {
 
         final Project project = projectManager.get(INTERNAL_PROJECT_NAME);
 
+        Runnable successCallback = null;
         Tokens tokens = null;
         // Check whether "dogma/main/tokens.json" exists or not in case of upgrading from 0.23.0.
         // The difference between 0.23.0 and now is only the repository name.
@@ -196,25 +206,45 @@ public final class MigrationUtil {
                 tokens = tokensRepo.fetch(INTERNAL_PROJECT_NAME, "main", TOKEN_JSON)
                                    .thenApply(HolderWithRevision::object)
                                    .join();
-            } catch (Throwable ignore) {
+                successCallback = () ->
+                        tokensRepo.push(INTERNAL_PROJECT_NAME, "main", author,
+                                        "Remove the old token list file",
+                                        Change.ofRemoval(TOKEN_JSON)).join();
+            } catch (Throwable cause) {
+                cause = Exceptions.peel(cause);
+                if (!(cause instanceof EntryNotFoundException)) {
+                    Exceptions.throwUnsafely(cause);
+                }
             }
         }
 
         if (tokens == null) {
-            final Collection<LegacyToken> legacyTokens;
+            Collection<LegacyToken> legacyTokens = null;
             if (project.repos().exists(LEGACY_TOKEN_REPO)) {
                 // Legacy tokens are stored in "dogma/tokens/token.json".
-                legacyTokens = project.repos().get(LEGACY_TOKEN_REPO)
-                                      .getOrNull(Revision.HEAD, LEGACY_TOKEN_JSON)
-                                      .thenApply(entry -> {
-                                          if (entry != null) {
-                                              return Jackson.<Map<String, LegacyToken>>convertValue(
-                                                      entry.content(), TOKEN_MAP_TYPE_REFERENCE).values();
-                                          } else {
-                                              return ImmutableList.<LegacyToken>of();
-                                          }
-                                      }).join();
-            } else {
+                try {
+                    legacyTokens = project.repos().get(LEGACY_TOKEN_REPO)
+                                          .getOrNull(Revision.HEAD, LEGACY_TOKEN_JSON)
+                                          .thenApply(entry -> {
+                                              if (entry != null) {
+                                                  return Jackson.<Map<String, LegacyToken>>convertValue(
+                                                          entry.content(), TOKEN_MAP_TYPE_REFERENCE).values();
+                                              } else {
+                                                  return ImmutableList.<LegacyToken>of();
+                                              }
+                                          }).join();
+                    successCallback = () ->
+                            tokensRepo.push(INTERNAL_PROJECT_NAME, LEGACY_TOKEN_REPO, author,
+                                            "Remove the old token list file",
+                                            Change.ofRemoval(LEGACY_TOKEN_JSON)).join();
+                } catch (Throwable cause) {
+                    cause = Exceptions.peel(cause);
+                    if (!(cause instanceof EntryNotFoundException)) {
+                        Exceptions.throwUnsafely(cause);
+                    }
+                }
+            }
+            if (legacyTokens == null) {
                 legacyTokens = ImmutableList.of();
             }
 
@@ -230,6 +260,10 @@ public final class MigrationUtil {
             final Change<?> change = Change.ofJsonUpsert(TOKEN_JSON, Jackson.valueToTree(tokens));
             tokensRepo.push(INTERNAL_PROJECT_NAME, INTERNAL_REPOSITORY_NAME, author,
                             "Add the token list file", change).toCompletableFuture().join();
+
+            if (successCallback != null) {
+                successCallback.run();
+            }
         } catch (Throwable cause) {
             cause = Exceptions.peel(cause);
             if (!(cause instanceof RedundantChangeException)) {

@@ -128,6 +128,16 @@ public class RepositoryServiceV1Test {
         final String expectedJson =
                 '[' +
                 "   {" +
+                "       \"name\": \"dogma\"," +
+                "       \"creator\": {" +
+                "           \"name\": \"System\"," +
+                "           \"email\": \"system@localhost.localdomain\"" +
+                "       }," +
+                "       \"headRevision\": \"${json-unit.ignore}\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/dogma\"," +
+                "       \"createdAt\": \"${json-unit.ignore}\"" +
+                "   }," +
+                "   {" +
                 "       \"name\": \"meta\"," +
                 "       \"creator\": {" +
                 "           \"name\": \"System\"," +
@@ -194,8 +204,8 @@ public class RepositoryServiceV1Test {
         final String remains = remainedRes.content().toStringUtf8();
         final JsonNode jsonNode = Jackson.readTree(remains);
 
-        // meta and trustin repositories are left
-        assertThat(jsonNode.size()).isEqualTo(2);
+        // dogma, meta and trustin repositories are left
+        assertThat(jsonNode.size()).isEqualTo(3);
     }
 
     @Test

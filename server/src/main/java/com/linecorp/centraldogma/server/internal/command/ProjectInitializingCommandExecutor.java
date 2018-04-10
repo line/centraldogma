@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.command;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJECT_NAME;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPOSITORY_NAME;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
+import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_REPO;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 
 import java.util.concurrent.CompletableFuture;
@@ -86,7 +87,7 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
                                                              ImmutableMap.of(),
                                                              userAndTimestamp, null);
         return executor.execute(Command.push(
-                Author.SYSTEM, projectName, REPO_META, Revision.HEAD,
+                Author.SYSTEM, projectName, METADATA_REPO, Revision.HEAD,
                 "Initialize metadata", "", Markup.PLAINTEXT,
                 Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata))));
     }

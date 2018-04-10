@@ -60,6 +60,11 @@ import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectMana
 public class MetadataService extends AbstractService {
 
     /**
+     * The name of metadata repository.
+     */
+    public static final String METADATA_REPO = INTERNAL_REPOSITORY_NAME;
+
+    /**
      * A path of metadata file.
      */
     public static final String METADATA_JSON = "/metadata.json";
@@ -68,11 +73,6 @@ public class MetadataService extends AbstractService {
      * A path of token list file.
      */
     static final String TOKEN_JSON = "/tokens.json";
-
-    /**
-     * The name of metadata repository.
-     */
-    static final String METADATA_REPO = INTERNAL_REPOSITORY_NAME;
 
     /**
      * A {@link JsonPointer} of project removal information.
