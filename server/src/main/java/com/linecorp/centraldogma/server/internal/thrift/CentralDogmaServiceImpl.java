@@ -18,13 +18,13 @@ package com.linecorp.centraldogma.server.internal.thrift;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.spotify.futures.CompletableFutures.allAsList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -55,16 +55,9 @@ import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
-
-    private static final Map<FindOption<?>, Object> LIST_FILES_FIND_OPTIONS = new IdentityHashMap<>();
-
-    static {
-        LIST_FILES_FIND_OPTIONS.put(FindOption.FETCH_CONTENT, false);
-    }
 
     private final ProjectManager projectManager;
     private final CommandExecutor executor;
@@ -175,7 +168,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                           AsyncMethodCallback resultHandler) {
 
         handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .find(convert(revision), pathPattern, LIST_FILES_FIND_OPTIONS)
+                             .find(convert(revision), pathPattern, NO_FETCH_CONTENT)
                              .thenApply(entries -> {
                                  final List<Entry> ret = new ArrayList<>(entries.size());
                                  entries.forEach((path, entry) -> ret.add(

@@ -24,6 +24,7 @@ import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -83,9 +84,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class ContentServiceV1 extends AbstractService {
 
-    private static final Map<FindOption<?>, ?> FIND_WITHOUT_CONTENT =
-            ImmutableMap.of(FindOption.FETCH_CONTENT, false);
-
     private final WatchService watchService;
 
     public ContentServiceV1(ProjectManager projectManager, CommandExecutor executor,
@@ -107,7 +105,7 @@ public class ContentServiceV1 extends AbstractService {
         final String normalizedPath = normalizePath(path);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
         listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)),
-                  FIND_WITHOUT_CONTENT, future);
+                  NO_FETCH_CONTENT, future);
         return future;
     }
 
@@ -141,7 +139,7 @@ public class ContentServiceV1 extends AbstractService {
      * </ul>
      */
     private static String normalizePath(String path) {
-        if (path == null || "".equals(path) || "/".equals(path)) {
+        if (path == null || path.isEmpty() || "/".equals(path)) {
             return "/*";
         }
         if (isValidFilePath(path)) {
@@ -149,7 +147,7 @@ public class ContentServiceV1 extends AbstractService {
         }
         if (isValidDirPath(path)) {
             if (path.endsWith("/")) {
-                return path + "*";
+                return path + '*';
             } else {
                 return path + "/*";
             }
@@ -185,7 +183,7 @@ public class ContentServiceV1 extends AbstractService {
                          commitMessage, previewDiffs.values()).toCompletableFuture();
             final String pathPattern = joinPaths(changes);
             final CompletableFuture<Map<String, Entry<?>>> findFuture = resultRevisionFuture.thenCompose(
-                    result -> repository.find(result, pathPattern, FIND_WITHOUT_CONTENT));
+                    result -> repository.find(result, pathPattern, NO_FETCH_CONTENT));
             return findFuture.thenApply(entries -> {
                 final Revision resultRevision = resultRevisionFuture.join(); // the future is already complete
                 final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entries);
@@ -208,7 +206,7 @@ public class ContentServiceV1 extends AbstractService {
 
     private static String joinPaths(Iterable<Change<?>> changes) {
         final StringBuilder sb = new StringBuilder();
-        for (Change c : changes) {
+        for (Change<?> c : changes) {
             if (c.type() == ChangeType.RENAME) {
                 sb.append(c.contentAsText()); // newPath
             } else {
@@ -285,7 +283,7 @@ public class ContentServiceV1 extends AbstractService {
                                                                 Revision revision, String pathPattern) {
         final CompletableFuture<List<Commit>> historyFuture =
                 repository.history(revision, revision, pathPattern);
-        return repository.find(revision, pathPattern, FIND_WITHOUT_CONTENT)
+        return repository.find(revision, pathPattern, NO_FETCH_CONTENT)
                          .thenCombine(historyFuture, (entryMap, commits) -> {
                              final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entryMap);
                              // the size of commits should be 1

@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
+
 import java.io.File;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -42,7 +44,6 @@ import org.slf4j.LoggerFactory;
 import com.cronutils.model.Cron;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -57,7 +58,6 @@ import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
-import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 public final class GitMirror extends Mirror {
@@ -206,7 +206,7 @@ public final class GitMirror extends Mirror {
             }
 
             final Map<String, Entry<?>> oldEntries = localRepo().find(
-                    localRev, localPath() + "**", ImmutableMap.of(FindOption.FETCH_CONTENT, false)).join();
+                    localRev, localPath() + "**", NO_FETCH_CONTENT).join();
             oldEntries.keySet().removeAll(changes.keySet());
 
             // Add the removed entries.
