@@ -262,19 +262,24 @@ public final class MigrationUtil {
             tokens = new Tokens(tokenMap, secretMap);
         }
 
+        boolean success = false;
         try {
             final Change<?> change = Change.ofJsonUpsert(TOKEN_JSON, Jackson.valueToTree(tokens));
             tokensRepo.push(INTERNAL_PROJ, INTERNAL_REPO, author,
                             "Add the token list file", change).toCompletableFuture().join();
-
-            if (successCallback != null) {
-                successCallback.run();
-            }
+            success = true;
         } catch (Throwable cause) {
             cause = Exceptions.peel(cause);
             if (!(cause instanceof RedundantChangeException)) {
                 Exceptions.throwUnsafely(cause);
             }
+        }
+        try {
+            if (success && successCallback != null) {
+                successCallback.run();
+            }
+        } catch (Throwable ignore) {
+            // It is okay not to remove old files. Just ignore the exception.
         }
         return tokens.appIds().values();
     }
