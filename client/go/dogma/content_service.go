@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -236,7 +237,7 @@ func (con *contentService) getFiles(ctx context.Context,
 }
 
 func (con *contentService) getHistory(ctx context.Context,
-	projectName, repoName, from, to, pathPattern string) ([]*Commit, *http.Response, error) {
+	projectName, repoName, from, to, pathPattern string, maxCommits int) ([]*Commit, *http.Response, error) {
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/commits/%v", defaultPathPrefix, projectName, repoName, from)
 
 	v := &url.Values{}
@@ -245,6 +246,9 @@ func (con *contentService) getHistory(ctx context.Context,
 	}
 	if len(to) != 0 {
 		v.Set("to", to)
+	}
+	if maxCommits != 0 {
+		v.Set("maxCommits", strconv.Itoa(maxCommits))
 	}
 	u += encodeValues(v)
 

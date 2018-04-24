@@ -25,6 +25,7 @@ import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.Repository.DEFAULT_MAX_COMMITS;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -311,7 +312,8 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     /**
-     * GET /projects/{projectName}/repos/{repoName}/commits/{revision}?path={path}&amp;to={to}
+     * GET /projects/{projectName}/repos/{repoName}/commits/{revision}?
+     * path={path}&amp;to={to}&amp;maxCommits={maxCommits}
      *
      * <p>Returns a commit or the list of commits in the path. If the user specify the {@code revision} only,
      * this will return the corresponding commit. If the user does not specify the {@code revision} or
@@ -322,6 +324,7 @@ public class ContentServiceV1 extends AbstractService {
     public CompletableFuture<?> listCommits(@Param("revision") String revision,
                                             @Param("path") @Default("/**") String path,
                                             @Param("to") Optional<String> to,
+                                            @Param("maxCommits") Optional<Integer> maxCommits,
                                             @RequestObject Repository repository) {
         final Revision fromRevision;
         final Revision toRevision;
@@ -339,9 +342,10 @@ public class ContentServiceV1 extends AbstractService {
         }
 
         final RevisionRange range = repository.normalizeNow(fromRevision, toRevision).toDescending();
-
+        final int maxCommits0 = maxCommits.map(integer -> Math.min(integer, DEFAULT_MAX_COMMITS))
+                                          .orElse(DEFAULT_MAX_COMMITS);
         return repository
-                .history(range.from(), range.to(), path)
+                .history(range.from(), range.to(), normalizePath(path), maxCommits0)
                 .thenApply(commits -> {
                     final boolean toList = isNullOrEmpty(revision) || "/".equalsIgnoreCase(revision) ||
                                            to.isPresent();
@@ -370,7 +374,7 @@ public class ContentServiceV1 extends AbstractService {
                              .thenApply(DtoConverter::convert);
         }
         return repository
-                .diff(new Revision(from), new Revision(to), pathPattern)
+                .diff(new Revision(from), new Revision(to), normalizePath(pathPattern))
                 .thenApply(changeMap -> changeMap.values().stream()
                                                  .map(DtoConverter::convert).collect(toImmutableList()));
     }

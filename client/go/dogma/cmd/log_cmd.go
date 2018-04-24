@@ -23,8 +23,9 @@ import (
 )
 
 type logCommand struct {
-	repo  repositoryRequestInfoWithFromTo
-	style PrintStyle
+	repo       repositoryRequestInfoWithFromTo
+	maxCommits int
+	style      PrintStyle
 }
 
 func (l *logCommand) execute(c *cli.Context) error {
@@ -35,7 +36,7 @@ func (l *logCommand) execute(c *cli.Context) error {
 	}
 
 	commits, res, err := client.GetHistory(
-		context.Background(), repo.projName, repo.repoName, repo.from, repo.to, repo.path)
+		context.Background(), repo.projName, repo.repoName, repo.from, repo.to, repo.path, l.maxCommits)
 	if err != nil {
 		return err
 	}
@@ -69,5 +70,10 @@ func newLogCommand(c *cli.Context, style PrintStyle) (Command, error) {
 	repoWithFromTo.from = from
 	repoWithFromTo.to = to
 
-	return &logCommand{repo: repoWithFromTo, style: style}, nil
+	log := &logCommand{repo: repoWithFromTo, style: style}
+	maxCommits := c.Int("max-commits")
+	if maxCommits != 0 {
+		log.maxCommits = maxCommits
+	}
+	return log, nil
 }

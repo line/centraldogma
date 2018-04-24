@@ -156,11 +156,13 @@ func TestGetHistory(t *testing.T) {
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/commits/-2", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
 		testURLQuery(t, r, "to", "-1")
+		testURLQuery(t, r, "maxCommits", "2")
+
 		fmt.Fprint(w, `[{"revision":1, "author":{"name":"minux", "email":"minux@m.x"}, "commitMessage":{"Summary":"Add a.json"}},
 {"revision":2, "author":{"name":"minux", "email":"minux@m.x"}, "commitMessage":{"Summary":"Edit a.json"}}]`)
 	})
 
-	history, _, _ := c.GetHistory(context.Background(), "foo", "bar", "-2", "-1", "/**")
+	history, _, _ := c.GetHistory(context.Background(), "foo", "bar", "-2", "-1", "/**", 2)
 	want := []*Commit{
 		{Revision: 1, Author: &Author{Name: "minux", Email: "minux@m.x"},
 			CommitMessage: &CommitMessage{Summary: "Add a.json"}},

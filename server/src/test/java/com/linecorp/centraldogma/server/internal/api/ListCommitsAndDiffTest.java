@@ -133,6 +133,44 @@ public class ListCommitsAndDiffTest {
     }
 
     @Test
+    public void listCommitsWithmaxCommits() {
+        final AggregatedHttpMessage aRes =
+                httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/-1?to=1&maxCommits=2")
+                          .aggregate().join();
+        final String expectedJson =
+                '[' +
+                "   {" +
+                "       \"revision\": 3," +
+                "       \"author\": {" +
+                "           \"name\": \"${json-unit.ignore}\"," +
+                "           \"email\": \"${json-unit.ignore}\"" +
+                "       }," +
+                "       \"pushedAt\": \"${json-unit.ignore}\"," +
+                "       \"commitMessage\" : {" +
+                "           \"summary\" : \"Add foo1.json\"," +
+                "           \"detail\": \"Add because we need it.\"," +
+                "           \"markup\": \"PLAINTEXT\"" +
+                "       }" +
+                "   }," +
+                "   {" +
+                "       \"revision\": 2," +
+                "       \"author\": {" +
+                "           \"name\": \"${json-unit.ignore}\"," +
+                "           \"email\": \"${json-unit.ignore}\"" +
+                "       }," +
+                "       \"pushedAt\": \"${json-unit.ignore}\"," +
+                "       \"commitMessage\" : {" +
+                "           \"summary\" : \"Add foo0.json\"," +
+                "           \"detail\": \"Add because we need it.\"," +
+                "           \"markup\": \"PLAINTEXT\"" +
+                "       }" +
+                "   }" +
+                ']';
+        final String actualJson = aRes.content().toStringUtf8();
+        assertThatJson(actualJson).isEqualTo(expectedJson);
+    }
+
+    @Test
     public void getOneCommit() {
         final AggregatedHttpMessage aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/2")
                                                      .aggregate().join();
