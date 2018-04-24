@@ -137,8 +137,12 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Delete("/projects/{projectName}/repos/{repoName}")
     @Decorator(ProjectOwnersOnly.class)
-    public CompletableFuture<Void> removeRepository(@RequestObject Repository repository,
+    public CompletableFuture<Void> removeRepository(@Param("repoName") String repoName,
+                                                    @RequestObject Repository repository,
                                                     @RequestObject Author author) {
+        if (Project.REPO_META.equals(repoName)) {
+            throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+        }
         return execute(Command.removeRepository(author, repository.parent().name(), repository.name()))
                 .thenCompose(unused -> mds.removeRepo(author, repository.parent().name(), repository.name()))
                 .handle(HttpApiUtil::throwUnsafelyIfNonNull);

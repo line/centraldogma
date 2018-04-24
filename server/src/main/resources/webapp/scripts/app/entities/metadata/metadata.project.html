@@ -33,7 +33,7 @@
       <td ng-switch-when="true"><span class="glyphicon">Active</span></td>
       <td ng-switch-default><span class="glyphicon" style="color:red">Deleted</span></td>
       <td ng-switch-when="true">
-        <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
+        <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner() && repo.name !== 'meta'">
           <a type="button" class="btn btn-xs" ng-click="removeRepository(repo)">
             <span class="glyphicon glyphicon-trash"></span>
           </a>
