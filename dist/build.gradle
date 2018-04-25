@@ -3,8 +3,8 @@ import com.google.common.base.CaseFormat
 
 buildscript {
     repositories {
-        jcenter()
         mavenCentral()
+        jcenter()
     }
     dependencies {
         classpath "com.boazj.gradle:gradle-log-plugin:${managedVersions['com.boazj.gradle:gradle-log-plugin']}"
