@@ -23,12 +23,14 @@ import java.io.IOException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.TextFormatter;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
@@ -86,7 +88,7 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
             }
 
             oldRepo.cloneTo(newChildDir, newFormat, new MigrationProgressLogger(oldRepo));
-            oldRepo.close();
+            oldRepo.internalClose();
             closedOldRepo = true;
 
             if (!childDir.renameTo(oldChildDir)) {
@@ -101,7 +103,7 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
             return newRepo;
         } finally {
             if (!closedOldRepo) {
-                oldRepo.close();
+                oldRepo.internalClose();
             }
         }
     }
@@ -124,17 +126,18 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
     }
 
     @Override
-    protected void closeChild(File childDir, Repository child) {
-        ((GitRepository) child).close();
+    protected void closeChild(File childDir, Repository child,
+                              Supplier<CentralDogmaException> failureCauseSupplier) {
+        ((GitRepository) child).close(failureCauseSupplier);
     }
 
     @Override
-    protected RuntimeException newStorageExistsException(String name) {
+    protected CentralDogmaException newStorageExistsException(String name) {
         return new RepositoryExistsException(name);
     }
 
     @Override
-    protected RuntimeException newStorageNotFoundException(String name) {
+    protected CentralDogmaException newStorageNotFoundException(String name) {
         return new RepositoryNotFoundException(name);
     }
 

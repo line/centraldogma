@@ -43,6 +43,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.mirror.Mirror;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.internal.mirror.credential.NoneMirrorCredential;
@@ -88,7 +89,7 @@ public class DefaultMetaRepositoryTest {
 
     @AfterClass
     public static void destroy() {
-        pm.close();
+        pm.close(ShuttingDownException::new);
     }
 
     @Before

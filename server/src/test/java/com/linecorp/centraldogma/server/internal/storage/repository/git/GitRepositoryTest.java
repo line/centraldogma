@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.linecorp.centraldogma.common.Revision.HEAD;
+import static com.linecorp.centraldogma.common.Revision.INIT;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +26,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,6 +62,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ChangeType;
@@ -93,7 +96,8 @@ public class GitRepositoryTest {
 
     @BeforeClass
     public static void init() throws Exception {
-        repo = new GitRepository(mock(Project.class), repoDir.getRoot(), commonPool(), 0L, Author.SYSTEM) {
+        repo = new GitRepository(mock(Project.class), new File(repoDir.getRoot(), "test_repo"),
+                                 commonPool(), 0L, Author.SYSTEM) {
             /**
              * Used by {@link GitRepositoryTest#testWatchWithQueryCancellation()}.
              */
@@ -111,7 +115,7 @@ public class GitRepositoryTest {
     @AfterClass
     public static void destroy() {
         if (repo != null) {
-            repo.close();
+            repo.internalClose();
         }
     }
 
@@ -1260,5 +1264,27 @@ public class GitRepositoryTest {
 
         assertThatThrownBy(() -> testDoUpdateRef(Constants.R_TAGS + "01/1.0", commitId, true))
                 .isInstanceOf(StorageException.class);
+    }
+
+    @Test
+    public void operationOnClosedRepository() throws Exception {
+        final CentralDogmaException expectedException = new CentralDogmaException();
+        final GitRepository repo = new GitRepository(mock(Project.class),
+                                                     new File(repoDir.getRoot(), "close_test_repo"),
+                                                     commonPool(), 0L, Author.SYSTEM);
+        repo.close(() -> expectedException);
+
+        assertThatThrownBy(() -> repo.find(INIT, "/**").join()).hasCause(expectedException);
+        assertThatThrownBy(() -> repo.history(INIT, HEAD, "/**").join()).hasCause(expectedException);
+        assertThatThrownBy(() -> repo.diff(INIT, HEAD, "/**").join()).hasCause(expectedException);
+        assertThatThrownBy(() -> repo.previewDiff(
+                INIT, Change.ofTextUpsert("/foo.txt", "foo")).join()).hasCause(expectedException);
+        assertThatThrownBy(() -> repo.commit(
+                INIT, 0, Author.SYSTEM, "foo",
+                Change.ofTextUpsert("/foo", "foo")).join()).hasCause(expectedException);
+        assertThatThrownBy(() -> repo.watch(
+                INIT, "/**").get(10, TimeUnit.SECONDS)).hasCause(expectedException);
+        assertThatThrownBy(() -> repo.watch(
+                INIT, Query.ofJson("/foo.json")).get(10, TimeUnit.SECONDS)).hasCause(expectedException);
     }
 }

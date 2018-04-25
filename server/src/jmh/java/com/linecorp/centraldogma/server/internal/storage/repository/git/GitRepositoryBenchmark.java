@@ -67,7 +67,7 @@ public class GitRepositoryBenchmark {
 
     @TearDown
     public void destroy() throws Exception {
-        repo.close();
+        repo.internalClose();
         Util.deleteFileTree(repoDir);
     }
 

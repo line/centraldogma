@@ -37,6 +37,7 @@ import org.junit.rules.TestName;
 
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
 
@@ -120,13 +121,13 @@ public class RepositoryManagerWrapperTest {
         final String name = testName.getMethodName();
         m.create(name);
         assertTrue(m.exists(name));
-        m.close();
+        m.close(ShuttingDownException::new);
 
-        assertThatThrownBy(() -> m.get(name)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> m.exists(name)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> m.remove(name)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> m.unremove(name)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> m.list()).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> m.listRemoved()).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> m.get(name)).isInstanceOf(ShuttingDownException.class);
+        assertThatThrownBy(() -> m.exists(name)).isInstanceOf(ShuttingDownException.class);
+        assertThatThrownBy(() -> m.remove(name)).isInstanceOf(ShuttingDownException.class);
+        assertThatThrownBy(() -> m.unremove(name)).isInstanceOf(ShuttingDownException.class);
+        assertThatThrownBy(() -> m.list()).isInstanceOf(ShuttingDownException.class);
+        assertThatThrownBy(() -> m.listRemoved()).isInstanceOf(ShuttingDownException.class);
     }
 }

@@ -26,10 +26,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
+import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
 
 final class CommitWatchers {
@@ -72,7 +76,7 @@ final class CommitWatchers {
                 }
 
                 final Set<Watch> watches = e.getValue();
-                for (Iterator<Watch> i = watches.iterator(); i.hasNext();) {
+                for (final Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                     final Watch w = i.next();
                     final Revision lastKnownRevision = w.lastKnownRevision;
                     if (lastKnownRevision.compareTo(revision) < 0) {
@@ -95,8 +99,30 @@ final class CommitWatchers {
         }
     }
 
-    private static List<Watch> move(List<Watch> watches, Iterator<Watch> i, Watch w) {
+    void close(Supplier<CentralDogmaException> causeSupplier) {
+        List<Watch> eligibleWatches = null;
+        synchronized (watchesMap) {
+            for (final Set<Watch> watches : watchesMap.values()) {
+                for (final Iterator<Watch> i = watches.iterator(); i.hasNext();) {
+                    final Watch w = i.next();
+                    eligibleWatches = move(eligibleWatches, i, w);
+                }
+            }
+        }
 
+        if (eligibleWatches == null) {
+            return;
+        }
+
+        // Notify the matching promises found above.
+        final CentralDogmaException cause = causeSupplier.get();
+        final int numEligiblePromises = eligibleWatches.size();
+        for (int i = 0; i < numEligiblePromises; i++) {
+            eligibleWatches.get(i).future.completeExceptionally(cause);
+        }
+    }
+
+    private static List<Watch> move(@Nullable List<Watch> watches, Iterator<Watch> i, Watch w) {
         i.remove();
         w.removed = true;
 

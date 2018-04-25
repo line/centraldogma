@@ -39,6 +39,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -65,7 +66,7 @@ public class GitRepositoryMigrationTest {
                     .existsNoFollowLinks()
                     .isRegularFile();
         } finally {
-            repo0.close();
+            repo0.internalClose();
         }
     }
 
@@ -83,7 +84,7 @@ public class GitRepositoryMigrationTest {
                     .existsNoFollowLinks()
                     .isRegularFile();
         } finally {
-            repo1.close();
+            repo1.internalClose();
         }
     }
 
@@ -147,10 +148,10 @@ public class GitRepositoryMigrationTest {
                             .isEqualTo(changes0);
                 }
             } finally {
-                repo1.close();
+                repo1.internalClose();
             }
         } finally {
-            repo0.close();
+            repo0.internalClose();
         }
     }
 
@@ -161,15 +162,21 @@ public class GitRepositoryMigrationTest {
     public void multipleRepositoryMigration() {
         final File tempDir = this.tempDir.getRoot();
         // Create repositories of older format.
-        try (GitRepositoryManager manager = new GitRepositoryManager(proj, tempDir, V0, commonPool())) {
-            assertThat(((GitRepository) manager.create("foo")).format()).isSameAs(V0);
-            assertThat(((GitRepository) manager.create("bar")).format()).isSameAs(V0);
+        final GitRepositoryManager managerA = new GitRepositoryManager(proj, tempDir, V0, commonPool());
+        try {
+            assertThat(((GitRepository) managerA.create("foo")).format()).isSameAs(V0);
+            assertThat(((GitRepository) managerA.create("bar")).format()).isSameAs(V0);
+        } finally {
+            managerA.close(ShuttingDownException::new);
         }
 
         // Load the repositories with newer format to trigger automatic migration.
-        try (GitRepositoryManager manager = new GitRepositoryManager(proj, tempDir, commonPool())) {
-            assertThat(((GitRepository) manager.get("foo")).format()).isSameAs(V1);
-            assertThat(((GitRepository) manager.get("bar")).format()).isSameAs(V1);
+        final GitRepositoryManager managerB = new GitRepositoryManager(proj, tempDir, commonPool());
+        try {
+            assertThat(((GitRepository) managerB.get("foo")).format()).isSameAs(V1);
+            assertThat(((GitRepository) managerB.get("bar")).format()).isSameAs(V1);
+        } finally {
+            managerB.close(ShuttingDownException::new);
         }
     }
 

@@ -39,29 +39,10 @@ import io.netty.channel.EventLoop;
 public final class WatchService {
 
     private static final CancellationException CANCELLATION_EXCEPTION =
-            Exceptions.clearTrace(new CancellationException("watch timed out or server stopping"));
+            Exceptions.clearTrace(new CancellationException("watch timed out"));
 
     private final Set<CompletableFuture<?>> pendingFutures =
             Collections.newSetFromMap(new ConcurrentHashMap<>());
-
-    private volatile boolean serverStopping;
-
-    public void serverStopping() {
-        serverStopping = true;
-        final CompletableFuture<?>[] futures =
-                pendingFutures.toArray(new CompletableFuture[pendingFutures.size()]);
-        for (CompletableFuture<?> f : futures) {
-            pendingFutures.remove(f);
-            f.cancel(false);
-        }
-    }
-
-    /**
-     * Returns {@code true} if the server is stopping.
-     */
-    public boolean isServerStopping() {
-        return serverStopping;
-    }
 
     /**
      * Awaits and retrieves the latest revision of the commit that changed the file that matches the specified
@@ -82,10 +63,6 @@ public final class WatchService {
 
     private <T> void scheduleTimeout(CompletableFuture<T> result, long timeoutMillis) {
         pendingFutures.add(result);
-        if (isServerStopping()) {
-            pendingFutures.remove(result);
-            return;
-        }
 
         final ScheduledFuture<?> timeoutFuture;
         if (timeoutMillis > 0) {

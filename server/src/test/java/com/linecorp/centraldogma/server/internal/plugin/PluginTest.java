@@ -43,6 +43,7 @@ import org.junit.rules.TestName;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -68,7 +69,7 @@ public class PluginTest {
     @AfterClass
     public static void afterClass() throws Exception {
         if (pm != null) {
-            pm.close();
+            pm.close(ShuttingDownException::new);
             pm = null;
         }
     }
