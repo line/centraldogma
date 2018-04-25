@@ -18,10 +18,13 @@ package com.linecorp.centraldogma.server.internal.storage;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 
-public interface StorageManager<T> extends AutoCloseable {
-    @Override
-    void close();
+import com.linecorp.centraldogma.common.CentralDogmaException;
+
+public interface StorageManager<T> {
+
+    void close(Supplier<CentralDogmaException> failureCauseSupplier);
 
     boolean exists(String name);
 

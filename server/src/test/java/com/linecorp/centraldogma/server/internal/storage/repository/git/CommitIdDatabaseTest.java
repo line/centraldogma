@@ -148,7 +148,7 @@ public class CommitIdDatabaseTest {
                                            Change.ofTextUpsert("/" + i + ".txt", "")).join();
             }
         } finally {
-            repo.close();
+            repo.internalClose();
         }
 
         // Wipe out the commit ID database.
@@ -165,7 +165,7 @@ public class CommitIdDatabaseTest {
                 assertThat(repo.find(new Revision(i + 1), "/" + i + ".txt").join()).hasSize(1);
             }
         } finally {
-            repo.close();
+            repo.internalClose();
         }
 
         assertThat(Files.size(commitIdDatabaseFile.toPath())).isEqualTo((numCommits + 1) * 24L);

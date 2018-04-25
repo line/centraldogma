@@ -29,8 +29,13 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.internal.Util;
 
 public abstract class DirectoryBasedStorageManager<T> implements StorageManager<T> {
@@ -48,7 +53,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     private final Object[] childArgs;
     private final File rootDir;
     private final ConcurrentMap<String, T> children = new ConcurrentHashMap<>();
-    private volatile boolean closed;
+    private final AtomicReference<Supplier<CentralDogmaException>> closed = new AtomicReference<>();
 
     protected DirectoryBasedStorageManager(File rootDir, Class<? extends T> childType, Object... childArgs) {
         requireNonNull(rootDir, "rootDir");
@@ -83,17 +88,21 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     private void loadChildren() {
         boolean success = false;
         try {
-            for (File f : rootDir.listFiles()) {
-                loadChild(f);
+            final File[] childFiles = rootDir.listFiles();
+            if (childFiles != null) {
+                for (File f : childFiles) {
+                    loadChild(f);
+                }
             }
             success = true;
         } finally {
             if (!success) {
-                close();
+                close(() -> new CentralDogmaException("should never reach here"));
             }
         }
     }
 
+    @Nullable
     private T loadChild(File f) {
         final String name = f.getName();
         if (!isValidChildName(name)) {
@@ -124,27 +133,30 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     protected abstract T createChild(File childDir, Object[] childArgs,
                                      long creationTimeMillis) throws Exception;
 
-    private void closeChild(String name, T child) {
-        closeChild(new File(rootDir, name), child);
+    private void closeChild(String name, T child, Supplier<CentralDogmaException> failureCauseSupplier) {
+        closeChild(new File(rootDir, name), child, failureCauseSupplier);
     }
 
-    protected void closeChild(File childDir, T child) {}
+    protected void closeChild(File childDir, T child, Supplier<CentralDogmaException> failureCauseSupplier) {}
 
-    protected abstract RuntimeException newStorageExistsException(String name);
+    protected abstract CentralDogmaException newStorageExistsException(String name);
 
-    protected abstract RuntimeException newStorageNotFoundException(String name);
+    protected abstract CentralDogmaException newStorageNotFoundException(String name);
+
+    private CentralDogmaException newStorageNotFoundException0(String name) {
+        return newStorageNotFoundException(childTypeName + ": " + name);
+    }
 
     @Override
-    public void close() {
-        if (closed) {
+    public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
+        requireNonNull(failureCauseSupplier, "failureCauseSupplier");
+        if (!closed.compareAndSet(null, failureCauseSupplier)) {
             return;
         }
 
-        closed = true;
-
-        // Close all childrens.
+        // Close all children.
         for (Map.Entry<String, T> e : children.entrySet()) {
-            closeChild(e.getKey(), e.getValue());
+            closeChild(e.getKey(), e.getValue(), failureCauseSupplier);
         }
     }
 
@@ -223,6 +235,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         ensureOpen();
         final Set<String> removed = new LinkedHashSet<>();
         final File[] files = rootDir.listFiles();
+        if (files == null) {
+            return Collections.emptySet();
+        }
+
         Arrays.sort(files);
 
         for (File f : files) {
@@ -251,10 +267,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         ensureOpen();
         final T child = children.remove(validateChildName(name));
         if (child == null) {
-            throw newStorageNotFoundException(childTypeName + ": " + name);
+            throw newStorageNotFoundException0(name);
         }
 
-        closeChild(name, child);
+        closeChild(name, child, () -> newStorageNotFoundException0(name));
 
         if (!new File(rootDir, name).renameTo(new File(rootDir, name + SUFFIX_REMOVED))) {
             throw new StorageException("failed to mark " + childTypeName + " as removed: " + name);
@@ -268,7 +284,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
         final File removed = new File(rootDir, name + SUFFIX_REMOVED);
         if (!removed.isDirectory()) {
-            throw newStorageNotFoundException(childTypeName + ": " + name);
+            throw newStorageNotFoundException0(name);
         }
 
         final File unremoved = new File(rootDir, name);
@@ -277,13 +293,17 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             throw new StorageException("failed to mark " + childTypeName + " as unremoved: " + name);
         }
 
-        return loadChild(unremoved);
+        final T unremovedChild = loadChild(unremoved);
+        if (unremovedChild == null) {
+            throw newStorageNotFoundException0(name);
+        }
+        return unremovedChild;
     }
 
     @Override
     public void ensureOpen() {
-        if (closed) {
-            throw new IllegalStateException("closed already");
+        if (closed.get() != null) {
+            throw closed.get().get();
         }
     }
 

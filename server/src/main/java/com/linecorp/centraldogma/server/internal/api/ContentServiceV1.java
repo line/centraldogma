@@ -250,7 +250,7 @@ public class ContentServiceV1 extends AbstractService {
         // watch repository or a file
         if (watchRequest.isPresent()) {
             final Revision lastKnownRevision = watchRequest.get().lastKnownRevision();
-            long timeOutMillis = watchRequest.get().timeoutMillis();
+            final long timeOutMillis = watchRequest.get().timeoutMillis();
             if (query.isPresent()) {
                 return watchFile(repository, lastKnownRevision, query.get(), timeOutMillis);
             }
@@ -277,7 +277,7 @@ public class ContentServiceV1 extends AbstractService {
                 repository, lastKnownRevision, query, timeOutMillis);
 
         return future.thenCompose(result -> handleWatchSuccess(repository, result.revision(), query.path()))
-                     .exceptionally(this::handleWatchFailure);
+                     .exceptionally(ContentServiceV1::handleWatchFailure);
     }
 
     private static CompletableFuture<Object> handleWatchSuccess(Repository repository,
@@ -292,10 +292,8 @@ public class ContentServiceV1 extends AbstractService {
                          });
     }
 
-    private Object handleWatchFailure(Throwable thrown) {
-        if (Throwables.getRootCause(thrown) instanceof CancellationException &&
-            !watchService.isServerStopping()) {
-
+    private static Object handleWatchFailure(Throwable thrown) {
+        if (Throwables.getRootCause(thrown) instanceof CancellationException) {
             // timeout happens
             return HttpResponse.of(HttpStatus.NOT_MODIFIED);
         }
@@ -308,7 +306,7 @@ public class ContentServiceV1 extends AbstractService {
                 watchService.watchRepository(repository, lastKnownRevision, pathPattern, timeOutMillis);
 
         return future.thenCompose(revision -> handleWatchSuccess(repository, revision, pathPattern))
-                     .exceptionally(this::handleWatchFailure);
+                     .exceptionally(ContentServiceV1::handleWatchFailure);
     }
 
     /**

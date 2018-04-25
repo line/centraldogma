@@ -267,18 +267,13 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             String projectName, String repositoryName, Revision lastKnownRevision,
             String pathPattern, long timeoutMillis, AsyncMethodCallback resultHandler) {
 
-        if (watchService.isServerStopping()) {
-            resultHandler.onError(new CentralDogmaException(ErrorCode.SHUTTING_DOWN));
-            return;
-        }
-
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Revision> future =
                 watchService.watchRepository(repo, convert(lastKnownRevision), pathPattern, timeoutMillis);
         handleWatchRepositoryResult(future, resultHandler);
     }
 
-    private void handleWatchRepositoryResult(
+    private static void handleWatchRepositoryResult(
             CompletableFuture<com.linecorp.centraldogma.common.Revision> future,
             AsyncMethodCallback resultHandler) {
         future.handle(voidFunction((res, cause) -> {
@@ -287,11 +282,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 wrr.setRevision(convert(res));
                 resultHandler.onComplete(wrr);
             } else if (cause instanceof CancellationException) {
-                if (watchService.isServerStopping()) {
-                    resultHandler.onError(new CentralDogmaException(ErrorCode.SHUTTING_DOWN));
-                } else {
-                    resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_REPOSITORY_RESULT);
-                }
+                resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_REPOSITORY_RESULT);
             } else {
                 logAndInvokeOnError("watchRepository", resultHandler, cause);
             }
@@ -320,11 +311,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 wfr.setContent(res.contentAsText());
                 resultHandler.onComplete(wfr);
             } else if (cause instanceof CancellationException) {
-                if (watchService.isServerStopping()) {
-                    resultHandler.onError(new CentralDogmaException(ErrorCode.SHUTTING_DOWN));
-                } else {
-                    resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_FILE_RESULT);
-                }
+                resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_FILE_RESULT);
             } else {
                 logAndInvokeOnError("watchFile", resultHandler, cause);
             }

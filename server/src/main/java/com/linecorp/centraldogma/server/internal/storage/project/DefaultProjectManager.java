@@ -20,11 +20,13 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
@@ -48,8 +50,8 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
     }
 
     @Override
-    public void close() {
-        super.close();
+    public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
+        super.close(failureCauseSupplier);
         if (cache != null) {
             cache.clear();
         }
@@ -66,18 +68,19 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
     }
 
     @Override
-    protected void closeChild(File childDir, Project child) {
+    protected void closeChild(File childDir, Project child,
+                              Supplier<CentralDogmaException> failureCauseSupplier) {
         final DefaultProject c = (DefaultProject) child;
-        c.repos.close();
+        c.repos.close(failureCauseSupplier);
     }
 
     @Override
-    protected RuntimeException newStorageExistsException(String name) {
+    protected CentralDogmaException newStorageExistsException(String name) {
         return new ProjectExistsException(name);
     }
 
     @Override
-    protected RuntimeException newStorageNotFoundException(String name) {
+    protected CentralDogmaException newStorageNotFoundException(String name) {
         return new ProjectNotFoundException(name);
     }
 }

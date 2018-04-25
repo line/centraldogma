@@ -36,13 +36,18 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nullable;
 
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
@@ -121,7 +126,7 @@ class GitRepository implements Repository {
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
-    private final Lock writeLock = new ReentrantLock();
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Project parent;
     private final Executor repositoryWorker;
     private final String name;
@@ -129,6 +134,8 @@ class GitRepository implements Repository {
     private final GitRepositoryFormat format;
     private final CommitIdDatabase commitIdDatabase;
     private final CommitWatchers commitWatchers = new CommitWatchers();
+    private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
+    private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
@@ -225,7 +232,7 @@ class GitRepository implements Repository {
             throw new StorageException("failed to create a repository at: " + repoDir, e);
         } finally {
             if (!success) {
-                close();
+                internalClose();
                 // Failed to create a repository. Remove any cruft so that it is not loaded on the next run.
                 deleteCruft(repoDir);
             }
@@ -245,7 +252,7 @@ class GitRepository implements Repository {
         name = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
 
-        RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
+        final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
         try {
             jGitRepository = repositoryBuilder.build();
             if (!exist(repoDir)) {
@@ -280,15 +287,15 @@ class GitRepository implements Repository {
             success = true;
         } finally {
             if (!success) {
-                close();
+                internalClose();
             }
         }
     }
 
     private static boolean exist(File repoDir) {
         try {
-            RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir);
-            org.eclipse.jgit.lib.Repository repository = repositoryBuilder.build();
+            final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir);
+            final org.eclipse.jgit.lib.Repository repository = repositoryBuilder.build();
             if (repository.getConfig() instanceof FileBasedConfig) {
                 return ((FileBasedConfig) repository.getConfig()).getFile().exists();
             }
@@ -298,17 +305,47 @@ class GitRepository implements Repository {
         }
     }
 
-    void close() {
-        if (commitIdDatabase != null) {
-            commitIdDatabase.close();
+    /**
+     * Waits until all pending operations are complete and closes this repository.
+     *
+     * @param failureCauseSupplier the {@link Supplier} that creates a new {@link CentralDogmaException}
+     *                             which will be used to fail the operations issued after this method is called
+     */
+    void close(Supplier<CentralDogmaException> failureCauseSupplier) {
+        requireNonNull(failureCauseSupplier, "failureCauseSupplier");
+        if (closePending.compareAndSet(null, failureCauseSupplier)) {
+            repositoryWorker.execute(() -> {
+                rwLock.writeLock().lock();
+                try {
+                    if (commitIdDatabase != null) {
+                        try {
+                            commitIdDatabase.close();
+                        } catch (Exception e) {
+                            logger.warn("Failed to close a commitId database:", e);
+                        }
+                    }
+
+                    if (jGitRepository != null) {
+                        try {
+                            jGitRepository.close();
+                        } catch (Exception e) {
+                            logger.warn("Failed to close a Git repository: {}",
+                                        jGitRepository.getDirectory(), e);
+                        }
+                    }
+                } finally {
+                    rwLock.writeLock().unlock();
+                    commitWatchers.close(failureCauseSupplier);
+                    closeFuture.complete(null);
+                }
+            });
         }
-        if (jGitRepository != null) {
-            try {
-                jGitRepository.close();
-            } catch (Exception e) {
-                logger.warn("Failed to close a Git repository: {}", jGitRepository.getDirectory(), e);
-            }
-        }
+
+        closeFuture.join();
+    }
+
+    void internalClose() {
+        close(() -> new CentralDogmaException("should never reach here"));
     }
 
     @Override
@@ -399,6 +436,7 @@ class GitRepository implements Repository {
         final boolean fetchContent = FindOption.FETCH_CONTENT.get(options);
         final int maxEntries = FindOption.MAX_ENTRIES.get(options);
 
+        readLock();
         try (ObjectReader reader = jGitRepository.newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
@@ -478,6 +516,8 @@ class GitRepository implements Repository {
         } catch (Exception e) {
             throw new StorageException(
                     "failed to get data from " + jGitRepository + " at " + pathPattern + " for " + revision, e);
+        } finally {
+            readUnlock();
         }
     }
 
@@ -500,11 +540,12 @@ class GitRepository implements Repository {
         final RevisionRange range = normalizeNow(from, to);
         final RevisionRange descendingRange = range.toDescending();
 
-        final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
-        final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
-
         // At this point, we are sure: from.major >= to.major
+        readLock();
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
+            final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
+            final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
+
             // Walk through the commit tree to get the corresponding commit information by given filters
             revWalk.setTreeFilter(AndTreeFilter.create(TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
 
@@ -520,14 +561,7 @@ class GitRepository implements Repository {
             final List<Commit> commitList = new ArrayList<>();
             boolean needsLastCommit = true;
             for (RevCommit revCommit : revWalk) {
-                final Commit c = toCommit(revCommit);
-                if (c != null) {
-                    commitList.add(c);
-                } else {
-                    // Probably garbage?
-                    continue;
-                }
-
+                commitList.add(toCommit(revCommit));
                 if (revCommit.getId().equals(toCommitId) || commitList.size() == maxCommits) {
                     // Visited the last commit or can't retrieve beyond maxCommits
                     needsLastCommit = false;
@@ -562,18 +596,22 @@ class GitRepository implements Repository {
             throw new StorageException(
                     "failed to retrieve the history: " + jGitRepository +
                     " (" + pathPattern + ", " + from + ".." + to + ')', e);
+        } finally {
+            readUnlock();
         }
     }
 
     private static Commit toCommit(RevCommit revCommit) {
         final Author author;
         final PersonIdent committerIdent = revCommit.getCommitterIdent();
+        final long when;
         if (committerIdent == null) {
             author = Author.UNKNOWN;
+            when = 0;
         } else {
             author = new Author(committerIdent.getName(), committerIdent.getEmailAddress());
+            when = committerIdent.getWhen().getTime();
         }
-        long when = committerIdent.getWhen().getTime();
 
         try {
             return CommitUtil.newCommit(author, when, revCommit.getFullMessage());
@@ -603,9 +641,14 @@ class GitRepository implements Repository {
 
         final RevisionRange range = normalizeNow(from, to).toAscending();
 
-        return toChangeMap(compareTrees(commitIdDatabase.get(range.from()),
-                                        commitIdDatabase.get(range.to()),
-                                        PathPatternFilter.of(pathPattern)));
+        readLock();
+        try {
+            return toChangeMap(compareTrees(commitIdDatabase.get(range.from()),
+                                            commitIdDatabase.get(range.to()),
+                                            PathPatternFilter.of(pathPattern)));
+        } finally {
+            readUnlock();
+        }
     }
 
     @Override
@@ -620,6 +663,7 @@ class GitRepository implements Repository {
         requireNonNull(changes, "changes");
         baseRevision = normalizeNow(baseRevision);
 
+        readLock();
         try (ObjectReader reader = jGitRepository.newObjectReader();
              RevWalk revWalk = new RevWalk(reader);
              DiffFormatter diffFormatter = new DiffFormatter(NullOutputStream.INSTANCE)) {
@@ -631,13 +675,15 @@ class GitRepository implements Repository {
                 return Collections.emptyMap();
             }
 
-            CanonicalTreeParser p = new CanonicalTreeParser();
+            final CanonicalTreeParser p = new CanonicalTreeParser();
             p.reset(reader, baseTreeId);
             diffFormatter.setRepository(jGitRepository);
-            List<DiffEntry> result = diffFormatter.scan(p, new DirCacheIterator(dirCache));
+            final List<DiffEntry> result = diffFormatter.scan(p, new DirCacheIterator(dirCache));
             return toChangeMap(result);
         } catch (IOException e) {
             throw new StorageException("failed to perform a dry-run diff", e);
+        } finally {
+            readUnlock();
         }
     }
 
@@ -746,8 +792,12 @@ class GitRepository implements Repository {
         requireNonNull(baseRevision, "baseRevision");
 
         final CommitResult res;
-        writeLock.lock();
+        rwLock.writeLock().lock();
         try {
+            if (closePending.get() != null) {
+                throw closePending.get().get();
+            }
+
             final Revision normBaseRevision = normalizeNow(baseRevision);
             final Revision headRevision = cachedHeadRevision();
             if (headRevision.major() != normBaseRevision.major()) {
@@ -761,7 +811,7 @@ class GitRepository implements Repository {
 
             this.headRevision = res.revision;
         } finally {
-            writeLock.unlock();
+            rwLock.writeLock().unlock();
         }
 
         // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
@@ -769,7 +819,7 @@ class GitRepository implements Repository {
         return res.revision;
     }
 
-    private CommitResult commit0(Revision prevRevision, Revision nextRevision, long commitTimeMillis,
+    private CommitResult commit0(@Nullable Revision prevRevision, Revision nextRevision, long commitTimeMillis,
                                  Author author, String summary, String detail, Markup markup,
                                  Iterable<Change<?>> changes, boolean allowEmpty) {
 
@@ -802,9 +852,9 @@ class GitRepository implements Repository {
                 boolean isEmpty = numEdits == 0;
                 if (!isEmpty) {
                     // Even if there are edits, the resulting tree might be identical with the previous tree.
-                    CanonicalTreeParser p = new CanonicalTreeParser();
+                    final CanonicalTreeParser p = new CanonicalTreeParser();
                     p.reset(reader, prevTreeId);
-                    DiffFormatter diffFormatter = new DiffFormatter(NullOutputStream.INSTANCE);
+                    final DiffFormatter diffFormatter = new DiffFormatter(NullOutputStream.INSTANCE);
                     diffFormatter.setRepository(jGitRepository);
                     isEmpty = diffFormatter.scan(p, new DirCacheIterator(dirCache)).isEmpty();
                 }
@@ -851,7 +901,7 @@ class GitRepository implements Repository {
         }
     }
 
-    private int applyChanges(Revision baseRevision, ObjectId baseTreeId, DirCache dirCache,
+    private int applyChanges(@Nullable Revision baseRevision, @Nullable ObjectId baseTreeId, DirCache dirCache,
                              Iterable<Change<?>> changes) {
 
         int numEdits = 0;
@@ -881,7 +931,7 @@ class GitRepository implements Repository {
                     final JsonNode newJsonNode = (JsonNode) change.content();
 
                     // Upsert only when the contents are really different.
-                    if (!newJsonNode.equals(oldJsonNode)) {
+                    if (!Objects.equals(newJsonNode, oldJsonNode)) {
                         applyPathEdit(dirCache, new PathEdit(changePath) {
                             @Override
                             public void apply(DirCacheEntry ent) {
@@ -1098,7 +1148,7 @@ class GitRepository implements Repository {
      * @return {@code true} if any edits were made to {@code dirCache}, {@code false} otherwise
      */
     private static boolean applyDirectoryEdits(DirCache dirCache,
-                                               String oldDir, String newDir, Change<?> change) {
+                                               String oldDir, @Nullable String newDir, Change<?> change) {
 
         if (!oldDir.endsWith("/")) {
             oldDir += '/';
@@ -1224,15 +1274,21 @@ class GitRepository implements Repository {
         final CompletableFuture<Revision> future = new CompletableFuture<>();
 
         normalize(lastKnownRevision).thenAccept(normLastKnownRevision -> {
-            final Revision headRevision = cachedHeadRevision();
-            final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
+            readLock();
+            try {
+                final Revision headRevision = cachedHeadRevision();
+                final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
 
-            // If lastKnownRevision is outdated already and the recent changes match, there's no need to watch.
-            if (!normLastKnownRevision.equals(headRevision) &&
-                hasMatchingChanges(normLastKnownRevision, headRevision, filter)) {
-                future.complete(headRevision);
-            } else {
-                commitWatchers.add(normLastKnownRevision, filter, future);
+                // If lastKnownRevision is outdated already and the recent changes match,
+                // there's no need to watch.
+                if (!normLastKnownRevision.equals(headRevision) &&
+                    hasMatchingChanges(normLastKnownRevision, headRevision, filter)) {
+                    future.complete(headRevision);
+                } else {
+                    commitWatchers.add(normLastKnownRevision, filter, future);
+                }
+            } finally {
+                readUnlock();
             }
         }).exceptionally(cause -> {
             future.completeExceptionally(cause);
@@ -1269,7 +1325,7 @@ class GitRepository implements Repository {
         return false;
     }
 
-    private void notifyWatchers(Revision newRevision, ObjectId prevTreeId, ObjectId nextTreeId) {
+    private void notifyWatchers(Revision newRevision, @Nullable ObjectId prevTreeId, ObjectId nextTreeId) {
         final List<DiffEntry> diff = compareTrees(prevTreeId, nextTreeId, TreeFilter.ALL);
         for (DiffEntry e: diff) {
             switch (e.getChangeType()) {
@@ -1295,9 +1351,9 @@ class GitRepository implements Repository {
      */
     private Revision uncachedHeadRevision() {
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-            ObjectId headRevisionId = jGitRepository.resolve(R_HEADS_MASTER);
+            final ObjectId headRevisionId = jGitRepository.resolve(R_HEADS_MASTER);
             if (headRevisionId != null) {
-                RevCommit revCommit = revWalk.parseCommit(headRevisionId);
+                final RevCommit revCommit = revWalk.parseCommit(headRevisionId);
                 return CommitUtil.extractRevision(revCommit.getFullMessage());
             }
         } catch (CentralDogmaException e) {
@@ -1312,7 +1368,9 @@ class GitRepository implements Repository {
     /**
      * Compares the old tree and the new tree to get the list of the affected files.
      */
-    private List<DiffEntry> compareTrees(ObjectId prevTreeId, ObjectId nextTreeId, TreeFilter filter) {
+    private List<DiffEntry> compareTrees(
+            @Nullable ObjectId prevTreeId, ObjectId nextTreeId, TreeFilter filter) {
+
         try (DiffFormatter diffFormatter = new DiffFormatter(NullOutputStream.INSTANCE)) {
             diffFormatter.setRepository(jGitRepository);
             diffFormatter.setPathFilter(filter);
@@ -1330,6 +1388,18 @@ class GitRepository implements Repository {
         } catch (IOException e) {
             throw new StorageException("failed to parse a commit: " + commitId, e);
         }
+    }
+
+    private void readLock() {
+        rwLock.readLock().lock();
+        if (closePending.get() != null) {
+            rwLock.readLock().unlock();
+            throw closePending.get().get();
+        }
+    }
+
+    private void readUnlock() {
+        rwLock.readLock().unlock();
     }
 
     /**
@@ -1416,7 +1486,7 @@ class GitRepository implements Repository {
 
             success = true;
         } finally {
-            newRepo.close();
+            newRepo.internalClose();
             if (!success) {
                 deleteCruft(newRepoDir);
             }
@@ -1441,10 +1511,11 @@ class GitRepository implements Repository {
 
     private static final class CommitResult {
         final Revision revision;
+        @Nullable
         final ObjectId parentTreeId;
         final ObjectId treeId;
 
-        CommitResult(Revision revision, ObjectId parentTreeId, ObjectId treeId) {
+        CommitResult(Revision revision, @Nullable ObjectId parentTreeId, ObjectId treeId) {
             this.revision = revision;
             this.parentTreeId = parentTreeId;
             this.treeId = treeId;

@@ -23,8 +23,11 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
+
+import com.linecorp.centraldogma.common.CentralDogmaException;
 
 /**
  * A wrapper class of {@link ProjectManager} which prevents accessing internal projects
@@ -44,8 +47,8 @@ public class SafeProjectManager implements ProjectManager {
     }
 
     @Override
-    public void close() {
-        delegate().close();
+    public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
+        delegate().close(failureCauseSupplier);
     }
 
     @Override

@@ -22,6 +22,7 @@ import java.util.concurrent.ForkJoinPool;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializer;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
@@ -121,6 +122,6 @@ public class ProjectManagerRule extends TemporaryFolder {
     protected void after() {
         super.after();
         executor.stop();
-        projectManager.close();
+        projectManager.close(ShuttingDownException::new);
     }
 }

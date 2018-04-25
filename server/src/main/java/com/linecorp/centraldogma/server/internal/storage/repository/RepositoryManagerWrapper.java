@@ -27,7 +27,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
 
@@ -47,8 +49,8 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
-    public void close() {
-        delegate.close();
+    public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
+        delegate.close(failureCauseSupplier);
     }
 
     @Override

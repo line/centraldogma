@@ -34,6 +34,7 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.thrift.Author;
 import com.linecorp.centraldogma.internal.thrift.AuthorConverter;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
@@ -193,6 +194,8 @@ final class Converter {
             code = ErrorCode.REPOSITORY_NOT_FOUND;
         } else if (t instanceof RepositoryExistsException) {
             code = ErrorCode.REPOSITORY_EXISTS;
+        } else if (t instanceof ShuttingDownException) {
+            code = ErrorCode.SHUTTING_DOWN;
         }
 
         final CentralDogmaException cde = new CentralDogmaException(code);

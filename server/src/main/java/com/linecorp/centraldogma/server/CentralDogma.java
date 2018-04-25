@@ -63,7 +63,6 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
-import com.linecorp.armeria.server.ServerListenerAdapter;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -75,6 +74,7 @@ import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
 import com.linecorp.armeria.server.logging.AccessLogWriters;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
@@ -361,13 +361,6 @@ public class CentralDogma {
                 t -> sb.gracefulShutdownTimeout(t.quietPeriodMillis(), t.timeoutMillis()));
 
         final WatchService watchService = new WatchService();
-        sb.serverListener(new ServerListenerAdapter() {
-            @Override
-            public void serverStopping(Server server) {
-                watchService.serverStopping();
-            }
-        });
-
         configureThriftService(sb, pm, executor, watchService);
 
         sb.service("/hostname", HttpFileService.forVfs(new AbstractHttpVfs() {
@@ -640,68 +633,74 @@ public class CentralDogma {
 
         boolean success = true;
         try {
+            if (pm != null) {
+                logger.info("Stopping the project manager ..");
+                pm.close(ShuttingDownException::new);
+                logger.info("Stopped the project manager");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the project manager:", t);
+        }
+
+        try {
+            if (executor != null) {
+                logger.info("Stopping the command executor ..");
+                executor.stop();
+                logger.info("Stopped the command executor");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the command executor:", t);
+        }
+
+        try {
+            // Stop the mirroring service if the command executor did not stop it.
+            if (mirroringService != null && mirroringService.isStarted()) {
+                logger.info("Stopping the mirroring service not terminated by the command executor ..");
+                mirroringService.stop();
+                logger.info("Stopped the mirroring service");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the mirroring service:", t);
+        }
+
+        try {
+            if (repositoryWorker != null && !repositoryWorker.isTerminated()) {
+                logger.info("Stopping the repository worker ..");
+                boolean interruptLater = false;
+                while (!repositoryWorker.isTerminated()) {
+                    repositoryWorker.shutdownNow();
+                    try {
+                        repositoryWorker.awaitTermination(1, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        // Interrupt later.
+                        interruptLater = true;
+                    }
+                }
+                logger.info("Stopped the repository worker");
+
+                if (interruptLater) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the repository worker:", t);
+        }
+
+        try {
             if (server != null) {
                 logger.info("Stopping the RPC server ..");
                 server.stop().join();
                 logger.info("Stopped the RPC server");
             }
-        } catch (Exception e) {
+        } catch (Throwable t) {
             success = false;
-            logger.warn("Failed to stop the RPC server:", e);
-        } finally {
-            try {
-                if (executor != null) {
-                    logger.info("Stopping the command executor ..");
-                    executor.stop();
-                    logger.info("Stopped the command executor");
-                }
-            } catch (Exception e) {
-                success = false;
-                logger.warn("Failed to stop the command executor:", e);
-            } finally {
-                try {
-                    // Stop the mirroring service if the command executor did not stop it.
-                    if (mirroringService != null && mirroringService.isStarted()) {
-                        logger.info("Stopping the mirroring service not terminated by the command executor ..");
-                        mirroringService.stop();
-                        logger.info("Stopped the mirroring service");
-                    }
-                } catch (Exception e) {
-                    success = false;
-                    logger.warn("Failed to stop the mirroring service:", e);
-                } finally {
-                    try {
-                        if (pm != null) {
-                            logger.info("Stopping the project manager ..");
-                            pm.close();
-                            logger.info("Stopped the project manager");
-                        }
-                    } catch (Exception e) {
-                        success = false;
-                        logger.warn("Failed to stop the project manager:", e);
-                    } finally {
-                        if (repositoryWorker != null && !repositoryWorker.isTerminated()) {
-                            logger.info("Stopping the repository worker ..");
-                            boolean interruptLater = false;
-                            while (!repositoryWorker.isTerminated()) {
-                                repositoryWorker.shutdownNow();
-                                try {
-                                    repositoryWorker.awaitTermination(1, TimeUnit.SECONDS);
-                                } catch (InterruptedException e) {
-                                    // Interrupt later.
-                                    interruptLater = true;
-                                }
-                            }
-                            logger.info("Stopped the repository worker");
-
-                            if (interruptLater) {
-                                Thread.currentThread().interrupt();
-                            }
-                        }
-                    }
-                }
-            }
+            logger.warn("Failed to stop the RPC server:", t);
         }
+
         return success;
     }
 }

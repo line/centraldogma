@@ -68,7 +68,7 @@ final class CommitUtil {
         requireNonNull(author, "author");
         when = when / 1000L * 1000L; // Drop the milliseconds
         try {
-            JsonNode jsonNode = Jackson.readTree(jsonString);
+            final JsonNode jsonNode = Jackson.readTree(jsonString);
 
             final String summary = Jackson.textValue(jsonNode.get(FIELD_NAME_SUMMARY), "");
             final String detail = Jackson.textValue(jsonNode.get(FIELD_NAME_DETAIL), "");
