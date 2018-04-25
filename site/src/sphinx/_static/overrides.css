@@ -239,17 +239,6 @@ p, .rst-content li {
   margin-left: 0px;
 }
 
-/* Use the same background color with the logo image */
-.wy-side-nav-search, .wy-nav-top {
-  background-color: #1e2834;
-}
-.wy-nav-side {
-  background-color: #323c48;
-}
-.wy-nav-side a:hover {
-  background-color: #424c58;
-}
-
 /* Adjust the height of the top navbar */
 .wy-nav-top {
   line-height: 43px;
@@ -259,3 +248,25 @@ p, .rst-content li {
 .plantuml {
   text-align: center;
 }
+
+/* Central Dogma branding begins. */
+.wy-side-nav-search, .wy-nav-top {
+  background-color: #1e2834;
+}
+
+.wy-side-nav-search input[type="text"] {
+  border-color: #1e2834;
+}
+
+.wy-nav-side {
+  background-color: #323c48;
+}
+
+.wy-menu-vertical a:active, .wy-menu-vertical a:hover {
+  background-color: #424c58;
+}
+
+.wy-menu-vertical li.current a {
+  border-right-width: 0px;
+}
+/* Central Dogma branding ends. */
