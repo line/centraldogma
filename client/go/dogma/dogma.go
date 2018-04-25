@@ -342,8 +342,8 @@ func (c *Client) GetFiles(ctx context.Context,
 //
 // If the from and to are not specified, this will return the history from the init to the latest revision.
 func (c *Client) GetHistory(ctx context.Context,
-	projectName, repoName, from, to, pathPattern string) ([]*Commit, *http.Response, error) {
-	return c.content.getHistory(ctx, projectName, repoName, from, to, pathPattern)
+	projectName, repoName, from, to, pathPattern string, maxCommits int) ([]*Commit, *http.Response, error) {
+	return c.content.getHistory(ctx, projectName, repoName, from, to, pathPattern, maxCommits)
 }
 
 // GetDiff returns the diff of a file between two revisions. If the from and to are not specified, this will

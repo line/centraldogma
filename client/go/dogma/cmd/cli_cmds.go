@@ -45,6 +45,11 @@ var toRevisionFlag = cli.StringFlag{
 	Usage: "Specifies the revision to apply until",
 }
 
+var maxCommitsFlag = cli.IntFlag{
+	Name:  "max-commits",
+	Usage: "Specifies the number of maximum commits to fetch",
+}
+
 var printFormatFlags = []cli.Flag{
 	cli.BoolFlag{
 		Name:   "pretty",
@@ -254,7 +259,7 @@ func CLICommands() []cli.Command {
 			Name:      "log",
 			Usage:     "Shows commit logs of the path",
 			ArgsUsage: "<project_name>/<repository_name>[/<path>]",
-			Flags:     append(printFormatFlags, fromRevisionFlag, toRevisionFlag),
+			Flags:     append(printFormatFlags, fromRevisionFlag, toRevisionFlag, maxCommitsFlag),
 			Action: func(c *cli.Context) error {
 				style, err := getPrintStyle(c)
 				if err != nil {
