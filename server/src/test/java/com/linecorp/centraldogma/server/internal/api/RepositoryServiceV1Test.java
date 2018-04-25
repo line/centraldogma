@@ -39,6 +39,7 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class RepositoryServiceV1Test {
@@ -175,6 +176,14 @@ public class RepositoryServiceV1Test {
         final AggregatedHttpMessage aRes = httpClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
         final HttpHeaders headers = aRes.headers();
         assertThat(headers.status()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    public void removeMetaRepository() {
+        final AggregatedHttpMessage aRes = httpClient.delete(REPOS_PREFIX + '/' + Project.REPO_META)
+                                                     .aggregate().join();
+        final HttpHeaders headers = aRes.headers();
+        assertThat(headers.status()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
