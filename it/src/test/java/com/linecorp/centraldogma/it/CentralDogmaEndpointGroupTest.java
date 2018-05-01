@@ -80,11 +80,13 @@ public class CentralDogmaEndpointGroupTest {
 
     @Test
     public void json() {
+        Watcher<JsonNode> watcher = dogma.client().fileWatcher("directory", "my-service",
+                                                               Query.ofJson("/endpoint.json"));
         CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
-                dogma.client().fileWatcher("directory", "my-service",
-                                           Query.ofJson("/endpoint.json")),
-                EndpointListDecoder.JSON);
+                watcher, EndpointListDecoder.JSON);
         assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
+
+        watcher.close();
     }
 
     @Test(timeout = 10000)
@@ -106,5 +108,6 @@ public class CentralDogmaEndpointGroupTest {
 
         latch.await();
         assertThat(endpointGroup.endpoints()).isEqualTo(ImmutableList.of(Endpoint.of("foo.bar", 1234)));
+        watcher.close();
     }
 }
