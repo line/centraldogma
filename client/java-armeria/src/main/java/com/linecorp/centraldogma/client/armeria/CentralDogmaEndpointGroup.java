@@ -49,10 +49,10 @@ import com.linecorp.centraldogma.common.Query;
  *
  * <p>The route file could be retrieved as an {@link EndpointGroup} using the following code:
  * <pre>{@code
- *  CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofJsonFile(
+ *  CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.of(
  *      centralDogma, "myProject", "myRepo",
- *      CentralDogmaCodec.DEFAULT_JSON_CODEC,
- *      Query.ofJsonPath("/route.json")
+ *      Query.ofJsonPath("/route.json"),
+ *      EndpointListDecoder.JSON
  *  )
  *  endpointGroup.endpoints();
  * }</pre>
@@ -89,8 +89,7 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     public static <T> CentralDogmaEndpointGroup<T> of(CentralDogma centralDogma,
                                                       String projectName, String repositoryName,
                                                       Query<T> query,
-                                                      EndpointListDecoder<T> endpointCodec
-    ) {
+                                                      EndpointListDecoder<T> endpointCodec) {
         return ofWatcher(centralDogma.fileWatcher(projectName, repositoryName, query), endpointCodec);
     }
 

@@ -19,12 +19,13 @@ import static com.linecorp.centraldogma.client.armeria.EndpointListCodecUtils.co
 
 import java.util.List;
 
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 
 import com.linecorp.armeria.client.Endpoint;
 
 final class TextEndpointListDecoder implements EndpointListDecoder<String> {
-    private static final Splitter NEWLINE_SPLITTER = Splitter.on(System.getProperty("line.separator", "\n"))
+    private static final Splitter NEWLINE_SPLITTER = Splitter.on(CharMatcher.anyOf("\n\r"))
                                                              .omitEmptyStrings()
                                                              .trimResults();
 
