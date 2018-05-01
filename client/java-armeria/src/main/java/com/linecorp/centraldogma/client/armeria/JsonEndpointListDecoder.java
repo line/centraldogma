@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2018 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,8 +15,8 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
-import static com.linecorp.centraldogma.client.armeria.EndpointListCodecUtils.objectMapper;
 import static com.linecorp.centraldogma.client.armeria.EndpointListCodecUtils.convertToEndpointList;
+import static com.linecorp.centraldogma.client.armeria.EndpointListCodecUtils.objectMapper;
 
 import java.io.IOException;
 import java.util.List;

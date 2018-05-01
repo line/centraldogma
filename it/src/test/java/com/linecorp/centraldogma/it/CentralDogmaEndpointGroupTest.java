@@ -17,9 +17,11 @@
 package com.linecorp.centraldogma.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.junit.Rule;
@@ -106,7 +108,7 @@ public class CentralDogmaEndpointGroupTest {
                                                 "foo.bar:1234"))
              .join();
 
-        latch.await();
+        await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
         assertThat(endpointGroup.endpoints()).isEqualTo(ImmutableList.of(Endpoint.of("foo.bar", 1234)));
         watcher.close();
     }

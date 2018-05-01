@@ -24,8 +24,9 @@ import com.linecorp.armeria.client.Endpoint;
 /**
  * Decode and encode between CentralDogma upstream file content and list of {@link Endpoint}s.
  *
- * @param <T> Type of CentralDomgma file (could be {@link JsonNode} or {@link String})
+ * @param <T> Type of CentralDogma file (could be {@link JsonNode} or {@link String})
  */
+@FunctionalInterface
 public interface EndpointListDecoder<T> {
 
     /**
