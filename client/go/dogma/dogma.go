@@ -43,9 +43,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
+
+var log = logrus.New()
 
 const (
 	DefaultPort = 36462
@@ -69,6 +73,7 @@ type Client struct {
 	project    *projectService
 	repository *repositoryService
 	content    *contentService
+	watch      *watchService
 }
 
 type service struct {
@@ -121,6 +126,7 @@ func newClientWithHTTPClient(baseURL string, client *http.Client) (*Client, erro
 	c.project = (*projectService)(service)
 	c.repository = (*repositoryService)(service)
 	c.content = (*contentService)(service)
+	c.watch = (*watchService)(service)
 	return c, nil
 }
 
@@ -372,4 +378,78 @@ func (c *Client) GetDiffs(ctx context.Context,
 func (c *Client) Push(ctx context.Context, projectName, repoName, baseRevision string,
 	commitMessage *CommitMessage, changes []*Change) (*Commit, *http.Response, error) {
 	return c.content.push(ctx, projectName, repoName, baseRevision, commitMessage, changes)
+}
+
+// WatchFile awaits and returns the query result of the specified file since the specified last known revision.
+func (c *Client) WatchFile(ctx context.Context, projectName, repoName, lastKnownRevision string,
+	query *Query, timeout time.Duration) <-chan *WatchResult {
+	return c.watch.watchFile(ctx, projectName, repoName, lastKnownRevision, query, timeout)
+}
+
+// WatchRepository awaits and returns the latest known revision since the specified revision.
+func (c *Client) WatchRepository(ctx context.Context,
+	projectName, repoName, lastKnownRevision, pathPattern string, timeout time.Duration) <-chan *WatchResult {
+	return c.watch.watchRepo(ctx, projectName, repoName, lastKnownRevision, pathPattern, timeout)
+}
+
+//FileWatcher returns a Watcher which notifies its listeners when the result of the given Query becomes
+//available or changes. For example:
+//
+//    query := &Query{Path: "/a.json", Type: Identity}
+//    watcher := client.FileWatcher("foo", "bar", query, nil)
+//
+//    myCh := make(chan interface{})
+//    watcher.Watch(func(revision int, value interface{}) {
+//        myCh <- value
+//    })
+//    myValue := <-myCh
+//
+//If you want to change the value before notifying listeners, specify the convertingValueFunc. For example:
+//
+//    convertingValueFunc := func(value interface{}) interface{} {
+//        d, _ := json.Marshal(value) /* value: {"a": "b"} */
+//        json.Unmarshal(d, &aStruct)
+//        return aStruct.a /* "b" */
+//    }
+//    query := &Query{Path: "/a.json", Type: Identity}
+//    watcher := client.FileWatcher("foo", "bar", query, convertingValueFunc)
+func (c *Client) FileWatcher(projectName, repoName string, query *Query,
+	convertingValueFunc func(value interface{}) interface{}) (*Watcher, error) {
+	fw, err := c.watch.fileWatcher(projectName, repoName, query, convertingValueFunc)
+	if err != nil {
+		return nil, err
+	}
+	fw.start()
+	return fw, nil
+}
+
+//RepoWatcher returns a Watcher which notifies its listeners when the repository that matched the given
+//pathPattern becomes available or changes. For example:
+//
+//    watcher := client.RepoWatcher("foo", "bar", "/*.json", nil)
+//
+//    myCh := make(chan interface{})
+//    watcher.Watch(func(revision int, value interface{}) {
+//        myCh <- value
+//    })
+//    myValue := <-myCh
+//
+//If you want to change the value before notifying listeners, specify the convertingValueFunc. For example:
+//
+//    convertingValueFunc := func(revision int) interface{} {
+//        entry, _, err := client.GetFile(context.Background(), "foo", "bar", strconv.Itoa(revision), query)
+//        if err != nil {
+//            return err
+//        }
+//        return entry.Content
+//    }
+//    watcher := client.RepoWatcher("foo", "bar", "/*.json", convertingValueFunc)
+func (c *Client) RepoWatcher(projectName, repoName, pathPattern string,
+	convertingValueFunc func(revision int) interface{}) (*Watcher, error) {
+	rw, err := c.watch.repoWatcher(projectName, repoName, pathPattern, convertingValueFunc)
+	if err != nil {
+		return nil, err
+	}
+	rw.start()
+	return rw, nil
 }

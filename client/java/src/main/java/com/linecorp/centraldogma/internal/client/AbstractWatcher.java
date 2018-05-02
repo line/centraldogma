@@ -144,7 +144,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     }
 
     /**
-     * Starts to watch the file specified in the {@link Query} given with the constructor.
+     * Starts to watch the file specified in the {@link Query} or the {@code pathPattern}
+     * given with the constructor.
      */
     public void start() {
         if (state.compareAndSet(State.INIT, State.STARTED)) {

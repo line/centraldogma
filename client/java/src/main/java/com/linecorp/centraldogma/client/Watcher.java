@@ -109,7 +109,7 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Stops watching the file specified in the {@link Query}.
+     * Stops watching the file specified in the {@link Query} or the {@code pathPattern} in the repository.
      */
     @Override
     void close();

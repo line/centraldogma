@@ -30,8 +30,6 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Revision;
 
-import io.netty.util.AsciiString;
-
 /**
  * A request converter that converts to {@link WatchRequest} when the request contains
  * {@link HttpHeaderNames#IF_NONE_MATCH}.
@@ -47,10 +45,10 @@ public final class WatchRequestConverter implements RequestConverterFunction {
     @Override
     public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
                                  Class<?> expectedResultType) throws Exception {
-        final String ifNoneMatch = request.headers().get(AsciiString.of("if-none-match"));
+        final String ifNoneMatch = request.headers().get(HttpHeaderNames.IF_NONE_MATCH);
         if (!isNullOrEmpty(ifNoneMatch)) {
             final Revision lastKnownRevision = new Revision(ifNoneMatch);
-            final String prefer = request.headers().get(AsciiString.of("prefer"));
+            final String prefer = request.headers().get(HttpHeaderNames.PREFER);
             final long timeoutMillis;
             if (!isNullOrEmpty(prefer)) {
                 timeoutMillis = getTimeoutMillis(prefer);

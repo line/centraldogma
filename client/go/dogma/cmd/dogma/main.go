@@ -15,9 +15,10 @@
 package main
 
 import (
+	"os"
+
 	"github.com/line/centraldogma/client/go/dogma/cmd"
 	"github.com/urfave/cli"
-	"os"
 )
 
 var (
