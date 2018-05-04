@@ -14,7 +14,9 @@ For authentication, `Apache Shiro`_ is used as its authentication layer and ``co
 as its security configuration. Please follow the steps below to turn on the security system of Central Dogma.
 
 First, enable the security system by configuring ``conf/dogma.json``. Specify login IDs of the administrators
-there, too::
+there, too:
+
+.. code-block:: javascript
 
     {
         ...
@@ -26,7 +28,9 @@ there, too::
     }
 
 Next, configure ``conf/shiro.ini`` based on your authentication system. A local database system of
-`Apache Shiro`_ is used here to show you a simple example::
+`Apache Shiro`_ is used here to show you a simple example:
+
+.. code-block:: ini
 
     [users]
     system-admin = system-admin-secret

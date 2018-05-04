@@ -17,6 +17,7 @@ Adding ``centraldogma-client`` as a dependency
 Gradle:
 
 .. parsed-literal::
+    :class: highlight-groovy
 
     ...
     dependencies {
@@ -29,6 +30,7 @@ Gradle:
 Maven:
 
 .. parsed-literal::
+    :class: highlight-xml
 
     ...
     <dependencies>
@@ -44,7 +46,7 @@ Maven:
 
 Creating a client
 -----------------
-First, we should create a new instance of ``CentralDogma``:
+First, we should create a new instance of :api:`com.linecorp.centraldogma.client.CentralDogma`:
 
 .. code-block:: java
 
@@ -208,7 +210,7 @@ periodically to apply the new settings to your application.
 
 Specifying multiple hosts
 -------------------------
-You can use ``CentralDogmaBuilder`` to add more than one host:
+You can also specify more than one host using the ``host()`` method:
 
 .. code-block:: java
 
@@ -266,12 +268,13 @@ or her class path::
 
 Spring Boot integration
 -----------------------
-If you are using `Spring Framework <https://spring.io/>`_, you can inject ``CentralDogma`` client very easily.
+If you are using `Spring Framework <https://spring.io/>`_, you can inject :api:`com.linecorp.centraldogma.client.CentralDogma`
+client very easily.
 
 1. Add ``centraldogma-client-spring-boot-autoconfigure`` into your dependencies.
 2. Add the client profile to your class path, as described in :ref:`using_client_profiles`.
 
-A new ``CentralDogma`` client will be created and injected using your
+A new :api:`com.linecorp.centraldogma.client.CentralDogma` client will be created and injected using your
 `Spring Boot profile <https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html>`_.
 When more than one profile is active, the first matching one will be used. For example,
 ``/centraldogma-profile-dev.properties`` will be tried first and then ``/centraldogma-profile-hsqldb.properties``
@@ -306,6 +309,6 @@ Once configured correctly, you would be able to run an application like the foll
 
 Read the Javadoc
 ----------------
-Refer to `the API documentation of 'CentralDogma' class <apidocs/index.html?com/linecorp/centraldogma/client/CentralDogma.html>`_
+Refer to `the API documentation of 'CentralDogma' interface <apidocs/index.html?com/linecorp/centraldogma/client/CentralDogma.html>`_
 for the complete list of operations you can perform with a Central Dogma server, which should be definitely
 much more than what this tutorial covers, such as fetching and watching multiple files.
