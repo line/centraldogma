@@ -227,6 +227,8 @@ func (c *Client) do(ctx context.Context, req *http.Request, resContent interface
 			return nil, ctx.Err()
 		default:
 		}
+
+		return nil, err
 	}
 	defer res.Body.Close()
 

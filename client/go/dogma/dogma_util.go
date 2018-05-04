@@ -20,6 +20,14 @@ import (
 	"time"
 )
 
+const (
+	delayOnSuccess = 1 * time.Second
+	minInterval    = delayOnSuccess * 2
+	maxInterval    = 1 * time.Minute
+	jitterRate     = 0.2
+	maxInt63       = int64(^uint64(0) >> 1)
+)
+
 func nextDelay(numAttemptsSoFar int) time.Duration {
 	var nextDelay time.Duration
 	if numAttemptsSoFar == 1 {

@@ -15,20 +15,30 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"github.com/urfave/cli"
-	"sync"
+	"os"
+	"os/signal"
 	"strings"
+
+	"github.com/urfave/cli"
 )
 
 type watchCommand struct {
 	repo      repositoryRequestInfo
 	jsonPaths []string
+	streaming bool
 }
 
 func (wc *watchCommand) execute(c *cli.Context) error {
 	repo := wc.repo
 	client, err := newDogmaClient(c, repo.remoteURL)
+	if err != nil {
+		return err
+	}
+
+	normalizedRevision, _, err := client.NormalizeRevision(
+		context.Background(), repo.projName, repo.repoName, repo.revision)
 	if err != nil {
 		return err
 	}
@@ -39,35 +49,48 @@ func (wc *watchCommand) execute(c *cli.Context) error {
 		return err
 	}
 
+	cleanupDone := make(chan bool)
 	listener := func(revision int, value interface{}) {
-		fmt.Printf("Watcher noticed updated file: %s/%s%s, rev=%v\n",
-			repo.projName, repo.repoName, repo.path, revision)
-		content := ""
-		if strings.HasSuffix(strings.ToLower(repo.path), ".json") {
-			b, err := marshalIndent(value)
-			if err != nil {
-				fmt.Printf("failed to print the content: %v", value)
-				return
-			}
-			content = string(b)
-		} else {
-			if str, ok := value.(string); ok {
-				content = str
+		if revision > normalizedRevision {
+			fmt.Printf("Watcher noticed updated file: %s/%s%s, rev=%v\n",
+				repo.projName, repo.repoName, repo.path, revision)
+			content := ""
+			if strings.HasSuffix(strings.ToLower(repo.path), ".json") {
+				b, err := marshalIndent(value)
+				if err != nil {
+					fmt.Printf("Failed to print the content: %v", value)
+					return
+				}
+				content = string(b)
 			} else {
-				fmt.Printf("failed to print the content: %v", value)
-				return
+				if str, ok := value.(string); ok {
+					content = str
+				} else {
+					fmt.Printf("Failed to print the content: %v", value)
+					return
+				}
+			}
+			fmt.Printf("Content:\n%s\n", content)
+
+			if !wc.streaming {
+				fw.Close()
+				cleanupDone <- true
 			}
 		}
-
-		fmt.Printf("Content:\n%s\n", content)
 	}
 
 	fw.Watch(listener)
 
-	// TODO(minwoox) implement shutdown gracefully by the input from CLI.
-	var wg sync.WaitGroup
-	wg.Add(1)
-	wg.Wait()
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+	go func() {
+		for _ = range signalChan {
+			fmt.Println("\nReceived an interrupt, stopping watcher...")
+			fw.Close()
+			cleanupDone <- true
+		}
+	}()
+	<-cleanupDone
 	return nil
 }
 
@@ -77,5 +100,6 @@ func newWatchCommand(c *cli.Context) (Command, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &watchCommand{repo: repo, jsonPaths: c.StringSlice("jsonpath")}, nil
+
+	return &watchCommand{repo: repo, jsonPaths: c.StringSlice("jsonpath"), streaming: c.Bool("streaming")}, nil
 }

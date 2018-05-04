@@ -72,7 +72,7 @@ func TestWatcher(t *testing.T) {
 		testHeader(t, r, "if-none-match", strconv.Itoa(expectedLastKnownRevision))
 		testHeader(t, r, "prefer", "wait=60") // watchTimeout is 60 seconds
 
-		// Let's pretend that the content is modified after 1 second and the revision is increased by 1.
+		// Let's pretend that the content is modified after 100 millisecond and the revision is increased by 1.
 		time.Sleep(100 * time.Millisecond)
 		expectedLastKnownRevision++
 
@@ -128,7 +128,7 @@ func TestWatcher_convertingValueFunc(t *testing.T) {
 	expectedLastKnownRevision := 1
 	handler := func(w http.ResponseWriter, r *http.Request) {
 
-		// Let's pretend that the content is modified after 1 second and the revision is increased by 1.
+		// Let's pretend that the content is modified after 100 millisecond and the revision is increased by 1.
 		time.Sleep(100 * time.Millisecond)
 		expectedLastKnownRevision++
 
@@ -232,7 +232,7 @@ func TestRepoWatcher(t *testing.T) {
 
 	expectedLastKnownRevision := 1
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		// Let's pretend that the content is modified after 1 second and the revision is increased by 1.
+		// Let's pretend that the content is modified after 100 millisecond and the revision is increased by 1.
 		time.Sleep(100 * time.Millisecond)
 		expectedLastKnownRevision++
 

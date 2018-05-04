@@ -99,14 +99,7 @@ func (ws *watchService) watchRequest(ctx context.Context, watchResult chan<- *Wa
 	}()
 }
 
-const (
-	delayOnSuccess = 1 * time.Second
-	minInterval    = delayOnSuccess * 2
-	maxInterval    = 1 * time.Minute
-	jitterRate     = 0.2
-	watchTimeout   = 1 * time.Minute
-	maxInt63       = int64(^uint64(0) >> 1)
-)
+const watchTimeout = 1 * time.Minute
 
 // These constants represent the state of a watcher.
 const (
@@ -333,7 +326,7 @@ func (w *Watcher) doWatch(numAttemptsSoFar int) {
 		}
 
 		newLatest := w.convertingResultFunc(watchResult)
-		if atomic.CompareAndSwapInt32(&w.isInitialChanSet, 0, 1) {
+		if w.isInitialChanSet == 0 && atomic.CompareAndSwapInt32(&w.isInitialChanSet, 0, 1) {
 			// The initial latest is set for the first time. So write the value to initialChan as well.
 			w.initialChan <- newLatest
 		}
