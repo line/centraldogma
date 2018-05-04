@@ -66,6 +66,7 @@ func main() {
 	//app.Run([]string{"dogma", "--connect", "localhost:36462", "cat", "projFoo/repoA/samples/a.json"})
 	//app.Run([]string{"dogma", "--connect", "localhost:36462", "cat",
 	//  "projFoo/repoA/samples/a.json", "--jsonpath", "$.a"})
+	//app.Run([]string{"dogma", "--connect", "localhost:36462", "watch", "projFoo/repoA/samples/a.json", "--revision", "1"})
 
 	app.Run(os.Args)
 }

@@ -396,26 +396,15 @@ func (c *Client) WatchRepository(ctx context.Context,
 //available or changes. For example:
 //
 //    query := &Query{Path: "/a.json", Type: Identity}
-//    watcher := client.FileWatcher("foo", "bar", query, nil)
+//    watcher := client.FileWatcher("foo", "bar", query)
 //
 //    myCh := make(chan interface{})
 //    watcher.Watch(func(revision int, value interface{}) {
 //        myCh <- value
 //    })
 //    myValue := <-myCh
-//
-//If you want to change the value before notifying listeners, specify the convertingValueFunc. For example:
-//
-//    convertingValueFunc := func(value interface{}) interface{} {
-//        d, _ := json.Marshal(value) /* value: {"a": "b"} */
-//        json.Unmarshal(d, &aStruct)
-//        return aStruct.a /* "b" */
-//    }
-//    query := &Query{Path: "/a.json", Type: Identity}
-//    watcher := client.FileWatcher("foo", "bar", query, convertingValueFunc)
-func (c *Client) FileWatcher(projectName, repoName string, query *Query,
-	convertingValueFunc func(value interface{}) interface{}) (*Watcher, error) {
-	fw, err := c.watch.fileWatcher(projectName, repoName, query, convertingValueFunc)
+func (c *Client) FileWatcher(projectName, repoName string, query *Query) (*Watcher, error) {
+	fw, err := c.watch.fileWatcher(projectName, repoName, query)
 	if err != nil {
 		return nil, err
 	}
@@ -426,27 +415,15 @@ func (c *Client) FileWatcher(projectName, repoName string, query *Query,
 //RepoWatcher returns a Watcher which notifies its listeners when the repository that matched the given
 //pathPattern becomes available or changes. For example:
 //
-//    watcher := client.RepoWatcher("foo", "bar", "/*.json", nil)
+//    watcher := client.RepoWatcher("foo", "bar", "/*.json")
 //
 //    myCh := make(chan interface{})
 //    watcher.Watch(func(revision int, value interface{}) {
 //        myCh <- value
 //    })
 //    myValue := <-myCh
-//
-//If you want to change the value before notifying listeners, specify the convertingValueFunc. For example:
-//
-//    convertingValueFunc := func(revision int) interface{} {
-//        entry, _, err := client.GetFile(context.Background(), "foo", "bar", strconv.Itoa(revision), query)
-//        if err != nil {
-//            return err
-//        }
-//        return entry.Content
-//    }
-//    watcher := client.RepoWatcher("foo", "bar", "/*.json", convertingValueFunc)
-func (c *Client) RepoWatcher(projectName, repoName, pathPattern string,
-	convertingValueFunc func(revision int) interface{}) (*Watcher, error) {
-	rw, err := c.watch.repoWatcher(projectName, repoName, pathPattern, convertingValueFunc)
+func (c *Client) RepoWatcher(projectName, repoName, pathPattern string) (*Watcher, error) {
+	rw, err := c.watch.repoWatcher(projectName, repoName, pathPattern)
 	if err != nil {
 		return nil, err
 	}

@@ -86,7 +86,7 @@ func TestWatcher(t *testing.T) {
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/a.json", handler)
 
 	query := &Query{Path: "/a.json", Type: Identity}
-	fw, _ := c.FileWatcher("foo", "bar", query, nil)
+	fw, _ := c.FileWatcher("foo", "bar", query)
 
 	myCh1 := make(chan interface{})
 	myCh2 := make(chan interface{})
@@ -141,28 +141,24 @@ func TestWatcher_convertingValueFunc(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/a.json", handler)
 
-	convertingValueFunc := func(value interface{}) interface{} {
-		aStruct := struct {
-			A int `json:"a"`
-		}{}
-		d, _ := json.Marshal(value)
-		json.Unmarshal(d, &aStruct)
-		return aStruct.A
-	}
 	query := &Query{Path: "/a.json", Type: Identity}
-	fw, _ := c.FileWatcher("foo", "bar", query, convertingValueFunc)
+	fw, _ := c.FileWatcher("foo", "bar", query)
 
 	myCh := make(chan interface{})
 	listener := func(revision int, value interface{}) { myCh <- value }
-
 	fw.Watch(listener)
 
 	want := 2
 	for i := 0; i < 10; i++ {
 		select {
 		case value := <-myCh:
-			if value != want {
-				t.Errorf("watch returned: %v, want %v", value, want)
+			aStruct := struct {
+				A int `json:"a"`
+			}{}
+			d, _ := json.Marshal(value)
+			json.Unmarshal(d, &aStruct)
+			if aStruct.A != want {
+				t.Errorf("watch returned: %v, want %v", aStruct.A, want)
 			}
 		case <-time.After(3 * time.Second):
 			t.Error("failed to watch")
@@ -177,7 +173,7 @@ func TestWatcher_closed_AwaitInitialValue(t *testing.T) {
 	defer teardown()
 
 	query := &Query{Path: "/a.json", Type: Identity}
-	fw, _ := c.watch.fileWatcher("foo", "bar", query, nil)
+	fw, _ := c.watch.fileWatcher("foo", "bar", query)
 
 	latest := fw.Latest()
 	want := "latest is not set yet"
@@ -208,7 +204,7 @@ func TestWatcher_started_AwaitInitialValue(t *testing.T) {
 		})
 
 	query := &Query{Path: "/a.json", Type: Identity}
-	fw, _ := c.watch.fileWatcher("foo", "bar", query, nil)
+	fw, _ := c.watch.fileWatcher("foo", "bar", query)
 
 	done := make(chan bool)
 	go func() {
@@ -249,7 +245,7 @@ func TestRepoWatcher(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/**", handler)
 
-	fw, _ := c.RepoWatcher("foo", "bar", "/**", nil)
+	fw, _ := c.RepoWatcher("foo", "bar", "/**")
 
 	myCh := make(chan interface{})
 	listener := func(revision int, value interface{}) { myCh <- value }

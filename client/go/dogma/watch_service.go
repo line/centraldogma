@@ -119,6 +119,7 @@ const (
 type Watcher struct {
 	state              int32
 	initialChan        chan *Latest // channel whose buffer is 1.
+	isInitialChanSet   int32        // 0 is false, 1 is true
 	scheduleCTX        context.Context
 	scheduleCancelFunc func()
 	watchCTX           context.Context
@@ -146,7 +147,7 @@ func newWatcher(projectName, repoName, pathPattern string) *Watcher {
 	rand.Seed(time.Now().UTC().UnixNano())
 	scheduleCTX, scheduleCancelFunc := context.WithCancel(context.Background())
 	watchCTX, watchCancelFunc := context.WithCancel(context.Background())
-	return &Watcher{state: initial, initialChan: make(chan *Latest, 2),
+	return &Watcher{state: initial, initialChan: make(chan *Latest, 1),
 		scheduleCTX: scheduleCTX, scheduleCancelFunc: scheduleCancelFunc,
 		watchCTX: watchCTX, watchCancelFunc: watchCancelFunc,
 		listenersMutex: &sync.Mutex{},
@@ -205,11 +206,10 @@ func (w *Watcher) LatestValueOr(defaultValue interface{}) interface{} {
 // Close stops watching the file specified in the Query or the pathPattern in the repository.
 func (w *Watcher) Close() {
 	atomic.StoreInt32(&w.state, stopped)
-	select {
-	case latest := <-w.initialChan:
+	latest := &Latest{Err: errors.New("watcher is closed")}
+	if atomic.CompareAndSwapInt32(&w.isInitialChanSet, 0, 1) {
+		// The initial latest was not set before. So write the value to initialChan as well.
 		w.initialChan <- latest
-	case <-time.After(100 * time.Millisecond):
-		w.initialChan <- &Latest{Err: errors.New("watcher is closed")}
 	}
 	w.scheduleCancelFunc() // After the first call, subsequent calls to a CancelFunc do nothing.
 	w.watchCancelFunc()
@@ -238,8 +238,7 @@ func (w *Watcher) Watch(listener func(revision int, value interface{})) error {
 	return nil
 }
 
-func (ws *watchService) fileWatcher(projectName, repoName string, query *Query,
-	convertingValueFunc func(value interface{}) interface{}) (*Watcher, error) {
+func (ws *watchService) fileWatcher(projectName, repoName string, query *Query) (*Watcher, error) {
 	if query == nil {
 		return nil, errors.New("query should not be nil")
 	}
@@ -250,35 +249,21 @@ func (ws *watchService) fileWatcher(projectName, repoName string, query *Query,
 			query, watchTimeout)
 	}
 	w.convertingResultFunc = func(result *WatchResult) *Latest {
-		var value interface{}
-		if convertingValueFunc != nil {
-			value = convertingValueFunc(result.Commit.Entries[0].Content)
-		} else {
-			value = result.Commit.Entries[0].Content
-		}
-
+		value := result.Commit.Entries[0].Content
 		return &Latest{Revision: result.Commit.Revision, Value: value}
 	}
 	return w, nil
 }
 
-func (ws *watchService) repoWatcher(projectName, repoName, pathPattern string,
-	convertingValueFunc func(revision int) interface{}) (*Watcher, error) {
+func (ws *watchService) repoWatcher(projectName, repoName, pathPattern string) (*Watcher, error) {
 	w := newWatcher(projectName, repoName, pathPattern)
 	w.doWatchFunc = func(lastKnownRevision int) <-chan *WatchResult {
 		return ws.watchRepo(w.watchCTX, projectName, repoName, strconv.Itoa(lastKnownRevision),
 			pathPattern, watchTimeout)
 	}
 	w.convertingResultFunc = func(result *WatchResult) *Latest {
-		var value interface{}
 		revision := result.Commit.Revision
-		if convertingValueFunc != nil {
-			value = convertingValueFunc(revision)
-		} else {
-			value = revision
-		}
-
-		return &Latest{Revision: revision, Value: value}
+		return &Latest{Revision: revision, Value: revision}
 	}
 	return w, nil
 }
@@ -348,12 +333,12 @@ func (w *Watcher) doWatch(numAttemptsSoFar int) {
 		}
 
 		newLatest := w.convertingResultFunc(watchResult)
-		if oldLatest := w.Latest(); oldLatest.Err != nil {
-			// latest is not set yet
+		if atomic.CompareAndSwapInt32(&w.isInitialChanSet, 0, 1) {
+			// The initial latest is set for the first time. So write the value to initialChan as well.
 			w.initialChan <- newLatest
 		}
 		atomic.StorePointer(&w.latestPtr, (unsafe.Pointer)(newLatest))
-		log.Debugf("Watcher noticed updated file %s/%s%s: rev=%v",
+		log.Debugf("Watcher noticed updated file: %s/%s%s, rev=%v",
 			w.projectName, w.repoName, w.pathPattern, newLatest.Revision)
 		w.notifyListeners()
 		w.scheduleWatch(0)
@@ -368,10 +353,12 @@ func (w *Watcher) notifyListeners() {
 
 	latest := w.Latest()
 	w.listenersMutex.Lock()
-	defer w.listenersMutex.Unlock()
+	listenersSnapshot := make([]func(revision int, value interface{}), len(w.updateListeners))
+	copy(listenersSnapshot, w.updateListeners)
+	w.listenersMutex.Unlock()
 
 	go func() {
-		for _, listener := range w.updateListeners {
+		for _, listener := range listenersSnapshot {
 			listener(latest.Revision, latest.Value)
 		}
 	}()

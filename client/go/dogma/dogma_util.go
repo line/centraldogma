@@ -75,7 +75,7 @@ func random(bound int64) int64 {
 func saturatedAdd(a, b int64) int64 {
 	naiveSum := a + b
 	if a^b < 0 || a^naiveSum >= 0 {
-		//If a and b have different signs or a has the same sign as the result then there was no overflow.
+		// If a and b have different signs or a has the same sign as the result then there was no overflow.
 		return naiveSum
 	}
 	return maxInt63 + ((naiveSum >> (64 - 1)) ^ 1)

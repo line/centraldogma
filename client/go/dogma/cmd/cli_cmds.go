@@ -218,6 +218,23 @@ func CLICommands() []cli.Command {
 			},
 		},
 		{
+			Name:      "watch",
+			Usage:     "Watches a file in the path",
+			ArgsUsage: "<project_name>/<repository_name>/<path>",
+			Flags:     []cli.Flag{revisionFlag, jsonPathFlag},
+			Action: func(c *cli.Context) error {
+				command, err := newWatchCommand(c)
+				if err != nil {
+					return newCommandLineError(c)
+				}
+				err = command.execute(c)
+				if err != nil {
+					return cli.NewExitError(err, 1)
+				}
+				return nil
+			},
+		},
+		{
 			Name:      "rm",
 			Usage:     "Removes a file in the path",
 			ArgsUsage: "<project_name>/<repository_name>/<path>",

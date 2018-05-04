@@ -136,13 +136,7 @@ func getRemoteFileEntry(c *cli.Context,
 		return nil, err
 	}
 
-	var query *dogma.Query
-	if len(jsonPaths) != 0 && strings.HasSuffix(strings.ToLower(repoPath), "json") {
-		query = &dogma.Query{Path: repoPath, Type: dogma.JSONPath, Expressions: jsonPaths}
-	} else {
-		query = &dogma.Query{Path: repoPath, Type: dogma.Identity}
-	}
-
+	query := createQuery(repoPath, jsonPaths)
 	entry, res, err := client.GetFile(context.Background(), projName, repoName, revision, query)
 	if err != nil {
 		return nil, err
@@ -181,6 +175,14 @@ func newDogmaClient(c *cli.Context, baseURL string) (client *dogma.Client, err e
 	}
 
 	return client, nil
+}
+
+func createQuery(repoPath string, jsonPaths []string) *dogma.Query {
+	if len(jsonPaths) != 0 && strings.HasSuffix(strings.ToLower(repoPath), "json") {
+		return &dogma.Query{Path: repoPath, Type: dogma.JSONPath, Expressions: jsonPaths}
+	} else {
+		return &dogma.Query{Path: repoPath, Type: dogma.Identity}
+	}
 }
 
 func checkIfSecurityEnabled(baseURL string) (bool, error) {

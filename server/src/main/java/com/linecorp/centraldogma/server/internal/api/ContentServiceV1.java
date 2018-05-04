@@ -221,7 +221,8 @@ public class ContentServiceV1 extends AbstractService {
     private static ImmutableList<EntryDto<?>> entryDtos(Repository repository,
                                                         Map<String, Entry<?>> entries) {
         return entries.values().stream().map(
-                entry -> convert(repository, entry.path(), entry.type()))
+                entry -> convert(repository, entry.path(), entry.type(),
+                                 entry.type() != DIRECTORY ? entry.content() : null))
                       .collect(toImmutableList());
     }
 
