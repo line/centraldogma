@@ -33,7 +33,6 @@ import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Query;
 
 /**
- *
  * A {@link DynamicEndpointGroup} implementation that retrieves the {@link Endpoint} list from an entry in
  * Central Dogma. The entry can be a JSON file or a plain text file.
  *
