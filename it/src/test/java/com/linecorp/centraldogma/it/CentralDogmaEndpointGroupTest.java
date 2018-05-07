@@ -74,18 +74,19 @@ public class CentralDogmaEndpointGroupTest {
                   .join();
             client.push("directory", "my-service",
                         Revision.HEAD, "commit",
-                        Change.ofTextUpsert("/endpoint.txt",
+                        Change.ofTextUpsert("/endpoints.txt",
                                             HOST_AND_PORT_LIST.stream().collect(Collectors.joining("\n"))))
                   .join();
         }
     };
 
     @Test
-    public void json() {
+    public void json() throws Exception {
         Watcher<JsonNode> watcher = dogma.client().fileWatcher("directory", "my-service",
                                                                Query.ofJson("/endpoint.json"));
         CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                 watcher, EndpointListDecoder.JSON);
+        endpointGroup.awaitInitialEndpoints();
         assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
 
         watcher.close();
@@ -94,17 +95,18 @@ public class CentralDogmaEndpointGroupTest {
     @Test(timeout = 10000)
     public void text() throws Exception {
         Watcher<String> watcher = dogma.client().fileWatcher("directory", "my-service",
-                                                             Query.ofText("/endpoint.txt"));
+                                                             Query.ofText("/endpoints.txt"));
         CountDownLatch latch = new CountDownLatch(2);
         watcher.watch(unused -> latch.countDown());
         CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                 watcher, EndpointListDecoder.TEXT);
+        endpointGroup.awaitInitialEndpoints();
         assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
         assertThat(latch.getCount()).isOne();
 
         dogma.client().push("directory", "my-service",
                             Revision.HEAD, "commit",
-                            Change.ofTextUpsert("/endpoint.txt",
+                            Change.ofTextUpsert("/endpoints.txt",
                                                 "foo.bar:1234"))
              .join();
 

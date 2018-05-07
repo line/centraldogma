@@ -25,8 +25,6 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
@@ -35,11 +33,11 @@ import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Query;
 
 /**
- * A CentralDogma based {@link EndpointGroup} implementation. This {@link EndpointGroup} retrieves the list of
- * {@link Endpoint}s from a route file served by CentralDogma, and update the list when upstream data changes.
- * Route file could be JSON file or normal text file.
  *
- * <p>For example, the following JSON file will be served as a route file:
+ * A {@link DynamicEndpointGroup} implementation that retrieves the {@link Endpoint} list from an entry in
+ * Central Dogma. The entry can be a JSON file or a plain text file.
+ *
+ * <p>For example, the following JSON array will be served as a list of {@link Endpoint}s:
  * <pre>{@code
  *  [
  *      "host1:port1",
@@ -48,17 +46,18 @@ import com.linecorp.centraldogma.common.Query;
  *  ]
  * }</pre>
  *
- * <p>The route file could be retrieved as an {@link EndpointGroup} using the following code:
+ * <p>The JSON array file could be retrieved as an {@link EndpointGroup} using the following code:
  * <pre>{@code
- *  CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.of(
+ * CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.of(
  *      centralDogma, "myProject", "myRepo",
- *      Query.ofJsonPath("/route.json"),
+ *      Query.ofJson("/endpoints.json"),
  *      EndpointListDecoder.JSON
- *  )
- *  endpointGroup.endpoints();
+ * )
+ * endpointGroup.awaitInitialEndpoints();
+ * endpointGroup.endpoints();
  * }</pre>
  *
- * @param <T> Type of CentralDomgma file (could be {@link JsonNode} or {@link String})
+ * @param <T> the type of the file in Central Dogma
  */
 public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaEndpointGroup.class);
@@ -70,8 +69,8 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     /**
      * Creates a new {@link CentralDogmaEndpointGroup}.
      *
-     * @param watcher A {@link Watcher}
-     * @param endpointCodec A {@link EndpointListDecoder}
+     * @param watcher a {@link Watcher}
+     * @param endpointCodec an {@link EndpointListDecoder}
      */
     public static <T> CentralDogmaEndpointGroup<T> ofWatcher(Watcher<T> watcher,
                                                              EndpointListDecoder<T> endpointCodec) {
@@ -81,11 +80,11 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     /**
      * Creates a new {@link CentralDogmaEndpointGroup}.
      *
-     * @param centralDogma A {@link CentralDogma}
-     * @param projectName CentralDogma project name
-     * @param repositoryName CentralDogma repository name
-     * @param query A {@link Query} to route file
-     * @param endpointCodec An {@link EndpointListDecoder}
+     * @param centralDogma a {@link CentralDogma}
+     * @param projectName a Central Dogma project name
+     * @param repositoryName a Central Dogma repository name
+     * @param query a {@link Query} to route file
+     * @param endpointCodec an {@link EndpointListDecoder}
      */
     public static <T> CentralDogmaEndpointGroup<T> of(CentralDogma centralDogma,
                                                       String projectName, String repositoryName,

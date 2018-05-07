@@ -22,16 +22,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.armeria.client.Endpoint;
 
 /**
- * Decode and encode between CentralDogma upstream file content and list of {@link Endpoint}s.
+ * Decodes the content of a file in Central Dogma into a list of {@link Endpoint}s.
  *
- * @param <T> Type of CentralDogma file (could be {@link JsonNode} or {@link String})
+ * @param <T> the type of the file in Central Dogma
  */
 @FunctionalInterface
 public interface EndpointListDecoder<T> {
 
     /**
-     * Default {@link EndpointListDecoder} implementation for JsonNode object.
-     * Retrive object must be a json array (which has format as "[ \"segment1\", \"segment2\" ]"
+     * Default {@link EndpointListDecoder} implementation for {@link JsonNode}.
+     * Retrieved object must be a JSON array (which has format as {@code "[\"segment1\", \"segment2\"]"})
      * Each segment represents an endpoint whose format is
      * {@code <host>[:<port_number>[:weight]]}, such as:
      * <ul>
@@ -45,8 +45,8 @@ public interface EndpointListDecoder<T> {
     EndpointListDecoder<JsonNode> JSON = new JsonEndpointListDecoder();
 
     /**
-     * Default {@link EndpointListDecoder} implementation for String object.
-     * Retrive object must be a string which is a list of segments separated by newline.
+     * Default {@link EndpointListDecoder} implementation for {@link String}.
+     * Retrieved object must be a string which is a list of segments separated by by a newline character.
      * Each segment represents an endpoint whose format is
      * {@code <host>[:<port_number>[:weight]]}, such as:
      * <ul>
@@ -62,8 +62,7 @@ public interface EndpointListDecoder<T> {
     /**
      * Decodes an object into a set of {@link Endpoint}s.
      *
-     * @param object An object retrieve from CentralDogma (could be JsonNode or String)
-     *
+     * @param object an object retrieve from Central Dogma.
      * @return the list of {@link Endpoint}s
      */
     List<Endpoint> decode(T object);
