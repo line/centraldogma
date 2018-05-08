@@ -50,8 +50,7 @@ import com.linecorp.centraldogma.common.Query;
  * CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.of(
  *      centralDogma, "myProject", "myRepo",
  *      Query.ofJson("/endpoints.json"),
- *      EndpointListDecoder.JSON
- * )
+ *      EndpointListDecoder.JSON);
  * endpointGroup.awaitInitialEndpoints();
  * endpointGroup.endpoints();
  * }</pre>
@@ -63,17 +62,17 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     private static final long WATCH_INITIALIZATION_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10);
 
     private final Watcher<T> instanceListWatcher;
-    private final EndpointListDecoder<T> endpointCodec;
+    private final EndpointListDecoder<T> endpointListDecoder;
 
     /**
      * Creates a new {@link CentralDogmaEndpointGroup}.
      *
      * @param watcher a {@link Watcher}
-     * @param endpointCodec an {@link EndpointListDecoder}
+     * @param endpointListDecoder an {@link EndpointListDecoder}
      */
     public static <T> CentralDogmaEndpointGroup<T> ofWatcher(Watcher<T> watcher,
-                                                             EndpointListDecoder<T> endpointCodec) {
-        return new CentralDogmaEndpointGroup<>(watcher, endpointCodec);
+                                                             EndpointListDecoder<T> endpointListDecoder) {
+        return new CentralDogmaEndpointGroup<>(watcher, endpointListDecoder);
     }
 
     /**
@@ -83,25 +82,26 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
      * @param projectName a Central Dogma project name
      * @param repositoryName a Central Dogma repository name
      * @param query a {@link Query} to route file
-     * @param endpointCodec an {@link EndpointListDecoder}
+     * @param endpointListDecoder an {@link EndpointListDecoder}
      */
     public static <T> CentralDogmaEndpointGroup<T> of(CentralDogma centralDogma,
                                                       String projectName, String repositoryName,
                                                       Query<T> query,
-                                                      EndpointListDecoder<T> endpointCodec) {
-        return ofWatcher(centralDogma.fileWatcher(projectName, repositoryName, query), endpointCodec);
+                                                      EndpointListDecoder<T> endpointListDecoder) {
+        return ofWatcher(centralDogma.fileWatcher(projectName, repositoryName, query), endpointListDecoder);
     }
 
-    private CentralDogmaEndpointGroup(Watcher<T> instanceListWatcher, EndpointListDecoder<T> endpointCodec) {
+    private CentralDogmaEndpointGroup(Watcher<T> instanceListWatcher,
+                                      EndpointListDecoder<T> endpointListDecoder) {
         this.instanceListWatcher = requireNonNull(instanceListWatcher, "instanceListWatcher");
-        this.endpointCodec = requireNonNull(endpointCodec, "endpointCodec");
+        this.endpointListDecoder = requireNonNull(endpointListDecoder, "endpointListDecoder");
         registerWatcher();
     }
 
     private void registerWatcher() {
         instanceListWatcher.watch((revision, instances) -> {
             try {
-                List<Endpoint> newEndpoints = endpointCodec.decode(instances);
+                List<Endpoint> newEndpoints = endpointListDecoder.decode(instances);
                 if (newEndpoints.isEmpty()) {
                     logger.info("Not refreshing the endpoint list of {} because it's empty. {}",
                                 instanceListWatcher, revision);

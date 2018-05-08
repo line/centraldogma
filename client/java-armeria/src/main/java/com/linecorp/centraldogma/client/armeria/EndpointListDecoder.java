@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2018 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -46,7 +46,7 @@ public interface EndpointListDecoder<T> {
 
     /**
      * Default {@link EndpointListDecoder} implementation for {@link String}.
-     * Retrieved object must be a string which is a list of segments separated by by a newline character.
+     * Retrieved object must be a string which is a list of segments separated by a newline character.
      * Each segment represents an endpoint whose format is
      * {@code <host>[:<port_number>[:weight]]}, such as:
      * <ul>
@@ -62,7 +62,7 @@ public interface EndpointListDecoder<T> {
     /**
      * Decodes an object into a set of {@link Endpoint}s.
      *
-     * @param object an object retrieve from Central Dogma.
+     * @param object an object retrieved from Central Dogma.
      * @return the list of {@link Endpoint}s
      */
     List<Endpoint> decode(T object);
