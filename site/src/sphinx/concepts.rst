@@ -10,7 +10,7 @@ Concepts
     object Meta_repo
     object User_repos
 
-    Central_Dogma *-- "*" Project
+    Central_Dogma *-right- "*" Project
     Project *-- "1" Meta_repo
     Project *-- "*" User_repos
     @enduml
