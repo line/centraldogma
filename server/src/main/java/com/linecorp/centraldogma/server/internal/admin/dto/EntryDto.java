@@ -16,33 +16,42 @@
 
 package com.linecorp.centraldogma.server.internal.admin.dto;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.MoreObjects;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EntryDto {
 
+    @Nullable
     private String revision;
+    @Nullable
     private String path;
+    @Nullable
     private String type;
+    @Nullable
     private String content;
 
+    @Nullable
     public String getRevision() {
         return revision;
     }
 
-    public void setRevision(String revision) {
+    public void setRevision(@Nullable String revision) {
         this.revision = revision;
     }
 
+    @Nullable
     public String getPath() {
         return path;
     }
 
-    public void setPath(String path) {
+    public void setPath(@Nullable String path) {
         this.path = path;
     }
 
+    @Nullable
     public String getName() {
         if (path == null) {
             return null;
@@ -51,19 +60,21 @@ public class EntryDto {
         }
     }
 
+    @Nullable
     public String getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(@Nullable String type) {
         this.type = type;
     }
 
+    @Nullable
     public String getContent() {
         return content;
     }
 
-    public void setContent(String content) {
+    public void setContent(@Nullable String content) {
         this.content = content;
     }
 

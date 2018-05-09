@@ -62,7 +62,7 @@ public final class Latest<U> {
         if (!(o instanceof Latest<?>)) {
             return false;
         }
-        Latest<?> that = (Latest<?>) o;
+        final Latest<?> that = (Latest<?>) o;
         return Objects.equals(revision, that.revision) && Objects.equals(value, that.value);
     }
 

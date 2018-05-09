@@ -44,6 +44,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     private ImmutableSet<InetSocketAddress> hosts = ImmutableSet.of();
     private boolean useTls;
+    @Nullable
     private String selectedProfile;
 
     /**

@@ -22,12 +22,15 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 final class IdentityQuery<T> implements Query<T> {
 
     private final String path;
+    @Nullable
     private String strVal;
 
     @JsonCreator

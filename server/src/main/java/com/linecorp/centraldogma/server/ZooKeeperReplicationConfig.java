@@ -22,6 +22,8 @@ import static com.linecorp.centraldogma.server.internal.replication.ZooKeeperCom
 import static com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor.DEFAULT_TIMEOUT_MILLIS;
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
@@ -72,10 +74,10 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     @JsonCreator
     ZooKeeperReplicationConfig(@JsonProperty("connectionString") String connectionString,
                                @JsonProperty("pathPrefix") String pathPrefix,
-                               @JsonProperty("timeoutMillis") Integer timeoutMillis,
-                               @JsonProperty("numWorkers") Integer numWorkers,
-                               @JsonProperty("maxLogCount") Integer maxLogCount,
-                               @JsonProperty("minLogAgeMillis") Long minLogAgeMillis) {
+                               @JsonProperty("timeoutMillis") @Nullable Integer timeoutMillis,
+                               @JsonProperty("numWorkers") @Nullable Integer numWorkers,
+                               @JsonProperty("maxLogCount") @Nullable Integer maxLogCount,
+                               @JsonProperty("minLogAgeMillis") @Nullable Long minLogAgeMillis) {
 
         this.connectionString = requireNonNull(connectionString, "connectionString");
         this.pathPrefix = requireNonNull(pathPrefix, "pathPrefix");

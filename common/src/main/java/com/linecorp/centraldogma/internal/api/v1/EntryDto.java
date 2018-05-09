@@ -42,7 +42,7 @@ public class EntryDto<T> {
 
     private final T content;
 
-    private String url;
+    private final String url;
 
     public EntryDto(String path, EntryType type, String projectName, String repoName, @Nullable T content) {
         this.path = requireNonNull(path, "path");

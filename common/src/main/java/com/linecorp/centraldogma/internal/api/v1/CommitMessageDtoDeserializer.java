@@ -30,6 +30,8 @@ import com.linecorp.centraldogma.common.Markup;
  */
 public class CommitMessageDtoDeserializer extends StdDeserializer<CommitMessageDto> {
 
+    private static final long serialVersionUID = 6588840723287439409L;
+
     protected CommitMessageDtoDeserializer() {
         super(CommitMessageDto.class);
     }

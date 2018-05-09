@@ -63,7 +63,7 @@ public abstract class JsonPatchOperationSerializationTest {
             final String prefix, final Class<? extends JsonPatchOperation> opType) throws IOException {
         mapper = new ObjectMapper();
         final String resource = "/jsonpatch/" + prefix + ".json";
-        URL url = getClass().getResource(resource);
+        final URL url = getClass().getResource(resource);
         node = mapper.readTree(url);
         this.opType = opType;
     }

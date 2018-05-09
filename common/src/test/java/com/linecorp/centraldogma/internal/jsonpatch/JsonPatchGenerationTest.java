@@ -58,8 +58,8 @@ public final class JsonPatchGenerationTest {
 
     public JsonPatchGenerationTest() throws IOException {
         final String resource = "/jsonpatch/diff/diff.json";
-        URL url = getClass().getResource(resource);
-        ObjectMapper objectMapper = new ObjectMapper();
+        final URL url = getClass().getResource(resource);
+        final ObjectMapper objectMapper = new ObjectMapper();
         testData = objectMapper.readTree(url);
     }
 

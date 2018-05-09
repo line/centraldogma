@@ -80,6 +80,6 @@ public enum ChangeType {
         requireNonNull(value, "value");
         checkArgument(!value.isEmpty(), "the value for ChangeType should not be empty.");
 
-        return ChangeType.valueOf(Ascii.toUpperCase(value));
+        return valueOf(Ascii.toUpperCase(value));
     }
 }

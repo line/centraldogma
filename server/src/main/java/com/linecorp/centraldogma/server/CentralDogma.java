@@ -145,11 +145,15 @@ public class CentralDogma {
 
     @Nullable
     private final Ini securityConfig;
-
+    @Nullable
     private volatile ProjectManager pm;
+    @Nullable
     private volatile Server server;
+    @Nullable
     private ExecutorService repositoryWorker;
+    @Nullable
     private CommandExecutor executor;
+    @Nullable
     private DefaultMirroringService mirroringService;
 
     CentralDogma(CentralDogmaConfig cfg, @Nullable Ini securityConfig) {
@@ -246,6 +250,7 @@ public class CentralDogma {
                                                            cfg.maxNumBytesPerMirror());
 
             if (cfg.isSecurityEnabled()) {
+                assert securityConfig != null;
                 securityManager = new CentralDogmaSecurityManager(cfg.dataDir(), securityConfig,
                                                                   cfg.webAppSessionTimeoutMillis(),
                                                                   cfg.sessionCacheSpec());
@@ -655,8 +660,9 @@ public class CentralDogma {
     }
 
     private static boolean stop(
-            Server server, CommandExecutor executor, DefaultMirroringService mirroringService,
-            ProjectManager pm, ExecutorService repositoryWorker) {
+            @Nullable Server server, @Nullable CommandExecutor executor,
+            @Nullable DefaultMirroringService mirroringService,
+            @Nullable ProjectManager pm, @Nullable ExecutorService repositoryWorker) {
 
         boolean success = true;
         try {

@@ -38,7 +38,7 @@ public final class CommitConverter extends Converter<com.linecorp.centraldogma.c
 
     @Override
     protected Commit doForward(com.linecorp.centraldogma.common.Commit commit) {
-        Comment comment = new Comment();
+        final Comment comment = new Comment();
         comment.setContent(commit.detail());
         comment.setMarkup(MarkupConverter.TO_DATA.convert(commit.markup()));
         return new Commit(RevisionConverter.TO_DATA.convert(commit.revision()),
@@ -49,7 +49,7 @@ public final class CommitConverter extends Converter<com.linecorp.centraldogma.c
 
     @Override
     protected com.linecorp.centraldogma.common.Commit doBackward(Commit commit) {
-        Markup markup = Markup.valueOf(commit.getDetail().getMarkup().name());
+        final Markup markup = Markup.valueOf(commit.getDetail().getMarkup().name());
         return new com.linecorp.centraldogma.common.Commit(
                 RevisionConverter.TO_MODEL.convert(commit.getRevision()),
                 AuthorConverter.TO_MODEL.convert(commit.getAuthor()),

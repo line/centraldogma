@@ -122,7 +122,7 @@ public interface Change<T> {
      * @param oldText the old content of the file
      * @param newText the new content of the file
      */
-    static Change<String> ofTextPatch(String path, String oldText, String newText) {
+    static Change<String> ofTextPatch(String path, @Nullable String oldText, String newText) {
         validateFilePath(path, "path");
         requireNonNull(newText, "newText");
 
@@ -159,11 +159,11 @@ public interface Change<T> {
      * @throws ChangeFormatException if the specified {@code oldJsonText} or {@code newJsonText} is
      *                               not a valid JSON
      */
-    static Change<JsonNode> ofJsonPatch(String path, String oldJsonText, String newJsonText) {
+    static Change<JsonNode> ofJsonPatch(String path, @Nullable String oldJsonText, String newJsonText) {
         requireNonNull(newJsonText, "newJsonText");
 
-        JsonNode oldJsonNode;
-        JsonNode newJsonNode;
+        final JsonNode oldJsonNode;
+        final JsonNode newJsonNode;
         try {
             oldJsonNode = oldJsonText == null ? Jackson.nullNode
                                               : Jackson.readTree(oldJsonText);
@@ -183,7 +183,7 @@ public interface Change<T> {
      * @param oldJsonNode the old content of the file
      * @param newJsonNode the new content of the file
      */
-    static Change<JsonNode> ofJsonPatch(String path, JsonNode oldJsonNode, JsonNode newJsonNode) {
+    static Change<JsonNode> ofJsonPatch(String path, @Nullable JsonNode oldJsonNode, JsonNode newJsonNode) {
         requireNonNull(newJsonNode, "newJsonNode");
 
         if (oldJsonNode == null) {

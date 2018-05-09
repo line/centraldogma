@@ -16,4 +16,7 @@
 /**
  * Central Dogma server.
  */
+@NonNullByDefault
 package com.linecorp.centraldogma.server;
+
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

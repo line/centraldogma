@@ -21,6 +21,8 @@ import static org.mockito.Mockito.mock;
 
 import java.net.URI;
 
+import javax.annotation.Nullable;
+
 import org.junit.Test;
 
 import com.cronutils.model.Cron;
@@ -116,8 +118,8 @@ public class MirrorTest {
     private static <T extends Mirror> T assertMirror(String remoteUri, Class<T> mirrorType,
                                                      String expectedRemoteRepoUri,
                                                      String expectedRemotePath,
-                                                     String expectedRemoteBranch) {
-        T m = newMirror(remoteUri, mirrorType);
+                                                     @Nullable String expectedRemoteBranch) {
+        final T m = newMirror(remoteUri, mirrorType);
         assertThat(m.remoteRepoUri().toString()).isEqualTo(expectedRemoteRepoUri);
         assertThat(m.remotePath()).isEqualTo(expectedRemotePath);
         assertThat(m.remoteBranch()).isEqualTo(expectedRemoteBranch);

@@ -72,7 +72,7 @@ public final class CommitAndChanges<T> {
         if (!(o instanceof CommitAndChanges<?>)) {
             return false;
         }
-        CommitAndChanges<?> that = (CommitAndChanges<?>) o;
+        final CommitAndChanges<?> that = (CommitAndChanges<?>) o;
         return commit.equals(that.commit) && changes.equals(that.changes);
     }
 

@@ -22,6 +22,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,7 +37,7 @@ final class DefaultChange<T> implements Change<T> {
     @JsonCreator
     static DefaultChange<?> deserialize(@JsonProperty("type") ChangeType type,
                                         @JsonProperty("path") String path,
-                                        @JsonProperty("content") JsonNode content) {
+                                        @JsonProperty("content") @Nullable JsonNode content) {
         requireNonNull(type, "type");
         final Class<?> contentType = type.contentType();
         if (contentType == Void.class) {
@@ -48,17 +50,19 @@ final class DefaultChange<T> implements Change<T> {
             }
         }
 
-        final Change<?> result;
+        if (type == ChangeType.REMOVE) {
+            return (DefaultChange<?>) Change.ofRemoval(path);
+        }
 
+        requireNonNull(content, "content");
+
+        final Change<?> result;
         switch (type) {
             case UPSERT_JSON:
                 result = Change.ofJsonUpsert(path, content);
                 break;
             case UPSERT_TEXT:
                 result = Change.ofTextUpsert(path, content.asText());
-                break;
-            case REMOVE:
-                result = Change.ofRemoval(path);
                 break;
             case RENAME:
                 result = Change.ofRename(path, content.asText());
@@ -78,16 +82,18 @@ final class DefaultChange<T> implements Change<T> {
         return (DefaultChange<?>) result;
     }
 
-    private static DefaultChange<?> rejectIncompatibleContent(JsonNode content, Class<?> contentType) {
+    private static DefaultChange<?> rejectIncompatibleContent(@Nullable JsonNode content,
+                                                              Class<?> contentType) {
         throw new IllegalArgumentException("incompatible content: " + content +
                                            " (expected: " + contentType.getName() + ')');
     }
 
     private final String path;
     private final ChangeType type;
+    @Nullable
     private final T content;
 
-    DefaultChange(String path, ChangeType type, T content) {
+    DefaultChange(String path, ChangeType type, @Nullable T content) {
         this.type = requireNonNull(type, "type");
 
         if (type.contentType() == JsonNode.class) {
@@ -116,6 +122,7 @@ final class DefaultChange<T> implements Change<T> {
     }
 
     @Override
+    @Nullable
     public String contentAsText() {
         if (content == null) {
             return null;

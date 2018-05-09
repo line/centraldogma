@@ -47,7 +47,7 @@ public class ReplicationLogTest {
                              "  \"result\": null" +
                              '}');
 
-        Command<Revision> pushCommand = Command.push(
+        final Command<Revision> pushCommand = Command.push(
                 1234L, new Author("Sedol Lee", "sedol@lee.com"), "foo", "bar", Revision.HEAD,
                 "4:1", "L-L-L-W-L", Markup.PLAINTEXT, Change.ofTextUpsert("/result.txt", "too soon to tell"));
 

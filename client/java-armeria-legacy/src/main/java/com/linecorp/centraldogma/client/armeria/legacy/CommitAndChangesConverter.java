@@ -40,7 +40,7 @@ final class CommitAndChangesConverter extends Converter<CommitAndChanges<?>, Com
 
     @Override
     protected Commit doForward(CommitAndChanges<?> commitAndChanges) {
-        Commit converted = CommitConverter.TO_DATA.convert(commitAndChanges.commit());
+        final Commit converted = CommitConverter.TO_DATA.convert(commitAndChanges.commit());
         return converted.setDiffs(commitAndChanges.changes().stream()
                                                   .map(ChangeConverter.TO_DATA::convert)
                                                   .collect(toImmutableList()));

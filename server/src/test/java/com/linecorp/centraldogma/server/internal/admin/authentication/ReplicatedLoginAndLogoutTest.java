@@ -27,6 +27,8 @@ import static com.linecorp.centraldogma.server.internal.admin.authentication.Log
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import javax.annotation.Nullable;
+
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryUntilElapsed;
@@ -53,7 +55,9 @@ public class ReplicatedLoginAndLogoutTest {
     @ClassRule
     public static final TemporaryFolder zkDataDir = new TemporaryFolder();
 
+    @Nullable
     private static TestingServer zkServer;
+    @Nullable
     private static CuratorFramework curator;
 
     @BeforeClass
@@ -136,6 +140,7 @@ public class ReplicatedLoginAndLogoutTest {
     }
 
     private static int replicationLogCount() throws Exception {
+        assert curator != null;
         return curator.getChildren().forPath("/dogma/logs").size();
     }
 
@@ -144,6 +149,7 @@ public class ReplicatedLoginAndLogoutTest {
         protected void configure(CentralDogmaBuilder builder) {
             builder.securityConfig(newSecurityConfig());
             builder.webAppEnabled(true);
+            assert zkServer != null;
             builder.replication(new ZooKeeperReplicationConfig(zkServer.getConnectString(), "/dogma"));
         }
     }

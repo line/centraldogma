@@ -90,7 +90,7 @@ public class CentralDogmaRuleWithScaffolding extends CentralDogmaRule {
 
         final List<Change<?>> changes = Change.fromDirectory(f.toPath(), targetDir);
 
-        client().push(testProject, testRepository1, Revision.HEAD, TestConstants.AUTHOR,
+        client().push(testProject, testRepository1, Revision.HEAD,
                       "Import " + resourceDir + " into " + targetDir, changes).join();
     }
 

@@ -17,6 +17,8 @@ package com.linecorp.centraldogma.client.updater;
 
 import java.lang.reflect.Method;
 
+import javax.annotation.Nullable;
+
 final class CloseMethodDelegate implements MethodDelegate {
     @Override
     public boolean match(Method thisMethod) {
@@ -24,6 +26,7 @@ final class CloseMethodDelegate implements MethodDelegate {
                thisMethod.getParameterCount() == 0;
     }
 
+    @Nullable
     @Override
     public <T> Object invoke(CentralDogmaBeanMethodHandler<T> handler, Object self, Method thisMethod,
                              Method proceed, Object[] args) throws Throwable {

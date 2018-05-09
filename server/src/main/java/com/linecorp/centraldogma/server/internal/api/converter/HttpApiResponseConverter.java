@@ -45,7 +45,7 @@ public final class HttpApiResponseConverter implements ResponseConverterFunction
         try {
             final HttpRequest request = RequestContext.current().request();
             if (HttpMethod.DELETE == request.method() ||
-                (resObj instanceof Iterable && Iterables.size((Iterable) resObj) == 0)) {
+                (resObj instanceof Iterable && Iterables.size((Iterable<?>) resObj) == 0)) {
                 return HttpResponse.of(HttpStatus.NO_CONTENT);
             }
 

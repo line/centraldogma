@@ -17,10 +17,13 @@ package com.linecorp.centraldogma.client.updater;
 
 import java.lang.reflect.Method;
 
+import javax.annotation.Nullable;
+
 interface MethodDelegate {
 
     boolean match(Method thisMethod);
 
+    @Nullable
     <T> Object invoke(CentralDogmaBeanMethodHandler<T> handler, Object self, Method thisMethod,
                       Method proceed, Object[] args) throws Throwable;
 }

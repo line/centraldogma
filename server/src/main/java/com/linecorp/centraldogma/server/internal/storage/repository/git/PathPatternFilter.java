@@ -38,7 +38,7 @@ final class PathPatternFilter extends TreeFilter {
     private static final ThreadLocal<LruMap<String, Pattern>> regexCache = LruMap.newThreadLocal(1024);
 
     static PathPatternFilter of(String pathPattern) {
-        LruMap<String, PathPatternFilter> map = filterCache.get();
+        final LruMap<String, PathPatternFilter> map = filterCache.get();
         PathPatternFilter f = map.get(pathPattern);
         if (f == null) {
             f = new PathPatternFilter(pathPattern);
@@ -87,7 +87,7 @@ final class PathPatternFilter extends TreeFilter {
     }
 
     private static String normalize(String p) {
-        String normalized;
+        final String normalized;
         if (p.charAt(0) != '/') {
             normalized = "/**/" + p;
         } else {

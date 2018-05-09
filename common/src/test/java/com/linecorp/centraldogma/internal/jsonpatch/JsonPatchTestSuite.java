@@ -34,7 +34,7 @@
 
 package com.linecorp.centraldogma.internal.jsonpatch;
 
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
@@ -54,8 +54,8 @@ public final class JsonPatchTestSuite {
     private final JsonNode testNode;
 
     public JsonPatchTestSuite() throws IOException {
-        URL url = this.getClass().getResource("/jsonpatch/testsuite.json");
-        ObjectMapper objectMapper = new ObjectMapper();
+        final URL url = getClass().getResource("/jsonpatch/testsuite.json");
+        final ObjectMapper objectMapper = new ObjectMapper();
         testNode = objectMapper.readTree(url);
     }
 
@@ -89,9 +89,8 @@ public final class JsonPatchTestSuite {
             if (!valid) {
                 fail("Test was expected to fail!");
             }
-            // Have to do that... TestNG tries to be too smart with regards
-            // to iterable collections...
-            assertTrue(actual.equals(expected));
+            // Cast to Object so that we do not call assertEquals(Iterable, Iterable).
+            assertEquals((Object) actual, expected);
         } catch (JsonPatchException ignored) {
             if (valid) {
                 fail("Test was expected to succeed!");

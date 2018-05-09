@@ -17,6 +17,8 @@ package com.linecorp.centraldogma.client.updater;
 
 import java.lang.reflect.Method;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Revision;
 
 final class RevisionMethodDelegate implements MethodDelegate {
@@ -27,6 +29,7 @@ final class RevisionMethodDelegate implements MethodDelegate {
     }
 
     @Override
+    @Nullable
     public <T> Object invoke(CentralDogmaBeanMethodHandler<T> handler, Object self, Method thisMethod,
                              Method proceed, Object[] args) throws Throwable {
         if (handler.watcher.initialValueFuture().isDone()) {

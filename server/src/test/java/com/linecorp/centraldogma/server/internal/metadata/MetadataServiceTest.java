@@ -91,7 +91,7 @@ public class MetadataServiceTest {
     public void repository() throws Exception {
         final MetadataService mds = newMetadataService(rule);
 
-        ProjectMetadata metadata;
+        final ProjectMetadata metadata;
         RepositoryMetadata repositoryMetadata;
         metadata = mds.getProject(project1).join();
         assertThat(metadata).isNotNull();
@@ -127,7 +127,7 @@ public class MetadataServiceTest {
     public void perRolePermissions() throws Exception {
         final MetadataService mds = newMetadataService(rule);
 
-        ProjectMetadata metadata;
+        final ProjectMetadata metadata;
         RepositoryMetadata repositoryMetadata;
         metadata = mds.getProject(project1).join();
         assertThat(metadata).isNotNull();
@@ -343,11 +343,11 @@ public class MetadataServiceTest {
         return metadata.repo(repo1);
     }
 
-    private MetadataService newMetadataService(ProjectManagerRule rule) {
+    private static MetadataService newMetadataService(ProjectManagerRule rule) {
         return new MetadataService(rule.projectManager(), rule.executor());
     }
 
-    private ProjectMetadata getProject(MetadataService mds, String projectName) {
+    private static ProjectMetadata getProject(MetadataService mds, String projectName) {
         return mds.getProject(projectName).join();
     }
 }

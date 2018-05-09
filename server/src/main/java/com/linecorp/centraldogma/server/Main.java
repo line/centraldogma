@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server;
 import java.io.File;
 import java.io.IOException;
 
+import javax.annotation.Nullable;
+
 import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
 import org.apache.commons.daemon.DaemonController;
@@ -57,9 +59,11 @@ public final class Main implements Daemon {
                      File.separatorChar + "conf" +
                      File.separatorChar + "shiro.ini");
 
+    @Nullable
     @Parameter(names = "-config", description = "The path to the config file", converter = FileConverter.class)
     private File configFile;
 
+    @Nullable
     @Parameter(names = "-securityConfig", description = "The path to the security config file",
             converter = FileConverter.class)
     private File securityConfigFile;
@@ -68,10 +72,12 @@ public final class Main implements Daemon {
      * Note that {@link Boolean} was used in lieu of {@code boolean} so that JCommander does not print the
      * default value of this option.
      */
+    @Nullable
     @Parameter(names = { "-help", "-h" }, description = "Prints the usage", help = true)
     private Boolean help;
 
     private State state = State.NONE;
+    @Nullable
     private CentralDogma dogma;
 
     @Override
@@ -127,7 +133,8 @@ public final class Main implements Daemon {
         state = State.STARTED;
     }
 
-    private static File findConfigFile(File file, File defaultFile) {
+    @Nullable
+    private static File findConfigFile(@Nullable File file, File defaultFile) {
         if (file != null && file.isFile() && file.canRead()) {
             return file;
         }
@@ -150,7 +157,7 @@ public final class Main implements Daemon {
         }
 
         final CentralDogma dogma = this.dogma;
-
+        assert dogma != null;
         this.dogma = null;
         dogma.stop();
 
@@ -217,6 +224,7 @@ public final class Main implements Daemon {
             this.args = args;
         }
 
+        @Nullable
         @Override
         public DaemonController getController() {
             return null;

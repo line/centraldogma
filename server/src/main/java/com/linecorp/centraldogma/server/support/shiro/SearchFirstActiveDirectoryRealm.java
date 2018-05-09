@@ -62,12 +62,14 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
     private static final String DEFAULT_SEARCH_FILTER = "cn={0}";
     private static final int DEFAULT_SEARCH_TIMEOUT_MILLIS = (int) Duration.ofSeconds(10).toMillis();
 
+    @Nullable
     private String searchFilter = DEFAULT_SEARCH_FILTER;
     private int searchTimeoutMillis = DEFAULT_SEARCH_TIMEOUT_MILLIS;
 
     /**
      * Returns a search filter string.
      */
+    @Nullable
     protected String getSearchFilter() {
         return searchFilter;
     }
@@ -99,6 +101,7 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
      * Builds an {@link AuthenticationInfo} object by querying the active directory LDAP context for the
      * specified username.
      */
+    @Nullable
     @Override
     protected AuthenticationInfo queryForAuthenticationInfo(
             AuthenticationToken token, LdapContextFactory ldapContextFactory) throws NamingException {
@@ -110,6 +113,7 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
         }
     }
 
+    @Nullable
     private AuthenticationInfo queryForAuthenticationInfo0(
             AuthenticationToken token, LdapContextFactory ldapContextFactory) throws NamingException {
 

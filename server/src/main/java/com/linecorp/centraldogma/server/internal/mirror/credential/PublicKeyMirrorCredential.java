@@ -23,6 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -35,6 +37,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
     private final String username;
     private final byte[] publicKey;
     private final byte[] privateKey;
+    @Nullable
     private final byte[] passphrase;
 
     @JsonCreator
@@ -44,7 +47,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
                                      @JsonProperty("username") String username,
                                      @JsonProperty("publicKey") String publicKey,
                                      @JsonProperty("privateKey") String privateKey,
-                                     @JsonProperty("passphrase") String passphrase) {
+                                     @JsonProperty("passphrase") @Nullable String passphrase) {
 
         super(hostnamePatterns);
 
@@ -59,7 +62,8 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
     }
 
     public PublicKeyMirrorCredential(Iterable<Pattern> hostnamePatterns,
-                                     String username, byte[] publicKey, byte[] privateKey, byte[] passphrase) {
+                                     String username, byte[] publicKey, byte[] privateKey,
+                                     @Nullable byte[] passphrase) {
         super(hostnamePatterns);
 
         this.username = requireNonEmpty(username, "username");
@@ -80,6 +84,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
         return privateKey.clone();
     }
 
+    @Nullable
     public byte[] passphrase() {
         if (passphrase == null) {
             return null;

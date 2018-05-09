@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.internal.thrift;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Converter;
 
@@ -37,7 +39,7 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
 
     @Override
     protected Change doForward(com.linecorp.centraldogma.common.Change<?> value) {
-        Change change = new Change(value.path(), convertChangeType(value.type()));
+        final Change change = new Change(value.path(), convertChangeType(value.type()));
         switch (change.getType()) {
             case UPSERT_JSON:
             case APPLY_JSON_PATCH:
@@ -81,6 +83,7 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
         throw new Error();
     }
 
+    @Nullable
     private static ChangeType convertChangeType(com.linecorp.centraldogma.common.ChangeType type) {
         if (type == null) {
             return null;

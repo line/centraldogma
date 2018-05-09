@@ -17,4 +17,7 @@
  * Extra <a href="https://shiro.apache.org/">Apache Shiro</a> {@link org.apache.shiro.realm.Realm}s
  * which may be useful for configuring security.
  */
+@NonNullByDefault
 package com.linecorp.centraldogma.server.support.shiro;
+
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

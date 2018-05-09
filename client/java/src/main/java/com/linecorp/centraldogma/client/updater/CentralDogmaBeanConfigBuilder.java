@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.client.updater;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.Strings;
 
 /**
@@ -26,9 +28,13 @@ import com.google.common.base.Strings;
  */
 public final class CentralDogmaBeanConfigBuilder {
 
+    @Nullable
     private String project;
+    @Nullable
     private String repository;
+    @Nullable
     private String path;
+    @Nullable
     private String jsonPath;
 
     /**

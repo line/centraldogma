@@ -40,6 +40,8 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import javax.annotation.Nullable;
+
 import org.apache.shiro.cache.Cache;
 import org.apache.shiro.cache.CacheManager;
 import org.apache.shiro.cache.CacheManagerAware;
@@ -77,6 +79,7 @@ public class FileBasedSessionDAO implements SessionDAO, CacheManagerAware {
     private final Path rootDir;
     private final Path tmpDir;
 
+    @Nullable
     @VisibleForTesting
     Cache<String, SimpleSession> cache;
 
@@ -212,6 +215,7 @@ public class FileBasedSessionDAO implements SessionDAO, CacheManagerAware {
         }
     }
 
+    @Nullable
     private SimpleSession getFromCache(String sessionId) {
         final Cache<String, SimpleSession> cache = this.cache;
         return cache != null ? cache.get(sessionId) : null;

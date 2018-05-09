@@ -40,8 +40,8 @@ final class CommitUtil {
 
     static String toJsonString(String summary, String detail, Markup markup, Revision nextRevision) {
         try {
-            StringWriter stringWriter = new StringWriter();
-            JsonGenerator jsonGenerator = Jackson.createPrettyGenerator(stringWriter);
+            final StringWriter stringWriter = new StringWriter();
+            final JsonGenerator jsonGenerator = Jackson.createPrettyGenerator(stringWriter);
             jsonGenerator.writeStartObject();
             jsonGenerator.writeStringField(FIELD_NAME_SUMMARY, summary);
             jsonGenerator.writeStringField(FIELD_NAME_DETAIL, detail);
@@ -57,7 +57,7 @@ final class CommitUtil {
 
     static Revision extractRevision(String jsonString) {
         try {
-            JsonNode jsonNode = Jackson.readTree(jsonString);
+            final JsonNode jsonNode = Jackson.readTree(jsonString);
             return new Revision(Jackson.textValue(jsonNode.get(FIELD_NAME_REVISION), ""));
         } catch (Exception e) {
             throw new StorageException("failed to extract revision from " + jsonString, e);

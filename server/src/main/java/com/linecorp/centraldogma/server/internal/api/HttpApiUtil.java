@@ -149,7 +149,6 @@ public final class HttpApiUtil {
      * applied by the specified {@code function} if the specified {@link Throwable} is {@code null}.
      * Otherwise, it throws the {@code cause}.
      */
-    @SuppressWarnings("unchecked")
     static <T, U> BiFunction<? super T, Throwable, ? extends U> returnOrThrow(
             Function<? super T, ? extends U> function) {
         return (result, cause) -> {

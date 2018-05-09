@@ -18,4 +18,7 @@
  *
  * @see <a href="https://line.github.io/centraldogma/client-java.html" target="_blank">Java client library</a>
  */
+@NonNullByDefault
 package com.linecorp.centraldogma.client;
+
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

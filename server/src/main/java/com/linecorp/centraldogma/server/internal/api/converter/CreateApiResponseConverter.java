@@ -65,7 +65,7 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
         }
     }
 
-    private HttpResponse handleWithLocation(HolderWithLocation<?> holderWithLocation)
+    private static HttpResponse handleWithLocation(HolderWithLocation<?> holderWithLocation)
             throws JsonProcessingException {
         return HttpResponse.of(
                 HttpHeaders.of(HttpStatus.CREATED)

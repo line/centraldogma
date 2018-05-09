@@ -20,6 +20,8 @@ import static java.util.Objects.requireNonNull;
 import java.lang.reflect.Method;
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.client.Watcher;
@@ -45,6 +47,7 @@ final class CentralDogmaBeanMethodHandler<T> implements MethodHandler {
             new DefaultMethodDelegate());
 
     @Override
+    @Nullable
     public Object invoke(Object self, Method thisMethod, Method proceed, Object[] args) throws Throwable {
         // TODO(ide) Push the change if thisMethod is setter method
         thisMethod.setAccessible(true);

@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +34,8 @@ public final class RepositoryCache {
 
     private static final Logger logger = LoggerFactory.getLogger(RepositoryCache.class);
 
-    public static String validateCacheSpec(String cacheSpec) {
+    @Nullable
+    public static String validateCacheSpec(@Nullable String cacheSpec) {
         if (cacheSpec == null) {
             return null;
         }

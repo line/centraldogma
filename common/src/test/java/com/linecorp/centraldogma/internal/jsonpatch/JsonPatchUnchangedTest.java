@@ -61,7 +61,7 @@ public final class JsonPatchUnchangedTest {
 
     public JsonPatchUnchangedTest() throws IOException {
         final String resource = "/jsonpatch/diff/unchanged.json";
-        URL url = getClass().getResource(resource);
+        final URL url = getClass().getResource(resource);
         testData = MAPPER.readTree(url);
     }
 

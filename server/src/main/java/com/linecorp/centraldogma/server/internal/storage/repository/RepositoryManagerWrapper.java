@@ -82,7 +82,7 @@ public class RepositoryManagerWrapper implements RepositoryManager {
 
         final Map<String, Repository> ret = new LinkedHashMap<>(names.length);
         for (String name : names) {
-            Repository repo = repos.get(name);
+            final Repository repo = repos.get(name);
             if (repo != null) {
                 ret.put(name, repo);
             }
@@ -116,12 +116,12 @@ public class RepositoryManagerWrapper implements RepositoryManager {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder(128);
+        final StringBuilder sb = new StringBuilder(128);
         sb.append(Util.simpleTypeName(getClass()) + '{');
         sb.append("repositoryManager=");
         sb.append(delegate);
         sb.append(", repos={");
-        Iterator<Map.Entry<String, Repository>> iterator = repos.entrySet().iterator();
+        final Iterator<Map.Entry<String, Repository>> iterator = repos.entrySet().iterator();
         Map.Entry<String, Repository> entry;
         if (iterator.hasNext()) {
             for (;;) {

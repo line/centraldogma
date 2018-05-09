@@ -172,7 +172,7 @@ final class GitWithAuth extends Git {
 
     private <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
-            SshTransport sshTransport = (SshTransport) transport;
+            final SshTransport sshTransport = (SshTransport) transport;
             sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
                 @Override
                 protected void configure(Host host, Session session) {
@@ -193,7 +193,7 @@ final class GitWithAuth extends Git {
 
     private <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
-            SshTransport sshTransport = (SshTransport) transport;
+            final SshTransport sshTransport = (SshTransport) transport;
             sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
                 @Override
                 protected void configure(Host host, Session session) {
