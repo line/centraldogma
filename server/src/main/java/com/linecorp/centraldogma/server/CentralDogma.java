@@ -68,6 +68,7 @@ import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.HttpAuthService;
 import com.linecorp.armeria.server.docs.DocServiceBuilder;
+import com.linecorp.armeria.server.encoding.HttpEncodingService;
 import com.linecorp.armeria.server.file.AbstractHttpVfs;
 import com.linecorp.armeria.server.file.HttpFileService;
 import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
@@ -500,6 +501,9 @@ public class CentralDogma {
             thriftService = thriftService.decorate(TokenlessClientLogger::new);
         }
 
+        // Enable content compression for API responses.
+        thriftService = thriftService.decorate(contentEncodingDecorator());
+
         sb.service("/cd/thrift/v1", thriftService);
     }
 
@@ -515,7 +519,7 @@ public class CentralDogma {
 
         final Service<HttpRequest, HttpResponse> loginService;
         final Service<HttpRequest, HttpResponse> logoutService;
-        final Function<Service<HttpRequest, HttpResponse>,
+        Function<Service<HttpRequest, HttpResponse>,
                 ? extends Service<HttpRequest, HttpResponse>> decorator;
 
         if (cfg.isSecurityEnabled()) {
@@ -565,6 +569,9 @@ public class CentralDogma {
         final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(safePm);
         final HttpApiResponseConverter v1ResponseConverter = new HttpApiResponseConverter();
 
+        // Enable content compression for API responses.
+        decorator = decorator.andThen(contentEncodingDecorator());
+
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new AdministrativeService(safePm, executor), decorator,
                             v1RequestConverter, v1ResponseConverter);
@@ -597,6 +604,26 @@ public class CentralDogma {
         }
 
         sb.serviceUnder("/", HttpFileService.forClassPath("webapp"));
+    }
+
+    private static Function<Service<HttpRequest, HttpResponse>,
+            HttpEncodingService> contentEncodingDecorator() {
+        return delegate -> new HttpEncodingService(delegate, contentType -> {
+            if ("application".equals(contentType.type())) {
+                final String subtype = contentType.subtype();
+                switch (subtype) {
+                    case "json":
+                    case "xml":
+                    case "x-thrift":
+                        return true;
+                    default:
+                        return subtype.endsWith("+json") ||
+                               subtype.endsWith("+xml") ||
+                               subtype.startsWith("vnd.apache.thrift.");
+                }
+            }
+            return false;
+        }, 1024); // Do not encode if content-length < 1024.
     }
 
     /**
