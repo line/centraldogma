@@ -82,36 +82,34 @@ public class CentralDogmaEndpointGroupTest {
 
     @Test
     public void json() throws Exception {
-        Watcher<JsonNode> watcher = dogma.client().fileWatcher("directory", "my-service",
-                                                               Query.ofJson("/endpoint.json"));
-        CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
-                watcher, EndpointListDecoder.JSON);
-        endpointGroup.awaitInitialEndpoints();
-        assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
-
-        watcher.close();
+        try (Watcher<JsonNode> watcher = dogma.client().fileWatcher("directory", "my-service",
+                                                                    Query.ofJson("/endpoint.json"))) {
+            CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
+                    watcher, EndpointListDecoder.JSON);
+            endpointGroup.awaitInitialEndpoints();
+            assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
+        }
     }
 
     @Test(timeout = 10000)
     public void text() throws Exception {
-        Watcher<String> watcher = dogma.client().fileWatcher("directory", "my-service",
-                                                             Query.ofText("/endpoints.txt"));
-        CountDownLatch latch = new CountDownLatch(2);
-        watcher.watch(unused -> latch.countDown());
-        CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
-                watcher, EndpointListDecoder.TEXT);
-        endpointGroup.awaitInitialEndpoints();
-        assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
-        assertThat(latch.getCount()).isOne();
+        try (Watcher<String> watcher = dogma.client().fileWatcher("directory", "my-service",
+                                                                  Query.ofText("/endpoints.txt"))) {
+            CountDownLatch latch = new CountDownLatch(2);
+            watcher.watch(unused -> latch.countDown());
+            CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
+                    watcher, EndpointListDecoder.TEXT);
+            endpointGroup.awaitInitialEndpoints();
+            assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
+            assertThat(latch.getCount()).isOne();
 
-        dogma.client().push("directory", "my-service",
-                            Revision.HEAD, "commit",
-                            Change.ofTextUpsert("/endpoints.txt",
-                                                "foo.bar:1234"))
-             .join();
+            dogma.client().push("directory", "my-service",
+                                Revision.HEAD, "commit",
+                                Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
+                 .join();
 
-        await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
-        assertThat(endpointGroup.endpoints()).isEqualTo(ImmutableList.of(Endpoint.of("foo.bar", 1234)));
-        watcher.close();
+            await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
+            assertThat(endpointGroup.endpoints()).containsExactly(Endpoint.of("foo.bar", 1234));
+        }
     }
 }
