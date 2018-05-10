@@ -44,7 +44,6 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.it.TestConstants;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
@@ -218,7 +217,7 @@ public class GitMirrorAuthTest {
     public void testAuth() throws Exception {
         // Add /credentials.json and /mirrors.json
         final ArrayNode credentials = JsonNodeFactory.instance.arrayNode().add(credential);
-        client.push(projName, Project.REPO_META, Revision.HEAD, TestConstants.AUTHOR, "Add a mirror",
+        client.push(projName, Project.REPO_META, Revision.HEAD, "Add a mirror",
                     Change.ofJsonUpsert("/credentials.json", credentials),
                     Change.ofJsonUpsert("/mirrors.json",
                                         "[{" +

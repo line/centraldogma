@@ -166,7 +166,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
         return builder.build();
     }
 
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
     @JsonSubTypes({
             @Type(value = SingleMirrorConfig.class, name = "single"),
             @Type(value = MultipleMirrorConfig.class, name = "multiple")

@@ -198,7 +198,7 @@ public class MigrationUtilTest {
         // Ensure that "/project1/meta/metadata.json" has moved to "/project1/dogma/metadata.json".
         assertThat(project.repos().get(INTERNAL_REPO)
                           .getOrNull(Revision.HEAD, METADATA_JSON).join()).isNotNull();
-        assertThat(project.repos().get(Project.REPO_META)
+        assertThat(project.repos().get(REPO_META)
                           .getOrNull(Revision.HEAD, METADATA_JSON).join()).isNull();
 
         final Token token = mds.findTokenByAppId("app1").join();

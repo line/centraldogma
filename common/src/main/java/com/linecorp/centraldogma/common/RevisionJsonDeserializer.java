@@ -17,6 +17,8 @@ package com.linecorp.centraldogma.common;
 
 import java.io.IOException;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -79,7 +81,7 @@ public class RevisionJsonDeserializer extends StdDeserializer<Revision> {
         return new Revision(major);
     }
 
-    private static void validateRevisionNumber(DeserializationContext ctx, JsonNode node,
+    private static void validateRevisionNumber(DeserializationContext ctx, @Nullable JsonNode node,
                                                String type, boolean zeroAllowed) throws JsonMappingException {
         if (node == null) {
             ctx.reportInputMismatch(Revision.class, "missing %s revision number", type);

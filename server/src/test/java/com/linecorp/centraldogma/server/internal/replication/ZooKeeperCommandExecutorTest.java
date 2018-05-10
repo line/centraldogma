@@ -221,7 +221,6 @@ public class ZooKeeperCommandExecutorTest {
         private final Function<Command<?>, CompletableFuture<?>> delegate;
         private final File revisionFile;
 
-        @SuppressWarnings("unchecked")
         Replica(String id, String zkPath) throws Exception {
             this(id, zkPath, newMockDelegate());
         }

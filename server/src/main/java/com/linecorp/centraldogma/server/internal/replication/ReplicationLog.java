@@ -20,6 +20,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -43,6 +45,7 @@ public final class ReplicationLog<T> {
         return new ReplicationLog<>(replicaId, command, deserializeResult(result, command));
     }
 
+    @Nullable
     private static <T> T deserializeResult(
             JsonNode result, Command<T> command) throws JsonProcessingException {
 
@@ -62,10 +65,11 @@ public final class ReplicationLog<T> {
             return null;
         }
 
+        assert result != null;
         return Jackson.treeToValue(result, resultType);
     }
 
-    ReplicationLog(String replicaId, Command<T> command, T result) {
+    ReplicationLog(String replicaId, Command<T> command, @Nullable T result) {
 
         this.replicaId = requireNonNull(replicaId, "replicaId");
         this.command = requireNonNull(command, "command");

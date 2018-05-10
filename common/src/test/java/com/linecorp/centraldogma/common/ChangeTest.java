@@ -31,26 +31,26 @@ public class ChangeTest {
 
     @Test
     public void testTextPatches() throws PatchFailedException {
-        String oriStr = "1\n2\n3\n4\n5\n6\n7\n8\n9";
-        String newStr = "1a\n2\n3\n4\n5\n6\n7\n8\n9a";
-        String expectedUnifiedDiff = "--- /text_file.txt\n" +
-                                     "+++ /text_file.txt\n" +
-                                     "@@ -1,4 +1,4 @@\n" +
-                                     "-1\n" +
-                                     "+1a\n" +
-                                     " 2\n" +
-                                     " 3\n" +
-                                     " 4\n" +
-                                     "@@ -6,4 +6,4 @@\n" +
-                                     " 6\n" +
-                                     " 7\n" +
-                                     " 8\n" +
-                                     "-9\n" +
-                                     "+9a";
-        Change<String> change = Change.ofTextPatch("/text_file.txt", oriStr, newStr);
+        final String oriStr = "1\n2\n3\n4\n5\n6\n7\n8\n9";
+        final String newStr = "1a\n2\n3\n4\n5\n6\n7\n8\n9a";
+        final String expectedUnifiedDiff = "--- /text_file.txt\n" +
+                                           "+++ /text_file.txt\n" +
+                                           "@@ -1,4 +1,4 @@\n" +
+                                           "-1\n" +
+                                           "+1a\n" +
+                                           " 2\n" +
+                                           " 3\n" +
+                                           " 4\n" +
+                                           "@@ -6,4 +6,4 @@\n" +
+                                           " 6\n" +
+                                           " 7\n" +
+                                           " 8\n" +
+                                           "-9\n" +
+                                           "+9a";
+        final Change<String> change = Change.ofTextPatch("/text_file.txt", oriStr, newStr);
         assertEquals(expectedUnifiedDiff, change.content());
-        Patch<String> patch = DiffUtils.parseUnifiedDiff(Util.stringToLines(change.content()));
-        String patchedStr = String.join("\n", patch.applyTo(Util.stringToLines(oriStr)));
+        final Patch<String> patch = DiffUtils.parseUnifiedDiff(Util.stringToLines(change.content()));
+        final String patchedStr = String.join("\n", patch.applyTo(Util.stringToLines(oriStr)));
         assertEquals(newStr, patchedStr);
     }
 

@@ -17,4 +17,7 @@
 /**
  * Central Dogma decorators for access control.
  */
+@NonNullByDefault
 package com.linecorp.centraldogma.server.internal.api.auth;
+
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

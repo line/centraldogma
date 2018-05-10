@@ -59,7 +59,7 @@ public class RepositoryDto {
 
     public RepositoryDto(String projectName, String repoName, Author creator, Revision headRevision,
                          long creationTimeMillis) {
-        this.name = requireNonNull(repoName, "repoName");
+        name = requireNonNull(repoName, "repoName");
         this.creator = requireNonNull(creator, "creator");
         this.headRevision = requireNonNull(headRevision, "headRevision");
         url = PROJECTS_PREFIX + '/' + requireNonNull(projectName, "projectName") + REPOS + '/' + repoName;

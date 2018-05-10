@@ -20,11 +20,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
-import com.linecorp.centraldogma.common.Author;
-
 public final class TestConstants {
-
-    public static final Author AUTHOR = new Author("Trustin Lee", "trustin@linecorp.com");
 
     private static final Set<String> previousRandomTexts = new HashSet<>();
 
@@ -35,7 +31,7 @@ public final class TestConstants {
                 v = Long.MAX_VALUE;
             }
 
-            String text = Long.toString(v, Character.MAX_RADIX);
+            final String text = Long.toString(v, Character.MAX_RADIX);
             if (previousRandomTexts.add(text)) {
                 return text;
             }

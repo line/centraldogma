@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 /**
  * Replication settings.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "method")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "method")
 @JsonSubTypes({
         @Type(value = NoneReplicationConfig.class, name = "NONE"),
         @Type(value = ZooKeeperReplicationConfig.class, name = "ZOOKEEPER"),

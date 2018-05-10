@@ -35,7 +35,6 @@
 package com.linecorp.centraldogma.internal.jsonpatch;
 
 import static com.fasterxml.jackson.annotation.JsonSubTypes.Type;
-import static com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import static java.util.Objects.requireNonNull;
 
@@ -48,20 +47,6 @@ import com.fasterxml.jackson.databind.JsonSerializable;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
 import com.linecorp.centraldogma.internal.Jackson;
-
-@JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "op")
-
-@JsonSubTypes({
-        @Type(name = "add", value = AddOperation.class),
-        @Type(name = "copy", value = CopyOperation.class),
-        @Type(name = "move", value = MoveOperation.class),
-        @Type(name = "remove", value = RemoveOperation.class),
-        @Type(name = "removeIfExists", value = RemoveIfExistsOperation.class),
-        @Type(name = "replace", value = ReplaceOperation.class),
-        @Type(name = "safeReplace", value = SafeReplaceOperation.class),
-        @Type(name = "test", value = TestOperation.class),
-        @Type(name = "testAbsence", value = TestAbsenceOperation.class)
-})
 
 /**
  * Base abstract class for one patch operation.
@@ -76,6 +61,18 @@ import com.linecorp.centraldogma.internal.Jackson;
  *     argument ({@code add}, {@code replace} and {@code test}).</li>
  * </ul>
  */
+@JsonTypeInfo(use = Id.NAME, property = "op")
+@JsonSubTypes({
+        @Type(name = "add", value = AddOperation.class),
+        @Type(name = "copy", value = CopyOperation.class),
+        @Type(name = "move", value = MoveOperation.class),
+        @Type(name = "remove", value = RemoveOperation.class),
+        @Type(name = "removeIfExists", value = RemoveIfExistsOperation.class),
+        @Type(name = "replace", value = ReplaceOperation.class),
+        @Type(name = "safeReplace", value = SafeReplaceOperation.class),
+        @Type(name = "test", value = TestOperation.class),
+        @Type(name = "testAbsence", value = TestAbsenceOperation.class)
+})
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class JsonPatchOperation implements JsonSerializable {
 

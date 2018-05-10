@@ -26,11 +26,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 import org.apache.shiro.authc.AuthenticationInfo;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authz.Permission;
 import org.apache.shiro.cache.AbstractCacheManager;
-import org.apache.shiro.cache.CacheException;
 import org.apache.shiro.config.Ini;
 import org.apache.shiro.config.IniSecurityManagerFactory;
 import org.apache.shiro.mgt.DefaultSecurityManager;
@@ -73,7 +74,7 @@ public final class CentralDogmaSecurityManager implements SecurityManager {
         final Factory<SecurityManager> factory = new IniSecurityManagerFactory(securityConfig) {
             @Override
             protected SecurityManager createDefaultInstance() {
-                DefaultSecurityManager securityManager = new DefaultSecurityManager();
+                final DefaultSecurityManager securityManager = new DefaultSecurityManager();
                 securityManager.setSessionManager(sessionManager);
                 securityManager.setCacheManager(new CaffeineCacheManager(sessionCacheSpec));
                 return securityManager;
@@ -261,7 +262,7 @@ public final class CentralDogmaSecurityManager implements SecurityManager {
         }
 
         @Override
-        protected org.apache.shiro.cache.Cache createCache(String unused) throws CacheException {
+        protected org.apache.shiro.cache.Cache<?, ?> createCache(String unused) {
             return new CaffeineCacheWrapper(caffeine);
         }
     }
@@ -273,27 +274,30 @@ public final class CentralDogmaSecurityManager implements SecurityManager {
             cache = caffeine.build();
         }
 
+        @Nullable
         @Override
-        public Object get(Object key) throws CacheException {
+        public Object get(Object key) {
             return cache.getIfPresent(key);
         }
 
+        @Nullable
         @Override
-        public Object put(Object key, Object value) throws CacheException {
+        public Object put(Object key, Object value) {
             final Object prevValue = cache.getIfPresent(key);
             cache.put(key, value);
             return prevValue;
         }
 
+        @Nullable
         @Override
-        public Object remove(Object key) throws CacheException {
+        public Object remove(Object key) {
             final Object prevValue = cache.getIfPresent(key);
             cache.invalidate(key);
             return prevValue;
         }
 
         @Override
-        public void clear() throws CacheException {
+        public void clear() {
             cache.invalidateAll();
             cache.cleanUp();
         }

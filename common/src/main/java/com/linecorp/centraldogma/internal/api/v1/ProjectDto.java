@@ -52,7 +52,7 @@ public class ProjectDto {
     public ProjectDto(String name, Author creator, long creationTimeMillis) {
         this.name = requireNonNull(name, "name");
         this.creator = requireNonNull(creator, "creator");
-        this.createdAt = ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis));
+        createdAt = ISO_INSTANT.format(Instant.ofEpochMilli(creationTimeMillis));
         url = PROJECTS_PREFIX + '/' + name;
     }
 

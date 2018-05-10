@@ -84,7 +84,7 @@ public class RepositoryServiceV1Test {
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
     }
 
-    private AggregatedHttpMessage createRepository(String repoName) {
+    private static AggregatedHttpMessage createRepository(String repoName) {
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, REPOS_PREFIX)
                                                .contentType(MediaType.JSON);
         final String body = "{\"name\": \"" + repoName + "\"}";

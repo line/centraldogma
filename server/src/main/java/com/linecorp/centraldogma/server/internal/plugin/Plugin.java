@@ -90,7 +90,7 @@ final class Plugin {
         final StringBuilder buf = new StringBuilder(script.length() * 3 / 2);
         final int length = script.length();
         for (int i = 0; i < length; i++) {
-            char ch = script.charAt(i);
+            final char ch = script.charAt(i);
 
             // handle unicode
             if (ch > 0xfff) {
@@ -127,11 +127,10 @@ final class Plugin {
                 default:
                     if (ch > 0xf) {
                         buf.append("\\u00");
-                        buf.append(Integer.toHexString(ch));
                     } else {
                         buf.append("\\u000");
-                        buf.append(Integer.toHexString(ch));
                     }
+                    buf.append(Integer.toHexString(ch));
                     break;
                 }
             } else {
@@ -241,7 +240,7 @@ final class Plugin {
     }
 
     boolean hasFunction(String funcName) {
-        Object member = plugin.get(funcName);
+        final Object member = plugin.get(funcName);
         if (!(member instanceof JSObject)) {
             return false;
         }

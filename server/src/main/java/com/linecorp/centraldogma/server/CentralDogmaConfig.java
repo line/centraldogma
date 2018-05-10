@@ -66,11 +66,17 @@ final class CentralDogmaConfig {
 
     // Armeria
     private final List<ServerPort> ports;
+    @Nullable
     private final Integer numWorkers;
+    @Nullable
     private final Integer maxNumConnections;
+    @Nullable
     private final Long requestTimeoutMillis;
+    @Nullable
     private final Long idleTimeoutMillis;
+    @Nullable
     private final Integer maxFrameLength;
+    @Nullable
     private final TlsConfig tls;
 
     // Repository
@@ -91,6 +97,7 @@ final class CentralDogmaConfig {
     private final long maxNumBytesPerMirror;
 
     // Graceful shutdown
+    @Nullable
     private final GracefulShutdownTimeout gracefulShutdownTimeout;
 
     // Replication
@@ -101,6 +108,7 @@ final class CentralDogmaConfig {
     private final boolean csrfTokenRequiredForThrift;
 
     // Access log
+    @Nullable
     private final String accessLogFormat;
 
     // Administrator
@@ -113,30 +121,30 @@ final class CentralDogmaConfig {
                        @JsonProperty(value = "ports", required = true)
                        @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
                                List<ServerPort> ports,
-                       @JsonProperty("tls") TlsConfig tls,
-                       @JsonProperty("numWorkers") Integer numWorkers,
-                       @JsonProperty("maxNumConnections") Integer maxNumConnections,
-                       @JsonProperty("requestTimeoutMillis") Long requestTimeoutMillis,
-                       @JsonProperty("idleTimeoutMillis") Long idleTimeoutMillis,
-                       @JsonProperty("maxFrameLength") Integer maxFrameLength,
-                       @JsonProperty("numRepositoryWorkers") Integer numRepositoryWorkers,
-                       @JsonProperty("cacheSpec") String cacheSpec, // for backward compatibility
-                       @JsonProperty("repositoryCacheSpec") String repositoryCacheSpec,
-                       @JsonProperty("sessionCacheSpec") String sessionCacheSpec,
-                       @JsonProperty("gracefulShutdownTimeout")
+                       @JsonProperty("tls") @Nullable TlsConfig tls,
+                       @JsonProperty("numWorkers") @Nullable Integer numWorkers,
+                       @JsonProperty("maxNumConnections") @Nullable Integer maxNumConnections,
+                       @JsonProperty("requestTimeoutMillis") @Nullable Long requestTimeoutMillis,
+                       @JsonProperty("idleTimeoutMillis") @Nullable Long idleTimeoutMillis,
+                       @JsonProperty("maxFrameLength") @Nullable Integer maxFrameLength,
+                       @JsonProperty("numRepositoryWorkers") @Nullable Integer numRepositoryWorkers,
+                       @JsonProperty("cacheSpec") @Nullable String cacheSpec, // for backward compatibility
+                       @JsonProperty("repositoryCacheSpec") @Nullable String repositoryCacheSpec,
+                       @JsonProperty("sessionCacheSpec") @Nullable String sessionCacheSpec,
+                       @JsonProperty("gracefulShutdownTimeout") @Nullable
                                GracefulShutdownTimeout gracefulShutdownTimeout,
-                       @JsonProperty("webAppEnabled") Boolean webAppEnabled,
-                       @JsonProperty("webAppSessionTimeoutMillis") Long webAppSessionTimeoutMillis,
-                       @JsonProperty("mirroringEnabled") Boolean mirroringEnabled,
-                       @JsonProperty("numMirroringThreads") Integer numMirroringThreads,
-                       @JsonProperty("maxNumFilesPerMirror") Integer maxNumFilesPerMirror,
-                       @JsonProperty("maxNumBytesPerMirror") Long maxNumBytesPerMirror,
-                       @JsonProperty("replication") ReplicationConfig replicationConfig,
-                       @JsonProperty("securityEnabled") Boolean securityEnabled,
-                       @JsonProperty("csrfTokenRequiredForThrift") Boolean csrfTokenRequiredForThrift,
-                       @JsonProperty("accessLogFormat") String accessLogFormat,
-                       @JsonProperty("administrators") Set<String> administrators,
-                       @JsonProperty("caseSensitiveLoginNames") Boolean caseSensitiveLoginNames) {
+                       @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
+                       @JsonProperty("webAppSessionTimeoutMillis") @Nullable Long webAppSessionTimeoutMillis,
+                       @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
+                       @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
+                       @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
+                       @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
+                       @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
+                       @JsonProperty("securityEnabled") @Nullable Boolean securityEnabled,
+                       @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
+                       @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
+                       @JsonProperty("administrators") @Nullable Set<String> administrators,
+                       @JsonProperty("caseSensitiveLoginNames") @Nullable Boolean caseSensitiveLoginNames) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -310,6 +318,7 @@ final class CentralDogmaConfig {
     }
 
     @JsonProperty
+    @Nullable
     String accessLogFormat() {
         return accessLogFormat;
     }
@@ -425,7 +434,7 @@ final class CentralDogmaConfig {
 
     static final class OptionalConverter extends StdConverter<Optional<?>, Object> {
         @Override
-        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+        @Nullable
         public Object convert(Optional<?> value) {
             return value.orElse(null);
         }

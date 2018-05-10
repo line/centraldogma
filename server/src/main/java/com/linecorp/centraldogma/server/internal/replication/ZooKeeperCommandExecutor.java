@@ -180,7 +180,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
                     final CuratorTransactionFinal tr = curator.inTransaction().delete().forPath(logPath).and();
                     for (long blockId : meta.blocks()) {
-                        String blockPath = absolutePath(LOG_BLOCK_PATH) + '/' + pathFromRevision(blockId);
+                        final String blockPath = absolutePath(LOG_BLOCK_PATH) + '/' + pathFromRevision(blockId);
                         tr.delete().forPath(blockPath).and();
                     }
 
@@ -427,7 +427,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         }
 
         try (BufferedReader br = new BufferedReader(new InputStreamReader(fis))) {
-            String l = br.readLine();
+            final String l = br.readLine();
             if (l == null) {
                 return -1;
             }
@@ -506,12 +506,15 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
     }
 
     @FunctionalInterface
-    private interface SafeLock extends AutoCloseable {}
+    private interface SafeLock extends AutoCloseable {
+        @Override
+        void close();
+    }
 
     private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
 
     private SafeLock safeLock(String executionPath) {
-        InterProcessMutex mtx = mutexMap.computeIfAbsent(
+        final InterProcessMutex mtx = mutexMap.computeIfAbsent(
                 executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, executionPath)));
 
         try {
@@ -520,12 +523,18 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
             throw new ReplicationException(e);
         }
 
-        return mtx::release;
+        return () -> {
+            try {
+                mtx.release();
+            } catch (Exception ignored) {
+                // Ignore.
+            }
+        };
     }
 
     @VisibleForTesting
     static String path(String... pathElements) {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         for (String path : pathElements) {
             if (path.startsWith("/")) { //remove starting "/"
                 path = path.substring(1);
@@ -592,25 +601,26 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
     private long storeLog(ReplicationLog<?> log) {
         try {
-            byte[] bytes = Jackson.writeValueAsBytes(log);
+            final byte[] bytes = Jackson.writeValueAsBytes(log);
             assert bytes.length > 0;
 
-            LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length);
+            final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length);
 
             final int count = (bytes.length + MAX_BYTES - 1) / MAX_BYTES;
             for (int i = 0; i < count; ++i) {
-                int start = i * MAX_BYTES;
-                int end = Math.min((i + 1) * MAX_BYTES, bytes.length);
-                byte[] b = Arrays.copyOfRange(bytes, start, end);
-                String blockPath = curator.create()
-                                          .withMode(CreateMode.PERSISTENT_SEQUENTIAL)
-                                          .forPath(absolutePath(LOG_BLOCK_PATH) + '/', b);
-                long blockId = revisionFromPath(blockPath);
+                final int start = i * MAX_BYTES;
+                final int end = Math.min((i + 1) * MAX_BYTES, bytes.length);
+                final byte[] b = Arrays.copyOfRange(bytes, start, end);
+                final String blockPath = curator.create()
+                                                .withMode(CreateMode.PERSISTENT_SEQUENTIAL)
+                                                .forPath(absolutePath(LOG_BLOCK_PATH) + '/', b);
+                final long blockId = revisionFromPath(blockPath);
                 logMeta.appendBlock(blockId);
             }
 
-            String logPath = curator.create().withMode(CreateMode.PERSISTENT_SEQUENTIAL)
-                                    .forPath(absolutePath(LOG_PATH) + '/', Jackson.writeValueAsBytes(logMeta));
+            final String logPath =
+                    curator.create().withMode(CreateMode.PERSISTENT_SEQUENTIAL)
+                           .forPath(absolutePath(LOG_PATH) + '/', Jackson.writeValueAsBytes(logMeta));
 
             return revisionFromPath(logPath);
         } catch (Exception e) {
@@ -621,19 +631,19 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
     @VisibleForTesting
     Optional<ReplicationLog<?>> loadLog(long revision, boolean skipIfSameReplica) {
         try {
-            String logPath = absolutePath(LOG_PATH) + '/' + pathFromRevision(revision);
+            final String logPath = absolutePath(LOG_PATH) + '/' + pathFromRevision(revision);
 
-            LogMeta logMeta = Jackson.readValue(curator.getData().forPath(logPath), LogMeta.class);
+            final LogMeta logMeta = Jackson.readValue(curator.getData().forPath(logPath), LogMeta.class);
 
             if (skipIfSameReplica && Objects.equals(replicaId(), logMeta.replicaId())) {
                 return Optional.empty();
             }
 
-            byte[] bytes = new byte[logMeta.size()];
+            final byte[] bytes = new byte[logMeta.size()];
             int offset = 0;
             for (long blockId : logMeta.blocks()) {
-                String blockPath = absolutePath(LOG_BLOCK_PATH) + '/' + pathFromRevision(blockId);
-                byte[] b = curator.getData().forPath(blockPath);
+                final String blockPath = absolutePath(LOG_BLOCK_PATH) + '/' + pathFromRevision(blockId);
+                final byte[] b = curator.getData().forPath(blockPath);
                 System.arraycopy(b, 0, bytes, offset, b.length);
                 offset += b.length;
             }
@@ -647,7 +657,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
     }
 
     private static long revisionFromPath(String path) {
-        String[] s = path.split("/");
+        final String[] s = path.split("/");
         return Long.parseLong(s[s.length - 1]);
     }
 
@@ -670,9 +680,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
     }
 
     private <T> T blockingExecute(String replicaId, Command<T> command) throws Exception {
-        SafeLock lock = null;
-        try {
-            lock = safeLock(command.executionPath());
+        try (SafeLock ignored = safeLock(command.executionPath())) {
 
             // NB: We are sure no other replicas will append the conflicting logs (the commands with the
             //     same execution path) while we hold the lock for the command's execution path.
@@ -697,14 +705,6 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         } catch (ReplicationException e) {
             stopLater();
             throw e;
-        } finally {
-            if (lock != null) {
-                try {
-                    lock.close();
-                } catch (Exception ignored) {
-                    // Ignore.
-                }
-            }
         }
     }
 }

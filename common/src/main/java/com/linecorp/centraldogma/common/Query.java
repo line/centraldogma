@@ -34,7 +34,7 @@ import com.fasterxml.jackson.databind.JsonNode;
  *
  * @param <T> the content type of a file being queried
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
         @Type(value = IdentityQuery.class, name = "IDENTITY"),
         @Type(value = JsonPathQuery.class, name = "JSON_PATH"),
@@ -108,6 +108,7 @@ public interface Query<T> extends Function<T, T> {
             case IDENTITY:
                 return new IdentityQuery<>(path);
             case JSON_PATH:
+                requireNonNull(expressions, "expressions");
                 return ofJsonPath(path, expressions);
             default:
                 throw new IllegalArgumentException("Illegal query type: " + type.name());

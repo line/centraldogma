@@ -50,13 +50,10 @@ final class TagUtil {
         final StringBuilder sb = new StringBuilder(16);
         final int shift = 8;
 
-        for (;;) {
+        do {
             sb.append(TABLE[majorRevision & 0xFF]);
             majorRevision >>>= shift;
-            if (majorRevision == 0) {
-                break;
-            }
-        }
+        } while (majorRevision != 0);
         return sb.toString();
     }
 

@@ -50,7 +50,7 @@ public final class CentralDogmaExceptionTranslator extends SimpleDecoratingServi
     }
 
     private static void handleException(RpcRequest req, DefaultRpcResponse res, Throwable cause) {
-        CentralDogmaException convertedCause = Converter.convert(cause);
+        final CentralDogmaException convertedCause = Converter.convert(cause);
         CentralDogmaExceptions.log(req.method(), convertedCause);
         res.completeExceptionally(convertedCause);
     }

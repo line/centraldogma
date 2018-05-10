@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import javax.annotation.Nullable;
+
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.slf4j.Marker;
@@ -91,7 +93,8 @@ public class ExpectedExceptionAppender extends UnsynchronizedAppenderBase<ILoggi
         aai.appendLoopOnAppenders(eventObject);
     }
 
-    private IThrowableProxy getException(ILoggingEvent event) {
+    @Nullable
+    private static IThrowableProxy getException(ILoggingEvent event) {
         final IThrowableProxy throwableProxy = event.getThrowableProxy();
         if (throwableProxy != null) {
             final IThrowableProxy cause = throwableProxy.getCause();
@@ -102,12 +105,9 @@ public class ExpectedExceptionAppender extends UnsynchronizedAppenderBase<ILoggi
         return null;
     }
 
-    private boolean containsMessage(IThrowableProxy exception, String exceptionName) {
+    private static boolean containsMessage(IThrowableProxy exception, String exceptionName) {
         final String message = exception.getMessage();
-        if (message != null && message.contains(exceptionAndMessage.get(exceptionName))) {
-            return true;
-        }
-        return false;
+        return message != null && message.contains(exceptionAndMessage.get(exceptionName));
     }
 
     @Override

@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.testing;
 
 import java.net.InetSocketAddress;
 
+import javax.annotation.Nullable;
+
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
@@ -59,8 +61,11 @@ public class CentralDogmaRule extends TemporaryFolder {
     private static final InetSocketAddress TEST_PORT = new InetSocketAddress(NetUtil.LOCALHOST4, 0);
 
     private final boolean useTls;
+    @Nullable
     private com.linecorp.centraldogma.server.CentralDogma dogma;
+    @Nullable
     private CentralDogma client;
+    @Nullable
     private HttpClient httpClient;
     private InetSocketAddress serverAddress;
 
@@ -138,6 +143,7 @@ public class CentralDogmaRule extends TemporaryFolder {
     protected final void before() throws Throwable {
         super.before();
         start();
+        assert client != null;
         scaffold(client);
     }
 
@@ -195,7 +201,7 @@ public class CentralDogmaRule extends TemporaryFolder {
     /**
      * Override this method to configure the client.
      */
-    protected void configureClient(AbstractCentralDogmaBuilder builder) {}
+    protected void configureClient(AbstractCentralDogmaBuilder<?> builder) {}
 
     /**
      * Override this method to perform the initial updates on the server, such as creating a repository and

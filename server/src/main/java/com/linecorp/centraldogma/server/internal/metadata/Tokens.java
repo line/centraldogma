@@ -83,6 +83,7 @@ public final class Tokens {
         throw new TokenNotFoundException("Application ID not found: " + appId);
     }
 
+    @Nullable
     public Token getOrDefault(String appId, @Nullable Token defaultValue) {
         requireNonNull(appId, "appId");
         final Token token = appIds.get(appId);
@@ -100,6 +101,7 @@ public final class Tokens {
         throw new TokenNotFoundException("Secret not found: " + secret);
     }
 
+    @Nullable
     public Token findBySecretOrDefault(String secret, @Nullable Token defaultValue) {
         requireNonNull(secret, "secret");
         if (!secret.startsWith(SECRET_PREFIX)) {
@@ -128,7 +130,7 @@ public final class Tokens {
                           .toString();
     }
 
-    public static boolean isValidSecret(String secret) {
+    public static boolean isValidSecret(@Nullable String secret) {
         return secret != null && secret.startsWith(SECRET_PREFIX);
     }
 

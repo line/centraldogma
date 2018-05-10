@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import org.apache.shiro.config.Ini;
 import org.apache.shiro.session.Session;
 
@@ -65,7 +67,7 @@ public final class CentralDogmaBuilder {
 
     static final String DEFAULT_SESSION_CACHE_SPEC =
             // Expire after the duration of session timeout.
-            "maximumSize=8192,expireAfterWrite=" + (DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS / 1000) + "s";
+            "maximumSize=8192,expireAfterWrite=" + (DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS / 1000) + 's';
 
     // Armeria properties
     // Note that we use nullable types here for optional properties.
@@ -81,7 +83,9 @@ public final class CentralDogmaBuilder {
     // Central Dogma properties
     private final File dataDir;
     private int numRepositoryWorkers = DEFAULT_NUM_REPOSITORY_WORKERS;
+    @Nullable
     private String repositoryCacheSpec = DEFAULT_REPOSITORY_CACHE_SPEC;
+    @Nullable
     private String sessionCacheSpec = DEFAULT_SESSION_CACHE_SPEC;
     private boolean webAppEnabled = true;
     private long webAppSessionTimeoutMillis = DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
@@ -89,8 +93,10 @@ public final class CentralDogmaBuilder {
     private int numMirroringThreads = DEFAULT_NUM_MIRRORING_THREADS;
     private int maxNumFilesPerMirror = DEFAULT_MAX_NUM_FILES_PER_MIRROR;
     private long maxNumBytesPerMirror = DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
+    @Nullable
     private GracefulShutdownTimeout gracefulShutdownTimeout;
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
+    @Nullable
     private Ini securityConfig;
     private String accessLogFormat;
     private final ImmutableSet.Builder<String> administrators = new Builder<>();
@@ -222,7 +228,7 @@ public final class CentralDogmaBuilder {
      */
     @Deprecated
     public CentralDogmaBuilder cacheSpec(String cacheSpec) {
-        this.repositoryCacheSpec = validateCacheSpec(cacheSpec);
+        repositoryCacheSpec = validateCacheSpec(cacheSpec);
         return this;
     }
 

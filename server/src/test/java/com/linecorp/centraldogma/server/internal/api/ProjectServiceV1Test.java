@@ -72,7 +72,7 @@ public class ProjectServiceV1Test {
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
     }
 
-    private AggregatedHttpMessage createProject(String name) {
+    private static AggregatedHttpMessage createProject(String name) {
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, PROJECTS_PREFIX)
                                                .contentType(MediaType.JSON);
 

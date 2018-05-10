@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 
 import io.netty.util.concurrent.EventExecutor;
@@ -48,7 +50,7 @@ public final class Polyfills {
     public static Throwable exception(Object err) {
         if (err instanceof ScriptObjectMirror) {
             final ScriptObjectMirror mirror = (ScriptObjectMirror) err;
-            Object exception = mirror.get("nashornException");
+            final Object exception = mirror.get("nashornException");
             if (exception instanceof Throwable) {
                 return new PluginException((Throwable) exception);
             }
@@ -57,6 +59,7 @@ public final class Polyfills {
         return new PluginException(String.valueOf(err));
     }
 
+    @Nullable
     public static String loadResource(String path) throws IOException {
         try (InputStream in = Polyfills.class.getResourceAsStream(path)) {
             if (in == null) {

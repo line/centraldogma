@@ -34,6 +34,7 @@ final class MirrorCredentialUtil {
         return base64.decode(value);
     }
 
+    @Nullable
     static byte[] decodeBase64OrUtf8(@Nullable String value, String name) {
         if (value == null) {
             return null;

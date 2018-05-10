@@ -115,7 +115,7 @@ public class CentralDogmaClientAutoConfiguration {
                 if (beanDef instanceof AnnotatedBeanDefinition) {
                     final AnnotatedBeanDefinition abd = (AnnotatedBeanDefinition) beanDef;
                     final MethodMetadata fmm = abd.getFactoryMethodMetadata();
-                    if (fmm.isAnnotated(ForCentralDogma.class.getName())) {
+                    if (fmm != null && fmm.isAnnotated(ForCentralDogma.class.getName())) {
                         return true;
                     }
                 }

@@ -93,7 +93,7 @@ public class Author {
         if (!(o instanceof Author)) {
             return false;
         }
-        Author author = (Author)o;
+        final Author author = (Author)o;
         return email.equals(author.email);
     }
 

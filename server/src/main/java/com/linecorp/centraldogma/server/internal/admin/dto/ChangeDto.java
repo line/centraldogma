@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.admin.dto;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.thrift.Change;
@@ -26,6 +28,7 @@ public class ChangeDto {
 
     private String path;
     private String type;
+    @Nullable
     private String content;
 
     public ChangeDto() {}
@@ -54,11 +57,12 @@ public class ChangeDto {
         this.type = type;
     }
 
+    @Nullable
     public String getContent() {
         return content;
     }
 
-    public void setContent(String content) {
+    public void setContent(@Nullable String content) {
         this.content = content;
     }
 

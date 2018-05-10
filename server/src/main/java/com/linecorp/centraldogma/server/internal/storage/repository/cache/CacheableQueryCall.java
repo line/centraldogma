@@ -57,10 +57,7 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
             weight += e.length();
         }
         if (value != null && value.hasContent()) {
-            final String content = value.contentAsText();
-            if (content != null) {
-                weight += content.length();
-            }
+            weight += value.contentAsText().length();
         }
         return weight;
     }

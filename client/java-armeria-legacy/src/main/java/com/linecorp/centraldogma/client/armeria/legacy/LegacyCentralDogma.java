@@ -38,7 +38,6 @@ import javax.annotation.Nullable;
 import org.apache.thrift.TException;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.google.common.annotations.VisibleForTesting;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.ClientFactory;
@@ -91,7 +90,6 @@ final class LegacyCentralDogma implements CentralDogma {
     private final ClientFactory clientFactory;
     private final CentralDogmaService.AsyncIface client;
 
-    @VisibleForTesting
     LegacyCentralDogma(ClientFactory clientFactory, CentralDogmaService.AsyncIface client) {
         this.clientFactory = requireNonNull(clientFactory, "clientFactory");
         this.client = requireNonNull(client, "client");

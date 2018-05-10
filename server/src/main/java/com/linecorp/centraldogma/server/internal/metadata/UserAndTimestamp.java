@@ -21,6 +21,8 @@ import static java.util.Objects.requireNonNull;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
@@ -30,10 +32,11 @@ import com.linecorp.centraldogma.common.Author;
 /**
  * Specifies when an object is accessed by whom.
  */
-public class UserAndTimestamp {
+public final class UserAndTimestamp {
 
     private final String user;
     private final Instant timestamp;
+    @Nullable
     private String timestampAsText;
 
     public UserAndTimestamp(String user) {
@@ -70,6 +73,23 @@ public class UserAndTimestamp {
             timestampAsText = DateTimeFormatter.ISO_INSTANT.format(timestamp);
         }
         return timestampAsText;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final UserAndTimestamp that = (UserAndTimestamp) o;
+        return user.equals(that.user) && timestamp.equals(that.timestamp);
+    }
+
+    @Override
+    public int hashCode() {
+        return user.hashCode() * 31 + timestamp.hashCode();
     }
 
     @Override

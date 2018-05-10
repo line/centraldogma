@@ -22,6 +22,8 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -42,10 +44,15 @@ public final class LegacyToken {
     public static final LegacyToken EMPTY_TOKEN =
             new LegacyToken(null, null, null, null, null);
 
+    @Nullable
     private final String appId;
+    @Nullable
     private final String secret;
+    @Nullable
     private final User creator;
+    @Nullable
     private final Instant creationTime;
+    @Nullable
     private String creationTimeAsText;
 
     @JsonCreator
@@ -69,8 +76,8 @@ public final class LegacyToken {
              null);
     }
 
-    private LegacyToken(String appId, String secret, User creator,
-                        Instant creationTime, String creationTimeAsText) {
+    private LegacyToken(@Nullable String appId, @Nullable String secret, @Nullable User creator,
+                        @Nullable Instant creationTime, @Nullable String creationTimeAsText) {
         this.appId = appId;
         this.secret = secret;
         this.creator = creator;
@@ -78,24 +85,28 @@ public final class LegacyToken {
         this.creationTimeAsText = creationTimeAsText;
     }
 
+    @Nullable
     @JsonProperty
     public String appId() {
         return appId;
     }
 
+    @Nullable
     @JsonProperty
     public String secret() {
         return secret;
     }
 
+    @Nullable
     @JsonProperty
     public User creator() {
         return creator;
     }
 
+    @Nullable
     @JsonProperty
     public String creationTime() {
-        if (creationTimeAsText == null) {
+        if (creationTimeAsText == null && creationTime != null) {
             creationTimeAsText = DateTimeFormatter.ISO_INSTANT.format(creationTime);
         }
         return creationTimeAsText;

@@ -29,6 +29,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ThreadLocalRandom;
 
+import javax.annotation.Nullable;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -50,7 +52,6 @@ public class TokenlessClientLoggerTest {
 
     @Mock
     private Clock clock; // = Mockito.mock(Clock.class);
-    @SuppressWarnings("unchecked")
     @Mock
     private Service<HttpRequest, HttpResponse> delegate; // = Mockito.mock(Service.class);
 
@@ -151,7 +152,9 @@ public class TokenlessClientLoggerTest {
 
     private class MockTokenlessClientLogger extends TokenlessClientLogger {
 
+        @Nullable
         String hostname;
+        @Nullable
         String ip;
 
         MockTokenlessClientLogger() {

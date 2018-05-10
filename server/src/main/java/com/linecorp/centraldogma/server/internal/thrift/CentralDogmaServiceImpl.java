@@ -300,7 +300,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         handleWatchFileResult(future, resultHandler);
     }
 
-    private void handleWatchFileResult(
+    private static void handleWatchFileResult(
             CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future,
             AsyncMethodCallback resultHandler) {
         future.handle(voidFunction((res, cause) -> {

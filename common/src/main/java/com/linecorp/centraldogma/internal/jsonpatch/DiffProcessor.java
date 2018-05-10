@@ -59,6 +59,7 @@ final class DiffProcessor {
         this.replaceMode = replaceMode;
         this.unchangedValuesSupplier = new Supplier<Map<JsonPointer, JsonNode>>() {
 
+            @Nullable
             private Map<JsonPointer, JsonNode> unchangedValues;
 
             @Override

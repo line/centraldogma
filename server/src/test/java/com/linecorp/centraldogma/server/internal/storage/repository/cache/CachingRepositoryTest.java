@@ -219,7 +219,8 @@ public class CachingRepositoryTest {
         when(delegateRepo.history(INIT, INIT, Repository.ALL_PATH, 1)).thenReturn(completedFuture(
                 ImmutableList.of(new Commit(INIT, SYSTEM, "", "", Markup.PLAINTEXT))));
 
-        Repository cachingRepo = new CachingRepository(delegateRepo, new RepositoryCache("maximumSize=1000"));
+        final Repository cachingRepo = new CachingRepository(delegateRepo,
+                                                             new RepositoryCache("maximumSize=1000"));
 
         // Verify that CachingRepository calls delegateRepo.history() once to retrieve the initial commit.
         verify(delegateRepo, times(1)).history(INIT, INIT, Repository.ALL_PATH, 1);
@@ -231,7 +232,7 @@ public class CachingRepositoryTest {
     }
 
     private static Repository setMockNames(Repository mockRepo) {
-        Project project = mock(Project.class);
+        final Project project = mock(Project.class);
         when(mockRepo.parent()).thenReturn(project);
         when(project.name()).thenReturn("mock_proj");
         when(mockRepo.name()).thenReturn("mock_repo");

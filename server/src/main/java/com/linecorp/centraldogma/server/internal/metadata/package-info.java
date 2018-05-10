@@ -17,4 +17,7 @@
 /**
  * Metadata management for Central Dogma projects.
  */
+@NonNullByDefault
 package com.linecorp.centraldogma.server.internal.metadata;
+
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

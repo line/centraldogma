@@ -17,4 +17,7 @@
 /**
  * Data Transfer Objects used by Central Dogma admin services.
  */
+@NonNullByDefault
 package com.linecorp.centraldogma.server.internal.admin.dto;
+
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

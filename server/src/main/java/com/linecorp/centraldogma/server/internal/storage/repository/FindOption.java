@@ -76,7 +76,7 @@ public class FindOption<T> {
         }
 
         @SuppressWarnings("unchecked")
-        T value = (T) options.get(this);
+        final T value = (T) options.get(this);
         if (value == null) {
             return defaultValue();
         }

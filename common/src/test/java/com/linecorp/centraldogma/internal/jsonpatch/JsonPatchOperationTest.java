@@ -63,8 +63,8 @@ public abstract class JsonPatchOperationTest {
 
     protected JsonPatchOperationTest(final String prefix) throws IOException {
         final String resource = "/jsonpatch/" + prefix + ".json";
-        URL url = getClass().getResource(resource);
-        ObjectMapper objectMapper = new ObjectMapper();
+        final URL url = getClass().getResource(resource);
+        final ObjectMapper objectMapper = new ObjectMapper();
         final JsonNode node = objectMapper.readTree(url);
         errors = node.get("errors");
         ops = node.get("ops");

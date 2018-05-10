@@ -21,6 +21,8 @@ import static java.util.Objects.requireNonNull;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.internal.Util;
 
 /**
@@ -34,6 +36,7 @@ public class Commit {
     private final String summary;
     private final String detail;
     private final Markup markup;
+    @Nullable
     private String whenAsText;
 
     /**

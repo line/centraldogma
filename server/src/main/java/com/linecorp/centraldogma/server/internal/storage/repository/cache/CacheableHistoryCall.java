@@ -81,7 +81,7 @@ final class CacheableHistoryCall extends CacheableCall<List<Commit>> {
         return from.equals(that.from) &&
                to.equals(that.to) &&
                pathPattern.equals(that.pathPattern) &&
-               maxCommits == maxCommits;
+               maxCommits == that.maxCommits;
     }
 
     @Override

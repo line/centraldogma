@@ -74,7 +74,7 @@ public class PreviewDiffsTest {
     @Test
     public void testApplyUpsertOnExistingPath() throws Exception {
         final String jsonPath = "/a_new_json_file.json";
-        rule.client().push(rule.project(), rule.repo1(), Revision.HEAD, TestConstants.AUTHOR,
+        rule.client().push(rule.project(), rule.repo1(), Revision.HEAD,
                            "Add a new JSON file", Change.ofJsonUpsert(jsonPath, "{ \"a\": \"apple\" }")).join();
 
         final Change<JsonNode> change =

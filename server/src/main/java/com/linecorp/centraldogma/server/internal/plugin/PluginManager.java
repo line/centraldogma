@@ -107,7 +107,7 @@ public final class PluginManager {
     }
 
     private static String toPluginPath(JsonNode pluginEntry) {
-        String path = pluginEntry.textValue();
+        final String path = pluginEntry.textValue();
         // Convert to an absolute path if necessary.
         // It should be enough prepending '/' because the 'plugins.json' is at the root directory.
         if (path.charAt(0) != '/') {

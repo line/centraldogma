@@ -59,35 +59,51 @@ public class TokenServiceTest {
 
     @Test
     public void adminToken() {
-        assertThat(tokenService.createToken("forAdmin1", true, adminAuthor, admin)
-                               .join().object().isActive()).isTrue();
+        final Token token = tokenService.createToken("forAdmin1", true, adminAuthor, admin).join().object();
+        assertThat(token.isActive()).isTrue();
         assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, guestAuthor, guest)
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
         final Collection<Token> tokens = tokenService.listTokens(admin).join();
-        assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
-                .isEqualTo(1);
+        assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
         assertThatThrownBy(() -> tokenService.deleteToken("forAdmin1", guestAuthor, guest)
                                              .join())
                 .hasCauseInstanceOf(HttpStatusException.class);
 
-        assertThat(tokenService.deleteToken("forAdmin1", adminAuthor, admin).join());
+        assertThat(tokenService.deleteToken("forAdmin1", adminAuthor, admin).join()).satisfies(t -> {
+            assertThat(t.appId()).isEqualTo(token.appId());
+            assertThat(t.isAdmin()).isEqualTo(token.isAdmin());
+            assertThat(t.creation()).isEqualTo(token.creation());
+            assertThat(t.deactivation()).isEqualTo(token.deactivation());
+        });
     }
 
     @Test
     public void userToken() {
-        assertThat(tokenService.createToken("forUser1", false, adminAuthor, admin)
-                               .join().object().isActive()).isTrue();
-        assertThat(tokenService.createToken("forUser2", false, guestAuthor, guest)
-                               .join().object().isActive()).isTrue();
+        final Token userToken1 = tokenService.createToken("forUser1", false, adminAuthor, admin)
+                                             .join().object();
+        final Token userToken2 = tokenService.createToken("forUser2", false, guestAuthor, guest)
+                                             .join().object();
+        assertThat(userToken1.isActive()).isTrue();
+        assertThat(userToken2.isActive()).isTrue();
 
         final Collection<Token> tokens = tokenService.listTokens(guest).join();
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
 
-        assertThat(tokenService.deleteToken("forUser1", adminAuthor, admin).join());
-        assertThat(tokenService.deleteToken("forUser2", guestAuthor, guest).join());
+        assertThat(tokenService.deleteToken("forUser1", adminAuthor, admin).join()).satisfies(t -> {
+            assertThat(t.appId()).isEqualTo(userToken1.appId());
+            assertThat(t.isAdmin()).isEqualTo(userToken1.isAdmin());
+            assertThat(t.creation()).isEqualTo(userToken1.creation());
+            assertThat(t.deactivation()).isEqualTo(userToken1.deactivation());
+        });
+        assertThat(tokenService.deleteToken("forUser2", guestAuthor, guest).join()).satisfies(t -> {
+            assertThat(t.appId()).isEqualTo(userToken2.appId());
+            assertThat(t.isAdmin()).isEqualTo(userToken2.isAdmin());
+            assertThat(t.creation()).isEqualTo(userToken2.creation());
+            assertThat(t.deactivation()).isEqualTo(userToken2.deactivation());
+        });
     }
 }

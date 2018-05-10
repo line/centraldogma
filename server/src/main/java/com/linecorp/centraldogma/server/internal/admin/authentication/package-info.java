@@ -17,4 +17,7 @@
 /**
  * Central Dogma authentication services and their utilities.
  */
+@NonNullByDefault
 package com.linecorp.centraldogma.server.internal.admin.authentication;
+
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

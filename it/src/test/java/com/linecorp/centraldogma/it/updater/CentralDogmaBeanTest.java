@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import javax.annotation.Nullable;
+
 import org.awaitility.core.ConditionTimeoutException;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -67,7 +69,7 @@ public class CentralDogmaBeanTest {
     @Test
     public void test() throws Exception {
         final int[] called = new int[1];
-        Consumer<TestProperty> listener = testProperty -> called[0] = 1;
+        final Consumer<TestProperty> listener = testProperty -> called[0] = 1;
         final CentralDogma client = dogma.client();
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class, listener);
 
@@ -77,13 +79,12 @@ public class CentralDogmaBeanTest {
         assertThat(property.getRevision()).isNull();
 
         final Commit rev = client.push("a", "b", Revision.HEAD, "Add c.json",
-                                        Change.ofJsonUpsert("/c.json",
-                                                            '{' +
-                                                            "  \"foo\": 20," +
-                                                            "  \"bar\": \"Y\"," +
-                                                            "  \"qux\": [\"0\", \"1\"]" +
-                                                            '}'))
-                                  .join();
+                                       Change.ofJsonUpsert("/c.json",
+                                                           '{' +
+                                                           "  \"foo\": 20," +
+                                                           "  \"bar\": \"Y\"," +
+                                                           "  \"qux\": [\"0\", \"1\"]" +
+                                                           '}')).join();
 
         // Wait until the changes are handled.
         await().atMost(5000, TimeUnit.SECONDS).until(() -> property.getFoo() == 20);
@@ -104,14 +105,13 @@ public class CentralDogmaBeanTest {
                                         '}'))
               .join();
         // TODO(huydx): this test may be flaky, is there any better way?
-        Throwable thrown = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
-                                                       .until(() -> property.getFoo() == 50)
-        );
+        final Throwable thrown = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
+                                                             .until(() -> property.getFoo() == 50));
         assertThat(thrown).isInstanceOf(ConditionTimeoutException.class);
 
         // test that fail consumer will prevent it from receive change
         // TODO(huydx): this test may be flaky, is there any better way?
-        Consumer<TestProperty> failListener = testProperty -> {
+        final Consumer<TestProperty> failListener = testProperty -> {
             throw new RuntimeException("test runtime exception");
         };
         final TestProperty failProp = factory.get(new TestProperty(), TestProperty.class, failListener);
@@ -125,9 +125,8 @@ public class CentralDogmaBeanTest {
               .join();
         // await will fail due to exception is thrown before node get serialized
         // and revision will remain null
-        Throwable thrown2 = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
-                                                       .until(() -> failProp.getFoo() == 211)
-        );
+        final Throwable thrown2 = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
+                                                              .until(() -> failProp.getFoo() == 211));
         assertThat(thrown2).isInstanceOf(ConditionTimeoutException.class);
         assertThat(failProp.getRevision()).isNull();
     }
@@ -145,14 +144,14 @@ public class CentralDogmaBeanTest {
                                         "}]"))
               .join();
 
-        TestProperty property = factory.get(new TestProperty(), TestProperty.class,
-                                            (TestProperty x) -> { },
-                                            new CentralDogmaBeanConfigBuilder()
-                                                    .project("alice")
-                                                    .repository("bob")
-                                                    .path("/charlie.json")
-                                                    .jsonPath("$[0]")
-                                                    .build());
+        final TestProperty property = factory.get(new TestProperty(), TestProperty.class,
+                                                  (TestProperty x) -> {},
+                                                  new CentralDogmaBeanConfigBuilder()
+                                                          .project("alice")
+                                                          .repository("bob")
+                                                          .path("/charlie.json")
+                                                          .jsonPath("$[0]")
+                                                          .build());
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> property.getFoo() == 200);
         assertThat(property.getBar()).isEqualTo("YY");
@@ -169,6 +168,7 @@ public class CentralDogmaBeanTest {
         String bar = "20";
         List<String> qux = ImmutableList.of("x", "y", "z");
 
+        @Nullable
         public Revision getRevision() {
             return null;
         }

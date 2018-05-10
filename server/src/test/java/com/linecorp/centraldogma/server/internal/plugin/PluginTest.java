@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -56,6 +58,7 @@ public class PluginTest {
 
     private static final String REPO_FOO = "foo";
 
+    @Nullable
     private static ProjectManager pm;
 
     @Rule

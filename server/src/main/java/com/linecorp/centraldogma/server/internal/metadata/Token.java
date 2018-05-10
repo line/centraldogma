@@ -35,7 +35,7 @@ import com.linecorp.centraldogma.internal.Util;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
-public class Token implements Identifiable {
+public final class Token implements Identifiable {
 
     /**
      * An application identifier.
@@ -45,6 +45,7 @@ public class Token implements Identifiable {
     /**
      * A secret which is used to access an HTTP API.
      */
+    @Nullable
     private final String secret;
 
     /**
@@ -99,6 +100,7 @@ public class Token implements Identifiable {
         return appId;
     }
 
+    @Nullable
     @JsonProperty
     public String secret() {
         return secret;

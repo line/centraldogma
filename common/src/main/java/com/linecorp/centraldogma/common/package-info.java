@@ -16,4 +16,7 @@
 /**
  * Common data types and exceptions.
  */
+@NonNullByDefault
 package com.linecorp.centraldogma.common;
+
+import com.linecorp.centraldogma.common.util.NonNullByDefault;

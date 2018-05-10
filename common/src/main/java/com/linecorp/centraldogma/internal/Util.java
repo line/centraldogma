@@ -35,17 +35,17 @@ import java.util.regex.Pattern;
 public final class Util {
 
     private static final Pattern FILE_NAME_PATTERN = Pattern.compile(
-            "^(?:[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
+            "^(?:[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
     private static final Pattern FILE_PATH_PATTERN = Pattern.compile(
-            "^(?:/[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
+            "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
     private static final Pattern JSON_FILE_PATH_PATTERN = Pattern.compile(
-            "^(?:/[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+\\.(?i)json$");
+            "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+\\.(?i)json$");
     private static final Pattern DIR_PATH_PATTERN = Pattern.compile(
-            "^(?:/[-_0-9a-zA-Z](?:[-_\\.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$");
+            "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
-            "^[_A-Za-z0-9-\\+]+(?:\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9]+)*(?:\\.[A-Za-z]{2,})$");
+            "^[_A-Za-z0-9-+]+(?:\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9]+)*(?:\\.[A-Za-z]{2,})$");
     private static final Pattern GENERAL_EMAIL_PATTERN = Pattern.compile(
-            "^[_A-Za-z0-9-\\+]+(?:\\.[_A-Za-z0-9-]+)*@(.+)$");
+            "^[_A-Za-z0-9-+]+(?:\\.[_A-Za-z0-9-]+)*@(.+)$");
 
     /**
      * Start with an alphanumeric character.
@@ -53,7 +53,7 @@ public final class Util {
      * End with an alphanumeric character.
      */
     private static final Pattern PROJECT_AND_REPO_NAME_PATTERN =
-            Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z\\.]*[0-9A-Za-z])?$");
+            Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
 
     public static String validateFileName(String name, String paramName) {
         requireNonNull(name, paramName);
@@ -160,10 +160,8 @@ public final class Util {
         final Matcher m = GENERAL_EMAIL_PATTERN.matcher(emailAddr);
         if (m.matches()) {
             final String domainPart = m.group(1);
-            if (isValidIpV4Address(domainPart) ||
-                isValidIpV6Address(domainPart)) {
-                return true;
-            }
+            return isValidIpV4Address(domainPart) ||
+                   isValidIpV6Address(domainPart);
         }
         return false;
     }
@@ -242,11 +240,11 @@ public final class Util {
             return className;
         }
 
-        StringBuilder buf = new StringBuilder(className.length());
+        final StringBuilder buf = new StringBuilder(className.length());
         boolean lowercase = true;
         for (int i = 0; i < className.length(); i++) {
-            char c1 = className.charAt(i);
-            char c2;
+            final char c1 = className.charAt(i);
+            final char c2;
             if (lowercase) {
                 c2 = Character.toLowerCase(c1);
                 if (c1 == c2) {
@@ -292,7 +290,7 @@ public final class Util {
 
     @SuppressWarnings("DuplicateBooleanBranch")
     private static boolean isValidIpV4Address(String ip, int from, int toExcluded) {
-        int len = toExcluded - from;
+        final int len = toExcluded - from;
         int i;
         return len <= 15 && len >= 7 &&
                (i = ip.indexOf('.', from + 1)) > 0 && isValidIpV4Word(ip, from, i) &&
@@ -302,10 +300,10 @@ public final class Util {
     }
 
     private static boolean isValidIpV4Word(CharSequence word, int from, int toExclusive) {
-        int len = toExclusive - from;
-        char c0;
-        char c1;
-        char c2;
+        final int len = toExclusive - from;
+        final char c0;
+        final char c1;
+        final char c2;
         if (len < 1 || len > 3 || (c0 = word.charAt(from)) < '0') {
             return false;
         }
@@ -388,14 +386,14 @@ public final class Util {
                     if (compressBegin < 0 && colons != 6 ||
                         // a special case ::1:2:3:4:5:d.d.d.d allows 7 colons with an
                         // IPv4 ending, otherwise 7 :'s is bad
-                        (colons == 7 && compressBegin >= start || colons > 7)) {
+                        colons == 7 && compressBegin >= start || colons > 7) {
                         return false;
                     }
 
                     // Verify this address is of the correct structure to contain an IPv4 address.
                     // It must be IPv4-Mapped or IPv4-Compatible
                     // (see https://tools.ietf.org/html/rfc4291#section-2.5.5).
-                    int ipv4Start = i - wordLen;
+                    final int ipv4Start = i - wordLen;
                     int j = ipv4Start - 2; // index of character before the previous ':'.
                     if (isValidIPv4MappedChar(ip.charAt(j))) {
                         if (!isValidIPv4MappedChar(ip.charAt(j - 1)) ||
@@ -407,7 +405,7 @@ public final class Util {
                     }
 
                     for (; j >= start; --j) {
-                        char tmpChar = ip.charAt(j);
+                        final char tmpChar = ip.charAt(j);
                         if (tmpChar != '0' && tmpChar != ':') {
                             return false;
                         }

@@ -228,7 +228,6 @@ public class CentralDogmaBeanFactory {
      * @throws InterruptedException when {@code initialValueTimeoutMillis} is positive and
      *                              it got interrupted while waiting for the initial value
      */
-    @SuppressWarnings("unchecked")
     public <T> T get(T bean, Class<T> beanType, CentralDogmaBeanConfig overrides,
                      long initialValueTimeout, TimeUnit initialValueTimeoutUnit)
             throws TimeoutException, InterruptedException {
@@ -290,9 +289,9 @@ public class CentralDogmaBeanFactory {
                 });
 
         if (initialValueTimeout > 0) {
-            long t0 = System.nanoTime();
-            Latest<T> latest = watcher.awaitInitialValue(initialValueTimeout, initialValueTimeoutUnit);
-            long elapsedMillis = System.nanoTime() - t0;
+            final long t0 = System.nanoTime();
+            final Latest<T> latest = watcher.awaitInitialValue(initialValueTimeout, initialValueTimeoutUnit);
+            final long elapsedMillis = System.nanoTime() - t0;
             logger.debug("Initial value of {} obtained in {} ms: rev={}",
                          settings, elapsedMillis, latest.revision());
         }

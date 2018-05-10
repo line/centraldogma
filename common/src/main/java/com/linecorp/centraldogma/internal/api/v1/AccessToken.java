@@ -16,10 +16,12 @@
 
 package com.linecorp.centraldogma.internal.api.v1;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Ascii;
 import com.google.common.base.MoreObjects;
 
 public class AccessToken {
@@ -27,8 +29,6 @@ public class AccessToken {
     private static final String BEARER = "Bearer";
 
     private final String accessToken;
-
-    private final String tokenType = BEARER;
 
     private final long expiresIn;
 
@@ -39,17 +39,21 @@ public class AccessToken {
     //TODO(minwoox) Add scope if needed.
 
     public AccessToken(String accessToken, long expiresIn) {
-        this(accessToken, expiresIn, "");
+        this(BEARER, accessToken, expiresIn, "");
     }
 
     @JsonCreator
-    public AccessToken(@JsonProperty("access_token") String accessToken,
+    public AccessToken(@JsonProperty("token_type") String tokenType,
+                       @JsonProperty("access_token") String accessToken,
                        @JsonProperty("expires_in") long expiresIn,
                        @JsonProperty("refresh_token") String refreshToken) {
+        requireNonNull(tokenType, "tokenType");
+        checkArgument(Ascii.equalsIgnoreCase(tokenType, BEARER),
+                      "tokenType: %s (expected: %s)", tokenType, BEARER);
         this.accessToken = requireNonNull(accessToken, "accessToken");
         this.expiresIn = expiresIn;
         this.refreshToken = requireNonNull(refreshToken, "refreshToken");
-        this.deadline = System.currentTimeMillis() + expiresIn;
+        deadline = System.currentTimeMillis() + expiresIn;
     }
 
     @JsonProperty("access_token")
@@ -64,7 +68,7 @@ public class AccessToken {
 
     @JsonProperty("token_type")
     public String tokenType() {
-        return tokenType;
+        return BEARER;
     }
 
     @JsonProperty("refresh_token")
@@ -81,7 +85,7 @@ public class AccessToken {
         return MoreObjects.toStringHelper(this)
                           .add("accessToken", accessToken)
                           .add("expiresIn", expiresIn)
-                          .add("tokenType", tokenType)
+                          .add("tokenType", BEARER)
                           .add("deadline", deadline)
                           .toString();
     }

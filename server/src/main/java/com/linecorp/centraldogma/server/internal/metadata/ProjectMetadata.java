@@ -139,6 +139,7 @@ public class ProjectMetadata implements Identifiable {
         throw new EntryNotFoundException(memberId);
     }
 
+    @Nullable
     public Member memberOrDefault(String memberId, @Nullable Member defaultMember) {
         final Member member = members.get(requireNonNull(memberId, "memberId"));
         if (member != null) {

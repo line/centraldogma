@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.internal.thrift;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -31,7 +33,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 public final class EntryConverter {
 
     public static Entry convert(com.linecorp.centraldogma.common.Entry<?> entry) {
-        Entry file = new Entry(entry.path(), convertEntryType(entry.type()));
+        final Entry file = new Entry(entry.path(), convertEntryType(entry.type()));
         switch (entry.type()) {
             case JSON:
                 // FIXME(trustin): Inefficiency
@@ -57,7 +59,7 @@ public final class EntryConverter {
         switch (entry.getType()) {
             case JSON:
                 try {
-                    JsonNode value = Jackson.readTree(entry.getContent());
+                    final JsonNode value = Jackson.readTree(entry.getContent());
                     return com.linecorp.centraldogma.common.Entry.ofJson(revision, entry.getPath(), value);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
@@ -75,6 +77,7 @@ public final class EntryConverter {
     /**
      * Converts {@link com.linecorp.centraldogma.common.EntryType} to {@link EntryType}.
      */
+    @Nullable
     public static EntryType convertEntryType(com.linecorp.centraldogma.common.EntryType type) {
         if (type == null) {
             return null;
@@ -95,6 +98,7 @@ public final class EntryConverter {
     /**
      * Converts {@link EntryType} to {@link com.linecorp.centraldogma.common.EntryType}.
      */
+    @Nullable
     public static com.linecorp.centraldogma.common.EntryType convertEntryType(EntryType type) {
         if (type == null) {
             return null;

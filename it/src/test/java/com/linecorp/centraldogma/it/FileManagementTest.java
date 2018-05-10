@@ -44,9 +44,8 @@ public class FileManagementTest {
             super.scaffold(client);
 
             for (int i = 0; i < NUM_FILES; i++) {
-                client.push(
-                        project(), repo1(), Revision.HEAD, TestConstants.AUTHOR,
-                        "Put test files", Change.ofJsonUpsert(TEST_ROOT + i + ".json", "{}")).join();
+                client.push(project(), repo1(), Revision.HEAD,
+                            "Put test files", Change.ofJsonUpsert(TEST_ROOT + i + ".json", "{}")).join();
             }
         }
     };

@@ -47,13 +47,13 @@ final class DtoConverter {
     }
 
     static ProjectDto convert(Project project) {
-        ProjectDto dto = new ProjectDto();
+        final ProjectDto dto = new ProjectDto();
         dto.setName(project.name());
         return dto;
     }
 
     static CommitDto convert(Commit commit) {
-        CommitDto dto = new CommitDto();
+        final CommitDto dto = new CommitDto();
         dto.setAuthor(convert(commit.author()));
         dto.setRevision(convert(commit.revision()));
         dto.setTimestamp(commit.whenAsText());
@@ -67,21 +67,21 @@ final class DtoConverter {
     }
 
     static AuthorDto convert(Author author) {
-        AuthorDto dto = new AuthorDto();
+        final AuthorDto dto = new AuthorDto();
         dto.setName(author.name());
         dto.setEmail(author.email());
         return dto;
     }
 
     static CommentDto convert(String content, Markup markup) {
-        CommentDto dto = new CommentDto();
+        final CommentDto dto = new CommentDto();
         dto.setContent(content);
         dto.setMarkup(markup.name());
         return dto;
     }
 
     static ChangeDto convert(Change<?> change) {
-        ChangeDto dto = new ChangeDto();
+        final ChangeDto dto = new ChangeDto();
         dto.setPath(change.path());
         dto.setType(change.type().name());
         dto.setContent(change.contentAsText());
@@ -89,7 +89,7 @@ final class DtoConverter {
     }
 
     static EntryDto convert(Entry<?> entry) {
-        EntryDto dto = new EntryDto();
+        final EntryDto dto = new EntryDto();
         dto.setRevision(entry.revision().text());
         dto.setPath(entry.path());
         dto.setType(entry.type().name());
@@ -98,7 +98,7 @@ final class DtoConverter {
     }
 
     static RepositoryDto fromCommit(String name, List<Commit> history) {
-        RepositoryDto dto = new RepositoryDto();
+        final RepositoryDto dto = new RepositoryDto();
         dto.setName(name);
         dto.setHead(convert(history.get(0)));
         return dto;
