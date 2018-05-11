@@ -26,7 +26,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 )
 
 type watchService service
@@ -110,16 +109,14 @@ const (
 
 // Watcher watches the changes of a repository or a file.
 type Watcher struct {
-	state              int32
-	initialChan        chan *Latest // channel whose buffer is 1.
-	isInitialChanSet   int32        // 0 is false, 1 is true
-	scheduleCTX        context.Context
-	scheduleCancelFunc func()
-	watchCTX           context.Context
-	watchCancelFunc    func()
-	latestPtr          unsafe.Pointer
-	updateListeners    []func(revision int, value interface{})
-	listenersMutex     *sync.Mutex
+	state               int32
+	initialValueCh      chan *Latest // channel whose buffer is 1.
+	isInitialValueChSet int32        // 0 is false, 1 is true
+	watchCTX            context.Context
+	watchCancelFunc     func()
+	latest              atomic.Value
+	updateListeners     []func(revision int, value interface{})
+	listenersMutex      *sync.Mutex
 
 	doWatchFunc          func(lastKnownRevision int) <-chan *WatchResult
 	convertingResultFunc func(result *WatchResult) *Latest
@@ -138,30 +135,28 @@ type Latest struct {
 
 func newWatcher(projectName, repoName, pathPattern string) *Watcher {
 	rand.Seed(time.Now().UTC().UnixNano())
-	scheduleCTX, scheduleCancelFunc := context.WithCancel(context.Background())
 	watchCTX, watchCancelFunc := context.WithCancel(context.Background())
-	return &Watcher{state: initial, initialChan: make(chan *Latest, 1),
-		scheduleCTX: scheduleCTX, scheduleCancelFunc: scheduleCancelFunc,
+	return &Watcher{state: initial, initialValueCh: make(chan *Latest, 1),
 		watchCTX: watchCTX, watchCancelFunc: watchCancelFunc,
 		listenersMutex: &sync.Mutex{},
-		projectName:    projectName,
-		repoName:       repoName, pathPattern: pathPattern}
+		projectName: projectName,
+		repoName: repoName, pathPattern: pathPattern}
 }
 
 // AwaitInitialValue awaits for the initial value to be available.
 func (w *Watcher) AwaitInitialValue() Latest {
-	latest := <-w.initialChan
+	latest := <-w.initialValueCh
 	// Put it back to the channel so that this can return the value multiple times.
-	w.initialChan <- latest
+	w.initialValueCh <- latest
 	return *latest
 }
 
 // AwaitInitialValue awaits for the initial value to be available during the specified timeout.
 func (w *Watcher) AwaitInitialValueWith(timeout time.Duration) Latest {
 	select {
-	case latest := <-w.initialChan:
+	case latest := <-w.initialValueCh:
 		// Put it back to the channel so that this can return the value multiple times.
-		w.initialChan <- latest
+		w.initialValueCh <- latest
 		return *latest
 	case <-time.After(timeout):
 		return Latest{Err: fmt.Errorf("failed to get the initial value. timeout: %v", timeout)}
@@ -170,11 +165,13 @@ func (w *Watcher) AwaitInitialValueWith(timeout time.Duration) Latest {
 
 // Latest returns the latest Revision and value of WatchFile() or WatchRepository() result.
 func (w *Watcher) Latest() Latest {
-	if latest := (*Latest)(atomic.LoadPointer(&w.latestPtr)); latest != nil {
-		return *latest
-	} else {
-		return Latest{Err: errors.New("latest is not set yet")}
+	latest := w.latest.Load()
+	if latest != nil {
+		if l, ok := latest.(Latest); ok {
+			return l
+		}
 	}
+	return Latest{Err: errors.New("latest is not set yet")}
 }
 
 // LatestValue returns the latest value of watchFile() or WatchRepository() result.
@@ -200,12 +197,11 @@ func (w *Watcher) LatestValueOr(defaultValue interface{}) interface{} {
 func (w *Watcher) Close() {
 	atomic.StoreInt32(&w.state, stopped)
 	latest := &Latest{Err: errors.New("watcher is closed")}
-	if atomic.CompareAndSwapInt32(&w.isInitialChanSet, 0, 1) {
-		// The initial latest was not set before. So write the value to initialChan as well.
-		w.initialChan <- latest
+	if atomic.CompareAndSwapInt32(&w.isInitialValueChSet, 0, 1) {
+		// The initial latest was not set before. So write the value to initialValueCh as well.
+		w.initialValueCh <- latest
 	}
-	w.scheduleCancelFunc() // After the first call, subsequent calls to a CancelFunc do nothing.
-	w.watchCancelFunc()
+	w.watchCancelFunc() // After the first call, subsequent calls to a CancelFunc do nothing.
 }
 
 // Watch registers a func that will be invoked when the value of the watched entry becomes available or changes.
@@ -286,7 +282,7 @@ func (w *Watcher) scheduleWatch(numAttemptsSoFar int) {
 
 	go func() {
 		select {
-		case <-w.scheduleCTX.Done():
+		case <-w.watchCTX.Done():
 		case <-time.NewTimer(delay).C:
 			w.doWatch(numAttemptsSoFar)
 		}
@@ -326,11 +322,11 @@ func (w *Watcher) doWatch(numAttemptsSoFar int) {
 		}
 
 		newLatest := w.convertingResultFunc(watchResult)
-		if w.isInitialChanSet == 0 && atomic.CompareAndSwapInt32(&w.isInitialChanSet, 0, 1) {
-			// The initial latest is set for the first time. So write the value to initialChan as well.
-			w.initialChan <- newLatest
+		if w.isInitialValueChSet == 0 && atomic.CompareAndSwapInt32(&w.isInitialValueChSet, 0, 1) {
+			// The initial latest is set for the first time. So write the value to initialValueCh as well.
+			w.initialValueCh <- newLatest
 		}
-		atomic.StorePointer(&w.latestPtr, (unsafe.Pointer)(newLatest))
+		w.latest.Store(*newLatest)
 		log.Debugf("Watcher noticed updated file: %s/%s%s, rev=%v",
 			w.projectName, w.repoName, w.pathPattern, newLatest.Revision)
 		w.notifyListeners()
