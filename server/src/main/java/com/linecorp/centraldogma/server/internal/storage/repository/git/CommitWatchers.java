@@ -42,8 +42,8 @@ final class CommitWatchers {
 
     private final Map<PathPatternFilter, Set<Watch>> watchesMap = new WatcherMap(8192);
 
-    void add(Revision lastKnownRev, PathPatternFilter pathPattern, CompletableFuture<Revision> future) {
-        add0(pathPattern, new Watch(lastKnownRev, future));
+    void add(Revision lastKnownRev, String pathPattern, CompletableFuture<Revision> future) {
+        add0(PathPatternFilter.of(pathPattern), new Watch(lastKnownRev, future));
     }
 
     private void add0(final PathPatternFilter pathPattern, Watch watch) {

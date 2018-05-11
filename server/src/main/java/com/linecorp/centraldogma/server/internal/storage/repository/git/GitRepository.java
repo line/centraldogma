@@ -1266,25 +1266,69 @@ class GitRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+    public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
+        return CompletableFuture.supplyAsync(() -> blockingFindLatestRevision(lastKnownRevision, pathPattern),
+                                             repositoryWorker);
+    }
+
+    @Nullable
+    private Revision blockingFindLatestRevision(Revision lastKnownRevision, String pathPattern) {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
 
-        final CompletableFuture<Revision> future = new CompletableFuture<>();
+        final RevisionRange range = normalizeNow(lastKnownRevision, Revision.HEAD);
+        if (range.from().equals(range.to())) {
+            // Empty range.
+            return null;
+        }
 
-        normalize(lastKnownRevision).thenAcceptAsync(normLastKnownRevision -> {
+        final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
+        readLock();
+        try (RevWalk revWalk = new RevWalk(jGitRepository)) {
+            final List<DiffEntry> diff = compareTrees(toTreeId(revWalk, range.from()),
+                                                      toTreeId(revWalk, range.to()), TreeFilter.ALL);
+            for (DiffEntry e : diff) {
+                final String path;
+                switch (e.getChangeType()) {
+                    case ADD:
+                        path = e.getNewPath();
+                        break;
+                    case MODIFY:
+                    case DELETE:
+                        path = e.getOldPath();
+                        break;
+                    default:
+                        throw new Error();
+                }
+
+                if (filter.matches(path)) {
+                    return range.to();
+                }
+            }
+        } finally {
+            readUnlock();
+        }
+
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+        final CompletableFuture<Revision> future = new CompletableFuture<>();
+        CompletableFuture.runAsync(() -> {
+            requireNonNull(lastKnownRevision, "lastKnownRevision");
+            requireNonNull(pathPattern, "pathPattern");
+
+            final Revision normLastKnownRevision = normalizeNow(lastKnownRevision);
             readLock();
             try {
-                final Revision headRevision = cachedHeadRevision();
-                final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
-
                 // If lastKnownRevision is outdated already and the recent changes match,
                 // there's no need to watch.
-                if (!normLastKnownRevision.equals(headRevision) &&
-                    hasMatchingChanges(normLastKnownRevision, headRevision, filter)) {
-                    future.complete(headRevision);
+                final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern);
+                if (latestRevision != null) {
+                    future.complete(latestRevision);
                 } else {
-                    commitWatchers.add(normLastKnownRevision, filter, future);
+                    commitWatchers.add(normLastKnownRevision, pathPattern, future);
                 }
             } finally {
                 readUnlock();
@@ -1295,33 +1339,6 @@ class GitRepository implements Repository {
         });
 
         return future;
-    }
-
-    private boolean hasMatchingChanges(Revision from, Revision to, PathPatternFilter filter) {
-        try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-            final List<DiffEntry> diff =
-                    compareTrees(toTreeId(revWalk, from), toTreeId(revWalk, to), TreeFilter.ALL);
-            for (DiffEntry e : diff) {
-                final String path;
-                switch (e.getChangeType()) {
-                case ADD:
-                    path = e.getNewPath();
-                    break;
-                case MODIFY:
-                case DELETE:
-                    path = e.getOldPath();
-                    break;
-                default:
-                    throw new Error();
-                }
-
-                if (filter.matches(path)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private void notifyWatchers(Revision newRevision, @Nullable ObjectId prevTreeId, ObjectId nextTreeId) {

@@ -171,6 +171,11 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
+    public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
+        return unwrap().findLatestRevision(lastKnownRevision, pathPattern);
+    }
+
+    @Override
     public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
         return unwrap().watch(lastKnownRevision, pathPattern);
     }
