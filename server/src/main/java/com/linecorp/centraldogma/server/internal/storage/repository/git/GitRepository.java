@@ -1269,11 +1269,10 @@ class GitRepository implements Repository {
     public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
-        requireNonNull(repositoryWorker, "executor");
 
         final CompletableFuture<Revision> future = new CompletableFuture<>();
 
-        normalize(lastKnownRevision).thenAccept(normLastKnownRevision -> {
+        normalize(lastKnownRevision).thenAcceptAsync(normLastKnownRevision -> {
             readLock();
             try {
                 final Revision headRevision = cachedHeadRevision();
@@ -1290,7 +1289,7 @@ class GitRepository implements Repository {
             } finally {
                 readUnlock();
             }
-        }).exceptionally(cause -> {
+        }, repositoryWorker).exceptionally(cause -> {
             future.completeExceptionally(cause);
             return null;
         });
