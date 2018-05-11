@@ -158,8 +158,10 @@ func TestGetHistory(t *testing.T) {
 		testURLQuery(t, r, "to", "-1")
 		testURLQuery(t, r, "maxCommits", "2")
 
-		fmt.Fprint(w, `[{"revision":1, "author":{"name":"minux", "email":"minux@m.x"}, "commitMessage":{"Summary":"Add a.json"}},
-{"revision":2, "author":{"name":"minux", "email":"minux@m.x"}, "commitMessage":{"Summary":"Edit a.json"}}]`)
+		fmt.Fprint(w, `[{"revision":1, "author":{"name":"minux", "email":"minux@m.x"},
+"commitMessage":{"Summary":"Add a.json"}},
+{"revision":2, "author":{"name":"minux", "email":"minux@m.x"},
+"commitMessage":{"Summary":"Edit a.json"}}]`)
 	})
 
 	history, _, _ := c.GetHistory(context.Background(), "foo", "bar", "-2", "-1", "/**", 2)
@@ -260,7 +262,8 @@ func TestPush(t *testing.T) {
 			t.Errorf("Push request body %+v, want %+v", changes, want)
 		}
 
-		fmt.Fprint(w, `{"revision":2, "author":{"name":"minux", "email":"minux@m.x"}, "entries":[{"path":"/a.json", "type":"JSON"}]}`)
+		fmt.Fprint(w, `{"revision":2, "author":{"name":"minux", "email":"minux@m.x"},
+"entries":[{"path":"/a.json", "type":"JSON"}]}`)
 	})
 
 	commitMessage := &CommitMessage{Summary: "Add a.json"}

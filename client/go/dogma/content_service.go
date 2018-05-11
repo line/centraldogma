@@ -17,6 +17,7 @@ package dogma
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -132,6 +133,11 @@ func (c *Change) UnmarshalJSON(b []byte) error {
 
 func (con *contentService) listFiles(ctx context.Context,
 	projectName, repoName, revision, pathPattern string) ([]*Entry, *http.Response, error) {
+	if len(pathPattern) != 0 && !strings.HasPrefix(pathPattern, "/") {
+		// Normalize the pathPattern when it does not start with "/" so that the pathPattern fits into the url.
+		pathPattern = "/**/" + pathPattern
+	}
+
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/list%v", defaultPathPrefix, projectName, repoName, pathPattern)
 
 	if len(revision) != 0 {
@@ -161,6 +167,10 @@ func encodeValues(v *url.Values) string {
 
 func (con *contentService) getFile(
 	ctx context.Context, projectName, repoName, revision string, query *Query) (*Entry, *http.Response, error) {
+	if query == nil {
+		return nil, nil, errors.New("query should not be nil")
+	}
+
 	path := query.Path
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
@@ -215,6 +225,10 @@ func setJSONPaths(v *url.Values, path string, jsonPaths []string) error {
 
 func (con *contentService) getFiles(ctx context.Context,
 	projectName, repoName, revision, pathPattern string) ([]*Entry, *http.Response, error) {
+	if len(pathPattern) != 0 && !strings.HasPrefix(pathPattern, "/") {
+		// Normalize the pathPattern when it does not start with "/" so that the pathPattern fits into the url.
+		pathPattern = "/**/" + pathPattern
+	}
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/contents%v", defaultPathPrefix, projectName, repoName, pathPattern)
 
 	if len(revision) != 0 {
@@ -267,9 +281,13 @@ func (con *contentService) getHistory(ctx context.Context,
 
 func (con *contentService) getDiff(ctx context.Context,
 	projectName, repoName, from, to string, query *Query) (*Change, *http.Response, error) {
+	if query == nil {
+		return nil, nil, errors.New("query should not be nil")
+	}
+
 	path := query.Path
 	if len(path) == 0 {
-		return nil, nil, fmt.Errorf("the path should not be empty")
+		return nil, nil, errors.New("the path should not be empty")
 	}
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
@@ -312,12 +330,12 @@ func setFromTo(v *url.Values, from, to string) {
 
 func (con *contentService) getDiffs(ctx context.Context,
 	projectName, repoName, from, to, pathPattern string) ([]*Change, *http.Response, error) {
+	u := fmt.Sprintf("%vprojects/%v/repos/%v/compare", defaultPathPrefix, projectName, repoName)
+	v := &url.Values{}
+
 	if len(pathPattern) == 0 {
 		pathPattern = "/**"
 	}
-
-	u := fmt.Sprintf("%vprojects/%v/repos/%v/compare", defaultPathPrefix, projectName, repoName)
-	v := &url.Values{}
 	v.Set("pathPattern", pathPattern)
 	setFromTo(v, from, to)
 	u += encodeValues(v)
@@ -348,7 +366,7 @@ func (con *contentService) push(ctx context.Context, projectName, repoName, base
 	}
 
 	if len(changes) == 0 {
-		return nil, nil, fmt.Errorf("no changes to commit")
+		return nil, nil, errors.New("no changes to commit")
 	}
 
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/contents", defaultPathPrefix, projectName, repoName)

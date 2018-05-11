@@ -221,7 +221,8 @@ public class ContentServiceV1 extends AbstractService {
     private static ImmutableList<EntryDto<?>> entryDtos(Repository repository,
                                                         Map<String, Entry<?>> entries) {
         return entries.values().stream().map(
-                entry -> convert(repository, entry.path(), entry.type()))
+                entry -> convert(repository, entry.path(), entry.type(),
+                                 entry.type() != DIRECTORY ? entry.content() : null))
                       .collect(toImmutableList());
     }
 
@@ -276,15 +277,16 @@ public class ContentServiceV1 extends AbstractService {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis);
 
-        return future.thenCompose(result -> handleWatchSuccess(repository, result.revision(), query.path()))
+        return future.thenCompose(result -> handleWatchSuccess(repository, result.revision(),
+                                                               query.path(), ImmutableMap.of()))
                      .exceptionally(ContentServiceV1::handleWatchFailure);
     }
 
-    private static CompletableFuture<Object> handleWatchSuccess(Repository repository,
-                                                                Revision revision, String pathPattern) {
+    private static CompletableFuture<Object> handleWatchSuccess(
+            Repository repository, Revision revision, String pathPattern, Map<FindOption<?>, ?> options) {
         final CompletableFuture<List<Commit>> historyFuture =
                 repository.history(revision, revision, pathPattern);
-        return repository.find(revision, pathPattern, NO_FETCH_CONTENT)
+        return repository.find(revision, pathPattern, options)
                          .thenCombine(historyFuture, (entryMap, commits) -> {
                              final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entryMap);
                              // the size of commits should be 1
@@ -305,7 +307,8 @@ public class ContentServiceV1 extends AbstractService {
         final CompletableFuture<Revision> future =
                 watchService.watchRepository(repository, lastKnownRevision, pathPattern, timeOutMillis);
 
-        return future.thenCompose(revision -> handleWatchSuccess(repository, revision, pathPattern))
+        return future.thenCompose(revision -> handleWatchSuccess(repository, revision,
+                                                                 pathPattern, NO_FETCH_CONTENT))
                      .exceptionally(ContentServiceV1::handleWatchFailure);
     }
 
@@ -362,7 +365,7 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
     @Decorator(HasReadPermission.class)
-    public CompletableFuture<?> getDiff(@Param("path") @Default("/**") String pathPattern,
+    public CompletableFuture<?> getDiff(@Param("pathPattern") @Default("/**") String pathPattern,
                                         @Param("from") @Default("1") String from,
                                         @Param("to") @Default("head") String to,
                                         @RequestObject Repository repository,

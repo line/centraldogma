@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -39,7 +40,7 @@ func (lsp *lsProjectCommand) execute(c *cli.Context) error {
 		return err
 	}
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to get the list of projects")
+		return errors.New("failed to get the list of projects")
 	}
 	printWithStyle(projects, lsp.style)
 	return nil

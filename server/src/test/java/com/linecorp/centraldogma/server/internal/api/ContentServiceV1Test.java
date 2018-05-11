@@ -572,17 +572,8 @@ public class ContentServiceV1Test {
 
     @Test
     public void watchRepository() {
-        watchTest(CONTENTS_PREFIX);
-    }
-
-    @Test
-    public void watchFile() {
-        watchTest(CONTENTS_PREFIX + "/foo.json");
-    }
-
-    private static void watchTest(String path) {
         addFooJson();
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, path).add(
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX).add(
                 HttpHeaderNames.IF_NONE_MATCH, "-1");
         final CompletableFuture<AggregatedHttpMessage> future = httpClient.execute(headers).aggregate();
 
@@ -670,6 +661,7 @@ public class ContentServiceV1Test {
                 "   \"entries\": [{" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
+                "       \"content\": {\"a\":\"baz\"}," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }]" +
                 '}';

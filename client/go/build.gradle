@@ -24,6 +24,10 @@ dependencies {
         build('github.com/urfave/cli@v1.19.1') {
             transitive = false
         }
+        build('github.com/sirupsen/logrus@v1.0.5') {
+            transitive = false
+        }
+
         // no tags or releases
         build 'github.com/bgentry/go-netrc#9fd32a8b3d3d3f9d43c341bfe098430e07609480'
         // Golang sub-repositories with looser compatibility requirements

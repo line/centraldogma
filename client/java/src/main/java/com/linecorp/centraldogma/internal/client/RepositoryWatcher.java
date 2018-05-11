@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.internal.client;
 
-import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +27,7 @@ import com.linecorp.centraldogma.common.Revision;
 
 public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
     private final String pathPattern;
-    private final Function<Object, ? extends T> function;
+    private final Function<Revision, ? extends T> function;
 
     /**
      * Creates a new instance.
@@ -38,7 +37,7 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
                       String pathPattern, Function<Revision, ? extends T> function) {
         super(client, executor, projectName, repositoryName, pathPattern);
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
-        this.function = unsafeCast(requireNonNull(function, "function"));
+        this.function = requireNonNull(function, "function");
     }
 
     @Override

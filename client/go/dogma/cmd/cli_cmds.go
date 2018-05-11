@@ -50,6 +50,11 @@ var maxCommitsFlag = cli.IntFlag{
 	Usage: "Specifies the number of maximum commits to fetch",
 }
 
+var streamingFlag = cli.BoolFlag{
+	Name:  "streaming, s",
+	Usage: "Specifies whether to keep watching the file",
+}
+
 var printFormatFlags = []cli.Flag{
 	cli.BoolFlag{
 		Name:   "pretty",
@@ -207,6 +212,23 @@ func CLICommands() []cli.Command {
 			Flags:     []cli.Flag{revisionFlag, jsonPathFlag},
 			Action: func(c *cli.Context) error {
 				command, err := newCatCommand(c)
+				if err != nil {
+					return newCommandLineError(c)
+				}
+				err = command.execute(c)
+				if err != nil {
+					return cli.NewExitError(err, 1)
+				}
+				return nil
+			},
+		},
+		{
+			Name:      "watch",
+			Usage:     "Watches a file in the path",
+			ArgsUsage: "<project_name>/<repository_name>/<path>",
+			Flags:     []cli.Flag{revisionFlag, jsonPathFlag, streamingFlag},
+			Action: func(c *cli.Context) error {
+				command, err := newWatchCommand(c)
 				if err != nil {
 					return newCommandLineError(c)
 				}
