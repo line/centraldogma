@@ -159,6 +159,38 @@ final class CachingRepository implements Repository {
         return unsafeCast(cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(), pathPattern)));
     }
 
+    @Override
+    public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
+        requireNonNull(lastKnownRevision, "lastKnownRevision");
+        requireNonNull(pathPattern, "pathPattern");
+
+        final RevisionRange range;
+        try {
+            range = normalizeNow(lastKnownRevision, Revision.HEAD);
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
+
+        final CompletableFuture<Object> future =
+                cache.get(new CacheableFindLatestRevCall(repo, range.from(), range.to(), pathPattern))
+                     .thenApply(result -> result != CacheableFindLatestRevCall.EMPTY ? result : null);
+        return unsafeCast(future);
+    }
+
+    @Override
+    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+        requireNonNull(lastKnownRevision, "lastKnownRevision");
+        requireNonNull(pathPattern, "pathPattern");
+
+        return findLatestRevision(lastKnownRevision, pathPattern).thenCompose(latestRevision -> {
+            if (latestRevision != null) {
+                return CompletableFuture.completedFuture(latestRevision);
+            } else {
+                return repo.watch(lastKnownRevision, pathPattern);
+            }
+        });
+    }
+
     // Simple delegations
 
     @Override
@@ -194,11 +226,6 @@ final class CachingRepository implements Repository {
                                               Iterable<Change<?>> changes) {
 
         return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes);
-    }
-
-    @Override
-    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
-        return repo.watch(lastKnownRevision, pathPattern);
     }
 
     private <T> CompletableFuture<T> normalizeAndCompose(
