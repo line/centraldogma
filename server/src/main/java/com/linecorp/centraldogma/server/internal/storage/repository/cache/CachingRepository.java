@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
@@ -44,6 +45,9 @@ import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 final class CachingRepository implements Repository {
+
+    private static final CancellationException CANCELLATION_EXCEPTION =
+            Exceptions.clearTrace(new CancellationException("watch cancelled by caller"));
 
     private final Repository repo;
 
@@ -171,6 +175,10 @@ final class CachingRepository implements Repository {
             return CompletableFutures.exceptionallyCompletedFuture(e);
         }
 
+        if (range.from().equals(range.to())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         final CompletableFuture<Object> future =
                 cache.get(new CacheableFindLatestRevCall(repo, range.from(), range.to(), pathPattern))
                      .thenApply(result -> result != CacheableFindLatestRevCall.EMPTY ? result : null);
@@ -182,13 +190,49 @@ final class CachingRepository implements Repository {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
 
-        return findLatestRevision(lastKnownRevision, pathPattern).thenCompose(latestRevision -> {
-            if (latestRevision != null) {
-                return CompletableFuture.completedFuture(latestRevision);
-            } else {
-                return repo.watch(lastKnownRevision, pathPattern);
+        final CompletableFuture<Revision> latestRevFuture = findLatestRevision(lastKnownRevision, pathPattern);
+        if (latestRevFuture.isCompletedExceptionally() || latestRevFuture.getNow(null) != null) {
+            return latestRevFuture;
+        }
+
+        final CompletableFuture<Revision> future = new CompletableFuture<>();
+        latestRevFuture.whenComplete((latestRevision, cause) -> {
+            if (cause != null) {
+                future.completeExceptionally(cause);
+                return;
             }
+
+            if (latestRevision != null) {
+                future.complete(latestRevision);
+                return;
+            }
+
+            // Propagate the state of 'watchFuture' to 'future'.
+            final CompletableFuture<Revision> watchFuture = repo.watch(lastKnownRevision, pathPattern);
+            watchFuture.whenComplete((watchResult, watchCause) -> {
+                if (watchCause == null) {
+                    future.complete(watchResult);
+                } else {
+                    future.completeExceptionally(watchCause);
+                }
+            });
+
+            // Cancel the 'watchFuture' if 'future' is complete. 'future' is complete on the following cases:
+            //
+            // 1) The state of 'watchFuture' has been propagated to 'future' by the callback we registered
+            //    above. In this case, 'watchFuture.completeExceptionally()' call below has no effect because
+            //    'watchFuture' is complete already.
+            //
+            // 2) A user completed 'future' by his or her own, most often for cancellation.
+            //    'watchFuture' will be completed by 'watchFuture.completeExceptionally()' below.
+            //    The callback we registered to 'watchFuture' above will have no effect because 'future' is
+            //    complete already.
+
+            future.whenComplete(
+                    (unused1, unused2) -> watchFuture.completeExceptionally(CANCELLATION_EXCEPTION));
         });
+
+        return future;
     }
 
     // Simple delegations
