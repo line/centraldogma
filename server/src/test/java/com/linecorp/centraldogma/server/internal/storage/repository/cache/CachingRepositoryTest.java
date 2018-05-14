@@ -253,6 +253,18 @@ public class CachingRepositoryTest {
     }
 
     @Test
+    public void finaLatestRevisionHead() {
+        final Repository repo = newCachingRepo();
+        final Revision actualHeadRev = new Revision(2);
+        doReturn(new RevisionRange(actualHeadRev, actualHeadRev))
+                .when(delegateRepo).normalizeNow(HEAD, HEAD);
+
+        assertThat(repo.findLatestRevision(HEAD, "/**").join()).isNull();
+        verify(delegateRepo, never()).findLatestRevision(any(), any());
+        verifyNoMoreInteractions(delegateRepo);
+    }
+
+    @Test
     public void watchFastPath() {
         final Repository repo = setMockNames(newCachingRepo());
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
