@@ -55,13 +55,17 @@ public class DefaultMirroringServiceTest {
         final AtomicInteger taskCounter = new AtomicInteger();
         final ProjectManager pm = mock(ProjectManager.class);
         final Project p = mock(Project.class);
-        final MetaRepository r = mock(MetaRepository.class);
+        final MetaRepository mr = mock(MetaRepository.class);
+        final Repository r = mock(Repository.class);
         when(pm.list()).thenReturn(ImmutableMap.of("foo", p));
-        when(p.metaRepo()).thenReturn(r);
-        when(r.mirrors()).thenReturn(ImmutableSet.of(new Mirror(
-                EVERY_SECOND, MirrorDirection.REMOTE_TO_LOCAL, MirrorCredential.FALLBACK,
-                mock(Repository.class), "/", URI.create("unused://uri"), "/", null) {
+        when(p.name()).thenReturn("foo");
+        when(p.metaRepo()).thenReturn(mr);
+        when(r.parent()).thenReturn(p);
+        when(r.name()).thenReturn("bar");
 
+        final Mirror mirror = new Mirror(EVERY_SECOND, MirrorDirection.REMOTE_TO_LOCAL,
+                                         MirrorCredential.FALLBACK, r, "/",
+                                         URI.create("unused://uri"), "/", null) {
             @Override
             protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {}
 
@@ -72,7 +76,9 @@ public class DefaultMirroringServiceTest {
                 taskCounter.incrementAndGet();
                 Thread.sleep(2000);
             }
-        }));
+        };
+
+        when(mr.mirrors()).thenReturn(ImmutableSet.of(mirror));
 
         final DefaultMirroringService service =
                 new DefaultMirroringService(temporaryFolder.getRoot(), pm, 1, 1, 1);

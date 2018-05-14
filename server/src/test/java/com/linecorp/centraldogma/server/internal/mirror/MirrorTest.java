@@ -18,19 +18,29 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.net.URI;
+import java.time.ZonedDateTime;
 
 import javax.annotation.Nullable;
 
 import org.junit.Test;
 
 import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinitionBuilder;
+import com.cronutils.parser.CronParser;
 
 import com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredential;
+import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 public class MirrorTest {
+
+    private static final Cron EVERY_MINUTE = new CronParser(
+            CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ)).parse("0 * * * * ?");
+
     @Test
     public void testGitMirror() {
         // Simplest possible form
@@ -115,6 +125,31 @@ public class MirrorTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    public void jitter() {
+        final Mirror mirror = newMirror("git://a.com/b.git", Mirror.class);
+
+        assertThat(mirror.schedule()).isSameAs(EVERY_MINUTE);
+
+        // When jitter is less then the configured interval.
+        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:00+00:00"), 1000))
+                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:20:01+00:00"));
+        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:01+00:00"), 1000))
+                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:21:01+00:00"));
+
+        // When jitter is equal to the configured interval.
+        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:00+00:00"), 60000))
+                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:21:00+00:00"));
+        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:21:30+00:00"), 60000))
+                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:22:00+00:00"));
+
+        // When jitter is more than the configured interval.
+        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:00+00:00"), 90000))
+                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:20:30+00:00"));
+        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:30+00:00"), 90000))
+                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:21:30+00:00"));
+    }
+
     private static <T extends Mirror> T assertMirror(String remoteUri, Class<T> mirrorType,
                                                      String expectedRemoteRepoUri,
                                                      String expectedRemotePath,
@@ -127,9 +162,17 @@ public class MirrorTest {
     }
 
     private static <T extends Mirror> T newMirror(String remoteUri, Class<T> mirrorType) {
+        return newMirror(remoteUri, EVERY_MINUTE, mirrorType);
+    }
+
+    private static <T extends Mirror> T newMirror(String remoteUri, Cron schedule, Class<T> mirrorType) {
         final MirrorCredential credential = mock(MirrorCredential.class);
         final Repository localRepo = mock(Repository.class);
-        final Mirror mirror = Mirror.of(mock(Cron.class), MirrorDirection.LOCAL_TO_REMOTE,
+        final Project localProj = mock(Project.class);
+        when(localRepo.parent()).thenReturn(localProj);
+        when(localProj.name()).thenReturn("foo");
+        when(localRepo.name()).thenReturn("bar");
+        final Mirror mirror = Mirror.of(schedule, MirrorDirection.LOCAL_TO_REMOTE,
                                         credential, localRepo, "/", URI.create(remoteUri));
 
         assertThat(mirror).isInstanceOf(mirrorType);
