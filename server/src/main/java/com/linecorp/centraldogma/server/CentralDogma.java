@@ -367,7 +367,9 @@ public class CentralDogma {
                 t -> sb.gracefulShutdownTimeout(t.quietPeriodMillis(), t.timeoutMillis()));
 
         final WatchService watchService = new WatchService();
-        configureThriftService(sb, pm, executor, watchService);
+        final MetadataService mds = new MetadataService(pm, executor);
+
+        configureThriftService(sb, pm, executor, watchService, mds);
 
         sb.service("/hostname", HttpFileService.forVfs(new AbstractHttpVfs() {
             @Override
@@ -412,7 +414,7 @@ public class CentralDogma {
                                                "bearer " + CsrfToken.ANONYMOUS))
                                                .build());
 
-        configureHttpApi(sb, pm, executor, watchService, securityManager);
+        configureHttpApi(sb, pm, executor, watchService, mds, securityManager);
 
         final String accessLogFormat = cfg.accessLogFormat();
         if (isNullOrEmpty(accessLogFormat)) {
@@ -490,9 +492,9 @@ public class CentralDogma {
     }
 
     private void configureThriftService(ServerBuilder sb, ProjectManager pm, CommandExecutor executor,
-                                        WatchService watchService) {
+                                        WatchService watchService, MetadataService mds) {
         final CentralDogmaServiceImpl service =
-                new CentralDogmaServiceImpl(pm, executor, watchService);
+                new CentralDogmaServiceImpl(pm, executor, watchService, mds);
 
         Service<HttpRequest, HttpResponse> thriftService =
                 ThriftCallService.of(service)
@@ -513,14 +515,13 @@ public class CentralDogma {
     }
 
     private void configureHttpApi(ServerBuilder sb,
-                                  ProjectManager pm, CommandExecutor executor, WatchService watchService,
+                                  ProjectManager pm, CommandExecutor executor,
+                                  WatchService watchService, MetadataService mds,
                                   @Nullable CentralDogmaSecurityManager securityManager) {
         // TODO(hyangtack) Replace the prefix with something like "/api/web/" or "/api/admin/".
         final String apiV0PathPrefix = "/api/v0/";
         final Function<String, String> loginNameNormalizer =
                 cfg.caseSensitiveLoginNames() ? Function.identity() : Ascii::toLowerCase;
-
-        final MetadataService mds = new MetadataService(pm, executor);
 
         final Service<HttpRequest, HttpResponse> loginService;
         final Service<HttpRequest, HttpResponse> logoutService;
