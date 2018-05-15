@@ -140,7 +140,7 @@ public class RepositoryServiceV1 extends AbstractService {
     public CompletableFuture<Void> removeRepository(@Param("repoName") String repoName,
                                                     @RequestObject Repository repository,
                                                     @RequestObject Author author) {
-        if (Project.REPO_META.equals(repoName)) {
+        if (Project.isMetaRepo(repoName)) {
             throw HttpStatusException.of(HttpStatus.FORBIDDEN);
         }
         return execute(Command.removeRepository(author, repository.parent().name(), repository.name()))

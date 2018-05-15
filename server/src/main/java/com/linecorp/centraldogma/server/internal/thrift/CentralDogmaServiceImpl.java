@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.thrift.async.AsyncMethodCallback;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.internal.thrift.Author;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaConstants;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
@@ -54,20 +55,28 @@ import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
+    private static final IllegalArgumentException NOT_ALLOWED_REMOVING_META_REPO =
+            Exceptions.clearTrace(new IllegalArgumentException(
+                    "Not allowed removing " +
+                    com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META));
+
     private final ProjectManager projectManager;
     private final CommandExecutor executor;
     private final WatchService watchService;
+    private final MetadataService mds;
 
     public CentralDogmaServiceImpl(ProjectManager projectManager, CommandExecutor executor,
-                                   WatchService watchService) {
+                                   WatchService watchService, MetadataService mds) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.executor = requireNonNull(executor, "executor");
         this.watchService = requireNonNull(watchService, "watchService");
+        this.mds = requireNonNull(mds, "mds");
     }
 
     private static void handle(CompletableFuture<?> future, AsyncMethodCallback resultHandler) {
@@ -91,17 +100,23 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void createProject(String name, AsyncMethodCallback resultHandler) {
+        // ProjectInitializingCommandExecutor initializes a metadata for the specified project.
         handle(executor.execute(Command.createProject(SYSTEM, name)), resultHandler);
     }
 
     @Override
     public void removeProject(String name, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.removeProject(SYSTEM, name)), resultHandler);
+        handle(mds.removeProject(SYSTEM, name)
+                  .thenCompose(unused -> executor.execute(Command.removeProject(SYSTEM, name))),
+               resultHandler);
     }
 
     @Override
     public void unremoveProject(String name, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.unremoveProject(SYSTEM, name)), resultHandler);
+        handle(executor.execute(Command.unremoveProject(SYSTEM, name))
+                       .thenCompose(unused -> mds.restoreProject(SYSTEM, name))
+                       .thenApply(revision -> null),
+               resultHandler);
     }
 
     @Override
@@ -121,22 +136,34 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     }
 
     @Override
-    public void createRepository(
-            String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.createRepository(SYSTEM, projectName, repositoryName)),
+    public void createRepository(String projectName, String repositoryName,
+                                 AsyncMethodCallback resultHandler) {
+        handle(mds.addRepo(SYSTEM, projectName, repositoryName)
+                  .thenCompose(unused -> executor.execute(
+                          Command.createRepository(SYSTEM, projectName, repositoryName))),
                resultHandler);
     }
 
     @Override
-    public void removeRepository(
-            String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.removeRepository(SYSTEM, projectName, repositoryName)), resultHandler);
+    public void removeRepository(String projectName, String repositoryName,
+                                 AsyncMethodCallback resultHandler) {
+        // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
+        if (com.linecorp.centraldogma.server.internal.storage.project.Project.isMetaRepo(repositoryName)) {
+            resultHandler.onError(convert(NOT_ALLOWED_REMOVING_META_REPO));
+            return;
+        }
+        handle(executor.execute(Command.removeRepository(SYSTEM, projectName, repositoryName))
+                       .thenCompose(unused -> mds.removeRepo(SYSTEM, projectName, repositoryName))
+                       .thenApply(revision -> null),
+               resultHandler);
     }
 
     @Override
-    public void unremoveRepository(
-            String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.unremoveRepository(SYSTEM, projectName, repositoryName)),
+    public void unremoveRepository(String projectName, String repositoryName,
+                                   AsyncMethodCallback resultHandler) {
+        handle(executor.execute(Command.unremoveRepository(SYSTEM, projectName, repositoryName))
+                       .thenCompose(unused -> mds.restoreRepo(SYSTEM, projectName, repositoryName))
+                       .thenApply(revision -> null),
                resultHandler);
     }
 

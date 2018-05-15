@@ -39,4 +39,8 @@ public interface Project {
     RepositoryManager repos();
 
     PluginManager plugins();
+
+    static boolean isMetaRepo(String repoName) {
+        return REPO_META.equals(repoName);
+    }
 }
