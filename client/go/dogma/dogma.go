@@ -160,7 +160,7 @@ func normalizeURL(baseURL string) (*url.URL, error) {
 
 // SecurityEnabled returns whether the security of the server is enabled or not.
 func (c *Client) SecurityEnabled() (bool, error) {
-	req, err := c.newRequest("POST", pathSecurityEnabled, nil)
+	req, err := c.newRequest("GET", pathSecurityEnabled, nil)
 	if err != nil {
 		return false, err
 	}
