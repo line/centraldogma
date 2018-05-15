@@ -98,6 +98,17 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         }
     }
 
+    private static void handleAsVoidResult(CompletableFuture<?> future, AsyncMethodCallback resultHandler) {
+        future.handle((res, cause) -> {
+            if (cause != null) {
+                resultHandler.onError(convert(cause));
+            } else {
+                resultHandler.onComplete(null);
+            }
+            return null;
+        });
+    }
+
     @Override
     public void createProject(String name, AsyncMethodCallback resultHandler) {
         // ProjectInitializingCommandExecutor initializes a metadata for the specified project.
@@ -106,6 +117,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void removeProject(String name, AsyncMethodCallback resultHandler) {
+        // Metadata must be updated first because it cannot be updated if the project is removed.
         handle(mds.removeProject(SYSTEM, name)
                   .thenCompose(unused -> executor.execute(Command.removeProject(SYSTEM, name))),
                resultHandler);
@@ -113,10 +125,10 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void unremoveProject(String name, AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.unremoveProject(SYSTEM, name))
-                       .thenCompose(unused -> mds.restoreProject(SYSTEM, name))
-                       .thenApply(revision -> null),
-               resultHandler);
+        // Restore the project first then update its metadata as 'active'.
+        handleAsVoidResult(executor.execute(Command.unremoveProject(SYSTEM, name))
+                                   .thenCompose(unused -> mds.restoreProject(SYSTEM, name)),
+                           resultHandler);
     }
 
     @Override
@@ -138,10 +150,9 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void createRepository(String projectName, String repositoryName,
                                  AsyncMethodCallback resultHandler) {
-        handle(mds.addRepo(SYSTEM, projectName, repositoryName)
-                  .thenCompose(unused -> executor.execute(
-                          Command.createRepository(SYSTEM, projectName, repositoryName))),
-               resultHandler);
+        handleAsVoidResult(executor.execute(Command.createRepository(SYSTEM, projectName, repositoryName))
+                                   .thenCompose(unused -> mds.addRepo(SYSTEM, projectName, repositoryName)),
+                           resultHandler);
     }
 
     @Override
@@ -152,19 +163,17 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             resultHandler.onError(convert(NOT_ALLOWED_REMOVING_META_REPO));
             return;
         }
-        handle(executor.execute(Command.removeRepository(SYSTEM, projectName, repositoryName))
-                       .thenCompose(unused -> mds.removeRepo(SYSTEM, projectName, repositoryName))
-                       .thenApply(revision -> null),
-               resultHandler);
+        handleAsVoidResult(executor.execute(Command.removeRepository(SYSTEM, projectName, repositoryName))
+                                   .thenCompose(unused -> mds.removeRepo(SYSTEM, projectName, repositoryName)),
+                           resultHandler);
     }
 
     @Override
     public void unremoveRepository(String projectName, String repositoryName,
                                    AsyncMethodCallback resultHandler) {
-        handle(executor.execute(Command.unremoveRepository(SYSTEM, projectName, repositoryName))
-                       .thenCompose(unused -> mds.restoreRepo(SYSTEM, projectName, repositoryName))
-                       .thenApply(revision -> null),
-               resultHandler);
+        handleAsVoidResult(executor.execute(Command.unremoveRepository(SYSTEM, projectName, repositoryName))
+                                   .thenCompose(unused -> mds.restoreRepo(SYSTEM, projectName, repositoryName)),
+                           resultHandler);
     }
 
     @Override

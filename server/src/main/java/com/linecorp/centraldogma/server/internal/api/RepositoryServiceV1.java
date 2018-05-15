@@ -112,22 +112,9 @@ public class RepositoryServiceV1 extends AbstractService {
     public CompletableFuture<RepositoryDto> createRepository(@RequestObject Project project,
                                                              @RequestObject CreateRepositoryRequest request,
                                                              @RequestObject Author author) {
-        return mds.addRepo(author, project.name(), request.name())
-                  .thenCompose(p -> execute(Command.createRepository(author, project.name(), request.name())))
-                  .handle((unused, cause) -> {
-                      try {
-                          if (cause == null) {
-                              return DtoConverter.convert(project.repos().get(request.name()));
-                          } else {
-                              return Exceptions.throwUnsafely(cause);
-                          }
-                      } finally {
-                          if (cause != null) {
-                              // Remove created repository from metadata.
-                              mds.removeRepo(author, project.name(), request.name());
-                          }
-                      }
-                  });
+        return execute(Command.createRepository(author, project.name(), request.name()))
+                .thenCompose(unused -> mds.addRepo(author, project.name(), request.name()))
+                .handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(request.name()))));
     }
 
     /**

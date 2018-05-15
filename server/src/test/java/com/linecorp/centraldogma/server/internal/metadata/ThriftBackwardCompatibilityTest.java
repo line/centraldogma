@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.metadata;
 
+import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,14 +31,21 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.thrift.Author;
+import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.Iface;
+import com.linecorp.centraldogma.internal.thrift.Change;
+import com.linecorp.centraldogma.internal.thrift.ChangeType;
+import com.linecorp.centraldogma.internal.thrift.Comment;
+import com.linecorp.centraldogma.internal.thrift.Revision;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class ThriftBackwardCompatibilityTest {
@@ -46,25 +54,35 @@ public class ThriftBackwardCompatibilityTest {
     public static final CentralDogmaRule dogma = new CentralDogmaRule();
 
     private static HttpClient httpClient;
+    private static Iface client;
+
+    private static final Revision head = new Revision(-1, 0);
+    private static final Author author = new Author(SYSTEM.name(), SYSTEM.email());
 
     private static final String projectName = "foo";
 
     @BeforeClass
     public static void init() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
-        final String serverUri = "http://" + serverAddress.getHostString() + ':' + serverAddress.getPort();
-        httpClient = new HttpClientBuilder(serverUri)
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer anonymous").build();
+        httpClient = new HttpClientBuilder("http://" + serverAddress.getHostString() +
+                                           ':' + serverAddress.getPort())
+                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer " + CsrfToken.ANONYMOUS)
+                .build();
+
+        client = new ClientBuilder("ttext+http://" + serverAddress.getHostString() +
+                                   ':' + serverAddress.getPort() + "/cd/thrift/v1")
+                .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer " + CsrfToken.ANONYMOUS)
+                .build(Iface.class);
     }
 
     @Test
     public void shouldBackwardCompatible() throws Exception {
         final String repo1 = "repo1";
 
-        dogma.client().createProject(projectName).join();
-        dogma.client().createRepository(projectName, repo1).join();
-        dogma.client().push(projectName, repo1, Revision.HEAD, "",
-                            Change.ofTextUpsert("/sample.txt", "test")).join();
+        client.createProject(projectName);
+        client.createRepository(projectName, repo1);
+        client.push(projectName, repo1, head, author, "", new Comment("comment"),
+                    ImmutableList.of(new Change("/sample.txt", ChangeType.UPSERT_TEXT).setContent("test")));
 
         AggregatedHttpMessage res;
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName + REPOS).aggregate().join();
@@ -82,7 +100,7 @@ public class ThriftBackwardCompatibilityTest {
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNull();
 
-        dogma.client().removeRepository(projectName, repo1).join();
+        client.removeRepository(projectName, repo1);
 
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.content().toStringUtf8(), ProjectMetadata.class);
@@ -90,7 +108,7 @@ public class ThriftBackwardCompatibilityTest {
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNotNull();
 
-        dogma.client().unremoveRepository(projectName, repo1).join();
+        client.unremoveRepository(projectName, repo1);
 
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.content().toStringUtf8(), ProjectMetadata.class);

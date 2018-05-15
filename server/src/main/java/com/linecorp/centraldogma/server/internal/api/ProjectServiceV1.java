@@ -124,6 +124,7 @@ public class ProjectServiceV1 extends AbstractService {
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Void> removeProject(@RequestObject Project project,
                                                  @RequestObject Author author) {
+        // Metadata must be updated first because it cannot be updated if the project is removed.
         return mds.removeProject(author, project.name())
                   .thenCompose(unused -> execute(Command.removeProject(author, project.name())))
                   .handle(HttpApiUtil::throwUnsafelyIfNonNull);
@@ -141,6 +142,7 @@ public class ProjectServiceV1 extends AbstractService {
                                                       @RequestObject JsonNode node,
                                                       @RequestObject Author author) {
         checkUnremoveArgument(node);
+        // Restore the project first then update its metadata as 'active'.
         return execute(Command.unremoveProject(author, projectName))
                 .thenCompose(unused -> mds.restoreProject(author, projectName))
                 .handle(returnOrThrow(() -> DtoConverter.convert(projectManager().get(projectName))));

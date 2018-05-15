@@ -101,7 +101,7 @@ public class RepositoryServiceV1Test {
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
-                "   \"message\": \"myRepo already exists.\"" +
+                "   \"message\": \"repository: myRepo already exists.\"" +
                 '}';
         assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }
