@@ -64,13 +64,11 @@ public class ThriftBackwardCompatibilityTest {
     @BeforeClass
     public static void init() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
-        httpClient = new HttpClientBuilder("http://" + serverAddress.getHostString() +
-                                           ':' + serverAddress.getPort())
+        httpClient = new HttpClientBuilder("http://127.0.0.1:" + serverAddress.getPort())
                 .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer " + CsrfToken.ANONYMOUS)
                 .build();
 
-        client = new ClientBuilder("ttext+http://" + serverAddress.getHostString() +
-                                   ':' + serverAddress.getPort() + "/cd/thrift/v1")
+        client = new ClientBuilder("ttext+http://127.0.0.1:" + serverAddress.getPort() + "/cd/thrift/v1")
                 .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer " + CsrfToken.ANONYMOUS)
                 .build(Iface.class);
     }
