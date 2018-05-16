@@ -163,7 +163,7 @@ public final class MigrationUtil {
         try {
             final Repository internalRepo = project.repos().get(INTERNAL_REPO);
             return internalRepo != null &&
-                   internalRepo.getOrNull(Revision.HEAD, METADATA_JSON) != null;
+                   internalRepo.getOrNull(Revision.HEAD, METADATA_JSON).join() != null;
         } catch (Throwable ignore) {
             return false;
         }
