@@ -33,7 +33,6 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.cronutils.model.time.ExecutionTime;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -68,7 +67,7 @@ public final class DefaultMirroringService implements MirroringService {
     private volatile ListeningScheduledExecutorService scheduler;
     private volatile ListeningExecutorService worker;
 
-    private ZonedDateTime lastRunTime;
+    private ZonedDateTime lastExecutionTime;
 
     public DefaultMirroringService(File workDir, ProjectManager projectManager,
                                    int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
@@ -104,7 +103,7 @@ public final class DefaultMirroringService implements MirroringService {
         // when the workers cannot handle the mirroring tasks fast enough.
         final SynchronousQueue<Runnable> workQueue = new SynchronousQueue<>();
         worker = MoreExecutors.listeningDecorator(new ThreadPoolExecutor(
-                0, numThreads, 1, TimeUnit.MINUTES, workQueue,
+                0, numThreads, 90, TimeUnit.SECONDS, workQueue,
                 new DefaultThreadFactory("mirroring-worker", true),
                 (rejectedTask, executor) -> {
                     // We do not want the mirroring tasks to be rejected.
@@ -165,12 +164,12 @@ public final class DefaultMirroringService implements MirroringService {
 
     private void schedulePendingMirrors() {
         final ZonedDateTime now = ZonedDateTime.now();
-        if (lastRunTime == null) {
-            lastRunTime = now.minus(TICK);
+        if (lastExecutionTime == null) {
+            lastExecutionTime = now.minus(TICK);
         }
 
-        final ZonedDateTime currentLastRunTime = lastRunTime;
-        lastRunTime = now;
+        final ZonedDateTime currentLastExecutionTime = lastExecutionTime;
+        lastExecutionTime = now;
 
         projectManager.list().values().stream()
                       .map(Project::metaRepo)
@@ -182,10 +181,7 @@ public final class DefaultMirroringService implements MirroringService {
                               return Stream.empty();
                           }
                       })
-                      .filter(m -> {
-                          final ExecutionTime execTime = ExecutionTime.forCron(m.schedule());
-                          return execTime.nextExecution(currentLastRunTime).compareTo(now) < 0;
-                      })
+                      .filter(m -> m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0)
                       .forEach(m -> {
                           final ListenableFuture<?> future = worker.submit(() -> run(m, true));
                           FuturesExtra.addFailureCallback(

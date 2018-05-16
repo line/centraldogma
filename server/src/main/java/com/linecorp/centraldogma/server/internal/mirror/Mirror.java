@@ -22,6 +22,9 @@ import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,6 +32,8 @@ import javax.annotation.Nullable;
 
 import com.cronutils.descriptor.CronDescriptor;
 import com.cronutils.model.Cron;
+import com.cronutils.model.time.ExecutionTime;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
@@ -160,6 +165,8 @@ public abstract class Mirror {
     private final URI remoteRepoUri;
     private final String remotePath;
     private final String remoteBranch;
+    private final ExecutionTime executionTime;
+    private final long jitterMillis;
 
     protected Mirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath,
@@ -173,6 +180,15 @@ public abstract class Mirror {
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
         this.remoteBranch = remoteBranch;
+
+        executionTime = ExecutionTime.forCron(this.schedule);
+
+        // Pre-calculate a constant jitter value up to 1 minute for a mirror.
+        // Use the properties' hash code so that the same properties result in the same jitter.
+        jitterMillis = Math.abs(Objects.hash(this.schedule.asString(), this.direction,
+                                             this.localRepo.parent().name(), this.localRepo.name(),
+                                             this.remoteRepoUri, this.remotePath, this.remoteBranch) /
+                                (Integer.MAX_VALUE / 60000));
     }
 
     private static String normalizePath(String path) {
@@ -191,8 +207,21 @@ public abstract class Mirror {
         return path.replaceAll("//+", "/");
     }
 
+    @VisibleForTesting
     public final Cron schedule() {
         return schedule;
+    }
+
+    public final ZonedDateTime nextExecutionTime(ZonedDateTime lastExecutionTime) {
+        return nextExecutionTime(lastExecutionTime, jitterMillis);
+    }
+
+    @VisibleForTesting
+    ZonedDateTime nextExecutionTime(ZonedDateTime lastExecutionTime, long jitterMillis) {
+        requireNonNull(lastExecutionTime, "lastExecutionTime");
+        final ZonedDateTime next =
+                executionTime.nextExecution(lastExecutionTime.minus(jitterMillis, ChronoUnit.MILLIS));
+        return next.plus(jitterMillis, ChronoUnit.MILLIS);
     }
 
     public MirrorDirection direction() {
