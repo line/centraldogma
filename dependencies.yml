@@ -12,7 +12,7 @@ com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
 com.bmuschko:
-  gradle-docker-plugin: { version: '3.2.7' }
+  gradle-docker-plugin: { version: '3.2.8' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
@@ -89,7 +89,7 @@ commons-daemon:
     - https://commons.apache.org/proper/commons-daemon/apidocs/
 
 gradle.plugin.com.github.blindpirate:
-  gogradle: { version: '0.9' }
+  gogradle: { version: '0.9.1' }
 
 junit:
   junit:
@@ -119,4 +119,4 @@ org.eclipse.jgit:
   org.eclipse.jgit: { version: '4.11.0.201803080745-r' }
 
 org.testng:
-  testng: { version: '6.14.2' }
+  testng: { version: '6.14.3' }
