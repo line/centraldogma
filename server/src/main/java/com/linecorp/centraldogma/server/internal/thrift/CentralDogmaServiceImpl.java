@@ -303,6 +303,11 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             String projectName, String repositoryName, Revision lastKnownRevision,
             String pathPattern, long timeoutMillis, AsyncMethodCallback resultHandler) {
 
+        if (timeoutMillis <= 0) {
+            rejectInvalidWatchTimeout("watchRepository", resultHandler);
+            return;
+        }
+
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Revision> future =
                 watchService.watchRepository(repo, convert(lastKnownRevision), pathPattern, timeoutMillis);
@@ -329,11 +334,23 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     public void watchFile(
             String projectName, String repositoryName, Revision lastKnownRevision,
             Query query, long timeoutMillis, AsyncMethodCallback resultHandler) {
+
+        if (timeoutMillis <= 0) {
+            rejectInvalidWatchTimeout("watchFile", resultHandler);
+            return;
+        }
+
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future =
                 watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis);
 
         handleWatchFileResult(future, resultHandler);
+    }
+
+    private static void rejectInvalidWatchTimeout(String operationName, AsyncMethodCallback resultHandler) {
+        final CentralDogmaException cde = new CentralDogmaException(ErrorCode.BAD_REQUEST);
+        CentralDogmaExceptions.log(operationName, cde);
+        resultHandler.onError(cde);
     }
 
     private static void handleWatchFileResult(

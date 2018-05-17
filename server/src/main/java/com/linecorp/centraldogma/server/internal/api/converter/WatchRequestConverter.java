@@ -63,16 +63,25 @@ public final class WatchRequestConverter implements RequestConverterFunction {
     private static long getTimeoutMillis(String preferHeader) {
         final String prefer = toLowerCase(preferHeader.replaceAll("\\s+", ""));
         if (!prefer.startsWith("wait=")) {
-            throw new IllegalArgumentException("invalid prefer header: " + preferHeader +
-                                               " (expected: wait=seconds)");
+            return rejectPreferHeader(preferHeader);
         }
 
+        final long timeoutSeconds;
         try {
-            return TimeUnit.SECONDS.toMillis(Long.parseLong(prefer.substring("wait=".length())));
+            timeoutSeconds = Long.parseLong(prefer.substring("wait=".length()));
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("invalid prefer header: " + preferHeader +
-                                               " (expected: wait=seconds)");
+            return rejectPreferHeader(preferHeader);
         }
+
+        if (timeoutSeconds <= 0) {
+            return rejectPreferHeader(preferHeader);
+        }
+        return TimeUnit.SECONDS.toMillis(timeoutSeconds);
+    }
+
+    private static long rejectPreferHeader(String preferHeader) {
+        throw new IllegalArgumentException("invalid prefer header: " + preferHeader +
+                                           " (expected: wait=seconds)");
     }
 
     public static class WatchRequest {

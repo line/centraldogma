@@ -22,6 +22,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import com.linecorp.armeria.common.RequestContext;
@@ -40,6 +41,8 @@ public final class WatchService {
 
     private static final CancellationException CANCELLATION_EXCEPTION =
             Exceptions.clearTrace(new CancellationException("watch timed out"));
+
+    private static final double JITTER_RATE = 0.2;
 
     private final Set<CompletableFuture<?>> pendingFutures =
             Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -61,26 +64,6 @@ public final class WatchService {
         return result;
     }
 
-    private <T> void scheduleTimeout(CompletableFuture<T> result, long timeoutMillis) {
-        pendingFutures.add(result);
-
-        final ScheduledFuture<?> timeoutFuture;
-        if (timeoutMillis > 0) {
-            final EventLoop eventLoop = RequestContext.current().eventLoop();
-            timeoutFuture = eventLoop.schedule(() -> result.completeExceptionally(CANCELLATION_EXCEPTION),
-                                               timeoutMillis, TimeUnit.MILLISECONDS);
-        } else {
-            timeoutFuture = null;
-        }
-
-        result.whenComplete((revision, cause) -> {
-            if (timeoutFuture != null) {
-                timeoutFuture.cancel(true);
-            }
-            pendingFutures.remove(result);
-        });
-    }
-
     /**
      * Awaits and retrieves the latest revision of the commit that changed the file that matches the specified
      * {@link Query} since the specified {@code lastKnownRevision}. This will wait until the specified
@@ -96,5 +79,36 @@ public final class WatchService {
 
         scheduleTimeout(result, timeoutMillis);
         return result;
+    }
+
+    private <T> void scheduleTimeout(CompletableFuture<T> result, long timeoutMillis) {
+        pendingFutures.add(result);
+
+        final ScheduledFuture<?> timeoutFuture;
+        if (timeoutMillis > 0) {
+            timeoutMillis = applyJitter(timeoutMillis);
+            final EventLoop eventLoop = RequestContext.current().eventLoop();
+            timeoutFuture = eventLoop.schedule(() -> result.completeExceptionally(CANCELLATION_EXCEPTION),
+                                               timeoutMillis, TimeUnit.MILLISECONDS);
+        } else {
+            timeoutFuture = null;
+        }
+
+        result.whenComplete((revision, cause) -> {
+            if (timeoutFuture != null) {
+                timeoutFuture.cancel(true);
+            }
+            pendingFutures.remove(result);
+        });
+    }
+
+    private static long applyJitter(long timeoutMillis) {
+        // Specify the 'bound' value that's slightly greater than 1.0 because it's exclusive.
+        final double rate = ThreadLocalRandom.current().nextDouble(1 - JITTER_RATE, 1.001);
+        if (rate < 1) {
+            return (long) (timeoutMillis * rate);
+        } else {
+            return timeoutMillis;
+        }
     }
 }
