@@ -23,3 +23,8 @@ environment:
 
 matrix:
   fast_finish: true
+
+notifications:
+  - provider: Slack
+    incoming_webhook:
+      secure: uDUySAYLk8RjAL6ZAWd9K/hP9rV1/yYPz26CybZOPFaU2oHBlBbKIiPN9USkSRewVynqhxHqak8LhQ313/XQN2zusRnYhjMbmutCioAT4CY=
