@@ -34,14 +34,14 @@ var changeTypeMap = map[string]ChangeType{
 	"APPLY_TEXT_PATCH": ApplyTextPatch,
 }
 
-var changeTypeValues = [...]string{
-	"UNKNOWN",
-	"UPSERT_JSON",
-	"UPSERT_TEXT",
-	"REMOVE",
-	"RENAME",
-	"APPLY_JSON_PATCH",
-	"APPLY_TEXT_PATCH",
+// String returns the string value of ChangeType
+func (c ChangeType) String() string {
+	for k, v := range changeTypeMap {
+		if v == c {
+			return k
+		}
+	}
+	return "UNKNOWN"
 }
 
 type EntryType int
@@ -58,9 +58,12 @@ var entryTypeMap = map[string]EntryType{
 	"DIRECTORY": Directory,
 }
 
-var entryTypeValues = [...]string{
-	"UNKNOWN",
-	"JSON",
-	"TEXT",
-	"DIRECTORY",
+// String returns the string value of EntryType
+func (c EntryType) String() string {
+	for k, v := range entryTypeMap {
+		if v == c {
+			return k
+		}
+	}
+	return "UNKNOWN"
 }

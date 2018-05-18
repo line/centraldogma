@@ -60,7 +60,7 @@ func (c *Entry) MarshalJSON() ([]byte, error) {
 		Type string `json:"type"`
 		*Alias
 	}{
-		Type:  entryTypeValues[c.Type],
+		Type:  c.Type.String(),
 		Alias: (*Alias)(c),
 	})
 }
@@ -110,7 +110,7 @@ func (c *Change) MarshalJSON() ([]byte, error) {
 		Type string `json:"type"`
 		*Alias
 	}{
-		Type:  changeTypeValues[c.Type],
+		Type:  c.Type.String(),
 		Alias: (*Alias)(c),
 	})
 }
