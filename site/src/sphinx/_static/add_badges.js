@@ -29,8 +29,8 @@ function addBadges(parent) {
   div.className = 'project-badges';
   addBadge(div, 'https://img.shields.io/travis/line/centraldogma/master.svg?style=flat-square',
     'https://travis-ci.org/line/centraldogma');
-  addBadge(div, 'https://img.shields.io/appveyor/ci/trustin/centraldogma/master.svg?label=appveyor&style=flat-square',
-    'https://ci.appveyor.com/project/trustin/centraldogma/branch/master');
+  addBadge(div, 'https://img.shields.io/appveyor/ci/line/centraldogma/master.svg?label=appveyor&style=flat-square',
+    'https://ci.appveyor.com/project/line/centraldogma/branch/master');
   addBadge(div, 'https://img.shields.io/maven-central/v/com.linecorp.centraldogma/centraldogma-common.svg?style=flat-square',
     'https://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.linecorp.centraldogma%22');
   addBadge(div, 'https://img.shields.io/codecov/c/github/line/centraldogma/master.svg?style=flat-square',
