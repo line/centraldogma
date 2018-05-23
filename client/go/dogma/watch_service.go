@@ -139,8 +139,8 @@ func newWatcher(projectName, repoName, pathPattern string) *Watcher {
 	return &Watcher{state: initial, initialValueCh: make(chan *Latest, 1),
 		watchCTX: watchCTX, watchCancelFunc: watchCancelFunc,
 		listenersMutex: &sync.Mutex{},
-		projectName: projectName,
-		repoName: repoName, pathPattern: pathPattern}
+		projectName:    projectName,
+		repoName:       repoName, pathPattern: pathPattern}
 }
 
 // AwaitInitialValue awaits for the initial value to be available.

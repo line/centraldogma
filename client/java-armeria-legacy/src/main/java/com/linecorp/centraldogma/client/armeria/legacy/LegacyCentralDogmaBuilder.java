@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.client.armeria.legacy;
 
+import java.net.UnknownHostException;
+
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -30,8 +32,10 @@ import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilder<LegacyCentralDogmaBuilder> {
     /**
      * Returns a newly-created {@link CentralDogma} instance.
+     *
+     * @throws UnknownHostException if failed to resolve the host names from the DNS servers
      */
-    public CentralDogma build() {
+    public CentralDogma build() throws UnknownHostException {
         final Endpoint endpoint = endpoint();
         final String scheme = "tbinary+" + (isUseTls() ? "https" : "http") + "://";
         final String uri = scheme + endpoint.authority() + "/cd/thrift/v1";

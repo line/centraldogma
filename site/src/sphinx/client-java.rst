@@ -266,6 +266,40 @@ or her class path::
     adding: centraldogma-profile-staging.properties
     adding: centraldogma-profile-release.properties
 
+Using DNS-based lookup
+----------------------
+Central Dogma Java client always retrieves all the IP addresses of a host from the current system DNS server or
+the ``/etc/host`` file. Instead of specifying all the individual replica addresses in a client profile,
+consider specifying a single host name that's very unlikely to change in the client profile and add multiple
+``A`` or ``AAAA`` DNS records to the host name::
+
+    $ cat centraldogma-profile-release.properties
+    centraldogma.host.0=all.dogma.example.com
+
+    $ dig all.dogma.example.com
+
+    ; <<>> DiG 9.12.1-P2 <<>> all.dogma.example.com
+    ;; global options: +cmd
+    ;; Got answer:
+    ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 58779
+    ;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 0, ADDITIONAL: 1
+
+    ;; OPT PSEUDOSECTION:
+    ; EDNS: version: 0, flags:; udp: 1440
+    ;; QUESTION SECTION:
+    ;all.dogma.example.com. IN A
+
+    ;; ANSWER SECTION:
+    all.dogma.example.com. 300 IN A 192.168.1.1
+    all.dogma.example.com. 300 IN A 192.168.1.2
+    all.dogma.example.com. 300 IN A 192.168.1.3
+
+    ;; Query time: 54 msec
+
+The client will periodically send DNS queries respecting the TTL values advertised by the DNS server and update
+the endpoint list dynamically, so that an administrator can add or remove a replica without distributing a new
+client profile JAR again.
+
 Spring Boot integration
 -----------------------
 If you are using `Spring Framework <https://spring.io/>`_, you can inject :api:`com.linecorp.centraldogma.client.CentralDogma`

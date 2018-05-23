@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.client.spring;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.net.UnknownHostException;
 import java.util.Optional;
 
 import javax.inject.Qualifier;
@@ -76,7 +77,7 @@ public class CentralDogmaClientAutoConfiguration {
     public CentralDogma client(
             Environment env,
             @ForCentralDogma ClientFactory clientFactory,
-            Optional<ArmeriaClientConfigurator> armeriaClientConfigurator) {
+            Optional<ArmeriaClientConfigurator> armeriaClientConfigurator) throws UnknownHostException {
 
         return new LegacyCentralDogmaBuilder()
                 .clientFactory(clientFactory)

@@ -16,7 +16,9 @@
 
 package com.linecorp.centraldogma.testing;
 
+import java.io.IOError;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 
 import javax.annotation.Nullable;
 
@@ -189,7 +191,12 @@ public class CentralDogmaRule extends TemporaryFolder {
 
         configureClient(clientBuilder);
 
-        client = clientBuilder.build();
+        try {
+            client = clientBuilder.build();
+        } catch (UnknownHostException e) {
+            // Should never reach here.
+            throw new IOError(e);
+        }
         httpClient = HttpClient.of("h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort());
     }
 
