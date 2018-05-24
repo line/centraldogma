@@ -19,7 +19,11 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.LoggerFactory;
@@ -29,11 +33,17 @@ import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.Endpoint;
+import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroupRegistry;
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 import com.linecorp.armeria.client.endpoint.StaticEndpointGroup;
+import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroupBuilder;
+import com.linecorp.armeria.client.endpoint.healthcheck.HttpHealthCheckedEndpointGroupBuilder;
+import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
 
 /**
  * Builds a {@link CentralDogma} client.
@@ -46,6 +56,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
 
     private ClientFactory clientFactory = ClientFactory.DEFAULT;
     private ArmeriaClientConfigurator clientConfigurator = cb -> {};
+    private boolean healthCheckEnabled = true;
 
     /**
      * Returns the {@link ClientFactory} that will create an underlying
@@ -81,16 +92,24 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
         return self();
     }
 
+    @VisibleForTesting
+    void disableHealthCheck() {
+        healthCheckEnabled = false;
+    }
+
     /**
      * Returns the {@link Endpoint} this client will connect to, derived from {@link #hosts()}.
+     *
+     * @throws UnknownHostException if failed to resolve the host names from the DNS servers
      */
-    protected final Endpoint endpoint() {
+    protected final Endpoint endpoint() throws UnknownHostException {
         final Set<InetSocketAddress> hosts = hosts();
         checkState(!hosts.isEmpty(), "no hosts were added.");
 
+        final InetSocketAddress firstHost = Iterables.getFirst(hosts, null);
         final Endpoint endpoint;
-        if (hosts.size() == 1) {
-            endpoint = toEndpoint(Iterables.getFirst(hosts, null));
+        if (hosts.size() == 1 && !firstHost.isUnresolved()) {
+            endpoint = toResolvedHostEndpoint(firstHost);
         } else {
             final String groupName;
             if (selectedProfile() != null) {
@@ -101,24 +120,58 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
                 groupName = "centraldogma-anonymous-" + nextAnonymousGroupId.getAndIncrement();
             }
 
-            final Endpoint[] endpoints = hosts.stream()
-                                              .map(AbstractArmeriaCentralDogmaBuilder::toEndpoint)
-                                              .toArray(Endpoint[]::new);
-            EndpointGroupRegistry.register(groupName, new StaticEndpointGroup(endpoints),
-                                           EndpointSelectionStrategy.ROUND_ROBIN);
+            final List<Endpoint> staticEndpoints = new ArrayList<>();
+            final List<EndpointGroup> groups = new ArrayList<>();
+            for (final InetSocketAddress addr : hosts) {
+                if (addr.isUnresolved()) {
+                    groups.add(new DnsAddressEndpointGroupBuilder(addr.getHostString())
+                            .eventLoop(clientFactory.eventLoopGroup().next())
+                            .port(addr.getPort())
+                            .build());
+                } else {
+                    staticEndpoints.add(toResolvedHostEndpoint(addr));
+                }
+            }
+
+            if (!staticEndpoints.isEmpty()) {
+                groups.add(new StaticEndpointGroup(staticEndpoints));
+            }
+
+            EndpointGroup group;
+            if (groups.size() == 1) {
+                group = groups.get(0);
+            } else {
+                group = new CompositeEndpointGroup(groups);
+            }
+
+            if (group instanceof DynamicEndpointGroup) {
+                // Wait until the initial endpoint list is ready.
+                try {
+                    ((DynamicEndpointGroup) group).awaitInitialEndpoints(10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    final UnknownHostException cause = new UnknownHostException(
+                            "failed to resolve any of: " + hosts);
+                    cause.initCause(e);
+                    throw cause;
+                }
+            }
+
+            if (healthCheckEnabled) {
+                group = new HttpHealthCheckedEndpointGroupBuilder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
+                        .clientFactory(clientFactory)
+                        .protocol(isUseTls() ? SessionProtocol.HTTPS : SessionProtocol.HTTP)
+                        .build();
+            }
+
+            EndpointGroupRegistry.register(groupName, group, EndpointSelectionStrategy.ROUND_ROBIN);
             endpoint = Endpoint.ofGroup(groupName);
         }
         return endpoint;
     }
 
-    private static Endpoint toEndpoint(InetSocketAddress addr) {
-        final Endpoint endpoint;
-        if (addr.isUnresolved()) {
-            endpoint = Endpoint.of(addr.getHostString(), addr.getPort());
-        } else {
-            endpoint = Endpoint.of(addr.getAddress().getHostAddress(), addr.getPort());
-        }
-        return endpoint;
+    private static Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {
+        return Endpoint.of(addr.getHostString(), addr.getPort())
+                       .withIpAddr(addr.getAddress().getHostAddress());
     }
 
     @Override

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
 import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
@@ -395,7 +396,7 @@ public class CentralDogma {
             }
         });
 
-        sb.service("/monitor/l7check", new HttpHealthCheckService());
+        sb.service(HEALTH_CHECK_PATH, new HttpHealthCheckService());
 
         // TODO(hyangtack): This service is temporarily added to support redirection from '/docs' to '/docs/'.
         //                  It would be removed if this kind of redirection is handled by Armeria.
