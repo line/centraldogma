@@ -35,8 +35,10 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.metadata.Member;
+import com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.internal.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.internal.metadata.UserAndTimestamp;
 
 public class ProjectInitializingCommandExecutor extends ForwardingCommandExecutor {
@@ -80,9 +82,11 @@ public class ProjectInitializingCommandExecutor extends ForwardingCommandExecuto
         logger.info("Initializing metadata: {}", projectName);
 
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
+        final RepositoryMetadata repo = new RepositoryMetadata(REPO_META, userAndTimestamp,
+                                                               PerRolePermissions.DEFAULT);
         final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
         final ProjectMetadata metadata = new ProjectMetadata(projectName,
-                                                             ImmutableMap.of(),
+                                                             ImmutableMap.of(repo.id(), repo),
                                                              ImmutableMap.of(member.id(), member),
                                                              ImmutableMap.of(),
                                                              userAndTimestamp, null);

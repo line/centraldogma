@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.metadata;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
+import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.InetSocketAddress;
@@ -94,24 +95,30 @@ public class ThriftBackwardCompatibilityTest {
 
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.content().toStringUtf8(), ProjectMetadata.class);
-        assertThat(metadata.repos().size()).isOne();
+        assertThat(metadata.repos().size()).isEqualTo(2);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNull();
+        assertThat(metadata.repo(REPO_META)).isNotNull();
+        assertThat(metadata.repo(REPO_META).removal()).isNull();
 
         client.removeRepository(projectName, repo1);
 
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.content().toStringUtf8(), ProjectMetadata.class);
-        assertThat(metadata.repos().size()).isOne();
+        assertThat(metadata.repos().size()).isEqualTo(2);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNotNull();
+        assertThat(metadata.repo(REPO_META)).isNotNull();
+        assertThat(metadata.repo(REPO_META).removal()).isNull();
 
         client.unremoveRepository(projectName, repo1);
 
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.content().toStringUtf8(), ProjectMetadata.class);
-        assertThat(metadata.repos().size()).isOne();
+        assertThat(metadata.repos().size()).isEqualTo(2);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNull();
+        assertThat(metadata.repo(REPO_META)).isNotNull();
+        assertThat(metadata.repo(REPO_META).removal()).isNull();
     }
 }

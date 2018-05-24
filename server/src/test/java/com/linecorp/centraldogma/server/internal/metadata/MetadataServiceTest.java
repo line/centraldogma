@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.metadata;
 import static com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions.NO_PERMISSION;
 import static com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions.READ_ONLY;
 import static com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions.READ_WRITE;
+import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -72,6 +73,8 @@ public class MetadataServiceTest {
         assertThat(metadata.name()).isEqualTo(project1);
         assertThat(metadata.creation().user()).isEqualTo(author.email());
         assertThat(metadata.removal()).isNull();
+        assertThat(metadata.repos().size()).isOne();
+        assertThat(metadata.repos().get(REPO_META)).isNotNull();
 
         // Remove a project and check whether the project is removed.
         mds.removeProject(author, project1).join();
