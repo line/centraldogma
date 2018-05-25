@@ -109,9 +109,9 @@ func TestNewClientWithHTTPClient(t *testing.T) {
 		want    string
 	}{
 		{"", defaultBaseURL},
-		{"central-dogma.com", "http://central-dogma.com:36462/"},
+		{"central-dogma.com", "http://central-dogma.com/"},
 		{"central-dogma.com:80", "http://central-dogma.com:80/"},
-		{"https://central-dogma.com", "https://central-dogma.com:36462/"},
+		{"http://central-dogma.com", "http://central-dogma.com/"},
 	}
 
 	for _, test := range tests {
