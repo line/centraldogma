@@ -57,9 +57,10 @@ First, we should create a new instance of :api:`com.linecorp.centraldogma.client
     CentralDogma dogma = new LegacyCentralDogmaBuilder()
             .host("127.0.0.1")
             .build();
-    // You can specify an alternative port as well:
+    // You can specify an alternative port or enable TLS as well:
     CentralDogma dogma2 = new LegacyCentralDogmaBuilder()
-            .host("example.com", 8888);
+            .useTls()                   // Enable TLS.
+            .host("example.com", 8443); // Use port 8443.
             .build();
 
 .. note::
@@ -242,10 +243,13 @@ content looks like the following:
 
 .. code-block:: properties
 
-    # The default port 36462 is used if unspecified.
     centraldogma.hosts.0=replica1.beta.example.com
-    # You can specify an alternative port number.
-    centraldogma.hosts.1=replica2.beta.example.com:1234
+    centraldogma.httpPorts.0=36462
+    centraldogma.httpsPorts.0=8443
+
+    centraldogma.hosts.1=replica2.beta.example.com
+    centraldogma.httpPorts.1=36462
+    centraldogma.httpsPorts.1=8443
 
 You may want to archive this file into a JAR file and distribute it via a Maven repository, so that your users
 gets the up-to-date host list easily. For example, a user could put ``centraldogma-profiles-1.0.jar`` into his
@@ -275,6 +279,8 @@ consider specifying a single host name that's very unlikely to change in the cli
 
     $ cat centraldogma-profile-release.properties
     centraldogma.host.0=all.dogma.example.com
+    centraldogma.httpPorts.0=36462
+    centraldogma.httpsPorts.0=8443
 
     $ dig all.dogma.example.com
 

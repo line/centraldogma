@@ -27,6 +27,7 @@ import java.net.URI;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
@@ -40,6 +41,7 @@ import com.google.common.net.InetAddresses;
  */
 public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogmaBuilder<B>> {
 
+    private static final Pattern HOST_KEY_PREFIX = Pattern.compile("^centraldogma\\.hosts\\.");
     private static final int DEFAULT_PORT = 36462;
 
     private ImmutableSet<InetSocketAddress> hosts = ImmutableSet.of();
@@ -115,6 +117,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      * Sets whether the client uses TLS or not.
      */
     public final B useTls(boolean useTls) {
+        checkState(selectedProfile == null, "useTls() cannot be called once a profile is selected.");
         this.useTls = useTls;
         return self();
     }
@@ -235,10 +238,12 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
                     final String key = (String) e.getKey();
                     final String value = (String) e.getValue();
 
-                    if (key.startsWith("centraldogma.hosts.")) {
+                    if (HOST_KEY_PREFIX.matcher(key).find()) {
                         final HostAndPort hostAndPort = HostAndPort.fromString(value);
+                        final int port = getPort(props, key, "httpPorts");
+                        final int tlsPort = getPort(props, key, "httpsPorts");
                         final InetSocketAddress addr = newEndpoint(
-                                hostAndPort.getHost(), hostAndPort.getPortOrDefault(DEFAULT_PORT));
+                                hostAndPort.getHost(), hostAndPort.getPortOrDefault(useTls ? tlsPort : port));
                         newHostsBuilder.add(addr);
                     }
                 }
@@ -261,6 +266,28 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
         this.selectedProfile = selectedProfile;
         this.hosts = hosts;
         return self();
+    }
+
+    private static int getPort(Properties props, String hostKey, String propName) {
+        final String portProp = HOST_KEY_PREFIX.matcher(hostKey).replaceFirst("centraldogma." + propName + '.');
+        final String value = props.getProperty(portProp);
+        if (value == null) {
+            return DEFAULT_PORT;
+        }
+
+        try {
+            final int port = Integer.parseInt(value);
+            if (port <= 0 || port >= 65536) {
+                throw newInvalidPortNumberException(portProp, port);
+            }
+            return port;
+        } catch (NumberFormatException e) {
+            throw newInvalidPortNumberException(portProp, value);
+        }
+    }
+
+    private static IllegalStateException newInvalidPortNumberException(String portProp, Object value) {
+        return new IllegalStateException("invalid port number: " + value + " (from '" + portProp + "')");
     }
 
     private static InetSocketAddress newEndpoint(String host, int port) {
