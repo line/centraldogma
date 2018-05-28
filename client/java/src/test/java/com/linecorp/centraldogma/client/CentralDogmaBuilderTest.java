@@ -84,5 +84,32 @@ public class CentralDogmaBuilderTest {
                 InetSocketAddress.createUnresolved("bar", 2));
     }
 
+    @Test
+    public void profileWithPortProperties() {
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.profile("ports");
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                InetSocketAddress.createUnresolved("alice.com", 8080),
+                // bob.com defaults to 36462 because no port was specified.
+                InetSocketAddress.createUnresolved("bob.com", 36462));
+
+        // Can't change mind later.
+        assertThatThrownBy(b::useTls).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void profileWithTlsPortProperties() {
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.useTls();
+        b.profile("ports");
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                InetSocketAddress.createUnresolved("alice.com", 8443),
+                // bob.com defaults to 36462 because no port was specified.
+                InetSocketAddress.createUnresolved("bob.com", 36462));
+
+        // Can't change mind later.
+        assertThatThrownBy(() -> b.useTls(false)).isInstanceOf(IllegalStateException.class);
+    }
+
     private static final class CentralDogmaBuilder extends AbstractCentralDogmaBuilder<CentralDogmaBuilder> {}
 }
