@@ -41,7 +41,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -52,8 +51,6 @@ import (
 var log = logrus.New()
 
 const (
-	DefaultPort = 36462
-
 	defaultScheme     = "http"
 	defaultHostName   = "localhost"
 	defaultBaseURL    = defaultScheme + "://" + defaultHostName + ":36462/"
@@ -141,20 +138,10 @@ func normalizeURL(baseURL string) (*url.URL, error) {
 		baseURL = defaultScheme + "://" + baseURL
 	}
 
-	parsedURL, err := url.Parse(baseURL)
-	if err != nil {
-		return nil, err
-	}
-	if len(parsedURL.Scheme) == 0 {
-		baseURL = defaultScheme + "://" + baseURL
-	}
-	port := parsedURL.Port()
-	if len(port) == 0 {
-		baseURL += ":" + strconv.Itoa(DefaultPort)
-	}
 	if !strings.HasSuffix(baseURL, "/") {
 		baseURL += "/"
 	}
+
 	return url.Parse(baseURL)
 }
 
