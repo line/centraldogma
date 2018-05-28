@@ -1,0 +1,62 @@
+{
+  "$id": "https://line.github.io/centraldogma/schema/client-profiles",
+  "type": "array",
+  "definitions": { },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "items": {
+    "$id": "https://line.github.io/centraldogma/schema/client-profiles/items",
+    "type": "object",
+    "properties": {
+      "name": {
+        "$id": "https://line.github.io/centraldogma/schema/client-profiles/items/properties/name",
+        "type": "string",
+        "title": "The name of the client profile",
+        "examples": [
+          "local", "beta", "release"
+        ]
+      },
+      "hosts": {
+        "$id": "https://line.github.io/centraldogma/schema/client-profiles/items/properties/hosts",
+        "type": "array",
+        "items": {
+          "$id": "https://line.github.io/centraldogma/schema/client-profiles/items/properties/hosts/items",
+          "type": "object",
+          "properties": {
+            "host": {
+              "$id": "https://line.github.io/centraldogma/schema/client-profiles/items/properties/hosts/items/properties/host",
+              "type": "string",
+              "title": "The host name or IP address",
+              "examples": [
+                "foo.example.com", "192.168.1.2"
+              ]
+            },
+            "protocol": {
+              "$id": "https://line.github.io/centraldogma/schema/client-profiles/items/properties/hosts/items/properties/protocol",
+              "type": "string",
+              "title": "The protocol name",
+              "examples": [
+                "http", "https"
+              ]
+            },
+            "port": {
+              "$id": "https://line.github.io/centraldogma/schema/client-profiles/items/properties/hosts/items/properties/port",
+              "type": "integer",
+              "title": "The TCP/IP port number",
+              "examples": [
+                36462, 8080, 8443
+              ]
+            }
+          },
+          "required": [
+            "host",
+            "protocol",
+            "port"
+          ]
+        }
+      }
+    },
+    "required": [
+      "name"
+    ]
+  }
+}

@@ -26,8 +26,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.slf4j.LoggerFactory;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
@@ -172,10 +170,5 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     private static Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {
         return Endpoint.of(addr.getHostString(), addr.getPort())
                        .withIpAddr(addr.getAddress().getHostAddress());
-    }
-
-    @Override
-    protected final void printWarning(String message) {
-        LoggerFactory.getLogger(getClass()).warn(message);
     }
 }

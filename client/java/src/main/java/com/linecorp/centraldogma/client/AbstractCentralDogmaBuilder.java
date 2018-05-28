@@ -18,21 +18,27 @@ package com.linecorp.centraldogma.client;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.Map.Entry;
-import java.util.Properties;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.net.HostAndPort;
+import com.google.common.collect.Iterables;
 import com.google.common.net.InetAddresses;
 
 /**
@@ -40,7 +46,10 @@ import com.google.common.net.InetAddresses;
  */
 public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogmaBuilder<B>> {
 
-    private static final int DEFAULT_PORT = 36462;
+    private static final String TEST_PROFILE_RESOURCE_PATH = "centraldogma-profiles-test.json";
+    private static final String PROFILE_RESOURCE_PATH = "centraldogma-profiles.json";
+
+    static final int DEFAULT_PORT = 36462;
 
     private ImmutableSet<InetSocketAddress> hosts = ImmutableSet.of();
     private boolean useTls;
@@ -115,6 +124,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      * Sets whether the client uses TLS or not.
      */
     public final B useTls(boolean useTls) {
+        checkState(selectedProfile == null, "useTls() cannot be called once a profile is selected.");
         this.useTls = useTls;
         return self();
     }
@@ -214,53 +224,65 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
         checkState(selectedProfile == null, "profile cannot be loaded more than once.");
         checkState(hosts.isEmpty(), "profile() and host() cannot be used together.");
 
-        String selectedProfile = null;
-        ImmutableSet<InetSocketAddress> hosts = null;
-        boolean profilesIsEmpty = true;
-        for (String p : profiles) {
-            checkNotNull(p, "profiles contains null: %s", profiles);
-            profilesIsEmpty = false;
+        final URL resourceUrl = findFirstResource(
+                classLoader, TEST_PROFILE_RESOURCE_PATH, PROFILE_RESOURCE_PATH);
 
-            final String path = "centraldogma-profile-" + p + ".properties";
-            final InputStream in = classLoader.getResourceAsStream(path);
-            if (in == null) {
+        checkState(resourceUrl != null, "failed to find: %s or %s",
+                   TEST_PROFILE_RESOURCE_PATH, PROFILE_RESOURCE_PATH);
+
+        final Map<String, ClientProfile> availableProfiles;
+        try {
+            final List<ClientProfile> availableProfileList =
+                    new ObjectMapper().readValue(resourceUrl, new TypeReference<List<ClientProfile>>() {});
+            availableProfiles = availableProfileList.stream()
+                                                    .collect(toImmutableMap(ClientProfile::name,
+                                                                            Function.identity()));
+        } catch (IOException e) {
+            throw new IllegalStateException("failed to load: " + PROFILE_RESOURCE_PATH, e);
+        }
+
+        final List<String> reversedProfiles = reverse(profiles);
+        checkArgument(!reversedProfiles.isEmpty(), "profiles is empty.");
+        for (String candidateName : reversedProfiles) {
+            checkNotNull(candidateName, "profiles contains null: %s", profiles);
+
+            final ClientProfile candidate = availableProfiles.get(candidateName);
+            if (candidate == null) {
                 continue;
             }
 
-            try {
-                final ImmutableSet.Builder<InetSocketAddress> newHostsBuilder = ImmutableSet.builder();
-                final Properties props = new Properties();
-                props.load(in);
-                for (Entry<Object, Object> e : props.entrySet()) {
-                    final String key = (String) e.getKey();
-                    final String value = (String) e.getValue();
+            final ImmutableSet.Builder<InetSocketAddress> newHostsBuilder = ImmutableSet.builder();
+            candidate.hosts().stream()
+                     .filter(e -> (useTls ? "https" : "http").equals(e.protocol()))
+                     .forEach(e -> newHostsBuilder.add(newEndpoint(e.host(), e.port())));
 
-                    if (key.startsWith("centraldogma.hosts.")) {
-                        final HostAndPort hostAndPort = HostAndPort.fromString(value);
-                        final InetSocketAddress addr = newEndpoint(
-                                hostAndPort.getHost(), hostAndPort.getPortOrDefault(DEFAULT_PORT));
-                        newHostsBuilder.add(addr);
-                    }
-                }
-
-                final ImmutableSet<InetSocketAddress> newHosts = newHostsBuilder.build();
-                if (newHosts.isEmpty()) {
-                    printWarning(String.format("Ignoring %s: contains no hosts", path));
-                } else {
-                    selectedProfile = p;
-                    hosts = newHosts;
-                }
-            } catch (IOException e) {
-                throw new IllegalArgumentException("failed to load: " + path, e);
+            final ImmutableSet<InetSocketAddress> newHosts = newHostsBuilder.build();
+            if (!newHosts.isEmpty()) {
+                selectedProfile = candidateName;
+                hosts = newHosts;
+                return self();
             }
         }
 
-        checkArgument(!profilesIsEmpty, "profiles is empty.");
-        checkArgument(selectedProfile != null, "no profile matches: %s", profiles);
+        throw new IllegalArgumentException("no profile matches: " + profiles);
+    }
 
-        this.selectedProfile = selectedProfile;
-        this.hosts = hosts;
-        return self();
+    @Nullable
+    private static URL findFirstResource(ClassLoader classLoader, String... paths) {
+        for (String p : paths) {
+            final URL url = classLoader.getResource(p);
+            if (url != null) {
+                return url;
+            }
+        }
+        return null;
+    }
+
+    private static List<String> reverse(Iterable<String> profiles) {
+        final List<String> reversedProfiles = new ArrayList<>();
+        Iterables.addAll(reversedProfiles, profiles);
+        Collections.reverse(reversedProfiles);
+        return reversedProfiles;
     }
 
     private static InetSocketAddress newEndpoint(String host, int port) {
@@ -288,12 +310,5 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      */
     protected final Set<InetSocketAddress> hosts() {
         return hosts;
-    }
-
-    /**
-     * Prints the warning message.
-     */
-    protected void printWarning(String message) {
-        System.err.println(message);
     }
 }

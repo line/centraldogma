@@ -1,0 +1,17 @@
+[
+  {
+    "name": "confTest",
+    "hosts": [
+      {
+        "host": "foo.com",
+        "protocol": "http",
+        "port": 36462
+      },
+      {
+        "host": "bar.com",
+        "protocol": "http",
+        "port": 8080
+      }
+    ]
+  }
+]

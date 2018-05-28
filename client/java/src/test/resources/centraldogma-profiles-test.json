@@ -1,0 +1,41 @@
+[
+  {
+    "name": "foo",
+    "hosts": [
+      {
+        "host": "foo.com",
+        "protocol": "http",
+        "port": 36462
+      },
+      {
+        "host": "foo.com",
+        "protocol": "https",
+        "port": 8443
+      },
+      {
+        "host": "bar.com",
+        "protocol": "https",
+        "port": 443
+      }
+    ]
+  },
+  {
+    "name": "bar",
+    "hosts": []
+  },
+  {
+    "name": "qux",
+    "hosts": [
+      {
+        "host": "alice.com",
+        "protocol": "http",
+        "port": 36462
+      },
+      {
+        "host": "bob.com",
+        "protocol": "http",
+        "port": 36462
+      }
+    ]
+  }
+]
