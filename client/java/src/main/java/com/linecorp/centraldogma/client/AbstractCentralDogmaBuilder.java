@@ -48,11 +48,14 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     private static final String TEST_PROFILE_RESOURCE_PATH = "centraldogma-profiles-test.json";
     private static final String PROFILE_RESOURCE_PATH = "centraldogma-profiles.json";
+    private static final List<String> DEFAULT_PROFILE_RESOURCE_PATHS =
+            ImmutableList.of(TEST_PROFILE_RESOURCE_PATH, PROFILE_RESOURCE_PATH);
 
     static final int DEFAULT_PORT = 36462;
 
     private ImmutableSet<InetSocketAddress> hosts = ImmutableSet.of();
     private boolean useTls;
+    private List<String> profileResourcePaths = DEFAULT_PROFILE_RESOURCE_PATHS;
     @Nullable
     private String selectedProfile;
 
@@ -136,6 +139,31 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      */
     protected final boolean isUseTls() {
         return useTls;
+    }
+
+    /**
+     * Sets the paths to look for to read the {@code .json} file that contains the client profiles.
+     * The paths are tried in the order of iteration. The default value of this property is
+     * <code>[ {@value #TEST_PROFILE_RESOURCE_PATH}, {@value #PROFILE_RESOURCE_PATH} ]</code>, which means
+     * the builder will check if {@value #TEST_PROFILE_RESOURCE_PATH} exists first and will try
+     * {@link #PROFILE_RESOURCE_PATH} only if {@value #TEST_PROFILE_RESOURCE_PATH} is missing.
+     */
+    public final B profileResources(String... paths) {
+        return profileResources(ImmutableList.copyOf(requireNonNull(paths, "paths")));
+    }
+
+    /**
+     * Sets the paths to look for to read the {@code .json} file that contains the client profiles.
+     * The paths are tried in the order of iteration. The default value of this property is
+     * <code>[ {@value #TEST_PROFILE_RESOURCE_PATH}, {@value #PROFILE_RESOURCE_PATH} ]</code>, which means
+     * the builder will check if {@value #TEST_PROFILE_RESOURCE_PATH} exists first and will try
+     * {@link #PROFILE_RESOURCE_PATH} only if {@value #TEST_PROFILE_RESOURCE_PATH} is missing.
+     */
+    public final B profileResources(Iterable<String> paths) {
+        final List<String> newPaths = ImmutableList.copyOf(requireNonNull(paths, "paths"));
+        checkArgument(!newPaths.isEmpty(), "paths is empty.");
+        profileResourcePaths = newPaths;
+        return self();
     }
 
     /**
@@ -224,11 +252,9 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
         checkState(selectedProfile == null, "profile cannot be loaded more than once.");
         checkState(hosts.isEmpty(), "profile() and host() cannot be used together.");
 
-        final URL resourceUrl = findFirstResource(
-                classLoader, TEST_PROFILE_RESOURCE_PATH, PROFILE_RESOURCE_PATH);
+        final URL resourceUrl = findProfileResource(classLoader);
 
-        checkState(resourceUrl != null, "failed to find: %s or %s",
-                   TEST_PROFILE_RESOURCE_PATH, PROFILE_RESOURCE_PATH);
+        checkState(resourceUrl != null, "failed to find any of: ", profileResourcePaths);
 
         final Map<String, ClientProfile> availableProfiles;
         try {
@@ -268,8 +294,8 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     }
 
     @Nullable
-    private static URL findFirstResource(ClassLoader classLoader, String... paths) {
-        for (String p : paths) {
+    private URL findProfileResource(ClassLoader classLoader) {
+        for (String p : profileResourcePaths) {
             final URL url = classLoader.getResource(p);
             if (url != null) {
                 return url;
