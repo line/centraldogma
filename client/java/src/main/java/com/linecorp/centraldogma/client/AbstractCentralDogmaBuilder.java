@@ -146,7 +146,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      * The paths are tried in the order of iteration. The default value of this property is
      * <code>[ {@value #TEST_PROFILE_RESOURCE_PATH}, {@value #PROFILE_RESOURCE_PATH} ]</code>, which means
      * the builder will check if {@value #TEST_PROFILE_RESOURCE_PATH} exists first and will try
-     * {@link #PROFILE_RESOURCE_PATH} only if {@value #TEST_PROFILE_RESOURCE_PATH} is missing.
+     * {@value #PROFILE_RESOURCE_PATH} only if {@value #TEST_PROFILE_RESOURCE_PATH} is missing.
      */
     public final B profileResources(String... paths) {
         return profileResources(ImmutableList.copyOf(requireNonNull(paths, "paths")));
@@ -157,7 +157,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      * The paths are tried in the order of iteration. The default value of this property is
      * <code>[ {@value #TEST_PROFILE_RESOURCE_PATH}, {@value #PROFILE_RESOURCE_PATH} ]</code>, which means
      * the builder will check if {@value #TEST_PROFILE_RESOURCE_PATH} exists first and will try
-     * {@link #PROFILE_RESOURCE_PATH} only if {@value #TEST_PROFILE_RESOURCE_PATH} is missing.
+     * {@value #PROFILE_RESOURCE_PATH} only if {@value #TEST_PROFILE_RESOURCE_PATH} is missing.
      */
     public final B profileResources(Iterable<String> paths) {
         final List<String> newPaths = ImmutableList.copyOf(requireNonNull(paths, "paths"));
