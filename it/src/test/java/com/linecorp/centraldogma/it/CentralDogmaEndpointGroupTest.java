@@ -22,7 +22,6 @@ import static org.awaitility.Awaitility.await;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,11 +42,11 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class CentralDogmaEndpointGroupTest {
-    private static List<String> HOST_AND_PORT_LIST = ImmutableList.of(
-            "centraldogma-sample001.com:1234",
-            "1.2.3.4:5678"
-    );
-    private static String HOST_AND_PORT_LIST_JSON;
+    private static final List<String> HOST_AND_PORT_LIST = ImmutableList.of(
+            "1.2.3.4:5678",
+            "centraldogma-sample001.com:1234");
+
+    private static final String HOST_AND_PORT_LIST_JSON;
 
     static {
         try {
@@ -57,10 +56,9 @@ public class CentralDogmaEndpointGroupTest {
         }
     }
 
-    private static List<Endpoint> ENDPOINT_LIST = ImmutableList.of(
-            Endpoint.of("centraldogma-sample001.com", 1234),
-            Endpoint.of("1.2.3.4", 5678)
-    );
+    private static final List<Endpoint> ENDPOINT_LIST = ImmutableList.of(
+            Endpoint.of("1.2.3.4", 5678),
+            Endpoint.of("centraldogma-sample001.com", 1234));
 
     @Rule
     public final CentralDogmaRule dogma = new CentralDogmaRule() {
@@ -75,7 +73,7 @@ public class CentralDogmaEndpointGroupTest {
             client.push("directory", "my-service",
                         Revision.HEAD, "commit",
                         Change.ofTextUpsert("/endpoints.txt",
-                                            HOST_AND_PORT_LIST.stream().collect(Collectors.joining("\n"))))
+                                            String.join("\n", HOST_AND_PORT_LIST)))
                   .join();
         }
     };
@@ -84,7 +82,7 @@ public class CentralDogmaEndpointGroupTest {
     public void json() throws Exception {
         try (Watcher<JsonNode> watcher = dogma.client().fileWatcher("directory", "my-service",
                                                                     Query.ofJson("/endpoint.json"))) {
-            CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
+            final CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.JSON);
             endpointGroup.awaitInitialEndpoints();
             assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
@@ -95,9 +93,9 @@ public class CentralDogmaEndpointGroupTest {
     public void text() throws Exception {
         try (Watcher<String> watcher = dogma.client().fileWatcher("directory", "my-service",
                                                                   Query.ofText("/endpoints.txt"))) {
-            CountDownLatch latch = new CountDownLatch(2);
+            final CountDownLatch latch = new CountDownLatch(2);
             watcher.watch(unused -> latch.countDown());
-            CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
+            final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);
             endpointGroup.awaitInitialEndpoints();
             assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);

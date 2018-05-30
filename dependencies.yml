@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.64.0
+- com.linecorp.armeria:armeria-bom:0.65.1
 
 com.beust:
   jcommander: { version: '1.72' }
