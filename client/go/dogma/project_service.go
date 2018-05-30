@@ -37,7 +37,7 @@ type Author struct {
 func (p *projectService) create(ctx context.Context, name string) (*Project, *http.Response, error) {
 	u := defaultPathPrefix + "projects"
 
-	req, err := p.client.newRequest("POST", u, &Project{Name: name})
+	req, err := p.client.newRequest(http.MethodPost, u, &Project{Name: name})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -53,7 +53,7 @@ func (p *projectService) create(ctx context.Context, name string) (*Project, *ht
 func (p *projectService) remove(ctx context.Context, name string) (*http.Response, error) {
 	u := defaultPathPrefix + "projects/" + name
 
-	req, err := p.client.newRequest("DELETE", u, nil)
+	req, err := p.client.newRequest(http.MethodDelete, u, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (p *projectService) remove(ctx context.Context, name string) (*http.Respons
 func (p *projectService) unremove(ctx context.Context, name string) (*Project, *http.Response, error) {
 	u := defaultPathPrefix + "projects/" + name
 
-	req, err := p.client.newRequest("PATCH", u, `[{"op":"replace", "path":"/status", "value":"active"}]`)
+	req, err := p.client.newRequest(http.MethodPatch, u, `[{"op":"replace", "path":"/status", "value":"active"}]`)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,7 +84,7 @@ func (p *projectService) unremove(ctx context.Context, name string) (*Project, *
 func (p *projectService) list(ctx context.Context) ([]*Project, *http.Response, error) {
 	u := defaultPathPrefix + "projects"
 
-	req, err := p.client.newRequest("GET", u, nil)
+	req, err := p.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -101,7 +101,7 @@ func (p *projectService) list(ctx context.Context) ([]*Project, *http.Response, 
 func (p *projectService) listRemoved(ctx context.Context) ([]*Project, *http.Response, error) {
 	u := defaultPathPrefix + "projects?status=removed"
 
-	req, err := p.client.newRequest("GET", u, nil)
+	req, err := p.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}

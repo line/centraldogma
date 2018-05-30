@@ -30,7 +30,7 @@ func TestCreateProject(t *testing.T) {
 	input := &Project{Name: "foo"}
 
 	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "POST")
+		testMethod(t, r, http.MethodPost)
 		testHeader(t, r, "Authorization", "Bearer anonymous")
 
 		project := new(Project)
@@ -57,7 +57,7 @@ func TestRemoveProject(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "DELETE")
+		testMethod(t, r, http.MethodDelete)
 		w.WriteHeader(http.StatusNoContent)
 	})
 
@@ -70,7 +70,7 @@ func TestUnremoveProject(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "PATCH")
+		testMethod(t, r, http.MethodPatch)
 		testHeader(t, r, "Content-Type", "application/json-patch+json")
 		testBody(t, r, `[{"op":"replace", "path":"/status", "value":"active"}]`)
 		fmt.Fprint(w,
@@ -90,7 +90,7 @@ func TestListProject(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, `[
 {"name":"foo", "creator":{"name":"minux", "email":"minux@m.x"}, "url":"/api/v1/projects/foo"},
 {"name":"bar", "creator":{"name":"minux", "email":"minux@m.x"}, "url":"/api/v1/projects/bar"}]`)
@@ -110,7 +110,7 @@ func TestListRemovedProject(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		testURLQuery(t, r, "status", "removed")
 		fmt.Fprint(w, `[{"name":"foo"}, {"name":"bar"}]`)
 	})

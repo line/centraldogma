@@ -28,7 +28,7 @@ func TestListFiles(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/list/**", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, `[{"path":"/a.json", "type":"JSON"},{"path":"/b.txt", "type":"TEXT"}]`)
 	})
 
@@ -44,7 +44,7 @@ func TestListFiles_WithRevision(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/list/**", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		testURLQuery(t, r, "revision", "2")
 		fmt.Fprint(w, `[{"path":"/a.json", "type":"JSON"},{"path":"/b.txt", "type":"TEXT"}]`)
 	})
@@ -62,7 +62,7 @@ func TestGetFile(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/b.txt",
 		func(w http.ResponseWriter, r *http.Request) {
-			testMethod(t, r, "GET")
+			testMethod(t, r, http.MethodGet)
 			fmt.Fprint(w, `{"path":"/b.txt", "type":"TEXT", "content":"hello world~!"}`)
 		})
 
@@ -80,7 +80,7 @@ func TestGetFile_JSON(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/a.json",
 		func(w http.ResponseWriter, r *http.Request) {
-			testMethod(t, r, "GET")
+			testMethod(t, r, http.MethodGet)
 			fmt.Fprint(w, `{"path":"/a.json", "type":"JSON", "content":{"a":"b"}}`)
 		})
 
@@ -98,7 +98,7 @@ func TestGetFile_WithJSONPath(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/a.json",
 		func(w http.ResponseWriter, r *http.Request) {
-			testMethod(t, r, "GET")
+			testMethod(t, r, http.MethodGet)
 			testURLQuery(t, r, "jsonpath", "$.a")
 			fmt.Fprint(w, `{"path":"/a.json", "type":"JSON", "content":"b"}`)
 		})
@@ -117,7 +117,7 @@ func TestGetFile_WithJSONPathAndRevision(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/a.json",
 		func(w http.ResponseWriter, r *http.Request) {
-			testMethod(t, r, "GET")
+			testMethod(t, r, http.MethodGet)
 			testURLQuery(t, r, "jsonpath", "$.a")
 			testURLQuery(t, r, "revision", "-1")
 			fmt.Fprint(w, `{"path":"/a.json", "type":"JSON", "content":"b"}`)
@@ -136,7 +136,7 @@ func TestGetFiles(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/**", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, `[{"path":"/a.json", "type":"JSON", "content":{"a":"b"}},
 {"path":"/b.txt", "type":"TEXT", "content":"hello world~!"}]`)
 	})
@@ -154,7 +154,7 @@ func TestGetHistory(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/commits/-2", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		testURLQuery(t, r, "to", "-1")
 		testURLQuery(t, r, "maxCommits", "2")
 
@@ -181,7 +181,7 @@ func TestGetDiff(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/compare",
 		func(w http.ResponseWriter, r *http.Request) {
-			testMethod(t, r, "GET")
+			testMethod(t, r, http.MethodGet)
 			testURLQuery(t, r, "from", "3")
 			testURLQuery(t, r, "to", "4")
 			testURLQuery(t, r, "path", "/a.json")
@@ -216,7 +216,7 @@ func TestGetDiffs(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/compare", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		testURLQuery(t, r, "from", "1")
 		testURLQuery(t, r, "to", "4")
 		testURLQuery(t, r, "pathPattern", "/**")
@@ -251,7 +251,7 @@ func TestPush(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "POST")
+		testMethod(t, r, http.MethodPost)
 		testURLQuery(t, r, "revision", "-1")
 
 		var reqBody push
@@ -282,7 +282,7 @@ func TestPush_TwoFiles(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "POST")
+		testMethod(t, r, http.MethodPost)
 		testURLQuery(t, r, "revision", "-1")
 
 		var reqBody push
