@@ -79,7 +79,7 @@ final class ClientProfile {
             this.protocol = requireNonNull(protocol, "protocol");
             checkArgument(!protocol.isEmpty(), "protocol is empty.");
             this.port = requireNonNull(port, "port");
-            checkArgument(port > 0 && port < 65536, "port: %s (expected: 0..65535)", port);
+            checkArgument(port > 0 && port < 65536, "port: %s (expected: 1..65535)", port);
         }
 
         @JsonProperty

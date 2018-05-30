@@ -162,6 +162,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     public final B profileResources(Iterable<String> paths) {
         final List<String> newPaths = ImmutableList.copyOf(requireNonNull(paths, "paths"));
         checkArgument(!newPaths.isEmpty(), "paths is empty.");
+        checkState(selectedProfile == null, "profileResources cannot be set after profile() is called.");
         profileResourcePaths = newPaths;
         return self();
     }
