@@ -58,24 +58,42 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void buildingWithProfile() {
+    public void httpProfile() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
-        // The last valid profile should win, to be consistent with Spring Boot profiles.
-        b.profile("qux", "foo");
+        b.profile("foo");
         assertThat(b.hosts()).containsExactlyInAnyOrder(
-                InetSocketAddress.createUnresolved("foo.com", 36462),
-                InetSocketAddress.createUnresolved("bar.com", 8080));
+                InetSocketAddress.createUnresolved("foo.com", 36462));
     }
 
     @Test
-    public void buildingWithSingleHost() {
+    public void httpsProfile() {
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.useTls();
+        b.profile("foo");
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                InetSocketAddress.createUnresolved("foo.com", 8443),
+                InetSocketAddress.createUnresolved("bar.com", 443));
+    }
+
+    @Test
+    public void lastProfileFirst() {
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        // The last valid profile should win, to be consistent with Spring Boot profiles.
+        b.profile("foo", "qux");
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                InetSocketAddress.createUnresolved("alice.com", 36462),
+                InetSocketAddress.createUnresolved("bob.com", 36462));
+    }
+
+    @Test
+    public void singleHost() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.host("foo");
         assertThat(b.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 36462));
     }
 
     @Test
-    public void buildingWithMultipleHosts() {
+    public void multipleHosts() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.host("foo", 1);
         b.host("bar", 2);

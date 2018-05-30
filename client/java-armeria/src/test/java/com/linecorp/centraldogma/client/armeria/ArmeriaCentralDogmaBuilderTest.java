@@ -36,11 +36,11 @@ public class ArmeriaCentralDogmaBuilderTest {
 
     @Test
     public void buildingWithProfile() throws Exception {
-        final String groupName = "centraldogma-profile-test-xip";
+        final String groupName = "centraldogma-profile-xip";
         try {
             final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
             b.disableHealthCheck();
-            b.profile("test-xip");
+            b.profile("xip");
             final Endpoint endpoint = b.endpoint();
             assertThat(endpoint.isGroup()).isTrue();
             assertThat(endpoint.groupName()).isEqualTo(groupName);

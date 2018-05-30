@@ -57,9 +57,10 @@ First, we should create a new instance of :api:`com.linecorp.centraldogma.client
     CentralDogma dogma = new LegacyCentralDogmaBuilder()
             .host("127.0.0.1")
             .build();
-    // You can specify an alternative port as well:
+    // You can specify an alternative port or enable TLS as well:
     CentralDogma dogma2 = new LegacyCentralDogmaBuilder()
-            .host("example.com", 8888);
+            .useTls()                   // Enable TLS.
+            .host("example.com", 8443); // Use port 8443.
             .build();
 
 .. note::
@@ -227,44 +228,73 @@ You can also specify more than one host using the ``host()`` method:
 
 Using client profiles
 ---------------------
-You can load the list of the Central Dogma servers from ``.properties`` resource file in the class path using
-``LegacyCentralDogmaBuilder.profile()``:
+You can load the list of the Central Dogma servers from one of the following JSON files in the class path using
+``LegacyCentralDogmaBuilder.profile(String...)``:
+
+- ``centraldogma-profile-test.json``
+- ``centraldogma-profile.json`` (if ``centraldogma-profile-test.json`` is missing)
 
 .. code-block:: java
 
     LegacyCentralDogmaBuilder builder = new LegacyCentralDogmaBuilder();
-    // Loads the host list from /centraldogma-profile-beta.properties.
+    // Loads the profile 'beta' from /centraldogma-profiles-test.json or /centraldogma-profiles.json
     builder.profile("beta");
     CentralDogma dogma = builder.build();
 
-The resource path of the ``.properties`` file is ``/centraldogma-profile-<profile_name>.properties`` and its
-content looks like the following:
+The following example ``centraldogma-profiles.json`` contains two profiles, ``beta`` and ``release``, and
+they contain two replicas, ``replica{1,2}.beta.example.com`` and ``replica{1,2}.release.example.com``
+respectively. The replicas in the ``release`` profile support both ``http`` and ``https`` whereas
+the replicas in the ``beta`` profile support ``http`` only:
 
-.. code-block:: properties
+.. code-block:: json
 
-    # The default port 36462 is used if unspecified.
-    centraldogma.hosts.0=replica1.beta.example.com
-    # You can specify an alternative port number.
-    centraldogma.hosts.1=replica2.beta.example.com:1234
+    [ {
+      "name": "beta",
+      "hosts": [ {
+        "host": "replica1.beta.example.com",
+        "protocol": "http",
+        "port": 36462
+      }, {
+        "host": "replica2.beta.example.com",
+        "protocol": "http",
+        "port": 36462
+      } ]
+    }, {
+      "name": "release",
+      "hosts": [ {
+        "host": "replica1.release.example.com",
+        "protocol": "http",
+        "port": 36462
+      }, {
+        "host": "replica1.release.example.com",
+        "protocol": "https",
+        "port": 8443
+      }, {
+        "host": "replica2.release.example.com",
+        "protocol": "http",
+        "port": 36462
+      }, {
+        "host": "replica2.release.example.com",
+        "protocol": "https",
+        "port": 8443
+      } ]
+    } ]
+
+.. tip::
+
+    Use `the JSON schema <_static/schema-centraldogma-profiles.json>`_ to validate your
+    ``centraldogma-profiles.json`` file.
 
 You may want to archive this file into a JAR file and distribute it via a Maven repository, so that your users
-gets the up-to-date host list easily. For example, a user could put ``centraldogma-profiles-1.0.jar`` into his
+get the up-to-date host list easily. For example, a user could put ``centraldogma-profiles-1.0.jar`` into his
 or her class path::
 
-    $ cat centraldogma-profile-beta.properties
-    centraldogma.host.0=...
-    ...
-    $ cat centraldogma-profile-staging.properties
-    centraldogma.host.0=...
-    ...
-    $ cat centraldogma-profile-release.properties
-    centraldogma.host.0=...
-    ...
-    $ jar cvf centraldogma-profiles-1.0.jar centraldogma-profile-*.properties
+    $ cat centraldogma-profiles.json
+    [ { "name": "release", "hosts": [ ... ] } ]
+
+    $ jar cvf centraldogma-profiles-1.0.jar centraldogma-profiles.json
     added manifest
-    adding: centraldogma-profile-beta.properties
-    adding: centraldogma-profile-staging.properties
-    adding: centraldogma-profile-release.properties
+    adding: centraldogma-profiles.json
 
 Using DNS-based lookup
 ----------------------
@@ -273,8 +303,15 @@ the ``/etc/host`` file. Instead of specifying all the individual replica address
 consider specifying a single host name that's very unlikely to change in the client profile and add multiple
 ``A`` or ``AAAA`` DNS records to the host name::
 
-    $ cat centraldogma-profile-release.properties
-    centraldogma.host.0=all.dogma.example.com
+    $ cat centraldogma-profiles.json
+    [ {
+      "name": "release",
+      "hosts": [ {
+        "host": "all.dogma.example.com",
+        "protocol": "http",
+        "port": 36462
+      } ]
+    } ]
 
     $ dig all.dogma.example.com
 
@@ -310,9 +347,8 @@ client very easily.
 
 A new :api:`com.linecorp.centraldogma.client.CentralDogma` client will be created and injected using your
 `Spring Boot profile <https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html>`_.
-When more than one profile is active, the first matching one will be used. For example,
-``/centraldogma-profile-dev.properties`` will be tried first and then ``/centraldogma-profile-hsqldb.properties``
-if your active Spring Boot profiles are ``dev`` and ``hsqldb``.
+When more than one profile is active, the last matching one will be used from ``/centraldogma-profiles-test.json``
+or ``/centraldogma-profiles.json``.
 
 Once configured correctly, you would be able to run an application like the following:
 
