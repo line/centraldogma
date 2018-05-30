@@ -168,16 +168,11 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     /**
      * Adds the host names (or IP addresses) and the port numbers of the Central Dogma servers loaded from the
-     * {@code /centraldogma-profile-<profile_name>.properties} resource file. The {@code .properties} file
-     * must contain at least one property whose name starts with {@code "centraldogma.hosts."}:
+     * client profile resources. When more than one profile is matched, the last matching one will be used. See
+     * <a href="https://line.github.io/centraldogma/client-java.html#using-client-profiles">Using client
+     * profiles</a> for more information.
      *
-     * <pre>{@code
-     * centraldogma.hosts.0=replica1.example.com:36462
-     * centraldogma.hosts.1=replica2.example.com:36462
-     * centraldogma.hosts.2=replica3.example.com:36462
-     * }</pre>
-     *
-     * @param profiles the list of profile names, in the order of preference
+     * @param profiles the list of profile names
      *
      * @throws IllegalArgumentException if failed to load any hosts from all the specified profiles
      */
@@ -188,16 +183,11 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     /**
      * Adds the host names (or IP addresses) and the port numbers of the Central Dogma servers loaded from the
-     * {@code /centraldogma-profile-<profile_name>.properties} resource file. The {@code .properties} file
-     * must contain at least one property whose name starts with {@code "centraldogma.hosts."}:
+     * client profile resources. When more than one profile is matched, the last matching one will be used. See
+     * <a href="https://line.github.io/centraldogma/client-java.html#using-client-profiles">Using client
+     * profiles</a> for more information.
      *
-     * <pre>{@code
-     * centraldogma.hosts.0=replica1.example.com:36462
-     * centraldogma.hosts.1=replica2.example.com:36462
-     * centraldogma.hosts.2=replica3.example.com:36462
-     * }</pre>
-     *
-     * @param profiles the list of profile names, in the order of preference
+     * @param profiles the list of profile names
      *
      * @throws IllegalArgumentException if failed to load any hosts from all the specified profiles
      */
@@ -208,16 +198,11 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     /**
      * Adds the host names (or IP address) and the port numbers of the Central Dogma servers loaded from the
-     * {@code /centraldogma-profile-<profile_name>.properties} resource file. The {@code .properties} file
-     * must contain at least one property whose name starts with {@code "centraldogma.hosts."}:
+     * client profile resources. When more than one profile is matched, the last matching one will be used. See
+     * <a href="https://line.github.io/centraldogma/client-java.html#using-client-profiles">Using client
+     * profiles</a> for more information.
      *
-     * <pre>{@code
-     * centraldogma.hosts.0=replica1.example.com:36462
-     * centraldogma.hosts.1=replica2.example.com:36462
-     * centraldogma.hosts.2=replica3.example.com:36462
-     * }</pre>
-     *
-     * @param profiles the list of profile names, in the order of preference
+     * @param profiles the list of profile names
      *
      * @throws IllegalArgumentException if failed to load any hosts from all the specified profiles
      */
@@ -233,16 +218,11 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     /**
      * Adds the host names (or IP address) and the port numbers of the Central Dogma servers loaded from the
-     * {@code /centraldogma-profile-<profile_name>.properties} resource file. The {@code .properties} file
-     * must contain at least one property whose name starts with {@code "centraldogma.hosts."}:
+     * client profile resources. When more than one profile is matched, the last matching one will be used. See
+     * <a href="https://line.github.io/centraldogma/client-java.html#using-client-profiles">Using client
+     * profiles</a> for more information.
      *
-     * <pre>{@code
-     * centraldogma.hosts.0=replica1.example.com:36462
-     * centraldogma.hosts.1=replica2.example.com:36462
-     * centraldogma.hosts.2=replica3.example.com:36462
-     * }</pre>
-     *
-     * @param profiles the list of profile names, in the order of preference
+     * @param profiles the list of profile names
      *
      * @throws IllegalArgumentException if failed to load any hosts from all the specified profiles
      */
