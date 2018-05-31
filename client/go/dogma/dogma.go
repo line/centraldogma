@@ -147,7 +147,7 @@ func normalizeURL(baseURL string) (*url.URL, error) {
 
 // SecurityEnabled returns whether the security of the server is enabled or not.
 func (c *Client) SecurityEnabled() (bool, error) {
-	req, err := c.newRequest("GET", pathSecurityEnabled, nil)
+	req, err := c.newRequest(http.MethodGet, pathSecurityEnabled, nil)
 	if err != nil {
 		return false, err
 	}
@@ -195,7 +195,7 @@ func (c *Client) newRequest(method, urlStr string, body interface{}) (*http.Requ
 	}
 
 	if body != nil {
-		if method == "PATCH" {
+		if method == http.MethodPatch {
 			req.Header.Set("Content-Type", "application/json-patch+json")
 		} else {
 			req.Header.Set("Content-Type", "application/json")

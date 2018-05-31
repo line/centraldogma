@@ -80,7 +80,7 @@ func TestNewClient(t *testing.T) {
 	defer server.Close()
 
 	mux.HandleFunc("/api/v1/login", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "POST")
+		testMethod(t, r, http.MethodPost)
 		r.ParseForm()
 		testString(t, r.PostForm.Get("grant_type"), "password", "grant_type")
 
@@ -92,12 +92,12 @@ func TestNewClient(t *testing.T) {
 	})
 
 	mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		testHeader(t, r, "Authorization", "Bearer fdbe78b0-1d0c-4978-bbb1-9bc7106dad36")
 	})
 
 	c, _ := NewClient(server.URL, "foo", "bar")
-	req, _ := c.newRequest("GET", "/test", nil)
+	req, _ := c.newRequest(http.MethodGet, "/test", nil)
 
 	res, _ := c.do(context.Background(), req, nil)
 	testStatus(t, res, 200)

@@ -73,7 +73,7 @@ func (ws *watchService) watchRepo(ctx context.Context,
 
 func (ws *watchService) watchRequest(ctx context.Context, watchResult chan<- *WatchResult,
 	u, lastKnownRevision string, timeout time.Duration) {
-	req, err := ws.client.newRequest("GET", u, nil)
+	req, err := ws.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		watchResult <- &WatchResult{Err: err}
 		return

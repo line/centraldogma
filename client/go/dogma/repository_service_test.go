@@ -30,7 +30,7 @@ func TestCreateRepository(t *testing.T) {
 	input := &Repository{Name: "bar"}
 
 	mux.HandleFunc("/api/v1/projects/foo/repos", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "POST")
+		testMethod(t, r, http.MethodPost)
 		testHeader(t, r, "Authorization", "Bearer anonymous")
 
 		repo := new(Repository)
@@ -57,7 +57,7 @@ func TestRemoveRepository(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "DELETE")
+		testMethod(t, r, http.MethodDelete)
 		w.WriteHeader(http.StatusNoContent)
 	})
 
@@ -70,7 +70,7 @@ func TestUnremoveRepository(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "PATCH")
+		testMethod(t, r, http.MethodPatch)
 		testHeader(t, r, "Content-Type", "application/json-patch+json")
 		testBody(t, r, `[{"op":"replace", "path":"/status", "value":"active"}]`)
 		fmt.Fprint(w,
@@ -94,7 +94,7 @@ func TestListRepositories(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w,
 			`[{
 "name":"bar",
@@ -123,7 +123,7 @@ func TestListRemovedRepository(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		testURLQuery(t, r, "status", "removed")
 		fmt.Fprint(w, `[{"name":"bar"}, {"name":"baz"}]`)
 	})
@@ -140,7 +140,7 @@ func TestNormalizeRevision(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/revision/-2", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, "GET")
+		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, `{"revision":3}`)
 	})
 

@@ -145,7 +145,7 @@ func (con *contentService) listFiles(ctx context.Context,
 		v.Set("revision", revision)
 		u += encodeValues(v)
 	}
-	req, err := con.client.newRequest("GET", u, nil)
+	req, err := con.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -184,7 +184,7 @@ func (con *contentService) getFile(
 
 	u += encodeValues(v)
 
-	req, err := con.client.newRequest("GET", u, nil)
+	req, err := con.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -237,7 +237,7 @@ func (con *contentService) getFiles(ctx context.Context,
 		u += encodeValues(v)
 	}
 
-	req, err := con.client.newRequest("GET", u, nil)
+	req, err := con.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -266,7 +266,7 @@ func (con *contentService) getHistory(ctx context.Context,
 	}
 	u += encodeValues(v)
 
-	req, err := con.client.newRequest("GET", u, nil)
+	req, err := con.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -304,7 +304,7 @@ func (con *contentService) getDiff(ctx context.Context,
 	setFromTo(v, from, to)
 	u += encodeValues(v)
 
-	req, err := con.client.newRequest("GET", u, nil)
+	req, err := con.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -340,7 +340,7 @@ func (con *contentService) getDiffs(ctx context.Context,
 	setFromTo(v, from, to)
 	u += encodeValues(v)
 
-	req, err := con.client.newRequest("GET", u, nil)
+	req, err := con.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -377,7 +377,7 @@ func (con *contentService) push(ctx context.Context, projectName, repoName, base
 
 	body := push{CommitMessage: commitMessage, Changes: changes}
 
-	req, err := con.client.newRequest("POST", u, body)
+	req, err := con.client.newRequest(http.MethodPost, u, body)
 	if err != nil {
 		return nil, nil, err
 	}

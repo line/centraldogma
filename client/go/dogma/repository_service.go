@@ -35,7 +35,7 @@ func (r *repositoryService) create(ctx context.Context, projectName, repoName st
 	*http.Response, error) {
 	u := fmt.Sprintf("%vprojects/%v/repos", defaultPathPrefix, projectName)
 
-	req, err := r.client.newRequest("POST", u, &Repository{Name: repoName})
+	req, err := r.client.newRequest(http.MethodPost, u, &Repository{Name: repoName})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -52,7 +52,7 @@ func (r *repositoryService) create(ctx context.Context, projectName, repoName st
 func (r *repositoryService) remove(ctx context.Context, projectName, repoName string) (*http.Response, error) {
 	u := fmt.Sprintf("%vprojects/%v/repos/%v", defaultPathPrefix, projectName, repoName)
 
-	req, err := r.client.newRequest("DELETE", u, nil)
+	req, err := r.client.newRequest(http.MethodDelete, u, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (r *repositoryService) unremove(ctx context.Context, projectName, repoName 
 	*http.Response, error) {
 	u := fmt.Sprintf("%vprojects/%v/repos/%v", defaultPathPrefix, projectName, repoName)
 
-	req, err := r.client.newRequest("PATCH", u, `[{"op":"replace", "path":"/status", "value":"active"}]`)
+	req, err := r.client.newRequest(http.MethodPatch, u, `[{"op":"replace", "path":"/status", "value":"active"}]`)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,7 +85,7 @@ func (r *repositoryService) list(ctx context.Context, projectName string) ([]*Re
 	*http.Response, error) {
 	u := fmt.Sprintf("%vprojects/%v/repos", defaultPathPrefix, projectName)
 
-	req, err := r.client.newRequest("GET", u, nil)
+	req, err := r.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -102,7 +102,7 @@ func (r *repositoryService) listRemoved(ctx context.Context, projectName string)
 	*http.Response, error) {
 	u := fmt.Sprintf("%vprojects/%v/repos?status=removed", defaultPathPrefix, projectName)
 
-	req, err := r.client.newRequest("GET", u, nil)
+	req, err := r.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -119,7 +119,7 @@ func (r *repositoryService) normalizeRevision(
 	ctx context.Context, projectName, repoName, revision string) (int, *http.Response, error) {
 	u := fmt.Sprintf("%vprojects/%v/repos/%v/revision/%v", defaultPathPrefix, projectName, repoName, revision)
 
-	req, err := r.client.newRequest("GET", u, nil)
+	req, err := r.client.newRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return -1, nil, err
 	}
