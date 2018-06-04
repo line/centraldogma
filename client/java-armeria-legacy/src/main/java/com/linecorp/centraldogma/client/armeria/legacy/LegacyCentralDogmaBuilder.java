@@ -19,12 +19,20 @@ import java.net.UnknownHostException;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.Endpoint;
+import com.linecorp.armeria.client.encoding.HttpDecodingClient;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.AbstractArmeriaCentralDogmaBuilder;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
+/**
+ * Builds a legacy {@link CentralDogma} client based on Thrift.
+ *
+ * @deprecated Use {@link ArmeriaCentralDogmaBuilder}.
+ */
+@Deprecated
 public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilder<LegacyCentralDogmaBuilder> {
     /**
      * Returns a newly-created {@link CentralDogma} instance.
@@ -35,10 +43,11 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         final Endpoint endpoint = endpoint();
         final String scheme = "tbinary+" + (isUseTls() ? "https" : "http") + "://";
         final String uri = scheme + endpoint.authority() + "/cd/thrift/v1";
-        final ClientBuilder builder = new ClientBuilder(uri)
-                .factory(clientFactory())
-                .rpcDecorator(CentralDogmaClientTimeoutScheduler::new);
+        final ClientBuilder builder = new ClientBuilder(uri);
         clientConfigurator().configure(builder);
+        builder.factory(clientFactory())
+               .decorator(HttpDecodingClient.newDecorator())
+               .rpcDecorator(LegacyCentralDogmaTimeoutScheduler::new);
 
         builder.decorator((delegate, ctx, req) -> {
             if (!req.headers().contains(HttpHeaderNames.AUTHORIZATION)) {
@@ -47,6 +56,7 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
             }
             return delegate.execute(ctx, req);
         });
-        return new LegacyCentralDogma(clientFactory(), builder.build(CentralDogmaService.AsyncIface.class));
+        return new LegacyCentralDogma(clientFactory().eventLoopGroup(),
+                                      builder.build(CentralDogmaService.AsyncIface.class));
     }
 }

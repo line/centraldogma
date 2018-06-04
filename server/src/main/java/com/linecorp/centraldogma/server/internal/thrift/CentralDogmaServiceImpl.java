@@ -45,6 +45,7 @@ import com.linecorp.centraldogma.internal.thrift.Entry;
 import com.linecorp.centraldogma.internal.thrift.ErrorCode;
 import com.linecorp.centraldogma.internal.thrift.GetFileResult;
 import com.linecorp.centraldogma.internal.thrift.MergeQuery;
+import com.linecorp.centraldogma.internal.thrift.MergedEntry;
 import com.linecorp.centraldogma.internal.thrift.NamedQuery;
 import com.linecorp.centraldogma.internal.thrift.Plugin;
 import com.linecorp.centraldogma.internal.thrift.Project;
@@ -307,7 +308,11 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     public void mergeFiles(String projectName, String repositoryName, Revision revision,
                            MergeQuery mergeQuery, AsyncMethodCallback resultHandler) {
         handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .mergeFiles(convert(revision), convert(mergeQuery)),
+                             .mergeFiles(convert(revision), convert(mergeQuery))
+                             .thenApply(merged -> new MergedEntry(convert(merged.revision()),
+                                                                  convert(merged.type()),
+                                                                  merged.contentAsText(),
+                                                                  merged.paths())),
                resultHandler);
     }
 

@@ -35,8 +35,9 @@ import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.armeria.AbstractArmeriaCentralDogmaBuilder;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
@@ -48,7 +49,7 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.util.NetUtil;
 
 /**
- * JUnit {@link Rule} that starts an embedded {@link com.linecorp.centraldogma.server.CentralDogma} server.
+ * JUnit {@link Rule} that starts an embedded Central Dogma server.
  *
  * <pre>{@code
  * > public class MyTest {
@@ -73,6 +74,8 @@ public class CentralDogmaRule extends TemporaryFolder {
     private volatile com.linecorp.centraldogma.server.CentralDogma dogma;
     @Nullable
     private volatile CentralDogma client;
+    @Nullable
+    private volatile CentralDogma legacyClient;
     @Nullable
     private volatile HttpClient httpClient;
     @Nullable
@@ -116,7 +119,7 @@ public class CentralDogmaRule extends TemporaryFolder {
     }
 
     /**
-     * Returns the client.
+     * Returns the HTTP-based {@link CentralDogma} client.
      *
      * @throws IllegalStateException if Central Dogma did not start yet
      */
@@ -129,6 +132,19 @@ public class CentralDogmaRule extends TemporaryFolder {
     }
 
     /**
+     * Returns the Thrift-based {@link CentralDogma} client.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public final CentralDogma legacyClient() {
+        final CentralDogma legacyClient = this.legacyClient;
+        if (legacyClient == null) {
+            throw new IllegalStateException("Central Dogma not started");
+        }
+        return legacyClient;
+    }
+
+    /**
      * Returns the HTTP client.
      *
      * @throws IllegalStateException if Central Dogma did not start yet
@@ -136,18 +152,20 @@ public class CentralDogmaRule extends TemporaryFolder {
     public final HttpClient httpClient() {
         final HttpClient httpClient = this.httpClient;
         if (httpClient == null) {
-            throw new IllegalStateException("Central Dogma client not available");
+            throw new IllegalStateException("Central Dogma not started");
         }
         return httpClient;
     }
 
     /**
      * Returns the server address.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
      */
     public final InetSocketAddress serverAddress() {
         final InetSocketAddress serverAddress = this.serverAddress;
         if (serverAddress == null) {
-            throw new IllegalStateException("Central Dogma not available");
+            throw new IllegalStateException("Central Dogma not started");
         }
         return serverAddress;
     }
@@ -161,6 +179,7 @@ public class CentralDogmaRule extends TemporaryFolder {
         start();
         final CentralDogma client = this.client;
         assert client != null;
+        assert legacyClient != null;
         scaffold(client);
     }
 
@@ -218,22 +237,17 @@ public class CentralDogmaRule extends TemporaryFolder {
             final InetSocketAddress serverAddress = activePort.get().localAddress();
             this.serverAddress = serverAddress;
 
-            final LegacyCentralDogmaBuilder clientBuilder =
-                    new LegacyCentralDogmaBuilder();
+            final ArmeriaCentralDogmaBuilder clientBuilder = new ArmeriaCentralDogmaBuilder();
+            final LegacyCentralDogmaBuilder legacyClientBuilder = new LegacyCentralDogmaBuilder();
 
-            clientBuilder.host(serverAddress.getHostString(), serverAddress.getPort());
-
-            if (useTls) {
-                clientBuilder.useTls();
-                clientBuilder.clientFactory(
-                        new ClientFactoryBuilder().sslContextCustomizer(
-                                b -> b.trustManager(InsecureTrustManagerFactory.INSTANCE)).build());
-            }
-
+            configureClientCommon(clientBuilder);
+            configureClientCommon(legacyClientBuilder);
             configureClient(clientBuilder);
+            configureClient(legacyClientBuilder);
 
             try {
                 client = clientBuilder.build();
+                legacyClient = legacyClientBuilder.build();
             } catch (UnknownHostException e) {
                 // Should never reach here.
                 throw new IOError(e);
@@ -243,15 +257,33 @@ public class CentralDogmaRule extends TemporaryFolder {
         });
     }
 
+    private void configureClientCommon(AbstractArmeriaCentralDogmaBuilder<?> builder) {
+        final InetSocketAddress serverAddress = this.serverAddress;
+        assert serverAddress != null;
+        builder.host(serverAddress.getHostString(), serverAddress.getPort());
+
+        if (useTls) {
+            builder.useTls();
+            builder.clientFactory(
+                    new ClientFactoryBuilder().sslContextCustomizer(
+                            b -> b.trustManager(InsecureTrustManagerFactory.INSTANCE)).build());
+        }
+    }
+
     /**
      * Override this method to configure the server.
      */
     protected void configure(CentralDogmaBuilder builder) {}
 
     /**
-     * Override this method to configure the client.
+     * Override this method to configure the HTTP-based {@link CentralDogma} client builder.
      */
-    protected void configureClient(AbstractCentralDogmaBuilder<?> builder) {}
+    protected void configureClient(ArmeriaCentralDogmaBuilder builder) {}
+
+    /**
+     * Override this method to configure the Thrift-based {@link CentralDogma} client builder.
+     */
+    protected void configureClient(LegacyCentralDogmaBuilder builder) {}
 
     /**
      * Override this method to perform the initial updates on the server, such as creating a repository and
@@ -282,8 +314,6 @@ public class CentralDogmaRule extends TemporaryFolder {
     public final CompletableFuture<Void> stopAsync() {
         final com.linecorp.centraldogma.server.CentralDogma dogma = this.dogma;
         this.dogma = null;
-        client = null;
-        httpClient = null;
 
         if (dogma != null) {
             return dogma.stop();

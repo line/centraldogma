@@ -41,10 +41,12 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestContext;
+import com.linecorp.armeria.common.stream.AbortedStreamException;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
+import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**
@@ -172,7 +174,10 @@ public final class HttpApiUtil {
         //                 the stack trace of the cause to the trusted client.
         if (status == HttpStatus.INTERNAL_SERVER_ERROR) {
             if (cause != null) {
-                logger.warn("{} Returning an internal server error: {}", ctx, m, cause);
+                if (!(cause instanceof ShuttingDownException ||
+                      cause instanceof AbortedStreamException)) {
+                    logger.warn("{} Returning an internal server error: {}", ctx, m, cause);
+                }
             } else {
                 logger.warn("{} Returning an internal server error: {}", ctx, m);
             }

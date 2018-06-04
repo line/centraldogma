@@ -33,7 +33,7 @@ import com.linecorp.centraldogma.common.ChangeType;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
-public class GetDiffTest {
+public class GetDiffTest extends AbstractMultiClientTest {
 
     @ClassRule
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
@@ -41,17 +41,21 @@ public class GetDiffTest {
     @Rule
     public final TestName testName = new TestName();
 
+    public GetDiffTest(ClientType clientType) {
+        super(clientType);
+    }
+
     @Test
     public void testQueryByRange() throws Exception {
         final String path = "/test_json_file.json";
         for (int i = 0; i < 5; i++) {
             final Change<JsonNode> change = Change.ofJsonUpsert(path, String.format("{ \"key\" : \"%d\"}", i));
-            rule.client().push(
+            client().push(
                     rule.project(), rule.repo1(), HEAD,
                     TestConstants.randomText(), change).join();
         }
 
-        final Change<JsonNode> res = rule.client().getDiff(
+        final Change<JsonNode> res = client().getDiff(
                 rule.project(), rule.repo1(),
                 new Revision(-4), new Revision(-1),
                 Query.ofJsonPath(path, "$.key")).join();
@@ -69,7 +73,7 @@ public class GetDiffTest {
 
     @Test
     public void testDiff_remove() throws Exception {
-        final CentralDogma client = rule.client();
+        final CentralDogma client = client();
 
         final Revision rev1 = client.push(rule.project(), rule.repo1(), HEAD, "summary1",
                                           Change.ofTextUpsert("/foo.txt", "hello")).join().revision();
@@ -90,18 +94,22 @@ public class GetDiffTest {
 
     @Test
     public void testDiff_rename() throws Exception {
-        final CentralDogma client = rule.client();
+        final CentralDogma client = client();
 
-        final Revision rev1 = client.push(rule.project(), rule.repo1(), HEAD, "summary1",
-                                          Change.ofTextUpsert("/bar.txt", "hello")).join().revision();
+        try {
+            final Revision rev1 = client.push(rule.project(), rule.repo1(), HEAD, "summary1",
+                                              Change.ofTextUpsert("/bar.txt", "hello")).join().revision();
 
-        final Revision rev2 = client.push(rule.project(), rule.repo1(), HEAD, "summary2",
-                                          Change.ofRename("/bar.txt", "/baz.txt")).join().revision();
+            final Revision rev2 = client.push(rule.project(), rule.repo1(), HEAD, "summary2",
+                                              Change.ofRename("/bar.txt", "/baz.txt")).join().revision();
 
-        assertThat(rev1.forward(1)).isEqualTo(rev2);
+            assertThat(rev1.forward(1)).isEqualTo(rev2);
 
-        assertThat(client.getDiff(rule.project(), rule.repo1(), rev1, rev2,
-                                  Query.ofText("/bar.txt")).join())
-                .isEqualTo(Change.ofRemoval("/bar.txt"));
+            assertThat(client.getDiff(rule.project(), rule.repo1(), rev1, rev2,
+                                      Query.ofText("/bar.txt")).join())
+                    .isEqualTo(Change.ofRemoval("/bar.txt"));
+        } finally {
+            client.push(rule.project(), rule.repo1(), HEAD, "summary3", Change.ofRemoval("/baz.txt")).join();
+        }
     }
 }

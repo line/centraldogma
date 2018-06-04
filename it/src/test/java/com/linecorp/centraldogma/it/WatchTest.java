@@ -37,10 +37,14 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
-public class WatchTest {
+public class WatchTest extends AbstractMultiClientTest {
 
     @ClassRule
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
+
+    public WatchTest(ClientType clientType) {
+        super(clientType);
+    }
 
     @Before
     public void revertTestFiles() {
@@ -48,10 +52,10 @@ public class WatchTest {
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test2.json", "{ \"a\": \"apple\" }");
 
         final List<Change<JsonNode>> changes = Arrays.asList(change1, change2);
-        if (!rule.client()
+        if (!client()
                  .getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, changes)
                  .join().isEmpty()) {
-            rule.client().push(
+            client().push(
                     rule.project(), rule.repo1(), Revision.HEAD,
                     "Revert test files", changes).join();
         }
@@ -59,18 +63,20 @@ public class WatchTest {
 
     @Test
     public void testWatchRepository() throws Exception {
-        final Revision rev1 = rule.client()
+        final Revision rev1 = client()
                                   .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
                                   .join();
 
         final CompletableFuture<Revision> future =
-                rule.client().watchRepository(rule.project(), rule.repo1(), rev1, "/**", 3000);
+                client().watchRepository(rule.project(), rule.repo1(), rev1, "/**", 3000);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
-        final Change<JsonNode> change = Change.ofJsonUpsert("/test/test3.json", "[ 3, 2, 1 ]");
+        final Change<JsonNode> change = Change.ofJsonUpsert("/test/test3.json",
+                                                            "[" + System.currentTimeMillis() + ", " +
+                                                            System.nanoTime() + ']');
 
-        final PushResult result = rule.client().push(
+        final PushResult result = client().push(
                 rule.project(), rule.repo1(), rev1, "Add test3.json", change).join();
 
         final Revision rev2 = result.revision();
@@ -81,19 +87,19 @@ public class WatchTest {
 
     @Test
     public void testWatchRepositoryTimeout() {
-        final Revision rev = rule.client().watchRepository(
+        final Revision rev = client().watchRepository(
                 rule.project(), rule.repo1(), Revision.HEAD, "/**", 1000).join();
         assertThat(rev).isNull();
     }
 
     @Test
     public void testWatchFile() throws Exception {
-        final Revision rev0 = rule.client()
+        final Revision rev0 = client()
                                   .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
                                   .join();
 
         final CompletableFuture<Entry<JsonNode>> future =
-                rule.client().watchFile(rule.project(), rule.repo1(), rev0,
+                client().watchFile(rule.project(), rule.repo1(), rev0,
                                         Query.ofJsonPath("/test/test1.json", "$[0]"), 3000);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
@@ -101,7 +107,7 @@ public class WatchTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final PushResult res1 = rule.client().push(
+        final PushResult res1 = client().push(
                 rule.project(), rule.repo1(), rev0, "Add test2.json", change1).join();
 
         final Revision rev1 = res1.revision();
@@ -111,7 +117,7 @@ public class WatchTest {
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final PushResult res2 = rule.client().push(
+        final PushResult res2 = client().push(
                 rule.project(), rule.repo1(), rev1, "Add test1.json", change2).join();
 
         final Revision rev2 = res2.revision();
@@ -123,11 +129,11 @@ public class WatchTest {
 
     @Test
     public void testWatchFileWithIdentityQuery() throws Exception {
-        final Revision rev0 = rule.client()
+        final Revision rev0 = client()
                                   .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
                                   .join();
 
-        final CompletableFuture<Entry<JsonNode>> future = rule.client().watchFile(
+        final CompletableFuture<Entry<JsonNode>> future = client().watchFile(
                 rule.project(), rule.repo1(), rev0,
                 Query.ofJson("/test/test1.json"), 3000);
 
@@ -136,7 +142,7 @@ public class WatchTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final PushResult res1 = rule.client().push(
+        final PushResult res1 = client().push(
                 rule.project(), rule.repo1(), rev0, "Add test2.json", change1).join();
 
         final Revision rev1 = res1.revision();
@@ -146,7 +152,7 @@ public class WatchTest {
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final PushResult res2 = rule.client().push(
+        final PushResult res2 = client().push(
                 rule.project(), rule.repo1(), rev1, "Update test1.json", change2).join();
 
         final Revision rev2 = res2.revision();
@@ -158,7 +164,7 @@ public class WatchTest {
 
     @Test
     public void testWatchFileWithTimeout() {
-        final Entry<JsonNode> res = rule.client().watchFile(
+        final Entry<JsonNode> res = client().watchFile(
                 rule.project(), rule.repo1(), Revision.HEAD,
                 Query.ofJsonPath("/test/test1.json", "$"), 1000).join();
 

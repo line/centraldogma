@@ -26,26 +26,29 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 
-public class ProjectManagementTest {
+public class ProjectManagementTest extends AbstractMultiClientTest {
 
     @ClassRule
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
 
     private static final Logger logger = LoggerFactory.getLogger(ProjectManagementTest.class);
 
+    public ProjectManagementTest(ClientType clientType) {
+        super(clientType);
+    }
+
     @Test
     public void testUnremoveProject() throws Exception {
         try {
-            rule.client().unremoveProject(rule.removedProject()).join();
-            final Set<String> projects = rule.client().listProjects().join();
+            client().unremoveProject(rule.removedProject()).join();
+            final Set<String> projects = client().listProjects().join();
             assertThat(projects).contains(rule.removedProject());
         } finally {
             try {
-                rule.client().removeProject(rule.removedProject()).join();
+                client().removeProject(rule.removedProject()).join();
             } catch (Exception e) {
                 logger.warn("Failed to re-remove a project: {}", rule.removedProject(), e);
             }
@@ -55,35 +58,35 @@ public class ProjectManagementTest {
     @Test
     public void testCreateProjectFailures() throws Exception {
         assertThatThrownByWithExpectedException(ProjectExistsException.class, "project: p", () ->
-                rule.client().createProject(rule.project()).join())
+                client().createProject(rule.project()).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ProjectExistsException.class);
 
         assertThatThrownByWithExpectedException(ProjectExistsException.class, "project: rp", () ->
                 // It is not allowed to create a new project whose name is same with the removed project.
-                rule.client().createProject(rule.removedProject()).join())
+                client().createProject(rule.removedProject()).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ProjectExistsException.class);
-
-        assertThatThrownByWithExpectedException(
-                IllegalArgumentException.class, "invalid project name: ..", () ->
-                        rule.client().createProject("..").join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> e.getCause().getMessage().contains("bad request"));
     }
 
     @Test
     public void testRemoveProjectFailures() throws Exception {
         assertThatThrownByWithExpectedException(ProjectNotFoundException.class, "project: mp", () ->
-                rule.client().removeProject(rule.missingProject()).join())
+                client().removeProject(rule.missingProject()).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ProjectNotFoundException.class);
     }
 
     @Test
     public void testListProjects() throws Exception {
-        final Set<String> names = rule.client().listProjects().join();
+        final Set<String> names = client().listProjects().join();
 
         // Should contain "test.nnn"
         assertThat(names).contains(rule.project());
+    }
+
+    @Test
+    public void testListRemovedProjects() throws Exception {
+        final Set<String> names = client().listRemovedProjects().join();
+        assertThat(names).containsExactly(rule.removedProject());
     }
 }

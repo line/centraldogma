@@ -30,13 +30,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ChangeType;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
-public class PreviewDiffsTest {
+public class PreviewDiffsTest extends AbstractMultiClientTest {
 
     @ClassRule
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
+
+    public PreviewDiffsTest(ClientType clientType) {
+        super(clientType);
+    }
 
     @Test
     public void testInvalidPatch() throws Exception {
@@ -44,7 +49,7 @@ public class PreviewDiffsTest {
         final Change<?> change = Change.ofJsonPatch("/test/new_json_file.json",
                                                     "{ \"a\": \"apple\" }", "{ \"a\": \"angle\" }");
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "/test/new_json_file.json", () ->
-                rule.client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, change).join())
+                client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, change).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
     }
 
@@ -53,7 +58,7 @@ public class PreviewDiffsTest {
         // Apply a conflict removal
         final Change<?> change = Change.ofRemoval("/non_existent_path.txt");
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "non_existent_path.txt", () ->
-                rule.client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, change).join())
+                client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, change).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
     }
 
@@ -61,27 +66,32 @@ public class PreviewDiffsTest {
     public void testInvalidRevision() throws Exception {
         final Change<String> change = Change.ofTextUpsert("/a_new_text_file.txt", "text");
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "2147483647", () ->
-                rule.client().getPreviewDiffs(
+                client().getPreviewDiffs(
                         rule.project(), rule.repo1(), new Revision(Integer.MAX_VALUE), change).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RevisionNotFoundException.class);
     }
 
     @Test
     public void testEmptyChange() throws Exception {
-        assertThat(rule.client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD).join()).isEmpty();
+        assertThat(client().getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD).join()).isEmpty();
     }
 
     @Test
     public void testApplyUpsertOnExistingPath() throws Exception {
         final String jsonPath = "/a_new_json_file.json";
-        rule.client().push(rule.project(), rule.repo1(), Revision.HEAD,
-                           "Add a new JSON file", Change.ofJsonUpsert(jsonPath, "{ \"a\": \"apple\" }")).join();
+        try {
+            client().push(rule.project(), rule.repo1(), Revision.HEAD,
+                          "Add a new JSON file", Change.ofJsonUpsert(jsonPath, "{ \"a\": \"apple\" }")).join();
+        } catch (CompletionException e) {
+            // Might have been added already in previous run.
+            assertThat(e.getCause()).isInstanceOf(RedundantChangeException.class);
+        }
 
         final Change<JsonNode> change =
                 Change.ofJsonPatch(jsonPath, "{ \"a\": \"apple\" }", "{ \"a\": \"angle\" }");
 
         final List<Change<?>> returnedList =
-                rule.client().getPreviewDiffs(rule.project(), rule.repo1(),
+                client().getPreviewDiffs(rule.project(), rule.repo1(),
                                               Revision.HEAD, change).join();
 
         assertThat(returnedList).hasSize(1);

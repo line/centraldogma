@@ -31,7 +31,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Revision;
 
-public class FileManagementTest {
+public class FileManagementTest extends AbstractMultiClientTest {
 
     private static final String TEST_ROOT = '/' + TestConstants.randomText() + '/';
 
@@ -50,11 +50,15 @@ public class FileManagementTest {
         }
     };
 
+    public FileManagementTest(ClientType clientType) {
+        super(clientType);
+    }
+
     @Test
     public void testGetFiles() throws Exception {
-        final Revision headRev = rule.client().normalizeRevision(
+        final Revision headRev = client().normalizeRevision(
                 rule.project(), rule.repo1(), Revision.HEAD).join();
-        final Map<String, Entry<?>> files = rule.client().getFiles(
+        final Map<String, Entry<?>> files = client().getFiles(
                 rule.project(), rule.repo1(), Revision.HEAD, TEST_ROOT + "*.json").join();
         assertThat(files).hasSize(NUM_FILES);
         files.values().forEach(f -> {
@@ -66,7 +70,7 @@ public class FileManagementTest {
     @Test
     public void testGetFilesWithDirectory() throws Exception {
         final String testRootWithoutSlash = TEST_ROOT.substring(0, TEST_ROOT.length() - 1);
-        final Map<String, Entry<?>> files = rule.client().getFiles(
+        final Map<String, Entry<?>> files = client().getFiles(
                 rule.project(), rule.repo1(), Revision.HEAD,
                 testRootWithoutSlash + ", " + TEST_ROOT + '*').join();
 
@@ -87,7 +91,7 @@ public class FileManagementTest {
 
     @Test
     public void testListFiles() throws Exception {
-        final Map<String, EntryType> files = rule.client().listFiles(
+        final Map<String, EntryType> files = client().listFiles(
                 rule.project(), rule.repo1(), Revision.HEAD, TEST_ROOT + "*.json").join();
         assertThat(files).hasSize(NUM_FILES);
         files.values().forEach(t -> assertThat(t).isEqualTo(EntryType.JSON));

@@ -20,10 +20,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.DisableOnDebug;
+import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -31,7 +36,7 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 
-public class GracefulShutdownTest {
+public class GracefulShutdownTest extends AbstractMultiClientTest {
 
     @ClassRule
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding() {
@@ -42,27 +47,34 @@ public class GracefulShutdownTest {
         }
     };
 
+    @Rule
+    public TestRule globalTimeout = new DisableOnDebug(new Timeout(20, TimeUnit.SECONDS));
+
+    public GracefulShutdownTest(ClientType clientType) {
+        super(clientType);
+    }
+
     @Before
     public void startServer() {
         rule.start();
     }
 
-    @Test(timeout = 10000)
+    @Test(timeout = 20000)
     public void testWatchRepositoryGracefulShutdown() throws Exception {
-        testGracefulShutdown(rule.client().watchRepository(
+        testGracefulShutdown(client().watchRepository(
                 rule.project(), rule.repo1(), Revision.HEAD, "/**", 60000));
     }
 
-    @Test(timeout = 10000)
+    @Test(timeout = 20000)
     public void testWatchFileGracefulShutdown() throws Exception {
-        testGracefulShutdown(rule.client().watchFile(
+        testGracefulShutdown(client().watchFile(
                 rule.project(), rule.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000));
     }
 
     private static void testGracefulShutdown(CompletableFuture<?> future) throws Exception {
         // Wait a little bit so that we do not start to stop the server before the watch operation is accepted.
         Thread.sleep(500);
-        rule.stop();
+        rule.stopAsync();
 
         assertThatThrownBy(future::join)
                 .isInstanceOf(CompletionException.class)

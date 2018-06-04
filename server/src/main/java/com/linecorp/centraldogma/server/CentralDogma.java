@@ -413,6 +413,7 @@ public class CentralDogma implements AutoCloseable {
     private Server startServer(ProjectManager pm, CommandExecutor executor,
                                @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = new ServerBuilder();
+        sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
 
         if (cfg.ports().stream().anyMatch(ServerPort::hasTls)) {

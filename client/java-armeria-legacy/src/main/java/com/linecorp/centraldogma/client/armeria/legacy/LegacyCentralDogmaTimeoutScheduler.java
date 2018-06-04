@@ -28,12 +28,12 @@ import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 /**
  * Decorates a {@link Client} to enlarge responseTimeout when requesting watchFile or watchRepository.
  */
-class CentralDogmaClientTimeoutScheduler extends SimpleDecoratingClient<RpcRequest, RpcResponse> {
+class LegacyCentralDogmaTimeoutScheduler extends SimpleDecoratingClient<RpcRequest, RpcResponse> {
 
     /**
      * Creates a new instance that decorates the specified {@link Client}.
      */
-    CentralDogmaClientTimeoutScheduler(Client<RpcRequest, RpcResponse> delegate) {
+    LegacyCentralDogmaTimeoutScheduler(Client<RpcRequest, RpcResponse> delegate) {
         super(delegate);
     }
 

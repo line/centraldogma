@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppend
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionException;
 
 import org.junit.ClassRule;
@@ -28,28 +29,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.client.RepositoryInfo;
-import com.linecorp.centraldogma.common.CentralDogmaException;
-import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
-public class RepositoryManagementTest {
+public class RepositoryManagementTest extends AbstractMultiClientTest {
 
     @ClassRule
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
 
     private static final Logger logger = LoggerFactory.getLogger(RepositoryManagementTest.class);
 
+    public RepositoryManagementTest(ClientType clientType) {
+        super(clientType);
+    }
+
     @Test
     public void testUnremoveRepository() throws Exception {
         try {
-            rule.client().unremoveRepository(rule.project(), rule.removedRepo()).join();
-            final Map<String, RepositoryInfo> repos = rule.client().listRepositories(rule.project()).join();
+            client().unremoveRepository(rule.project(), rule.removedRepo()).join();
+            final Map<String, RepositoryInfo> repos = client().listRepositories(rule.project()).join();
             assertThat(repos).containsKey(rule.removedRepo());
         } finally {
             try {
-                rule.client().removeRepository(rule.project(), rule.removedRepo()).join();
+                client().removeRepository(rule.project(), rule.removedRepo()).join();
             } catch (Exception e) {
                 logger.warn("Failed to re-remove a project: {}", rule.removedProject(), e);
             }
@@ -59,40 +63,40 @@ public class RepositoryManagementTest {
     @Test
     public void testCreateRepositoryFailures() throws Exception {
         assertThatThrownByWithExpectedException(RepositoryExistsException.class, "repository: r", () ->
-                rule.client().createRepository(rule.project(), rule.repo1()).join())
+                client().createRepository(rule.project(), rule.repo1()).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RepositoryExistsException.class);
 
         assertThatThrownByWithExpectedException(RepositoryExistsException.class, "repository: rr", () ->
                 // It is not allowed to create a new repository whose name is same with the removed repository.
-                rule.client().createRepository(rule.project(), rule.removedRepo()).join())
+                client().createRepository(rule.project(), rule.removedRepo()).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RepositoryExistsException.class);
-
-        assertThatThrownByWithExpectedException(
-                IllegalArgumentException.class, "invalid repository name: ..", () ->
-                        rule.client().createRepository(rule.project(), "..").join())
-                .isInstanceOf(CompletionException.class).hasCauseInstanceOf(CentralDogmaException.class)
-                .matches(e -> e.getCause().getMessage().contains("bad request"));
     }
 
     @Test
     public void testRemoveRepositoryFailures() throws Exception {
         assertThatThrownByWithExpectedException(
                 RepositoryNotFoundException.class, "repository: mr", () ->
-                        rule.client().removeRepository(rule.project(), rule.missingRepo()).join())
+                        client().removeRepository(rule.project(), rule.missingRepo()).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RepositoryNotFoundException.class);
     }
 
     @Test
     public void testListRepositories() throws Exception {
-        final Map<String, RepositoryInfo> repos = rule.client().listRepositories(rule.project()).join();
+        final Map<String, RepositoryInfo> repos = client().listRepositories(rule.project()).join();
 
         // Should contain 2 "rNNN"s
         assertThat(repos.keySet()).containsExactlyInAnyOrder(Project.REPO_DOGMA, Project.REPO_META,
                                                              rule.repo1(), rule.repo2());
 
         for (RepositoryInfo r : repos.values()) {
-            final Commit headCommit = r.lastCommit();
-            assertThat(headCommit).isNotNull();
+            final Revision headRev = r.headRevision();
+            assertThat(headRev).isNotNull();
         }
+    }
+
+    @Test
+    public void testListRemovedRepositories() throws Exception {
+        final Set<String> repos = client().listRemovedRepositories(rule.project()).join();
+        assertThat(repos).containsExactly(rule.removedRepo());
     }
 }

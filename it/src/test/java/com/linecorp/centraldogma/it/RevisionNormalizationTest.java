@@ -27,10 +27,14 @@ import org.junit.Test;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
-public class RevisionNormalizationTest {
+public class RevisionNormalizationTest extends AbstractMultiClientTest {
 
     @ClassRule
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
+
+    public RevisionNormalizationTest(ClientType clientType) {
+        super(clientType);
+    }
 
     /**
      * Ensure that the absolute major revision numbers are returned as-is.
@@ -38,7 +42,7 @@ public class RevisionNormalizationTest {
     @Test
     public void testAbsoluteMajor() throws Exception {
         final Revision expected = new Revision(1);
-        final Revision actual = rule.client().normalizeRevision(rule.project(), rule.repo1(), expected).join();
+        final Revision actual = client().normalizeRevision(rule.project(), rule.repo1(), expected).join();
         assertThat(actual).isEqualTo(expected);
     }
 
@@ -49,13 +53,13 @@ public class RevisionNormalizationTest {
     public void testAbsoluteMajorOutOfRange() throws Exception {
         final Revision outOfRange = new Revision(Integer.MAX_VALUE);
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "2147483647", () ->
-                rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
+                client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RevisionNotFoundException.class);
     }
 
     @Test
     public void testRelativeMajor() throws Exception {
-        final Revision actual = rule.client().normalizeRevision(
+        final Revision actual = client().normalizeRevision(
                 rule.project(), rule.repo1(), Revision.HEAD).join();
         assertThat(actual.isRelative()).isFalse();
     }
@@ -67,7 +71,7 @@ public class RevisionNormalizationTest {
     public void testRelativeMajorOutOfRange() throws Exception {
         final Revision outOfRange = new Revision(Integer.MIN_VALUE);
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "-2147483648", () ->
-                rule.client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
+                client().normalizeRevision(rule.project(), rule.repo1(), outOfRange).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RevisionNotFoundException.class);
     }
 }

@@ -19,8 +19,9 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -37,21 +38,28 @@ public final class ChangesRequestConverter extends JacksonRequestConverterFuncti
     public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
                                  Class<?> expectedResultType) throws Exception {
         final JsonNode node = (JsonNode) super.convertRequest(ctx, request, JsonNode.class);
-        if (node.get("changes") != null) {
-            // have one entry or more than one entry
-            final JsonNode changeNode = node.get("changes");
-
-            final Builder<Change<?>> builder = ImmutableList.builder();
-            for (JsonNode change : changeNode) {
-                builder.add(readChange(change));
+        final ArrayNode changesNode;
+        if (node.getNodeType() == JsonNodeType.ARRAY) {
+            changesNode = (ArrayNode) node;
+        } else {
+            final JsonNode maybeChangesNode = node.get("changes");
+            if (maybeChangesNode != null) {
+                if (maybeChangesNode.getNodeType() == JsonNodeType.ARRAY) {
+                    changesNode = (ArrayNode) maybeChangesNode;
+                } else {
+                    throw new IllegalArgumentException("'changes' must be an array.");
+                }
+            } else {
+                // have only one entry
+                return ImmutableList.of(readChange(node));
             }
-            final ImmutableList<Change<?>> changes = builder.build();
-            checkArgument(!changes.isEmpty(), "should have at least one change.");
-            return changes;
         }
 
-        // have only one entry
-        return ImmutableList.of(readChange(node));
+        final ImmutableList.Builder<Change<?>> builder = ImmutableList.builder();
+        for (JsonNode change : changesNode) {
+            builder.add(readChange(change));
+        }
+        return builder.build();
     }
 
     private static Change<?> readChange(JsonNode node) {
