@@ -17,14 +17,13 @@
 package com.linecorp.centraldogma.client.armeria;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
 import com.linecorp.armeria.client.Endpoint;
-import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroupRegistry;
 import com.linecorp.armeria.client.endpoint.StaticEndpointGroup;
@@ -47,6 +46,7 @@ public class ArmeriaCentralDogmaBuilderTest {
 
             final EndpointGroup group = EndpointGroupRegistry.get(groupName);
 
+            assertThat(group).isNotNull();
             assertThat(group).isInstanceOf(CompositeEndpointGroup.class);
             final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) group;
             final List<EndpointGroup> childGroups = compositeGroup.groups();
@@ -54,16 +54,13 @@ public class ArmeriaCentralDogmaBuilderTest {
             assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
             assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
 
-            // Wait until all DNS queries are done.
-            for (EndpointGroup g : childGroups) {
-                ((DynamicEndpointGroup) g).awaitInitialEndpoints(10, TimeUnit.SECONDS);
-            }
-
-            final List<Endpoint> endpoints = group.endpoints();
-            assertThat(endpoints).isNotNull();
-            assertThat(endpoints).containsExactlyInAnyOrder(
-                    Endpoint.of("1.2.3.4.xip.io", 36462).withIpAddr("1.2.3.4"),
-                    Endpoint.of("5.6.7.8.xip.io", 8080).withIpAddr("5.6.7.8"));
+            await().untilAsserted(() -> {
+                final List<Endpoint> endpoints = group.endpoints();
+                assertThat(endpoints).isNotNull();
+                assertThat(endpoints).containsExactlyInAnyOrder(
+                        Endpoint.of("1.2.3.4.xip.io", 36462).withIpAddr("1.2.3.4"),
+                        Endpoint.of("5.6.7.8.xip.io", 8080).withIpAddr("5.6.7.8"));
+            });
         } finally {
             EndpointGroupRegistry.unregister(groupName);
         }
@@ -94,6 +91,7 @@ public class ArmeriaCentralDogmaBuilderTest {
         // A new group should be registered.
         assertThat(AbstractArmeriaCentralDogmaBuilder.nextAnonymousGroupId).hasValue(id + 1);
         final EndpointGroup group = EndpointGroupRegistry.get(expectedGroupName);
+        assertThat(group).isNotNull();
         assertThat(group).isInstanceOf(DnsAddressEndpointGroup.class);
         assertThat(group.endpoints()).containsExactly(
                 Endpoint.of("1.2.3.4.xip.io", 36462).withIpAddr("1.2.3.4"));
@@ -119,6 +117,7 @@ public class ArmeriaCentralDogmaBuilderTest {
 
             final EndpointGroup group = EndpointGroupRegistry.get(groupName);
 
+            assertThat(group).isNotNull();
             assertThat(group).isInstanceOf(CompositeEndpointGroup.class);
             final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) group;
             final List<EndpointGroup> childGroups = compositeGroup.groups();
@@ -127,20 +126,15 @@ public class ArmeriaCentralDogmaBuilderTest {
             assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
             assertThat(childGroups.get(2)).isInstanceOf(StaticEndpointGroup.class);
 
-            // Wait until all DNS queries are done.
-            for (EndpointGroup g : childGroups) {
-                if (g instanceof DynamicEndpointGroup) {
-                    ((DynamicEndpointGroup) g).awaitInitialEndpoints(10, TimeUnit.SECONDS);
-                }
-            }
-
-            final List<Endpoint> endpoints = group.endpoints();
-            assertThat(endpoints).isNotNull();
-            assertThat(endpoints).containsExactlyInAnyOrder(
-                    Endpoint.of("1.2.3.4.xip.io", 1).withIpAddr("1.2.3.4"),
-                    Endpoint.of("5.6.7.8.xip.io", 2).withIpAddr("5.6.7.8"),
-                    Endpoint.of("4.3.2.1", 3),
-                    Endpoint.of("8.7.6.5", 4));
+            await().untilAsserted(() -> {
+                final List<Endpoint> endpoints = group.endpoints();
+                assertThat(endpoints).isNotNull();
+                assertThat(endpoints).containsExactlyInAnyOrder(
+                        Endpoint.of("1.2.3.4.xip.io", 1).withIpAddr("1.2.3.4"),
+                        Endpoint.of("5.6.7.8.xip.io", 2).withIpAddr("5.6.7.8"),
+                        Endpoint.of("4.3.2.1", 3),
+                        Endpoint.of("8.7.6.5", 4));
+            });
         } finally {
             EndpointGroupRegistry.unregister(groupName);
         }
