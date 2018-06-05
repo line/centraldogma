@@ -671,6 +671,49 @@ public class ContentServiceV1Test {
     }
 
     @Test
+    public void watchFileWithJsonPathQuery() throws Exception {
+        addFooJson();
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET,
+                                                   CONTENTS_PREFIX + "/foo.json?jsonpath=%24.a")
+                                               .add(HttpHeaderNames.IF_NONE_MATCH, "-1");
+        final CompletableFuture<AggregatedHttpMessage> future = httpClient.execute(headers).aggregate();
+
+        assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
+                .isExactlyInstanceOf(TimeoutException.class);
+
+        // An irrelevant change should not trigger a notification.
+        addBarTxt();
+        assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
+                .isExactlyInstanceOf(TimeoutException.class);
+
+        // Make a relevant change now.
+        editFooJson();
+        final String expectedJson =
+                '{' +
+                "   \"revision\" : 4," +
+                "   \"author\" : {" +
+                "       \"name\" : \"${json-unit.ignore}\"," +
+                "       \"email\" : \"${json-unit.ignore}\"" +
+                "   }," +
+                "   \"pushedAt\" : \"${json-unit.ignore}\"," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Edit foo.json\"," +
+                "       \"detail\" : \"Edit because we need it.\"," +
+                "       \"markup\" : \"PLAINTEXT\"" +
+                "   }," +
+                "   \"entries\": [{" +
+                "       \"path\": \"/foo.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"content\": \"baz\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
+                "   }]" +
+                '}';
+        final AggregatedHttpMessage res = future.join();
+        final String actualJson = res.content().toStringUtf8();
+        assertThatJson(actualJson).isEqualTo(expectedJson);
+    }
+
+    @Test
     public void listADirectoryWithoutSlash() {
         final String body =
                 '{' +
