@@ -20,8 +20,6 @@ import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
 
-import com.google.common.collect.ImmutableList;
-
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -33,7 +31,9 @@ import com.linecorp.centraldogma.internal.api.v1.CommitDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
+import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -76,22 +76,29 @@ final class DtoConverter {
                               repository.parent().name(), repository.name(), content);
     }
 
-    public static CommitDto convert(Commit commit) {
-        return convert(commit, ImmutableList.of());
+    public static PushResultDto convert(Revision revision, long commitTimeMillis) {
+        return new PushResultDto(revision, commitTimeMillis);
     }
 
-    public static CommitDto convert(Commit commit, Iterable<EntryDto<?>> entries) {
+    public static CommitDto convert(Commit commit) {
         requireNonNull(commit, "commit");
-        requireNonNull(entries, "entries");
 
         return convert(commit.revision(), commit.author(),
                        new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
-                       commit.when(), entries);
+                       commit.when());
     }
 
     public static CommitDto convert(Revision revision, Author author, CommitMessageDto commitMessage,
-                                    long commitTimeMillis, Iterable<EntryDto<?>> entries) {
-        return new CommitDto(revision, author, commitMessage, commitTimeMillis, ImmutableList.copyOf(entries));
+                                    long commitTimeMillis) {
+        return new CommitDto(revision, author, commitMessage, commitTimeMillis);
+    }
+
+    public static WatchResultDto convert(Commit commit, @Nullable EntryDto<?> entry) {
+        requireNonNull(commit, "commit");
+
+        return new WatchResultDto(commit.revision(), commit.author(),
+                                  new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
+                                  commit.when(), entry);
     }
 
     public static <T> ChangeDto<T> convert(Change<T> change) {

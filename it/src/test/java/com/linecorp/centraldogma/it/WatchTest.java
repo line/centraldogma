@@ -32,8 +32,8 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
@@ -70,10 +70,10 @@ public class WatchTest {
 
         final Change<JsonNode> change = Change.ofJsonUpsert("/test/test3.json", "[ 3, 2, 1 ]");
 
-        final Commit commit = rule.client().push(
+        final PushResult result = rule.client().push(
                 rule.project(), rule.repo1(), rev1, "Add test3.json", change).join();
 
-        final Revision rev2 = commit.revision();
+        final Revision rev2 = result.revision();
 
         assertThat(rev2).isEqualTo(rev1.forward(1));
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
@@ -101,20 +101,20 @@ public class WatchTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final Commit commit1 = rule.client().push(
+        final PushResult res1 = rule.client().push(
                 rule.project(), rule.repo1(), rev0, "Add test2.json", change1).join();
 
-        final Revision rev1 = commit1.revision();
+        final Revision rev1 = res1.revision();
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final Commit commit2 = rule.client().push(
+        final PushResult res2 = rule.client().push(
                 rule.project(), rule.repo1(), rev1, "Add test1.json", change2).join();
 
-        final Revision rev2 = commit2.revision();
+        final Revision rev2 = res2.revision();
 
         assertThat(rev2).isEqualTo(rev0.forward(2));
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
@@ -136,20 +136,20 @@ public class WatchTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final Commit commit1 = rule.client().push(
+        final PushResult res1 = rule.client().push(
                 rule.project(), rule.repo1(), rev0, "Add test2.json", change1).join();
 
-        final Revision rev1 = commit1.revision();
+        final Revision rev1 = res1.revision();
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final Commit commit2 = rule.client().push(
+        final PushResult res2 = rule.client().push(
                 rule.project(), rule.repo1(), rev1, "Update test1.json", change2).join();
 
-        final Revision rev2 = commit2.revision();
+        final Revision rev2 = res2.revision();
 
         assertThat(rev2).isEqualTo(rev0.forward(2));
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(

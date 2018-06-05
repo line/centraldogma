@@ -41,7 +41,6 @@ import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.CommitAndChanges;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.client.armeria.legacy.ThriftTypes.TAuthor;
 import com.linecorp.centraldogma.client.armeria.legacy.ThriftTypes.TChange;
@@ -56,6 +55,7 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
@@ -266,12 +266,10 @@ public class LegacyCentralDogmaTest {
             return null;
         }).when(iface).getHistory(any(), any(), any(), any(), any(), any());
         assertThat(client.getHistory("project", "repo", new Revision(1), new Revision(3), "path").get())
-                .isEqualTo(ImmutableList.of(new CommitAndChanges<>(
-                        new Commit(new Revision(1),
-                                   new Author("name", "name@sample.com"),
-                                   Instant.parse(TIMESTAMP).toEpochMilli(),
-                                   "summary", "detail", Markup.PLAINTEXT),
-                        ImmutableList.of(Change.ofTextUpsert("/a.txt", "content")))));
+                .isEqualTo(ImmutableList.of(new Commit(new Revision(1),
+                                                       new Author("name", "name@sample.com"),
+                                                       Instant.parse(TIMESTAMP).toEpochMilli(),
+                                                       "summary", "detail", Markup.PLAINTEXT)));
         verify(iface).getHistory(eq("project"), eq("repo"), any(), any(), eq("path"), any());
     }
 
@@ -321,12 +319,7 @@ public class LegacyCentralDogmaTest {
                                new Author("name", "name@sample.com"),
                                "summary", "detail", Markup.PLAINTEXT,
                                ImmutableList.of(Change.ofTextUpsert("/a.txt", "hello"))
-        ).get()).isEqualTo(new Commit(
-                new Revision(1),
-                new Author("name", "name@sample.com"),
-                Instant.parse(TIMESTAMP).toEpochMilli(),
-                "summary", "detail", Markup.PLAINTEXT
-        ));
+        ).get()).isEqualTo(new PushResult(new Revision(1), Instant.parse(TIMESTAMP).toEpochMilli()));
         verify(iface).push(eq("project"), eq("repo"), any(), any(), eq("summary"),
                            any(), any(), any());
     }
@@ -362,7 +355,7 @@ public class LegacyCentralDogmaTest {
             callback.onComplete(new GetFileResult(TEntryType.TEXT, "content"));
             return null;
         }).when(iface).getFile(any(), any(), any(), any(), any());
-        assertThat(client.getFile("project", "repo", new Revision(1), "/a.txt").get())
+        assertThat(client.getFile("project", "repo", new Revision(1), Query.ofText("/a.txt")).get())
                 .isEqualTo(Entry.ofText(new Revision(1), "/a.txt", "content"));
         verify(iface).getFile(eq("project"), eq("repo"), any(), any(), any());
     }

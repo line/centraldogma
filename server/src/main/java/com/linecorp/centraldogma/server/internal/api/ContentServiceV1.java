@@ -65,6 +65,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
+import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
@@ -163,12 +164,13 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @Decorator(HasWritePermission.class)
-    public CompletableFuture<?> commit(@Param("revision") @Default("-1") String revision,
-                                       @RequestObject Repository repository,
-                                       @RequestObject Author author,
-                                       @RequestObject CommitMessageDto commitMessage,
-                                       @RequestObject(ChangesRequestConverter.class)
-                                               Iterable<Change<?>> changes) {
+    public CompletableFuture<PushResultDto> commit(
+            @Param("revision") @Default("-1") String revision,
+            @RequestObject Repository repository,
+            @RequestObject Author author,
+            @RequestObject CommitMessageDto commitMessage,
+            @RequestObject(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
+
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
 
         final CompletableFuture<Map<String, Change<?>>> changesFuture =
@@ -179,17 +181,11 @@ public class ContentServiceV1 extends AbstractService {
             if (previewDiffs.isEmpty()) {
                 throw new RedundantChangeException();
             }
-            final CompletableFuture<Revision> resultRevisionFuture =
-                    push(commitTimeMillis, author, repository, normalizedRevision,
-                         commitMessage, previewDiffs.values()).toCompletableFuture();
-            final String pathPattern = joinPaths(changes);
-            final CompletableFuture<Map<String, Entry<?>>> findFuture = resultRevisionFuture.thenCompose(
-                    result -> repository.find(result, pathPattern, NO_FETCH_CONTENT));
-            return findFuture.thenApply(entries -> {
-                final Revision resultRevision = resultRevisionFuture.join(); // the future is already complete
-                final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entries);
-                return convert(resultRevision, author, commitMessage, commitTimeMillis, entryDtos);
-            });
+
+            return push(commitTimeMillis, author, repository, normalizedRevision,
+                        commitMessage, previewDiffs.values())
+                    .toCompletableFuture()
+                    .thenApply(rrev -> convert(rrev, commitTimeMillis));
         });
     }
 
@@ -289,8 +285,7 @@ public class ContentServiceV1 extends AbstractService {
         return repository.find(revision, query.path(), NO_FETCH_CONTENT)
                          .thenCombine(historyFuture, (entryMap, commits) -> {
                              // the size of commits should be 1
-                             return convert(commits.get(0),
-                                            ImmutableList.of(convert(repository, entry)));
+                             return convert(commits.get(0), convert(repository, entry));
                          });
     }
 
@@ -302,7 +297,7 @@ public class ContentServiceV1 extends AbstractService {
                          .thenCombine(historyFuture, (entryMap, commits) -> {
                              final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entryMap);
                              // the size of commits should be 1
-                             return convert(commits.get(0), entryDtos);
+                             return convert(commits.get(0), null);
                          });
     }
 
