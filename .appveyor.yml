@@ -15,6 +15,7 @@ cache:
   - "%USERPROFILE%\\.gradle\\wrapper\\dists"
   - "%USERPROFILE%\\.gradle\\caches\\jars-3"
   - "%USERPROFILE%\\.gradle\\caches\\modules-2"
+  - "%USERPROFILE%\\.gradle\\caches\\package-lists"
   - "%USERPROFILE%\\.gradle\\caches\\sphinx-binary"
 
 environment:
