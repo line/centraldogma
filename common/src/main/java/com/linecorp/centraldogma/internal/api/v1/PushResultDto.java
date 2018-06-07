@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2018 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -26,40 +26,22 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 
 @JsonInclude(Include.NON_EMPTY)
-public class CommitDto {
+public class PushResultDto {
 
     private final Revision revision;
-
-    private final Author author;
-
-    private final CommitMessageDto commitMessage;
-
     private final String pushedAt;
 
-    public CommitDto(Revision revision, Author author, CommitMessageDto commitMessage, long commitTimeMillis) {
+    public PushResultDto(Revision revision, long commitTimeMillis) {
         this.revision = requireNonNull(revision, "revision");
-        this.author = requireNonNull(author, "author");
-        this.commitMessage = requireNonNull(commitMessage, "commitMessage");
         pushedAt = ISO_INSTANT.format(Instant.ofEpochMilli(commitTimeMillis));
     }
 
     @JsonProperty("revision")
     public Revision revision() {
         return revision;
-    }
-
-    @JsonProperty("author")
-    public Author author() {
-        return author;
-    }
-
-    @JsonProperty("commitMessage")
-    public CommitMessageDto commitMessage() {
-        return commitMessage;
     }
 
     @JsonProperty("pushedAt")
@@ -71,8 +53,6 @@ public class CommitDto {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("revision", revision())
-                          .add("author", author())
-                          .add("commitMessage", commitMessage())
                           .add("pushedAt", pushedAt())
                           .toString();
     }

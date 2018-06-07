@@ -40,7 +40,7 @@ import com.linecorp.centraldogma.client.updater.CentralDogmaBean;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanConfigBuilder;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanFactory;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Commit;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
@@ -78,13 +78,13 @@ public class CentralDogmaBeanTest {
         assertThat(property.getQux()).containsExactly("x", "y", "z");
         assertThat(property.getRevision()).isNull();
 
-        final Commit rev = client.push("a", "b", Revision.HEAD, "Add c.json",
-                                       Change.ofJsonUpsert("/c.json",
-                                                           '{' +
-                                                           "  \"foo\": 20," +
-                                                           "  \"bar\": \"Y\"," +
-                                                           "  \"qux\": [\"0\", \"1\"]" +
-                                                           '}')).join();
+        final PushResult res = client.push("a", "b", Revision.HEAD, "Add c.json",
+                                           Change.ofJsonUpsert("/c.json",
+                                                               '{' +
+                                                               "  \"foo\": 20," +
+                                                               "  \"bar\": \"Y\"," +
+                                                               "  \"qux\": [\"0\", \"1\"]" +
+                                                               '}')).join();
 
         // Wait until the changes are handled.
         await().atMost(5000, TimeUnit.SECONDS).until(() -> property.getFoo() == 20);

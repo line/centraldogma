@@ -44,7 +44,6 @@ import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.common.thrift.ThriftCompletableFuture;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.CommitAndChanges;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Author;
@@ -58,6 +57,7 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
@@ -79,6 +79,7 @@ import com.linecorp.centraldogma.internal.thrift.EntryConverter;
 import com.linecorp.centraldogma.internal.thrift.GetFileResult;
 import com.linecorp.centraldogma.internal.thrift.MarkupConverter;
 import com.linecorp.centraldogma.internal.thrift.Project;
+import com.linecorp.centraldogma.internal.thrift.PushResultConverter;
 import com.linecorp.centraldogma.internal.thrift.QueryConverter;
 import com.linecorp.centraldogma.internal.thrift.Repository;
 import com.linecorp.centraldogma.internal.thrift.RevisionConverter;
@@ -230,7 +231,7 @@ final class LegacyCentralDogma implements CentralDogma {
     }
 
     @Override
-    public CompletableFuture<List<CommitAndChanges<?>>> getHistory(String projectName,
+    public CompletableFuture<List<Commit>> getHistory(String projectName,
                                                                    String repositoryName,
                                                                    Revision from,
                                                                    Revision to,
@@ -240,7 +241,7 @@ final class LegacyCentralDogma implements CentralDogma {
                                                   RevisionConverter.TO_DATA.convert(from),
                                                   RevisionConverter.TO_DATA.convert(to), pathPattern,
                                                   callback));
-        return future.thenApply(list -> convertToList(list, CommitAndChangesConverter.TO_MODEL::convert));
+        return future.thenApply(list -> convertToList(list, CommitConverter.TO_MODEL::convert));
     }
 
     @Override
@@ -307,17 +308,17 @@ final class LegacyCentralDogma implements CentralDogma {
     }
 
     @Override
-    public CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                          String summary, String detail, Markup markup,
-                                          Iterable<? extends Change<?>> changes) {
+    public CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                              String summary, String detail, Markup markup,
+                                              Iterable<? extends Change<?>> changes) {
         return push(projectName, repositoryName, baseRevision,
                     Author.UNKNOWN, summary, detail, markup, changes);
     }
 
     @Override
-    public CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                          Author author, String summary, String detail, Markup markup,
-                                          Iterable<? extends Change<?>> changes) {
+    public CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                              Author author, String summary, String detail, Markup markup,
+                                              Iterable<? extends Change<?>> changes) {
         final CompletableFuture<com.linecorp.centraldogma.internal.thrift.Commit> future =
                 run(callback -> client.push(projectName, repositoryName,
                                             RevisionConverter.TO_DATA.convert(baseRevision),
@@ -326,7 +327,7 @@ final class LegacyCentralDogma implements CentralDogma {
                                                     MarkupConverter.TO_DATA.convert(markup)),
                                             convertToList(changes, ChangeConverter.TO_DATA::convert),
                                             callback));
-        return future.thenApply(CommitConverter.TO_MODEL::convert);
+        return future.thenApply(PushResultConverter.TO_MODEL::convert);
     }
 
     @Override

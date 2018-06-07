@@ -30,10 +30,10 @@ import org.junit.rules.TestName;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.CommitAndChanges;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
@@ -58,8 +58,8 @@ public class CacheTest {
         client.createRepository(project, REPO_FOO).join();
 
         final CacheStats stats1 = cacheStatsSupplier.get();
-        final Commit commit = client.push(project, REPO_FOO, HEAD, "Add a file",
-                                          Change.ofTextUpsert("/foo.txt", "bar")).join();
+        final PushResult res = client.push(project, REPO_FOO, HEAD, "Add a file",
+                                           Change.ofTextUpsert("/foo.txt", "bar")).join();
 
         // NB: A push operation involves a history() operation to retrieve the last commit.
         //     Therefore we should observe one cache miss.
@@ -77,7 +77,7 @@ public class CacheTest {
             final CacheStats stats4 = cacheStatsSupplier.get();
 
             // Use the relative revision as well as the absolute revision.
-            final Entry<?> cachedEntry1 = client.getFile(project, REPO_FOO, commit.revision(), query).join();
+            final Entry<?> cachedEntry1 = client.getFile(project, REPO_FOO, res.revision(), query).join();
             final Entry<?> cachedEntry2 = client.getFile(project, REPO_FOO, HEAD, query).join();
 
             // They should return the same result.
@@ -98,20 +98,20 @@ public class CacheTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
-        final Commit commit1 = client.push(project, REPO_FOO, HEAD, "Add a file",
+        final PushResult res1 = client.push(project, REPO_FOO, HEAD, "Add a file",
                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
 
         final CacheStats stats1 = cacheStatsSupplier.get();
 
         // Get the history in various combination of from/to revisions.
-        final List<CommitAndChanges<?>> history1 =
+        final List<Commit> history1 =
                 client.getHistory(project, REPO_FOO, HEAD, new Revision(-2), "/**").join();
-        final List<CommitAndChanges<?>> history2 =
+        final List<Commit> history2 =
                 client.getHistory(project, REPO_FOO, HEAD, INIT, "/**").join();
-        final List<CommitAndChanges<?>> history3 =
-                client.getHistory(project, REPO_FOO, commit1.revision(), new Revision(-2), "/**").join();
-        final List<CommitAndChanges<?>> history4 =
-                client.getHistory(project, REPO_FOO, commit1.revision(), INIT, "/**").join();
+        final List<Commit> history3 =
+                client.getHistory(project, REPO_FOO, res1.revision(), new Revision(-2), "/**").join();
+        final List<Commit> history4 =
+                client.getHistory(project, REPO_FOO, res1.revision(), INIT, "/**").join();
 
         // and they should all same.
         assertThat(history1).isEqualTo(history2);
@@ -132,8 +132,8 @@ public class CacheTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
-        final Commit commit1 = client.push(project, REPO_FOO, HEAD, "Add a file",
-                                           Change.ofTextUpsert("/foo.txt", "bar")).join();
+        final PushResult res1 = client.push(project, REPO_FOO, HEAD, "Add a file",
+                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
 
         final CacheStats stats1 = cacheStatsSupplier.get();
 
@@ -143,9 +143,9 @@ public class CacheTest {
         final List<Change<?>> diff2 =
                 client.getDiffs(project, REPO_FOO, HEAD, INIT, "/**").join();
         final List<Change<?>> diff3 =
-                client.getDiffs(project, REPO_FOO, commit1.revision(), new Revision(-2), "/**").join();
+                client.getDiffs(project, REPO_FOO, res1.revision(), new Revision(-2), "/**").join();
         final List<Change<?>> diff4 =
-                client.getDiffs(project, REPO_FOO, commit1.revision(), INIT, "/**").join();
+                client.getDiffs(project, REPO_FOO, res1.revision(), INIT, "/**").join();
 
         // and they should all same.
         assertThat(diff1).isEqualTo(diff2);

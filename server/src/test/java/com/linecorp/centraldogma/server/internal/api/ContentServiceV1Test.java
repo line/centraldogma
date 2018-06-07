@@ -81,14 +81,7 @@ public class ContentServiceV1Test {
         final String expectedJson =
                 '{' +
                 "   \"revision\": 2," +
-                "   \"author\": \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
-                "   \"pushedAt\": \"${json-unit.ignore}\"," +
-                "   \"entries\": [{" +
-                "       \"path\": \"/foo.json\"," +
-                "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
-                "   }]" +
+                "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -114,14 +107,7 @@ public class ContentServiceV1Test {
         final String expectedJson =
                 '{' +
                 "   \"revision\": 3," +
-                "   \"author\": \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
-                "   \"pushedAt\": \"${json-unit.ignore}\"," +
-                "   \"entries\": [{" +
-                "       \"path\": \"/bar.json\"," +
-                "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/bar.json\"" +
-                "   }]" +
+                "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -147,18 +133,7 @@ public class ContentServiceV1Test {
         final String expectedJson =
                 '{' +
                 "   \"revision\": 3," +
-                "   \"author\": \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : {" +
-                "       \"summary\" : \"Rename /a\"," +
-                "       \"detail\": \"Rename to /b\"," +
-                "       \"markup\": \"PLAINTEXT\"" +
-                "   }," +
-                "   \"pushedAt\": \"${json-unit.ignore}\"," +
-                "   \"entries\": [{" +
-                "       \"path\": \"/b\"," +
-                "       \"type\": \"DIRECTORY\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/b\"" +
-                "   }]" +
+                "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -192,18 +167,7 @@ public class ContentServiceV1Test {
         final String expectedJson =
                 '{' +
                 "   \"revision\": 2," +
-                "   \"author\": \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
-                "   \"pushedAt\": \"${json-unit.ignore}\"," +
-                "   \"entries\": [{" +
-                "       \"path\": \"/foo0.json\"," +
-                "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo0.json\"" +
-                "   },{" +
-                "       \"path\": \"/foo1.json\"," +
-                "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo1.json\"" +
-                "   }]" +
+                "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
         final String actualJson = aRes.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -511,14 +475,7 @@ public class ContentServiceV1Test {
         final String expectedJson =
                 '{' +
                 "   \"revision\": 3," +
-                "   \"author\": \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
-                "   \"pushedAt\": \"${json-unit.ignore}\"," +
-                "   \"entries\": [{" +
-                "       \"path\": \"/foo.json\"," +
-                "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
-                "   }]" +
+                "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
         final String actualJson = res1.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -553,14 +510,7 @@ public class ContentServiceV1Test {
         final String expectedJson =
                 '{' +
                 "   \"revision\": 3," +
-                "   \"author\": \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : \"${json-unit.ignore}\"," +
-                "   \"pushedAt\": \"${json-unit.ignore}\"," +
-                "   \"entries\": [{" +
-                "       \"path\": \"/a/bar.txt\"," +
-                "       \"type\": \"TEXT\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
-                "   }]" +
+                "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
         final String actualJson = res1.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -597,12 +547,7 @@ public class ContentServiceV1Test {
                 "       \"summary\" : \"Edit foo.json\"," +
                 "       \"detail\" : \"Edit because we need it.\"," +
                 "       \"markup\" : \"PLAINTEXT\"" +
-                "   }," +
-                "   \"entries\": [{" +
-                "       \"path\": \"/foo.json\"," +
-                "       \"type\": \"JSON\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
-                "   }]" +
+                "   }" +
                 '}';
         final String actualJson = res.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -658,12 +603,12 @@ public class ContentServiceV1Test {
                 "       \"detail\" : \"Edit because we need it.\"," +
                 "       \"markup\" : \"PLAINTEXT\"" +
                 "   }," +
-                "   \"entries\": [{" +
+                "   \"entry\": {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\": {\"a\":\"baz\"}," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
-                "   }]" +
+                "   }" +
                 '}';
         final AggregatedHttpMessage res = future.join();
         final String actualJson = res.content().toStringUtf8();
@@ -701,12 +646,12 @@ public class ContentServiceV1Test {
                 "       \"detail\" : \"Edit because we need it.\"," +
                 "       \"markup\" : \"PLAINTEXT\"" +
                 "   }," +
-                "   \"entries\": [{" +
+                "   \"entry\": {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\": \"baz\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
-                "   }]" +
+                "   }" +
                 '}';
         final AggregatedHttpMessage res = future.join();
         final String actualJson = res.content().toStringUtf8();

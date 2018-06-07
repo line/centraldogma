@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2018 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,10 +16,7 @@
 
 package com.linecorp.centraldogma.internal.api.v1;
 
-import static java.time.format.DateTimeFormatter.ISO_INSTANT;
-import static java.util.Objects.requireNonNull;
-
-import java.time.Instant;
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -30,50 +27,30 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 
 @JsonInclude(Include.NON_EMPTY)
-public class CommitDto {
+public class WatchResultDto extends CommitDto {
 
-    private final Revision revision;
+    private final EntryDto<?> entry;
 
-    private final Author author;
-
-    private final CommitMessageDto commitMessage;
-
-    private final String pushedAt;
-
-    public CommitDto(Revision revision, Author author, CommitMessageDto commitMessage, long commitTimeMillis) {
-        this.revision = requireNonNull(revision, "revision");
-        this.author = requireNonNull(author, "author");
-        this.commitMessage = requireNonNull(commitMessage, "commitMessage");
-        pushedAt = ISO_INSTANT.format(Instant.ofEpochMilli(commitTimeMillis));
+    public WatchResultDto(Revision revision, Author author, CommitMessageDto commitMessage,
+                          long commitTimeMillis, @Nullable EntryDto<?> entry) {
+        super(revision, author, commitMessage, commitTimeMillis);
+        this.entry = entry;
     }
 
-    @JsonProperty("revision")
-    public Revision revision() {
-        return revision;
-    }
-
-    @JsonProperty("author")
-    public Author author() {
-        return author;
-    }
-
-    @JsonProperty("commitMessage")
-    public CommitMessageDto commitMessage() {
-        return commitMessage;
-    }
-
-    @JsonProperty("pushedAt")
-    public String pushedAt() {
-        return pushedAt;
+    @JsonProperty("entry")
+    public EntryDto<?> entry() {
+        return entry;
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .omitNullValues()
                           .add("revision", revision())
                           .add("author", author())
                           .add("commitMessage", commitMessage())
                           .add("pushedAt", pushedAt())
+                          .add("entry", entry())
                           .toString();
     }
 }

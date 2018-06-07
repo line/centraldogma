@@ -31,6 +31,7 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
@@ -147,7 +148,7 @@ public interface CentralDogma {
      * Retrieves the history of the repository between two {@link Revision}s. This method is a shortcut of
      * {@code getHistory(projectName, repositoryName, from, to, "/**")}
      */
-    default CompletableFuture<List<CommitAndChanges<?>>> getHistory(
+    default CompletableFuture<List<Commit>> getHistory(
             String projectName, String repositoryName, Revision from, Revision to) {
         return getHistory(projectName, repositoryName, from, to, "/**");
     }
@@ -163,7 +164,7 @@ public interface CentralDogma {
      *   <li>{@code "*.json,/bar/*.txt"} - use comma to match <em>any</em> patterns</li>
      * </ul>
      */
-    CompletableFuture<List<CommitAndChanges<?>>> getHistory(
+    CompletableFuture<List<Commit>> getHistory(
             String projectName, String repositoryName, Revision from, Revision to, String pathPattern);
 
     /**
@@ -218,8 +219,8 @@ public interface CentralDogma {
     /**
      * Pushes the specified {@link Change}s to the repository.
      */
-    default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                           String summary, Change<?>... changes) {
+    default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                               String summary, Change<?>... changes) {
         return push(projectName, repositoryName, baseRevision, summary,
                     ImmutableList.copyOf(requireNonNull(changes, "changes")));
     }
@@ -227,17 +228,17 @@ public interface CentralDogma {
     /**
      * Pushes the specified {@link Change}s to the repository.
      */
-    default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                           String summary, Iterable<? extends Change<?>> changes) {
+    default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                               String summary, Iterable<? extends Change<?>> changes) {
         return push(projectName, repositoryName, baseRevision, summary, "", Markup.PLAINTEXT, changes);
     }
 
     /**
      * Pushes the specified {@link Change}s to the repository.
      */
-    default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                           String summary, String detail, Markup markup,
-                                           Change<?>... changes) {
+    default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                               String summary, String detail, Markup markup,
+                                               Change<?>... changes) {
         return push(projectName, repositoryName, baseRevision, summary, detail, markup,
                     ImmutableList.copyOf(requireNonNull(changes, "changes")));
     }
@@ -245,9 +246,9 @@ public interface CentralDogma {
     /**
      * Pushes the specified {@link Change}s to the repository.
      */
-    CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                   String summary, String detail, Markup markup,
-                                   Iterable<? extends Change<?>> changes);
+    CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                       String summary, String detail, Markup markup,
+                                       Iterable<? extends Change<?>> changes);
 
     /**
      * Pushes the specified {@link Change}s to the repository.
@@ -255,8 +256,8 @@ public interface CentralDogma {
      * @deprecated Use {@link #push(String, String, Revision, String, Change...)}.
      */
     @Deprecated
-    default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                           Author author, String summary, Change<?>... changes) {
+    default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                               Author author, String summary, Change<?>... changes) {
         return push(projectName, repositoryName, baseRevision, author, summary, ImmutableList.copyOf(changes));
     }
 
@@ -266,9 +267,9 @@ public interface CentralDogma {
      * @deprecated Use {@link #push(String, String, Revision, String, Iterable)}.
      */
     @Deprecated
-    default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                           Author author, String summary,
-                                           Iterable<? extends Change<?>> changes) {
+    default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                               Author author, String summary,
+                                               Iterable<? extends Change<?>> changes) {
         return push(projectName, repositoryName, baseRevision, author, summary, "", Markup.PLAINTEXT, changes);
     }
 
@@ -278,9 +279,9 @@ public interface CentralDogma {
      * @deprecated Use {@link #push(String, String, Revision, String, String, Markup, Change...)}.
      */
     @Deprecated
-    default CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                           Author author, String summary, String detail, Markup markup,
-                                           Change<?>... changes) {
+    default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                               Author author, String summary, String detail, Markup markup,
+                                               Change<?>... changes) {
         return push(projectName, repositoryName, baseRevision, author, summary, detail, markup,
                     ImmutableList.copyOf(changes));
     }
@@ -291,9 +292,9 @@ public interface CentralDogma {
      * @deprecated Use {@link #push(String, String, Revision, String, String, Markup, Iterable)}.
      */
     @Deprecated
-    CompletableFuture<Commit> push(String projectName, String repositoryName, Revision baseRevision,
-                                   Author author, String summary, String detail, Markup markup,
-                                   Iterable<? extends Change<?>> changes);
+    CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
+                                       Author author, String summary, String detail, Markup markup,
+                                       Iterable<? extends Change<?>> changes);
 
     /**
      * Awaits and returns the latest known revision since the specified revision.
