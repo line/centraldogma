@@ -55,8 +55,6 @@ import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.ChangeType;
-import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
@@ -201,27 +199,6 @@ public class ContentServiceV1 extends AbstractService {
                 revision, summary, detail, markup, changes));
     }
 
-    private static String joinPaths(Iterable<Change<?>> changes) {
-        final StringBuilder sb = new StringBuilder();
-        for (Change<?> c : changes) {
-            if (c.type() == ChangeType.RENAME) {
-                sb.append(c.contentAsText()); // newPath
-            } else {
-                sb.append(c.path());
-            }
-            sb.append(',');
-        }
-        return sb.toString();
-    }
-
-    private static ImmutableList<EntryDto<?>> entryDtos(Repository repository,
-                                                        Map<String, Entry<?>> entries) {
-        return entries.values().stream().map(
-                entry -> convert(repository, entry.path(), entry.type(),
-                                 entry.type() != DIRECTORY ? entry.content() : null))
-                      .collect(toImmutableList());
-    }
-
     /**
      * GET /projects/{projectName}/repos/{repoName}/contents{path}?revision={revision}&amp;
      * jsonpath={jsonpath}
@@ -280,23 +257,19 @@ public class ContentServiceV1 extends AbstractService {
     private static CompletableFuture<Object> handleWatchFileSuccess(
             Repository repository, Query<?> query, Entry<?> entry) {
         final Revision revision = entry.revision();
-        final CompletableFuture<List<Commit>> historyFuture =
-                repository.history(revision, revision, query.path());
-        return repository.find(revision, query.path(), NO_FETCH_CONTENT)
-                         .thenCombine(historyFuture, (entryMap, commits) -> {
-                             // the size of commits should be 1
-                             return convert(commits.get(0), convert(repository, entry));
+        final EntryDto<?> entryDto = convert(repository, entry);
+        return repository.history(revision, revision, query.path())
+                         .thenApply(commits -> {
+                             // The size of 'commits' should be 1.
+                             return convert(commits.get(0), entryDto);
                          });
     }
 
     private static CompletableFuture<Object> handleWatchRepositorySuccess(
             Repository repository, Revision revision, String pathPattern) {
-        final CompletableFuture<List<Commit>> historyFuture =
-                repository.history(revision, revision, pathPattern);
-        return repository.find(revision, pathPattern, NO_FETCH_CONTENT)
-                         .thenCombine(historyFuture, (entryMap, commits) -> {
-                             final ImmutableList<EntryDto<?>> entryDtos = entryDtos(repository, entryMap);
-                             // the size of commits should be 1
+        return repository.history(revision, revision, pathPattern)
+                         .thenApply(commits -> {
+                             // The size of 'commits' should be 1.
                              return convert(commits.get(0), null);
                          });
     }
