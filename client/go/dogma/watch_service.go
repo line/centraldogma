@@ -33,8 +33,14 @@ type watchService service
 // WatchResult represents a result from watch operation.
 type WatchResult struct {
 	Commit *Commit
+	Entry  *Entry
 	Res    *http.Response
 	Err    error
+}
+
+type commitWithEntry struct {
+	*Commit
+	Entry  *Entry `json:"entry,omitempty"`
 }
 
 func (ws *watchService) watchFile(ctx context.Context, projectName, repoName, lastKnownRevision string,
@@ -88,12 +94,13 @@ func (ws *watchService) watchRequest(ctx context.Context, watchResult chan<- *Wa
 	}
 
 	go func() {
-		commit := new(Commit)
-		res, err := ws.client.do(ctx, req, commit)
+		commitWithEntry := new(commitWithEntry)
+		res, err := ws.client.do(ctx, req, commitWithEntry)
 		if err != nil {
-			watchResult <- &WatchResult{Commit: nil, Res: res, Err: err}
+			watchResult <- &WatchResult{Res: res, Err: err}
 		} else {
-			watchResult <- &WatchResult{Commit: commit, Res: res, Err: nil}
+			watchResult <- &WatchResult{Commit: commitWithEntry.Commit, Entry: commitWithEntry.Entry,
+				Res: res, Err: nil}
 		}
 	}()
 }
@@ -238,7 +245,7 @@ func (ws *watchService) fileWatcher(projectName, repoName string, query *Query) 
 			query, watchTimeout)
 	}
 	w.convertingResultFunc = func(result *WatchResult) *Latest {
-		value := result.Commit.Entries[0].Content
+		value := result.Entry.Content
 		return &Latest{Revision: result.Commit.Revision, Value: value}
 	}
 	return w, nil

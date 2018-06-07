@@ -81,13 +81,18 @@ func (c *Entry) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// PushResult represents a result of push in the repository.
+type PushResult struct {
+	Revision int    `json:"revision"`
+	PushedAt string `json:"pushedAt"`
+}
+
 // Commit represents a commit in the repository.
 type Commit struct {
 	Revision      int            `json:"revision"`
 	Author        *Author        `json:"author"`
 	CommitMessage *CommitMessage `json:"commitMessage,omitempty"`
 	PushedAt      string         `json:"pushedAt,omitempty"`
-	Entries       []*Entry       `json:"entries,omitempty"`
 }
 
 // CommitMessages represents a commit message in the repository.
@@ -359,7 +364,7 @@ type push struct {
 }
 
 func (con *contentService) push(ctx context.Context, projectName, repoName, baseRevision string,
-	commitMessage *CommitMessage, changes []*Change) (*Commit, *http.Response, error) {
+	commitMessage *CommitMessage, changes []*Change) (*PushResult, *http.Response, error) {
 	if len(commitMessage.Summary) == 0 {
 		return nil, nil, fmt.Errorf(
 			"summary of commitMessage cannot be empty. commitMessage: %+v", commitMessage)
@@ -382,10 +387,10 @@ func (con *contentService) push(ctx context.Context, projectName, repoName, base
 		return nil, nil, err
 	}
 
-	commit := new(Commit)
-	res, err := con.client.do(ctx, req, commit)
+	pushResult := new(PushResult)
+	res, err := con.client.do(ctx, req, pushResult)
 	if err != nil {
 		return nil, res, err
 	}
-	return commit, res, nil
+	return pushResult, res, nil
 }
