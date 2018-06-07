@@ -66,7 +66,8 @@ angular.module('CentralDogmaAdmin')
 
                    return ApiV1Service.get(StringUtil.encodeUri(['projects', projectName,
                                                                  'repos', repositoryName,
-                                                                 'list', path]));
+                                                                 'list', path]) +
+                                           "?revision=" + revision);
                  },
 
                  getFile: function (projectName, repositoryName, revision, query) {
