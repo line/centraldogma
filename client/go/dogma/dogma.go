@@ -46,6 +46,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+	"io/ioutil"
 )
 
 var log = logrus.New()
@@ -204,6 +205,10 @@ func (c *Client) newRequest(method, urlStr string, body interface{}) (*http.Requ
 	return req, nil
 }
 
+type errorMessage struct {
+	Message string `json:"message"`
+}
+
 func (c *Client) do(ctx context.Context, req *http.Request, resContent interface{}) (*http.Response, error) {
 	req = req.WithContext(ctx)
 
@@ -220,7 +225,19 @@ func (c *Client) do(ctx context.Context, req *http.Request, resContent interface
 	defer res.Body.Close()
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return res, fmt.Errorf("status: %v", res.StatusCode)
+		errorMessage := &errorMessage{}
+		data, err := ioutil.ReadAll(res.Body)
+		if err == nil && data != nil {
+			json.Unmarshal(data, errorMessage)
+			if len(errorMessage.Message) != 0 {
+				err = fmt.Errorf("%s (status: %v)", errorMessage.Message, res.StatusCode)
+			} else {
+				err = fmt.Errorf("status: %v", res.StatusCode)
+			}
+		} else {
+			err = fmt.Errorf("status: %v", res.StatusCode)
+		}
+		return res, err
 	}
 
 	if resContent != nil {
