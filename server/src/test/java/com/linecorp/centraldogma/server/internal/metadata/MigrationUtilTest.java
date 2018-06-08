@@ -17,12 +17,12 @@
 package com.linecorp.centraldogma.server.internal.metadata;
 
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
+import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_DOGMA;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -92,10 +92,10 @@ public class MigrationUtilTest {
         final MetadataService mds = new MetadataService(pm, executor);
 
         // Create a legacy token repository.
-        pm.get(INTERNAL_PROJ).repos().create(LEGACY_TOKEN_REPO);
-        createProject("legacyProject1");
-        createProject("legacyProject2");
-        createProject("legacyProject3");
+        pm.get(INTERNAL_PROJ).repos().create(LEGACY_TOKEN_REPO, Author.SYSTEM);
+        createProjectWithoutMetadata("legacyProject1");
+        createProjectWithoutMetadata("legacyProject2");
+        createProjectWithoutMetadata("legacyProject3");
 
         final LegacyToken legacyToken1 = new LegacyToken("app1", SECRET_PREFIX + "app1",
                                                          User.DEFAULT, Instant.now());
@@ -109,6 +109,7 @@ public class MigrationUtilTest {
         executor.execute(Command.push(author, INTERNAL_PROJ, LEGACY_TOKEN_REPO,
                                       Revision.HEAD, "", "", Markup.PLAINTEXT,
                                       change)).join();
+
         for (int i = 0; i < 2; i++) {
             // Try to migrate again at the second time. The result should be the same as before.
             MigrationUtil.migrate(pm, executor);
@@ -158,7 +159,7 @@ public class MigrationUtilTest {
         final CommandExecutor executor = rule.executor();
 
         // Create a legacy token repository.
-        pm.get(INTERNAL_PROJ).repos().create("main");
+        pm.get(INTERNAL_PROJ).repos().create("main", Author.SYSTEM);
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
         final Tokens tokens = new Tokens(
                 ImmutableMap.of("app1", new Token("app1", "secret1", false,
@@ -169,10 +170,8 @@ public class MigrationUtilTest {
                              Revision.HEAD, "", "", Markup.PLAINTEXT,
                              Change.ofJsonUpsert(TOKEN_JSON, Jackson.valueToTree(tokens)))).join();
 
-        // Create a project with metadata.
-        final Project project = pm.create("project1");
-        project.repos().create(REPO_FOO);
-        project.repos().create(REPO_META);
+        // Create a project with legacy metadata.
+        final Project project = createProjectWithoutMetadata("project1");
         final ProjectMetadata metadata =
                 new ProjectMetadata(project.name(),
                                     ImmutableMap.of(REPO_FOO,
@@ -196,7 +195,7 @@ public class MigrationUtilTest {
         assertThat(meta.creation()).isEqualToComparingFieldByField(userAndTimestamp);
 
         // Ensure that "/project1/meta/metadata.json" has moved to "/project1/dogma/metadata.json".
-        assertThat(project.repos().get(INTERNAL_REPO)
+        assertThat(project.repos().get(REPO_DOGMA)
                           .getOrNull(Revision.HEAD, METADATA_JSON).join()).isNotNull();
         assertThat(project.repos().get(REPO_META)
                           .getOrNull(Revision.HEAD, METADATA_JSON).join()).isNull();
@@ -210,18 +209,23 @@ public class MigrationUtilTest {
 
         // Ensure that "/dogma/main/tokens.json" has moved to "/dogma/dogma/tokens.json".
         assertThat(pm.get(INTERNAL_PROJ).repos()
-                     .get(INTERNAL_REPO)
+                     .get(REPO_DOGMA)
                      .getOrNull(Revision.HEAD, TOKEN_JSON).join()).isNotNull();
         assertThat(pm.get(INTERNAL_PROJ).repos()
                      .get("main")
                      .getOrNull(Revision.HEAD, TOKEN_JSON).join()).isNull();
     }
 
-    private void createProject(String projectName) {
-        final RepositoryManager manager = rule.projectManager().create(projectName).repos();
-        manager.create(REPO_META);
-        manager.create(REPO_FOO);
-        manager.create("oneMoreThing");
+    private Project createProjectWithoutMetadata(String projectName) {
+        final Project project = rule.projectManager().create(projectName, Author.SYSTEM);
+        final RepositoryManager manager = project.repos();
+        manager.get(REPO_DOGMA).commit(Revision.HEAD, System.currentTimeMillis(), author,
+                                       "Delete /metadata.json to mimic the legacy project",
+                                       "", Markup.PLAINTEXT, Change.ofRemoval(METADATA_JSON)).join();
+
+        manager.create(REPO_FOO, Author.SYSTEM);
+        manager.create("oneMoreThing", Author.SYSTEM);
+        return project;
     }
 
     static class LegacyProjectInitializingCommandExecutor extends ForwardingCommandExecutor {
@@ -242,11 +246,14 @@ public class MigrationUtilTest {
             final Author author = c.author();
 
             // Do not generate sample files because they are not necessary for the migration test.
-            final CompletableFuture<Void> f = delegate().execute(c);
+            CompletableFuture<?> f = delegate().execute(c);
+            f = f.thenCompose(unused -> delegate().execute(
+                    Command.push(creationTimeMillis, author, projectName, REPO_DOGMA, Revision.HEAD,
+                                 "Delete /metadata.json to mimic the legacy project",
+                                 "", Markup.PLAINTEXT, Change.ofRemoval(METADATA_JSON))));
+            f = f.exceptionally(unused -> null);
             return f.thenCompose(unused -> delegate().execute(
-                    Command.createRepository(creationTimeMillis, author, projectName, REPO_META)))
-                    .thenCompose(unused -> delegate().execute(
-                            Command.createRepository(creationTimeMillis, author, projectName, REPO_FOO)))
+                    Command.createRepository(creationTimeMillis, author, projectName, REPO_FOO)))
                     .thenApply(unused -> null);
         }
     }

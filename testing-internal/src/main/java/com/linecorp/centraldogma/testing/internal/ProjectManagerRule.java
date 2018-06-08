@@ -25,7 +25,6 @@ import org.junit.rules.TemporaryFolder;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializer;
-import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -111,8 +110,7 @@ public class ProjectManagerRule extends TemporaryFolder {
      * Override this method to customize a {@link CommandExecutor}.
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker) {
-        return new ProjectInitializingCommandExecutor(
-                new StandaloneCommandExecutor(projectManager, null, worker));
+        return new StandaloneCommandExecutor(projectManager, null, worker);
     }
 
     /**

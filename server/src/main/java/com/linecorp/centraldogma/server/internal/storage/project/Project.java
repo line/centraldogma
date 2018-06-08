@@ -16,12 +16,24 @@
 
 package com.linecorp.centraldogma.server.internal.storage.project;
 
+import static java.util.Objects.requireNonNull;
+
+import com.google.common.base.Ascii;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.internal.plugin.PluginManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
 
 public interface Project {
+    /**
+     * The repository that contains the internal settings of a project.
+     */
+    String REPO_DOGMA = "dogma";
+
+    /**
+     * The repository that contains the user-modifiable settings of a project.
+     */
     String REPO_META = "meta";
 
     String name();
@@ -40,7 +52,12 @@ public interface Project {
 
     PluginManager plugins();
 
-    static boolean isMetaRepo(String repoName) {
-        return REPO_META.equals(repoName);
+    /**
+     * Returns {@code true} if the specified repository name is reserved by Central Dogma.
+     */
+    static boolean isReservedRepoName(String repoName) {
+        requireNonNull(repoName, "repoName");
+        repoName = Ascii.toLowerCase(repoName);
+        return REPO_META.equals(repoName) || REPO_DOGMA.equals(repoName);
     }
 }

@@ -55,7 +55,6 @@ import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.ProjectInitializer;
-import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
@@ -100,8 +99,7 @@ public class PermissionTest {
         protected void configure(ServerBuilder sb) throws Exception {
             final ProjectManager pm = new DefaultProjectManager(
                     rootDir.newFolder(), ForkJoinPool.commonPool(), null);
-            final CommandExecutor executor = new ProjectInitializingCommandExecutor(
-                    new StandaloneCommandExecutor(pm, null, ForkJoinPool.commonPool()));
+            final CommandExecutor executor = new StandaloneCommandExecutor(pm, null, ForkJoinPool.commonPool());
             executor.start(null, null);
 
             ProjectInitializer.initializeInternalProject(executor);

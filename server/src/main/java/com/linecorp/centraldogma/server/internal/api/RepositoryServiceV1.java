@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.checkUnremoveArgument;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -95,7 +94,7 @@ public class RepositoryServiceV1 extends AbstractService {
 
             // Do not add internal repository to the list if the user is not an administrator.
             return project.repos().list().values().stream()
-                          .filter(r -> user.isAdmin() || !INTERNAL_REPO.equals(r.name()))
+                          .filter(r -> user.isAdmin() || !Project.REPO_DOGMA.equals(r.name()))
                           .map(DtoConverter::convert)
                           .collect(toImmutableList());
         });
@@ -112,6 +111,9 @@ public class RepositoryServiceV1 extends AbstractService {
     public CompletableFuture<RepositoryDto> createRepository(@RequestObject Project project,
                                                              @RequestObject CreateRepositoryRequest request,
                                                              @RequestObject Author author) {
+        if (Project.isReservedRepoName(request.name())) {
+            throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+        }
         return execute(Command.createRepository(author, project.name(), request.name()))
                 .thenCompose(unused -> mds.addRepo(author, project.name(), request.name()))
                 .handle(returnOrThrow(() -> DtoConverter.convert(project.repos().get(request.name()))));
@@ -127,7 +129,7 @@ public class RepositoryServiceV1 extends AbstractService {
     public CompletableFuture<Void> removeRepository(@Param("repoName") String repoName,
                                                     @RequestObject Repository repository,
                                                     @RequestObject Author author) {
-        if (Project.isMetaRepo(repoName)) {
+        if (Project.isReservedRepoName(repoName)) {
             throw HttpStatusException.of(HttpStatus.FORBIDDEN);
         }
         return execute(Command.removeRepository(author, repository.parent().name(), repository.name()))

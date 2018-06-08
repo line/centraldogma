@@ -100,7 +100,6 @@ import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthor
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.command.ProjectInitializingCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
@@ -302,12 +301,11 @@ public class CentralDogma {
                 throw new Error("unknown replication method: " + replicationMethod);
         }
 
-        final CommandExecutor projInitExecutor = new ProjectInitializingCommandExecutor(executor);
         try {
-            projInitExecutor.start(() -> {
+            executor.start(() -> {
                 if (cfg.isMirroringEnabled()) {
                     logger.info("Starting the mirroring service ..");
-                    mirroringService.start(projInitExecutor);
+                    mirroringService.start(executor);
                     logger.info("Started the mirroring service");
                 } else {
                     logger.info("Not starting the mirroring service because it's disabled.");
@@ -335,7 +333,7 @@ public class CentralDogma {
             logger.warn("Failed to start the command executor. Entering read-only.", e);
         }
 
-        return projInitExecutor;
+        return executor;
     }
 
     private Server startServer(ProjectManager pm, CommandExecutor executor,

@@ -94,8 +94,7 @@ public class DefaultMetaRepositoryTest {
 
     @Before
     public void setUp() {
-        project = pm.create(testName.getMethodName());
-        project.repos().create(Project.REPO_META);
+        project = pm.create(testName.getMethodName(), Author.SYSTEM);
         metaRepo = project.metaRepo();
     }
 
@@ -170,9 +169,9 @@ public class DefaultMetaRepositoryTest {
         // When the mentioned repositories (foo and bar) do not exist,
         assertThat(metaRepo.mirrors()).isEmpty();
 
-        project.repos().create("foo");
-        project.repos().create("bar");
-        project.repos().create("qux");
+        project.repos().create("foo", Author.SYSTEM);
+        project.repos().create("bar", Author.SYSTEM);
+        project.repos().create("qux", Author.SYSTEM);
 
         // Get the mirror list and sort it by localRepo name alphabetically for easier testing.
         final List<Mirror> mirrors = metaRepo.mirrors().stream()
@@ -271,9 +270,9 @@ public class DefaultMetaRepositoryTest {
         // When no matching repositories exist.
         assertThat(metaRepo.mirrors()).isEmpty();
 
-        project.repos().create("foo.com");
-        project.repos().create("bar.org");
-        project.repos().create("qux.net");
+        project.repos().create("foo.com", Author.SYSTEM);
+        project.repos().create("bar.org", Author.SYSTEM);
+        project.repos().create("qux.net", Author.SYSTEM);
 
         // Get the mirror list and sort it by localRepo name alphabetically for easier testing.
         final List<Mirror> mirrors = metaRepo.mirrors().stream()

@@ -35,6 +35,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -61,16 +62,16 @@ public class RepositoryManagerWrapperTest {
     @Test
     public void testCreate() {
         final String name = testName.getMethodName();
-        final Repository repo = m.create(name);
+        final Repository repo = m.create(name, Author.SYSTEM);
         assertThat(repo).isInstanceOf(RepositoryWrapper.class);
         // The cached result will be returned on the second call.
-        assertThatThrownBy(() -> m.create(name)).isInstanceOf(RepositoryExistsException.class);
+        assertThatThrownBy(() -> m.create(name, Author.SYSTEM)).isInstanceOf(RepositoryExistsException.class);
     }
 
     @Test
     public void testGet() {
         final String name = testName.getMethodName();
-        final Repository repo = m.create(name);
+        final Repository repo = m.create(name, Author.SYSTEM);
         final Repository repo2 = m.get(name);
 
         // Check if the reference is same.
@@ -80,7 +81,7 @@ public class RepositoryManagerWrapperTest {
     @Test
     public void testRemove() {
         final String name = testName.getMethodName();
-        m.create(name);
+        m.create(name, Author.SYSTEM);
         m.remove(name);
         assertThat(m.exists(name)).isFalse();
     }
@@ -102,7 +103,7 @@ public class RepositoryManagerWrapperTest {
         final String name = testName.getMethodName();
         final int numNames = 10;
         for (int i = 0; i < numNames; i++) {
-            m.create(name + i);
+            m.create(name + i, Author.SYSTEM);
         }
         final List<String> names = m.list().entrySet().stream()
                                     .map(Map.Entry::getKey)
@@ -119,7 +120,7 @@ public class RepositoryManagerWrapperTest {
     @Test
     public void testClose() {
         final String name = testName.getMethodName();
-        m.create(name);
+        m.create(name, Author.SYSTEM);
         assertTrue(m.exists(name));
         m.close(ShuttingDownException::new);
 

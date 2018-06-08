@@ -116,13 +116,13 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
 
     @Override
     protected Repository createChild(File childDir, Object[] childArgs,
-                                     long creationTimeMillis) throws Exception {
+                                     Author author, long creationTimeMillis) throws Exception {
 
         final Project project = (Project) childArgs[0];
         final GitRepositoryFormat preferredFormat = (GitRepositoryFormat) childArgs[1];
         final Executor repositoryWorker = (Executor) childArgs[2];
         return new GitRepository(project, childDir, preferredFormat, repositoryWorker,
-                                 creationTimeMillis, Author.SYSTEM);
+                                 creationTimeMillis, author);
     }
 
     @Override

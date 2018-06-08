@@ -35,10 +35,16 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.internal.Util;
 
 public abstract class DirectoryBasedStorageManager<T> implements StorageManager<T> {
+
+    private static final Logger logger = LoggerFactory.getLogger(DirectoryBasedStorageManager.class);
 
     /**
      * Start with an alphanumeric character.
@@ -131,7 +137,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     protected abstract T openChild(File childDir, Object[] childArgs) throws Exception;
 
     protected abstract T createChild(File childDir, Object[] childArgs,
-                                     long creationTimeMillis) throws Exception;
+                                     Author author, long creationTimeMillis) throws Exception;
 
     private void closeChild(String name, T child, Supplier<CentralDogmaException> failureCauseSupplier) {
         closeChild(new File(rootDir, name), child, failureCauseSupplier);
@@ -178,13 +184,14 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     }
 
     @Override
-    public T create(String name, long creationTimeMillis) {
+    public T create(String name, long creationTimeMillis, Author author) {
         ensureOpen();
+        requireNonNull(author, "author");
         validateChildName(name);
 
         final AtomicBoolean created = new AtomicBoolean();
         final T child = children.computeIfAbsent(name, n -> {
-            final T c = create0(n, creationTimeMillis);
+            final T c = create0(author, n, creationTimeMillis);
             created.set(true);
             return c;
         });
@@ -196,18 +203,30 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
     }
 
-    private T create0(String name, long creationTimeMillis) {
+    private T create0(Author author, String name, long creationTimeMillis) {
         if (new File(rootDir, name + SUFFIX_REMOVED).exists()) {
             throw newStorageExistsException(childTypeName + ": " + name + " (removed)");
         }
 
         final File f = new File(rootDir, name);
+        boolean success = false;
         try {
-            return createChild(f, childArgs, creationTimeMillis);
+            final T newChild = createChild(f, childArgs, author, creationTimeMillis);
+            success = true;
+            return newChild;
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException("failed to create a new " + childTypeName + ": " + f, e);
+        } finally {
+            if (!success && f.exists()) {
+                // Attempt to delete a partially created project.
+                try {
+                    Util.deleteFileTree(f);
+                } catch (IOException e) {
+                    logger.warn("Failed to delete a partially created project: {}", f);
+                }
+            }
         }
     }
 

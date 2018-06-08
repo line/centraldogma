@@ -164,8 +164,8 @@ public class GitRepositoryMigrationTest {
         // Create repositories of older format.
         final GitRepositoryManager managerA = new GitRepositoryManager(proj, tempDir, V0, commonPool());
         try {
-            assertThat(((GitRepository) managerA.create("foo")).format()).isSameAs(V0);
-            assertThat(((GitRepository) managerA.create("bar")).format()).isSameAs(V0);
+            assertThat(((GitRepository) managerA.create("foo", Author.SYSTEM)).format()).isSameAs(V0);
+            assertThat(((GitRepository) managerA.create("bar", Author.SYSTEM)).format()).isSameAs(V0);
         } finally {
             managerA.close(ShuttingDownException::new);
         }

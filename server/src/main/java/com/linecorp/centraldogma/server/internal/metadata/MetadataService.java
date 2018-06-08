@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.internal.metadata;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.RepositoryUtil.convertWithJackson;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.validateSecret;
@@ -60,11 +59,6 @@ import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectMana
 public class MetadataService extends AbstractService {
 
     /**
-     * The name of metadata repository.
-     */
-    public static final String METADATA_REPO = INTERNAL_REPO;
-
-    /**
      * A path of metadata file.
      */
     public static final String METADATA_JSON = "/metadata.json";
@@ -99,7 +93,7 @@ public class MetadataService extends AbstractService {
     }
 
     private CompletableFuture<HolderWithRevision<ProjectMetadata>> fetchMetadata(String projectName) {
-        return metadataRepo.fetch(projectName, METADATA_REPO, METADATA_JSON);
+        return metadataRepo.fetch(projectName, Project.REPO_DOGMA, METADATA_JSON);
     }
 
     /**
@@ -114,7 +108,7 @@ public class MetadataService extends AbstractService {
                 asJsonArray(new TestAbsenceOperation(PROJECT_REMOVAL),
                             new AddOperation(PROJECT_REMOVAL,
                                              Jackson.valueToTree(UserAndTimestamp.of(author)))));
-        return metadataRepo.push(projectName, METADATA_REPO, author,
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author,
                                  "Remove the project: " + projectName, change);
     }
 
@@ -127,7 +121,7 @@ public class MetadataService extends AbstractService {
 
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON, new RemoveOperation(PROJECT_REMOVAL).toJsonNode());
-        return metadataRepo.push(projectName, METADATA_REPO, author,
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author,
                                  "Restore the project: " + projectName, change);
     }
 
@@ -160,7 +154,7 @@ public class MetadataService extends AbstractService {
                                    asJsonArray(new TestAbsenceOperation(path),
                                                new AddOperation(path, Jackson.valueToTree(newMember))));
         final String commitSummary = "Add a member '" + newMember.id() + "' to the project " + projectName;
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -175,7 +169,7 @@ public class MetadataService extends AbstractService {
 
         final String commitSummary = "Remove the member '" + member.id() + "' from the project " + projectName;
         return metadataRepo.push(
-                projectName, METADATA_REPO, author, commitSummary,
+                projectName, Project.REPO_DOGMA, author, commitSummary,
                 () -> fetchMetadata(projectName).thenApply(
                         metadataWithRevision -> {
                             final ImmutableList.Builder<JsonPatchOperation> patches = ImmutableList.builder();
@@ -208,7 +202,7 @@ public class MetadataService extends AbstractService {
                                      Jackson.valueToTree(projectRole)).toJsonNode());
         final String commitSummary = "Updates the role of the member '" + member.id() +
                                      "' as '" + projectRole + "' for the project " + projectName;
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -252,7 +246,7 @@ public class MetadataService extends AbstractService {
                                                                 Jackson.valueToTree(newRepositoryMetadata))));
         final String commitSummary =
                 "Add a repo '" + newRepositoryMetadata.id() + "' to the project " + projectName;
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change)
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change)
                            .handle((revision, cause) -> {
                                if (cause != null) {
                                    if (Exceptions.peel(cause) instanceof ChangeConflictException) {
@@ -281,7 +275,7 @@ public class MetadataService extends AbstractService {
                                                new AddOperation(path, Jackson.valueToTree(
                                                        UserAndTimestamp.of(author)))));
         final String commitSummary = "Remove the repo '" + repoName + "' from the project " + projectName;
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -298,7 +292,7 @@ public class MetadataService extends AbstractService {
                                    new RemoveOperation(JsonPointer.compile(
                                            "/repos/" + repoName + "/removal")).toJsonNode());
         final String commitSummary = "Restore the repo '" + repoName + "' from the project " + projectName;
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -320,7 +314,7 @@ public class MetadataService extends AbstractService {
                                            .toJsonNode());
         final String commitSummary = "Update the role permission of the '" + repoName +
                                      "' in the project " + projectName;
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -354,7 +348,7 @@ public class MetadataService extends AbstractService {
                                                    new AddOperation(path, Jackson.valueToTree(registration))));
             final String commitSummary = "Add a token '" + registration.id() +
                                          "' to the project " + projectName + " with a role '" + role + '\'';
-            return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+            return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
         });
     }
 
@@ -382,7 +376,7 @@ public class MetadataService extends AbstractService {
                                                     boolean quiet) {
         final String commitSummary = "Remove the token '" + appId + "' from the project " + projectName;
         return metadataRepo.push(
-                projectName, METADATA_REPO, author, commitSummary,
+                projectName, Project.REPO_DOGMA, author, commitSummary,
                 () -> fetchMetadata(projectName).thenApply(metadataWithRevision -> {
                     final ImmutableList.Builder<JsonPatchOperation> patches = ImmutableList.builder();
                     final ProjectMetadata metadata = metadataWithRevision.object();
@@ -421,7 +415,7 @@ public class MetadataService extends AbstractService {
                                            .toJsonNode());
         final String commitSummary = "Update the role of a token '" + token.appId() +
                                      "' as '" + role + "' for the project " + projectName;
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -553,7 +547,7 @@ public class MetadataService extends AbstractService {
                 Change.ofJsonPatch(METADATA_JSON,
                                    asJsonArray(new TestAbsenceOperation(path),
                                                new AddOperation(path, Jackson.valueToTree(permission))));
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -563,7 +557,7 @@ public class MetadataService extends AbstractService {
                                                                   JsonPointer path, String commitSummary) {
         final Change<JsonNode> change = Change.ofJsonPatch(METADATA_JSON,
                                                            new RemoveOperation(path).toJsonNode());
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -576,7 +570,7 @@ public class MetadataService extends AbstractService {
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    new ReplaceOperation(path, Jackson.valueToTree(permission)).toJsonNode());
-        return metadataRepo.push(projectName, METADATA_REPO, author, commitSummary, change);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**
@@ -686,7 +680,7 @@ public class MetadataService extends AbstractService {
      * Returns a {@link Tokens}.
      */
     public CompletableFuture<Tokens> getTokens() {
-        return tokenRepo.fetch(INTERNAL_PROJ, INTERNAL_REPO, TOKEN_JSON)
+        return tokenRepo.fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
                         .thenApply(HolderWithRevision::object);
     }
 
@@ -734,7 +728,7 @@ public class MetadataService extends AbstractService {
                                                new AddOperation(appIdPath, Jackson.valueToTree(newToken)),
                                                new AddOperation(secretPath,
                                                                 Jackson.valueToTree(newToken.id()))));
-        return tokenRepo.push(INTERNAL_PROJ, INTERNAL_REPO, author,
+        return tokenRepo.push(INTERNAL_PROJ, Project.REPO_DOGMA, author,
                               "Add a token: '" + newToken.id(), change);
     }
 
@@ -753,8 +747,8 @@ public class MetadataService extends AbstractService {
             futures[i++] = removeToken(p.name(), author, appId, true).toCompletableFuture();
         }
         return CompletableFuture.allOf(futures).thenCompose(unused -> tokenRepo.push(
-                INTERNAL_PROJ, INTERNAL_REPO, author, "Remove the token: '" + appId,
-                () -> tokenRepo.fetch(INTERNAL_PROJ, INTERNAL_REPO, TOKEN_JSON)
+                INTERNAL_PROJ, Project.REPO_DOGMA, author, "Remove the token: '" + appId,
+                () -> tokenRepo.fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
                                .thenApply(tokens -> {
                                    final Token token = tokens.object().get(appId);
                                    final JsonPointer appIdPath =
@@ -777,10 +771,10 @@ public class MetadataService extends AbstractService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        return tokenRepo.push(INTERNAL_PROJ, INTERNAL_REPO, author,
+        return tokenRepo.push(INTERNAL_PROJ, Project.REPO_DOGMA, author,
                               "Enable the token: '" + appId,
                               () -> tokenRepo
-                                      .fetch(INTERNAL_PROJ, INTERNAL_REPO, TOKEN_JSON)
+                                      .fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
                                       .thenApply(tokens -> {
                                           final Token token = tokens.object().get(appId);
                                           final JsonPointer removalPath =
@@ -804,10 +798,10 @@ public class MetadataService extends AbstractService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        return tokenRepo.push(INTERNAL_PROJ, INTERNAL_REPO, author,
+        return tokenRepo.push(INTERNAL_PROJ, Project.REPO_DOGMA, author,
                               "Disable the token: '" + appId,
                               () -> tokenRepo
-                                      .fetch(INTERNAL_PROJ, INTERNAL_REPO, TOKEN_JSON)
+                                      .fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
                                       .thenApply(tokens -> {
                                           final Token token = tokens.object().get(appId);
                                           final JsonPointer removalPath =
@@ -829,7 +823,7 @@ public class MetadataService extends AbstractService {
      */
     public CompletableFuture<Token> findTokenByAppId(String appId) {
         requireNonNull(appId, "appId");
-        return tokenRepo.fetch(INTERNAL_PROJ, INTERNAL_REPO, TOKEN_JSON)
+        return tokenRepo.fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
                         .thenApply(tokens -> tokens.object().get(appId));
     }
 
@@ -839,7 +833,7 @@ public class MetadataService extends AbstractService {
     public CompletableFuture<Token> findTokenBySecret(String secret) {
         requireNonNull(secret, "secret");
         validateSecret(secret);
-        return tokenRepo.fetch(INTERNAL_PROJ, INTERNAL_REPO, TOKEN_JSON)
+        return tokenRepo.fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
                         .thenApply(tokens -> tokens.object().findBySecret(secret));
     }
 

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.thrift;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
+import static com.linecorp.centraldogma.server.internal.storage.project.Project.isReservedRepoName;
 import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.spotify.futures.CompletableFutures.allAsList;
@@ -150,6 +151,11 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void createRepository(String projectName, String repositoryName,
                                  AsyncMethodCallback resultHandler) {
+        // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
+        if (isReservedRepoName(repositoryName)) {
+            resultHandler.onError(convert(NOT_ALLOWED_REMOVING_META_REPO));
+            return;
+        }
         handleAsVoidResult(executor.execute(Command.createRepository(SYSTEM, projectName, repositoryName))
                                    .thenCompose(unused -> mds.addRepo(SYSTEM, projectName, repositoryName)),
                            resultHandler);
@@ -159,7 +165,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     public void removeRepository(String projectName, String repositoryName,
                                  AsyncMethodCallback resultHandler) {
         // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
-        if (com.linecorp.centraldogma.server.internal.storage.project.Project.isMetaRepo(repositoryName)) {
+        if (isReservedRepoName(repositoryName)) {
             resultHandler.onError(convert(NOT_ALLOWED_REMOVING_META_REPO));
             return;
         }
