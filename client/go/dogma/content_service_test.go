@@ -262,18 +262,16 @@ func TestPush(t *testing.T) {
 			t.Errorf("Push request body %+v, want %+v", changes, want)
 		}
 
-		fmt.Fprint(w, `{"revision":2, "author":{"name":"minux", "email":"minux@m.x"},
-"entries":[{"path":"/a.json", "type":"JSON"}]}`)
+		fmt.Fprint(w, `{"revision":2, "pushedAt":"2017-05-22T00:00:00Z"}`)
 	})
 
 	commitMessage := &CommitMessage{Summary: "Add a.json"}
 	change := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}}}
-	commit, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, change)
+	pushResult, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, change)
 
-	entries := []*Entry{{Path: "/a.json", Type: JSON}}
-	want := &Commit{Revision: 2, Author: &Author{Name: "minux", Email: "minux@m.x"}, Entries: entries}
-	if !reflect.DeepEqual(commit, want) {
-		t.Errorf("Push returned %+v, want %+v", commit, want)
+	want := &PushResult{Revision: 2, PushedAt: "2017-05-22T00:00:00Z"}
+	if !reflect.DeepEqual(pushResult, want) {
+		t.Errorf("Push returned %+v, want %+v", pushResult, want)
 	}
 }
 
@@ -294,22 +292,17 @@ func TestPush_TwoFiles(t *testing.T) {
 			t.Errorf("Push request body %+v, want %+v", changes, want)
 		}
 
-		fmt.Fprint(w, `{"revision":3,
-"author":{"name":"minux", "email":"minux@m.x"},
-"entries":
-[{"path":"/a.json", "type":"JSON"},
-{"path":"/b.txt", "type":"TEXT"}]}`)
+		fmt.Fprint(w, `{"revision":3, "pushedAT":"2017-05-22T00:00:00Z"}`)
 	})
 
 	commitMessage := &CommitMessage{Summary: "Add a.json and b.txt"}
 	changes := []*Change{{Path: "/a.json", Type: UpsertJSON, Content: map[string]interface{}{"a": "b"}},
 		{Path: "/b.txt", Type: UpsertText, Content: "myContent"}}
 
-	commit, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, changes)
+	pushResult, _, _ := c.Push(context.Background(), "foo", "bar", "-1", commitMessage, changes)
 
-	entries := []*Entry{{Path: "/a.json", Type: JSON}, {Path: "/b.txt", Type: Text}}
-	want := &Commit{Revision: 3, Author: &Author{Name: "minux", Email: "minux@m.x"}, Entries: entries}
-	if !reflect.DeepEqual(commit, want) {
-		t.Errorf("Push returned %+v, want %+v", commit, want)
+	want := &PushResult{Revision: 3, PushedAt: "2017-05-22T00:00:00Z"}
+	if !reflect.DeepEqual(pushResult, want) {
+		t.Errorf("Push returned %+v, want %+v", pushResult, want)
 	}
 }

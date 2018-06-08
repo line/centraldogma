@@ -365,7 +365,7 @@ func (c *Client) GetDiffs(ctx context.Context,
 
 // Push pushes the specified changes to the repository.
 func (c *Client) Push(ctx context.Context, projectName, repoName, baseRevision string,
-	commitMessage *CommitMessage, changes []*Change) (*Commit, *http.Response, error) {
+	commitMessage *CommitMessage, changes []*Change) (*PushResult, *http.Response, error) {
 	return c.content.push(ctx, projectName, repoName, baseRevision, commitMessage, changes)
 }
 

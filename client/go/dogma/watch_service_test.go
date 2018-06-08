@@ -28,8 +28,8 @@ import (
 var response = `{"revision":3,
 "author":{"name":"minux", "email":"minux@m.x"},
 "commitMessage":{"summary":"Add a.json"},
-"entries":
-[{"path":"/a.json", "type":"JSON", "content": {"a":"b"} }]}`
+"entry":{"path":"/a.json", "type":"JSON", "content": {"a":"b"}}
+}`
 
 func TestWatchFile(t *testing.T) {
 	c, mux, teardown := setup()
@@ -49,16 +49,19 @@ func TestWatchFile(t *testing.T) {
 	query := &Query{Path: "/a.json", Type: Identity}
 	watchResult := c.WatchFile(context.Background(), "foo", "bar", "-1", query, 1*time.Second)
 
-	entries := []*Entry{{Path: "/a.json", Type: JSON, Content: map[string]interface{}{"a": "b"}}}
-	want := &Commit{Revision: 3, Author: &Author{Name: "minux", Email: "minux@m.x"},
-		CommitMessage: &CommitMessage{Summary: "Add a.json"}, Entries: entries}
+	entryWant := &Entry{Path: "/a.json", Type: JSON, Content: map[string]interface{}{"a": "b"}}
+	commitWant := &Commit{Revision: 3, Author: &Author{Name: "minux", Email: "minux@m.x"},
+		CommitMessage: &CommitMessage{Summary: "Add a.json"}}
 	select {
 	case result := <-watchResult:
-		if !reflect.DeepEqual(result.Commit, want) {
-			t.Errorf("WatchFile returned %+v, want %+v", result.Commit, want)
+		if !reflect.DeepEqual(result.Commit, commitWant) {
+			t.Errorf("WatchFile returned %+v, want %+v", result.Commit, commitWant)
+		}
+		if !reflect.DeepEqual(result.Entry, entryWant) {
+			t.Errorf("WatchFile returned %+v, want %+v", result.Entry, entryWant)
 		}
 	case <-time.After(3 * time.Second):
-		t.Errorf("WatchFile returned nothing, want %+v", want)
+		t.Errorf("WatchFile returned nothing, want %+v, %+v", commitWant, entryWant)
 	}
 }
 
@@ -79,8 +82,8 @@ func TestWatcher(t *testing.T) {
 		fmt.Fprint(w, `{"revision":`+strconv.Itoa(expectedLastKnownRevision)+`,
 "author":{"name":"minux", "email":"minux@m.x"},
 "commitMessage":{"summary":"Add a.json"},
-"entries":
-[{"path":"/a.json", "type":"JSON", "content": {"a":`+strconv.Itoa(expectedLastKnownRevision)+`} }]}`)
+"entry":{"path":"/a.json", "type":"JSON", "content": {"a":`+strconv.Itoa(expectedLastKnownRevision)+`}}
+}`)
 	}
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/a.json", handler)
@@ -135,8 +138,8 @@ func TestWatcher_convertingValueFunc(t *testing.T) {
 		fmt.Fprint(w, `{"revision":`+strconv.Itoa(expectedLastKnownRevision)+`,
 "author":{"name":"minux", "email":"minux@m.x"},
 "commitMessage":{"summary":"Add a.json"},
-"entries":
-[{"path":"/a.json", "type":"JSON", "content": {"a":`+strconv.Itoa(expectedLastKnownRevision)+`} }]}`)
+"entry":{"path":"/a.json", "type":"JSON", "content": {"a":`+strconv.Itoa(expectedLastKnownRevision)+`}}
+}`)
 	}
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/a.json", handler)
@@ -238,9 +241,8 @@ func TestRepoWatcher(t *testing.T) {
 
 		fmt.Fprint(w, `{"revision":`+strconv.Itoa(expectedLastKnownRevision)+`,
 "author":{"name":"minux", "email":"minux@m.x"},
-"commitMessage":{"summary":"Add a.json"},
-"entries":
-[{"path":"/a.json", "type":"JSON", "content": {"a":`+strconv.Itoa(expectedLastKnownRevision)+`} }]}`)
+"commitMessage":{"summary":"Add a.json"}
+}`)
 	}
 
 	mux.HandleFunc("/api/v1/projects/foo/repos/bar/contents/**", handler)
