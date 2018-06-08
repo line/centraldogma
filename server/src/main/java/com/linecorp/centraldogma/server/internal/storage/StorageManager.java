@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 
 public interface StorageManager<T> {
@@ -30,11 +31,11 @@ public interface StorageManager<T> {
 
     T get(String name);
 
-    default T create(String name) {
-        return create(name, System.currentTimeMillis());
+    default T create(String name, Author author) {
+        return create(name, System.currentTimeMillis(), author);
     }
 
-    T create(String name, long creationTimeMillis);
+    T create(String name, long creationTimeMillis, Author author);
 
     Map<String, T> list();
 

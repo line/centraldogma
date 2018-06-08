@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.thrift;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
+import static com.linecorp.centraldogma.server.internal.storage.project.Project.isReservedRepoName;
 import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.spotify.futures.CompletableFutures.allAsList;
@@ -61,10 +62,9 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
-    private static final IllegalArgumentException NOT_ALLOWED_REMOVING_META_REPO =
+    private static final IllegalArgumentException RESERVED_REPOSITORY_EXCEPTION =
             Exceptions.clearTrace(new IllegalArgumentException(
-                    "Not allowed removing " +
-                    com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META));
+                    "The repository is reserved by system and thus cannot be created or removed."));
 
     private final ProjectManager projectManager;
     private final CommandExecutor executor;
@@ -150,6 +150,11 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void createRepository(String projectName, String repositoryName,
                                  AsyncMethodCallback resultHandler) {
+        // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
+        if (isReservedRepoName(repositoryName)) {
+            resultHandler.onError(convert(RESERVED_REPOSITORY_EXCEPTION));
+            return;
+        }
         handleAsVoidResult(executor.execute(Command.createRepository(SYSTEM, projectName, repositoryName))
                                    .thenCompose(unused -> mds.addRepo(SYSTEM, projectName, repositoryName)),
                            resultHandler);
@@ -159,8 +164,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     public void removeRepository(String projectName, String repositoryName,
                                  AsyncMethodCallback resultHandler) {
         // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
-        if (com.linecorp.centraldogma.server.internal.storage.project.Project.isMetaRepo(repositoryName)) {
-            resultHandler.onError(convert(NOT_ALLOWED_REMOVING_META_REPO));
+        if (isReservedRepoName(repositoryName)) {
+            resultHandler.onError(convert(RESERVED_REPOSITORY_EXCEPTION));
             return;
         }
         handleAsVoidResult(executor.execute(Command.removeRepository(SYSTEM, projectName, repositoryName))

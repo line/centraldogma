@@ -117,8 +117,8 @@ public class ListCommitsAndDiffTest {
                 "   {" +
                 "       \"revision\": 1," +
                 "       \"author\": {" +
-                "           \"name\": \"System\"," +
-                "           \"email\": \"system@localhost.localdomain\"" +
+                "           \"name\": \"admin\"," +
+                "           \"email\": \"admin@localhost.localdomain\"" +
                 "       }," +
                 "       \"pushedAt\": \"${json-unit.ignore}\"," +
                 "       \"commitMessage\" : {" +

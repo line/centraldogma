@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.metadata;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
+import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_DOGMA;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -89,7 +90,7 @@ public class ThriftBackwardCompatibilityTest {
         Jackson.readTree(res.content().toStringUtf8()).elements().forEachRemaining(nodes::add);
 
         assertThat(nodes.stream().map(n -> n.get("name").textValue()).collect(Collectors.toList()))
-                .containsAnyOf("dogma", "meta", repo1);
+                .containsAnyOf(REPO_DOGMA, REPO_META, repo1);
 
         ProjectMetadata metadata;
 

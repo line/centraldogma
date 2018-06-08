@@ -31,6 +31,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
@@ -53,9 +54,9 @@ public class GitRepositoryManagerTest {
     @Test
     public void testCreate() throws Exception {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
-        final Repository repository = gitRepositoryManager.create(TEST_REPO);
+        final Repository repository = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(repository).isInstanceOf(GitRepository.class);
-        assertThatThrownBy(() -> gitRepositoryManager.create(TEST_REPO))
+        assertThatThrownBy(() -> gitRepositoryManager.create(TEST_REPO, Author.SYSTEM))
                 .isInstanceOf(RepositoryExistsException.class);
     }
 
@@ -64,7 +65,7 @@ public class GitRepositoryManagerTest {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
 
-        final Repository repository = gitRepositoryManager.create(TEST_REPO);
+        final Repository repository = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(repository).isInstanceOf(GitRepository.class);
         assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repository);
         assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repository);
@@ -74,7 +75,7 @@ public class GitRepositoryManagerTest {
     public void testGetAndHas() {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
-        final Repository repo = gitRepositoryManager.create(TEST_REPO);
+        final Repository repo = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isTrue();
         assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repo);
     }
@@ -82,7 +83,7 @@ public class GitRepositoryManagerTest {
     @Test
     public void testDelete() throws Exception {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
-        gitRepositoryManager.create(TEST_REPO);
+        gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isTrue();
         gitRepositoryManager.remove(TEST_REPO);
         assertThatThrownBy(() -> gitRepositoryManager.remove(TEST_REPO))
@@ -97,7 +98,7 @@ public class GitRepositoryManagerTest {
         final String repoNamePattern = "repo%d";
         for (int i = 0; i < numRepoFiles; i++) {
             final String targetRepoName = String.format(repoNamePattern, i);
-            gitRepositoryManager.create(targetRepoName);
+            gitRepositoryManager.create(targetRepoName, Author.SYSTEM);
         }
 
         final int numDummyFiles = 1;
@@ -115,7 +116,7 @@ public class GitRepositoryManagerTest {
     public void testHas() throws IOException {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
-        gitRepositoryManager.create(TEST_REPO);
+        gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isTrue();
         gitRepositoryManager.remove(TEST_REPO);
     }

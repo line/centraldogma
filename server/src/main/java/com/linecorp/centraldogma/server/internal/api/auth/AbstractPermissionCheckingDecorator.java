@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.internal.api.auth;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.server.internal.api.auth.AbstractRoleCheckingDecorator.handleException;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_REPO;
 
 import java.util.Collection;
 import java.util.concurrent.CompletionStage;
@@ -37,6 +36,7 @@ import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.Permission;
+import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
 /**
  * An abstract class for checking permission of an incoming request.
@@ -57,7 +57,7 @@ abstract class AbstractPermissionCheckingDecorator
         final String repoName = ctx.pathParam("repoName");
         checkArgument(!isNullOrEmpty(repoName), "no repository name is specified");
 
-        if (INTERNAL_REPO.equals(repoName)) {
+        if (Project.REPO_DOGMA.equals(repoName)) {
             return serveInternalRepo(delegate, ctx, req, mds, user, projectName);
         } else {
             return serveUserRepo(delegate, ctx, req, mds, user, projectName, repoName);

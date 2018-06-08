@@ -27,6 +27,7 @@ import java.util.function.Supplier;
 
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 
 /**
@@ -64,9 +65,9 @@ public class SafeProjectManager implements ProjectManager {
     }
 
     @Override
-    public Project create(String name, long creationTimeMillis) {
+    public Project create(String name, long creationTimeMillis, Author author) {
         validateProjectName(name);
-        return delegate().create(name, creationTimeMillis);
+        return delegate().create(name, creationTimeMillis, author);
     }
 
     @Override

@@ -120,7 +120,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createProject(CreateProjectCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.create(c.projectName(), c.timestamp());
+            projectManager.create(c.projectName(), c.timestamp(), c.author());
             return null;
         }, repositoryWorker);
     }
@@ -143,7 +143,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Void> createRepository(CreateRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
-            projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp());
+            projectManager.get(c.projectName()).repos().create(c.repositoryName(), c.timestamp(), c.author());
             return null;
         }, repositoryWorker);
     }

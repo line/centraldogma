@@ -151,8 +151,8 @@ public class RepositoryServiceV1Test {
                 "   {" +
                 "       \"name\": \"myRepo\"," +
                 "       \"creator\": {" +
-                "           \"name\": \"System\"," +
-                "           \"email\": \"system@localhost.localdomain\"" +
+                "           \"name\": \"admin\"," +
+                "           \"email\": \"admin@localhost.localdomain\"" +
                 "       }," +
                 "       \"headRevision\": \"${json-unit.ignore}\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo\"," +
@@ -233,8 +233,8 @@ public class RepositoryServiceV1Test {
                 '{' +
                 "   \"name\": \"foo\"," +
                 "   \"creator\": {" +
-                "       \"name\": \"System\"," +
-                "       \"email\": \"system@localhost.localdomain\"" +
+                "       \"name\": \"admin\"," +
+                "       \"email\": \"admin@localhost.localdomain\"" +
                 "   }," +
                 "   \"headRevision\": 1," +
                 "   \"url\": \"/api/v1/projects/myPro/repos/foo\"," +

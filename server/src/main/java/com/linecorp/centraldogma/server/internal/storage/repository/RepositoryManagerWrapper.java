@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
@@ -69,8 +70,9 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
-    public Repository create(String name, long creationTimeMillis) {
-        return repos.compute(name, (n, v) -> repoWrapper.apply(delegate.create(name, creationTimeMillis)));
+    public Repository create(String name, long creationTimeMillis, Author author) {
+        return repos.compute(
+                name, (n, v) -> repoWrapper.apply(delegate.create(name, creationTimeMillis, author)));
     }
 
     @Override

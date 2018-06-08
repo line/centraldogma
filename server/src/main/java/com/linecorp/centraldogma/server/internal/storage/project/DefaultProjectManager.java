@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 
+import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
@@ -59,12 +60,15 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
 
     @Override
     protected Project openChild(File childDir, Object[] childArgs) throws Exception {
-        return new DefaultProject(childDir, false, (Executor) childArgs[0], (RepositoryCache) childArgs[1]);
+        return new DefaultProject(childDir, (Executor) childArgs[0], (RepositoryCache) childArgs[1]);
     }
 
     @Override
-    protected Project createChild(File childDir, Object[] childArgs, long creationTimeMillis) throws Exception {
-        return new DefaultProject(childDir, true, (Executor) childArgs[0], (RepositoryCache) childArgs[1]);
+    protected Project createChild(File childDir, Object[] childArgs,
+                                  Author author, long creationTimeMillis) throws Exception {
+        return new DefaultProject(childDir, (Executor) childArgs[0], (RepositoryCache) childArgs[1],
+                                  creationTimeMillis, author
+        );
     }
 
     @Override
