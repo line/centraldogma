@@ -62,10 +62,9 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
-    private static final IllegalArgumentException NOT_ALLOWED_REMOVING_META_REPO =
+    private static final IllegalArgumentException RESERVED_REPOSITORY_EXCEPTION =
             Exceptions.clearTrace(new IllegalArgumentException(
-                    "Not allowed removing " +
-                    com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META));
+                    "The repository is reserved by system and thus cannot be created or removed."));
 
     private final ProjectManager projectManager;
     private final CommandExecutor executor;
@@ -153,7 +152,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                                  AsyncMethodCallback resultHandler) {
         // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
         if (isReservedRepoName(repositoryName)) {
-            resultHandler.onError(convert(NOT_ALLOWED_REMOVING_META_REPO));
+            resultHandler.onError(convert(RESERVED_REPOSITORY_EXCEPTION));
             return;
         }
         handleAsVoidResult(executor.execute(Command.createRepository(SYSTEM, projectName, repositoryName))
@@ -166,7 +165,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                                  AsyncMethodCallback resultHandler) {
         // HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.
         if (isReservedRepoName(repositoryName)) {
-            resultHandler.onError(convert(NOT_ALLOWED_REMOVING_META_REPO));
+            resultHandler.onError(convert(RESERVED_REPOSITORY_EXCEPTION));
             return;
         }
         handleAsVoidResult(executor.execute(Command.removeRepository(SYSTEM, projectName, repositoryName))

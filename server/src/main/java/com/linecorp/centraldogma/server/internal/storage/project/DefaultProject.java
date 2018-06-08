@@ -81,7 +81,7 @@ class DefaultProject implements Project {
 
         boolean success = false;
         try {
-            createReservedRepos(System.currentTimeMillis(), Author.SYSTEM);
+            createReservedRepos(System.currentTimeMillis());
             success = true;
         } finally {
             if (!success) {
@@ -107,7 +107,7 @@ class DefaultProject implements Project {
 
         boolean success = false;
         try {
-            createReservedRepos(creationTimeMillis, author);
+            createReservedRepos(creationTimeMillis);
             initializeMetadata(creationTimeMillis, author);
             success = true;
         } finally {
@@ -124,17 +124,17 @@ class DefaultProject implements Project {
         return cache == null ? gitRepos : new CachingRepositoryManager(gitRepos, cache);
     }
 
-    private void createReservedRepos(long creationTimeMillis, Author author) {
-        if (!repos.exists(Project.REPO_DOGMA)) {
+    private void createReservedRepos(long creationTimeMillis) {
+        if (!repos.exists(REPO_DOGMA)) {
             try {
-                repos.create(Project.REPO_DOGMA, creationTimeMillis, Author.SYSTEM);
+                repos.create(REPO_DOGMA, creationTimeMillis, Author.SYSTEM);
             } catch (RepositoryExistsException ignored) {
                 // Just in case there's a race.
             }
         }
-        if (!repos.exists(Project.REPO_META)) {
+        if (!repos.exists(REPO_META)) {
             try {
-                repos.create(Project.REPO_META, creationTimeMillis, Author.SYSTEM);
+                repos.create(REPO_META, creationTimeMillis, Author.SYSTEM);
             } catch (RepositoryExistsException ignored) {
                 // Just in case there's a race.
             }
@@ -147,7 +147,7 @@ class DefaultProject implements Project {
             return;
         }
 
-        final Repository dogmaRepo = repos.get(Project.REPO_DOGMA);
+        final Repository dogmaRepo = repos.get(REPO_DOGMA);
         final Revision headRev = dogmaRepo.normalizeNow(Revision.HEAD);
         if (!dogmaRepo.exists(headRev, METADATA_JSON).join()) {
             logger.info("Initializing metadata: {}", name);
