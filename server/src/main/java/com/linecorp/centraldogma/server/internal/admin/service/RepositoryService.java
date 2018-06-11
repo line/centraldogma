@@ -57,6 +57,7 @@ import com.linecorp.centraldogma.server.internal.admin.dto.CommitMessageDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
 import com.linecorp.centraldogma.server.internal.command.Command;
@@ -169,7 +170,7 @@ public class RepositoryService extends AbstractService {
                             if (cause == null) {
                                 return HttpResponse.of(HttpStatus.OK);
                             } else {
-                                return HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR);
+                                return HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause);
                             }
                         }));
     }

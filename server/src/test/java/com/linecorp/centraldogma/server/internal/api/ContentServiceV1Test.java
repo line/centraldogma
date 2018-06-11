@@ -41,6 +41,8 @@ import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
@@ -466,6 +468,43 @@ public class ContentServiceV1Test {
                                                .contentType(MediaType.JSON);
         final AggregatedHttpMessage res = httpClient.execute(headers, body).aggregate().join();
         assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
+        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+                '{' +
+                "  \"exception\": \"" + ChangeConflictException.class.getName() + "\"," +
+                "  \"message\": \"${json-unit.ignore}\"" +
+                '}');
+    }
+
+    @Test
+    public void emptyChangeSet() {
+        // Add /foo.json and then remove it, which is essentially a no-op.
+        final String body = '{' +
+                            "  \"commitMessage\": {" +
+                            "    \"summary\": \"do nothing\"," +
+                            "    \"detail\": \"\"," +
+                            "    \"markup\": \"PLAINTEXT\"" +
+                            "  }," +
+                            "  \"changes\": [" +
+                            "    {" +
+                            "      \"path\": \"/foo.json\"," +
+                            "      \"type\": \"UPSERT_JSON\"," +
+                            "      \"content\": {}" +
+                            "    }," +
+                            "    {" +
+                            "      \"path\": \"/foo.json\"," +
+                            "      \"type\": \"REMOVE\"" +
+                            "    }" +
+                            "  ]" +
+                            '}';
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        final AggregatedHttpMessage res = httpClient.execute(headers, body).aggregate().join();
+        assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
+        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+                '{' +
+                "  \"exception\": \"" + RedundantChangeException.class.getName() + "\"," +
+                "  \"message\": \"${json-unit.ignore}\"" +
+                '}');
     }
 
     @Test

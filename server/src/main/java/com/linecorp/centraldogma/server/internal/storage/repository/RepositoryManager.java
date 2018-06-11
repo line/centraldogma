@@ -17,6 +17,8 @@
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import com.linecorp.centraldogma.server.internal.storage.StorageManager;
+import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
 public interface RepositoryManager extends StorageManager<Repository> {
+    Project parent();
 }

@@ -86,7 +86,8 @@ public final class AdministrativeService extends AbstractService {
         if (writableNode.asBoolean()) {
             if (!oldStatus.writable) {
                 // TODO(trustin): Implement exiting read-only mode.
-                throw HttpStatusException.of(HttpStatus.NOT_IMPLEMENTED);
+                return HttpApiUtil.throwResponse(HttpStatus.NOT_IMPLEMENTED,
+                                                 "Please consider sending a pull request. ;-)");
             }
         } else {
             if (oldStatus.writable) {

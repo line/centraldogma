@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+import java.util.Locale;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -29,6 +30,7 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -52,35 +54,105 @@ public final class HttpApiUtil {
                                     "value", "active")));
 
     /**
-     * Returns a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
+     * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
      * {@code message}.
      */
-    public static HttpResponseException newHttpResponseException(HttpStatus status, String message) {
-        return HttpResponseException.of(newResponseWithErrorMessage(status, message));
+    public static <T> T throwResponse(HttpStatus status, String message) {
+        throw HttpResponseException.of(newResponse(status, message));
     }
 
     /**
-     * Returns a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
-     * {@link JsonNode}.
+     * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
+     * the formatted message.
      */
-    public static HttpResponseException newHttpResponseException(HttpStatus status, JsonNode node) {
-        return HttpResponseException.of(newResponseWithJson(status, node));
+    public static <T> T throwResponse(HttpStatus status, String format, Object... args) {
+        throw HttpResponseException.of(newResponse(status, format, args));
+    }
+
+    /**
+     * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus},
+     * {@code cause} and {@code message}.
+     */
+    public static <T> T throwResponse(HttpStatus status, Throwable cause, String message) {
+        throw HttpResponseException.of(newResponse(status, cause, message));
+    }
+
+    /**
+     * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus},
+     * {@code cause} and the formatted message.
+     */
+    public static <T> T throwResponse(HttpStatus status, Throwable cause, String format, Object... args) {
+        throw HttpResponseException.of(newResponse(status, cause, format, args));
+    }
+
+    /**
+     * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and the formatted
+     * message.
+     */
+    public static HttpResponse newResponse(HttpStatus status, String format, Object... args) {
+        requireNonNull(status, "status");
+        requireNonNull(format, "format");
+        requireNonNull(args, "args");
+        return newResponse(status, String.format(Locale.ENGLISH, format, args));
     }
 
     /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and {@code message}.
      */
-    public static HttpResponse newResponseWithErrorMessage(HttpStatus status, String message) {
+    public static HttpResponse newResponse(HttpStatus status, String message) {
+        requireNonNull(status, "status");
         requireNonNull(message, "message");
-        return newResponseWithJson(status, JsonNodeFactory.instance.objectNode().put("message", message));
+        return newResponse0(status, null, message);
     }
 
     /**
-     * Returns a newly created {@link HttpResponse} with the specified {@link JsonNode}.
+     * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and {@code cause}.
      */
-    public static HttpResponse newResponseWithJson(HttpStatus status, JsonNode node) {
+    public static HttpResponse newResponse(HttpStatus status, Throwable cause) {
         requireNonNull(status, "status");
-        requireNonNull(node, "node");
+        requireNonNull(cause, "cause");
+        return newResponse0(status, cause, null);
+    }
+
+    /**
+     * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus}, {@code cause} and
+     * the formatted message.
+     */
+    public static HttpResponse newResponse(HttpStatus status, Throwable cause,
+                                           String format, Object... args) {
+        requireNonNull(status, "status");
+        requireNonNull(cause, "cause");
+        requireNonNull(format, "format");
+        requireNonNull(args, "args");
+
+        return newResponse(status, cause, String.format(Locale.ENGLISH, format, args));
+    }
+
+    /**
+     * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus}, {@code cause} and
+     * {@code message}.
+     */
+    public static HttpResponse newResponse(HttpStatus status, Throwable cause, String message) {
+        requireNonNull(status, "status");
+        requireNonNull(cause, "cause");
+        requireNonNull(message, "message");
+
+        return newResponse0(status, cause, message);
+    }
+
+    private static HttpResponse newResponse0(HttpStatus status,
+                                             @Nullable Throwable cause,
+                                             @Nullable String message) {
+        final ObjectNode node = JsonNodeFactory.instance.objectNode();
+        if (cause != null) {
+            node.put("exception", cause.getClass().getName());
+            if (message == null) {
+                message = cause.getMessage();
+            }
+        }
+
+        node.put("message", message != null ? message : status.reasonPhrase());
+
         // TODO(minwoox) refine the error message
         try {
             return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));

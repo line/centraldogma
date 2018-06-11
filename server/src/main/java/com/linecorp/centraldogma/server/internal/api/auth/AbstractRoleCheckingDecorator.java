@@ -24,13 +24,13 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.DecoratingServiceFunction;
-import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
@@ -57,7 +57,9 @@ abstract class AbstractRoleCheckingDecorator
                     return handleException(cause);
                 }
                 if (!isAccessAllowed(ctx, req, user, role)) {
-                    throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+                    return HttpApiUtil.throwResponse(
+                            HttpStatus.FORBIDDEN,
+                            "You must be %s of project '%s'.", role, projectName);
                 }
                 try {
                     return delegate.serve(ctx, req);
@@ -74,7 +76,7 @@ abstract class AbstractRoleCheckingDecorator
         cause = Exceptions.peel(cause);
         if (cause instanceof RepositoryNotFoundException ||
             cause instanceof ProjectNotFoundException) {
-            return HttpResponse.of(HttpStatus.NOT_FOUND);
+            return HttpApiUtil.newResponse(HttpStatus.NOT_FOUND, cause);
         } else {
             return Exceptions.throwUnsafely(cause);
         }

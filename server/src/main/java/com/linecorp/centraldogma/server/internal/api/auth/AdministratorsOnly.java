@@ -20,11 +20,11 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.DecoratingServiceFunction;
-import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 /**
  * A decorator only to allow a request from administrator.
@@ -39,6 +39,8 @@ public class AdministratorsOnly implements DecoratingServiceFunction<HttpRequest
         if (user.isAdmin()) {
             return delegate.serve(ctx, req);
         }
-        throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+        return HttpApiUtil.throwResponse(
+                HttpStatus.FORBIDDEN,
+                "You must be an administrator to perform this operation.");
     }
 }

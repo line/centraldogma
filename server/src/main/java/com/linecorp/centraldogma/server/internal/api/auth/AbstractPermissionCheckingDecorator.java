@@ -28,11 +28,11 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.DecoratingServiceFunction;
-import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.Permission;
@@ -79,7 +79,10 @@ abstract class AbstractPermissionCheckingDecorator
                 return handleException(cause);
             }
             if (!user.isAdmin()) {
-                throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+                return HttpApiUtil.throwResponse(
+                        HttpStatus.FORBIDDEN,
+                        "Repository '%s/%s' can be accessed only by an administrator.",
+                        projectName, Project.REPO_DOGMA);
             }
             try {
                 return delegate.serve(ctx, req);
@@ -105,7 +108,10 @@ abstract class AbstractPermissionCheckingDecorator
                 return handleException(cause);
             }
             if (!hasPermission(permission)) {
-                throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+                return HttpApiUtil.throwResponse(
+                        HttpStatus.FORBIDDEN,
+                        "You must have %s permission for repository '%s/%s'.",
+                        permission, projectName, repoName);
             }
             try {
                 return delegate.serve(ctx, req);

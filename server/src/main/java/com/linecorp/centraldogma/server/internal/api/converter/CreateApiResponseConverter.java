@@ -32,6 +32,7 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.metadata.HolderWithLocation;
 
 /**
@@ -61,7 +62,7 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
             return HttpResponse.of(headers, HttpData.of(Jackson.writeValueAsBytes(jsonNode)));
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);
-            return HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR);
+            return HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, e);
         }
     }
 

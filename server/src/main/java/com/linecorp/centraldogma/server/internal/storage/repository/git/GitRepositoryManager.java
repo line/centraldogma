@@ -58,6 +58,11 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
     }
 
     @Override
+    public Project parent() {
+        return (Project) childArg(0);
+    }
+
+    @Override
     protected Repository openChild(File childDir, Object[] childArgs) throws Exception {
         final Project project = (Project) childArgs[0];
         final GitRepositoryFormat preferredFormat = (GitRepositoryFormat) childArgs[1];
@@ -133,12 +138,12 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
 
     @Override
     protected CentralDogmaException newStorageExistsException(String name) {
-        return new RepositoryExistsException(name);
+        return new RepositoryExistsException(parent().name() + '/' + name);
     }
 
     @Override
     protected CentralDogmaException newStorageNotFoundException(String name) {
-        return new RepositoryNotFoundException(name);
+        return new RepositoryNotFoundException(parent().name() + '/' + name);
     }
 
     /**

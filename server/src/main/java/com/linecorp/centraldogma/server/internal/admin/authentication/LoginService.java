@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.server.internal.admin.authentication;
 
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
-import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newHttpResponseException;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwResponse;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -37,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpRequest;
@@ -51,6 +50,7 @@ import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.BasicToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 
@@ -121,10 +121,10 @@ public class LoginService extends AbstractHttpService {
                 } catch (IncorrectCredentialsException e) {
                     // Not authorized
                     logger.debug("{} Incorrect login: {}", ctx, usernamePassword.getUsername());
-                    future.complete(HttpResponse.of(HttpStatus.UNAUTHORIZED));
+                    future.complete(HttpApiUtil.newResponse(HttpStatus.UNAUTHORIZED, "Incorrect login"));
                 } catch (Throwable t) {
                     logger.warn("{} Failed to authenticate: {}", ctx, usernamePassword.getUsername(), t);
-                    future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
+                    future.complete(HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, t));
                 } finally {
                     try {
                         if (!success && currentUser != null) {
@@ -138,7 +138,7 @@ public class LoginService extends AbstractHttpService {
             });
         }).exceptionally(voidFunction(cause -> {
             logger.warn("{} Unexpected exception:", ctx, cause);
-            future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
+            future.complete(HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause));
         }));
         return HttpResponse.from(future);
     }
@@ -155,8 +155,8 @@ public class LoginService extends AbstractHttpService {
 
         final MediaType mediaType = req.headers().contentType();
         if (mediaType != MediaType.FORM_DATA) {
-            return throwResponseException("invalid_request",
-                                          "request was missing the '" + MediaType.FORM_DATA + "'.");
+            return throwResponse(HttpStatus.BAD_REQUEST,
+                                 "The content type of a login request must be '%s'.", MediaType.FORM_DATA);
         }
 
         final Map<String, List<String>> parameters = new QueryStringDecoder(
@@ -171,7 +171,7 @@ public class LoginService extends AbstractHttpService {
             return new UsernamePasswordToken(loginNameNormalizer.apply(username), password);
         }
 
-        return throwResponseException("invalid_request", "request must contain username and password.");
+        return throwResponse(HttpStatus.BAD_REQUEST, "A login request must contain username and password.");
     }
 
     @Nullable
@@ -189,11 +189,5 @@ public class LoginService extends AbstractHttpService {
             }
         }
         return null;
-    }
-
-    private static <T> T throwResponseException(String error, String errorDescription) {
-        final ImmutableMap<String, String> errorMessage = ImmutableMap.of(
-                "error", error, "error_description", errorDescription);
-        throw newHttpResponseException(HttpStatus.BAD_REQUEST, Jackson.valueToTree(errorMessage));
     }
 }

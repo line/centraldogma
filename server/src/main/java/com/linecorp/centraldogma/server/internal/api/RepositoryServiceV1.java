@@ -30,8 +30,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.annotation.ConsumeType;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Delete;
@@ -89,7 +87,9 @@ public class RepositoryServiceV1 extends AbstractService {
                     return project.repos().listRemoved().stream().map(RepositoryDto::new)
                                   .collect(toImmutableList());
                 }
-                return Exceptions.throwUnsafely(HttpStatusException.of(HttpStatus.FORBIDDEN));
+                return HttpApiUtil.throwResponse(
+                        HttpStatus.FORBIDDEN,
+                        "You must be an owner of project '%s' to remove it.", project.name());
             }
 
             // Do not add internal repository to the list if the user is not an administrator.
@@ -112,7 +112,8 @@ public class RepositoryServiceV1 extends AbstractService {
                                                              @RequestObject CreateRepositoryRequest request,
                                                              @RequestObject Author author) {
         if (Project.isReservedRepoName(request.name())) {
-            throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+            return HttpApiUtil.throwResponse(HttpStatus.FORBIDDEN,
+                                             "A reserved repository cannot be created.");
         }
         return execute(Command.createRepository(author, project.name(), request.name()))
                 .thenCompose(unused -> mds.addRepo(author, project.name(), request.name()))
@@ -130,7 +131,8 @@ public class RepositoryServiceV1 extends AbstractService {
                                                     @RequestObject Repository repository,
                                                     @RequestObject Author author) {
         if (Project.isReservedRepoName(repoName)) {
-            throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+            return HttpApiUtil.throwResponse(HttpStatus.FORBIDDEN,
+                                             "A reserved repository cannot be removed.");
         }
         return execute(Command.removeRepository(author, repository.parent().name(), repository.name()))
                 .thenCompose(unused -> mds.removeRepo(author, repository.parent().name(), repository.name()))

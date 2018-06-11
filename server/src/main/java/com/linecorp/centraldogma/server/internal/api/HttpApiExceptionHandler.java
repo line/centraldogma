@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newResponseWithErrorMessage;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newResponse;
 
 import java.util.Map;
 
@@ -26,6 +26,8 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestContext;
+import com.linecorp.armeria.server.HttpResponseException;
+import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
@@ -36,7 +38,6 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 
 /**
@@ -45,30 +46,53 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMe
 public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
 
     /**
-     * A map of exception handler functions for the classes which inherit {@link StorageException}.
+     * A map of exception handler functions for well known exceptions.
      */
-    private final Map<Class<?>, ExceptionHandlerFunction> exceptionHandlers =
-            ImmutableMap.<Class<?>, ExceptionHandlerFunction>builder()
-                    .put(ChangeConflictException.class, HttpApiExceptionHandler::handleConflict)
-                    .put(EntryNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
-                    .put(ProjectExistsException.class, HttpApiExceptionHandler::handleExists)
-                    .put(ProjectNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
-                    .put(RedundantChangeException.class, HttpApiExceptionHandler::handleRedundantChange)
-                    .put(RepositoryExistsException.class, HttpApiExceptionHandler::handleExists)
-                    .put(RepositoryMetadataException.class, HttpApiExceptionHandler::fallthrough)
-                    .put(RepositoryNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
-                    .put(RevisionNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
-                    .put(TokenNotFoundException.class, HttpApiExceptionHandler::handleNotFound)
-                    .build();
+    private static final Map<Class<?>, ExceptionHandlerFunction> exceptionHandlers;
+
+    static {
+        final ImmutableMap.Builder<Class<?>,
+                ExceptionHandlerFunction> builder = ImmutableMap.builder();
+
+        builder.put(ChangeConflictException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.CONFLICT, cause,
+                                                     "The given changeset or revision has a conflict."))
+               .put(EntryNotFoundException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                                                     "Entry '%s' does not exist.", cause.getMessage()))
+               .put(ProjectExistsException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.CONFLICT, cause,
+                                                     "Project '%s' exists already.", cause.getMessage()))
+               .put(ProjectNotFoundException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                                                     "Project '%s' does not exist.", cause.getMessage()))
+               .put(RedundantChangeException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.CONFLICT, cause,
+                                                     "The given changeset does not change anything."))
+               .put(RepositoryExistsException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.CONFLICT, cause,
+                                                     "Repository '%s' exists already.", cause.getMessage()))
+               .put(RepositoryMetadataException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause))
+               .put(RepositoryNotFoundException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                                                     "Repository '%s' does not exist.", cause.getMessage()))
+               .put(RevisionNotFoundException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                                                     "Revision %s does not exist.", cause.getMessage()))
+               .put(TokenNotFoundException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                                                     "Token '%s' does not exist.", cause.getMessage()));
+
+        exceptionHandlers = builder.build();
+    }
 
     @Override
     public HttpResponse handleException(RequestContext ctx, HttpRequest req, Throwable cause) {
 
-        if (cause instanceof IllegalArgumentException) {
-            if (cause.getMessage() != null) {
-                return newResponseWithErrorMessage(HttpStatus.BAD_REQUEST, cause.getMessage());
-            }
-            return HttpResponse.of(HttpStatus.BAD_REQUEST);
+        if (cause instanceof HttpStatusException ||
+            cause instanceof HttpResponseException) {
+            return ExceptionHandlerFunction.fallthrough();
         }
 
         // Use precomputed map if the cause is instance of CentralDogmaException to access in a faster way.
@@ -77,33 +101,10 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
             return func.handleException(ctx, req, cause);
         }
 
-        return ExceptionHandlerFunction.fallthrough();
-    }
+        if (cause instanceof IllegalArgumentException) {
+            return newResponse(HttpStatus.BAD_REQUEST, cause);
+        }
 
-    @SuppressWarnings("unused")
-    static HttpResponse handleExists(RequestContext ctx, HttpRequest req, Throwable cause) {
-        return newResponseWithErrorMessage(HttpStatus.CONFLICT,
-                                           cause.getMessage() + " already exists.");
-    }
-
-    @SuppressWarnings("unused")
-    static HttpResponse handleNotFound(RequestContext ctx, HttpRequest req, Throwable cause) {
-        return newResponseWithErrorMessage(HttpStatus.NOT_FOUND,
-                                           cause.getMessage() + " does not exist.");
-    }
-
-    @SuppressWarnings("unused")
-    static HttpResponse handleRedundantChange(RequestContext ctx, HttpRequest req, Throwable cause) {
-        return newResponseWithErrorMessage(HttpStatus.BAD_REQUEST, "changes did not change anything.");
-    }
-
-    @SuppressWarnings("unused")
-    static HttpResponse handleConflict(RequestContext ctx, HttpRequest req, Throwable cause) {
-        return HttpResponse.of(HttpStatus.CONFLICT);
-    }
-
-    @SuppressWarnings("unused")
-    static HttpResponse fallthrough(RequestContext ctx, HttpRequest req, Throwable cause) {
-        return ExceptionHandlerFunction.fallthrough();
+        return newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause);
     }
 }

@@ -40,7 +40,7 @@ type WatchResult struct {
 
 type commitWithEntry struct {
 	*Commit
-	Entry  *Entry `json:"entry,omitempty"`
+	Entry *Entry `json:"entry,omitempty"`
 }
 
 func (ws *watchService) watchFile(ctx context.Context, projectName, repoName, lastKnownRevision string,

@@ -149,10 +149,6 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     protected abstract CentralDogmaException newStorageNotFoundException(String name);
 
-    private CentralDogmaException newStorageNotFoundException0(String name) {
-        return newStorageNotFoundException(childTypeName + ": " + name);
-    }
-
     @Override
     public void close(Supplier<CentralDogmaException> failureCauseSupplier) {
         requireNonNull(failureCauseSupplier, "failureCauseSupplier");
@@ -199,13 +195,13 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         if (created.get()) {
             return child;
         } else {
-            throw newStorageExistsException(childTypeName + ": " + name);
+            throw newStorageExistsException(name);
         }
     }
 
     private T create0(Author author, String name, long creationTimeMillis) {
         if (new File(rootDir, name + SUFFIX_REMOVED).exists()) {
-            throw newStorageExistsException(childTypeName + ": " + name + " (removed)");
+            throw newStorageExistsException(name + " (removed)");
         }
 
         final File f = new File(rootDir, name);
@@ -286,10 +282,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         ensureOpen();
         final T child = children.remove(validateChildName(name));
         if (child == null) {
-            throw newStorageNotFoundException0(name);
+            throw newStorageNotFoundException(name);
         }
 
-        closeChild(name, child, () -> newStorageNotFoundException0(name));
+        closeChild(name, child, () -> newStorageNotFoundException(name));
 
         if (!new File(rootDir, name).renameTo(new File(rootDir, name + SUFFIX_REMOVED))) {
             throw new StorageException("failed to mark " + childTypeName + " as removed: " + name);
@@ -303,7 +299,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
         final File removed = new File(rootDir, name + SUFFIX_REMOVED);
         if (!removed.isDirectory()) {
-            throw newStorageNotFoundException0(name);
+            throw newStorageNotFoundException(name);
         }
 
         final File unremoved = new File(rootDir, name);
@@ -314,7 +310,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
         final T unremovedChild = loadChild(unremoved);
         if (unremovedChild == null) {
-            throw newStorageNotFoundException0(name);
+            throw newStorageNotFoundException(name);
         }
         return unremovedChild;
     }
