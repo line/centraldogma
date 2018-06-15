@@ -99,7 +99,7 @@ class DefaultProject implements Project {
         requireNonNull(repositoryWorker, "repositoryWorker");
 
         if (rootDir.exists()) {
-            throw new ProjectExistsException(rootDir.toString());
+            throw new ProjectExistsException(rootDir.getName());
         }
 
         name = rootDir.getName();

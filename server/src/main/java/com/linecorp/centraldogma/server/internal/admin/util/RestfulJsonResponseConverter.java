@@ -28,6 +28,7 @@ import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 /**
  * A default response converter of CentralDogma admin service.
@@ -48,7 +49,7 @@ public class RestfulJsonResponseConverter implements ResponseConverterFunction {
                                    MediaType.JSON_UTF_8,
                                    httpData);
         } catch (JsonProcessingException e) {
-            return HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR);
+            return HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, e);
         }
     }
 }

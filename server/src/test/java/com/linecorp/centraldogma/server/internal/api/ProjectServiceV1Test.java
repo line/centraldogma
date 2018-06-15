@@ -37,6 +37,7 @@ import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
@@ -87,7 +88,8 @@ public class ProjectServiceV1Test {
         assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
-                "   \"message\": \"project: myPro already exists.\"" +
+                "   \"exception\": \"" + ProjectExistsException.class.getName() + "\"," +
+                "   \"message\": \"Project 'myPro' exists already.\"" +
                 '}';
         assertThatJson(res.content().toStringUtf8()).isEqualTo(expectedJson);
     }

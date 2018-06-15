@@ -24,7 +24,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.linecorp.armeria.server.HttpStatusException;
+import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
@@ -70,7 +70,7 @@ public class TokenServiceTest {
 
         assertThatThrownBy(() -> tokenService.deleteToken("forAdmin1", guestAuthor, guest)
                                              .join())
-                .hasCauseInstanceOf(HttpStatusException.class);
+                .hasCauseInstanceOf(HttpResponseException.class);
 
         assertThat(tokenService.deleteToken("forAdmin1", adminAuthor, admin).join()).satisfies(t -> {
             assertThat(t.appId()).isEqualTo(token.appId());

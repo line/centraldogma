@@ -36,6 +36,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.OAuth2Token;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 
@@ -92,14 +93,14 @@ public class LogoutService extends AbstractHttpService {
                     future.complete(HttpResponse.of(HttpStatus.OK));
                 } catch (Throwable t) {
                     logger.warn("{} Failed to log out: {}", ctx, sessionId, t);
-                    future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
+                    future.complete(HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, t));
                 } finally {
                     ThreadContext.unbindSecurityManager();
                 }
             });
         }).exceptionally(voidFunction(cause -> {
             logger.warn("{} Unexpected exception:", ctx, cause);
-            future.complete(HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
+            future.complete(HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause));
         }));
         return HttpResponse.from(future);
     }

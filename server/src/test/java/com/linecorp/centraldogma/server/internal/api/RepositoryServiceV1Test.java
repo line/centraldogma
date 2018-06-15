@@ -38,6 +38,8 @@ import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
@@ -101,7 +103,8 @@ public class RepositoryServiceV1Test {
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
-                "   \"message\": \"repository: myRepo already exists.\"" +
+                "  \"exception\": \"" + RepositoryExistsException.class.getName() + "\"," +
+                "  \"message\": \"Repository 'myPro/myRepo' exists already.\"" +
                 '}';
         assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }
@@ -115,7 +118,8 @@ public class RepositoryServiceV1Test {
         assertThat(aRes.headers().status()).isEqualTo(HttpStatus.NOT_FOUND);
         final String expectedJson =
                 '{' +
-                "   \"message\": \"absentProject does not exist.\"" +
+                "  \"exception\": \"" + ProjectNotFoundException.class.getName() + "\"," +
+                "  \"message\": \"Project 'absentProject' does not exist.\"" +
                 '}';
         assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }

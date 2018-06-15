@@ -33,6 +33,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
 public class RepositoryManagerWrapper implements RepositoryManager {
     private final RepositoryManager delegate;
@@ -47,6 +48,11 @@ public class RepositoryManagerWrapper implements RepositoryManager {
         for (Map.Entry<String, Repository> entry : delegate.list().entrySet()) {
             repos.computeIfAbsent(entry.getKey(), n -> repoWrapper.apply(entry.getValue()));
         }
+    }
+
+    @Override
+    public Project parent() {
+        return delegate.parent();
     }
 
     @Override

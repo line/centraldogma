@@ -30,8 +30,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.annotation.ConsumeType;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
@@ -158,7 +156,8 @@ public class TokenService extends AbstractService {
             // Give permission to the administrators.
             if (!loginUser.isAdmin() &&
                 !token.creation().user().equals(loginUser.id())) {
-                return Exceptions.throwUnsafely(HttpStatusException.of(HttpStatus.FORBIDDEN));
+                return HttpApiUtil.throwResponse(HttpStatus.FORBIDDEN,
+                                                 "Unauthorized token: %s", token);
             }
             return token;
         });

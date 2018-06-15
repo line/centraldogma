@@ -22,12 +22,12 @@ import static java.util.Objects.requireNonNull;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
 import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
@@ -65,7 +65,10 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
 
             if (Project.REPO_DOGMA.equals(repositoryName) &&
                 !AuthenticationUtil.currentUser(ctx).isAdmin()) {
-                throw HttpStatusException.of(HttpStatus.FORBIDDEN);
+                return HttpApiUtil.throwResponse(
+                        HttpStatus.FORBIDDEN,
+                        "Repository '%s/%s' can be accessed only by an administrator.",
+                        projectName, Project.REPO_DOGMA);
             }
             // RepositoryNotFoundException would be thrown if there is no project or no repository.
             return projectManager.get(projectName).repos().get(repositoryName);
