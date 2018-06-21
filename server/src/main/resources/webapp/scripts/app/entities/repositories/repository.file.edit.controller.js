@@ -104,7 +104,11 @@ angular.module('CentralDogmaAdmin')
                         }, function (error) {
                           switch (error.status) {
                           case 409:
-                            NotificationUtil.error('entities.conflict_occurred');
+                            if (error.exception === 'com.linecorp.centraldogma.common.RedundantChangeException') {
+                              NotificationUtil.error('entities.redundant_changes');
+                            } else {
+                              NotificationUtil.error('entities.conflict_occurred');
+                            }
                             break;
                           default:
                             NotificationUtil.error(error);

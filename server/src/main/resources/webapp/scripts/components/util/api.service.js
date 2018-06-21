@@ -36,7 +36,8 @@ angular.module('CentralDogmaAdmin')
                      var rejected = {
                        status: error.status,
                        statusText: error.statusText,
-                       message: error.data.message
+                       message: angular.isDefined(error.data.message) ? error.data.message : '',
+                       exception: angular.isDefined(error.data.exception) ? error.data.exception : ''
                      };
 
                      var callback = defer.promise.$$state.pending;
