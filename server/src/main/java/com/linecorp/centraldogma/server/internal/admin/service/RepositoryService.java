@@ -38,6 +38,7 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Decorator;
+import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Path;
@@ -57,7 +58,7 @@ import com.linecorp.centraldogma.server.internal.admin.dto.CommitMessageDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
-import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
+import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
 import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
 import com.linecorp.centraldogma.server.internal.command.Command;
@@ -69,6 +70,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 /**
  * Annotated service object for managing repositories.
  */
+@ExceptionHandler(HttpApiExceptionHandler.class)
 public class RepositoryService extends AbstractService {
 
     private static final Map<FindOption<?>, Object> LIST_FILES_FIND_OPTIONS = new IdentityHashMap<>();
@@ -87,12 +89,11 @@ public class RepositoryService extends AbstractService {
      */
     @Get("/projects/{projectName}/repositories/{repoName}/revision/{revision}")
     @Decorator(HasReadPermission.class)
-    public CompletionStage<RevisionDto> normalizeRevision(@Param("projectName") String projectName,
-                                                          @Param("repoName") String repoName,
-                                                          @Param("revision") String revision) {
-        return projectManager().get(projectName).repos().get(repoName)
-                               .normalize(new Revision(revision))
-                               .thenApply(DtoConverter::convert);
+    public RevisionDto normalizeRevision(@Param("projectName") String projectName,
+                                         @Param("repoName") String repoName,
+                                         @Param("revision") String revision) {
+        return DtoConverter.convert(projectManager().get(projectName).repos().get(repoName)
+                                                    .normalizeNow(new Revision(revision)));
     }
 
     /**
@@ -112,8 +113,7 @@ public class RepositoryService extends AbstractService {
         final Query<?> query = Query.of(QueryType.valueOf(queryType.orElse("IDENTITY")),
                                         path, expressions.orElse(""));
         final Repository repo = projectManager().get(projectName).repos().get(repoName);
-        return repo.normalize(new Revision(revision))
-                   .thenCompose(normalized -> repo.get(normalized, query))
+        return repo.get(repo.normalizeNow(new Revision(revision)), query)
                    .thenApply(DtoConverter::convert);
     }
 
@@ -162,17 +162,12 @@ public class RepositoryService extends AbstractService {
             throw new IllegalArgumentException("invalid data to be parsed", e);
         }
 
-        return HttpResponse.from(
+        final CompletableFuture<?> future =
                 push(projectName, repoName, new Revision(revision), AuthenticationUtil.currentAuthor(ctx),
                      commitMessage.getSummary(), commitMessage.getDetail().getContent(),
-                     Markup.valueOf(commitMessage.getDetail().getMarkup()), Change.ofRemoval(path))
-                        .handle((unused, cause) -> {
-                            if (cause == null) {
-                                return HttpResponse.of(HttpStatus.OK);
-                            } else {
-                                return HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause);
-                            }
-                        }));
+                     Markup.valueOf(commitMessage.getDetail().getMarkup()), Change.ofRemoval(path));
+
+        return HttpResponse.from(future.thenApply(unused -> HttpResponse.of(HttpStatus.OK)));
     }
 
     /**
@@ -236,11 +231,9 @@ public class RepositoryService extends AbstractService {
                                       Revision revision, Author author,
                                       String commitSummary, String commitDetail, Markup commitMarkup,
                                       Change<?> change) {
-        return projectManager().get(projectName).repos().get(repoName)
-                               .normalize(revision)
-                               .thenCompose(normalizedRevision ->
-                                                    push0(projectName, repoName, revision, author,
-                                                          commitSummary, commitDetail, commitMarkup, change));
+        final Repository repo = projectManager().get(projectName).repos().get(repoName);
+        return push0(projectName, repoName, repo.normalizeNow(revision), author,
+                     commitSummary, commitDetail, commitMarkup, change);
     }
 
     private CompletableFuture<?> push0(String projectName, String repoName,

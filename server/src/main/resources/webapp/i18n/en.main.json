@@ -71,6 +71,7 @@
     "path": "Path",
     "project_name": "Project name",
     "recent_commits": "Recent commits",
+    "redundant_changes": "You did not change anything.",
     "repository": "Repository",
     "repository_name": "Repository name",
     "resolved_conflicts": "Latest content is fetched and merged with your previous changes. Please check the content again.",
