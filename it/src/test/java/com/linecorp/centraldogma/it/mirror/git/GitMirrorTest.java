@@ -293,6 +293,40 @@ public class GitMirrorTest {
     }
 
     @Test
+    public void remoteToLocal_submodule() throws Exception {
+        pushMirrorSettings(null, null);
+
+        // Create a new repository for a submodule.
+        final File gitSubmoduleWorkTree =
+                new File(gitRepoDir.getRoot(), testName.getMethodName() + ".submodule").getAbsoluteFile();
+        final Repository gitSubmoduleRepo =
+                new FileRepositoryBuilder().setWorkTree(gitSubmoduleWorkTree).build();
+        gitSubmoduleRepo.create();
+        final Git gitSubmodule = Git.wrap(gitSubmoduleRepo);
+        final String gitSubmoduleUri = "file://" +
+                 (gitSubmoduleWorkTree.getPath().startsWith(File.separator) ? "" : "/") +
+                 gitSubmoduleWorkTree.getPath().replace(File.separatorChar, '/') +
+                 "/.git";
+
+        // Prepare the master branch of the submodule repository.
+        addToGitIndex(gitSubmodule, gitSubmoduleWorkTree,
+                      "in_submodule.txt", "This is a file in a submodule.");
+        gitSubmodule.commit().setMessage("Initial commit").call();
+
+        // Add the submodule.
+        git.submoduleInit().call();
+        git.submoduleAdd().setPath("submodule").setURI(gitSubmoduleUri).call();
+        git.commit().setMessage("Add a new submodule").call();
+
+        // Check the files under a submodule do not match nor trigger an 'unknown object' error.
+        mirroringService.mirror().join();
+        final Revision headRev = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        final Entry<JsonNode> expectedMirrorState = expectedMirrorState(headRev, "/");
+        assertThat(client.getFiles(projName, REPO_FOO, Revision.HEAD, "/**").join().values())
+                .containsExactly(expectedMirrorState);
+    }
+
+    @Test
     public void remoteToLocal_tooManyFiles() throws Exception {
         pushMirrorSettings(null, null);
 
@@ -363,6 +397,11 @@ public class GitMirrorTest {
     }
 
     private void addToGitIndex(String path, String content) throws IOException, GitAPIException {
+        addToGitIndex(git, gitWorkTree, path, content);
+    }
+
+    private static void addToGitIndex(Git git, File gitWorkTree,
+                                      String path, String content) throws IOException, GitAPIException {
         final File file = Paths.get(gitWorkTree.getAbsolutePath(), path.split("/")).toFile();
         file.getParentFile().mkdirs();
         Files.asCharSink(file, StandardCharsets.UTF_8).write(content);
