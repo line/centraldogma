@@ -209,7 +209,7 @@ public final class DefaultMirroringService implements MirroringService {
             m.mirror(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
         } catch (Exception e) {
             if (logOnFailure) {
-                logger.warn("Unexpected exception while mirroring:", e);
+                logger.warn("Unexpected exception while mirroring: {}", m, e);
             } else {
                 if (e instanceof MirrorException) {
                     throw (MirrorException) e;

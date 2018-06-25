@@ -283,6 +283,7 @@ public abstract class Mirror {
         final ToStringHelper helper = MoreObjects.toStringHelper("")
                                                  .add("schedule", CronDescriptor.instance().describe(schedule))
                                                  .add("direction", direction)
+                                                 .add("localProj", localRepo.parent().name())
                                                  .add("localRepo", localRepo.name())
                                                  .add("localPath", localPath)
                                                  .add("remoteRepo", remoteRepoUri)

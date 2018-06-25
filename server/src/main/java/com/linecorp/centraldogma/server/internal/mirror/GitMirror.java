@@ -29,6 +29,7 @@ import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.RefUpdate;
@@ -141,10 +142,11 @@ public final class GitMirror extends Mirror {
                 long numFiles = 0;
                 long numBytes = 0;
                 while (treeWalk.next()) {
+                    final FileMode fileMode = treeWalk.getFileMode();
                     final String path = '/' + treeWalk.getPathString();
 
                     // Recurse into a directory if necessary.
-                    if (treeWalk.isSubtree()) {
+                    if (fileMode == FileMode.TREE) {
                         // Enter if the directory is under remotePath.
                         if (path.startsWith(remotePath())) {
                             treeWalk.enterSubtree();
@@ -165,6 +167,11 @@ public final class GitMirror extends Mirror {
                         }
 
                         // Skip the directory that are not under the remote path.
+                        continue;
+                    }
+
+                    if (fileMode != FileMode.REGULAR_FILE && fileMode != FileMode.EXECUTABLE_FILE) {
+                        // Skip non-file entries.
                         continue;
                     }
 
