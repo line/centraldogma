@@ -220,6 +220,11 @@ This product depends on Java Diff Utils, distributed by Dmitry Naumenko:
   * License: licenses/LICENSE.java-diff-utils.al11.txt (Apache License v1.1)
   * Homepage: https://github.com/dnaumenko/java-diff-utils
 
+This product depends on Javassist, distributed by Shigeru Chiba:
+
+  * License: licenses/LICENSE.javassist.mpl11.html (Mozilla Public License v1.1)
+  * Homepage: http://www.javassist.org/
+
 This product depends on javax.inject API, distributed by the JSR-330 Expert Group:
 
   * License: licenses/LICENSE.javax-inject.al20.txt (Apache License v2.0)

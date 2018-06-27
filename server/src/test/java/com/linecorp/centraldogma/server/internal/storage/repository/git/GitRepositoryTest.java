@@ -48,6 +48,7 @@ import javax.annotation.Nullable;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
+import org.eclipse.jgit.lib.RefDatabase;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.junit.AfterClass;
@@ -1245,10 +1246,12 @@ public class GitRepositoryTest {
 
     private static void testDoUpdateRef(String ref, ObjectId commitId, boolean tagExists) throws Exception {
         final org.eclipse.jgit.lib.Repository jGitRepo = mock(org.eclipse.jgit.lib.Repository.class);
+        final RefDatabase refDatabase = mock(RefDatabase.class);
         final RevWalk revWalk = mock(RevWalk.class);
         final RefUpdate refUpdate = mock(RefUpdate.class);
 
-        when(jGitRepo.exactRef(ref)).thenReturn(tagExists ? mock(Ref.class) : null);
+        when(jGitRepo.getRefDatabase()).thenReturn(refDatabase);
+        when(refDatabase.exactRef(ref)).thenReturn(tagExists ? mock(Ref.class) : null);
         when(jGitRepo.updateRef(ref)).thenReturn(refUpdate);
 
         when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.NEW);

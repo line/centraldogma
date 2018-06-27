@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.66.0
+- com.linecorp.armeria:armeria-bom:0.67.1
 
 com.beust:
   jcommander: { version: '1.72' }
@@ -12,7 +12,7 @@ com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
 com.bmuschko:
-  gradle-docker-plugin: { version: '3.2.9' }
+  gradle-docker-plugin: { version: '3.3.6' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
@@ -89,7 +89,7 @@ commons-daemon:
     - https://commons.apache.org/proper/commons-daemon/apidocs/
 
 gradle.plugin.com.github.blindpirate:
-  gogradle: { version: '0.9.1' }
+  gogradle: { version: '0.9.3' }
 
 junit:
   junit:
@@ -116,7 +116,10 @@ org.apache.thrift:
   libthrift: { version: '0.9.3' }
 
 org.eclipse.jgit:
-  org.eclipse.jgit: { version: '4.11.0.201803080745-r' }
+  org.eclipse.jgit: { version: '5.0.1.201806211838-r' }
+
+org.javassist:
+  javassist: { version: '3.22.0-GA' }
 
 org.testng:
   testng: { version: '6.14.3' }
