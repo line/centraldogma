@@ -860,7 +860,10 @@ class GitRepository implements Repository {
                 }
 
                 if (isEmpty) {
-                    throw new RedundantChangeException("changes did not change anything: " + changes);
+                    throw new RedundantChangeException(
+                            "changes did not change anything in " + parent().name() + '/' + name() +
+                            " at revision " + (prevRevision != null ? prevRevision.major() : 0) +
+                            ": " + changes);
                 }
             }
 
