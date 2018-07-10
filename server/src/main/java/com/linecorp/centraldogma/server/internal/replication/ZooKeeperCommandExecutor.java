@@ -193,7 +193,6 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         }
     }
 
-    //listener info
     private static final class ListenerInfo {
         long lastReplayedRevision;
         final Runnable onTakeLeadership;
@@ -344,7 +343,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
             try {
                 lastReplayedRevision = getLastReplayedRevision();
             } catch (Exception e) {
-                throw new ReplicationException(e);
+                throw new ReplicationException("failed to read " + revisionFile, e);
             }
             listenerInfo = new ListenerInfo(lastReplayedRevision, onTakeLeadership, onReleaseLeadership);
 
@@ -364,6 +363,8 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
             // Start the leader selection.
             leaderSelector.start();
+        } catch (ReplicationException e) {
+            throw e;
         } catch (Exception e) {
             throw new ReplicationException(e);
         }
@@ -461,12 +462,13 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                     final String originatingReplicaId = l.replicaId();
                     final Command<?> command = l.command();
                     final Object expectedResult = l.result();
-                    final Object actualResult = delegate.execute(originatingReplicaId, command).join();
+                    final Object actualResult = delegate.execute(originatingReplicaId, command).get();
 
                     if (!Objects.equals(expectedResult, actualResult)) {
                         throw new ReplicationException(
-                                "mismatching replay result: " + actualResult +
-                                " (expected: " + expectedResult + ", command: " + command + ')');
+                                "mismatching replay result at revision " + info.lastReplayedRevision +
+                                ": " + actualResult + " (expected: " + expectedResult +
+                                ", command: " + command + ')');
                     }
                 } else {
                     // same replicaId. skip
@@ -478,19 +480,24 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 }
             }
         } catch (Exception e) {
-            logger.warn("log replay fails. stop.", e);
+            logger.error("Failed to replay a log at revision {}; entering read-only mode",
+                         info.lastReplayedRevision, e);
             stopLater();
 
             if (e instanceof ReplicationException) {
                 throw (ReplicationException) e;
             }
-            throw new ReplicationException(e);
+            throw new ReplicationException("failed to replay a log at revision " +
+                                           info.lastReplayedRevision, e);
         }
 
         try {
             updateLastReplayedRevision(targetRevision);
         } catch (Exception e) {
-            throw new ReplicationException(e);
+            logger.error("Failed to update {} to {}; entering read-only mode",
+                         revisionFile, targetRevision, e);
+            stopLater();
+            throw new ReplicationException("failed to update " + revisionFile + " to " + targetRevision, e);
         }
     }
 
@@ -501,7 +508,13 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         }
 
         final long lastKnownRevision = revisionFromPath(event.getData().getPath());
-        replayLogs(lastKnownRevision);
+        try {
+            replayLogs(lastKnownRevision);
+        } catch (ReplicationException ignored) {
+            // replayLogs() logs and handles the exception already, so we just bail out here.
+            return;
+        }
+
         oldLogRemover.touch();
     }
 
@@ -520,7 +533,9 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         try {
             mtx.acquire();
         } catch (Exception e) {
-            throw new ReplicationException(e);
+            logger.error("Failed to acquire a lock for {}; entering read-only mode", executionPath, e);
+            stopLater();
+            throw new ReplicationException("failed to acquire a lock for " + executionPath, e);
         }
 
         return () -> {
@@ -624,7 +639,9 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
             return revisionFromPath(logPath);
         } catch (Exception e) {
-            throw new ReplicationException(e);
+            logger.error("Failed to store a log; entering read-only mode: {}", log, e);
+            stopLater();
+            throw new ReplicationException("failed to store a log: " + log, e);
         }
     }
 
@@ -652,7 +669,9 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
             final ReplicationLog<?> log = Jackson.readValue(bytes, ReplicationLog.class);
             return Optional.of(log);
         } catch (Exception e) {
-            throw new ReplicationException(e);
+            logger.error("Failed to load a log at revision {}; entering read-only mode", revision, e);
+            stopLater();
+            throw new ReplicationException("failed to load a log at revision " + revision, e);
         }
     }
 
@@ -694,7 +713,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 replayLogs(lastRevision);
             }
 
-            final T result = delegate.execute(replicaId, command).join();
+            final T result = delegate.execute(replicaId, command).get();
             final ReplicationLog<T> log = new ReplicationLog<>(replicaId(), command, result);
 
             // Store the command execution log to ZooKeeper.
@@ -702,9 +721,6 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
             logger.debug("logging OK. revision = {}, log = {}", revision, log);
             return result;
-        } catch (ReplicationException e) {
-            stopLater();
-            throw e;
         }
     }
 }
