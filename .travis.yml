@@ -1,11 +1,12 @@
 language: java
+jdk:
+- oraclejdk10
 sudo: false
 os:
 - linux
 branches:
   only:
   - master
-  - '0.46'
 notifications:
   email: false
   slack:
@@ -17,15 +18,11 @@ cache:
   - "$HOME/.gradle/caches/modules-2"
   - "$HOME/.gradle/caches/package-lists"
   - "$HOME/.gradle/caches/sphinx-binary"
-  - "$HOME/.jdk"
 env:
   global:
   - _JAVA_OPTIONS=
-  - JAVA_HOME=$HOME/.jdk/default
-  - PATH=$JAVA_HOME/bin:$PATH
-  - GRADLE_OPTS=-Xmx1024m
+  - GRADLE_OPTS=-Xmx1280m
 before_install:
-- ".travis/install-jdk.sh"
 - "./gradlew --version"
 install:
 - true

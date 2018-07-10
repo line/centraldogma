@@ -71,3 +71,5 @@ hs_err_pid*
 # PDT-specific
 .buildpath
 
+# ASDF
+.tool-versions
