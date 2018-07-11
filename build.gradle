@@ -98,6 +98,13 @@ configure(projectsWithFlags('java')) {
         testCompile 'org.mockito:mockito-core'
     }
 
+    // Target Java 8.
+    tasks.withType(JavaCompile) {
+        if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
+            options.compilerArgs += ['--release', '8']
+        }
+    }
+
     // Configure JMH.
     jmh {
         forceGC = true
@@ -148,5 +155,12 @@ allprojects {
             exclude '**/internal/**'
             exclude '**/thrift/**'
         }
+    }
+}
+
+// Require to use JDK 10 when releasing.
+tasks.release.doFirst {
+    if (JavaVersion.current() != JavaVersion.VERSION_1_10) {
+        throw new IllegalStateException("You must release using JDK 10.");
     }
 }
