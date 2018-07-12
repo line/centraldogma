@@ -24,11 +24,14 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nullable;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -180,16 +183,26 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
 
         abstract List<Mirror> toMirrors(Project parent, Iterable<MirrorCredential> credentials);
 
-        static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri) {
-            MirrorCredential credential = MirrorCredential.FALLBACK;
-            for (MirrorCredential c : credentials) {
-                if (c.matches(remoteUri)) {
-                    credential = c;
-                    break;
+        static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
+                                               @Nullable String credentialId) {
+            if (credentialId != null) {
+                // Find by credential ID.
+                for (MirrorCredential c : credentials) {
+                    final Optional<String> id = c.id();
+                    if (id.isPresent() && credentialId.equals(id.get())) {
+                        return c;
+                    }
+                }
+            } else {
+                // Find by host name.
+                for (MirrorCredential c : credentials) {
+                    if (c.matches(remoteUri)) {
+                        return c;
+                    }
                 }
             }
 
-            return credential;
+            return MirrorCredential.FALLBACK;
         }
 
         final boolean enabled;
@@ -205,15 +218,18 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
         final String localRepo;
         final String localPath;
         final URI remoteUri;
+        @Nullable
+        final String credentialId;
         final Cron schedule;
 
         @JsonCreator
-        SingleMirrorConfig(@JsonProperty("enabled") Boolean enabled,
-                           @JsonProperty("schedule") String schedule,
+        SingleMirrorConfig(@JsonProperty("enabled") @Nullable Boolean enabled,
+                           @JsonProperty("schedule") @Nullable String schedule,
                            @JsonProperty(value = "direction", required = true) MirrorDirection direction,
                            @JsonProperty(value = "localRepo", required = true) String localRepo,
-                           @JsonProperty("localPath") String localPath,
-                           @JsonProperty(value = "remoteUri", required = true) URI remoteUri) {
+                           @JsonProperty("localPath") @Nullable String localPath,
+                           @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
+                           @JsonProperty("credentialId") @Nullable String credentialId) {
 
             super(firstNonNull(enabled, true));
             this.schedule = cronParser.parse(firstNonNull(schedule, DEFAULT_SCHEDULE));
@@ -221,6 +237,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
             this.localRepo = requireNonNull(localRepo, "localRepo");
             this.localPath = firstNonNull(localPath, "/");
             this.remoteUri = requireNonNull(remoteUri, "remoteUri");
+            this.credentialId = credentialId;
         }
 
         @Override
@@ -230,7 +247,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
             }
 
             return Collections.singletonList(Mirror.of(
-                    schedule, direction, findCredential(credentials, remoteUri),
+                    schedule, direction, findCredential(credentials, remoteUri, credentialId),
                     parent.repos().get(localRepo), localPath, remoteUri));
         }
     }
@@ -240,19 +257,22 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
         final MirrorDirection defaultDirection;
         final String defaultLocalPath;
         final Cron defaultSchedule;
+        @Nullable
+        final String defaultCredentialId;
         final List<MirrorInclude> includes;
         final List<Pattern> excludes;
 
         @JsonCreator
         MultipleMirrorConfig(
-                @JsonProperty("enabled") Boolean enabled,
-                @JsonProperty("defaultSchedule") String defaultSchedule,
+                @JsonProperty("enabled") @Nullable Boolean enabled,
+                @JsonProperty("defaultSchedule") @Nullable String defaultSchedule,
                 @JsonProperty(value = "defaultDirection", required = true) MirrorDirection defaultDirection,
-                @JsonProperty("defaultLocalPath") String defaultLocalPath,
+                @JsonProperty("defaultLocalPath") @Nullable String defaultLocalPath,
+                @JsonProperty("defaultCredentialId") @Nullable String defaultCredentialId,
                 @JsonProperty(value = "includes", required = true)
                 @JsonDeserialize(contentAs = MirrorInclude.class)
                 Iterable<MirrorInclude> includes,
-                @JsonProperty("excludes")
+                @JsonProperty("excludes") @Nullable
                 @JsonDeserialize(contentAs = Pattern.class)
                 Iterable<Pattern> excludes) {
 
@@ -260,6 +280,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
             this.defaultSchedule = cronParser.parse(firstNonNull(defaultSchedule, DEFAULT_SCHEDULE));
             this.defaultDirection = requireNonNull(defaultDirection, "defaultDirection");
             this.defaultLocalPath = firstNonNull(defaultLocalPath, "/");
+            this.defaultCredentialId = defaultCredentialId;
             this.includes = ImmutableList.copyOf(requireNonNullElements(includes, "includes"));
             if (excludes != null) {
                 this.excludes = ImmutableList.copyOf(requireNonNullElements(excludes, "excludes"));
@@ -289,7 +310,9 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                     final URI remoteUri = URI.create(m.replaceFirst(i.replacement));
                     builder.add(Mirror.of(firstNonNull(i.schedule, defaultSchedule),
                                           firstNonNull(i.direction, defaultDirection),
-                                          findCredential(credentials, remoteUri),
+                                          findCredential(credentials, remoteUri,
+                                                         i.credentialId != null ? i.credentialId
+                                                                                : defaultCredentialId),
                                           repo,
                                           firstNonNull(i.localPath, defaultLocalPath),
                                           remoteUri));
@@ -304,22 +327,29 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
 
         final Pattern pattern;
         final String replacement;
+        @Nullable
         final MirrorDirection direction;
+        @Nullable
         final String localPath;
+        @Nullable
+        final String credentialId;
+        @Nullable
         final Cron schedule;
 
         @JsonCreator
-        MirrorInclude(@JsonProperty("schedule") String schedule,
+        MirrorInclude(@JsonProperty("schedule") @Nullable String schedule,
                       @JsonProperty(value = "pattern", required = true) Pattern pattern,
                       @JsonProperty(value = "replacement", required = true) String replacement,
-                      @JsonProperty("direction") MirrorDirection direction,
-                      @JsonProperty("localPath") String localPath) {
+                      @JsonProperty("direction") @Nullable MirrorDirection direction,
+                      @JsonProperty("localPath") @Nullable String localPath,
+                      @JsonProperty("credentialId") @Nullable String credentialId) {
 
             this.schedule = schedule != null ? MirrorConfig.cronParser.parse(schedule) : null;
             this.pattern = requireNonNull(pattern, "pattern");
             this.replacement = requireNonNull(replacement, "replacement");
             this.direction = direction;
             this.localPath = localPath;
+            this.credentialId = credentialId;
         }
     }
 }

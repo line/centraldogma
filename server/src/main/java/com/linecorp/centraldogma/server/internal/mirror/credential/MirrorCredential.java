@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.mirror.credential;
 
 import java.net.URI;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -33,7 +34,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 })
 public interface MirrorCredential {
 
-    MirrorCredential FALLBACK = new NoneMirrorCredential(Collections.singleton(Pattern.compile("^.*$")));
+    MirrorCredential FALLBACK = new NoneMirrorCredential(null, Collections.singleton(Pattern.compile("^.*$")));
+
+    Optional<String> id();
 
     Set<Pattern> hostnamePatterns();
 

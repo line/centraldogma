@@ -20,9 +20,12 @@ import static com.linecorp.centraldogma.internal.Util.requireNonNullElements;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
@@ -30,33 +33,39 @@ import com.google.common.collect.ImmutableSet;
 
 abstract class AbstractMirrorCredential implements MirrorCredential {
 
+    @Nullable
+    private final String id;
     private final Set<Pattern> hostnamePatterns;
     private final Set<String> hostnamePatternStrings;
 
-    AbstractMirrorCredential(Iterable<Pattern> hostnamePatterns) {
+    AbstractMirrorCredential(@Nullable String id, @Nullable Iterable<Pattern> hostnamePatterns) {
+        this.id = id;
         this.hostnamePatterns = validateHostnamePatterns(hostnamePatterns);
         hostnamePatternStrings = this.hostnamePatterns.stream().map(Pattern::pattern)
                                                       .collect(Collectors.toSet());
     }
 
-    private static Set<Pattern> validateHostnamePatterns(Iterable<Pattern> hostnamePatterns) {
-        final Set<Pattern> set = ImmutableSet.copyOf(
-                requireNonNullElements(hostnamePatterns, "hostnamePatterns"));
-
-        if (set.isEmpty()) {
-            throw new IllegalArgumentException("hostnamePatterns is empty.");
+    private static Set<Pattern> validateHostnamePatterns(@Nullable Iterable<Pattern> hostnamePatterns) {
+        if (hostnamePatterns == null) {
+            return ImmutableSet.of();
         }
 
-        return set;
+        return ImmutableSet.copyOf(
+                requireNonNullElements(hostnamePatterns, "hostnamePatterns"));
     }
 
     @Override
-    public Set<Pattern> hostnamePatterns() {
+    public final Optional<String> id() {
+        return Optional.ofNullable(id);
+    }
+
+    @Override
+    public final Set<Pattern> hostnamePatterns() {
         return hostnamePatterns;
     }
 
     @Override
-    public boolean matches(URI uri) {
+    public final boolean matches(URI uri) {
         requireNonNull(uri, "uri");
 
         final String host = uri.getHost();
@@ -83,9 +92,15 @@ abstract class AbstractMirrorCredential implements MirrorCredential {
     }
 
     @Override
-    public String toString() {
-        final ToStringHelper helper = MoreObjects.toStringHelper(this)
-                                                 .add("hostnamePatterns", hostnamePatterns);
+    public final String toString() {
+        final ToStringHelper helper = MoreObjects.toStringHelper(this);
+        if (id != null) {
+            helper.add("id", id);
+        }
+        if (!hostnamePatterns.isEmpty()) {
+            helper.add("hostnamePatterns", hostnamePatterns);
+        }
+
         addProperties(helper);
         return helper.toString();
     }

@@ -41,7 +41,8 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
     private final byte[] passphrase;
 
     @JsonCreator
-    public PublicKeyMirrorCredential(@JsonProperty("hostnamePatterns")
+    public PublicKeyMirrorCredential(@JsonProperty("id") @Nullable String id,
+                                     @JsonProperty("hostnamePatterns") @Nullable
                                      @JsonDeserialize(contentAs = Pattern.class)
                                      Iterable<Pattern> hostnamePatterns,
                                      @JsonProperty("username") String username,
@@ -49,7 +50,7 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
                                      @JsonProperty("privateKey") String privateKey,
                                      @JsonProperty("passphrase") @Nullable String passphrase) {
 
-        super(hostnamePatterns);
+        super(id, hostnamePatterns);
 
         this.username = requireNonEmpty(username, "username");
 
@@ -61,10 +62,11 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
         this.passphrase = decodeBase64OrUtf8(passphrase, "passphrase");
     }
 
-    public PublicKeyMirrorCredential(Iterable<Pattern> hostnamePatterns,
+    public PublicKeyMirrorCredential(@Nullable String id,
+                                     @Nullable Iterable<Pattern> hostnamePatterns,
                                      String username, byte[] publicKey, byte[] privateKey,
                                      @Nullable byte[] passphrase) {
-        super(hostnamePatterns);
+        super(id, hostnamePatterns);
 
         this.username = requireNonEmpty(username, "username");
         this.publicKey = requireNonEmpty(publicKey, "publicKey");
