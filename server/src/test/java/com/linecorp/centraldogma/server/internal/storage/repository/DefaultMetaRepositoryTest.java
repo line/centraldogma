@@ -46,6 +46,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.mirror.Mirror;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.NoneMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
@@ -58,6 +59,7 @@ public class DefaultMetaRepositoryTest {
             PATH_CREDENTIALS,
             "[{" +
             "  \"type\": \"password\"," +
+            "  \"id\": \"alice\"," +
             "  \"hostnamePatterns\": [ \"^foo\\\\.com$\" ]," +
             "  \"username\": \"alice\"," +
             "  \"password\": \"secret_a\"" +
@@ -173,11 +175,7 @@ public class DefaultMetaRepositoryTest {
         project.repos().create("bar", Author.SYSTEM);
         project.repos().create("qux", Author.SYSTEM);
 
-        // Get the mirror list and sort it by localRepo name alphabetically for easier testing.
-        final List<Mirror> mirrors = metaRepo.mirrors().stream()
-                                             .sorted(Comparator.comparing(m -> m.localRepo().name()))
-                                             .collect(Collectors.toList());
-
+        final List<Mirror> mirrors = findMirrors();
         assertThat(mirrors.stream()
                           .map(m -> m.localRepo().name())
                           .collect(Collectors.toList())).containsExactly("bar", "foo", "qux");
@@ -229,8 +227,31 @@ public class DefaultMetaRepositoryTest {
     }
 
     @Test
-    public void testMultipleTypeMirror() {
+    public void testSingleTypeMirrorWithCredentialId() {
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
+                        Change.ofJsonUpsert(
+                                PATH_MIRRORS,
+                                "[{" +
+                                "  \"type\": \"single\"," +
+                                "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                                "  \"localRepo\": \"qux\"," +
+                                "  \"remoteUri\": \"git+ssh://qux.net/qux.git\"," +
+                                "  \"credentialId\": \"alice\"" +
+                                "}]"), UPSERT_CREDENTIALS).join();
 
+        project.repos().create("qux", Author.SYSTEM);
+
+        final List<Mirror> mirrors = findMirrors();
+        assertThat(mirrors).hasSize(1);
+
+        final Mirror m = mirrors.get(0);
+        assertThat(m.localRepo().name()).isEqualTo("qux");
+        assertThat(m.credential()).isInstanceOf(PasswordMirrorCredential.class);
+        assertThat(((PasswordMirrorCredential) m.credential()).username()).isEqualTo("alice");
+    }
+
+    @Test
+    public void testMultipleTypeMirror() {
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
                                 PATH_MIRRORS,
@@ -274,11 +295,7 @@ public class DefaultMetaRepositoryTest {
         project.repos().create("bar.org", Author.SYSTEM);
         project.repos().create("qux.net", Author.SYSTEM);
 
-        // Get the mirror list and sort it by localRepo name alphabetically for easier testing.
-        final List<Mirror> mirrors = metaRepo.mirrors().stream()
-                                             .sorted(Comparator.comparing(m -> m.localRepo().name()))
-                                             .collect(Collectors.toList());
-
+        final List<Mirror> mirrors = findMirrors();
         assertThat(mirrors.stream()
                           .map(m -> m.localRepo().name())
                           .collect(Collectors.toList())).containsExactly("bar.org", "foo.com", "qux.net");
@@ -321,5 +338,56 @@ public class DefaultMetaRepositoryTest {
         assertThat(foo.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);
         assertThat(bar.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);
         assertThat(qux.direction()).isEqualTo(MirrorDirection.REMOTE_TO_LOCAL);
+    }
+
+    @Test
+    public void testMultipleTypeMirrorWithCredentialId() {
+        metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
+                        Change.ofJsonUpsert(
+                                PATH_MIRRORS,
+                                "[{" + // foo and bar will use 'credentialId' under 'includes'.
+                                "  \"type\": \"multiple\"," +
+                                "  \"defaultDirection\": \"REMOTE_TO_LOCAL\"," +
+                                "  \"includes\": [{" +
+                                "    \"pattern\": \"^(foo|bar)$\"," +
+                                "    \"replacement\": \"git+ssh://$1.net/repo.git\"," +
+                                "    \"credentialId\": \"alice\"" +
+                                "  }]" +
+                                "}, {" + // qux will use 'defaultCredentialId'.
+                                "  \"type\": \"multiple\"," +
+                                "  \"defaultDirection\": \"REMOTE_TO_LOCAL\"," +
+                                "  \"defaultCredentialId\": \"alice\"," +
+                                "  \"includes\": [{" +
+                                "    \"pattern\": \"^(qux)$\"," +
+                                "    \"replacement\": \"git+ssh://$1.net/repo.git\"" +
+                                "  }]" +
+                                "}]"), UPSERT_CREDENTIALS).join();
+
+        // When no matching repositories exist.
+        assertThat(metaRepo.mirrors()).isEmpty();
+
+        project.repos().create("foo", Author.SYSTEM);
+        project.repos().create("bar", Author.SYSTEM);
+        project.repos().create("qux", Author.SYSTEM);
+
+        final List<Mirror> mirrors = findMirrors();
+        assertThat(mirrors.stream()
+                          .map(m -> m.localRepo().name())
+                          .collect(Collectors.toList())).containsExactly("bar", "foo", "qux");
+
+        // Ensure that the three mirrors use the same correct credential.
+        final MirrorCredential fooCredential = mirrors.get(1).credential();
+        assertThat(fooCredential).isInstanceOf(PasswordMirrorCredential.class);
+        assertThat(((PasswordMirrorCredential) fooCredential).username()).isEqualTo("alice");
+
+        assertThat(mirrors.get(0).credential()).isSameAs(fooCredential);
+        assertThat(mirrors.get(2).credential()).isSameAs(fooCredential);
+    }
+
+    private List<Mirror> findMirrors() {
+        // Get the mirror list and sort it by localRepo name alphabetically for easier testing.
+        return metaRepo.mirrors().stream()
+                       .sorted(Comparator.comparing(m -> m.localRepo().name()))
+                       .collect(Collectors.toList());
     }
 }

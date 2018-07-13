@@ -21,6 +21,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -32,12 +34,13 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
     private final String password;
 
     @JsonCreator
-    public PasswordMirrorCredential(@JsonProperty("hostnamePatterns")
+    public PasswordMirrorCredential(@JsonProperty("id") @Nullable String id,
+                                    @JsonProperty("hostnamePatterns") @Nullable
                                     @JsonDeserialize(contentAs = Pattern.class)
                                     Iterable<Pattern> hostnamePatterns,
                                     @JsonProperty("username") String username,
                                     @JsonProperty("password") String password) {
-        super(hostnamePatterns);
+        super(id, hostnamePatterns);
 
         this.username = requireNonEmpty(username, "username");
         this.password = requireNonNull(password, "password");

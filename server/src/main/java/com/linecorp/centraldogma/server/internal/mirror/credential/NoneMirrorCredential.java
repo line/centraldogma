@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.internal.mirror.credential;
 
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -26,10 +28,11 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 public final class NoneMirrorCredential extends AbstractMirrorCredential {
 
     @JsonCreator
-    public NoneMirrorCredential(@JsonProperty("hostnamePatterns")
+    public NoneMirrorCredential(@JsonProperty("id") @Nullable String id,
+                                @JsonProperty("hostnamePatterns") @Nullable
                                 @JsonDeserialize(contentAs = Pattern.class)
                                 Iterable<Pattern> hostnamePatterns) {
-        super(hostnamePatterns);
+        super(id, hostnamePatterns);
     }
 
     @Override

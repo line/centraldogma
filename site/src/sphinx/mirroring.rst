@@ -49,7 +49,8 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
         "direction": "REMOTE_TO_LOCAL",
         "localRepo": "foo",
         "localPath": "/",
-        "remoteUri": "git+ssh://git.example.com/foo.git/settings#release"
+        "remoteUri": "git+ssh://git.example.com/foo.git/settings#release",
+        "credentialId": "my_private_key"
       }
     ]
 
@@ -57,11 +58,11 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
 
   - the type of the mirroring task. Use ``single``.
 
-- ``enabled`` (boolean)
+- ``enabled`` (boolean, optional)
 
   - whether the mirroring task is enabled. Enabled by default if unspecified.
 
-- ``schedule`` (string)
+- ``schedule`` (string, optional)
 
   - a `Quartz cron expression <http://www.quartz-scheduler.org/documentation/quartz-2.x/tutorials/crontrigger.html>`_
     that describes when the mirroring task is supposed to be triggered. If unspecified, ``0 * * * * ?``
@@ -76,7 +77,7 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
   - the Central Dogma repository name. The content under the location specified in ``remoteUri`` will be
     mirrored into this repository.
 
-- ``localPath`` (string)
+- ``localPath`` (string, optional)
 
   - the directory path in ``localRepo``. The content under the location specified in ``remoteUri`` will be
     mirrored into this directory in ``localRepo``. If unspecified, ``/`` is used.
@@ -96,6 +97,12 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
     end the URI with ``.git``. e.g. ``git+ssh://git.example.com/foo.git``
   - Fragment represents a branch name. e.g. ``#release`` will mirror the branch ``release``. If unspecified,
     the branch ``master`` is mirrored.
+
+- ``credentialId`` (string, optional)
+
+  - the ID of the credential to use for authentication, as defined in ``/credentials.json``. If unspecified,
+    the credential whose ``hostnamePattern`` is matched by the host name part of the ``remoteUri`` value will
+    be selected automatically.
 
 ``/credentials.json`` contains the authentication credentials which are required when accessing the Git
 repositories defined in ``/mirrors.json``:
@@ -118,6 +125,7 @@ repositories defined in ``/mirrors.json``:
         "password": "secret!"
       },
       {
+        "id": "my_private_key",
         "type": "public_key",
         "hostnamePatterns": [
           "^.*\.secure\.com$"
@@ -129,14 +137,20 @@ repositories defined in ``/mirrors.json``:
       }
     ]
 
+- ``id`` (string, optional)
+
+  - the ID of the credential. You can specify the value of this field in the ``credentialId`` field of the
+    mirror definitions in ``/mirrors.json``.
+
 - ``type`` (string)
 
   - the type of authentication mechanism: ``none``, ``password`` or ``public_key``.
 
-- ``hostnamePatterns`` (array of strings)
+- ``hostnamePatterns`` (array of strings, optional)
 
   - the regular repressions that matches a host name. The credential whose hostname pattern matches first will
-    be used when accessing a host.
+    be used when accessing a host. You may want to omit this field if you do not want the credential to be
+    selected automatically, i.e. a mirror has to specify the ``credentialId`` field.
 
 - ``username`` (string)
 

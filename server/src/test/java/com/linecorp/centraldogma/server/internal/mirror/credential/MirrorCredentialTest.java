@@ -23,6 +23,8 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
+
 import org.junit.Test;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
@@ -39,27 +41,27 @@ public class MirrorCredentialTest {
 
     @Test
     public void testConstruction() {
-        // null checks
-        assertThatThrownBy(() -> new MirrorCredentialImpl(null))
+        // Without ID and hostnamePatterns, i.e. effectively disabled.
+        assertThat(new MirrorCredentialImpl(null, null).id()).isEmpty();
+        assertThat(new MirrorCredentialImpl(null, null).hostnamePatterns()).isEmpty();
+
+        // Without ID and with hostnamePatterns that contain null.
+        assertThatThrownBy(() -> new MirrorCredentialImpl(null, INVALID_PATTERNS))
                 .isInstanceOf(NullPointerException.class);
 
-        // null element checks
-        assertThatThrownBy(() -> new MirrorCredentialImpl(INVALID_PATTERNS))
-                .isInstanceOf(NullPointerException.class);
+        // Without ID and with an empty hostnamePatterns.
+        assertThat(new MirrorCredentialImpl(null, ImmutableSet.of()).hostnamePatterns()).isEmpty();
 
-        // emptiness checks
-        assertThatThrownBy(() -> new MirrorCredentialImpl(ImmutableSet.of()))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        // successful construction
-        final MirrorCredential c = new MirrorCredentialImpl(HOSTNAME_PATTERNS);
+        // With ID and non-empty hostnamePatterns.
+        final MirrorCredential c = new MirrorCredentialImpl("foo", HOSTNAME_PATTERNS);
+        assertThat(c.id()).contains("foo");
         assertThat(c.hostnamePatterns().stream().map(Pattern::pattern)
                     .collect(Collectors.toSet())).containsExactly("^foo\\.com$");
     }
 
     private static final class MirrorCredentialImpl extends AbstractMirrorCredential {
-        MirrorCredentialImpl(Iterable<Pattern> hostnamePatterns) {
-            super(hostnamePatterns);
+        MirrorCredentialImpl(@Nullable String id, @Nullable Iterable<Pattern> hostnamePatterns) {
+            super(id, hostnamePatterns);
         }
 
         @Override

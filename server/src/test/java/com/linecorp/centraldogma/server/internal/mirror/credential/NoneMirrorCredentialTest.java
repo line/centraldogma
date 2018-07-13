@@ -29,12 +29,19 @@ import com.linecorp.centraldogma.internal.Jackson;
 public class NoneMirrorCredentialTest {
     @Test
     public void testDeserialization() throws Exception {
+        // With hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"none\"," +
                                      "  \"hostnamePatterns\": [" +
                                      "    \"^foo\\\\.com$\"" +
                                      "  ]" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new NoneMirrorCredential(ImmutableSet.of(Pattern.compile("^foo\\.com$"))));
+                .isEqualTo(new NoneMirrorCredential(null, ImmutableSet.of(Pattern.compile("^foo\\.com$"))));
+        // With ID
+        assertThat(Jackson.readValue('{' +
+                                     "  \"type\": \"none\"," +
+                                     "  \"id\": \"foo\"" +
+                                     '}', MirrorCredential.class))
+                .isEqualTo(new NoneMirrorCredential("foo", null));
     }
 }
