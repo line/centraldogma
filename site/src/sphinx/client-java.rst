@@ -379,6 +379,6 @@ Once configured correctly, you would be able to run an application like the foll
 
 Read the Javadoc
 ----------------
-Refer to `the API documentation of 'CentralDogma' interface <apidocs/index.html?com/linecorp/centraldogma/client/CentralDogma.html>`_
+Refer to `the API documentation of 'CentralDogma' interface <apidocs/com/linecorp/centraldogma/client/CentralDogma.html>`_
 for the complete list of operations you can perform with a Central Dogma server, which should be definitely
 much more than what this tutorial covers, such as fetching and watching multiple files.
