@@ -1,5 +1,5 @@
 .. _`Apache Shiro`: https://shiro.apache.org/
-.. _`the Caffeine API documentation`: https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.5.5/index.html?com/github/benmanes/caffeine/cache/CaffeineSpec.html
+.. _`the Caffeine API documentation`: https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html
 
 
 .. _setup-configuration:
