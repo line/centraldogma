@@ -9,9 +9,9 @@ First of all, thank you so much for taking your time to contribute! Central Dogm
 
 ### Contributor license agreement
 
-If you are sending a pull request and it's a non-trivial change beyond fixing typos, please make sure to sign
-[the ICLA (individual contributor license agreement)](https://feedback.line.me/enquete/public/2183-v2w9HqrE).
-Please contact us if you need the CCLA (corporate contributor license agreement).
+When you are sending a pull request and it's a non-trivial change beyond fixing typos, please sign
+[the ICLA (individual contributor license agreement)](https://cla-assistant.io/line/centraldogma).
+Please [contact us](dl_oss_dev@linecorp.com) if you need the CCLA (corporate contributor license agreement).
 
 ### Code of conduct
 
