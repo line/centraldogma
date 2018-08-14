@@ -57,9 +57,8 @@ configure(projectsWithFlags('java')) {
         // Caffeine
         compile 'com.github.ben-manes.caffeine:caffeine'
 
-        // completable-futures & futures-extra
+        // completable-futures
         compile 'com.spotify:completable-futures'
-        compile 'com.spotify:futures-extra'
 
         // cron-utils
         compile 'com.cronutils:cron-utils'
@@ -133,7 +132,6 @@ configure(projectsWithFlags('java')) {
         }
     }
     configurations.jmh.extendsFrom configurations.testRuntime
-
 
     // Add common JVM options such as max memory and leak detection.
     tasks.withType(JavaForkOptions) {

@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.68.1
+- com.linecorp.armeria:armeria-bom:0.69.0
 
 com.beust:
   jcommander: { version: '1.72' }
@@ -76,11 +76,6 @@ com.spotify:
     relocations:
     - from: com.spotify.futures
       to:   com.linecorp.centraldogma.internal.shaded.futures
-  futures-extra:
-    version: '3.1.1'
-    relocations:
-    - from: com.spotify.futures
-      to:   com.linecorp.centraldogma.internal.shaded.futures
 
 commons-daemon:
   commons-daemon:
@@ -116,7 +111,7 @@ org.apache.thrift:
   libthrift: { version: '0.9.3' }
 
 org.eclipse.jgit:
-  org.eclipse.jgit: { version: '5.0.1.201806211838-r' }
+  org.eclipse.jgit: { version: '5.0.2.201807311906-r' }
 
 org.javassist:
   javassist: { version: '3.23.1-GA' }
