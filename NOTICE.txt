@@ -190,11 +190,6 @@ This product depends on FindBugs-JSR305, distributed by
   * License: licenses/LICENSE.jsr305.al20.txt (Apache License v2.0)
   * Homepage: http://findbugs.sourceforge.net/
 
-This product depends on futures-extra, distributed by Spotify AB:
-
-  * License: license/LICENSE.futures-extra.al20.txt (Apache License v2.0)
-  * Homepage: https://github.com/spotify/futures-extra
-
 This product depends on Guava, distributed by Google:
 
   * License: licenses/LICENSE.guava.al20.txt (Apache License v2.0)
