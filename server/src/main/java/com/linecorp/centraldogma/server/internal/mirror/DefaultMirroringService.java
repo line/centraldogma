@@ -30,15 +30,18 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.spotify.futures.FuturesExtra;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -120,10 +123,15 @@ public final class DefaultMirroringService implements MirroringService {
                 this::schedulePendingMirrors,
                 TICK.getSeconds(), TICK.getSeconds(), TimeUnit.SECONDS);
 
-        FuturesExtra.addFailureCallback(
-                future,
-                cause -> logger.error("Git-to-CD mirroring scheduler stopped due to an unexpected exception:",
-                                      cause));
+        Futures.addCallback(future, new FutureCallback<Object>() {
+            @Override
+            public void onSuccess(@Nullable Object result) {}
+
+            @Override
+            public void onFailure(Throwable cause) {
+                logger.error("Git-to-CD mirroring scheduler stopped due to an unexpected exception:", cause);
+            }
+        }, MoreExecutors.directExecutor());
     }
 
     public synchronized void stop() {
@@ -184,9 +192,15 @@ public final class DefaultMirroringService implements MirroringService {
                       .filter(m -> m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0)
                       .forEach(m -> {
                           final ListenableFuture<?> future = worker.submit(() -> run(m, true));
-                          FuturesExtra.addFailureCallback(
-                                  future,
-                                  cause -> logger.warn("Unexpected Git-to-CD mirroring failure: {}", m, cause));
+                          Futures.addCallback(future, new FutureCallback<Object>() {
+                              @Override
+                              public void onSuccess(@Nullable Object result) {}
+
+                              @Override
+                              public void onFailure(Throwable cause) {
+                                  logger.warn("Unexpected Git-to-CD mirroring failure: {}", m, cause);
+                              }
+                          }, MoreExecutors.directExecutor());
                       });
     }
 
