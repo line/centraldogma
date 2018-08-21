@@ -16,7 +16,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('projectNew', {
                     parent: 'entity',
-                    url: '/project/new',
+                    url: '/new_project',
                     data: {
                       roles: [CentralDogmaConstant.LEVEL_USER]
                     },
@@ -29,7 +29,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('project', {
                     parent: 'entity',
-                    url: '/:projectName',
+                    url: '/projects/:projectName',
                     data: {},
                     views: {
                       'content@': {

@@ -1,6 +1,6 @@
 <div ng-cloak>
   <h2>
-    <a ng-href="#">Projects</a> / {{project.name}}
+    <a ng-href="#/projects">Projects</a> / {{project.name}}
     <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
       <a type="button" class="btn btn-xs" ng-click="removeProject()">
         <span class="glyphicon glyphicon-trash"></span>
@@ -23,7 +23,7 @@
     <tbody>
     <tr ng-repeat="repo in metadata.repos" ng-switch="repo.isActive">
       <td ng-switch-when="true">
-        <a ng-href="#/{{project.name}}/{{repo.name}}">
+        <a ng-href="#/projects/{{project.name}}/repos/{{repo.name}}">
           <span class="glyphicon">{{repo.name}}</span>
         </a>
       </td>
@@ -52,7 +52,7 @@
   <hr />
   <div class="row">
     <div class="pull-right" has-role="LEVEL_USER" ng-if="isOwner()">
-      <a type="button" class="btn btn-primary" ng-href="#/{{project.name}}/new">
+      <a type="button" class="btn btn-primary" ng-href="#/projects/{{project.name}}/new_repo">
         <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_create_repository' | translate }}
       </a>
     </div>

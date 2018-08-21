@@ -19,7 +19,7 @@ angular.module('CentralDogmaAdmin')
                   $scope.selectedFile = null;
 
                   $scope.setRevision = function (revision) {
-                    $location.path('/' + $scope.project.name + '/' + $scope.repository.name +
+                    $location.path('/projects/' + $scope.project.name + '/repos/' + $scope.repository.name +
                                    '/list/' + revision + $scope.path);
                   };
 

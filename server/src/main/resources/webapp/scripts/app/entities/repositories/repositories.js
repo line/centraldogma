@@ -5,7 +5,7 @@ angular.module('CentralDogmaAdmin')
               $stateProvider
                   .state('repositoryNew', {
                     parent: 'entity',
-                    url: '/:projectName/new',
+                    url: '/projects/:projectName/new_repo',
                     data: {},
                     views: {
                       'content@': {
@@ -16,7 +16,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('repository', {
                     parent: 'entity',
-                    url: '/:projectName/:repositoryName',
+                    url: '/projects/:projectName/repos/:repositoryName',
                     data: {},
                     views: {
                       'content@': {
@@ -27,7 +27,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('repositoryTree', {
                     parent: 'entity',
-                    url: '/:projectName/:repositoryName/list/:revision/{path:repositoryPath}',
+                    url: '/projects/:projectName/repos/:repositoryName/list/:revision/{path:repositoryPath}',
                     data: {},
                     views: {
                       'content@': {
@@ -38,7 +38,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('repositoryFile', {
                     parent: 'entity',
-                    url: '/:projectName/:repositoryName/files/:revision/{path:repositoryPath}',
+                    url: '/projects/:projectName/repos/:repositoryName/files/:revision/{path:repositoryPath}',
                     data: {},
                     views: {
                       'content@': {
@@ -49,7 +49,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('repositoryFileNew', {
                     parent: 'entity',
-                    url: '/:projectName/:repositoryName/new/:revision/{path:repositoryPath}',
+                    url: '/projects/:projectName/repos/:repositoryName/new_file/:revision/{path:repositoryPath}',
                     data: {
                       roles: [CentralDogmaConstant.LEVEL_USER]
                     },
@@ -63,7 +63,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('repositoryFileEdit', {
                     parent: 'entity',
-                    url: '/:projectName/:repositoryName/edit/:revision/{path:repositoryPath}',
+                    url: '/projects/:projectName/repos/:repositoryName/edit/:revision/{path:repositoryPath}',
                     data: {
                       roles: [CentralDogmaConstant.LEVEL_USER]
                     },
@@ -77,7 +77,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('repositoryHistory', {
                     parent: 'entity',
-                    url: '/:projectName/:repositoryName/history/:revision/{path:repositoryPath}',
+                    url: '/projects/:projectName/repos/:repositoryName/history/:revision/{path:repositoryPath}',
                     data: {},
                     views: {
                       'content@': {
@@ -88,7 +88,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('repositorySearch', {
                     parent: 'entity',
-                    url: '/:projectName/:repositoryName/search/:revision?term',
+                    url: '/projects/:projectName/repos/:repositoryName/search/:revision?term',
                     data: {},
                     views: {
                       'content@': {
@@ -99,7 +99,7 @@ angular.module('CentralDogmaAdmin')
                   })
                   .state('repositoryQuery', {
                     parent: 'entity',
-                    url: '/:projectName/:repositoryName/query/:revision/{path:repositoryPath}?expression',
+                    url: '/projects/:projectName/repos/:repositoryName/query/:revision/{path:repositoryPath}?expression',
                     data: {},
                     views: {
                       'content@': {

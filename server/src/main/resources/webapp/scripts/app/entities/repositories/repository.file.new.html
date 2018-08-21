@@ -11,15 +11,15 @@
 
       <p class="form-control-static">
         <span>
-          <a ng-href="#/{{project.name}}">{{project.name}}</a> /
+          <a ng-href="#/projects/{{project.name}}">{{project.name}}</a> /
         </span>
         <span>
-          <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}/">
+          <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}/">
             <strong>{{repository.name}}</strong>
           </a>
         </span>
         <span>
-          @ <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}/">{{revision}}</a>
+          @ <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}/">{{revision}}</a>
         </span>
       </p>
     </div>

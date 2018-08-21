@@ -8,8 +8,8 @@
   <div class="row">
     <div class="col-xs-6">
       <p style="font-size: large;">
-        <a ng-href="#/{{project.name}}">{{project.name}}</a> /
-        <a ng-href="#/{{project.name}}/{{repository.name}}"><strong>{{repository.name}}</strong></a>
+        <a ng-href="#/projects/{{project.name}}">{{project.name}}</a> /
+        <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}"><strong>{{repository.name}}</strong></a>
       </p>
     </div>
     <div class="col-xs-6">
@@ -24,21 +24,21 @@
 
   <p>
     <span>
-      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}/">
+      <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}/">
         <strong>{{repository.name}}</strong>
       </a>
     </span>
     <span ng-repeat="parsedPath in parsedPaths" ng-if="!$first">
       /
-      <a ng-if="!$last" ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
+      <a ng-if="!$last" ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
         {{parsedPath.name}}
       </a>
       <a ng-if="$last && file.type !== 'DIRECTORY'"
-         ng-href="#/{{project.name}}/{{repository.name}}/files/{{revision}}{{parsedPath.path}}">
+         ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/files/{{revision}}{{parsedPath.path}}">
         {{parsedPath.name}}
       </a>
       <a ng-if="$last && file.type === 'DIRECTORY'"
-         ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
+         ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
         {{parsedPath.name}}
       </a>
     </span>
@@ -56,7 +56,7 @@
     <tbody>
     <tr ng-repeat="commit in commits">
       <td>
-        <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{commit.revision.revisionNumber}}{{path}}">
+        <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{commit.revision.revisionNumber}}{{path}}">
           {{commit.revision.revisionNumber}}
         </a>
       </td>
