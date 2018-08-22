@@ -20,7 +20,7 @@ angular.module('CentralDogmaAdmin')
                   $scope.commits = [];
 
                   $scope.setRevision = function (revision) {
-                    $location.path('/' + $scope.project.name + '/' + $scope.repository.name +
+                    $location.path('/projects/' + $scope.project.name + '/repos/' + $scope.repository.name +
                                    '/history/' + revision + $scope.path);
                   };
 

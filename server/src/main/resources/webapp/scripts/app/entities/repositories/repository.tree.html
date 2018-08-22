@@ -8,8 +8,8 @@
   <div class="row">
     <div class="col-xs-6">
       <p style="font-size: large;">
-        <a ng-href="#/{{project.name}}">{{project.name}}</a> /
-        <a ng-href="#/{{project.name}}/{{repository.name}}"><strong>{{repository.name}}</strong></a>
+        <a ng-href="#/projects/{{project.name}}">{{project.name}}</a> /
+        <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}"><strong>{{repository.name}}</strong></a>
       </p>
     </div>
     <div class="col-xs-6">
@@ -24,13 +24,13 @@
 
   <p>
     <span>
-      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}/">
+      <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}/">
         <strong>{{repository.name}}</strong>
       </a>
     </span>
     <span ng-repeat="parsedPath in parsedPaths" ng-if="!$first">
       /
-      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
+      <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
         {{parsedPath.name}}
       </a>
     </span>
@@ -41,7 +41,7 @@
     <tr ng-if="parsedPaths.length > 1">
       <td style="width: 20px;"><span class="glyphicon glyphicon-level-up"></span></td>
       <td>
-        <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPaths[parsedPaths.length-2].path}}">..</a>
+        <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}{{parsedPaths[parsedPaths.length-2].path}}">..</a>
       </td>
     </tr>
     <tr ng-if="files.length == 0">
@@ -55,9 +55,9 @@
       </td>
       <td>
         <a ng-if="file.type === 'DIRECTORY'"
-           ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{file.path}}">{{file.name}}</a>
+           ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}{{file.path}}">{{file.name}}</a>
         <a ng-if="file.type !== 'DIRECTORY'"
-           ng-href="#/{{project.name}}/{{repository.name}}/files/{{revision}}{{file.path}}">{{file.name}}</a>
+           ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/files/{{revision}}{{file.path}}">{{file.name}}</a>
       </td>
     </tr>
     </tbody>
@@ -68,7 +68,7 @@
   <div class="row">
     <div class="col-xs-12 col-sm-6">
       <a type="button" class="btn btn-default"
-         ng-href="#/{{project.name}}/{{repository.name}}/history/{{revision}}{{path}}">
+         ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/history/{{revision}}{{path}}">
         <span class="glyphicon glyphicon-option-vertical"></span> {{ 'entities.button_history' | translate }}
       </a>
     </div>
@@ -76,7 +76,7 @@
     <div class="col-xs-12 col-sm-6">
       <div class="pull-right" has-role="LEVEL_USER">
         <a type="button" class="btn btn-primary"
-           ng-href="#/{{project.name}}/{{repository.name}}/new/{{revision}}{{path}}">
+           ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/new_file/{{revision}}{{path}}">
           <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_create' | translate }}
         </a>
         <button class="btn btn-danger"

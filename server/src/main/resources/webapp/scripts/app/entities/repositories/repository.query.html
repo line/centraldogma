@@ -8,8 +8,8 @@
   <div class="row">
     <div class="col-xs-6">
       <p style="font-size: large;">
-        <a ng-href="#/{{project.name}}">{{project.name}}</a> /
-        <a ng-href="#/{{project.name}}/{{repository.name}}"><b>{{repository.name}}</b></a>
+        <a ng-href="#/projects/{{project.name}}">{{project.name}}</a> /
+        <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}"><b>{{repository.name}}</b></a>
       </p>
     </div>
     <div class="col-xs-6">
@@ -24,13 +24,13 @@
 
   <p>
     <span>
-      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}/">
+      <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}/">
         <strong>{{repository.name}}</strong>
       </a>
     </span>
     <span ng-repeat="parsedPath in parsedPaths" ng-if="!$first && !$last">
       /
-      <a ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
+      <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}{{parsedPath.path}}">
         {{parsedPath.name}}
       </a>
     </span>

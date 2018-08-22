@@ -8,8 +8,8 @@
   <div class="row">
     <div class="col-xs-6">
       <p style="font-size: large;">
-        <a ng-href="#/{{project.name}}">{{project.name}}</a> /
-        <a ng-href="#/{{project.name}}/{{repository.name}}"><b>{{repository.name}}</b></a>
+        <a ng-href="#/projects/{{project.name}}">{{project.name}}</a> /
+        <a ng-href="#/projects/{{project.name}}/repos/{{repository.name}}"><b>{{repository.name}}</b></a>
       </p>
     </div>
     <div class="col-xs-6">
@@ -35,11 +35,11 @@
       </td>
       <td>
         <a ng-if="file.type === 'DIRECTORY'"
-           ng-href="#/{{project.name}}/{{repository.name}}/list/{{revision}}{{file.path}}">
+           ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/list/{{revision}}{{file.path}}">
           {{file.path}}
         </a>
         <a ng-if="file.type !== 'DIRECTORY'"
-           ng-href="#/{{project.name}}/{{repository.name}}/files/{{revision}}{{file.path}}">
+           ng-href="#/projects/{{project.name}}/repos/{{repository.name}}/files/{{revision}}{{file.path}}">
           {{file.path}}
         </a>
       </td>

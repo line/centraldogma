@@ -6,7 +6,7 @@
   <table class="table table-hover table-responsive">
     <tbody>
     <tr ng-repeat="project in projects">
-      <td><a ng-href="#/{{project.name}}">{{project.name}}</a></td>
+      <td><a ng-href="#/projects/{{project.name}}">{{project.name}}</a></td>
       <div has-role="LEVEL_USER">
         <td align="right">
           <a ng-click="movePageIfAccessible(project.name)">
@@ -22,7 +22,7 @@
 
   <div class="row">
     <div class="pull-right" has-role="LEVEL_USER">
-      <a ng-href="#/project/new" type="button" class="btn btn-primary">
+      <a ng-href="#/new_project" type="button" class="btn btn-primary">
         <span class="glyphicon glyphicon-plus"></span> {{ 'entities.button_create_project' | translate }}
       </a>
     </div>
