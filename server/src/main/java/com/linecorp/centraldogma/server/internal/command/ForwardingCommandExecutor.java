@@ -20,8 +20,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
-
 import com.linecorp.centraldogma.internal.Util;
 
 public class ForwardingCommandExecutor implements CommandExecutor {
@@ -37,18 +35,8 @@ public class ForwardingCommandExecutor implements CommandExecutor {
     }
 
     @Override
-    public String replicaId() {
+    public int replicaId() {
         return delegate().replicaId();
-    }
-
-    @Override
-    public void start(@Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership) {
-        delegate().start(onTakeLeadership, onReleaseLeadership);
-    }
-
-    @Override
-    public void stop() {
-        delegate().stop();
     }
 
     @Override
@@ -57,12 +45,22 @@ public class ForwardingCommandExecutor implements CommandExecutor {
     }
 
     @Override
+    public CompletableFuture<Void> start() {
+        return delegate().start();
+    }
+
+    @Override
+    public CompletableFuture<Void> stop() {
+        return delegate().stop();
+    }
+
+    @Override
     public <T> CompletableFuture<T> execute(Command<T> command) {
         return delegate().execute(command);
     }
 
     @Override
-    public <T> CompletableFuture<T> execute(String replicaId, Command<T> command) {
+    public <T> CompletableFuture<T> execute(int replicaId, Command<T> command) {
         return delegate().execute(replicaId, command);
     }
 

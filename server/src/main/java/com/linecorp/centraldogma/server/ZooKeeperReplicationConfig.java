@@ -16,27 +16,45 @@
 
 package com.linecorp.centraldogma.server;
 
-import static com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor.DEFAULT_MAX_LOG_COUNT;
-import static com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor.DEFAULT_MIN_LOG_AGE_MILLIS;
-import static com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor.DEFAULT_NUM_WORKERS;
-import static com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor.DEFAULT_TIMEOUT_MILLIS;
+import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
+
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.Enumeration;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
+import io.netty.util.NetUtil;
 
 /**
  * ZooKeeper-based replication configuration.
  */
 public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
-    private final String connectionString;
-    private final String pathPrefix;
+    private static final int DEFAULT_TIMEOUT_MILLIS = 10000;
+    private static final int DEFAULT_NUM_WORKERS = 16;
+    private static final int DEFAULT_MAX_LOG_COUNT = 1024;
+    private static final long DEFAULT_MIN_LOG_AGE_MILLIS = TimeUnit.DAYS.toMillis(1);
+    private static final String DEFAULT_SECRET = "ch4n63m3";
+
+    private final int serverId;
+    private final Map<Integer, ZooKeeperAddress> servers;
+    private final String secret;
+    private final Map<String, String> additionalProperties;
     private final int timeoutMillis;
     private final int numWorkers;
     private final int maxLogCount;
@@ -45,49 +63,56 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     /**
      * Creates a new replication configuration.
      *
-     * @param connectionString the ZooKeeper connection string.
-     *                         e.g. {@code "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181"}
-     * @param pathPrefix the ZooKeeper path prefix. e.g. {@code "/service/dogma"}
+     * @param serverId the ID of this ZooKeeper server in {@code servers}
+     * @param servers the ZooKeeper server addresses, keyed by their ZooKeeper server IDs
      */
-    public ZooKeeperReplicationConfig(String connectionString, String pathPrefix) {
-        this(connectionString, pathPrefix, null, null, null, null);
+    public ZooKeeperReplicationConfig(int serverId, Map<Integer, ZooKeeperAddress> servers) {
+        this(serverId, servers, null, null, null, null, null, null);
     }
 
-    /**
-     * Creates a new replication configuration.
-     *
-     * @param connectionString the ZooKeeper connection string.
-     *                         e.g. {@code "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181"}
-     * @param pathPrefix the ZooKeeper path prefix. e.g. {@code "/service/dogma"}
-     * @param timeoutMillis the ZooKeeper timeout, in milliseconds
-     * @param numWorkers the number of worker threads dedicated for replication
-     * @param maxLogCount the maximum number of log items to keep in ZooKeeper. Note that the log items will
-     *                    still not be removed if they are younger than {@code minLogAgeMillis}.
-     * @param minLogAgeMillis the minimum allowed age of log items before they are removed from ZooKeeper
-     */
-    public ZooKeeperReplicationConfig(String connectionString, String pathPrefix,
+    @VisibleForTesting
+    ZooKeeperReplicationConfig(
+            int serverId, Map<Integer, ZooKeeperAddress> servers, String secret,
+            Map<String, String> additionalProperties,
             int timeoutMillis, int numWorkers, int maxLogCount, long minLogAgeMillis) {
-        this(connectionString, pathPrefix, Integer.valueOf(timeoutMillis),
+        this(Integer.valueOf(serverId), servers, secret, additionalProperties, Integer.valueOf(timeoutMillis),
              Integer.valueOf(numWorkers), Integer.valueOf(maxLogCount), Long.valueOf(minLogAgeMillis));
     }
 
     @JsonCreator
-    ZooKeeperReplicationConfig(@JsonProperty("connectionString") String connectionString,
-                               @JsonProperty("pathPrefix") String pathPrefix,
+    ZooKeeperReplicationConfig(@JsonProperty("serverId") @Nullable Integer serverId,
+                               @JsonProperty("servers")
+                               @JsonDeserialize(keyAs = Integer.class, contentAs = ZooKeeperAddress.class)
+                               @Nullable Map<Integer, ZooKeeperAddress> servers,
+                               @JsonProperty("secret") @Nullable String secret,
+                               @JsonProperty("additionalProperties")
+                               @JsonDeserialize(keyAs = String.class, contentAs = String.class)
+                               @Nullable Map<String, String> additionalProperties,
                                @JsonProperty("timeoutMillis") @Nullable Integer timeoutMillis,
                                @JsonProperty("numWorkers") @Nullable Integer numWorkers,
                                @JsonProperty("maxLogCount") @Nullable Integer maxLogCount,
                                @JsonProperty("minLogAgeMillis") @Nullable Long minLogAgeMillis) {
 
-        this.connectionString = requireNonNull(connectionString, "connectionString");
-        this.pathPrefix = requireNonNull(pathPrefix, "pathPrefix");
+        requireNonNull(servers, "servers");
+        this.serverId = serverId != null ? serverId : findServerId(servers);
+        checkArgument(this.serverId > 0, "serverId: %s (expected: > 0)", serverId);
 
-        int timeoutMillisValue = timeoutMillis != null ? timeoutMillis : DEFAULT_TIMEOUT_MILLIS;
-        if (timeoutMillisValue <= 0) {
-            timeoutMillisValue = DEFAULT_TIMEOUT_MILLIS;
-        }
+        this.secret = firstNonNull(secret, DEFAULT_SECRET);
+        checkArgument(!this.secret.isEmpty(), "secret is empty.");
 
-        this.timeoutMillis = timeoutMillisValue;
+        servers.forEach((id, server) -> {
+            checkArgument(id > 0, "servers contains non-positive server ID: %s (expected: > 0)", id);
+        });
+        this.servers = ImmutableMap.copyOf(servers);
+
+        checkArgument(!this.servers.isEmpty(), "servers is empty.");
+        checkArgument(this.servers.containsKey(this.serverId),
+                      "servers must contain the server '%s'.", this.serverId);
+
+        this.additionalProperties = firstNonNull(additionalProperties, ImmutableMap.of());
+
+        this.timeoutMillis =
+                timeoutMillis == null || timeoutMillis <= 0 ? DEFAULT_TIMEOUT_MILLIS : timeoutMillis;
 
         this.numWorkers =
                 numWorkers == null || numWorkers <= 0 ? DEFAULT_NUM_WORKERS : numWorkers;
@@ -99,31 +124,107 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
                 minLogAgeMillis == null || minLogAgeMillis <= 0 ? DEFAULT_MIN_LOG_AGE_MILLIS : minLogAgeMillis;
     }
 
+    private static int findServerId(Map<Integer, ZooKeeperAddress> servers) {
+        int serverId = -1;
+        try {
+            for (final Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+                 e.hasMoreElements();) {
+                serverId = findServerId(servers, serverId, e.nextElement());
+            }
+        } catch (SocketException e) {
+            throw new IllegalStateException("failed to retrieve the network interface list", e);
+        }
+
+        if (serverId < 0) {
+            throw new IllegalStateException(
+                    "failed to auto-detect server ID because there is no matching IP address.");
+        }
+
+        return serverId;
+    }
+
+    private static int findServerId(Map<Integer, ZooKeeperAddress> servers, int currentServerId,
+                                    NetworkInterface iface) {
+        for (final Enumeration<InetAddress> ea = iface.getInetAddresses(); ea.hasMoreElements();) {
+            currentServerId = findServerId(servers, currentServerId, ea.nextElement());
+        }
+        return currentServerId;
+    }
+
+    private static int findServerId(Map<Integer, ZooKeeperAddress> servers, int currentServerId,
+                                    InetAddress addr) {
+        final String ip = NetUtil.toAddressString(addr, true);
+        for (Entry<Integer, ZooKeeperAddress> entry : servers.entrySet()) {
+            final String zkAddr;
+            try {
+                zkAddr = NetUtil.toAddressString(InetAddress.getByName(entry.getValue().host()), true);
+            } catch (UnknownHostException uhe) {
+                throw new IllegalStateException(
+                        "failed to resolve the IP address of the server name: " + entry.getValue().host());
+            }
+
+            if (zkAddr.equals(ip)) {
+                if (currentServerId < 0) {
+                    currentServerId = entry.getKey().intValue();
+                } else {
+                    throw new IllegalStateException(
+                            "cannot auto-detect server ID because there are more than one IP address match. " +
+                            "Both server ID " + currentServerId + " and " + entry.getKey() +
+                            " have a matching IP address. Consider specifying server ID explicitly.");
+                }
+            }
+        }
+        return currentServerId;
+    }
+
     @Override
     public ReplicationMethod method() {
         return ReplicationMethod.ZOOKEEPER;
     }
 
     /**
-     * Returns the ZooKeeper connection string.
-     * e.g. {@code "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181"}
+     * Returns the ID of this ZooKeeper server in {@link #servers()}.
      */
     @JsonProperty
-    public String connectionString() {
-        return connectionString;
+    public int serverId() {
+        return serverId;
     }
 
     /**
-     * Returns the ZooKeeper path prefix. e.g. {@code "/service/dogma"}
+     * Returns the address of this ZooKeeper server in {@link #servers()}.
+     */
+    public ZooKeeperAddress serverAddress() {
+        return servers.get(serverId);
+    }
+
+    /**
+     * Returns the ZooKeeper server strings of all replicas, keyed by their ZooKeeper server IDs.
      */
     @JsonProperty
-    public String pathPrefix() {
-        return pathPrefix;
+    public Map<Integer, ZooKeeperAddress> servers() {
+        return servers;
+    }
+
+    /**
+     * Returns the secret string used for authenticating the ZooKeeper peers.
+     */
+    @JsonProperty
+    public String secret() {
+        return secret;
+    }
+
+    /**
+     * Returns the additional ZooKeeper properties.
+     * If unspecified, an empty {@link Map} is returned.
+     */
+    @JsonProperty
+    public Map<String, String> additionalProperties() {
+        return additionalProperties;
     }
 
     /**
      * Returns the ZooKeeper timeout, in milliseconds.
-     * If unspecified, the default of {@value ZooKeeperCommandExecutor#DEFAULT_TIMEOUT_MILLIS} is returned.
+     * If unspecified, the default of {@value #DEFAULT_TIMEOUT_MILLIS} is returned.
      */
     @JsonProperty
     public int timeoutMillis() {
@@ -132,7 +233,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
     /**
      * Returns the number of worker threads dedicated for replication.
-     * If unspecified, the default of {@value ZooKeeperCommandExecutor#DEFAULT_NUM_WORKERS} is returned.
+     * If unspecified, the default of {@value #DEFAULT_NUM_WORKERS} is returned.
      */
     @JsonProperty
     public int numWorkers() {
@@ -142,7 +243,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     /**
      * Returns the maximum number of log items to keep in ZooKeeper. Note that the log items will still not be
      * removed if they are younger than {@link #minLogAgeMillis()}.
-     * If unspecified, the default of {@value ZooKeeperCommandExecutor#DEFAULT_MAX_LOG_COUNT} is returned.
+     * If unspecified, the default of {@value #DEFAULT_MAX_LOG_COUNT} is returned.
      */
     @JsonProperty
     public int maxLogCount() {
@@ -160,8 +261,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
     @Override
     public int hashCode() {
-        return connectionString().hashCode() * 31 +
-               pathPrefix().hashCode();
+        return serverId;
     }
 
     @Override
@@ -176,8 +276,10 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
         final ZooKeeperReplicationConfig that = (ZooKeeperReplicationConfig) obj;
 
-        return connectionString().equals(that.connectionString()) &&
-               pathPrefix().equals(that.pathPrefix()) &&
+        return serverId() == that.serverId() &&
+               servers().equals(that.servers()) &&
+               secret().equals(that.secret()) &&
+               additionalProperties().equals(that.additionalProperties()) &&
                timeoutMillis() == that.timeoutMillis() &&
                numWorkers() == that.numWorkers() &&
                maxLogCount() == that.maxLogCount() &&
@@ -187,8 +289,9 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("connectionString", connectionString())
-                          .add("pathPrefix", pathPrefix())
+                          .add("serverId", serverId())
+                          .add("servers", servers())
+                          .add("additionalProperties", additionalProperties())
                           .add("timeoutMillis", timeoutMillis())
                           .add("numWorkers", numWorkers())
                           .add("maxLogCount", maxLogCount())

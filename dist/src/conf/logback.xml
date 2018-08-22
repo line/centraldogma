@@ -58,6 +58,8 @@
     <appender-ref ref="ACCESS"/>
   </logger>
   <logger name="io.netty" level="INFO" />
+  <!-- Disable the 'Invalid config event received' log messages. -->
+  <logger name="org.apache.curator.framework.imps.EnsembleTracker" level="OFF" />
 
   <root level="WARN">
     <appender-ref ref="RCEA" />

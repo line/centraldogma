@@ -13,7 +13,6 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.server.internal.replication;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -30,62 +29,56 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
 import org.apache.curator.test.InstanceSpec;
-import org.apache.curator.test.TestingServer;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.ZooKeeperAddress;
+import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.internal.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.Command;
-import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor.Builder;
 
 public class ZooKeeperCommandExecutorTest {
 
-    private static final int NUM_REPLICAS = Runtime.getRuntime().availableProcessors() * 2;
-    private static final String ROOT = "/root";
+    private static final Logger logger = LoggerFactory.getLogger(ZooKeeperCommandExecutorTest.class);
+
+    private static final int NUM_REPLICAS = 5;
 
     @Rule
     public TemporaryFolder testFolder = new TemporaryFolder();
 
-    private TestingServer zkServer;
-
-    @Before
-    public void setUp() throws Exception {
-        zkServer = new TestingServer(new InstanceSpec(
-                testFolder.newFolder(), -1, -1, -1, true, -1, -1, NUM_REPLICAS), true);
-    }
-
-    @After
-    public void cleanUp() throws IOException {
-        if (zkServer != null) {
-            zkServer.close();
-        }
-    }
-
     @Test
     public void testLogWatch() throws Exception {
-        final Replica replica1 = new Replica("m1", ROOT);
-        final Replica replica2 = new Replica("m2", ROOT);
-        final Replica replica3 = new Replica("m3", ROOT);
+        // The 5th replica is used for ensuring the quorum.
+        final List<Replica> cluster = buildCluster(5, ZooKeeperCommandExecutorTest::newMockDelegate);
 
-        Replica newReplica3 = null;
-        Replica replica4 = null;
+        final Replica replica1 = cluster.get(0);
+        final Replica replica2 = cluster.get(1);
+        final Replica replica3 = cluster.get(2);
+        final Replica replica4 = cluster.get(3);
+        replica4.rm.stop().join();
 
         try {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
@@ -95,40 +88,35 @@ public class ZooKeeperCommandExecutorTest {
             assertThat(commandResult2.get().command()).isEqualTo(command1);
             assertThat(commandResult2.get().result()).isNull();
 
-            Thread.sleep(100);
-            verify(replica1.delegate, timeout(300).times(1)).apply(eq(command1));
-            verify(replica2.delegate, timeout(300).times(1)).apply(eq(command1));
-            verify(replica3.delegate, timeout(300).times(1)).apply(eq(command1));
+            verify(replica1.delegate, timeout(5000).times(1)).apply(eq(command1));
+            verify(replica2.delegate, timeout(5000).times(1)).apply(eq(command1));
+            verify(replica3.delegate, timeout(5000).times(1)).apply(eq(command1));
 
             assertThat(replica1.localRevision()).isEqualTo(0L);
             assertThat(replica2.localRevision()).isEqualTo(0L);
             assertThat(replica3.localRevision()).isEqualTo(0L);
 
-            //stop replay m3
-            replica3.rm.stop();
+            // Stop the 3rd replica and check if the 1st and 2nd replicas still replay the logs.
+            replica3.rm.stop().join();
 
             final Command<?> command2 = Command.createProject(Author.SYSTEM, "foo");
             replica1.rm.execute(command2).join();
-            verify(replica1.delegate, timeout(300).times(1)).apply(eq(command2));
-            verify(replica2.delegate, timeout(300).times(1)).apply(eq(command2));
-            verify(replica3.delegate, timeout(300).times(0)).apply(eq(command2));
+            verify(replica1.delegate, timeout(5000).times(1)).apply(eq(command2));
+            verify(replica2.delegate, timeout(5000).times(1)).apply(eq(command2));
+            verify(replica3.delegate, timeout(5000).times(0)).apply(eq(command2));
 
-            //start replay m3 with new object
-            newReplica3 = new Replica("m3", ROOT);
-            verify(newReplica3.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command1));
-            verify(newReplica3.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command2));
+            // Start the 3rd replica back again and check if it catches up.
+            replica3.rm.start().join();
+            verify(replica3.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command1));
+            verify(replica3.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command2));
 
-            replica4 = new Replica("m4", ROOT);
+            // Start the 4th replica and check if it catches up even if it started from scratch.
+            replica4.rm.start().join();
             verify(replica4.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command1));
             verify(replica4.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command2));
         } finally {
-            replica1.rm.stop();
-            replica2.rm.stop();
-            if (newReplica3 != null) {
-                newReplica3.rm.stop();
-            }
-            if (replica4 != null) {
-                replica4.rm.stop();
+            for (Replica r : cluster) {
+                r.rm.stop();
             }
         }
     }
@@ -163,19 +151,17 @@ public class ZooKeeperCommandExecutorTest {
     public void testRace() throws Exception {
         // Each replica has its own AtomicInteger which counts the number of commands
         // it executed/replayed so far.
-        final Replica[] replicas = new Replica[NUM_REPLICAS];
-        for (int i = 0; i < replicas.length; i++) {
+        final List<Replica> replicas = buildCluster(NUM_REPLICAS, () -> {
             final AtomicInteger counter = new AtomicInteger();
-            replicas[i] = new Replica(String.valueOf(i), ROOT,
-                                      command -> completedFuture(new Revision(counter.incrementAndGet())));
-        }
+            return command -> completedFuture(new Revision(counter.incrementAndGet()));
+        });
 
         try {
             final Command<Revision> command =
                     Command.push(Author.SYSTEM, "foo", "bar", Revision.HEAD, "", "", Markup.PLAINTEXT);
 
-            final int COMMANDS_PER_REPLICA = 3;
-            final List<CompletableFuture<Void>> futures = new ArrayList<>(replicas.length);
+            final int COMMANDS_PER_REPLICA = 7;
+            final List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (final Replica r : replicas) {
                 futures.add(CompletableFuture.runAsync(() -> {
                     for (int j = 0; j < COMMANDS_PER_REPLICA; j++) {
@@ -193,7 +179,7 @@ public class ZooKeeperCommandExecutorTest {
             }
 
             for (Replica r : replicas) {
-                for (int i = 0; i < COMMANDS_PER_REPLICA * replicas.length; i++) {
+                for (int i = 0; i < COMMANDS_PER_REPLICA * replicas.size(); i++) {
                     @SuppressWarnings("unchecked")
                     final ReplicationLog<Revision> log =
                             (ReplicationLog<Revision>) r.rm.loadLog(i, false).get();
@@ -202,10 +188,55 @@ public class ZooKeeperCommandExecutorTest {
                 }
             }
         } finally {
-            for (Replica r : replicas) {
-                r.rm.stop();
-            }
+            replicas.forEach(r -> r.rm.stop());
+            replicas.forEach(r -> r.rm.stop().join());
         }
+    }
+
+    private List<Replica> buildCluster(
+            int numReplicas,
+            Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier) throws Exception {
+
+        // Each replica requires 3 ports, for client, quorum and election.
+        final List<ServerSocket> quorumPorts = new ArrayList<>();
+        final List<ServerSocket> electionPorts = new ArrayList<>();
+        for (int i = 0; i < numReplicas; i++) {
+            quorumPorts.add(new ServerSocket(0));
+            electionPorts.add(new ServerSocket(0));
+        }
+
+        final List<InstanceSpec> specs = new ArrayList<>();
+        final Map<Integer, ZooKeeperAddress> servers = new HashMap<>();
+        for (int i = 0; i < numReplicas; i++) {
+            final InstanceSpec spec = new InstanceSpec(
+                    testFolder.newFolder(),
+                    0,
+                    electionPorts.get(i).getLocalPort(),
+                    quorumPorts.get(i).getLocalPort(),
+                    false,
+                    i + 1 /* serverId */);
+
+            specs.add(spec);
+            servers.put(spec.getServerId(),
+                        new ZooKeeperAddress("127.0.0.1", spec.getQuorumPort(), spec.getElectionPort(), 0));
+        }
+
+        logger.debug("Creating a cluster: {}", servers);
+
+        for (int i = 0; i < numReplicas; i++) {
+            quorumPorts.get(i).close();
+            electionPorts.get(i).close();
+        }
+
+        final ImmutableList.Builder<Replica> builder = ImmutableList.builder();
+        for (InstanceSpec spec : specs) {
+            final Replica r = new Replica(spec, servers, delegateSupplier.get());
+            builder.add(r);
+        }
+
+        final List<Replica> replicas = builder.build();
+        replicas.forEach(Replica::awaitStartup);
+        return replicas;
     }
 
     private static Function<Command<?>, CompletableFuture<?>> newMockDelegate() {
@@ -215,50 +246,51 @@ public class ZooKeeperCommandExecutorTest {
         return delegate;
     }
 
-    private final class Replica {
+    private static final class Replica {
 
         private final ZooKeeperCommandExecutor rm;
         private final Function<Command<?>, CompletableFuture<?>> delegate;
-        private final File revisionFile;
+        private final File dataDir;
+        private final CompletableFuture<Void> startFuture;
 
-        Replica(String id, String zkPath) throws Exception {
-            this(id, zkPath, newMockDelegate());
+        Replica(InstanceSpec spec, Map<Integer, ZooKeeperAddress> servers,
+                Function<Command<?>, CompletableFuture<?>> delegate) throws Exception {
+            this.delegate = delegate;
+            dataDir = spec.getDataDirectory();
+
+            final int id = spec.getServerId();
+            final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(id, servers);
+
+            rm = new ZooKeeperCommandExecutor(zkCfg, dataDir, new AbstractCommandExecutor(null, null) {
+                @Override
+                public int replicaId() {
+                    return id;
+                }
+
+                @Override
+                protected void doStart(@Nullable Runnable onTakeLeadership,
+                                       @Nullable Runnable onReleaseLeadership) {}
+
+                @Override
+                protected void doStop(@Nullable Runnable onReleaseLeadership) {}
+
+                @Override
+                @SuppressWarnings("unchecked")
+                protected <T> CompletableFuture<T> doExecute(int replicaId, Command<T> command) {
+                    return (CompletableFuture<T>) delegate.apply(command);
+                }
+            }, null, null);
+
+            startFuture = rm.start();
         }
 
-        Replica(String id, String zkPath,
-                Function<Command<?>, CompletableFuture<?>> delegate) throws Exception {
-
-            this.delegate = delegate;
-            revisionFile = testFolder.newFile();
-
-            final Builder builder = ZooKeeperCommandExecutor.builder();
-            rm = builder.replicaId(id)
-                        .delegate(new AbstractCommandExecutor(id) {
-                            @Override
-                            protected void doStart(@Nullable Runnable onTakeLeadership,
-                                                   @Nullable Runnable onReleaseLeadership) {}
-
-                            @Override
-                            protected void doStop() {}
-
-                            @Override
-                            @SuppressWarnings("unchecked")
-                            protected <T> CompletableFuture<T> doExecute(String replicaId, Command<T> command) {
-                                return (CompletableFuture<T>) delegate.apply(command);
-                            }
-                        })
-                        .connectionString("127.0.0.1:" + zkServer.getPort())
-                        .path(zkPath)
-                        .createPathIfNotExist(true)
-                        .revisionFile(revisionFile)
-                        .build();
-
-            rm.start(null, null);
+        void awaitStartup() {
+            startFuture.join();
         }
 
         long localRevision() throws IOException {
-            try (BufferedReader br =
-                         new BufferedReader(new InputStreamReader(new FileInputStream(revisionFile)))) {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(
+                    new FileInputStream(new File(dataDir, "last_revision"))))) {
                 return Long.parseLong(br.readLine());
             }
         }

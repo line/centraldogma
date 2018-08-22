@@ -32,9 +32,9 @@ public class ReplicationLogTest {
 
     @Test
     public void testJsonConversion() {
-        assertJsonConversion(new ReplicationLog<>("r1", Command.createProject(1234L, AUTHOR, "foo"), null),
+        assertJsonConversion(new ReplicationLog<>(1, Command.createProject(1234L, AUTHOR, "foo"), null),
                              '{' +
-                             "  \"replicaId\": \"r1\"," +
+                             "  \"replicaId\": 1," +
                              "  \"command\": {" +
                              "    \"type\": \"CREATE_PROJECT\"," +
                              "    \"projectName\": \"foo\"," +
@@ -51,9 +51,9 @@ public class ReplicationLogTest {
                 1234L, new Author("Sedol Lee", "sedol@lee.com"), "foo", "bar", Revision.HEAD,
                 "4:1", "L-L-L-W-L", Markup.PLAINTEXT, Change.ofTextUpsert("/result.txt", "too soon to tell"));
 
-        assertJsonConversion(new ReplicationLog<>("r2", pushCommand, new Revision(43)),
+        assertJsonConversion(new ReplicationLog<>(2, pushCommand, new Revision(43)),
                              '{' +
-                             "  \"replicaId\": \"r2\"," +
+                             "  \"replicaId\": 2," +
                              "  \"command\": {" +
                              "    \"type\": \"PUSH\"," +
                              "    \"projectName\": \"foo\"," +

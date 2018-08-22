@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
@@ -38,45 +39,41 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private final ProjectManager projectManager;
     private final CentralDogmaSecurityManager securityManager;
     private final Executor repositoryWorker;
-    private volatile Runnable onReleaseLeadership;
 
     public StandaloneCommandExecutor(ProjectManager projectManager,
                                      @Nullable CentralDogmaSecurityManager securityManager,
-                                     Executor repositoryWorker) {
-        this("none", projectManager, securityManager, repositoryWorker);
-    }
-
-    public StandaloneCommandExecutor(String replicaId,
-                                     ProjectManager projectManager,
-                                     @Nullable CentralDogmaSecurityManager securityManager,
-                                     Executor repositoryWorker) {
-        super(replicaId);
+                                     Executor repositoryWorker,
+                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
+                                     @Nullable Runnable onReleaseLeadership) {
+        super(onTakeLeadership, onReleaseLeadership);
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.securityManager = securityManager;
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
     }
 
     @Override
+    public int replicaId() {
+        return 0;
+    }
+
+    @Override
     protected void doStart(@Nullable Runnable onTakeLeadership,
                            @Nullable Runnable onReleaseLeadership) {
-        this.onReleaseLeadership = onReleaseLeadership;
         if (onTakeLeadership != null) {
             onTakeLeadership.run();
         }
     }
 
     @Override
-    protected void doStop() {
-        final Runnable onReleaseLeadership = this.onReleaseLeadership;
+    protected void doStop(@Nullable Runnable onReleaseLeadership) {
         if (onReleaseLeadership != null) {
-            this.onReleaseLeadership = null;
             onReleaseLeadership.run();
         }
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    protected <T> CompletableFuture<T> doExecute(String replicaId, Command<T> command) throws Exception {
+    protected <T> CompletableFuture<T> doExecute(int replicaId, Command<T> command) throws Exception {
         if (command instanceof CreateProjectCommand) {
             return (CompletableFuture<T>) createProject((CreateProjectCommand) command);
         }
@@ -171,13 +168,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         return projectManager.get(c.projectName()).repos().get(c.repositoryName());
     }
 
-    private CompletableFuture<Void> createSession(String replicaId, CreateSessionCommand c) {
+    private CompletableFuture<Void> createSession(int replicaId, CreateSessionCommand c) {
         if (securityManager == null) {
             // Security has been disabled for this replica.
             return CompletableFuture.completedFuture(null);
         }
 
-        if (replicaId().equals(replicaId)) {
+        if (replicaId() == replicaId) {
             // The session commands are used only for replication of session events.
             // We do not use them for local changes, because Shiro persisted them via SessionDAO already.
             return CompletableFuture.completedFuture(null);
@@ -194,12 +191,12 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }, repositoryWorker); // Not really a repository update, but it will not hurt.
     }
 
-    private CompletableFuture<Void> removeSession(String replicaId, RemoveSessionCommand c) {
+    private CompletableFuture<Void> removeSession(int replicaId, RemoveSessionCommand c) {
         if (securityManager == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        if (replicaId().equals(replicaId)) {
+        if (replicaId() == replicaId) {
             // The session commands are used only for replication of session events.
             // We do not use them for local changes, because Shiro persisted them via SessionDAO already.
             return CompletableFuture.completedFuture(null);

@@ -76,7 +76,7 @@ public class ProjectManagerRule extends TemporaryFolder {
         projectManager = newProjectManager(worker);
         executor = newCommandExecutor(projectManager, worker);
 
-        executor.start(null, null);
+        executor.start().get();
         ProjectInitializer.initializeInternalProject(executor);
 
         afterExecutorStarted();
@@ -110,7 +110,7 @@ public class ProjectManagerRule extends TemporaryFolder {
      * Override this method to customize a {@link CommandExecutor}.
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker) {
-        return new StandaloneCommandExecutor(projectManager, null, worker);
+        return new StandaloneCommandExecutor(projectManager, null, worker, null, null);
     }
 
     /**

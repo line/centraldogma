@@ -24,9 +24,11 @@ import java.util.Base64.Encoder;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.shiro.config.Ini;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
@@ -52,8 +54,8 @@ public class LoginAndLogoutTest {
         return ini;
     }
 
-    static AggregatedHttpMessage login(CentralDogmaRule rule, String username, String password) {
-        return rule.httpClient().execute(
+    static AggregatedHttpMessage login(HttpClient client, String username, String password) {
+        return client.execute(
                 HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
                                HttpHeaderNames.PATH, "/api/v1/login",
                                HttpHeaderNames.CONTENT_TYPE, MediaType.FORM_DATA.toString()),
@@ -61,9 +63,8 @@ public class LoginAndLogoutTest {
                 StandardCharsets.US_ASCII).aggregate().join();
     }
 
-    static AggregatedHttpMessage loginWithBasicAuth(
-            CentralDogmaRule rule, String username, String password) {
-        return rule.httpClient().execute(
+    private static AggregatedHttpMessage loginWithBasicAuth(HttpClient client) {
+        return client.execute(
                 HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
                                HttpHeaderNames.PATH, "/api/v1/login",
                                HttpHeaderNames.AUTHORIZATION, "basic " + encoder.encodeToString(
@@ -71,16 +72,16 @@ public class LoginAndLogoutTest {
                    .aggregate().join();
     }
 
-    static AggregatedHttpMessage logout(CentralDogmaRule rule, String sessionId) {
-        return rule.httpClient().execute(
+    static AggregatedHttpMessage logout(HttpClient client, String sessionId) {
+        return client.execute(
                 HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
                                HttpHeaderNames.PATH, "/api/v1/logout",
                                HttpHeaderNames.AUTHORIZATION,
                                "bearer " + sessionId)).aggregate().join();
     }
 
-    static AggregatedHttpMessage usersMe(CentralDogmaRule rule, String sessionId) {
-        return rule.httpClient().execute(
+    static AggregatedHttpMessage usersMe(HttpClient client, String sessionId) {
+        return client.execute(
                 HttpHeaders.of(HttpHeaderNames.METHOD, "GET",
                                HttpHeaderNames.PATH, "/api/v0/users/me",
                                HttpHeaderNames.AUTHORIZATION,
@@ -96,9 +97,16 @@ public class LoginAndLogoutTest {
         }
     };
 
+    private HttpClient client;
+
+    @Before
+    public void setClient() {
+        client = rule.httpClient();
+    }
+
     @Test
     public void password() throws Exception { // grant_type=password
-        loginAndLogout(login(rule, USERNAME, PASSWORD));
+        loginAndLogout(login(client, USERNAME, PASSWORD));
     }
 
     private void loginAndLogout(AggregatedHttpMessage loginRes) throws Exception {
@@ -107,18 +115,18 @@ public class LoginAndLogoutTest {
         // Ensure authorization works.
         final AccessToken accessToken = Jackson.readValue(loginRes.content().toStringUtf8(), AccessToken.class);
         final String sessionId = accessToken.accessToken();
-        assertThat(usersMe(rule, sessionId).status()).isEqualTo(HttpStatus.OK);
+        assertThat(usersMe(client, sessionId).status()).isEqualTo(HttpStatus.OK);
 
         // Log out.
-        assertThat(logout(rule, sessionId).status()).isEqualTo(HttpStatus.OK);
-        assertThat(usersMe(rule, sessionId).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(logout(client, sessionId).status()).isEqualTo(HttpStatus.OK);
+        assertThat(usersMe(client, sessionId).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     public void consecutiveLoginShouldResponseSameToken() throws Exception {
-        final AggregatedHttpMessage res1 = login(rule, USERNAME, PASSWORD);
+        final AggregatedHttpMessage res1 = login(client, USERNAME, PASSWORD);
         TimeUnit.MILLISECONDS.sleep(100); // Sleep a little bit to get a response with different expiresIn.
-        final AggregatedHttpMessage res2 = login(rule, USERNAME, PASSWORD);
+        final AggregatedHttpMessage res2 = login(client, USERNAME, PASSWORD);
         final AccessToken token1 = Jackson.readValue(res1.content().array(), AccessToken.class);
         final AccessToken token2 = Jackson.readValue(res2.content().array(), AccessToken.class);
         assertThat(token1.accessToken()).isEqualTo(token2.accessToken());
@@ -127,16 +135,16 @@ public class LoginAndLogoutTest {
 
     @Test
     public void basicAuth() throws Exception {
-        loginAndLogout(loginWithBasicAuth(rule, USERNAME, PASSWORD));
+        loginAndLogout(loginWithBasicAuth(client));
     }
 
     @Test
     public void incorrectLogin() throws Exception {
-        assertThat(login(rule, USERNAME, WRONG_PASSWORD).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(login(client, USERNAME, WRONG_PASSWORD).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     public void incorrectLogout() throws Exception {
-        assertThat(logout(rule, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.OK);
+        assertThat(logout(client, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.OK);
     }
 }

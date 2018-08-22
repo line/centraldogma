@@ -18,19 +18,17 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nullable;
-
 public interface CommandExecutor {
 
-    void start(@Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership);
-
-    void stop();
+    int replicaId();
 
     boolean isStarted();
 
-    String replicaId();
+    CompletableFuture<Void> start();
+
+    CompletableFuture<Void> stop();
 
     <T> CompletableFuture<T> execute(Command<T> command);
 
-    <T> CompletableFuture<T> execute(String replicaId, Command<T> command);
+    <T> CompletableFuture<T> execute(int replicaId, Command<T> command);
 }

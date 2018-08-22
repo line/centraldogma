@@ -16,7 +16,6 @@
 package com.linecorp.centraldogma.server;
 
 import java.io.File;
-import java.io.IOException;
 
 import javax.annotation.Nullable;
 
@@ -103,7 +102,7 @@ public final class Main implements Daemon {
     }
 
     @Override
-    public synchronized void start() throws IOException {
+    public synchronized void start() throws Exception {
         switch (state) {
         case NONE:
             throw new IllegalStateException("not initialized");
@@ -127,7 +126,7 @@ public final class Main implements Daemon {
             dogma = CentralDogma.forConfig(configFile, securityConfig);
         }
 
-        dogma.start();
+        dogma.start().get();
 
         this.dogma = dogma;
         state = State.STARTED;
@@ -135,9 +134,14 @@ public final class Main implements Daemon {
 
     @Nullable
     private static File findConfigFile(@Nullable File file, File defaultFile) {
-        if (file != null && file.isFile() && file.canRead()) {
-            return file;
+        if (file != null) {
+            if (file.isFile() && file.canRead()) {
+                return file;
+            } else {
+                throw new IllegalStateException("cannot access the specified config file: " + file);
+            }
         }
+
         // Try to use the default config file if not specified.
         if (defaultFile.isFile() && defaultFile.canRead()) {
             return defaultFile;
@@ -146,7 +150,7 @@ public final class Main implements Daemon {
     }
 
     @Override
-    public synchronized void stop() {
+    public synchronized void stop() throws Exception {
         switch (state) {
         case NONE:
         case INITIALIZED:
@@ -159,7 +163,7 @@ public final class Main implements Daemon {
         final CentralDogma dogma = this.dogma;
         assert dogma != null;
         this.dogma = null;
-        dogma.stop();
+        dogma.stop().get();
 
         state = State.STOPPED;
     }

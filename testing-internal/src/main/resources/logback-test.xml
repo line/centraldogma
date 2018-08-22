@@ -11,9 +11,9 @@
   </appender>
 
   <logger name="com.linecorp" level="DEBUG" />
-  <logger name="com.linecorp.centraldogma.server.internal.admin.logging.LoggingAspect" level="INFO" />
-
   <logger name="io.netty" level="INFO" />
+  <!-- Disable the 'Invalid config event received' log messages. -->
+  <logger name="org.apache.curator.framework.imps.EnsembleTracker" level="OFF" />
 
   <root level="WARN">
     <appender-ref ref="EEA" />

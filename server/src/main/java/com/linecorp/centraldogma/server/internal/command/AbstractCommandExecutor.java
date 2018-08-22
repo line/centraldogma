@@ -19,71 +19,58 @@ package com.linecorp.centraldogma.server.internal.command;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
-import com.linecorp.centraldogma.server.internal.replication.ReplicationException;
+import com.linecorp.armeria.common.util.StartStopSupport;
 
 public abstract class AbstractCommandExecutor implements CommandExecutor {
 
-    private enum State {
-        CREATED, STARTED, STOPPED
-    }
+    @Nullable
+    private final Consumer<CommandExecutor> onTakeLeadership;
+    @Nullable
+    private final Runnable onReleaseLeadership;
 
-    private final String replicaId;
-    private final AtomicReference<State> state = new AtomicReference<>(State.CREATED);
+    private final CommandExecutorStartStop startStop = new CommandExecutorStartStop();
+    private volatile boolean started;
 
-    protected AbstractCommandExecutor(String replicaId) {
-        this.replicaId = requireNonNull(replicaId, "replicaId");
+    protected AbstractCommandExecutor(@Nullable Consumer<CommandExecutor> onTakeLeadership,
+                                      @Nullable Runnable onReleaseLeadership) {
+        this.onTakeLeadership = onTakeLeadership;
+        this.onReleaseLeadership = onReleaseLeadership;
     }
 
     @Override
-    public final String replicaId() {
-        return replicaId;
+    public final boolean isStarted() {
+        return started;
     }
 
     @Override
-    public final void start(@Nullable Runnable onTakeLeadership, @Nullable Runnable onReleaseLeadership) {
-        checkState(State.CREATED);
-
-        boolean started = false;
-        try {
-            doStart(onTakeLeadership, onReleaseLeadership);
-            enterState(State.CREATED, State.STARTED);
-            started = true;
-        } finally {
-            if (!started) {
-                doStop();
-            }
-        }
+    public final CompletableFuture<Void> start() {
+        return startStop.start(true).thenRun(() -> started = true);
     }
 
     protected abstract void doStart(@Nullable Runnable onTakeLeadership,
                                     @Nullable Runnable onReleaseLeadership);
 
     @Override
-    public final void stop() {
-        if (state.getAndSet(State.STOPPED) == State.STARTED) {
-            doStop();
-        }
+    public final CompletableFuture<Void> stop() {
+        started = false;
+        return startStop.stop();
     }
 
-    protected abstract void doStop();
-
-    @Override
-    public boolean isStarted() {
-        return state.get() == State.STARTED;
-    }
+    protected abstract void doStop(@Nullable Runnable onReleaseLeadership);
 
     @Override
     public final <T> CompletableFuture<T> execute(Command<T> command) {
-        return execute(replicaId, command);
+        return execute(replicaId(), command);
     }
 
     @Override
-    public final <T> CompletableFuture<T> execute(String replicaId, Command<T> command) {
-        requireNonNull(replicaId, "replicaId");
+    public final <T> CompletableFuture<T> execute(int replicaId, Command<T> command) {
         requireNonNull(command, "command");
         if (!isStarted()) {
             throw new IllegalStateException("running in read-only mode");
@@ -99,25 +86,44 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     }
 
     protected abstract <T> CompletableFuture<T> doExecute(
-            String replicaId, Command<T> command) throws Exception;
+            int replicaId, Command<T> command) throws Exception;
 
-    private void checkState(State expected) {
-        if (state.get() != expected) {
-            try {
-                throw new ReplicationException("invalid state: " + state.get());
-            } finally {
-                stop();
-            }
+    private final class CommandExecutorStartStop extends StartStopSupport<Void, Void> {
+
+        CommandExecutorStartStop() {
+            super(ForkJoinPool.commonPool());
         }
-    }
 
-    private void enterState(State oldState, State newState) {
-        if (!state.compareAndSet(oldState, newState)) {
-            try {
-                throw new ReplicationException("invalid state " + state.get());
-            } finally {
-                stop();
-            }
+        @Override
+        protected CompletionStage<Void> doStart() throws Exception {
+            return execute("command-executor", () -> {
+                AbstractCommandExecutor.this.doStart(
+                        onTakeLeadership != null ? () -> onTakeLeadership.accept(AbstractCommandExecutor.this)
+                                                 : null,
+                        onReleaseLeadership);
+            });
+        }
+
+        @Override
+        protected CompletionStage<Void> doStop() throws Exception {
+            return execute("command-executor-shutdown",
+                           () -> AbstractCommandExecutor.this.doStop(onReleaseLeadership));
+        }
+
+        private CompletionStage<Void> execute(String threadNamePrefix, Runnable task) {
+            final CompletableFuture<Void> future = new CompletableFuture<>();
+            final String threadName = threadNamePrefix + "-0x" +
+                                      Long.toHexString(AbstractCommandExecutor.this.hashCode() & 0xFFFFFFFFL);
+            final Thread thread = new Thread(() -> {
+                try {
+                    task.run();
+                    future.complete(null);
+                } catch (Throwable cause) {
+                    future.completeExceptionally(cause);
+                }
+            }, threadName);
+            thread.start();
+            return future;
         }
     }
 }
