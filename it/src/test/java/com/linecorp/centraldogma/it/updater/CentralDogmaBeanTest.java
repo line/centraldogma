@@ -23,6 +23,7 @@ import static org.awaitility.Awaitility.await;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -160,6 +161,28 @@ public class CentralDogmaBeanTest {
 
         // properly close watcher
         property.closeWatcher();
+    }
+
+    @Test
+    public void updateListenerIgnoreDefault() {
+        final CentralDogma client = dogma.client();
+        final AtomicReference<TestProperty> update = new AtomicReference<>();
+
+        client.push("a", "b", Revision.HEAD, "Add c.json",
+                    Change.ofJsonUpsert("/c.json",
+                                        '{' +
+                                        "  \"foo\": 21," +
+                                        "  \"bar\": \"Y\"," +
+                                        "  \"qux\": [\"0\", \"1\"]" +
+                                        '}')).join();
+
+        final TestProperty property = factory.get(new TestProperty(), TestProperty.class, update::set);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> update.get() != null);
+
+        assertThat(property.getFoo()).isEqualTo(21);
+        assertThat(property.getBar()).isEqualTo("Y");
+        assertThat(property.getQux()).containsExactly("0", "1");
+        assertThat(property.getRevision()).isNotNull();
     }
 
     @CentralDogmaBean(project = "a", repository = "b", path = "/c.json")
