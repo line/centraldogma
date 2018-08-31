@@ -101,44 +101,49 @@ public class CentralDogmaBeanFactory {
     /**
      * Returns a newly-created bean instance with the settings specified by {@link CentralDogmaBean} annotation.
      *
-     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param defaultValue a Java bean annotated with {@link CentralDogmaBean}. The default value is used before
+     *                     initialization.
      * @param beanType the type of {@code bean}
      *
      * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
      */
-    public <T> T get(T bean, Class<T> beanType) {
-        return get(bean, beanType, (T x) -> {
+    public <T> T get(T defaultValue, Class<T> beanType) {
+        return get(defaultValue, beanType, (T x) -> {
         }, CentralDogmaBeanConfig.EMPTY);
     }
 
     /**
      * Returns a newly-created bean instance with the settings specified by {@link CentralDogmaBean} annotation.
      *
-     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param defaultValue a Java bean annotated with {@link CentralDogmaBean}. The default value is used before
+     *                     initialization.
      * @param beanType the type of {@code bean}
-     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated
+     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated.
+     *                       Will consume the new value of the bean.
      *
      * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
      */
-    public <T> T get(T bean, Class<T> beanType, Consumer<T> changeListener) {
-        return get(bean, beanType, changeListener, CentralDogmaBeanConfig.EMPTY);
+    public <T> T get(T defaultValue, Class<T> beanType, Consumer<T> changeListener) {
+        return get(defaultValue, beanType, changeListener, CentralDogmaBeanConfig.EMPTY);
     }
 
     /**
      * Returns a newly-created bean instance with some or all of its settings overridden.
      *
-     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param defaultValue a Java bean annotated with {@link CentralDogmaBean}. The default value is used before
+     *                     initialization.
      * @param beanType the type of {@code bean}
-     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated
+     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated.
+     *                       Will consume the new value of the bean.
      * @param overrides the {@link CentralDogmaBeanConfig} whose properties will override the settings
      *                  specified by the {@link CentralDogmaBean} annotation
      *
      * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
      */
-    public <T> T get(T bean, Class<T> beanType, Consumer<T> changeListener,
+    public <T> T get(T defaultValue, Class<T> beanType, Consumer<T> changeListener,
                      CentralDogmaBeanConfig overrides) {
         try {
-            return get(bean, beanType, changeListener, overrides, 0L, TimeUnit.SECONDS);
+            return get(defaultValue, beanType, changeListener, overrides, 0L, TimeUnit.SECONDS);
         } catch (InterruptedException | TimeoutException e) {
             // when initialValueTimeoutMillis set to zero, this exception never happens in practice.
             throw new RuntimeException("Error: unexpected exception caught", e);
@@ -148,9 +153,11 @@ public class CentralDogmaBeanFactory {
     /**
      * Returns a newly-created bean instance with the settings specified by {@link CentralDogmaBean} annotation.
      *
-     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param defaultValue a Java bean annotated with {@link CentralDogmaBean}. The default value is used before
+     *                     initialization.
      * @param beanType the type of {@code bean}
-     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated
+     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated.
+     *                       Will consume the new value of the bean.
      * @param initialValueTimeout when a value larger than zero given to this argument, this method
      *                            tries to wait for the initial value to be fetched until the timeout
      * @param initialValueTimeoutUnit the {@link TimeUnit} of {@code initialValueTimeout}
@@ -162,26 +169,27 @@ public class CentralDogmaBeanFactory {
      * @throws InterruptedException when {@code initialValueTimeoutMillis} is positive and
      *                              it got interrupted while waiting for the initial value
      */
-    public <T> T get(T bean, Class<T> beanType, Consumer<T> changeListener, long initialValueTimeout,
+    public <T> T get(T defaultValue, Class<T> beanType, Consumer<T> changeListener, long initialValueTimeout,
                      TimeUnit initialValueTimeoutUnit)
             throws TimeoutException, InterruptedException {
-        return get(bean, beanType, changeListener, CentralDogmaBeanConfig.EMPTY,
+        return get(defaultValue, beanType, changeListener, CentralDogmaBeanConfig.EMPTY,
                    initialValueTimeout, initialValueTimeoutUnit);
     }
 
     /**
      * Returns a newly-created bean instance with some or all of its settings overridden.
      *
-     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param defaultValue a Java bean annotated with {@link CentralDogmaBean}. The default value is used before
+     *                     initialization.
      * @param beanType the type of {@code bean}
      * @param overrides the {@link CentralDogmaBeanConfig} whose properties will override the settings
      *                  specified by the {@link CentralDogmaBean} annotation
      *
      * @return a new Java bean whose getters return the latest known values mirrored from Central Dogma
      */
-    public <T> T get(T bean, Class<T> beanType, CentralDogmaBeanConfig overrides) {
+    public <T> T get(T defaultValue, Class<T> beanType, CentralDogmaBeanConfig overrides) {
         try {
-            return get(bean, beanType, overrides, 0L, TimeUnit.SECONDS);
+            return get(defaultValue, beanType, overrides, 0L, TimeUnit.SECONDS);
         } catch (InterruptedException | TimeoutException e) {
             // when initialValueTimeoutMillis set to zero, this exception never happens in practice.
             throw new RuntimeException("Error: unexpected exception caught", e);
@@ -191,7 +199,8 @@ public class CentralDogmaBeanFactory {
     /**
      * Returns a newly-created bean instance with the settings specified by {@link CentralDogmaBean} annotation.
      *
-     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param defaultValue a Java bean annotated with {@link CentralDogmaBean}. The default value is used before
+     *                     initialization.
      * @param beanType the type of {@code bean}
      * @param initialValueTimeout when a value larger than zero given to this argument, this method
      *                            tries to wait for the initial value to be fetched until the timeout
@@ -204,16 +213,19 @@ public class CentralDogmaBeanFactory {
      * @throws InterruptedException when {@code initialValueTimeoutMillis} is positive and
      *                              it got interrupted while waiting for the initial value
      */
-    public <T> T get(T bean, Class<T> beanType, long initialValueTimeout, TimeUnit initialValueTimeoutUnit)
-            throws TimeoutException, InterruptedException {
-        return get(bean, beanType, CentralDogmaBeanConfig.EMPTY,
+    public <T> T get(T defaultValue,
+                     Class<T> beanType,
+                     long initialValueTimeout,
+                     TimeUnit initialValueTimeoutUnit) throws TimeoutException, InterruptedException {
+        return get(defaultValue, beanType, CentralDogmaBeanConfig.EMPTY,
                    initialValueTimeout, initialValueTimeoutUnit);
     }
 
     /**
      * Returns a newly-created bean instance with some or all of its settings overridden.
      *
-     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param defaultValue a Java bean annotated with {@link CentralDogmaBean}. The default value is used before
+     *                     initialization.
      * @param beanType the type of {@code bean}
      * @param overrides the {@link CentralDogmaBeanConfig} whose properties will override the settings
      *                  specified by the {@link CentralDogmaBean} annotation
@@ -228,19 +240,21 @@ public class CentralDogmaBeanFactory {
      * @throws InterruptedException when {@code initialValueTimeoutMillis} is positive and
      *                              it got interrupted while waiting for the initial value
      */
-    public <T> T get(T bean, Class<T> beanType, CentralDogmaBeanConfig overrides,
+    public <T> T get(T defaultValue, Class<T> beanType, CentralDogmaBeanConfig overrides,
                      long initialValueTimeout, TimeUnit initialValueTimeoutUnit)
             throws TimeoutException, InterruptedException {
-        return get(bean, beanType, (T x) -> {
+        return get(defaultValue, beanType, (T x) -> {
         }, overrides, initialValueTimeout, initialValueTimeoutUnit);
     }
 
     /**
      * Returns a newly-created bean instance with some or all of its settings overridden.
      *
-     * @param bean a Java bean annotated with {@link CentralDogmaBean}
+     * @param defaultValue a Java bean annotated with {@link CentralDogmaBean}. The default value is used before
+     *                     initialization.
      * @param beanType the type of {@code bean}
-     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated
+     * @param changeListener the {@link Consumer} of {@code beanType}, invoked when {@code bean} is updated.
+     *                       Will consume the new value of the bean.
      * @param overrides the {@link CentralDogmaBeanConfig} whose properties will override the settings
      *                  specified by the {@link CentralDogmaBean} annotation
      * @param initialValueTimeout when a value larger than zero given to this argument, this method
@@ -255,16 +269,16 @@ public class CentralDogmaBeanFactory {
      *                              it got interrupted while waiting for the initial value
      */
     @SuppressWarnings("unchecked")
-    public <T> T get(T bean, Class<T> beanType, Consumer<T> changeListener,
+    public <T> T get(T defaultValue, Class<T> beanType, Consumer<T> changeListener,
                      CentralDogmaBeanConfig overrides, long initialValueTimeout,
                      TimeUnit initialValueTimeoutUnit)
             throws TimeoutException, InterruptedException {
-        requireNonNull(bean, "bean");
+        requireNonNull(defaultValue, "defaultValue");
         requireNonNull(beanType, "beanType");
         requireNonNull(overrides, "overrides");
         requireNonNull(initialValueTimeoutUnit, "initialValueTimeoutUnit");
 
-        final CentralDogmaBean centralDogmaBean = bean.getClass().getAnnotation(CentralDogmaBean.class);
+        final CentralDogmaBean centralDogmaBean = beanType.getAnnotation(CentralDogmaBean.class);
         if (centralDogmaBean == null) {
             throw new IllegalArgumentException("missing CentralDogmaBean annotation");
         }
@@ -279,9 +293,10 @@ public class CentralDogmaBeanFactory {
                 settings.repository().get(),
                 buildQuery(settings),
                 jsonNode -> {
-                    changeListener.accept(bean);
                     try {
-                        return objectMapper.treeToValue(jsonNode, beanType);
+                        final T value = objectMapper.treeToValue(jsonNode, beanType);
+                        changeListener.accept(value);
+                        return value;
                     } catch (JsonProcessingException e) {
                         throw new IllegalStateException(
                                 "Failed to convert a JSON node into: " + beanType.getName(), e);
@@ -309,7 +324,7 @@ public class CentralDogmaBeanFactory {
 
         try {
             return (T) factory.create(EMPTY_TYPES, EMPTY_ARGS,
-                                      new CentralDogmaBeanMethodHandler<>(watcher, bean));
+                                      new CentralDogmaBeanMethodHandler<>(watcher, defaultValue));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
