@@ -100,7 +100,7 @@ public class PermissionTest {
             final ProjectManager pm = new DefaultProjectManager(
                     rootDir.newFolder(), ForkJoinPool.commonPool(), null);
             final CommandExecutor executor = new StandaloneCommandExecutor(
-                    pm, null, ForkJoinPool.commonPool(), null, null);
+                    pm, ForkJoinPool.commonPool(), null, null, null);
             executor.start().join();
 
             ProjectInitializer.initializeInternalProject(executor);

@@ -33,6 +33,4 @@ public interface CommandExecutor {
     void setWritable(boolean writable);
 
     <T> CompletableFuture<T> execute(Command<T> command);
-
-    <T> CompletableFuture<T> execute(int replicaId, Command<T> command);
 }

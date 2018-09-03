@@ -16,6 +16,9 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.linecorp.centraldogma.server.auth.AuthenticationConfig.DEFAULT_SESSION_CACHE_SPEC;
+import static com.linecorp.centraldogma.server.auth.AuthenticationConfig.DEFAULT_SESSION_TIMEOUT_MILLIS;
+import static com.linecorp.centraldogma.server.auth.AuthenticationConfig.DEFAULT_SESSION_VALIDATION_SCHEDULE;
 import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
@@ -25,11 +28,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import org.apache.shiro.config.Ini;
-import org.apache.shiro.session.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
 import com.google.common.collect.ImmutableSet;
@@ -37,6 +41,11 @@ import com.google.common.collect.ImmutableSet.Builder;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticationConfig;
+import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderFactory;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**
@@ -51,6 +60,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
  * }</pre>
  */
 public final class CentralDogmaBuilder {
+    private static final Logger logger = LoggerFactory.getLogger(CentralDogmaBuilder.class);
 
     // You get 36462 if you map 'dogma' to T9 phone dialer layout.
     private static final ServerPort DEFAULT_PORT = new ServerPort(36462, SessionProtocol.HTTP);
@@ -60,14 +70,9 @@ public final class CentralDogmaBuilder {
     static final int DEFAULT_MAX_NUM_FILES_PER_MIRROR = 8192;
     static final long DEFAULT_MAX_NUM_BYTES_PER_MIRROR = 32 * 1048576; // 32 MiB
 
-    static final long DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS = 604800000;   // 7 days
     static final String DEFAULT_REPOSITORY_CACHE_SPEC =
             "maximumWeight=134217728," + // Cache up to apx. 128-megachars.
             "expireAfterAccess=5m";      // Expire on 5 minutes of inactivity.
-
-    static final String DEFAULT_SESSION_CACHE_SPEC =
-            // Expire after the duration of session timeout.
-            "maximumSize=8192,expireAfterWrite=" + (DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS / 1000) + 's';
 
     // Armeria properties
     // Note that we use nullable types here for optional properties.
@@ -85,10 +90,7 @@ public final class CentralDogmaBuilder {
     private int numRepositoryWorkers = DEFAULT_NUM_REPOSITORY_WORKERS;
     @Nullable
     private String repositoryCacheSpec = DEFAULT_REPOSITORY_CACHE_SPEC;
-    @Nullable
-    private String sessionCacheSpec = DEFAULT_SESSION_CACHE_SPEC;
     private boolean webAppEnabled = true;
-    private long webAppSessionTimeoutMillis = DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
     private boolean mirroringEnabled = true;
     private int numMirroringThreads = DEFAULT_NUM_MIRRORING_THREADS;
     private int maxNumFilesPerMirror = DEFAULT_MAX_NUM_FILES_PER_MIRROR;
@@ -96,11 +98,18 @@ public final class CentralDogmaBuilder {
     @Nullable
     private GracefulShutdownTimeout gracefulShutdownTimeout;
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
-    @Nullable
-    private Ini securityConfig;
     private String accessLogFormat;
+
+    // AuthenticationConfig properties
+    @Nullable
+    private AuthenticationProviderFactory authProviderFactory;
     private final ImmutableSet.Builder<String> administrators = new Builder<>();
     private boolean caseSensitiveLoginNames;
+    private String sessionCacheSpec = DEFAULT_SESSION_CACHE_SPEC;
+    private long sessionTimeoutMillis = DEFAULT_SESSION_TIMEOUT_MILLIS;
+    private String sessionValidationSchedule = DEFAULT_SESSION_VALIDATION_SCHEDULE;
+    @Nullable
+    private Object authProviderProperties;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -243,40 +252,12 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets the cache specification which determines the capacity and behavior of the cache for {@link Session}
-     * of the server. See {@link CaffeineSpec} for the syntax of the spec.
-     * If unspecified, the default cache spec of {@value #DEFAULT_SESSION_CACHE_SPEC} is used.
-     */
-    public CentralDogmaBuilder sessionCacheSpec(String sessionCacheSpec) {
-        this.sessionCacheSpec = validateCacheSpec(sessionCacheSpec);
-        return this;
-    }
-
-    /**
      * Sets whether administrative web application is enabled or not.
      * If unspecified, the administrative web application is enabled.
      */
     public CentralDogmaBuilder webAppEnabled(boolean webAppEnabled) {
         this.webAppEnabled = webAppEnabled;
         return this;
-    }
-
-    /**
-     * Sets the session timeout for administrative web application, in milliseconds.
-     * If unspecified, {@value #DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS} is used.
-     */
-    public CentralDogmaBuilder webAppSessionTimeoutMillis(long webAppSessionTimeoutMillis) {
-        this.webAppSessionTimeoutMillis = webAppSessionTimeoutMillis;
-        return this;
-    }
-
-    /**
-     * Sets the session timeout for administrative web application.
-     * If unspecified, {@value #DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS} is used.
-     */
-    public CentralDogmaBuilder webAppSessionTimeout(Duration webAppSessionTimeout) {
-        return webAppSessionTimeoutMillis(
-                requireNonNull(webAppSessionTimeout, "webAppSessionTimeout").toMillis());
     }
 
     /**
@@ -333,25 +314,23 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Configures the security using an {@link Ini} configuration for
-     * <a href="https://shiro.apache.org">Apache Shiro</a>. An {@link Ini} object would be created by
-     * {@link Ini#fromResourcePath(String)} with the INI file path.
-     */
-    public CentralDogmaBuilder securityConfig(Ini securityConfig) {
-        requireNonNull(securityConfig, "securityConfig");
-        final Ini iniCopy = new Ini();
-        iniCopy.putAll(securityConfig);
-        this.securityConfig = iniCopy;
-        return this;
-    }
-
-    /**
      * Configures a format of an access log. It will work only if any logging framework is configured.
      * Read the <a href="https://line.github.io/armeria/server-access-log.html">Writing an access log</a>
      * document for more information.
      */
     public CentralDogmaBuilder accessLogFormat(String accessLogFormat) {
         this.accessLogFormat = requireNonNull(accessLogFormat, "accessLogFormat");
+        return this;
+    }
+
+    // AuthenticationConfig properties
+
+    /**
+     * Sets a {@link AuthenticationProviderFactory} instance which is used to create a new
+     * {@link AuthenticationProvider}.
+     */
+    public CentralDogmaBuilder authProviderFactory(AuthenticationProviderFactory authProviderFactory) {
+        this.authProviderFactory = requireNonNull(authProviderFactory, "authProviderFactory");
         return this;
     }
 
@@ -384,23 +363,81 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the cache specification which determines the capacity and behavior of the cache for
+     * {@link AuthenticatedSession} of the server. See {@link CaffeineSpec} for the syntax of the spec.
+     * If unspecified, the default cache spec of {@value AuthenticationConfig#DEFAULT_SESSION_CACHE_SPEC}
+     * is used.
+     */
+    public CentralDogmaBuilder sessionCacheSpec(String sessionCacheSpec) {
+        this.sessionCacheSpec = validateCacheSpec(sessionCacheSpec);
+        return this;
+    }
+
+    /**
+     * Sets the session timeout for administrative web application, in milliseconds.
+     * If unspecified, {@value AuthenticationConfig#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
+     */
+    public CentralDogmaBuilder sessionTimeoutMillis(long sessionTimeoutMillis) {
+        this.sessionTimeoutMillis = sessionTimeoutMillis;
+        return this;
+    }
+
+    /**
+     * Sets the session timeout for administrative web application.
+     * If unspecified, {@value AuthenticationConfig#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
+     */
+    public CentralDogmaBuilder sessionTimeout(Duration sessionTimeout) {
+        return sessionTimeoutMillis(
+                requireNonNull(sessionTimeout, "sessionTimeout").toMillis());
+    }
+
+    /**
+     * Sets a schedule for validating sessions.
+     * If unspecified, {@value AuthenticationConfig#DEFAULT_SESSION_VALIDATION_SCHEDULE} is used.
+     */
+    public CentralDogmaBuilder sessionValidationSchedule(String sessionValidationSchedule) {
+        this.sessionValidationSchedule =
+                requireNonNull(sessionValidationSchedule, "sessionValidationSchedule");
+        return this;
+    }
+
+    /**
+     * Sets an additional properties for an {@link AuthenticationProviderFactory}.
+     */
+    public CentralDogmaBuilder authProviderProperties(Object authProviderProperties) {
+        this.authProviderProperties = requireNonNull(authProviderProperties, "authProviderProperties");
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
-        return new CentralDogma(buildConfig(), securityConfig);
+        return new CentralDogma(buildConfig());
     }
 
     private CentralDogmaConfig buildConfig() {
         final List<ServerPort> ports = !this.ports.isEmpty() ? this.ports
                                                              : Collections.singletonList(DEFAULT_PORT);
+        final Set<String> adminSet = administrators.build();
+        final AuthenticationConfig authCfg;
+        if (authProviderFactory != null) {
+            authCfg = new AuthenticationConfig(
+                    authProviderFactory, adminSet, caseSensitiveLoginNames,
+                    sessionCacheSpec, sessionTimeoutMillis, sessionValidationSchedule,
+                    authProviderProperties != null ? Jackson.valueToTree(authProviderProperties) : null);
+        } else {
+            authCfg = null;
+            logger.info("{} is not specified, so {} will not be configured.",
+                        AuthenticationProviderFactory.class.getSimpleName(),
+                        AuthenticationConfig.class.getSimpleName());
+        }
 
         return new CentralDogmaConfig(dataDir, ports, tls, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
-                                      numRepositoryWorkers, null, repositoryCacheSpec,
-                                      sessionCacheSpec, gracefulShutdownTimeout, webAppEnabled,
-                                      webAppSessionTimeoutMillis, mirroringEnabled, numMirroringThreads,
+                                      numRepositoryWorkers, repositoryCacheSpec, gracefulShutdownTimeout,
+                                      webAppEnabled, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      securityConfig != null, null,
-                                      accessLogFormat, administrators.build(), caseSensitiveLoginNames);
+                                      null, accessLogFormat, authCfg);
     }
 }

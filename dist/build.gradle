@@ -56,6 +56,8 @@ task copyLib(group: 'Build',
     from project(':server').configurations.runtime
     from project(':server').tasks.jar
     from project.configurations.runtime
+    from project(':server-auth:saml').tasks.jar
+    from project(':server-auth:shiro').tasks.jar
     into "${project.ext.distDir}/lib"
 
     doLast {

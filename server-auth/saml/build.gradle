@@ -1,0 +1,6 @@
+dependencies {
+    compile project(':server')
+    compile 'com.linecorp.armeria:armeria-saml'
+
+    testCompile project(':testing-internal')
+}

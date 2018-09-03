@@ -23,12 +23,12 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
-import org.apache.shiro.session.mgt.SimpleSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSecurityManager;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.internal.admin.authentication.SessionManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -37,18 +37,18 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private static final Logger logger = LoggerFactory.getLogger(StandaloneCommandExecutor.class);
 
     private final ProjectManager projectManager;
-    private final CentralDogmaSecurityManager securityManager;
     private final Executor repositoryWorker;
+    private final SessionManager sessionManager;
 
     public StandaloneCommandExecutor(ProjectManager projectManager,
-                                     @Nullable CentralDogmaSecurityManager securityManager,
                                      Executor repositoryWorker,
+                                     @Nullable SessionManager sessionManager,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                      @Nullable Runnable onReleaseLeadership) {
         super(onTakeLeadership, onReleaseLeadership);
         this.projectManager = requireNonNull(projectManager, "projectManager");
-        this.securityManager = securityManager;
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
+        this.sessionManager = sessionManager;
     }
 
     @Override
@@ -73,7 +73,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     @Override
     @SuppressWarnings("unchecked")
-    protected <T> CompletableFuture<T> doExecute(int replicaId, Command<T> command) throws Exception {
+    protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
         if (command instanceof CreateProjectCommand) {
             return (CompletableFuture<T>) createProject((CreateProjectCommand) command);
         }
@@ -103,11 +103,11 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }
 
         if (command instanceof CreateSessionCommand) {
-            return (CompletableFuture<T>) createSession(replicaId, (CreateSessionCommand) command);
+            return (CompletableFuture<T>) createSession((CreateSessionCommand) command);
         }
 
         if (command instanceof RemoveSessionCommand) {
-            return (CompletableFuture<T>) removeSession(replicaId, (RemoveSessionCommand) command);
+            return (CompletableFuture<T>) removeSession((RemoveSessionCommand) command);
         }
 
         throw new UnsupportedOperationException(command.toString());
@@ -168,48 +168,28 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         return projectManager.get(c.projectName()).repos().get(c.repositoryName());
     }
 
-    private CompletableFuture<Void> createSession(int replicaId, CreateSessionCommand c) {
-        if (securityManager == null) {
+    private CompletableFuture<Void> createSession(CreateSessionCommand c) {
+        if (sessionManager == null) {
             // Security has been disabled for this replica.
             return CompletableFuture.completedFuture(null);
         }
 
-        if (replicaId() == replicaId) {
-            // The session commands are used only for replication of session events.
-            // We do not use them for local changes, because Shiro persisted them via SessionDAO already.
-            return CompletableFuture.completedFuture(null);
-        }
-
-        return CompletableFuture.supplyAsync(() -> {
-            final SimpleSession session = c.session();
-            try {
-                securityManager.createSession(session);
-            } catch (Throwable t) {
-                logger.warn("Failed to replicate a session creation: {}", session, t);
-            }
+        final AuthenticatedSession session = c.session();
+        return sessionManager.create(session).exceptionally(cause -> {
+            logger.warn("Failed to replicate a session creation: {}", session, cause);
             return null;
-        }, repositoryWorker); // Not really a repository update, but it will not hurt.
+        });
     }
 
-    private CompletableFuture<Void> removeSession(int replicaId, RemoveSessionCommand c) {
-        if (securityManager == null) {
+    private CompletableFuture<Void> removeSession(RemoveSessionCommand c) {
+        if (sessionManager == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        if (replicaId() == replicaId) {
-            // The session commands are used only for replication of session events.
-            // We do not use them for local changes, because Shiro persisted them via SessionDAO already.
-            return CompletableFuture.completedFuture(null);
-        }
-
-        return CompletableFuture.supplyAsync(() -> {
-            final String sessionId = c.sessionId();
-            try {
-                securityManager.removeSession(sessionId);
-            } catch (Throwable t) {
-                logger.warn("Failed to replicate a session removal: {}", sessionId, t);
-            }
+        final String sessionId = c.sessionId();
+        return sessionManager.delete(sessionId).exceptionally(cause -> {
+            logger.warn("Failed to replicate a session removal: {}", sessionId, cause);
             return null;
-        }, repositoryWorker); // Not really a repository update, but it will not hurt.
+        });
     }
 }

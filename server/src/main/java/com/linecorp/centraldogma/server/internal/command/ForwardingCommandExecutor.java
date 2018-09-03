@@ -30,7 +30,7 @@ public class ForwardingCommandExecutor implements CommandExecutor {
         this.delegate = requireNonNull(delegate, "delegate");
     }
 
-    protected <T extends CommandExecutor> T delegate() {
+    protected final <T extends CommandExecutor> T delegate() {
         return Util.unsafeCast(delegate);
     }
 
@@ -67,11 +67,6 @@ public class ForwardingCommandExecutor implements CommandExecutor {
     @Override
     public <T> CompletableFuture<T> execute(Command<T> command) {
         return delegate().execute(command);
-    }
-
-    @Override
-    public <T> CompletableFuture<T> execute(int replicaId, Command<T> command) {
-        return delegate().execute(replicaId, command);
     }
 
     @Override

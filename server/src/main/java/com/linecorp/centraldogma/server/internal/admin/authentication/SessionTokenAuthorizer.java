@@ -21,11 +21,10 @@ import static com.linecorp.centraldogma.server.internal.admin.authentication.Use
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
+import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.shiro.subject.Subject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,12 +42,11 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
 
     private static final Logger logger = LoggerFactory.getLogger(SessionTokenAuthorizer.class);
 
-    private final CentralDogmaSecurityManager securityManager;
+    private final SessionManager sessionManager;
     private final Set<String> administrators;
 
-    public SessionTokenAuthorizer(CentralDogmaSecurityManager securityManager,
-                                  Set<String> administrators) {
-        this.securityManager = requireNonNull(securityManager, "securityManager");
+    public SessionTokenAuthorizer(SessionManager sessionManager, Set<String> administrators) {
+        this.sessionManager = requireNonNull(sessionManager, "sessionManager");
         this.administrators = requireNonNull(administrators, "administrators");
     }
 
@@ -58,41 +56,17 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
         if (token == null) {
             return completedFuture(false);
         }
-
-        final CompletableFuture<Boolean> res = new CompletableFuture<>();
-        ctx.blockingTaskExecutor().execute(() -> {
-            final String sessionId = token.accessToken();
-            boolean isAuthenticated = false;
-            try {
-                if (!securityManager.sessionExists(sessionId)) {
-                    logNonExistentSession(sessionId);
-                    return;
-                }
-
-                final Subject currentUser =
-                        new Subject.Builder(securityManager).sessionCreationEnabled(false)
-                                                            .sessionId(sessionId)
-                                                            .buildSubject();
-                final Object principal = currentUser != null ? currentUser.getPrincipal() : null;
-                if (principal == null) {
-                    logNonExistentSession(sessionId);
-                    return;
-                }
-
-                final String p = principal.toString();
-                final User user = new User(p, administrators.contains(p) ? LEVEL_ADMIN : LEVEL_USER);
-                AuthenticationUtil.setCurrentUser(ctx, user);
-                isAuthenticated = true;
-            } catch (Throwable t) {
-                logger.warn("Failed to authorize a session: {}", sessionId, t);
-            } finally {
-                res.complete(isAuthenticated);
-            }
-        });
-        return res;
-    }
-
-    private static void logNonExistentSession(String sessionId) {
-        logger.debug("Non-existent session: {}", sessionId);
+        return sessionManager.get(token.accessToken())
+                             .thenApply(session -> {
+                                 if (session == null) {
+                                     return false;
+                                 }
+                                 final String username = session.username();
+                                 final List<String> roles = administrators.contains(username) ? LEVEL_ADMIN
+                                                                                              : LEVEL_USER;
+                                 final User user = new User(username, roles);
+                                 AuthenticationUtil.setCurrentUser(ctx, user);
+                                 return true;
+                             });
     }
 }

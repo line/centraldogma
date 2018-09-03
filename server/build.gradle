@@ -13,10 +13,13 @@ dependencies {
     compile project(':common-legacy')
 
     // Armeria
-    [ 'armeria-shaded', 'armeria-thrift0.9-shaded' ].each {
+    ['armeria-shaded', 'armeria-thrift0.9-shaded'].each {
         compile "com.linecorp.armeria:$it"
     }
     testCompile 'com.linecorp.armeria:armeria-testing-shaded'
+
+    // JSch
+    compile 'com.jcraft:jsch'
 
     // Commons Daemon
     compile 'commons-daemon:commons-daemon'
@@ -32,11 +35,8 @@ dependencies {
     // jGit
     compile 'org.eclipse.jgit:org.eclipse.jgit'
 
-    // JSch
-    compile 'com.jcraft:jsch'
-
-    // Shiro
-    compile 'org.apache.shiro:shiro-core'
+    // Quartz
+    compile 'org.quartz-scheduler:quartz'
 
     // Mockito for mocking a Project
     jmh 'org.mockito:mockito-core'
@@ -51,7 +51,7 @@ clientDependencies {
     copyExcludes = ['**/Gruntfile.js', 'gulpfile.js', 'source/**', 'test', 'karma.conf.js', 'index.js']
     npm {
         'ace-builds'('1.2.5', from: 'src-min-noconflict')
-        'angular'('1.5.8', )
+        'angular'('1.5.8')
         'angular-cache-buster'('0.4.3')
         'angular-cookies'('1.5.8')
         'angular-dynamic-locale'('0.1.32')
@@ -76,5 +76,19 @@ clientDependencies {
     }
 }
 
+task copyWebApp(type:Copy){
+    dependsOn ':server-auth:webapp:buildWebApp'
+
+    def dst = "${project.ext.genSrcDir}/main/resources/auth-webapp";
+
+    from project(':server-auth:webapp').file('build')
+    into dst
+
+    doFirst {
+        delete(dst)
+    }
+}
+
 tasks.clean.dependsOn(tasks.clientClean)
-tasks.processResources.dependsOn(tasks.clientInstall)
+tasks.processResources.dependsOn(tasks.clientInstall, tasks.copyWebApp)
+

@@ -62,7 +62,7 @@ public class MigrationUtilTest {
         protected CommandExecutor newCommandExecutor(ProjectManager projectManager,
                                                      Executor worker) {
             return new LegacyProjectInitializingCommandExecutor(
-                    new StandaloneCommandExecutor(projectManager, null, worker, null, null));
+                    new StandaloneCommandExecutor(projectManager, worker, null, null, null));
         }
     };
 

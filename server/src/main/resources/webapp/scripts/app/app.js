@@ -24,25 +24,18 @@ angular.module(
       PROJECT_ROLE_GUEST: "GUEST",
       REFRESH_DELAY_MSEC: 500
     })
-    .run(function ($rootScope, $location, $window, $http, $state, $translate, $uibModal,
+    .run(function ($rootScope, $location, $window, $http, $state, $translate, $uibModal, $q,
                    Principal, Language, NotificationUtil, Security) {
-           $rootScope.showLoginDialog = function () {
-             var modalInstance = $uibModal.open({
-               templateUrl: 'scripts/app/user/login/login.html',
-               controller: 'LoginController'
-             });
-
-             modalInstance.result.then(function (message) {
-               NotificationUtil.success(message);
-             });
-           };
-
            $rootScope.$on('$stateChangeStart', function (event, toState, toStateParams) {
              $rootScope.toState = toState;
              $rootScope.toStateParams = toStateParams;
 
              Security.resolve().then(function () {
-               Principal.refresh();
+               Principal.refresh().then(function () {
+                 if (!Principal.isAuthenticated()) {
+                   $window.location.href= "/link/auth/login";
+                 }
+               });
              });
 
              // Update the language

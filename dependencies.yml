@@ -124,5 +124,8 @@ org.eclipse.jgit:
 org.javassist:
   javassist: { version: '3.24.0-GA' }
 
+org.quartz-scheduler:
+  quartz: { version: '2.3.0' }
+
 org.testng:
   testng: { version: '6.14.3' }
