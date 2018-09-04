@@ -325,22 +325,11 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         try {
             final Properties zkProps = new Properties();
 
-            // Set mandatory properties.
-            zkProps.setProperty("initLimit", "5");
-            zkProps.setProperty("syncLimit", "10");
-
-            // Merge the user-specified properties.
-            zkProps.putAll(cfg.additionalProperties());
-
-            // Remove the properties that would break us.
-            for (final Iterator<Entry<Object, Object>> i = zkProps.entrySet().iterator(); i.hasNext();) {
-                final String key = (String) i.next().getKey();
-                if (key.startsWith("server.") || key.startsWith("group.") || key.startsWith("weight.") ||
-                    key.startsWith("quorum.auth.") || key.startsWith("authProvider.")) {
-                    i.remove();
-                    logger.warn("Ignoring a ZooKeeper property: {}", key);
-                }
-            }
+            // Set the properties.
+            copyZkProperty(zkProps, "initLimit", "5");
+            copyZkProperty(zkProps, "syncLimit", "10");
+            copyZkProperty(zkProps, "tickTime", "3000");
+            copyZkProperty(zkProps, "syncEnabled", "true");
 
             // Set the data directories.
             zkProps.setProperty("dataDir", zkDataDir.getPath());
@@ -425,6 +414,10 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 }
             }
         }
+    }
+
+    private void copyZkProperty(Properties zkProps, String initLimit, String defaultValue) {
+        zkProps.setProperty(initLimit, cfg.additionalProperties().getOrDefault(initLimit, defaultValue));
     }
 
     private void stopLater() {
