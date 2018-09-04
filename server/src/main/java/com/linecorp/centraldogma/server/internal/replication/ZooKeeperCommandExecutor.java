@@ -328,6 +328,8 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
             copyZkProperty(zkProps, "syncLimit", "10");
             copyZkProperty(zkProps, "tickTime", "3000");
             copyZkProperty(zkProps, "syncEnabled", "true");
+            copyZkProperty(zkProps, "autopurge.snapRetainCount", "7");
+            copyZkProperty(zkProps, "autopurge.purgeInterval", "24");
 
             // Set the data directories.
             zkProps.setProperty("dataDir", zkDataDir.getPath());
@@ -414,8 +416,8 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         }
     }
 
-    private void copyZkProperty(Properties zkProps, String initLimit, String defaultValue) {
-        zkProps.setProperty(initLimit, cfg.additionalProperties().getOrDefault(initLimit, defaultValue));
+    private void copyZkProperty(Properties zkProps, String key, String defaultValue) {
+        zkProps.setProperty(key, cfg.additionalProperties().getOrDefault(key, defaultValue));
     }
 
     private void stopLater() {
