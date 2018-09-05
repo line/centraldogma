@@ -277,7 +277,6 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
         return serverId() == that.serverId() &&
                servers().equals(that.servers()) &&
-               secret().equals(that.secret()) &&
                additionalProperties().equals(that.additionalProperties()) &&
                timeoutMillis() == that.timeoutMillis() &&
                numWorkers() == that.numWorkers() &&

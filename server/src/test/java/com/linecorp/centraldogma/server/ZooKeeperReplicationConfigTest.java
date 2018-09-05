@@ -50,8 +50,7 @@ public class ZooKeeperReplicationConfigTest {
                              "      \"electionPort\": 9," +
                              "      \"clientPort\": 10" +
                              "    }" +
-                             "  }," +
-                             "  \"secret\": \"11\"," +
+                             "  }," + // NB: secret is not serialized.
                              "  \"additionalProperties\": { \"12\": \"13\", \"14\": \"15\" }," +
                              "  \"timeoutMillis\": 16," +
                              "  \"numWorkers\": 17," +
