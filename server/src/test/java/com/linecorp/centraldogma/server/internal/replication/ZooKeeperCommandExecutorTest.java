@@ -46,7 +46,10 @@ import javax.annotation.Nullable;
 import org.apache.curator.test.InstanceSpec;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.DisableOnDebug;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +70,10 @@ public class ZooKeeperCommandExecutorTest {
     private static final int NUM_REPLICAS = 5;
 
     @Rule
-    public TemporaryFolder testFolder = new TemporaryFolder();
+    public final TestRule timeoutRule = new DisableOnDebug(new Timeout(1, TimeUnit.MINUTES));
+
+    @Rule
+    public final TemporaryFolder testFolder = new TemporaryFolder();
 
     @Test
     public void testLogWatch() throws Exception {
@@ -189,7 +195,6 @@ public class ZooKeeperCommandExecutorTest {
             }
         } finally {
             replicas.forEach(r -> r.rm.stop());
-            replicas.forEach(r -> r.rm.stop().join());
         }
     }
 

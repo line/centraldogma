@@ -39,8 +39,12 @@ import org.awaitility.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.DisableOnDebug;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -60,6 +64,9 @@ public class ReplicatedLoginAndLogoutTest {
 
     @ClassRule
     public static final TemporaryFolder tempDir = new TemporaryFolder();
+
+    @Rule
+    public final TestRule timeoutRule = new DisableOnDebug(new Timeout(30, TimeUnit.SECONDS));
 
     // Prepare two replicas.
 
