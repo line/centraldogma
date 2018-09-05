@@ -208,7 +208,6 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     /**
      * Returns the secret string used for authenticating the ZooKeeper peers.
      */
-    @JsonProperty
     public String secret() {
         return secret;
     }
