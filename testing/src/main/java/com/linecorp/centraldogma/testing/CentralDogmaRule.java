@@ -173,7 +173,7 @@ public class CentralDogmaRule extends TemporaryFolder {
         configure(builder);
 
         dogma = builder.build();
-        dogma.start();
+        dogma.start().join();
 
         serverAddress = dogma.activePort().get().localAddress();
 
@@ -235,15 +235,7 @@ public class CentralDogmaRule extends TemporaryFolder {
         httpClient = null;
 
         if (dogma != null) {
-            newCleanUpThread(dogma).start();
-            Runtime.getRuntime().addShutdownHook(newCleanUpThread(dogma));
-        }
-    }
-
-    private Thread newCleanUpThread(com.linecorp.centraldogma.server.CentralDogma dogma) {
-        return new Thread(() -> {
             dogma.stop();
-            super.after();
-        });
+        }
     }
 }

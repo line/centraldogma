@@ -97,7 +97,7 @@ org.apache.curator:
     exclusions:
     - org.apache.zookeeper:zookeeper
   curator-test:
-    version: '2.12.0'
+    version: *CURATOR_VERSION
     exclusions:
     - org.apache.zookeeper:zookeeper
 
@@ -109,6 +109,14 @@ org.apache.shiro:
 
 org.apache.thrift:
   libthrift: { version: '0.9.3' }
+
+org.apache.zookeeper:
+  zookeeper:
+    version: '3.5.4-beta'
+    exclusions:
+    - commons-cli:commons-cli
+    - org.apache.yetus:audience-annotations
+    - io.netty:netty
 
 org.eclipse.jgit:
   org.eclipse.jgit: { version: '5.0.2.201807311906-r' }

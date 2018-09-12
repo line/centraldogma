@@ -33,16 +33,17 @@ import com.linecorp.centraldogma.server.internal.command.Command;
 
 public final class ReplicationLog<T> {
 
-    private final String replicaId;
+    private final int replicaId;
     private final Command<T> command;
     private final T result;
 
     @JsonCreator
     static <T> ReplicationLog<T> deserialize(
-            @JsonProperty("replicaId") String replicaId,
+            @JsonProperty("replicaId") @Nullable Integer replicaId,
             @JsonProperty("command") Command<T> command,
             @JsonProperty("result") JsonNode result) throws JsonProcessingException {
-        return new ReplicationLog<>(replicaId, command, deserializeResult(result, command));
+        return new ReplicationLog<>(requireNonNull(replicaId, "replicaId"),
+                                    command, deserializeResult(result, command));
     }
 
     @Nullable
@@ -69,9 +70,9 @@ public final class ReplicationLog<T> {
         return Jackson.treeToValue(result, resultType);
     }
 
-    ReplicationLog(String replicaId, Command<T> command, @Nullable T result) {
+    ReplicationLog(int replicaId, Command<T> command, @Nullable T result) {
 
-        this.replicaId = requireNonNull(replicaId, "replicaId");
+        this.replicaId = replicaId;
         this.command = requireNonNull(command, "command");
 
         final Class<?> resultType = command.type().resultType();
@@ -95,7 +96,7 @@ public final class ReplicationLog<T> {
     }
 
     @JsonProperty
-    public String replicaId() {
+    public int replicaId() {
         return replicaId;
     }
 
@@ -111,7 +112,7 @@ public final class ReplicationLog<T> {
 
     @Override
     public int hashCode() {
-        return replicaId().hashCode() * 31 + command().hashCode();
+        return replicaId() * 31 + command().hashCode();
     }
 
     @Override
@@ -127,7 +128,7 @@ public final class ReplicationLog<T> {
         @SuppressWarnings("unchecked")
         final ReplicationLog<Object> that = (ReplicationLog<Object>) obj;
 
-        return replicaId().equals(that.replicaId()) &&
+        return replicaId() == that.replicaId() &&
                Objects.equals(result(), that.result()) &&
                command().equals(that.command());
     }

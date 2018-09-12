@@ -27,17 +27,17 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
@@ -51,7 +51,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.base.Ascii;
-import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
@@ -61,6 +60,7 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.util.EventLoopGroups;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
@@ -105,7 +105,6 @@ import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.MigrationUtil;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringService;
-import com.linecorp.centraldogma.server.internal.replication.ReplicationException;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -116,13 +115,14 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutSched
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.GlobalEventExecutor;
 
 /**
  * Central Dogma server.
  *
  * @see CentralDogmaBuilder
  */
-public class CentralDogma {
+public class CentralDogma implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogma.class);
 
@@ -145,6 +145,9 @@ public class CentralDogma {
 
     @Nullable
     private final Ini securityConfig;
+
+    private final StartStopSupport<Void, Void> startStop = new CentralDogmaStartStop();
+
     @Nullable
     private volatile ProjectManager pm;
     @Nullable
@@ -218,9 +221,25 @@ public class CentralDogma {
     }
 
     /**
-     * Starts the server. This method does nothing if the server is started already.
+     * Starts the server.
      */
-    public synchronized void start() {
+    public CompletableFuture<Void> start() {
+        return startStop.start(true);
+    }
+
+    /**
+     * Stops the server. This method does nothing if the server is stopped already.
+     */
+    public CompletableFuture<Void> stop() {
+        return startStop.stop();
+    }
+
+    @Override
+    public void close() {
+        startStop.close();
+    }
+
+    private void doStart() {
         boolean success = false;
         ThreadPoolExecutor repositoryWorker = null;
         ProjectManager pm = null;
@@ -278,7 +297,7 @@ public class CentralDogma {
                 this.mirroringService = mirroringService;
                 this.server = server;
             } else {
-                stop(server, executor, mirroringService, pm, repositoryWorker);
+                doStop(server, executor, mirroringService, pm, repositoryWorker);
             }
         }
     }
@@ -287,48 +306,54 @@ public class CentralDogma {
             ProjectManager pm, DefaultMirroringService mirroringService,
             Executor repositoryWorker, @Nullable CentralDogmaSecurityManager securityManager) {
 
+        final Consumer<CommandExecutor> onTakeLeadership = exec -> {
+            if (cfg.isMirroringEnabled()) {
+                logger.info("Starting the mirroring service ..");
+                mirroringService.start(exec);
+                logger.info("Started the mirroring service");
+            } else {
+                logger.info("Not starting the mirroring service because it's disabled.");
+            }
+
+            if (securityManager != null) {
+                logger.info("Starting the periodic session validation ..");
+                securityManager.enableSessionValidation();
+                logger.info("Started the periodic session validation");
+            }
+        };
+
+        final Runnable onReleaseLeadership = () -> {
+            if (cfg.isMirroringEnabled()) {
+                logger.info("Stopping the mirroring service ..");
+                mirroringService.stop();
+                logger.info("Stopped the mirroring service");
+            }
+
+            if (securityManager != null) {
+                logger.info("Stopping the periodic session validation ..");
+                securityManager.disableSessionValidation();
+                logger.info("Stopped the periodic session validation");
+            }
+        };
+
         final CommandExecutor executor;
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
         switch (replicationMethod) {
             case ZOOKEEPER:
-                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, securityManager);
+                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, securityManager,
+                                                       onTakeLeadership, onReleaseLeadership);
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
-                executor = new StandaloneCommandExecutor(pm, securityManager, repositoryWorker);
+                executor = new StandaloneCommandExecutor(pm, securityManager, repositoryWorker,
+                                                         onTakeLeadership, onReleaseLeadership);
                 break;
             default:
                 throw new Error("unknown replication method: " + replicationMethod);
         }
 
         try {
-            executor.start(() -> {
-                if (cfg.isMirroringEnabled()) {
-                    logger.info("Starting the mirroring service ..");
-                    mirroringService.start(executor);
-                    logger.info("Started the mirroring service");
-                } else {
-                    logger.info("Not starting the mirroring service because it's disabled.");
-                }
-
-                if (securityManager != null) {
-                    logger.info("Starting the periodic session validation ..");
-                    securityManager.enableSessionValidation();
-                    logger.info("Started the periodic session validation");
-                }
-            }, () -> {
-                if (cfg.isMirroringEnabled()) {
-                    logger.info("Stopping the mirroring service ..");
-                    mirroringService.stop();
-                    logger.info("Stopped the mirroring service");
-                }
-
-                if (securityManager != null) {
-                    logger.info("Stopping the periodic session validation ..");
-                    securityManager.disableSessionValidation();
-                    logger.info("Stopped the periodic session validation");
-                }
-            });
+            executor.start().get();
         } catch (Exception e) {
             logger.warn("Failed to start the command executor. Entering read-only.", e);
         }
@@ -432,62 +457,23 @@ public class CentralDogma {
     }
 
     private CommandExecutor newZooKeeperCommandExecutor(ProjectManager pm, Executor repositoryWorker,
-                                                        @Nullable CentralDogmaSecurityManager securityManager) {
+                                                        @Nullable CentralDogmaSecurityManager securityManager,
+                                                        @Nullable Consumer<CommandExecutor> onTakeLeadership,
+                                                        @Nullable Runnable onReleaseLeadership) {
 
         final ZooKeeperReplicationConfig zkCfg = (ZooKeeperReplicationConfig) cfg.replicationConfig();
 
-        // Read or generate the replica ID.
-        final File replicaIdFile =
-                new File(cfg.dataDir().getAbsolutePath() + File.separatorChar + "replica_id");
-        final String replicaId;
-
-        if (replicaIdFile.exists()) {
-            // Read the replica ID.
-            try {
-                final List<String> lines = Files.readAllLines(replicaIdFile.toPath());
-                if (lines.isEmpty()) {
-                    throw new IllegalStateException("replica_id contains no lines.");
-                }
-                replicaId = lines.get(0).trim();
-                if (replicaId.isEmpty()) {
-                    throw new IllegalStateException("replica_id is empty.");
-                }
-            } catch (Exception e) {
-                throw new ReplicationException("failed to retrieve the replica ID from: " + replicaIdFile, e);
-            }
-            logger.info("Using ZooKeeper-based replication mechanism with an existing replica ID: {}",
-                        replicaId);
-        } else {
-            // Generate a replica ID.
-            replicaId = UUID.randomUUID().toString();
-            try {
-                Files.write(replicaIdFile.toPath(), ImmutableList.of(replicaId));
-            } catch (Exception e) {
-                throw new ReplicationException("failed to generate a replica ID into: " + replicaIdFile, e);
-            }
-            logger.info("Using ZooKeeper-based replication mechanism with a generated replica ID: {}",
-                        replicaId);
-        }
+        // Delete the old UUID replica ID which is not used anymore.
+        new File(cfg.dataDir(), "replica_id").delete();
 
         // TODO(trustin): Provide a way to restart/reload the replicator
         //                so that we can recover from ZooKeeper maintenance automatically.
-        final File revisionFile =
-                new File(cfg.dataDir().getAbsolutePath() + File.separatorChar + "last_revision");
-
-        return ZooKeeperCommandExecutor.builder()
-                                       .replicaId(replicaId)
-                                       .delegate(new StandaloneCommandExecutor(replicaId, pm,
-                                                                               securityManager,
-                                                                               repositoryWorker))
-                                       .numWorkers(zkCfg.numWorkers())
-                                       .connectionString(zkCfg.connectionString())
-                                       .timeoutMillis(zkCfg.timeoutMillis())
-                                       .createPathIfNotExist(true)
-                                       .path(zkCfg.pathPrefix())
-                                       .maxLogCount(zkCfg.maxLogCount())
-                                       .minLogAge(zkCfg.minLogAgeMillis(), TimeUnit.MILLISECONDS)
-                                       .revisionFile(revisionFile)
-                                       .build();
+        return new ZooKeeperCommandExecutor(zkCfg, cfg.dataDir(),
+                                            new StandaloneCommandExecutor(pm,
+                                                                          securityManager,
+                                                                          repositoryWorker,
+                                                                          null, null),
+                                            onTakeLeadership, onReleaseLeadership);
     }
 
     private void configureThriftService(ServerBuilder sb, ProjectManager pm, CommandExecutor executor,
@@ -631,10 +617,7 @@ public class CentralDogma {
         }, 1024); // Do not encode if content-length < 1024.
     }
 
-    /**
-     * Stops the server. This method does nothing if the server is stopped already.
-     */
-    public synchronized void stop() {
+    private void doStop() {
         if (server == null) {
             return;
         }
@@ -652,14 +635,14 @@ public class CentralDogma {
         this.repositoryWorker = null;
 
         logger.info("Stopping the Central Dogma ..");
-        if (!stop(server, executor, mirroringService, pm, repositoryWorker)) {
+        if (!doStop(server, executor, mirroringService, pm, repositoryWorker)) {
             logger.warn("Stopped the Central Dogma with failure");
         } else {
             logger.info("Stopped the Central Dogma successfully");
         }
     }
 
-    private static boolean stop(
+    private static boolean doStop(
             @Nullable Server server, @Nullable CommandExecutor executor,
             @Nullable DefaultMirroringService mirroringService,
             @Nullable ProjectManager pm, @Nullable ExecutorService repositoryWorker) {
@@ -735,5 +718,36 @@ public class CentralDogma {
         }
 
         return success;
+    }
+
+    private final class CentralDogmaStartStop extends StartStopSupport<Void, Void> {
+
+        CentralDogmaStartStop() {
+            super(GlobalEventExecutor.INSTANCE);
+        }
+
+        @Override
+        protected CompletionStage<Void> doStart() throws Exception {
+            return execute("startup", CentralDogma.this::doStart);
+        }
+
+        @Override
+        protected CompletionStage<Void> doStop() throws Exception {
+            return execute("shutdown", CentralDogma.this::doStop);
+        }
+
+        private CompletionStage<Void> execute(String mode, Runnable task) {
+            final CompletableFuture<Void> future = new CompletableFuture<>();
+            final Thread thread = new Thread(() -> {
+                try {
+                    task.run();
+                    future.complete(null);
+                } catch (Throwable cause) {
+                    future.completeExceptionally(cause);
+                }
+            }, "dogma-" + mode + "-0x" + Long.toHexString(CentralDogma.this.hashCode() & 0xFFFFFFFFL));
+            thread.start();
+            return future;
+        }
     }
 }

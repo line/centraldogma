@@ -99,8 +99,9 @@ public class PermissionTest {
         protected void configure(ServerBuilder sb) throws Exception {
             final ProjectManager pm = new DefaultProjectManager(
                     rootDir.newFolder(), ForkJoinPool.commonPool(), null);
-            final CommandExecutor executor = new StandaloneCommandExecutor(pm, null, ForkJoinPool.commonPool());
-            executor.start(null, null);
+            final CommandExecutor executor = new StandaloneCommandExecutor(
+                    pm, null, ForkJoinPool.commonPool(), null, null);
+            executor.start().join();
 
             ProjectInitializer.initializeInternalProject(executor);
             MigrationUtil.migrate(pm, executor);

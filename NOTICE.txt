@@ -305,7 +305,12 @@ This product depends on Apache Thrift, distributed by Apache Software Foundation
   * License: licenses/LICENSE.thrift.al20.txt (Apache License v2.0)
   * Homepage: https://thrift.apache.org/
 
- This product depends on urfave/cli, distributed by Jeremy Saenz:
+This product depends on urfave/cli, distributed by Jeremy Saenz:
 
-   * License: licenses/LICENSE.urfave-cli.mit.txt (MIT License)
-   * Homepage: https://github.com/urfave/cli
+  * License: licenses/LICENSE.urfave-cli.mit.txt (MIT License)
+  * Homepage: https://github.com/urfave/cli
+
+This product depends on Apache ZooKeeper, distributed by Apache Software Foundation:
+
+  * License: licenses/LICENSE.zookeeper.al20.txt (Apache License v2.0)
+  * Homepage: https://zookeeper.apache.org/

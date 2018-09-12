@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
@@ -24,7 +23,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,20 +32,24 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
+import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.api.transaction.CuratorTransactionFinal;
+import org.apache.curator.framework.api.transaction.CuratorOp;
 import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
@@ -56,17 +58,26 @@ import org.apache.curator.framework.recipes.leader.LeaderSelector;
 import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
 import org.apache.curator.framework.recipes.locks.InterProcessMutex;
 import org.apache.curator.framework.state.ConnectionState;
-import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.curator.retry.RetryForever;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.server.auth.DigestLoginModule;
+import org.apache.zookeeper.server.auth.SASLAuthenticationProvider;
+import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
+import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.google.common.escape.Escaper;
+import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.internal.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
@@ -76,12 +87,11 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                                             implements PathChildrenCacheListener {
 
-    public static final int DEFAULT_TIMEOUT_MILLIS = 1000;
-    public static final int DEFAULT_NUM_WORKERS = 16;
-    public static final int DEFAULT_MAX_LOG_COUNT = 100;
-    public static final long DEFAULT_MIN_LOG_AGE_MILLIS = TimeUnit.HOURS.toMillis(1);
-
     private static final Logger logger = LoggerFactory.getLogger(ZooKeeperCommandExecutor.class);
+    private static final Escaper jaasValueEscaper =
+            Escapers.builder().addEscape('\"', "\\\"").addEscape('\\', "\\\\").build();
+
+    private static final String PATH_PREFIX = "/dogma";
     private static final int MAX_BYTES = 1024 * 1023; // Max size in document is 1M. but safety.
 
     // Log revision should be started at 0 and be increased by 1. Do not create any changes without creating
@@ -101,17 +111,26 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
     @VisibleForTesting
     static final String LEADER_PATH = "leader";
 
-    private final CommandExecutor delegate;
-    private final CuratorFramework curator;
-    private final String zkPath; //absolute path
-    private final boolean createPathIfNotExist;
-    private final ExecutorService executor;
-    private final PathChildrenCache logWatcher;
-    private final OldLogRemover oldLogRemover;
-    private final LeaderSelector leaderSelector;
+    private static final RetryPolicy RETRY_POLICY_ALWAYS = new RetryForever(500);
+    private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
+
+    private final ZooKeeperReplicationConfig cfg;
     private final File revisionFile;
-    private final int maxLogCount;
-    private final long minLogAgeMillis;
+    private final File zkConfFile;
+    private final File zkDataDir;
+    private final File zkLogDir;
+    private final CommandExecutor delegate;
+
+    private volatile EmbeddedZooKeeper quorumPeer;
+    private volatile CuratorFramework curator;
+    private volatile RetryPolicy retryPolicy = RETRY_POLICY_NEVER;
+    private volatile ExecutorService executor;
+    private volatile ExecutorService logWatcherExecutor;
+    private volatile PathChildrenCache logWatcher;
+    private volatile OldLogRemover oldLogRemover;
+    private volatile ExecutorService leaderSelectorExecutor;
+    private volatile LeaderSelector leaderSelector;
+    private volatile boolean createdParentNodes;
 
     private class OldLogRemover implements LeaderSelectorListener {
         @Override
@@ -141,13 +160,17 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 }
             } catch (InterruptedException e) {
                 // Leader selector has been closed.
-                Thread.currentThread().interrupt();
             } catch (Exception e) {
                 logger.error("Leader stopped due to an unexpected exception:", e);
             } finally {
                 logger.info("Releasing leadership: {}", replicaId());
                 if (listenerInfo.onReleaseLeadership != null) {
                     listenerInfo.onReleaseLeadership.run();
+                }
+
+                if (ZooKeeperCommandExecutor.this.listenerInfo != null) {
+                    // Requeue only when the executor is not stopped.
+                    leaderSelector.requeue();
                 }
             }
         }
@@ -158,12 +181,12 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
         private void deleteLogs() throws Exception {
             final List<String> children = curator.getChildren().forPath(absolutePath(LOG_PATH));
-            if (children.size() <= maxLogCount) {
+            if (children.size() <= cfg.maxLogCount()) {
                 return;
             }
 
-            final long minAllowedTimestamp = System.currentTimeMillis() - minLogAgeMillis;
-            final int targetCount = children.size() - maxLogCount;
+            final long minAllowedTimestamp = System.currentTimeMillis() - cfg.minLogAgeMillis();
+            final int targetCount = children.size() - cfg.maxLogCount();
             final List<String> deleted = new ArrayList<>(targetCount);
             children.sort(Comparator.comparingLong(Long::parseLong));
             try {
@@ -178,13 +201,14 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                         break;
                     }
 
-                    final CuratorTransactionFinal tr = curator.inTransaction().delete().forPath(logPath).and();
+                    final List<CuratorOp> ops = new ArrayList<>();
+                    ops.add(curator.transactionOp().delete().forPath(logPath));
                     for (long blockId : meta.blocks()) {
                         final String blockPath = absolutePath(LOG_BLOCK_PATH) + '/' + pathFromRevision(blockId);
-                        tr.delete().forPath(blockPath).and();
+                        ops.add(curator.transactionOp().delete().forPath(blockPath));
                     }
 
-                    tr.commit();
+                    curator.transaction().forOperations(ops);
                     deleted.add(children.get(i));
                 }
             } finally {
@@ -209,160 +233,82 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
     private volatile ListenerInfo listenerInfo;
 
-    public static class Builder {
-        private String replicaId;
-        private CommandExecutor delegate;
-        private int numWorkers = DEFAULT_NUM_WORKERS;
-        private String connectionString;
-        private int timeoutMillis = DEFAULT_TIMEOUT_MILLIS;
-        private boolean createPathIfNotExist;
-        private String path;
-        private File revisionFile;
-        private int maxLogCount = DEFAULT_MAX_LOG_COUNT;
-        private long minLogAgeMillis = DEFAULT_MIN_LOG_AGE_MILLIS;
+    public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
+                                    File dataDir, CommandExecutor delegate,
+                                    @Nullable Consumer<CommandExecutor> onTakeLeadership,
+                                    @Nullable Runnable onReleaseLeadership) {
+        super(onTakeLeadership, onReleaseLeadership);
 
-        public Builder replicaId(String replicaId) {
-            this.replicaId = replicaId;
-            return this;
-        }
+        this.cfg = requireNonNull(cfg, "cfg");
+        requireNonNull(dataDir, "dataDir");
+        revisionFile = new File(dataDir.getAbsolutePath() + File.separatorChar + "last_revision");
+        zkConfFile = new File(dataDir.getAbsolutePath() + File.separatorChar +
+                              "_zookeeper" + File.separatorChar + "config.properties");
+        zkDataDir = new File(dataDir.getAbsolutePath() + File.separatorChar +
+                             "_zookeeper" + File.separatorChar + "data");
+        zkLogDir = new File(dataDir.getAbsolutePath() + File.separatorChar +
+                            "_zookeeper" + File.separatorChar + "log");
 
-        public Builder delegate(CommandExecutor delegate) {
-            this.delegate = delegate;
-            return this;
-        }
-
-        public Builder numWorkers(int numWorkers) {
-            if (numWorkers <= 0) {
-                throw new IllegalArgumentException(
-                        "numWorkers: " + numWorkers + " (expected: > 0)");
-            }
-            this.numWorkers = numWorkers;
-            return this;
-        }
-
-        public Builder connectionString(String connectionString) {
-            this.connectionString = connectionString;
-            return this;
-        }
-
-        public Builder timeoutMillis(int timeoutMillis) {
-            this.timeoutMillis = timeoutMillis;
-            return this;
-        }
-
-        public Builder createPathIfNotExist(boolean b) {
-            createPathIfNotExist = b;
-            return this;
-        }
-
-        public Builder path(String path) {
-            path = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
-            checkArgument(!path.isEmpty(), "ZooKeeper path must not refer to the root node.");
-            this.path = path;
-            return this;
-        }
-
-        public Builder revisionFile(File f) {
-            revisionFile = f;
-            return this;
-        }
-
-        public Builder maxLogCount(int c) {
-            if (c <= 0) {
-                throw new IllegalArgumentException("maxLogCount: " + maxLogCount + " (expected: > 0)");
-            }
-            maxLogCount = c;
-            return this;
-        }
-
-        public Builder minLogAge(long minLogAge, TimeUnit unit) {
-            if (minLogAge <= 0) {
-                throw new IllegalArgumentException("minLogAge: " + minLogAge + " (expected: > 0)");
-            }
-
-            minLogAgeMillis = requireNonNull(unit, "unit").toMillis(minLogAge);
-            return this;
-        }
-
-        public ZooKeeperCommandExecutor build() {
-            requireNonNull(replicaId, "replicaId");
-            requireNonNull(delegate, "delegate");
-            requireNonNull(connectionString, "connectionString");
-            requireNonNull(path, "path");
-            requireNonNull(revisionFile, "revisionFile");
-
-            final CuratorFramework curator = CuratorFrameworkFactory.newClient(
-                    connectionString, new ExponentialBackoffRetry(timeoutMillis, 3));
-
-            return new ZooKeeperCommandExecutor(
-                    replicaId, delegate, curator, path, createPathIfNotExist,
-                    revisionFile, numWorkers, maxLogCount, minLogAgeMillis);
-        }
+        this.delegate = requireNonNull(delegate, "delegate");
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    private ZooKeeperCommandExecutor(String replicaId, CommandExecutor delegate, CuratorFramework curator,
-                                     String zkPath, boolean createPathIfNotExist, File revisionFile,
-                                     int numWorkers, int maxLogCount, long minLogAgeMillis) {
-        super(replicaId);
-
-        this.delegate = delegate;
-        this.revisionFile = revisionFile;
-        this.curator = curator;
-        this.zkPath = zkPath;
-        this.createPathIfNotExist = createPathIfNotExist;
-        this.maxLogCount = maxLogCount;
-        this.minLogAgeMillis = minLogAgeMillis;
-
-        final ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                numWorkers, numWorkers,
-                60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
-                new DefaultThreadFactory("zookeeper-command-executor", true));
-        executor.allowCoreThreadTimeOut(true);
-        this.executor = executor;
-
-        logWatcher = new PathChildrenCache(curator, absolutePath(LOG_PATH), true);
-        logWatcher.getListenable().addListener(this, MoreExecutors.directExecutor());
-        oldLogRemover = new OldLogRemover();
-        leaderSelector = new LeaderSelector(curator, absolutePath(LEADER_PATH), oldLogRemover);
-        leaderSelector.autoRequeue();
+    @Override
+    public int replicaId() {
+        return cfg.serverId();
     }
 
     @Override
     protected void doStart(@Nullable Runnable onTakeLeadership,
                            @Nullable Runnable onReleaseLeadership) {
         try {
-            // Note that we do not pass the leadership callbacks because we handle them by ourselves.
-            delegate.start(null, null);
-
             // Get the last replayed revision.
             final long lastReplayedRevision;
             try {
                 lastReplayedRevision = getLastReplayedRevision();
+                listenerInfo = new ListenerInfo(lastReplayedRevision, onTakeLeadership, onReleaseLeadership);
             } catch (Exception e) {
                 throw new ReplicationException("failed to read " + revisionFile, e);
             }
-            listenerInfo = new ListenerInfo(lastReplayedRevision, onTakeLeadership, onReleaseLeadership);
+
+            // Start the embedded ZooKeeper.
+            quorumPeer = startZooKeeper();
+            retryPolicy = RETRY_POLICY_ALWAYS;
 
             // Start the Curator framework.
+            curator = CuratorFrameworkFactory.newClient(
+                    "127.0.0.1:" + quorumPeer.getClientPort(), cfg.timeoutMillis(), cfg.timeoutMillis(),
+                    (retryCount, elapsedTimeMs, sleeper) -> {
+                        return retryPolicy.allowRetry(retryCount, elapsedTimeMs, sleeper);
+                    });
+
             curator.start();
 
-            // Create the zkPath if it does not exist.
-            if (createPathIfNotExist) {
-                createZkPathIfMissing(zkPath);
-                createZkPathIfMissing(zkPath + '/' + LOG_PATH);
-                createZkPathIfMissing(zkPath + '/' + LOG_BLOCK_PATH);
-                createZkPathIfMissing(zkPath + '/' + LOCK_PATH);
-            }
-
             // Start the log replay.
+            logWatcherExecutor = Executors.newSingleThreadExecutor(
+                    new DefaultThreadFactory("zookeeper-log-watcher", true));
+            logWatcher = new PathChildrenCache(curator, absolutePath(LOG_PATH),
+                                               true, false, logWatcherExecutor);
+            logWatcher.getListenable().addListener(this, MoreExecutors.directExecutor());
             logWatcher.start();
 
             // Start the leader selection.
+            oldLogRemover = new OldLogRemover();
+            leaderSelectorExecutor = Executors.newSingleThreadExecutor(
+                    new DefaultThreadFactory("zookeeper-leader-selector", true));
+            leaderSelector = new LeaderSelector(curator, absolutePath(LEADER_PATH),
+                                                leaderSelectorExecutor, oldLogRemover);
             leaderSelector.start();
+
+            // Start the delegate.
+            delegate.start();
+
+            // Get the command executor threads ready.
+            final ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                    cfg.numWorkers(), cfg.numWorkers(),
+                    60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
+                    new DefaultThreadFactory("zookeeper-command-executor", true));
+            executor.allowCoreThreadTimeOut(true);
+            this.executor = executor;
         } catch (ReplicationException e) {
             throw e;
         } catch (Exception e) {
@@ -370,10 +316,109 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         }
     }
 
-    private void createZkPathIfMissing(String zkPath) throws Exception {
-        if (curator.checkExists().forPath(zkPath) == null) {
-            curator.create().forPath(zkPath);
+    private EmbeddedZooKeeper startZooKeeper() throws Exception {
+        logger.info("Starting the ZooKeeper peer ({}) ..", cfg.serverId());
+        EmbeddedZooKeeper peer = null;
+        boolean success = false;
+        try {
+            final Properties zkProps = new Properties();
+
+            // Set the properties.
+            copyZkProperty(zkProps, "initLimit", "5");
+            copyZkProperty(zkProps, "syncLimit", "10");
+            copyZkProperty(zkProps, "tickTime", "3000");
+            copyZkProperty(zkProps, "syncEnabled", "true");
+            copyZkProperty(zkProps, "autopurge.snapRetainCount", "7");
+            copyZkProperty(zkProps, "autopurge.purgeInterval", "24");
+
+            // Set the data directories.
+            zkProps.setProperty("dataDir", zkDataDir.getPath());
+            zkProps.setProperty("dataLogDir", zkLogDir.getPath());
+            zkDataDir.mkdirs();
+            zkLogDir.mkdirs();
+
+            // Generate the myid file in.
+            try (FileOutputStream out = new FileOutputStream(new File(zkDataDir, "myid"))) {
+                out.write((cfg.serverId() + "\n").getBytes(StandardCharsets.US_ASCII));
+            }
+
+            // Generate the jaas.conf and configure system properties to enable SASL authentication
+            // for server, client, quorum server and quorum learner.
+            final File jaasConfFile = new File(zkDataDir, "jaas.conf");
+            try (FileOutputStream out = new FileOutputStream(jaasConfFile)) {
+                final StringBuilder buf = new StringBuilder();
+                final String newline = System.lineSeparator();
+                final String escapedSecret = jaasValueEscaper.escape(cfg.secret());
+                ImmutableList.of("Server", EmbeddedZooKeeper.SASL_SERVER_LOGIN_CONTEXT).forEach(name -> {
+                    buf.append(name).append(" {").append(newline);
+                    buf.append(DigestLoginModule.class.getName()).append(" required").append(newline);
+                    buf.append("user_super=\"").append(escapedSecret).append("\";").append(newline);
+                    buf.append("};").append(newline);
+                });
+                ImmutableList.of("Client", EmbeddedZooKeeper.SASL_LEARNER_LOGIN_CONTEXT).forEach(name -> {
+                    buf.append(name).append(" {").append(newline);
+                    buf.append(DigestLoginModule.class.getName()).append(" required").append(newline);
+                    buf.append("username=\"super\"").append(newline);
+                    buf.append("password=\"").append(escapedSecret).append("\";").append(newline);
+                    buf.append("};").append(newline);
+                });
+                out.write(buf.toString().getBytes());
+            }
+            System.setProperty("java.security.auth.login.config", jaasConfFile.getAbsolutePath());
+            System.setProperty("zookeeper.authProvider.1", SASLAuthenticationProvider.class.getName());
+
+            // Set the client port, which is unused.
+            zkProps.setProperty("clientPort", String.valueOf(cfg.serverAddress().clientPort()));
+
+            // Add replicas.
+            cfg.servers().forEach((id, addr) -> {
+                zkProps.setProperty(
+                        "server." + id,
+                        addr.host() + ':' + addr.quorumPort() + ':' + addr.electionPort() + ":participant");
+            });
+
+            // Disable Jetty-based admin server.
+            zkProps.setProperty("admin.enableServer", "false");
+
+            zkConfFile.getParentFile().mkdirs();
+            try (FileOutputStream out = new FileOutputStream(zkConfFile)) {
+                zkProps.store(out, null);
+            }
+
+            final QuorumPeerConfig zkCfg = new QuorumPeerConfig();
+            zkCfg.parse(zkConfFile.getPath());
+
+            peer = new EmbeddedZooKeeper(zkCfg);
+            peer.start();
+
+            // Wait until the ZooKeeper joins the cluster.
+            for (;;) {
+                final ServerState state = peer.getPeerState();
+                if (state == ServerState.FOLLOWING || state == ServerState.LEADING) {
+                    break;
+                }
+                logger.info("Waiting for the ZooKeeper peer ({}) to join the cluster ..", peer.getId());
+                Thread.sleep(1000);
+            }
+
+            logger.info("The ZooKeeper peer ({}) has joined the cluster, following {}",
+                        peer.getId(), peer.getCurrentVote().getId());
+
+            success = true;
+            return peer;
+        } finally {
+            if (!success && peer != null) {
+                try {
+                    peer.shutdown();
+                } catch (Exception e) {
+                    logger.warn("Failed to shutdown the failed ZooKeeper peer: {}", e.getMessage(), e);
+                }
+            }
         }
+    }
+
+    private void copyZkProperty(Properties zkProps, String key, String defaultValue) {
+        zkProps.setProperty(key, cfg.additionalProperties().getOrDefault(key, defaultValue));
     }
 
     private void stopLater() {
@@ -383,40 +428,85 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
     }
 
     @Override
-    protected void doStop() {
-        boolean interruptLater = false;
+    protected void doStop(@Nullable Runnable onReleaseLeadership) {
+        listenerInfo = null;
+        logger.info("Stopping the worker threads");
+        boolean interrupted = shutdown(executor);
+        logger.info("Stopped the worker threads");
+
+        try {
+            logger.info("Stopping the delegate command executor");
+            delegate.stop();
+            logger.info("Stopped the delegate command executor");
+        } catch (Exception e) {
+            logger.warn("Failed to stop the delegate command executor {}: {}", delegate, e.getMessage(), e);
+        } finally {
+            retryPolicy = RETRY_POLICY_NEVER;
+            try {
+                if (leaderSelector != null) {
+                    logger.info("Closing the leader selector");
+                    leaderSelector.close();
+                    interrupted |= shutdown(leaderSelectorExecutor);
+                    logger.info("Closed the leader selector");
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to close the leader selector: {}", e.getMessage(), e);
+            } finally {
+                try {
+                    if (logWatcher != null) {
+                        logger.info("Closing the log watcher");
+                        logWatcher.close();
+                        interrupted |= shutdown(logWatcherExecutor);
+                        logger.info("Closed the log watcher");
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to close the log watcher: {}", e.getMessage(), e);
+                } finally {
+                    try {
+                        if (curator != null) {
+                            logger.info("Closing the Curator framework");
+                            curator.close();
+                            logger.info("Closed the Curator framework");
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Failed to close the Curator framework: {}", e.getMessage(), e);
+                    } finally {
+                        try {
+                            if (quorumPeer != null) {
+                                final long peerId = quorumPeer.getId();
+                                logger.info("Shutting down the ZooKeeper peer ({})", peerId);
+                                quorumPeer.shutdown();
+                                logger.info("Shut down the ZooKeeper peer ({})", peerId);
+                            }
+                        } catch (Exception e) {
+                            logger.warn("Failed to shut down the ZooKeeper peer: {}", e.getMessage(), e);
+                        } finally {
+                            if (interrupted) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static boolean shutdown(@Nullable ExecutorService executor) {
+        if (executor == null) {
+            return false;
+        }
+
+        boolean interrupted = false;
         while (!executor.isTerminated()) {
             executor.shutdown();
             try {
                 executor.awaitTermination(1, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 // Interrupt later.
-                interruptLater = true;
+                interrupted = true;
             }
         }
-
-        try {
-            leaderSelector.close();
-        } catch (Exception e) {
-            logger.warn("Failed to close the leader selector: {}", e.getMessage(), e);
-        } finally {
-            try {
-                logWatcher.close();
-            } catch (IOException e) {
-                logger.warn("Failed to close the log watcher: {}", e.getMessage(), e);
-            } finally {
-                // TODO(bindung): check concurrent issue.
-                // when execute below line, other thread can be running listener. that is ok.
-                // but how about ensure listener end?
-                listenerInfo = null;
-
-                curator.close();
-
-                if (interruptLater) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
+        return interrupted;
     }
 
     private long getLastReplayedRevision() throws Exception {
@@ -459,7 +549,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
                 if (log.isPresent()) {
                     final ReplicationLog<?> l = log.get();
-                    final String originatingReplicaId = l.replicaId();
+                    final int originatingReplicaId = l.replicaId();
                     final Command<?> command = l.command();
                     final Object expectedResult = l.result();
                     final Object actualResult = delegate.execute(originatingReplicaId, command).get();
@@ -566,22 +656,22 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         return sb.toString();
     }
 
-    private String absolutePath(String... pathElements) {
+    private static String absolutePath(String... pathElements) {
         if (pathElements.length == 0) {
-            return zkPath;
+            return PATH_PREFIX;
         }
-        return path(zkPath, path(pathElements));
+        return path(PATH_PREFIX, path(pathElements));
     }
 
     private static class LogMeta {
 
-        private final String replicaId;
+        private final int replicaId;
         private final long timestamp;
         private final int size;
         private final List<Long> blocks = new ArrayList<>();
 
         @JsonCreator
-        LogMeta(@JsonProperty("replicaId") String replicaId,
+        LogMeta(@JsonProperty(value = "replicaId", required = true) int replicaId,
                 @JsonProperty(value = "timestamp", defaultValue = "0") long timestamp,
                 @JsonProperty("size") int size) {
             this.replicaId = replicaId;
@@ -590,7 +680,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         }
 
         @JsonProperty
-        String replicaId() {
+        int replicaId() {
             return replicaId;
         }
 
@@ -648,11 +738,13 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
     @VisibleForTesting
     Optional<ReplicationLog<?>> loadLog(long revision, boolean skipIfSameReplica) {
         try {
+            createParentNodes();
+
             final String logPath = absolutePath(LOG_PATH) + '/' + pathFromRevision(revision);
 
             final LogMeta logMeta = Jackson.readValue(curator.getData().forPath(logPath), LogMeta.class);
 
-            if (skipIfSameReplica && Objects.equals(replicaId(), logMeta.replicaId())) {
+            if (skipIfSameReplica && replicaId() == logMeta.replicaId()) {
                 return Optional.empty();
             }
 
@@ -686,7 +778,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
     // Ensure that all logs are replayed, any other logs can not be added before end of this function.
     @Override
-    protected <T> CompletableFuture<T> doExecute(String replicaId, Command<T> command) throws Exception {
+    protected <T> CompletableFuture<T> doExecute(int replicaId, Command<T> command) throws Exception {
         final CompletableFuture<T> future = new CompletableFuture<>();
         executor.execute(() -> {
             try {
@@ -698,7 +790,9 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         return future;
     }
 
-    private <T> T blockingExecute(String replicaId, Command<T> command) throws Exception {
+    private <T> T blockingExecute(int replicaId, Command<T> command) throws Exception {
+        createParentNodes();
+
         try (SafeLock ignored = safeLock(command.executionPath())) {
 
             // NB: We are sure no other replicas will append the conflicting logs (the commands with the
@@ -721,6 +815,28 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
             logger.debug("logging OK. revision = {}, log = {}", revision, log);
             return result;
+        }
+    }
+
+    private void createParentNodes() throws Exception {
+        if (createdParentNodes) {
+            return;
+        }
+
+        // Create the zkPath if it does not exist.
+        createZkPathIfMissing(absolutePath());
+        createZkPathIfMissing(absolutePath(LOG_PATH));
+        createZkPathIfMissing(absolutePath(LOG_BLOCK_PATH));
+        createZkPathIfMissing(absolutePath(LOCK_PATH));
+
+        createdParentNodes = true;
+    }
+
+    private void createZkPathIfMissing(String zkPath) throws Exception {
+        try {
+            curator.create().forPath(zkPath);
+        } catch (KeeperException.NodeExistsException ignored) {
+            // Ignore.
         }
     }
 }
