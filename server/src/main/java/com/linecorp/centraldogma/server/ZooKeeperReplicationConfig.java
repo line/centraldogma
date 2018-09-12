@@ -81,9 +81,9 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
 
     @JsonCreator
     ZooKeeperReplicationConfig(@JsonProperty("serverId") @Nullable Integer serverId,
-                               @JsonProperty("servers")
+                               @JsonProperty(value = "servers", required = true)
                                @JsonDeserialize(keyAs = Integer.class, contentAs = ZooKeeperAddress.class)
-                               @Nullable Map<Integer, ZooKeeperAddress> servers,
+                               Map<Integer, ZooKeeperAddress> servers,
                                @JsonProperty("secret") @Nullable String secret,
                                @JsonProperty("additionalProperties")
                                @JsonDeserialize(keyAs = String.class, contentAs = String.class)
@@ -101,7 +101,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
         checkArgument(!this.secret.isEmpty(), "secret is empty.");
 
         servers.forEach((id, server) -> {
-            checkArgument(id > 0, "servers contains non-positive server ID: %s (expected: > 0)", id);
+            checkArgument(id > 0, "'servers' contains non-positive server ID: %s (expected: > 0)", id);
         });
         this.servers = ImmutableMap.copyOf(servers);
 
@@ -198,7 +198,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     }
 
     /**
-     * Returns the ZooKeeper server strings of all replicas, keyed by their ZooKeeper server IDs.
+     * Returns the addresses of all ZooKeeper servers, keyed by their server IDs.
      */
     @JsonProperty
     public Map<Integer, ZooKeeperAddress> servers() {

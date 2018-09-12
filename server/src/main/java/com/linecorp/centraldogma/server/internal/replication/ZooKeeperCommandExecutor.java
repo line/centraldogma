@@ -335,6 +335,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
             zkProps.setProperty("dataDir", zkDataDir.getPath());
             zkProps.setProperty("dataLogDir", zkLogDir.getPath());
             zkDataDir.mkdirs();
+            zkLogDir.mkdirs();
 
             // Generate the myid file in.
             try (FileOutputStream out = new FileOutputStream(new File(zkDataDir, "myid"))) {
