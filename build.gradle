@@ -9,7 +9,7 @@ buildscript {
         classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.7'
         // For gogradle. It seems gogradle doesn't support buildscript so just leave this here until
         // gogradle supports it.
-        classpath 'com.google.inject:guice:4.2.0'
+        classpath 'com.google.inject:guice:4.2.1'
     }
 }
 
