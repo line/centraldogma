@@ -18,6 +18,7 @@ cache:
   - "$HOME/.gradle/caches/modules-2"
   - "$HOME/.gradle/caches/package-lists"
   - "$HOME/.gradle/caches/sphinx-binary"
+  - "$HOME/.gradle/go/binary"
 env:
   global:
   - "_JAVA_OPTIONS=-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts"

@@ -18,8 +18,8 @@ includeWithFlags ':common-legacy',                          'java', 'publish', '
 includeWithFlags ':server',                                 'java', 'publish', 'relocate'
 includeWithFlags ':testing',                                'java', 'publish', 'relocate'
 
-// Published Go project
-include 'client:go'
+// Command line interface
+include ':cli'
 
 // Unpublished Java projects
 includeWithFlags ':it',               'java', 'relocate'

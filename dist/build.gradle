@@ -15,7 +15,7 @@ buildscript {
 apply plugin: 'com.boazj.log'
 apply plugin: 'com.bmuschko.docker-remote-api'
 
-evaluationDependsOn(':client:go')
+evaluationDependsOn(':cli')
 evaluationDependsOn(':server')
 
 ext {
@@ -65,9 +65,9 @@ task copyLib(group: 'Build',
 
 task copyClientBinaries(group: 'Build',
         description: "Copies client binaries into ${project.ext.relativeDistDir}/lib",
-        dependsOn: project(':client:go').tasks.build,
+        dependsOn: project(':cli').tasks.assemble,
         type: Copy) {
-    from project(':client:go').ext.binDir
+    from project(':cli').ext.clientBinDir
     into "${project.ext.distDir}/bin/native"
 }
 

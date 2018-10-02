@@ -23,9 +23,8 @@
 # Client vendor dependencies
 **/webapp/vendor
 
-# Go client output
-/client/go/.gogradle
-/client/go/vendor
+# gogradle output
+.gogradle
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
