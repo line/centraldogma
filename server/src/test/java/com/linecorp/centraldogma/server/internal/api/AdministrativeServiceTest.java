@@ -56,11 +56,11 @@ public class AdministrativeServiceTest {
         final AggregatedHttpMessage res = httpClient.get(API_V1_PATH_PREFIX + "status").aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.content().toStringUtf8()).isEqualTo(
-                "{ \"writable\": true }");
+                "{ \"writable\": true, \"replicating\": true }");
     }
 
     @Test
-    public void updateStatus() {
+    public void updateStatus_setUnwritable() {
         final AggregatedHttpMessage res = httpClient.execute(
                 HttpHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status")
                            .contentType(MediaType.JSON_PATCH),
@@ -68,11 +68,35 @@ public class AdministrativeServiceTest {
 
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.content().toStringUtf8()).isEqualTo(
-                "{ \"writable\": false }");
+                "{ \"writable\": false, \"replicating\": true }");
     }
 
     @Test
-    public void redundantUpdateStatus() {
+    public void updateStatus_setUnwritableAndNonReplicating() {
+        final AggregatedHttpMessage res = httpClient.execute(
+                HttpHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status")
+                           .contentType(MediaType.JSON_PATCH),
+                "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }," +
+                " { \"op\": \"replace\", \"path\": \"/replicating\", \"value\": false }]").aggregate().join();
+
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+                "{ \"writable\": false, \"replicating\": false }");
+    }
+
+    @Test
+    public void updateStatus_setWritableAndNonReplicating() {
+        final AggregatedHttpMessage res = httpClient.execute(
+                HttpHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status")
+                           .contentType(MediaType.JSON_PATCH),
+                "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }," +
+                " { \"op\": \"replace\", \"path\": \"/replicating\", \"value\": false }]").aggregate().join();
+
+        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    public void redundantUpdateStatus_Writable() {
         final AggregatedHttpMessage res = httpClient.execute(
                 HttpHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status")
                            .contentType(MediaType.JSON_PATCH),
@@ -82,15 +106,27 @@ public class AdministrativeServiceTest {
     }
 
     @Test
-    public void unimplementedUpdateStatus() {
+    public void redundantUpdateStatus_Replicating() {
+        final AggregatedHttpMessage res = httpClient.execute(
+                HttpHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status")
+                           .contentType(MediaType.JSON_PATCH),
+                "[{ \"op\": \"replace\", \"path\": \"/replicating\", \"value\": true }]").aggregate().join();
+
+        assertThat(res.status()).isEqualTo(HttpStatus.NOT_MODIFIED);
+    }
+
+    @Test
+    public void updateStatus_leaveReadOnlyMode() {
         // Enter read-only mode.
-        updateStatus();
+        updateStatus_setUnwritable();
         // Try to enter writable mode.
         final AggregatedHttpMessage res = httpClient.execute(
                 HttpHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status")
                            .contentType(MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();
 
-        assertThat(res.status()).isEqualTo(HttpStatus.NOT_IMPLEMENTED);
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+                "{ \"writable\": true, \"replicating\": true }");
     }
 }

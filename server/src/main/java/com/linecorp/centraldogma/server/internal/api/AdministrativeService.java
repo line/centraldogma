@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +26,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpStatusException;
-import com.linecorp.armeria.server.annotation.ConsumeType;
+import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Patch;
@@ -51,7 +53,7 @@ public final class AdministrativeService extends AbstractService {
      */
     @Get("/status")
     public ServerStatus status() {
-        return new ServerStatus(executor().isStarted());
+        return new ServerStatus(executor().isWritable(), executor().isStarted());
     }
 
     /**
@@ -60,9 +62,9 @@ public final class AdministrativeService extends AbstractService {
      * <p>Patches the server status with a JSON patch. Currently used only for entering read-only.
      */
     @Patch("/status")
-    @ConsumeType("application/json-patch+json")
+    @Consumes("application/json-patch+json")
     @Decorator(AdministratorsOnly.class)
-    public ServerStatus updateStatus(@RequestObject JsonNode patch) throws Exception {
+    public CompletableFuture<ServerStatus> updateStatus(@RequestObject JsonNode patch) throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
         final ServerStatus oldStatus = status();
         final JsonNode oldValue = Jackson.valueToTree(oldStatus);
@@ -79,29 +81,53 @@ public final class AdministrativeService extends AbstractService {
         }
 
         final JsonNode writableNode = newValue.get("writable");
-        if (!writableNode.isBoolean()) {
+        final JsonNode replicatingNode = newValue.get("replicating");
+        if (!writableNode.isBoolean() || !replicatingNode.isBoolean()) {
             return rejectStatusPatch(patch);
         }
 
-        if (writableNode.asBoolean()) {
-            if (!oldStatus.writable) {
-                // TODO(trustin): Implement exiting read-only mode.
-                return HttpApiUtil.throwResponse(HttpStatus.NOT_IMPLEMENTED,
-                                                 "Please consider sending a pull request. ;-)");
+        final boolean writable = writableNode.asBoolean();
+        final boolean replicating = replicatingNode.asBoolean();
+        if (writable && !replicating) {
+            return HttpApiUtil.throwResponse(HttpStatus.BAD_REQUEST,
+                                             "'replicating' must be 'true' if 'writable' is 'true'.");
+        }
+
+        if (oldStatus.writable) {
+            if (!writable) { // writable -> unwritable
+                executor().setWritable(false);
+                if (replicating) {
+                    logger.warn("Entered read-only mode with replication enabled");
+                    return CompletableFuture.completedFuture(status());
+                } else {
+                    logger.warn("Entering read-only mode with replication disabled ..");
+                    return executor().stop().handle((unused, cause) -> {
+                        if (cause != null) {
+                            logger.warn("Failed to stop the command executor:", cause);
+                        } else {
+                            logger.info("Entered read-only mode with replication disabled");
+                        }
+                        return status();
+                    });
+                }
             }
-        } else {
-            if (oldStatus.writable) {
-                logger.warn("Entering read-only mode ..");
-                executor().stop();
-                logger.info("Entered read-only mode");
+        } else if (writable) { // unwritable -> writable
+            logger.warn("Leaving read-only mode ..");
+            executor().setWritable(true);
+            return executor().start().handle((unused, cause) -> {
+                if (cause != null) {
+                    logger.warn("Failed to leave read-only mode:", cause);
+                } else {
+                    logger.info("Left read-only mode");
+                }
                 return status();
-            }
+            });
         }
 
         throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
     }
 
-    private static ServerStatus rejectStatusPatch(JsonNode patch) {
+    private static CompletableFuture<ServerStatus> rejectStatusPatch(JsonNode patch) {
         throw new IllegalArgumentException("Invalid JSON patch: " + patch);
     }
 
@@ -109,9 +135,13 @@ public final class AdministrativeService extends AbstractService {
     private static final class ServerStatus {
         @JsonProperty
         final boolean writable;
+        @JsonProperty
+        final boolean replicating;
 
-        ServerStatus(boolean writable) {
+        ServerStatus(boolean writable, boolean replicating) {
+            assert !writable || replicating; // replicating must be true if writable is true.
             this.writable = writable;
+            this.replicating = replicating;
         }
     }
 }
