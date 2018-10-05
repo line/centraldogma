@@ -55,6 +55,16 @@ public class ForwardingCommandExecutor implements CommandExecutor {
     }
 
     @Override
+    public boolean isWritable() {
+        return delegate().isWritable();
+    }
+
+    @Override
+    public void setWritable(boolean writable) {
+        delegate().setWritable(writable);
+    }
+
+    @Override
     public <T> CompletableFuture<T> execute(Command<T> command) {
         return delegate().execute(command);
     }

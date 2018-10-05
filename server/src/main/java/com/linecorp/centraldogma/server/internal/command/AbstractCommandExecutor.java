@@ -25,6 +25,8 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
+import com.google.common.base.MoreObjects;
+
 import com.linecorp.armeria.common.util.StartStopSupport;
 
 public abstract class AbstractCommandExecutor implements CommandExecutor {
@@ -36,6 +38,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
 
     private final CommandExecutorStartStop startStop = new CommandExecutorStartStop();
     private volatile boolean started;
+    private volatile boolean writable = true;
 
     protected AbstractCommandExecutor(@Nullable Consumer<CommandExecutor> onTakeLeadership,
                                       @Nullable Runnable onReleaseLeadership) {
@@ -50,7 +53,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
 
     @Override
     public final CompletableFuture<Void> start() {
-        return startStop.start(true).thenRun(() -> started = true);
+        return startStop.start(false).thenRun(() -> started = true);
     }
 
     protected abstract void doStart(@Nullable Runnable onTakeLeadership,
@@ -65,6 +68,16 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     protected abstract void doStop(@Nullable Runnable onReleaseLeadership);
 
     @Override
+    public final boolean isWritable() {
+        return isStarted() && writable;
+    }
+
+    @Override
+    public final void setWritable(boolean writable) {
+        this.writable = writable;
+    }
+
+    @Override
     public final <T> CompletableFuture<T> execute(Command<T> command) {
         return execute(replicaId(), command);
     }
@@ -72,7 +85,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     @Override
     public final <T> CompletableFuture<T> execute(int replicaId, Command<T> command) {
         requireNonNull(command, "command");
-        if (!isStarted()) {
+        if (!isWritable()) {
             throw new IllegalStateException("running in read-only mode");
         }
 
@@ -87,6 +100,14 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
 
     protected abstract <T> CompletableFuture<T> doExecute(
             int replicaId, Command<T> command) throws Exception;
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("writable", isWritable())
+                          .add("replicating", started)
+                          .toString();
+    }
 
     private final class CommandExecutorStartStop extends StartStopSupport<Void, Void> {
 
