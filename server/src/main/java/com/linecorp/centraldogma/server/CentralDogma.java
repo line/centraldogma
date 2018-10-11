@@ -73,7 +73,7 @@ import com.linecorp.armeria.server.encoding.HttpEncodingService;
 import com.linecorp.armeria.server.file.AbstractHttpVfs;
 import com.linecorp.armeria.server.file.HttpFileService;
 import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
-import com.linecorp.armeria.server.logging.AccessLogWriters;
+import com.linecorp.armeria.server.logging.AccessLogWriter;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -442,11 +442,11 @@ public class CentralDogma implements AutoCloseable {
 
         final String accessLogFormat = cfg.accessLogFormat();
         if (isNullOrEmpty(accessLogFormat)) {
-            sb.accessLogWriter(AccessLogWriters.disabled());
+            sb.accessLogWriter(AccessLogWriter.disabled(), true);
         } else if ("common".equals(accessLogFormat)) {
-            sb.accessLogWriter(AccessLogWriters.common());
+            sb.accessLogWriter(AccessLogWriter.common(), true);
         } else if ("combined".equals(accessLogFormat)) {
-            sb.accessLogWriter(AccessLogWriters.combined());
+            sb.accessLogWriter(AccessLogWriter.combined(), true);
         } else {
             sb.accessLogFormat(accessLogFormat);
         }
