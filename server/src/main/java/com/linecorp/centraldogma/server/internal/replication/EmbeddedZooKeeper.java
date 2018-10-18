@@ -18,18 +18,25 @@ package com.linecorp.centraldogma.server.internal.replication;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import org.apache.zookeeper.server.DatadirCleanupManager;
+import org.apache.zookeeper.server.PurgeTxnLog;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.ZKDatabase;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class EmbeddedZooKeeper extends QuorumPeer {
+
+    private static final Logger logger = LoggerFactory.getLogger(EmbeddedZooKeeper.class);
 
     static final String SASL_SERVER_LOGIN_CONTEXT = "QuorumServer";
     static final String SASL_LEARNER_LOGIN_CONTEXT = "QuorumLearner";
 
     private final ServerCnxnFactory cnxnFactory;
+    private final DatadirCleanupManager purgeManager;
 
     EmbeddedZooKeeper(QuorumPeerConfig zkCfg) throws IOException {
         cnxnFactory = createCnxnFactory(zkCfg);
@@ -57,6 +64,9 @@ final class EmbeddedZooKeeper extends QuorumPeer {
         setQuorumListenOnAllIPs(zkCfg.getQuorumListenOnAllIPs());
 
         configureSasl();
+
+        purgeManager = new DatadirCleanupManager(zkCfg.getDataDir(), zkCfg.getDataLogDir(),
+                                                 zkCfg.getSnapRetainCount(), zkCfg.getPurgeInterval());
     }
 
     private static ServerCnxnFactory createCnxnFactory(QuorumPeerConfig zkCfg) throws IOException {
@@ -76,9 +86,29 @@ final class EmbeddedZooKeeper extends QuorumPeer {
     }
 
     @Override
+    public synchronized void start() {
+        purgeTxnLogs();
+        purgeManager.start();
+        super.start();
+    }
+
+    @Override
     public void shutdown() {
         // Close the network stack first so that the shutdown process is done quickly.
         cnxnFactory.shutdown();
+        purgeManager.shutdown();
         super.shutdown();
+    }
+
+    private void purgeTxnLogs() {
+        logger.info("Purging old ZooKeeper snapshots and logs ..");
+        try {
+            PurgeTxnLog.purge(purgeManager.getDataLogDir(),
+                              purgeManager.getSnapDir(),
+                              purgeManager.getSnapRetainCount());
+            logger.info("Purged old ZooKeeper snapshots and logs.");
+        } catch (IOException e) {
+            logger.error("Failed to purge old ZooKeeper snapshots and logs:", e);
+        }
     }
 }
