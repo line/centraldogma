@@ -231,8 +231,8 @@ Using client profiles
 You can load the list of the Central Dogma servers from one of the following JSON files in the class path using
 ``LegacyCentralDogmaBuilder.profile(String...)``:
 
-- ``centraldogma-profile-test.json``
-- ``centraldogma-profile.json`` (if ``centraldogma-profile-test.json`` is missing)
+- ``centraldogma-profiles-test.json``
+- ``centraldogma-profiles.json`` (if ``centraldogma-profiles-test.json`` is missing)
 
 .. code-block:: java
 
