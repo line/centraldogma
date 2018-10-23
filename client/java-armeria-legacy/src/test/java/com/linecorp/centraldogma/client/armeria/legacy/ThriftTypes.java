@@ -35,6 +35,7 @@ final class ThriftTypes {
 
     static final class TEntryType {
         static final EntryType TEXT = EntryType.TEXT;
+        static final EntryType JSON = EntryType.JSON;
 
         private TEntryType() {}
     }

@@ -21,29 +21,24 @@ import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
-import java.util.stream.Stream;
+
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Streams;
-import com.jayway.jsonpath.JsonPath;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Util;
 
 final class JsonPathQuery implements Query<JsonNode> {
 
     private final String path;
     private final List<String> jsonPaths;
     private int hashCode;
+    @Nullable
     private String strVal;
-
-    JsonPathQuery(String path, String... jsonPaths) {
-        requireNonNull(jsonPaths, "jsonPaths");
-
-        this.path = validateJsonFilePath(path, "path");
-        this.jsonPaths = Stream.of(jsonPaths).peek(JsonPathQuery::validateJsonPath).collect(toImmutableList());
-    }
 
     @JsonCreator
     JsonPathQuery(@JsonProperty("path") String path,
@@ -52,16 +47,8 @@ final class JsonPathQuery implements Query<JsonNode> {
 
         this.path = validateJsonFilePath(path, "path");
         this.jsonPaths = Streams.stream(jsonPaths)
-                                .peek(JsonPathQuery::validateJsonPath)
+                                .peek(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"))
                                 .collect(toImmutableList());
-    }
-
-    private static void validateJsonPath(String expr) {
-        try {
-            JsonPath.compile(expr);
-        } catch (Exception e) {
-            throw new QuerySyntaxException("expression syntax error: " + expr, e);
-        }
     }
 
     @Override
@@ -108,14 +95,7 @@ final class JsonPathQuery implements Query<JsonNode> {
     @Override
     public JsonNode apply(JsonNode input) {
         requireNonNull(input, "input");
-
-        final int size = jsonPaths.size();
-        for (int i = 0; i < size; i++) {
-            final String p = jsonPaths.get(i);
-            input = Jackson.extractTree(input, p);
-        }
-
-        return input;
+        return Jackson.extractTree(input, jsonPaths);
     }
 
     @Override

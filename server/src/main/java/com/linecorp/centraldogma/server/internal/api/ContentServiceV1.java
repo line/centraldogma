@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.common.EntryType.DIRECTORY;
 import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
@@ -56,6 +55,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergerQuery;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
@@ -63,10 +63,12 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
+import com.linecorp.centraldogma.server.internal.ServiceUtil;
 import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.converter.MergerQueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
@@ -110,7 +112,7 @@ public class ContentServiceV1 extends AbstractService {
 
     private static void listFiles(Repository repository, String pathPattern, Revision normalizedRevision,
                                   Map<FindOption<?>, ?> options, CompletableFuture<List<EntryDto<?>>> result) {
-        repository.find(normalizedRevision, pathPattern, options).handle(voidFunction((entries, thrown) -> {
+        repository.find(normalizedRevision, pathPattern, options).whenComplete((entries, thrown) -> {
             if (thrown != null) {
                 result.completeExceptionally(thrown);
                 return;
@@ -126,7 +128,7 @@ public class ContentServiceV1 extends AbstractService {
                                        .map(entry -> convert(repository, entry))
                                        .collect(toImmutableList()));
             }
-        }));
+        });
     }
 
     /**
@@ -368,5 +370,14 @@ public class ContentServiceV1 extends AbstractService {
             return collection.stream().map(converter).collect(toImmutableList());
         }
         return converter.apply(Iterables.getOnlyElement(collection));
+    }
+
+    @Get("/projects/{projectName}/repos/{repoName}/merger")
+    public <T> CompletableFuture<?> mergeFiles(@Param("revision") @Default("-1") String revision,
+                                               Repository repository,
+                                               @RequestConverter(MergerQueryRequestConverter.class)
+                                               MergerQuery<T> query) {
+        final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
+        return ServiceUtil.mergeFiles(normalizedRevision, repository, query);
     }
 }

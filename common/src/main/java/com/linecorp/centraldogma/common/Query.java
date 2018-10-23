@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 
 /**
  * A query on a file.
@@ -80,7 +81,7 @@ public interface Query<T> extends Function<T, T> {
      * @param jsonPaths the JSON path expressions to apply
      */
     static Query<JsonNode> ofJsonPath(String path, String... jsonPaths) {
-        return new JsonPathQuery(path, jsonPaths);
+        return ofJsonPath(path, ImmutableList.copyOf(requireNonNull(jsonPaths, "jsonPaths")));
     }
 
     /**

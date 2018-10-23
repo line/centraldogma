@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -23,6 +24,7 @@ import java.io.IOError;
 import java.io.IOException;
 import java.io.Writer;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -45,8 +47,11 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Configuration.Defaults;
 import com.jayway.jsonpath.JsonPath;
@@ -264,6 +269,15 @@ public final class Jackson {
         return node != null && node.getNodeType() == JsonNodeType.STRING ? node.textValue() : defaultValue;
     }
 
+    public static JsonNode extractTree(JsonNode jsonNode, Iterable<String> jsonPaths) {
+        final int size = Iterables.size(jsonPaths);
+        for (int i = 0; i < size; i++) {
+            final String p = Iterables.get(jsonPaths, i);
+            jsonNode = extractTree(jsonNode, p);
+        }
+        return jsonNode;
+    }
+
     public static JsonNode extractTree(JsonNode jsonNode, String jsonPath) {
         requireNonNull(jsonNode, "jsonNode");
         requireNonNull(jsonPath, "jsonPath");
@@ -286,6 +300,76 @@ public final class Jackson {
     public static String escapeText(String text) {
         final JsonStringEncoder enc = BufferRecyclers.getJsonStringEncoder();
         return new String(enc.quoteAsString(text));
+    }
+
+    public static JsonNode mergeJsonNodes(JsonNode... jsonNodes) {
+        return mergeJsonNodes(ImmutableList.copyOf(requireNonNull(jsonNodes, "jsonNodes")));
+    }
+
+    public static JsonNode mergeJsonNodes(Iterable<JsonNode> jsonNodes) {
+        requireNonNull(jsonNodes, "jsonNodes");
+        final int size = Iterables.size(jsonNodes);
+        checkArgument(size > 0, "jsonNodes size: %s (expected: > 0)", size);
+        final JsonNode first = Iterables.get(jsonNodes, 0);
+        JsonNode merged = first.deepCopy();
+
+        StringBuilder builder = new StringBuilder("/");
+        for (int i = 1; i < size; i++) {
+            final JsonNode addition = Iterables.get(jsonNodes, i);
+            merged = traverse(merged, addition, builder, true);
+        }
+
+        if (size > 2) {
+            // Traverse once more to find the mismatched value between the first and the merged node.
+            traverse(first, merged, builder, false);
+        }
+        return merged;
+    }
+
+    private static JsonNode traverse(JsonNode base, JsonNode update, StringBuilder builder, boolean isMerging) {
+        if (base.getNodeType() != update.getNodeType() && (!base.isNull() || !update.isNull())) {
+            throw new MismatchedValueException(builder + " type: " + base.getNodeType() +
+                                               " (expected: " + update.getNodeType() + ')');
+        }
+
+        if (base.isObject() && update.isObject()) {
+            final ObjectNode baseObject = (ObjectNode) base;
+            final Iterator<String> fieldNames = update.fieldNames();
+            while (fieldNames.hasNext()) {
+                final String fieldName = fieldNames.next();
+                final JsonNode baseValue = baseObject.get(fieldName);
+                final JsonNode updateValue = update.get(fieldName);
+
+                if (baseValue == null || baseValue.isNull() || updateValue.isNull()) {
+                    if (isMerging) {
+                        baseObject.set(fieldName, updateValue);
+                    }
+                    continue;
+                }
+
+                if (baseValue.getNodeType() == updateValue.getNodeType()) {
+                    if (baseValue.isObject()) {
+                        final int length = builder.length();
+                        // Append the filed name and traverse the child.
+                        builder.append(fieldName + '/');
+                        baseObject.set(fieldName, traverse(baseValue, updateValue, builder, isMerging));
+                        // Remove the appended filed name above.
+                        builder.delete(length, builder.length());
+                    } else if (isMerging) {
+                        baseObject.set(fieldName, updateValue);
+                    }
+                    continue;
+                }
+
+                builder.append(fieldName + '/');
+                throw new MismatchedValueException(builder + " type: " + updateValue.getNodeType() +
+                                                   " (expected: " + baseValue.getNodeType() + ')');
+            }
+
+            return base;
+        }
+
+        return update;
     }
 
     private Jackson() {}

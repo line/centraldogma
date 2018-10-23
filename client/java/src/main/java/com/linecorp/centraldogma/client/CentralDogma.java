@@ -31,6 +31,9 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergedEntry;
+import com.linecorp.centraldogma.common.MergerQuery;
+import com.linecorp.centraldogma.common.PathAndOptional;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
@@ -163,6 +166,36 @@ public interface CentralDogma {
      */
     CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
                                                       Revision revision, String pathPattern);
+
+    /**
+     * Retrieves the merged entry of the specified {@link PathAndOptional}s at the specified revision.
+     * Only JSON entry merger is currently supported.
+     */
+    default <T> CompletableFuture<MergedEntry<?>> mergeFiles(
+            String projectName, String repositoryName,
+            Revision revision, PathAndOptional... pathAndOptionals) {
+        return mergeFiles(projectName, repositoryName, revision,
+                          ImmutableList.copyOf(requireNonNull(pathAndOptionals, "pathAndOptionals")));
+    }
+
+    /**
+     * Retrieves the merged entry of the specified {@link PathAndOptional}s at the specified revision.
+     * Only JSON entry merger is currently supported.
+     */
+    default <T> CompletableFuture<MergedEntry<?>> mergeFiles(
+            String projectName, String repositoryName,
+            Revision revision, Iterable<PathAndOptional> pathAndOptionals) {
+        return mergeFiles(projectName, repositoryName, revision,
+                          MergerQuery.ofJsonPath(pathAndOptionals));
+    }
+
+    /**
+     * Retrieves the merged entry of the specified {@link MergerQuery} at the specified revision.
+     * Only JSON entry merger is currently supported.
+     */
+    <T> CompletableFuture<MergedEntry<?>> mergeFiles(String projectName, String repositoryName,
+                                                     Revision revision,
+                                                     MergerQuery<T> mergerQuery);
 
     /**
      * Retrieves the history of the repository between two {@link Revision}s. This method is a shortcut of

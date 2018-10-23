@@ -55,6 +55,8 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergedEntry;
+import com.linecorp.centraldogma.common.MergerQuery;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
@@ -78,6 +80,7 @@ import com.linecorp.centraldogma.internal.thrift.DiffFileResult;
 import com.linecorp.centraldogma.internal.thrift.EntryConverter;
 import com.linecorp.centraldogma.internal.thrift.GetFileResult;
 import com.linecorp.centraldogma.internal.thrift.MarkupConverter;
+import com.linecorp.centraldogma.internal.thrift.MergerQueryConverter;
 import com.linecorp.centraldogma.internal.thrift.Project;
 import com.linecorp.centraldogma.internal.thrift.PushResultConverter;
 import com.linecorp.centraldogma.internal.thrift.QueryConverter;
@@ -171,8 +174,8 @@ final class LegacyCentralDogma implements CentralDogma {
                                                  RevisionConverter.TO_DATA.convert(revision),
                                                  pathPattern, callback));
         return future.thenApply(list -> list.stream().collect(toImmutableMap(
-                        com.linecorp.centraldogma.internal.thrift.Entry::getPath,
-                        e -> EntryConverter.convertEntryType(e.getType()))));
+                com.linecorp.centraldogma.internal.thrift.Entry::getPath,
+                e -> EntryConverter.convertEntryType(e.getType()))));
     }
 
     @Override
@@ -231,11 +234,39 @@ final class LegacyCentralDogma implements CentralDogma {
     }
 
     @Override
+    public <T> CompletableFuture<MergedEntry<?>> mergeFiles(String projectName, String repositoryName,
+                                                            Revision revision,
+                                                            MergerQuery<T> mergerQuery) {
+        final CompletableFuture<com.linecorp.centraldogma.internal.thrift.MergedEntry> future =
+                run(callback -> {
+                    client.mergeFiles(projectName, repositoryName,
+                                      RevisionConverter.TO_DATA.convert(revision),
+                                      MergerQueryConverter.TO_DATA.convert(mergerQuery),
+                                      callback);
+                });
+        return future.thenApply(entry -> {
+            final EntryType entryType = EntryConverter.convertEntryType(entry.getType());
+            assert entryType != null;
+            switch (entryType) {
+                case JSON:
+                    try {
+                        return MergedEntry.of(entryType, Jackson.readTree(entry.content));
+                    } catch (IOException e) {
+                        throw new CompletionException(
+                                "failed to parse the content: " + entry.content, e);
+                    }
+                default:
+                    throw new Error("unsupported entry type: " + entryType);
+            }
+        });
+    }
+
+    @Override
     public CompletableFuture<List<Commit>> getHistory(String projectName,
-                                                                   String repositoryName,
-                                                                   Revision from,
-                                                                   Revision to,
-                                                                   String pathPattern) {
+                                                      String repositoryName,
+                                                      Revision from,
+                                                      Revision to,
+                                                      String pathPattern) {
         final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Commit>> future =
                 run(callback -> client.getHistory(projectName, repositoryName,
                                                   RevisionConverter.TO_DATA.convert(from),

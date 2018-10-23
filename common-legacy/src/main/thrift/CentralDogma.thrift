@@ -89,6 +89,16 @@ struct Entry {
     3: optional string content,
 }
 
+struct MergedEntry {
+    1: required EntryType type,
+    2: required string content,
+}
+
+struct PathAndOptional {
+    1: required EntryPath path,
+    2: required bool isOptional,
+}
+
 struct Change {
     1: required EntryPath path,
     2: required ChangeType type,
@@ -178,11 +188,18 @@ struct Project {
 enum QueryType {
     IDENTITY = 1,
     JSON_PATH = 2,
+    JSON_MERGER = 3,
 }
 
 struct Query {
     1: required string path,
     2: required QueryType type,
+    3: required list<string> expressions,
+}
+
+struct MergerQuery {
+    1: required QueryType type,
+    2: required list<PathAndOptional> pathAndOptionals,
     3: required list<string> expressions,
 }
 
@@ -338,6 +355,13 @@ service CentralDogmaService {
     DiffFileResult diffFile(1: string projectName, 2: string repositoryName,
                             3: Revision fromRevision, 4: Revision toRevision,
                             5: Query query) throws (1: CentralDogmaException e),
+
+    /**
+     * Retrieves the merged entry of the specified query at the specified revision. Only JSON entry
+     * merger is currently supported.
+     */
+    MergedEntry mergeFiles(1: string projectName, 2: string repositoryName, 3: Revision revision,
+                           4: MergerQuery mergerQuery) throws (1: CentralDogmaException e),
 
     /**
      * Awaits and returns the latest known revision since the specified revision.

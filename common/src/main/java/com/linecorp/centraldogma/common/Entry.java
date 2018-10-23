@@ -25,9 +25,6 @@ import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.TreeNode;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
@@ -38,7 +35,7 @@ import com.linecorp.centraldogma.internal.Jackson;
  *
  * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
  */
-public final class Entry<T> {
+public final class Entry<T> implements ContentHolder<T> {
 
     /**
      * Returns a newly-created {@link Entry} of a directory.
@@ -143,13 +140,6 @@ public final class Entry<T> {
     }
 
     /**
-     * Returns the type of this {@link Entry}.
-     */
-    public EntryType type() {
-        return type;
-    }
-
-    /**
      * Returns the path of this {@link Entry}.
      */
     public String path() {
@@ -173,100 +163,33 @@ public final class Entry<T> {
         }
     }
 
-    /**
-     * Returns the content of this {@link Entry}.
-     *
-     * @throws IllegalStateException if this {@link Entry} is a directory
-     */
+    @Override
+    public EntryType type() {
+        return type;
+    }
+
+    @Override
     public T content() {
-        ensureContent();
+        if (content == null) {
+            throw new IllegalStateException(type() + " does not have content");
+        }
         return content;
     }
 
-    /**
-     * Returns the textual representation of {@link #content()}.
-     *
-     * @throws IllegalStateException if this {@link Entry} is a directory
-     */
+    @Override
     public String contentAsText() {
-        ensureContent();
         if (contentAsText == null) {
-            if (content instanceof JsonNode) {
-                try {
-                    contentAsText = Jackson.writeValueAsString(content);
-                } catch (JsonProcessingException e) {
-                    // Should never happen because it's a JSON tree already.
-                    throw new Error(e);
-                }
-            } else {
-                contentAsText = content.toString();
-            }
+            contentAsText = ContentHolder.super.contentAsText();
         }
         return contentAsText;
     }
 
-    /**
-     * Returns the prettified textual representation of {@link #content()}. Only a {@link TreeNode} is
-     * prettified currently.
-     *
-     * @throws IllegalStateException if this {@link Entry} is a directory
-     */
+    @Override
     public String contentAsPrettyText() {
-        ensureContent();
         if (contentAsPrettyText == null) {
-            if (content instanceof TreeNode) {
-                try {
-                    contentAsPrettyText = Jackson.writeValueAsPrettyString(content);
-                } catch (JsonProcessingException e) {
-                    // Should never happen because it's a JSON tree already.
-                    throw new Error(e);
-                }
-            } else {
-                contentAsPrettyText = content.toString();
-            }
+            contentAsPrettyText = ContentHolder.super.contentAsPrettyText();
         }
         return contentAsPrettyText;
-    }
-
-    /**
-     * Returns the JSON representation of {@link #content()}.
-     *
-     * @return the {@link JsonNode} parsed from the {@link #content()}
-     *
-     * @throws IllegalStateException if this {@link Entry} is a directory
-     * @throws JsonParseException if failed to parse the {@link #content()} as JSON
-     */
-    public JsonNode contentAsJson() throws JsonParseException {
-        final T content = content();
-        if (content instanceof JsonNode) {
-            return (JsonNode) content;
-        }
-
-        return Jackson.readTree(contentAsText());
-    }
-
-    /**
-     * Returns the value converted from the JSON representation of {@link #content()}.
-     *
-     * @return the value converted from {@link #content()}
-     *
-     * @throws IllegalStateException if this {@link Entry} is a directory
-     * @throws JsonParseException if failed to parse the {@link #content()} as JSON
-     * @throws JsonMappingException if failed to convert the parsed JSON into {@code valueType}
-     */
-    public <U> U contentAsJson(Class<U> valueType) throws JsonParseException, JsonMappingException {
-        final T content = content();
-        if (content instanceof TreeNode) {
-            return Jackson.treeToValue((TreeNode) content, valueType);
-        }
-
-        return Jackson.readValue(contentAsText(), valueType);
-    }
-
-    private void ensureContent() {
-        if (content == null) {
-            throw new IllegalStateException(type() + " cannot have content: " + path);
-        }
     }
 
     @Override

@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.jayway.jsonpath.JsonPath;
+
 /**
  * This class borrowed some of its methods from a <a href="https://github.com/netty/netty/blob/4.1/common
  * /src/main/java/io/netty/util/NetUtil.java">NetUtil class</a> which was part of Netty project.
@@ -100,6 +102,24 @@ public final class Util {
         requireNonNull(path, "path");
         return !path.isEmpty() && path.charAt(0) == '/' &&
                JSON_FILE_PATH_PATTERN.matcher(path).matches();
+    }
+
+    public static String validateJsonPath(String jsonPath, String paramName) {
+        requireNonNull(jsonPath, paramName);
+        if (isValidJsonPath(jsonPath)) {
+            return jsonPath;
+        }
+
+        throw new IllegalArgumentException(paramName + " is invalid JSON path: " + jsonPath);
+    }
+
+    public static boolean isValidJsonPath(String jsonPath) {
+        try {
+            JsonPath.compile(jsonPath);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public static String validateDirPath(String path, String paramName) {
