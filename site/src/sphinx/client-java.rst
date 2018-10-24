@@ -250,6 +250,7 @@ the replicas in the ``beta`` profile support ``http`` only:
 
     [ {
       "name": "beta",
+      "priority": 0,
       "hosts": [ {
         "host": "replica1.beta.example.com",
         "protocol": "http",
@@ -261,6 +262,7 @@ the replicas in the ``beta`` profile support ``http`` only:
       } ]
     }, {
       "name": "release",
+      "priority": 0,
       "hosts": [ {
         "host": "replica1.release.example.com",
         "protocol": "http",
@@ -285,16 +287,57 @@ the replicas in the ``beta`` profile support ``http`` only:
     Use `the JSON schema <_static/schema-centraldogma-profiles.json>`_ to validate your
     ``centraldogma-profiles.json`` file.
 
-You may want to archive this file into a JAR file and distribute it via a Maven repository, so that your users
-get the up-to-date host list easily. For example, a user could put ``centraldogma-profiles-1.0.jar`` into his
-or her class path::
+You may want to archive this file into a JAR file and distribute it as the *official* client profiles via
+a Maven repository, so that your users get the up-to-date host list easily. For example, a user could put
+``centraldogma-profiles-1.0.jar`` into his or her class path::
 
     $ cat centraldogma-profiles.json
-    [ { "name": "release", "hosts": [ ... ] } ]
+    [ { "name": "beta",    "priority": 0, "hosts": [ ... ] },
+      { "name": "release", "priority": 0, "hosts": [ ... ] } ]
 
     $ jar cvf centraldogma-profiles-1.0.jar centraldogma-profiles.json
     added manifest
     adding: centraldogma-profiles.json
+
+Custom client profiles
+^^^^^^^^^^^^^^^^^^^^^^
+A user can add his or her own custom client profiles other than the official ones by adding more
+``centraldogma-profiles.json`` files to the class path. The following example adds a custom profile called
+``localtest``:
+
+.. code-block:: json
+
+    [ {
+      "name": "localtest",
+      "hosts": [ {
+        "host": "127.0.0.1",
+        "protocol": "http",
+        "port": 36462
+      } ]
+    } ]
+
+A user can also override the official profile provided by an administrator by specifying a higher priority.
+For example, you can override the ``beta`` profile using priority ``100`` which is higher than the default
+priority of ``0``:
+
+.. code-block:: json
+
+    [ {
+      "name": "beta",
+      "priority": 100,
+      "hosts": [ {
+        "host": "replica1.alternative-beta.example.com",
+        "protocol": "http",
+        "port": 36462
+      }, {
+        "host": "replica2.alternative-beta.example.com",
+        "protocol": "http",
+        "port": 36462
+      } ]
+    } ]
+
+Note that other profiles such as ``release`` are still loaded from the ``centraldogma-profiles.json`` distributed by
+the administrator.
 
 Using DNS-based lookup
 ----------------------

@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.client;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
@@ -27,10 +26,11 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
@@ -233,17 +233,25 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
         checkState(selectedProfile == null, "profile cannot be loaded more than once.");
         checkState(hosts.isEmpty(), "profile() and host() cannot be used together.");
 
-        final URL resourceUrl = findProfileResource(classLoader);
-
-        checkState(resourceUrl != null, "failed to find any of: ", profileResourcePaths);
-
-        final Map<String, ClientProfile> availableProfiles;
+        final Map<String, ClientProfile> availableProfiles = new HashMap<>();
         try {
-            final List<ClientProfile> availableProfileList =
-                    new ObjectMapper().readValue(resourceUrl, new TypeReference<List<ClientProfile>>() {});
-            availableProfiles = availableProfileList.stream()
-                                                    .collect(toImmutableMap(ClientProfile::name,
-                                                                            Function.identity()));
+            final List<URL> resourceUrls = findProfileResources(classLoader);
+            checkState(!resourceUrls.isEmpty(), "failed to find any of: ", profileResourcePaths);
+
+            for (URL resourceUrl : resourceUrls) {
+                final List<ClientProfile> availableProfileList =
+                        new ObjectMapper().readValue(resourceUrl, new TypeReference<List<ClientProfile>>() {});
+
+                // Collect all profiles checking the profiles ignoring the duplicate profile names.
+                availableProfileList.forEach(profile -> {
+                    final String name = profile.name();
+                    final ClientProfile existingProfile = availableProfiles.get(name);
+                    if (existingProfile == null || existingProfile.priority() < profile.priority()) {
+                        // Not a duplicate or higher priority
+                        availableProfiles.put(name, profile);
+                    }
+                });
+            }
         } catch (IOException e) {
             throw new IllegalStateException("failed to load: " + PROFILE_RESOURCE_PATH, e);
         }
@@ -274,15 +282,14 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
         throw new IllegalArgumentException("no profile matches: " + profiles);
     }
 
-    @Nullable
-    private URL findProfileResource(ClassLoader classLoader) {
+    private List<URL> findProfileResources(ClassLoader classLoader) throws IOException {
+        final ImmutableList.Builder<URL> urls = ImmutableList.builder();
         for (String p : profileResourcePaths) {
-            final URL url = classLoader.getResource(p);
-            if (url != null) {
-                return url;
+            for (final Enumeration<URL> e = classLoader.getResources(p); e.hasMoreElements();) {
+                urls.add(e.nextElement());
             }
         }
-        return null;
+        return urls.build();
     }
 
     private static List<String> reverse(Iterable<String> profiles) {

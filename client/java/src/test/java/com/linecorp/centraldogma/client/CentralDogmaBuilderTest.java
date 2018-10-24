@@ -42,7 +42,6 @@ public class CentralDogmaBuilderTest {
     @Test
     public void emptyProfile() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
-
         assertThatThrownBy(() -> b.profile("bar"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("no profile matches");
@@ -62,7 +61,7 @@ public class CentralDogmaBuilderTest {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.profile("foo");
         assertThat(b.hosts()).containsExactlyInAnyOrder(
-                InetSocketAddress.createUnresolved("foo.com", 36462));
+                InetSocketAddress.createUnresolved("foo.test.com", 36462));
     }
 
     @Test
@@ -71,8 +70,41 @@ public class CentralDogmaBuilderTest {
         b.useTls();
         b.profile("foo");
         assertThat(b.hosts()).containsExactlyInAnyOrder(
-                InetSocketAddress.createUnresolved("foo.com", 8443),
-                InetSocketAddress.createUnresolved("bar.com", 443));
+                InetSocketAddress.createUnresolved("foo.test.com", 443));
+    }
+
+    @Test
+    public void profileLoadedFromAllResources() {
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.profile("production");
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                InetSocketAddress.createUnresolved("prod1.com", 36462),
+                InetSocketAddress.createUnresolved("prod2.com", 36462));
+    }
+
+    @Test
+    public void ipHosts() {
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.profile("ip_hosts");
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                new InetSocketAddress("192.168.0.1", 8081),
+                new InetSocketAddress("192.168.0.2", 8082));
+    }
+
+    @Test
+    public void profileWithHighPriorityWins() {
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.profile("high_priority_wins");
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                InetSocketAddress.createUnresolved("high-priority.com", 36462));
+    }
+
+    @Test
+    public void profileWithLowPriorityLoses() {
+        final CentralDogmaBuilder b = new CentralDogmaBuilder();
+        b.profile("low_priority_loses");
+        assertThat(b.hosts()).containsExactlyInAnyOrder(
+                InetSocketAddress.createUnresolved("high-priority.com", 36462));
     }
 
     @Test
@@ -80,9 +112,10 @@ public class CentralDogmaBuilderTest {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         // The last valid profile should win, to be consistent with Spring Boot profiles.
         b.profile("foo", "qux");
+        assertThat(b.selectedProfile()).isEqualTo("qux");
         assertThat(b.hosts()).containsExactlyInAnyOrder(
-                InetSocketAddress.createUnresolved("alice.com", 36462),
-                InetSocketAddress.createUnresolved("bob.com", 36462));
+                InetSocketAddress.createUnresolved("qux1.test.com", 36462),
+                InetSocketAddress.createUnresolved("qux2.test.com", 36462));
     }
 
     @Test
