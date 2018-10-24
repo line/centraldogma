@@ -35,19 +35,27 @@ import com.linecorp.centraldogma.internal.Jackson;
 final class ClientProfile {
 
     private final String name;
+    private final int priority;
     private final Set<Entry> hosts;
 
     @JsonCreator
     ClientProfile(@JsonProperty(value = "name", required = true) String name,
+                  @JsonProperty("priority") @Nullable Integer priority,
                   @JsonProperty("hosts") @JsonDeserialize(contentAs = Entry.class) @Nullable Set<Entry> hosts) {
         this.name = requireNonNull(name, "name");
         checkArgument(!name.isEmpty(), "name is empty.");
+        this.priority = firstNonNull(priority, 0);
         this.hosts = ImmutableSet.copyOf(firstNonNull(hosts, ImmutableSet.of()));
     }
 
     @JsonProperty
     String name() {
         return name;
+    }
+
+    @JsonProperty
+    int priority() {
+        return priority;
     }
 
     @JsonProperty

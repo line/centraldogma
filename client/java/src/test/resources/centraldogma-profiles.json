@@ -1,1 +1,84 @@
-"This file should never be accessed because 'centraldogma-profiles-test.json' must be tried first."
+[
+  {
+    "name": "foo",
+    "hosts": [
+      {
+        "host": "error.com",
+        "protocol": "http",
+        "port": 36462
+      },
+      {
+        "host": "error.com",
+        "protocol": "https",
+        "port": 443
+      }
+    ]
+  },
+  {
+    "name": "bar",
+    "hosts": [
+      {
+        "host": "error.com",
+        "protocol": "http",
+        "port": 36462
+      },
+      {
+        "host": "error.com",
+        "protocol": "https",
+        "port": 443
+      }
+    ]
+  },
+  {
+    "name": "qux",
+    "hosts": [
+      {
+        "host": "error.com",
+        "protocol": "http",
+        "port": 36462
+      },
+      {
+        "host": "error.com",
+        "protocol": "https",
+        "port": 443
+      }
+    ]
+  },
+  {
+    "name": "high_priority_wins",
+    "priority": 200,
+    "hosts": [
+      {
+        "host": "high-priority.com",
+        "protocol": "http",
+        "port": 36462
+      }
+    ]
+  },
+  {
+    "name": "low_priority_loses",
+    "priority": 100,
+    "hosts": [
+      {
+        "host": "low-priority.com",
+        "protocol": "http",
+        "port": 36462
+      }
+    ]
+  },
+  {
+    "name": "production",
+    "hosts": [
+      {
+        "host": "prod1.com",
+        "protocol": "http",
+        "port": 36462
+      },
+      {
+        "host": "prod2.com",
+        "protocol": "http",
+        "port": 36462
+      }
+    ]
+  }
+]

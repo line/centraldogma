@@ -3,17 +3,12 @@
     "name": "foo",
     "hosts": [
       {
-        "host": "foo.com",
+        "host": "foo.test.com",
         "protocol": "http",
         "port": 36462
       },
       {
-        "host": "foo.com",
-        "protocol": "https",
-        "port": 8443
-      },
-      {
-        "host": "bar.com",
+        "host": "foo.test.com",
         "protocol": "https",
         "port": 443
       }
@@ -27,14 +22,51 @@
     "name": "qux",
     "hosts": [
       {
-        "host": "alice.com",
+        "host": "qux1.test.com",
         "protocol": "http",
         "port": 36462
       },
       {
-        "host": "bob.com",
+        "host": "qux2.test.com",
         "protocol": "http",
         "port": 36462
+      }
+    ]
+  },
+  {
+    "name": "high_priority_wins",
+    "priority": 100,
+    "hosts": [
+      {
+        "host": "low-priority.com",
+        "protocol": "http",
+        "port": 36462
+      }
+    ]
+  },
+  {
+    "name": "low_priority_loses",
+    "priority": 200,
+    "hosts": [
+      {
+        "host": "high-priority.com",
+        "protocol": "http",
+        "port": 36462
+      }
+    ]
+  },
+  {
+    "name": "ip_hosts",
+    "hosts": [
+      {
+        "host": "192.168.0.1",
+        "protocol": "http",
+        "port": 8081
+      },
+      {
+        "host": "192.168.0.2",
+        "protocol": "http",
+        "port": 8082
       }
     ]
   }

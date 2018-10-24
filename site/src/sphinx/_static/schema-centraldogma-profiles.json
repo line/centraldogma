@@ -15,6 +15,14 @@
           "local", "beta", "release"
         ]
       },
+      "priority": {
+        "$id": "https://line.github.io/centraldogma/schema/client-profiles/items/properties/priority",
+        "type": "integer",
+        "title": "The priority of the client profile",
+        "examples": [
+          "0", "-100", "100"
+        ]
+      },
       "hosts": {
         "$id": "https://line.github.io/centraldogma/schema/client-profiles/items/properties/hosts",
         "type": "array",
