@@ -55,6 +55,8 @@ public class CentralDogmaBeanTest {
             client.createRepository("a", "b").join();
             client.createProject("alice").join();
             client.createRepository("alice", "bob").join();
+            client.createProject("e").join();
+            client.createRepository("e", "f").join();
         }
     };
 
@@ -68,16 +70,23 @@ public class CentralDogmaBeanTest {
     }
 
     @Test
+    public void stayDefault() {
+        final TestPropertyDefault property = factory.get(new TestPropertyDefault(), TestPropertyDefault.class);
+
+        // Delay to detect if data for this bean has already been written to the server.
+        // Protects against newly added tests, when run in suite.
+        await().until(() -> property.getFoo() == 10 &&
+                            "20".equals(property.getBar()) &&
+                            property.getQux().equals(ImmutableList.of("x", "y", "z")) &&
+                            property.getRevision() == null);
+    }
+
+    @Test
     public void test() throws Exception {
         final int[] called = new int[1];
         final Consumer<TestProperty> listener = testProperty -> called[0] = 1;
         final CentralDogma client = dogma.client();
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class, listener);
-
-        assertThat(property.getFoo()).isEqualTo(10);
-        assertThat(property.getBar()).isEqualTo("20");
-        assertThat(property.getQux()).containsExactly("x", "y", "z");
-        assertThat(property.getRevision()).isNull();
 
         final PushResult res = client.push("a", "b", Revision.HEAD, "Add c.json",
                                            Change.ofJsonUpsert("/c.json",
@@ -209,5 +218,29 @@ public class CentralDogmaBeanTest {
         }
 
         public void closeWatcher() { }
+    }
+
+    @CentralDogmaBean(project = "e", repository = "f", path = "/g.json")
+    static class TestPropertyDefault {
+        int foo = 10;
+        String bar = "20";
+        List<String> qux = ImmutableList.of("x", "y", "z");
+
+        @Nullable
+        public Revision getRevision() {
+            return null;
+        }
+
+        public int getFoo() {
+            return foo;
+        }
+
+        public String getBar() {
+            return bar;
+        }
+
+        public List<String> getQux() {
+            return qux;
+        }
     }
 }
