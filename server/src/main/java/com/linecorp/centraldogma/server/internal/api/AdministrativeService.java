@@ -30,7 +30,6 @@ import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Patch;
-import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchException;
@@ -64,7 +63,7 @@ public final class AdministrativeService extends AbstractService {
     @Patch("/status")
     @Consumes("application/json-patch+json")
     @Decorator(AdministratorsOnly.class)
-    public CompletableFuture<ServerStatus> updateStatus(@RequestObject JsonNode patch) throws Exception {
+    public CompletableFuture<ServerStatus> updateStatus(JsonNode patch) throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
         final ServerStatus oldStatus = status();
         final JsonNode oldValue = Jackson.valueToTree(oldStatus);

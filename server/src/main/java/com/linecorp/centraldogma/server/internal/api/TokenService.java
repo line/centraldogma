@@ -30,14 +30,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.server.annotation.ConsumeType;
+import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
-import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -82,7 +81,7 @@ public class TokenService extends AbstractService {
      * <p>Returns the list of the tokens generated before.
      */
     @Get("/tokens")
-    public CompletableFuture<Collection<Token>> listTokens(@RequestObject User loginUser) {
+    public CompletableFuture<Collection<Token>> listTokens(User loginUser) {
         if (loginUser.isAdmin()) {
             return mds.getTokens()
                       .thenApply(tokens -> tokens.appIds().values());
@@ -102,8 +101,8 @@ public class TokenService extends AbstractService {
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<HolderWithLocation<Token>> createToken(@Param("appId") String appId,
                                                                     @Param("isAdmin") boolean isAdmin,
-                                                                    @RequestObject Author author,
-                                                                    @RequestObject User loginUser) {
+                                                                    Author author,
+                                                                    User loginUser) {
         checkArgument(!isAdmin || loginUser.isAdmin(),
                       "Only administrators are allowed to create an admin-level token.");
         return mds.createToken(author, appId, isAdmin)
@@ -118,8 +117,8 @@ public class TokenService extends AbstractService {
      */
     @Delete("/tokens/{appId}")
     public CompletableFuture<Token> deleteToken(@Param("appId") String appId,
-                                                @RequestObject Author author,
-                                                @RequestObject User loginUser) {
+                                                Author author,
+                                                User loginUser) {
         return getTokenOrRespondForbidden(appId, loginUser).thenCompose(
                 token -> mds.destroyToken(author, appId)
                             .thenApply(unused -> token.withoutSecret()));
@@ -131,11 +130,11 @@ public class TokenService extends AbstractService {
      * <p>Activates or deactivates the token of the specified {@code appId}.
      */
     @Patch("/tokens/{appId}")
-    @ConsumeType("application/json-patch+json")
+    @Consumes("application/json-patch+json")
     public CompletableFuture<Token> updateToken(@Param("appId") String appId,
-                                                @RequestObject JsonNode node,
-                                                @RequestObject Author author,
-                                                @RequestObject User loginUser) {
+                                                JsonNode node,
+                                                Author author,
+                                                User loginUser) {
         if (node.equals(activation)) {
             return getTokenOrRespondForbidden(appId, loginUser).thenCompose(
                     token -> mds.activateToken(author, appId)

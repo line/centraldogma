@@ -33,14 +33,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.annotation.ConsumeType;
+import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
-import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -80,8 +79,8 @@ public class MetadataApiService {
     @Post("/metadata/{projectName}/members")
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> addMember(@Param("projectName") String projectName,
-                                                 @RequestObject IdentifierWithRole request,
-                                                 @RequestObject Author author) {
+                                                 IdentifierWithRole request,
+                                                 Author author) {
         final ProjectRole role = toProjectRole(request.role());
         final User member = new User(loginNameNormalizer.apply(request.id()));
         return mds.addMember(author, projectName, member, role);
@@ -94,12 +93,12 @@ public class MetadataApiService {
      * {@code projectName}.
      */
     @Patch("/metadata/{projectName}/members/{memberId}")
-    @ConsumeType("application/json-patch+json")
+    @Consumes("application/json-patch+json")
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateMember(@Param("projectName") String projectName,
                                                     @Param("memberId") String memberId,
-                                                    @RequestObject JsonPatch jsonPatch,
-                                                    @RequestObject Author author) {
+                                                    JsonPatch jsonPatch,
+                                                    Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/role");
         final ProjectRole role = ProjectRole.of(operation.value());
         final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
@@ -116,7 +115,7 @@ public class MetadataApiService {
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> removeMember(@Param("projectName") String projectName,
                                                     @Param("memberId") String memberId,
-                                                    @RequestObject Author author) {
+                                                    Author author) {
         final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
         return mds.getMember(projectName, member)
                   .thenCompose(unused -> mds.removeMember(author, projectName, member));
@@ -130,8 +129,8 @@ public class MetadataApiService {
     @Post("/metadata/{projectName}/tokens")
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> addToken(@Param("projectName") String projectName,
-                                                @RequestObject IdentifierWithRole request,
-                                                @RequestObject Author author) {
+                                                IdentifierWithRole request,
+                                                Author author) {
         final ProjectRole role = toProjectRole(request.role());
         return mds.findTokenByAppId(request.id())
                   .thenCompose(token -> mds.addToken(author, projectName, token.appId(), role));
@@ -144,12 +143,12 @@ public class MetadataApiService {
      * in the specified {@code projectName}.
      */
     @Patch("/metadata/{projectName}/tokens/{appId}")
-    @ConsumeType("application/json-patch+json")
+    @Consumes("application/json-patch+json")
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateTokenRole(@Param("projectName") String projectName,
                                                        @Param("appId") String appId,
-                                                       @RequestObject JsonPatch jsonPatch,
-                                                       @RequestObject Author author) {
+                                                       JsonPatch jsonPatch,
+                                                       Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/role");
         final ProjectRole role = ProjectRole.of(operation.value());
         return mds.findTokenByAppId(appId)
@@ -165,7 +164,7 @@ public class MetadataApiService {
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> removeToken(@Param("projectName") String projectName,
                                                    @Param("appId") String appId,
-                                                   @RequestObject Author author) {
+                                                   Author author) {
         return mds.findTokenByAppId(appId)
                   .thenCompose(token -> mds.removeToken(author, projectName, token.appId()));
     }
@@ -180,8 +179,8 @@ public class MetadataApiService {
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateRolePermission(@Param("projectName") String projectName,
                                                             @Param("repoName") String repoName,
-                                                            @RequestObject PerRolePermissions newPermission,
-                                                            @RequestObject Author author) {
+                                                            PerRolePermissions newPermission,
+                                                            Author author) {
         return mds.updatePerRolePermissions(author, projectName, repoName, newPermission);
     }
 
@@ -193,11 +192,11 @@ public class MetadataApiService {
      */
     @Post("/metadata/{projectName}/repos/{repoName}/perm/users")
     @Decorator(ProjectOwnersOnly.class)
-    public CompletableFuture<Revision> addSpecificUserPermission(@Param("projectName") String projectName,
-                                                                 @Param("repoName") String repoName,
-                                                                 @RequestObject IdentifierWithPermissions
-                                                                         memberWithPermissions,
-                                                                 @RequestObject Author author) {
+    public CompletableFuture<Revision> addSpecificUserPermission(
+            @Param("projectName") String projectName,
+            @Param("repoName") String repoName,
+            IdentifierWithPermissions memberWithPermissions,
+            Author author) {
         final User member = new User(loginNameNormalizer.apply(memberWithPermissions.id()));
         return mds.addPerUserPermission(author, projectName, repoName,
                                         member, memberWithPermissions.permissions());
@@ -210,13 +209,13 @@ public class MetadataApiService {
      * in the specified {@code projectName}.
      */
     @Patch("/metadata/{projectName}/repos/{repoName}/perm/users/{memberId}")
-    @ConsumeType("application/json-patch+json")
+    @Consumes("application/json-patch+json")
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateSpecificUserPermission(@Param("projectName") String projectName,
                                                                     @Param("repoName") String repoName,
                                                                     @Param("memberId") String memberId,
-                                                                    @RequestObject JsonPatch jsonPatch,
-                                                                    @RequestObject Author author) {
+                                                                    JsonPatch jsonPatch,
+                                                                    Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
         final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
         final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
@@ -237,7 +236,7 @@ public class MetadataApiService {
     public CompletableFuture<Revision> removeSpecificUserPermission(@Param("projectName") String projectName,
                                                                     @Param("repoName") String repoName,
                                                                     @Param("memberId") String memberId,
-                                                                    @RequestObject Author author) {
+                                                                    Author author) {
         final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
         return mds.findPermissions(projectName, repoName, member)
                   .thenCompose(unused -> mds.removePerUserPermission(author, projectName,
@@ -252,11 +251,11 @@ public class MetadataApiService {
      */
     @Post("/metadata/{projectName}/repos/{repoName}/perm/tokens")
     @Decorator(ProjectOwnersOnly.class)
-    public CompletableFuture<Revision> addSpecificTokenPermission(@Param("projectName") String projectName,
-                                                                  @Param("repoName") String repoName,
-                                                                  @RequestObject IdentifierWithPermissions
-                                                                          tokenWithPermissions,
-                                                                  @RequestObject Author author) {
+    public CompletableFuture<Revision> addSpecificTokenPermission(
+            @Param("projectName") String projectName,
+            @Param("repoName") String repoName,
+            IdentifierWithPermissions tokenWithPermissions,
+            Author author) {
         return mds.addPerTokenPermission(author, projectName, repoName,
                                          tokenWithPermissions.id(), tokenWithPermissions.permissions());
     }
@@ -268,13 +267,13 @@ public class MetadataApiService {
      * in the specified {@code projectName}.
      */
     @Patch("/metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}")
-    @ConsumeType("application/json-patch+json")
+    @Consumes("application/json-patch+json")
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateSpecificTokenPermission(@Param("projectName") String projectName,
                                                                      @Param("repoName") String repoName,
                                                                      @Param("appId") String appId,
-                                                                     @RequestObject JsonPatch jsonPatch,
-                                                                     @RequestObject Author author) {
+                                                                     JsonPatch jsonPatch,
+                                                                     Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
         final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
         return mds.findTokenByAppId(appId)
@@ -293,7 +292,7 @@ public class MetadataApiService {
     public CompletableFuture<Revision> removeSpecificTokenPermission(@Param("projectName") String projectName,
                                                                      @Param("repoName") String repoName,
                                                                      @Param("appId") String appId,
-                                                                     @RequestObject Author author) {
+                                                                     Author author) {
         return mds.findTokenByAppId(appId)
                   .thenCompose(token -> mds.removePerTokenPermission(author,
                                                                      projectName, repoName, appId));

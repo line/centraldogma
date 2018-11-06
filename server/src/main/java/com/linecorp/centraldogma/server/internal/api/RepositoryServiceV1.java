@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.server.annotation.ConsumeType;
+import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
@@ -38,7 +38,6 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
-import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
@@ -76,9 +75,9 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Returns the list of the repositories or removed repositories.
      */
     @Get("/projects/{projectName}/repos")
-    public CompletableFuture<List<RepositoryDto>> listRepositories(@RequestObject Project project,
+    public CompletableFuture<List<RepositoryDto>> listRepositories(Project project,
                                                                    @Param("status") Optional<String> status,
-                                                                   @RequestObject User user) {
+                                                                   User user) {
         status.ifPresent(HttpApiUtil::checkStatusArgument);
         return mds.findRole(project.name(), user).handle((role, throwable) -> {
             final boolean hasOwnerRole = role == ProjectRole.OWNER;
@@ -108,9 +107,9 @@ public class RepositoryServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos")
     @ResponseConverter(CreateApiResponseConverter.class)
     @Decorator(ProjectOwnersOnly.class)
-    public CompletableFuture<RepositoryDto> createRepository(@RequestObject Project project,
-                                                             @RequestObject CreateRepositoryRequest request,
-                                                             @RequestObject Author author) {
+    public CompletableFuture<RepositoryDto> createRepository(Project project,
+                                                             CreateRepositoryRequest request,
+                                                             Author author) {
         if (Project.isReservedRepoName(request.name())) {
             return HttpApiUtil.throwResponse(HttpStatus.FORBIDDEN,
                                              "A reserved repository cannot be created.");
@@ -128,8 +127,8 @@ public class RepositoryServiceV1 extends AbstractService {
     @Delete("/projects/{projectName}/repos/{repoName}")
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Void> removeRepository(@Param("repoName") String repoName,
-                                                    @RequestObject Repository repository,
-                                                    @RequestObject Author author) {
+                                                    Repository repository,
+                                                    Author author) {
         if (Project.isReservedRepoName(repoName)) {
             return HttpApiUtil.throwResponse(HttpStatus.FORBIDDEN,
                                              "A reserved repository cannot be removed.");
@@ -144,13 +143,13 @@ public class RepositoryServiceV1 extends AbstractService {
      *
      * <p>Patches a repository with the JSON_PATCH. Currently, only unremove repository operation is supported.
      */
-    @ConsumeType("application/json-patch+json")
+    @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}/repos/{repoName}")
     @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<RepositoryDto> patchRepository(@Param("repoName") String repoName,
-                                                            @RequestObject Project project,
-                                                            @RequestObject JsonNode node,
-                                                            @RequestObject Author author) {
+                                                            Project project,
+                                                            JsonNode node,
+                                                            Author author) {
         checkUnremoveArgument(node);
         return execute(Command.unremoveRepository(author, project.name(), repoName))
                 .thenCompose(unused -> mds.restoreRepo(author, project.name(), repoName))
@@ -164,8 +163,7 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/revision/{revision}")
     @Decorator(HasReadPermission.class)
-    public Map<String, Integer> normalizeRevision(@RequestObject Repository repository,
-                                                  @Param("revision") String revision) {
+    public Map<String, Integer> normalizeRevision(Repository repository, @Param("revision") String revision) {
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
         return ImmutableMap.of("revision", normalizedRevision.major());
     }

@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import com.linecorp.armeria.server.annotation.ConsumeType;
+import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
@@ -36,7 +36,6 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
-import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
@@ -91,8 +90,7 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Post("/projects")
     @ResponseConverter(CreateApiResponseConverter.class)
-    public CompletableFuture<ProjectDto> createProject(@RequestObject CreateProjectRequest request,
-                                                       @RequestObject Author author) {
+    public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author) {
         return execute(Command.createProject(author, request.name()))
                 .handle(returnOrThrow(() -> DtoConverter.convert(projectManager().get(request.name()))));
     }
@@ -122,8 +120,7 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Delete("/projects/{projectName}")
     @Decorator(ProjectOwnersOnly.class)
-    public CompletableFuture<Void> removeProject(@RequestObject Project project,
-                                                 @RequestObject Author author) {
+    public CompletableFuture<Void> removeProject(Project project, Author author) {
         // Metadata must be updated first because it cannot be updated if the project is removed.
         return mds.removeProject(author, project.name())
                   .thenCompose(unused -> execute(Command.removeProject(author, project.name())))
@@ -135,12 +132,12 @@ public class ProjectServiceV1 extends AbstractService {
      *
      * <p>Patches a project with the JSON_PATCH. Currently, only unremove project operation is supported.
      */
-    @ConsumeType("application/json-patch+json")
+    @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}")
     @Decorator(AdministratorsOnly.class)
     public CompletableFuture<ProjectDto> patchProject(@Param("projectName") String projectName,
-                                                      @RequestObject JsonNode node,
-                                                      @RequestObject Author author) {
+                                                      JsonNode node,
+                                                      Author author) {
         checkUnremoveArgument(node);
         // Restore the project first then update its metadata as 'active'.
         return execute(Command.unremoveProject(author, projectName))
