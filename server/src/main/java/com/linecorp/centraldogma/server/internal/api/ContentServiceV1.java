@@ -52,7 +52,6 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.RequestConverter;
-import com.linecorp.armeria.server.annotation.RequestObject;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -101,7 +100,7 @@ public class ContentServiceV1 extends AbstractService {
     @Decorator(HasReadPermission.class)
     public CompletableFuture<List<EntryDto<?>>> listFiles(@Param("path") String path,
                                                           @Param("revision") @Default("-1") String revision,
-                                                          @RequestObject Repository repository) {
+                                                          Repository repository) {
         final String normalizedPath = normalizePath(path);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
         listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)),
@@ -164,10 +163,10 @@ public class ContentServiceV1 extends AbstractService {
     @Decorator(HasWritePermission.class)
     public CompletableFuture<PushResultDto> commit(
             @Param("revision") @Default("-1") String revision,
-            @RequestObject Repository repository,
-            @RequestObject Author author,
-            @RequestObject CommitMessageDto commitMessage,
-            @RequestObject(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
+            Repository repository,
+            Author author,
+            CommitMessageDto commitMessage,
+            @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
 
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
 
@@ -215,10 +214,11 @@ public class ContentServiceV1 extends AbstractService {
     @Decorator(HasReadPermission.class)
     public CompletableFuture<?> getFiles(@Param("path") String path,
                                          @Param("revision") @Default("-1") String revision,
-                                         @RequestObject Repository repository,
-                                         @RequestObject(WatchRequestConverter.class)
-                                                 Optional<WatchRequest> watchRequest,
-                                         @RequestObject(QueryRequestConverter.class) Optional<Query<?>> query) {
+                                         Repository repository,
+                                         @RequestConverter(WatchRequestConverter.class)
+                                         Optional<WatchRequest> watchRequest,
+                                         @RequestConverter(QueryRequestConverter.class)
+                                         Optional<Query<?>> query) {
         final String normalizedPath = normalizePath(path);
 
         // watch repository or a file
@@ -305,7 +305,7 @@ public class ContentServiceV1 extends AbstractService {
                                             @Param("path") @Default("/**") String path,
                                             @Param("to") Optional<String> to,
                                             @Param("maxCommits") Optional<Integer> maxCommits,
-                                            @RequestObject Repository repository) {
+                                            Repository repository) {
         final Revision fromRevision;
         final Revision toRevision;
 
@@ -347,8 +347,9 @@ public class ContentServiceV1 extends AbstractService {
     public CompletableFuture<?> getDiff(@Param("pathPattern") @Default("/**") String pathPattern,
                                         @Param("from") @Default("1") String from,
                                         @Param("to") @Default("head") String to,
-                                        @RequestObject Repository repository,
-                                        @RequestObject(QueryRequestConverter.class) Optional<Query<?>> query) {
+                                        Repository repository,
+                                        @RequestConverter(QueryRequestConverter.class)
+                                        Optional<Query<?>> query) {
         if (query.isPresent()) {
             return repository.diff(new Revision(from), new Revision(to), query.get())
                              .thenApply(DtoConverter::convert);
