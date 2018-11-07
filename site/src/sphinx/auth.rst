@@ -1,34 +1,240 @@
 .. _`Apache Shiro`: https://shiro.apache.org/
+.. _`keytool`: https://docs.oracle.com/javase/10/tools/keytool.htm#JSWOR-GUID-5990A2E4-78E3-47B7-AE75-6D1826259549
+.. _`OpenSAML`: https://wiki.shibboleth.net/confluence/display/OS30/Home
+.. _`Quartz cron expression`: http://www.quartz-scheduler.org/documentation/quartz-2.x/tutorials/crontrigger.html
+.. _`Security Assertion Markup Language (SAML)`: https://en.wikipedia.org/wiki/Security_Assertion_Markup_Language
+.. _`the Caffeine API documentation`: https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html
 
 .. _auth:
 
 Authentication and Access Control
 =================================
 
-Central Dogma provides the features for authentication and access control.
+Central Dogma provides the following modules to configure its authentication layer:
 
-Authentication
---------------
+- ``server-auth-saml``, which is based on `OpenSAML`_
+- ``server-auth-shiro``, which is based on `Apache Shiro`_
 
-For authentication, `Apache Shiro`_ is used as its authentication layer and ``conf/shiro.ini`` file is used
-as its security configuration. Please follow the steps below to turn on the security system of Central Dogma.
+They are included to the distribution by default so that you can configure the authentication layer with
+the following instruction.
 
-First, enable the security system by configuring ``conf/dogma.json``. Specify login IDs of the administrators
-there, too:
+Basic authentication configuration
+----------------------------------
 
-.. code-block:: javascript
+The first step to configure the authentication layer is adding ``authentication`` property to the
+``conf/dogma.json``. The authentication is disabled when ``authentication`` property is ``null``.
+The authentication configuration consists of the following properties:
+
+.. code-block:: json
 
     {
         ...
-        "securityEnabled": true,
-        "administrators": [
-            "system-admin", "dogma-admin"
-        ]
-        ...
+        "authentication": {
+            "factoryClassName": "the fully-qualified class name of an AuthenticationProviderFactory",
+            "administrators": [],
+            "caseSensitiveLoginNames": false,
+            "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
+            "sessionTimeoutMillis": 604800000,
+            "sessionValidationSchedule": "0 30 */4 ? * *",
+            "properties": null
     }
 
-Next, configure ``conf/shiro.ini`` based on your authentication system. A local database system of
-`Apache Shiro`_ is used here to show you a simple example:
+- ``factoryClassName`` (string)
+
+  - the fully-qualified class name of the :api:`AuthenticationProviderFactory` implementation. Can be one of
+    ``com.linecorp.centraldogma.server.auth.saml.SamlAuthenticationProviderFactory`` or
+    ``com.linecorp.centraldogma.server.auth.shiro.ShiroAuthenticationProviderFactory``.
+
+- ``administrators`` (string array)
+
+  - login IDs of the administrators. They are valid only if ``securityEnabled`` is ``true``.
+    Please refer to :ref:`auth` for more information.
+
+- ``caseSensitiveLoginNames`` (boolean)
+
+  - whether case-sensitive matching is performed when login names are compared. Disabled by default
+    (case-insensitive).
+
+- ``sessionCacheSpec`` (string)
+
+  - the cache specification string which determines the capacity and behavior of the cache for the session
+    information of the server. Refer to `the Caffeine API documentation`_ for more information.
+
+- ``sessionTimeoutMillis`` (integer)
+
+  - the session timeout for web-based administrative console, in milliseconds. If ``null``, the default value
+    of '604800000 milliseconds' (7 days) is used.
+
+- ``sessionValidationSchedule`` (string)
+
+  - a `Quartz cron expression`_ that describes when the task for revalidating the existing sessions is
+    supposed to be triggered. If unspecified, ``0 30 */4 ? * *`` (at 0:30, 4:30, 8:30, 12:30, 16:30 and 20:30
+    for every day) is used.
+
+- ``properties`` (object)
+
+  - an object which describes authentication provider specific properties.
+
+Configuring authentication with SAML
+------------------------------------
+
+`Security Assertion Markup Language (SAML)`_ is an open standard for exchanging authentication and authorization
+data between an identity provider and a service provider. In this protocol, Central Dogma acts as a service
+provider. So, you need to fill the ``properties`` property with information of an identity provider that
+you delegate the authentication to.
+
+.. code-block:: json
+
+    {
+        ...
+        "authentication": {
+            "factoryClassName": "com.linecorp.centraldogma.server.auth.saml.SamlAuthenticationProviderFactory",
+            "administrators": [],
+            "caseSensitiveLoginNames": false,
+            "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
+            "sessionTimeoutMillis": 604800000,
+            "sessionValidationSchedule": "0 30 */4 ? * *",
+            "properties": {
+                "entityId": "dogma",
+                "hostname": "dogma-example.linecorp.com",
+                "signingKey": "signing",
+                "encryptionKey": "encryption",
+                "keyStore": {
+                    "type": "PKCS12",
+                    "path": "./conf/saml.jks",
+                    "password": null,
+                    "keyPasswords": {
+                        "signing": null,
+                        "encryption": null
+                    },
+                    "signatureAlgorithm": "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
+                },
+                "idp": {
+                    "entityId": "some-idp",
+                    "uri": "https://idp.some-service.com/saml/single_sign_on_service",
+                    "binding": "HTTP_POST",
+                    "signingKey": "some-idp",
+                    "encryptionKey": "some-idp",
+                    "subjectLoginNameIdFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+                    "attributeLoginName": null
+                }
+            }
+        }
+    }
+
+The following describes the meaning of SAML-specific properties.
+
+- ``entityId`` (string)
+
+  - an identifier of this service provider.
+
+- ``hostname`` (string)
+
+  - a host name which is used for generating URLs for an assertion consumer service, a metadata service and
+    a single logout service that are served by this service provider. It should be accessible from a user
+    browser.
+
+- ``signingKey`` (string)
+
+  - the name of a private key which is used for signing. If unspecified, ``signing`` is used by default.
+    Executing `keytool`_ with ``-genkeypair`` command helps you to create a new key pair in your keystore.
+
+- ``encryptionKey`` (string)
+
+  - the name of a private key which is used for encryption. If unspecified, ``encryption`` is used by default.
+
+- ``keyStore``
+
+  - the keystore which is used to encrypt and decrypt exchanged messages.
+  - ``type`` (string)
+
+    - the type of the keystore. If unspecified, the type retrieved from
+      ``java.security.KeyStore.getDefaultType()`` is used by default.
+
+  - ``path`` (string)
+
+    - the location of the keystore file.
+
+  - ``password`` (string)
+
+    - the password of the keystore.
+
+  - ``keyPasswords`` (map of a name of string and a value of string)
+
+    - a map of a key name and its password. If the password is unspecified, the empty string is used by default.
+
+  - ``signatureAlgorithm`` (string)
+
+    - a name of the signature algorithm for signing and encryption.
+      If unspecified, ``http://www.w3.org/2000/09/xmldsig#rsa-sha1`` is used by default.
+
+- ``idp``
+
+  - the identity provider configuration.
+  - ``entityId`` (string)
+
+    - an identifier of the identity provider.
+
+  - ``uri`` (string)
+
+    - a URL where an authentication request is supposed to be sent to.
+
+  - ``binding`` (string)
+
+    - a binding protocol of the ``uri``. If unspecified, ``urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST``
+      is used by default. It can be simply specified as ``HTTP_POST`` or ``HTTP_REDIRECT``.
+
+  - ``signingKey`` (string)
+
+    - the name of a certificate for signing, which is provided by the identity provider.
+      If unspecified, the ``entityId`` is used by default. Executing `keytool`_ with ``-importcert`` command
+      helps you to import a certificate of an identity provider to your keystore.
+
+  - ``encryptionKey`` (string)
+
+    - the name of a certificate for encryption, which is provided by the identity provider.
+      If unspecified, the ``entityId`` is used by default.
+
+  - ``subjectLoginNameIdFormat`` (string)
+
+    - the name ID format of a subject which holds a login name.
+      If unspecified, ``urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`` is used by default.
+      It means that the email address handed from the identity provider is used as a login name in the
+      authentication layer. You need to consult with the metadata of the identity provider before configuring
+      this property.
+
+  - ``attributeLoginName`` (string)
+
+    - the attribute name which holds a login name. Some identity provider provides a login name by an attribute,
+      instead of a name ID. In this case, you can configure this property, and then set ``subjectLoginNameIdFormat``
+      to ``null`` in order to avoid treating an email address as a login name.
+
+
+Configuring authentication with Apache Shiro
+--------------------------------------------
+
+`Apache Shiro`_ is a Java security framework that performs authentication, authorization, cryptography,
+and session management. Central Dogma leverages its authentication feature to authentication a user.
+If you want to configure the authentication layer with `Apache Shiro`_, you should configure the ``authentication``
+property in your ``conf/dogma.json`` as follows. Note that the path of your INI configuration file is specified
+on the ``properties`` property.
+
+.. code-block:: json
+
+    {
+        ...
+        "authentication": {
+            "factoryClassName": "com.linecorp.centraldogma.server.auth.shiro.ShiroAuthenticationProviderFactory",
+            "administrators": [],
+            "caseSensitiveLoginNames": false,
+            "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
+            "sessionTimeoutMillis": 604800000,
+            "sessionValidationSchedule": "0 30 */4 ? * *",
+            "properties": "./conf/shiro.ini"
+        }
+    }
+
+You may configure ``conf/shiro.ini`` simply as follows, which uses a local database system of `Apache Shiro`_:
 
 .. code-block:: ini
 
@@ -40,8 +246,6 @@ Next, configure ``conf/shiro.ini`` based on your authentication system. A local 
 
     `Apache Shiro`_ supports RDBMS or LDAP based security system as well. You can find the example
     configuration files under the ``conf/`` directory in the distribution.
-
-That's all. Now, you are ready to use the security system of Central Dogma.
 
 Access Control
 --------------

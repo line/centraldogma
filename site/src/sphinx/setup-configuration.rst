@@ -1,7 +1,6 @@
 .. _`Apache Shiro`: https://shiro.apache.org/
 .. _`the Caffeine API documentation`: https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html
 
-
 .. _setup-configuration:
 
 Configuration
@@ -32,9 +31,7 @@ defaults:
       "maxFrameLength": null,
       "numRepositoryWorkers": 16,
       "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
-      "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
       "webAppEnabled": true,
-      "webAppSessionTimeoutMillis": 604800000,
       "gracefulShutdownTimeout": {
         "quietPeriodMillis": 1000,
         "timeoutMillis": 10000
@@ -42,14 +39,12 @@ defaults:
       "replication": {
         "method": "NONE"
       },
-      "securityEnabled": false,
       "mirroringEnabled": true,
       "numMirroringThreads": null,
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
       "accessLogFormat": "common",
-      "administrators": [],
-      "caseSensitiveLoginNames": false
+      "authentication": null
     }
 
 Core properties
@@ -121,19 +116,9 @@ Core properties
     access cache. Refer to `the Caffeine API documentation`_ for more information.
     Note that the weight of the cache has been tuned to be roughly proportional to its memory usage.
 
-- ``sessionCacheSpec`` (string)
-
-  - the cache specification string which determines the capacity and behavior of the cache for the session
-    information of the server. Refer to `the Caffeine API documentation`_ for more information.
-
 - ``webAppEnabled`` (boolean)
 
   - whether to enable the web-based administrative console. Enabled by default.
-
-- ``webAppSessionTimeoutMillis`` (integer)
-
-  - the session timeout for web-based administrative console, in milliseconds. If ``null``, the default value
-    of '604800000 milliseconds' (7 days) is used.
 
 - ``gracefulShutdownTimeout``
 
@@ -157,16 +142,6 @@ Core properties
 
     - the replication method. ``NONE`` indicates 'standalone mode' without replication. See :ref:`replication`
       to learn how to configure ZooKeeper-based multi-master replication.
-
-- ``securityEnabled`` (boolean)
-
-  - whether to enable authentication. It's disabled by default so that a user can play with Central Dogma
-    without hassle. However, it is strongly encouraged to enable authentication because the authorship of
-    a commit is filled in automatically based on the principal of the current user. Central Dogma uses
-    `Apache Shiro`_ as its authentication layer and uses the ``conf/shiro.ini`` file as its security
-    configuration. For more information about how to configure `Apache Shiro`_, read
-    `this page <https://shiro.apache.org/configuration.html#ini-sections>`_ or check the example configuration
-    files under the ``conf/`` directory in the distribution.
 
 - ``mirroringEnabled`` (boolean)
 
@@ -197,15 +172,10 @@ Core properties
     here. Read `Writing an access log <https://line.github.io/armeria/server-access-log.html>`_ for more
     information. Specify ``null`` to disable access logging feature.
 
-- ``administrators`` (string array)
+- ``authentication``
 
-  - login IDs of the administrators. They are valid only if ``securityEnabled`` is ``true``.
-    Please refer to :ref:`auth` for more information.
-
-- ``caseSensitiveLoginNames`` (boolean)
-
-  - whether case-sensitive matching is performed when login names are compared. Disabled by default
-    (case-insensitive).
+  - the authentication configuration. If ``null``, the authentication is disabled.
+    See :ref:`auth` to learn how to configure the authentication layer.
 
 .. _replication:
 
@@ -366,7 +336,6 @@ in ``dogma.json`` as follows.
       "maxFrameLength": null,
       "numRepositoryWorkers": 16,
       "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
-      "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
       "webAppEnabled": true,
       "gracefulShutdownTimeout": {
         "quietPeriodMillis": 1000,
@@ -375,14 +344,12 @@ in ``dogma.json`` as follows.
       "replication": {
         "method": "NONE"
       },
-      "securityEnabled": false,
       "mirroringEnabled": true,
       "numMirroringThreads": null,
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
       "accessLogFormat": "common",
-      "administrators": [],
-      "caseSensitiveLoginNames": false
+      "authentication": null
     }
 
 - ``tls``
