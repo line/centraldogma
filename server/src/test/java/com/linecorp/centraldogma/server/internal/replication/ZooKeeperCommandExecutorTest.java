@@ -15,8 +15,10 @@
  */
 package com.linecorp.centraldogma.server.internal.replication;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -34,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -78,8 +81,8 @@ public class ZooKeeperCommandExecutorTest {
     @Test
     public void testLogWatch() throws Exception {
         // The 5th replica is used for ensuring the quorum.
-        final List<Replica> cluster = buildCluster(5, ZooKeeperCommandExecutorTest::newMockDelegate);
-
+        final List<Replica> cluster = buildCluster(5, true /* start */,
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
         final Replica replica1 = cluster.get(0);
         final Replica replica2 = cluster.get(1);
         final Replica replica3 = cluster.get(2);
@@ -157,7 +160,7 @@ public class ZooKeeperCommandExecutorTest {
     public void testRace() throws Exception {
         // Each replica has its own AtomicInteger which counts the number of commands
         // it executed/replayed so far.
-        final List<Replica> replicas = buildCluster(NUM_REPLICAS, () -> {
+        final List<Replica> replicas = buildCluster(NUM_REPLICAS, true /* start */, () -> {
             final AtomicInteger counter = new AtomicInteger();
             return command -> completedFuture(new Revision(counter.incrementAndGet()));
         });
@@ -198,8 +201,24 @@ public class ZooKeeperCommandExecutorTest {
         }
     }
 
+    /**
+     * Makes sure that we can stop a replica that's waiting for the initial quorum.
+     */
+    @Test
+    public void stopWhileWaitingForInitialQuorum() throws Exception {
+        final List<Replica> cluster = buildCluster(2, false /* start */,
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
+
+        final CompletableFuture<Void> startFuture = cluster.get(0).rm.start();
+        cluster.get(0).rm.stop().join();
+
+        assertThat(startFuture).hasFailedWithThrowableThat()
+                               .isInstanceOf(InterruptedException.class)
+                               .hasMessageContaining("before joining");
+    }
+
     private List<Replica> buildCluster(
-            int numReplicas,
+            int numReplicas, boolean start,
             Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier) throws Exception {
 
         // Each replica requires 3 ports, for client, quorum and election.
@@ -235,12 +254,14 @@ public class ZooKeeperCommandExecutorTest {
 
         final ImmutableList.Builder<Replica> builder = ImmutableList.builder();
         for (InstanceSpec spec : specs) {
-            final Replica r = new Replica(spec, servers, delegateSupplier.get());
+            final Replica r = new Replica(spec, servers, delegateSupplier.get(), start);
             builder.add(r);
         }
 
         final List<Replica> replicas = builder.build();
-        replicas.forEach(Replica::awaitStartup);
+        if (start) {
+            replicas.forEach(Replica::awaitStartup);
+        }
         return replicas;
     }
 
@@ -259,7 +280,7 @@ public class ZooKeeperCommandExecutorTest {
         private final CompletableFuture<Void> startFuture;
 
         Replica(InstanceSpec spec, Map<Integer, ZooKeeperAddress> servers,
-                Function<Command<?>, CompletableFuture<?>> delegate) throws Exception {
+                Function<Command<?>, CompletableFuture<?>> delegate, boolean start) throws Exception {
             this.delegate = delegate;
             dataDir = spec.getDataDirectory();
 
@@ -286,18 +307,21 @@ public class ZooKeeperCommandExecutorTest {
                 }
             }, null, null);
 
-            startFuture = rm.start();
+            startFuture = start ? rm.start() : null;
         }
 
         void awaitStartup() {
+            checkState(startFuture != null);
             startFuture.join();
         }
 
         long localRevision() throws IOException {
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(
-                    new FileInputStream(new File(dataDir, "last_revision"))))) {
-                return Long.parseLong(br.readLine());
-            }
+            return await().ignoreExceptions().until(() -> {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(
+                        new FileInputStream(new File(dataDir, "last_revision"))))) {
+                    return Long.parseLong(br.readLine());
+                }
+            }, Objects::nonNull);
         }
     }
 }

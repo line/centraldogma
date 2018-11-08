@@ -259,7 +259,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
     @Override
     protected void doStart(@Nullable Runnable onTakeLeadership,
-                           @Nullable Runnable onReleaseLeadership) {
+                           @Nullable Runnable onReleaseLeadership) throws Exception {
         try {
             // Get the last replayed revision.
             final long lastReplayedRevision;
@@ -309,7 +309,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                     new DefaultThreadFactory("zookeeper-command-executor", true));
             executor.allowCoreThreadTimeOut(true);
             this.executor = executor;
-        } catch (ReplicationException e) {
+        } catch (InterruptedException | ReplicationException e) {
             throw e;
         } catch (Exception e) {
             throw new ReplicationException(e);
@@ -397,12 +397,21 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 if (state == ServerState.FOLLOWING || state == ServerState.LEADING) {
                     break;
                 }
+
+                if (isStopping()) {
+                    throw new InterruptedException("Stop requested before joining the cluster");
+                }
+
                 logger.info("Waiting for the ZooKeeper peer ({}) to join the cluster ..", peer.getId());
                 Thread.sleep(1000);
             }
 
-            logger.info("The ZooKeeper peer ({}) has joined the cluster, following {}",
-                        peer.getId(), peer.getCurrentVote().getId());
+            if (peer.getId() == peer.getCurrentVote().getId()) {
+                logger.info("The ZooKeeper peer ({}) has joined the cluster as a leader.", peer.getId());
+            } else {
+                logger.info("The ZooKeeper peer ({}) has joined the cluster, following {}.",
+                            peer.getId(), peer.getCurrentVote().getId());
+            }
 
             success = true;
             return peer;
@@ -428,7 +437,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
     }
 
     @Override
-    protected void doStop(@Nullable Runnable onReleaseLeadership) {
+    protected void doStop(@Nullable Runnable onReleaseLeadership) throws Exception {
         listenerInfo = null;
         logger.info("Stopping the worker threads");
         boolean interrupted = shutdown(executor);
