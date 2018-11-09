@@ -6,7 +6,7 @@ boms:
 - com.linecorp.armeria:armeria-bom:0.75.0
 
 com.beust:
-  jcommander: { version: '1.74' }
+  jcommander: { version: '1.72' }
 
 com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
