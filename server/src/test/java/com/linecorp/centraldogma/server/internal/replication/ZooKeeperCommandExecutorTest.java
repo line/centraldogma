@@ -140,24 +140,20 @@ public class ZooKeeperCommandExecutorTest {
         final AtomicReference<Command<?>> lastCommand = new AtomicReference<>();
         verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
             if (lastCommand.get() != null) {
-                // Move on to the next verification.
-                return false;
+                return c.equals(lastCommand.get());
             }
 
-            if (command1.equals(c)) {
-                lastCommand.set(command1);
-                return true;
-            }
-
-            if (command2.equals(c)) {
-                lastCommand.set(command2);
+            if (c.equals(command1) || c.equals(command2)) {
+                lastCommand.set(c);
                 return true;
             }
 
             return false;
         }));
+
+        final Command<?> expected = lastCommand.get().equals(command1) ? command2 : command1;
         verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
-            return lastCommand.get().equals(command1) ? command2.equals(c) : command1.equals(c);
+            return c.equals(expected);
         }));
     }
 
