@@ -41,8 +41,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -137,22 +137,27 @@ public class ZooKeeperCommandExecutorTest {
     private static void verifyTwoIndependentCommands(Replica replica,
                                                      Command<?> command1,
                                                      Command<?> command2) {
-        final AtomicBoolean sawCommand1 = new AtomicBoolean();
+        final AtomicReference<Command<?>> lastCommand = new AtomicReference<>();
         verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
+            if (lastCommand.get() != null) {
+                // Move on to the next verification.
+                return false;
+            }
+
             if (command1.equals(c)) {
-                sawCommand1.set(true);
+                lastCommand.set(command1);
                 return true;
             }
 
             if (command2.equals(c)) {
-                sawCommand1.set(false);
+                lastCommand.set(command2);
                 return true;
             }
 
             return false;
         }));
         verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
-            return sawCommand1.get() ? command2.equals(c) : command1.equals(c);
+            return lastCommand.get().equals(command1) ? command2.equals(c) : command1.equals(c);
         }));
     }
 
