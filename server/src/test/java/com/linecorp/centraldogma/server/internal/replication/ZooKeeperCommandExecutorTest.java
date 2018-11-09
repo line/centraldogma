@@ -20,6 +20,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
@@ -41,6 +42,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -116,18 +118,43 @@ public class ZooKeeperCommandExecutorTest {
 
             // Start the 3rd replica back again and check if it catches up.
             replica3.rm.start().join();
-            verify(replica3.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command1));
-            verify(replica3.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command2));
+            verifyTwoIndependentCommands(replica3, command1, command2);
 
             // Start the 4th replica and check if it catches up even if it started from scratch.
             replica4.rm.start().join();
-            verify(replica4.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command1));
-            verify(replica4.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(eq(command2));
+            verifyTwoIndependentCommands(replica4, command1, command2);
         } finally {
             for (Replica r : cluster) {
                 r.rm.stop();
             }
         }
+    }
+
+    /**
+     * Verifies that the specified {@link Replica} received the specified two commands, regardless of their
+     * order.
+     */
+    private static void verifyTwoIndependentCommands(Replica replica,
+                                                     Command<?> command1,
+                                                     Command<?> command2) {
+        final AtomicReference<Command<?>> lastCommand = new AtomicReference<>();
+        verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
+            if (lastCommand.get() != null) {
+                return c.equals(lastCommand.get());
+            }
+
+            if (c.equals(command1) || c.equals(command2)) {
+                lastCommand.set(c);
+                return true;
+            }
+
+            return false;
+        }));
+
+        final Command<?> expected = lastCommand.get().equals(command1) ? command2 : command1;
+        verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
+            return c.equals(expected);
+        }));
     }
 
     /**
