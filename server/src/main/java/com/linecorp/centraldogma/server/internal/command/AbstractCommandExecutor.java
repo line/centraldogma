@@ -21,12 +21,14 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 
 public abstract class AbstractCommandExecutor implements CommandExecutor {
@@ -39,6 +41,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     private final CommandExecutorStartStop startStop = new CommandExecutorStartStop();
     private volatile boolean started;
     private volatile boolean writable = true;
+    private final AtomicInteger numPendingStopRequests = new AtomicInteger();
 
     protected AbstractCommandExecutor(@Nullable Consumer<CommandExecutor> onTakeLeadership,
                                       @Nullable Runnable onReleaseLeadership) {
@@ -51,21 +54,26 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         return started;
     }
 
+    protected final boolean isStopping() {
+        return numPendingStopRequests.get() > 0;
+    }
+
     @Override
     public final CompletableFuture<Void> start() {
         return startStop.start(false).thenRun(() -> started = true);
     }
 
     protected abstract void doStart(@Nullable Runnable onTakeLeadership,
-                                    @Nullable Runnable onReleaseLeadership);
+                                    @Nullable Runnable onReleaseLeadership) throws Exception;
 
     @Override
     public final CompletableFuture<Void> stop() {
         started = false;
-        return startStop.stop();
+        numPendingStopRequests.incrementAndGet();
+        return startStop.stop().thenRun(numPendingStopRequests::decrementAndGet);
     }
 
-    protected abstract void doStop(@Nullable Runnable onReleaseLeadership);
+    protected abstract void doStop(@Nullable Runnable onReleaseLeadership) throws Exception;
 
     @Override
     public final boolean isWritable() {
@@ -118,17 +126,33 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         @Override
         protected CompletionStage<Void> doStart() throws Exception {
             return execute("command-executor", () -> {
-                AbstractCommandExecutor.this.doStart(
-                        onTakeLeadership != null ? () -> onTakeLeadership.accept(AbstractCommandExecutor.this)
-                                                 : null,
-                        onReleaseLeadership);
+                try {
+                    final Runnable onTakeLeadership;
+                    if (AbstractCommandExecutor.this.onTakeLeadership != null) {
+                        onTakeLeadership = () -> {
+                            AbstractCommandExecutor.this.onTakeLeadership.accept(AbstractCommandExecutor.this);
+                        };
+                    } else {
+                        onTakeLeadership = null;
+                    }
+
+                    AbstractCommandExecutor.this.doStart(onTakeLeadership, onReleaseLeadership);
+                } catch (Exception e) {
+                    Exceptions.throwUnsafely(e);
+                }
             });
         }
 
         @Override
         protected CompletionStage<Void> doStop() throws Exception {
             return execute("command-executor-shutdown",
-                           () -> AbstractCommandExecutor.this.doStop(onReleaseLeadership));
+                           () -> {
+                               try {
+                                   AbstractCommandExecutor.this.doStop(onReleaseLeadership);
+                               } catch (Exception e) {
+                                   Exceptions.throwUnsafely(e);
+                               }
+                           });
         }
 
         private CompletionStage<Void> execute(String threadNamePrefix, Runnable task) {

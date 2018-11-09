@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2018 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,15 +14,13 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.replication;
+package com.linecorp.centraldogma.server;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
 
 import org.junit.Test;
 
-import com.linecorp.centraldogma.server.ReplicationConfig;
-
-public class ReplicationConfigTest {
+public class NoneReplicationConfigTest {
     @Test
     public void testJsonConversion() {
         assertJsonConversion(ReplicationConfig.NONE,

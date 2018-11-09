@@ -37,6 +37,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -147,6 +149,7 @@ public class CentralDogma implements AutoCloseable {
     private final Ini securityConfig;
 
     private final StartStopSupport<Void, Void> startStop = new CentralDogmaStartStop();
+    private final AtomicInteger numPendingStopRequests = new AtomicInteger();
 
     @Nullable
     private volatile ProjectManager pm;
@@ -231,7 +234,8 @@ public class CentralDogma implements AutoCloseable {
      * Stops the server. This method does nothing if the server is stopped already.
      */
     public CompletableFuture<Void> stop() {
-        return startStop.stop();
+        numPendingStopRequests.incrementAndGet();
+        return startStop.stop().thenRun(numPendingStopRequests::decrementAndGet);
     }
 
     @Override
@@ -277,12 +281,14 @@ public class CentralDogma implements AutoCloseable {
 
             logger.info("Starting the command executor ..");
             executor = startCommandExecutor(pm, mirroringService, repositoryWorker, securityManager);
-            logger.info("Started the command executor");
+            if (executor.isWritable()) {
+                logger.info("Started the command executor");
 
-            initializeInternalProject(executor);
+                initializeInternalProject(executor);
 
-            // Migrate tokens and create metadata files if it does not exist.
-            MigrationUtil.migrate(pm, executor);
+                // Migrate tokens and create metadata files if it does not exist.
+                MigrationUtil.migrate(pm, executor);
+            }
 
             logger.info("Starting the RPC server");
             server = startServer(pm, executor, securityManager);
@@ -353,7 +359,23 @@ public class CentralDogma implements AutoCloseable {
         }
 
         try {
-            executor.start().get();
+            final CompletableFuture<Void> startFuture = executor.start();
+            while (!startFuture.isDone()) {
+                if (numPendingStopRequests.get() > 0) {
+                    // Stop request has been issued.
+                    executor.stop().get();
+                    break;
+                }
+
+                try {
+                    startFuture.get(100, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException unused) {
+                    // Taking long time ..
+                }
+            }
+
+            // Trigger the exception if any.
+            startFuture.get();
         } catch (Exception e) {
             logger.warn("Failed to start the command executor. Entering read-only.", e);
         }

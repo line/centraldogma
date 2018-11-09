@@ -17,18 +17,24 @@
 package com.linecorp.centraldogma.testing;
 
 import java.io.IOError;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
+import com.spotify.futures.CompletableFutures;
+
 import com.linecorp.armeria.client.ClientFactoryBuilder;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
@@ -64,12 +70,13 @@ public class CentralDogmaRule extends TemporaryFolder {
 
     private final boolean useTls;
     @Nullable
-    private com.linecorp.centraldogma.server.CentralDogma dogma;
+    private volatile com.linecorp.centraldogma.server.CentralDogma dogma;
     @Nullable
-    private CentralDogma client;
+    private volatile CentralDogma client;
     @Nullable
-    private HttpClient httpClient;
-    private InetSocketAddress serverAddress;
+    private volatile HttpClient httpClient;
+    @Nullable
+    private volatile InetSocketAddress serverAddress;
 
     public CentralDogmaRule() {
         this(false);
@@ -92,6 +99,7 @@ public class CentralDogmaRule extends TemporaryFolder {
      * @throws IllegalStateException if Central Dogma did not start yet
      */
     public final com.linecorp.centraldogma.server.CentralDogma dogma() {
+        final com.linecorp.centraldogma.server.CentralDogma dogma = this.dogma;
         if (dogma == null) {
             throw new IllegalStateException("Central Dogma not available");
         }
@@ -113,6 +121,7 @@ public class CentralDogmaRule extends TemporaryFolder {
      * @throws IllegalStateException if Central Dogma did not start yet
      */
     public final CentralDogma client() {
+        final CentralDogma client = this.client;
         if (client == null) {
             throw new IllegalStateException("Central Dogma client not available");
         }
@@ -125,6 +134,7 @@ public class CentralDogmaRule extends TemporaryFolder {
      * @throws IllegalStateException if Central Dogma did not start yet
      */
     public final HttpClient httpClient() {
+        final HttpClient httpClient = this.httpClient;
         if (httpClient == null) {
             throw new IllegalStateException("Central Dogma client not available");
         }
@@ -135,6 +145,10 @@ public class CentralDogmaRule extends TemporaryFolder {
      * Returns the server address.
      */
     public final InetSocketAddress serverAddress() {
+        final InetSocketAddress serverAddress = this.serverAddress;
+        if (serverAddress == null) {
+            throw new IllegalStateException("Central Dogma not available");
+        }
         return serverAddress;
     }
 
@@ -142,9 +156,10 @@ public class CentralDogmaRule extends TemporaryFolder {
      * Starts an embedded server with {@link #start()} and calls {@link #scaffold(CentralDogma)}.
      */
     @Override
-    protected final void before() throws Throwable {
+    protected void before() throws Throwable {
         super.before();
         start();
+        final CentralDogma client = this.client;
         assert client != null;
         scaffold(client);
     }
@@ -155,6 +170,25 @@ public class CentralDogmaRule extends TemporaryFolder {
      * because the server is automatically started up by JUnit.
      */
     public final void start() {
+        startAsync().join();
+    }
+
+    /**
+     * Creates a new server, configures it with {@link #configure(CentralDogmaBuilder)} and starts the server
+     * asynchronously.
+     */
+    public final CompletableFuture<Void> startAsync() {
+        // Create the root folder first if not.
+        try {
+            getRoot();
+        } catch (IllegalStateException unused) {
+            try {
+                create();
+            } catch (IOException e) {
+                return CompletableFutures.exceptionallyCompletedFuture(e);
+            }
+        }
+
         final CentralDogmaBuilder builder = new CentralDogmaBuilder(getRoot())
                 .port(TEST_PORT, useTls ? SessionProtocol.HTTPS : SessionProtocol.HTTP)
                 .webAppEnabled(false)
@@ -172,32 +206,41 @@ public class CentralDogmaRule extends TemporaryFolder {
 
         configure(builder);
 
-        dogma = builder.build();
-        dogma.start().join();
+        final com.linecorp.centraldogma.server.CentralDogma dogma = builder.build();
+        this.dogma = dogma;
+        return dogma.start().thenRun(() -> {
+            final Optional<ServerPort> activePort = dogma.activePort();
+            if (!activePort.isPresent()) {
+                // Stopped already.
+                return;
+            }
 
-        serverAddress = dogma.activePort().get().localAddress();
+            final InetSocketAddress serverAddress = activePort.get().localAddress();
+            this.serverAddress = serverAddress;
 
-        final LegacyCentralDogmaBuilder clientBuilder =
-                new LegacyCentralDogmaBuilder();
+            final LegacyCentralDogmaBuilder clientBuilder =
+                    new LegacyCentralDogmaBuilder();
 
-        clientBuilder.host(serverAddress.getHostString(), serverAddress.getPort());
+            clientBuilder.host(serverAddress.getHostString(), serverAddress.getPort());
 
-        if (useTls) {
-            clientBuilder.useTls();
-            clientBuilder.clientFactory(
-                    new ClientFactoryBuilder().sslContextCustomizer(
-                            b -> b.trustManager(InsecureTrustManagerFactory.INSTANCE)).build());
-        }
+            if (useTls) {
+                clientBuilder.useTls();
+                clientBuilder.clientFactory(
+                        new ClientFactoryBuilder().sslContextCustomizer(
+                                b -> b.trustManager(InsecureTrustManagerFactory.INSTANCE)).build());
+            }
 
-        configureClient(clientBuilder);
+            configureClient(clientBuilder);
 
-        try {
-            client = clientBuilder.build();
-        } catch (UnknownHostException e) {
-            // Should never reach here.
-            throw new IOError(e);
-        }
-        httpClient = HttpClient.of("h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort());
+            try {
+                client = clientBuilder.build();
+            } catch (UnknownHostException e) {
+                // Should never reach here.
+                throw new IOError(e);
+            }
+            httpClient = HttpClient.of(
+                    "h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort());
+        });
     }
 
     /**
@@ -220,8 +263,8 @@ public class CentralDogmaRule extends TemporaryFolder {
      * Stops the server and deletes the temporary files created by the server.
      */
     @Override
-    protected final void after() {
-        stop();
+    protected void after() {
+        stopAsync().whenComplete((unused1, unused2) -> delete());
     }
 
     /**
@@ -229,13 +272,23 @@ public class CentralDogmaRule extends TemporaryFolder {
      * to call this method manually because the server is automatically stopped at the end by JUnit.
      */
     public final void stop() {
+        stopAsync().join();
+    }
+
+    /**
+     * Stops the server and deletes the temporary files created by the server. Note that you don't usually need
+     * to call this method manually because the server is automatically stopped at the end by JUnit.
+     */
+    public final CompletableFuture<Void> stopAsync() {
         final com.linecorp.centraldogma.server.CentralDogma dogma = this.dogma;
         this.dogma = null;
         client = null;
         httpClient = null;
 
         if (dogma != null) {
-            dogma.stop();
+            return dogma.stop();
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 }
