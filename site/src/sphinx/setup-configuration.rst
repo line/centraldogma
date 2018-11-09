@@ -211,97 +211,126 @@ Core properties
 
 Configuring replication
 -----------------------
-Central Dogma features multi-master replication based on `Apache ZooKeeper <https://zookeeper.apache.org/>`_
-for high availability. A client can write to any of the available replicas, and thus it’s possible to update
-the settings of your application even when all replicas but one are down. The clients will automatically
-connect to an available replica.
+Central Dogma features multi-master replication which allows a client to push commits to any of the available
+replicas, and thus it’s possible to update the settings of your application even when all replicas but one are
+down. The clients will automatically connect to an available replica.
 
 .. note::
 
-    Don't have a working ZooKeeper cluster yet? Refer to
-    `the ZooKeeper administrator's guide <http://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html>`_
-    to set up one.
+    Central Dogma implements multi-master replication by embedding `Apache ZooKeeper <https://zookeeper.apache.org>`_.
+    You may find it useful to have some prior administrative knowledge of ZooKeeper although it is not required.
+    For more information about ZooKeeper administration, see
+    `ZooKeeper administrator's guide <http://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html>`_
 
-Once you have an access to a ZooKeeper cluster, update the ``replication`` section of ``conf/dogma.json``:
+To enable replication, you need to update the ``replication`` section of ``conf/dogma.json``. The following
+example shows the configuration of the first replica in a 3-replica cluster:
 
 .. code-block:: json
 
     {
-      "dataDir": "./data",
-      "ports": [
-        {
-          "localAddress": {
-            "host": "*",
-            "port": 36462
-          },
-          "protocols": [
-            "http"
-          ]
-        }
-      ],
-      "tls": null,
-      "numWorkers": null,
-      "maxNumConnections": null,
-      "requestTimeoutMillis": null,
-      "idleTimeoutMillis": null,
-      "maxFrameLength": null,
-      "numRepositoryWorkers": 16,
-      "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
-      "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
-      "webAppEnabled": true,
-      "webAppSessionTimeoutMillis": 604800000,
-      "gracefulShutdownTimeout": {
-        "quietPeriodMillis": 1000,
-        "timeoutMillis": 10000
-      },
+      ...
       "replication" : {
-        "method" : "ZOOKEEPER",
-        "connectionString": "zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181",
-        "pathPrefix": "/service/centraldogma",
+        "method": "ZOOKEEPER",
+        "serverId": 1,
+        "servers": {
+          "1": {
+            "host": "replica1.example.com",
+            "quorumPort": 36463,
+            "electionPort": 36464
+          },
+          "2": {
+            "host": "replica2.example.com",
+            "quorumPort": 36463,
+            "electionPort": 36464
+          },
+          "3": {
+            "host": "replica3.example.com",
+            "quorumPort": 36463,
+            "electionPort": 36464
+          }
+        },
+        "secret": "JqJAkZ!oZ6MNx4rBpIH8M*yuVWXDULgR",
+        "additionalProperties": {},
         "timeoutMillis": null,
         "numWorkers": null,
         "maxLogCount": null,
         "minLogAgeMillis": null
       },
-      "securityEnabled": false,
-      "accessLogFormat": "common",
-      "administrators": [],
-      "caseSensitiveLoginNames": false
     }
 
 - ``method`` (string)
 
-  - the replication method. ``ZOOKEEPER`` indicates ZooKeeper-based multi-master replication.
+  - the replication method. ``ZOOKEEPER`` indicates Central Dogma will provide multi-master replication by
+    embedding Apache ZooKeeper.
 
-- ``connectionString`` (string)
+- ``serverId`` (integer)
 
-  - the ZooKeeper connection string.
+  - the unique positive integer ID of the replica. Be careful not to use a duplicate ID or not to change
+    this value after joining the cluster. If ``null`` or unspecified, the ``serverId`` is auto-detected
+    from the server list in the ``servers`` section.
 
-- ``pathPrefix`` (string)
+    .. note::
 
-  - the ZooKeeper path prefix. Central Dogma will create entries under this prefix.
-  - Be extra cautious so that two different Central Dogma clusters never use the same path prefix
-    at the same ZooKeeper cluster.
+        Internally, this value is used as the ``myid`` of the embedded ZooKeeper peer.
+
+- ``servers``
+
+  - a map whose key is the ``serverId`` of a replica in the cluster and whose value is a map which
+    contains the properties required to connect to each other:
+
+    - ``host`` (string)
+
+      - the host name or IP address of the replica
+
+    - ``quorumPort`` (integer)
+
+      - the TCP/IP port number which is used by ZooKeeper for reaching consensus
+
+    - ``electionPort`` (integer)
+
+      - the TCP/IP port number which is used by ZooKeeper for leader election
+
+  - It is highly recommended to have more than 3, preferably odd number of, replicas because the consensus
+    algorithm requires more than half of all replicas to agree with each other to function correctly.
+    If you had 2 replicas, losing just one replica would make your cluster stop to function.
+
+    .. note::
+
+       See `here <http://bytecontinnum.com/2016/09/zookeeper-always-configured-odd-number-nodes/>`_ or
+       `here <https://www.quora.com/HBase-Why-we-run-zookeeper-with-odd-number-of-instance>`_ if you are
+       curious why odd number of replicas are preferred over even number of replicas,
+
+- ``secret`` (string)
+
+  - the secret string which is used for replicas to authenticate each other. The replicas in the same
+    cluster must have the same secret. If ``null`` or unspecified, the default value of ``ch4n63m3``
+    is used.
+
+- ``additionalProperties`` (map of string key-value pairs)
+
+  - ZooKeeper configuration properties such as ``initLimit`` and ``syncLimit``. It is recommended to
+    leave this property empty because Central Dogma sets the sensible defaults.
 
 - ``timeoutMillis`` (integer)
 
-  - the ZooKeeper timeout, in milliseconds. If ``null``, the default value of '1000 milliseconds' (1 second)
-    is used.
+  - the ZooKeeper timeout, in milliseconds. If ``null`` or unspecified, the default value of
+    '1000 milliseconds' (1 second) is used.
 
 - ``numWorkers`` (integer)
 
-  - the number of worker threads dedicated for replication. If ``null``, the default value of '16 threads'
-    is used.
+  - the number of worker threads dedicated for replication. If ``null`` or unspecified, the default value
+    of '16 threads' is used.
 
 - ``maxLogCount`` (integer)
 
   - the maximum number of log items to keep in ZooKeeper. Note that the log entries will still not be removed
-    if they are younger than ``minLogAgeMillis``. If ``null``, the default value of '100 log entries' is used.
+    if they are younger than ``minLogAgeMillis``. If ``null`` or unspecified, the default value of
+    '1024 log entries' is used.
 
 - ``minLogAgeMillis`` (integer)
 
-  -  the minimum allowed age of log items before they are removed from ZooKeeper. If ``null`` the default
-     value of '3600000 milliseconds' (1 hour) is used.
+  - the minimum allowed age of log items before they are removed from ZooKeeper. If ``null`` or unspecified,
+    the default value of '86400000 milliseconds' (1 day) is used.
 
 .. _tls:
 
@@ -373,17 +402,12 @@ in ``dogma.json`` as follows.
     - the password of the private key file. Specify ``null`` if no password is set. Note that ``null``
       (no password) and ``"null"`` (password is 'null') are different.
 
-If you run your Central Dogma with TLS, you need to enable TLS of your ``CentralDogma`` client instance.
-You can get it by ``CentralDogma.forTlsHost()`` methods.
+If you run your Central Dogma with TLS, you need to enable TLS on the client side as well. Call the
+``useTls()`` method when building a ``CentralDogma`` instance:
 
 .. code-block:: java
 
-    CentralDogma dogma = CentralDogma.forTlsHost("centraldogma.example.com", 36462);
-
-Also, ``CentralDogmaBuilder`` provides ``useTls()`` method.
-
-.. code-block:: java
-
-    CentralDogma dogma = new CentralDogmaBuilder().host("centraldogma.example.com", 36462)
-                                                  .useTls()
-                                                  .build();
+    CentralDogma dogma = new LegacyCentralDogmaBuilder()
+            .host("centraldogma.example.com", 36462)
+            .useTls()
+            .build();
