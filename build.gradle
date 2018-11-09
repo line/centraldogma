@@ -7,9 +7,6 @@ buildscript {
         classpath 'com.google.gradle:osdetector-gradle-plugin:1.6.0'
         classpath 'io.spring.gradle:dependency-management-plugin:1.0.6.RELEASE'
         classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.7'
-        // For gogradle. It seems gogradle doesn't support buildscript so just leave this here until
-        // gogradle supports it.
-        classpath 'com.google.inject:guice:4.2.1'
     }
 }
 

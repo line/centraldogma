@@ -27,7 +27,7 @@ ext {
     def defaultClientRepoUrl = 'https://github.com/line/centraldogma-go.git'
     def defaultClientTag = '6d0497f9bc410438c34833c4a0ea9e5a8de4173a'
 
-    goVersion = '1.11.1'
+    goVersion = '1.11.2'
 
     clientRepoUrl = project.findProperty('goClientRepoUrl')?: defaultClientRepoUrl
     clientTag = project.findProperty('goClientTag')?: defaultClientTag

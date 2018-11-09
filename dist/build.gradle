@@ -9,6 +9,7 @@ buildscript {
     dependencies {
         classpath "com.boazj.gradle:gradle-log-plugin:${managedVersions['com.boazj.gradle:gradle-log-plugin']}"
         classpath "com.bmuschko:gradle-docker-plugin:${managedVersions['com.bmuschko:gradle-docker-plugin']}"
+        classpath "com.google.guava:guava:${managedVersions['com.google.guava:guava']}"
     }
 }
 
