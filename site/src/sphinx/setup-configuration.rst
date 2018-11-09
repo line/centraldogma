@@ -298,7 +298,7 @@ example shows the configuration of the first replica in a 3-replica cluster:
 
        See `here <http://bytecontinnum.com/2016/09/zookeeper-always-configured-odd-number-nodes/>`_ or
        `here <https://www.quora.com/HBase-Why-we-run-zookeeper-with-odd-number-of-instance>`_ if you are
-       curious why odd number of replicas are preferred over even number of replicas,
+       curious why odd number of replicas are preferred over even number of replicas.
 
 - ``secret`` (string)
 
