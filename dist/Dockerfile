@@ -7,6 +7,7 @@ FROM openjdk:8
 ENV CENTRALDOGMA_HOME "/opt/centraldogma"
 ENV CENTRALDOGMA_OPTS "-nodetach"
 ENV JAVA_OPTS "$CENTRALDOGMA_OPTS"
+ENV PATH "$CENTRALDOGMA_HOME/bin:$PATH"
 
 # Install CentralDogma binaries and configurations.
 RUN mkdir -p                      \
