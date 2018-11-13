@@ -35,6 +35,7 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
 /**
  * Central Dogma client.
@@ -57,11 +58,15 @@ public interface CentralDogma {
 
     /**
      * Retrieves the list of the projects.
+     *
+     * @return a {@link Set} that contains the names of the projects
      */
     CompletableFuture<Set<String>> listProjects();
 
     /**
      * Retrieves the list of the removed projects, which can be {@linkplain #unremoveProject(String) unremoved}.
+     *
+     * @return a {@link Set} that contains the names of the removed projects
      */
     CompletableFuture<Set<String>> listRemovedProjects();
 
@@ -83,29 +88,38 @@ public interface CentralDogma {
 
     /**
      * Retrieves the list of the repositories.
+     *
+     * @return a {@link Map} of repository name and {@link RepositoryInfo} pairs
      */
     CompletableFuture<Map<String, RepositoryInfo>> listRepositories(String projectName);
 
     /**
      * Retrieves the list of the removed repositories, which can be
      * {@linkplain #unremoveRepository(String, String) unremoved}.
+     *
+     * @return a {@link Set} that contains the names of the removed repositories
      */
     CompletableFuture<Set<String>> listRemovedRepositories(String projectName);
 
     /**
      * Converts the relative revision number to the absolute revision number. e.g. {@code -1 -> 3}
+     *
+     * @return the absolute {@link Revision}
      */
     CompletableFuture<Revision> normalizeRevision(String projectName, String repositoryName, Revision revision);
 
     /**
-     * Retrieves the list of the files that match the given path pattern. A path pattern is a variant of glob:
+     * Retrieves the list of the files matched by the given path pattern. A path pattern is a variant of glob:
      * <ul>
      *   <li>{@code "/**"} - find all files recursively</li>
      *   <li>{@code "*.json"} - find all JSON files recursively</li>
      *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
      *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to match <em>any</em> patterns</li>
+     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
+     *                                     if <em>any</em> pattern matches.</li>
      * </ul>
+     *
+     * @return a {@link Map} of file path and type pairs
      */
     CompletableFuture<Map<String, EntryType>> listFiles(String projectName, String repositoryName,
                                                         Revision revision, String pathPattern);
@@ -113,40 +127,51 @@ public interface CentralDogma {
     /**
      * Retrieves the file at the specified revision and path. This method is a shortcut of
      * {@code getFile(projectName, repositoryName, revision, Query.identity(path)}.
+     * Consider using {@link #getFile(String, String, Revision, Query)} with {@link Query#ofText(String)} or
+     * {@link Query#ofJson(String)} if you already know the file type.
      *
-     * @deprecated Use {@link #getFile(String, String, Revision, Query)} with {@link Query#ofText(String)} or
-     *             {@link Query#ofJson(String)}.
+     * @return the {@link Entry} at the given {@code path}
      */
-    @Deprecated
-    default CompletableFuture<Entry<Object>> getFile(String projectName, String repositoryName,
-                                                     Revision revision, String path) {
+    default CompletableFuture<Entry<?>> getFile(String projectName, String repositoryName,
+                                                Revision revision, String path) {
         @SuppressWarnings("unchecked")
-        final Query<Object> query = (Query<Object>) Query.of(QueryType.IDENTITY, path);
-        return getFile(projectName, repositoryName, revision, query);
+        final CompletableFuture<Entry<?>> f = (CompletableFuture<Entry<?>>) (CompletableFuture<?>)
+                getFile(projectName, repositoryName, revision, Query.of(QueryType.IDENTITY, path));
+        return f;
     }
 
     /**
      * Queries a file at the specified revision and path with the specified {@link Query}.
+     *
+     * @return the {@link Entry} that is matched by the given {@link Query}
      */
     <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
                                             Revision revision, Query<T> query);
 
     /**
-     * Retrieves the files that match the path pattern. A path pattern is a variant of glob:
+     * Retrieves the files matched by the path pattern. A path pattern is a variant of glob:
      * <ul>
      *   <li>{@code "/**"} - find all files recursively</li>
      *   <li>{@code "*.json"} - find all JSON files recursively</li>
      *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
      *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to match <em>any</em> patterns</li>
+     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
+     *                                     if <em>any</em> pattern matches.</li>
      * </ul>
+     *
+     * @return a {@link Map} of file path and {@link Entry} pairs
      */
     CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
                                                       Revision revision, String pathPattern);
 
     /**
      * Retrieves the history of the repository between two {@link Revision}s. This method is a shortcut of
-     * {@code getHistory(projectName, repositoryName, from, to, "/**")}
+     * {@code getHistory(projectName, repositoryName, from, to, "/**")}. Note that this method does not
+     * retrieve the diffs but only metadata about the changes.
+     * Use {@link #getDiff(String, String, Revision, Revision, Query)} or
+     * {@link #getDiffs(String, String, Revision, Revision, String)} to retrieve the diffs.
+     *
+     * @return a {@link List} that contains the {@link Commit}s of the specified repository
      */
     default CompletableFuture<List<Commit>> getHistory(
             String projectName, String repositoryName, Revision from, Revision to) {
@@ -154,22 +179,35 @@ public interface CentralDogma {
     }
 
     /**
-     * Retrieves the history of the files that match the given path pattern between two {@link Revision}s.
+     * Retrieves the history of the files matched by the given path pattern between two {@link Revision}s.
      * A path pattern is a variant of glob:
      * <ul>
      *   <li>{@code "/**"} - find all files recursively</li>
      *   <li>{@code "*.json"} - find all JSON files recursively</li>
      *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
      *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to match <em>any</em> patterns</li>
+     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
+     *                                     if <em>any</em> pattern matches.</li>
      * </ul>
+     *
+     * <p>Note that this method does not retrieve the diffs but only metadata about the changes.
+     * Use {@link #getDiff(String, String, Revision, Revision, Query)} or
+     * {@link #getDiffs(String, String, Revision, Revision, String)} to retrieve the diffs.
+     *
+     * @return a {@link List} that contains the {@link Commit}s of the files matched by the given
+     *         {@code pathPattern} in the specified repository
      */
     CompletableFuture<List<Commit>> getHistory(
             String projectName, String repositoryName, Revision from, Revision to, String pathPattern);
 
     /**
      * Returns the diff of a file between two {@link Revision}s. This method is a shortcut of
-     * {@code getDiff(projectName, repositoryName, from, to, Query.identity(path))}
+     * {@code getDiff(projectName, repositoryName, from, to, Query.identity(path))}.
+     * Consider using {@link #getDiff(String, String, Revision, Revision, Query)} with
+     * {@link Query#ofText(String)} or {@link Query#ofJson(String)} if you already know the file type.
+     *
+     * @return the {@link Change} that contains the diff of the given {@code path} between the specified
+     *         two revisions
      */
     default CompletableFuture<Change<?>> getDiff(String projectName, String repositoryName,
                                                  Revision from, Revision to, String path) {
@@ -181,27 +219,37 @@ public interface CentralDogma {
 
     /**
      * Queries a file at two different revisions and returns the diff of the two {@link Query} results.
+     *
+     * @return the {@link Change} that contains the diff of the file matched by the given {@code query}
+     *         between the specified two revisions
      */
     <T> CompletableFuture<Change<T>> getDiff(String projectName, String repositoryName,
                                              Revision from, Revision to, Query<T> query);
 
     /**
-     * Retrieves the diffs of the files that match the given path pattern between two {@link Revision}s.
+     * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
      * A path pattern is a variant of glob:
      * <ul>
      *   <li>{@code "/**"} - find all files recursively</li>
      *   <li>{@code "*.json"} - find all JSON files recursively</li>
      *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
      *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to match <em>any</em> patterns</li>
+     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
+     *                                     if <em>any</em> pattern matches.</li>
      * </ul>
+     *
+     * @return a {@link List} of the {@link Change}s that contain the diffs between the files matched by the
+     *         given {@code pathPattern} between two revisions.
      */
     CompletableFuture<List<Change<?>>> getDiffs(String projectName, String repositoryName,
                                                 Revision from, Revision to, String pathPattern);
 
     /**
-     * Retrieves the preview diffs between the specified base {@link Revision} and the specified
-     * {@link Change}s.
+     * Retrieves the <em>preview diffs</em>, which are hypothetical diffs generated if the specified
+     * {@link Change}s were successfully pushed to the specified repository. This operation is useful for
+     * pre-checking if the specified {@link Change}s will be applied as expected without any conflicts.
+     *
+     * @return the diffs which would be committed if the specified {@link Change}s were pushed successfully
      */
     default CompletableFuture<List<Change<?>>> getPreviewDiffs(String projectName, String repositoryName,
                                                                Revision baseRevision, Change<?>... changes) {
@@ -209,8 +257,11 @@ public interface CentralDogma {
     }
 
     /**
-     * Retrieves the preview diffs between the specified base {@link Revision} and the specified
-     * {@link Change}s.
+     * Retrieves the <em>preview diffs</em>, which are hypothetical diffs generated if the specified
+     * {@link Change}s were successfully pushed to the specified repository. This operation is useful for
+     * pre-checking if the specified {@link Change}s will be applied as expected without any conflicts.
+     *
+     * @return the diffs which would be committed if the specified {@link Change}s were pushed successfully
      */
     CompletableFuture<List<Change<?>>> getPreviewDiffs(String projectName, String repositoryName,
                                                        Revision baseRevision,
@@ -218,6 +269,8 @@ public interface CentralDogma {
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     *
+     * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      */
     default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
                                                String summary, Change<?>... changes) {
@@ -227,6 +280,8 @@ public interface CentralDogma {
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     *
+     * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      */
     default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
                                                String summary, Iterable<? extends Change<?>> changes) {
@@ -235,6 +290,8 @@ public interface CentralDogma {
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     *
+     * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      */
     default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
                                                String summary, String detail, Markup markup,
@@ -245,6 +302,8 @@ public interface CentralDogma {
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     *
+     * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      */
     CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
                                        String summary, String detail, Markup markup,
@@ -252,6 +311,8 @@ public interface CentralDogma {
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     *
+     * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
      * @deprecated Use {@link #push(String, String, Revision, String, Change...)}.
      */
@@ -264,6 +325,8 @@ public interface CentralDogma {
     /**
      * Pushes the specified {@link Change}s to the repository.
      *
+     * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
+     *
      * @deprecated Use {@link #push(String, String, Revision, String, Iterable)}.
      */
     @Deprecated
@@ -275,6 +338,8 @@ public interface CentralDogma {
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     *
+     * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
      * @deprecated Use {@link #push(String, String, Revision, String, String, Markup, Change...)}.
      */
@@ -289,6 +354,8 @@ public interface CentralDogma {
     /**
      * Pushes the specified {@link Change}s to the repository.
      *
+     * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
+     *
      * @deprecated Use {@link #push(String, String, Revision, String, String, Markup, Iterable)}.
      */
     @Deprecated
@@ -297,14 +364,24 @@ public interface CentralDogma {
                                        Iterable<? extends Change<?>> changes);
 
     /**
-     * Awaits and returns the latest known revision since the specified revision.
+     * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified
+     * {@code lastKnownRevision}.
+     *
+     * @return the latest known {@link Revision} which contains the changes for the matched files.
+     *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
+     *         since the invocation of this method.
      */
     CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                 Revision lastKnownRevision, String pathPattern,
                                                 long timeoutMillis);
 
     /**
-     * Awaits and returns the query result of the specified file since the specified last known revision.
+     * Waits for the file matched by the specified {@link Query} to be changed since the specified
+     * {@code lastKnownRevision}.
+     *
+     * @return the {@link Entry} which contains the latest known {@link Query} result.
+     *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
+     *         since the invocation of this method.
      */
     <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                               Revision lastKnownRevision, Query<T> query,
@@ -342,8 +419,8 @@ public interface CentralDogma {
                                   Query<T> query, Function<? super T, ? extends U> function);
 
     /**
-     * Returns a {@link Watcher} which notifies its listeners when the repository that matched
-     * the given {@code pathPattern} becomes available or changes. e.g:
+     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
+     * that contains the changes for the filed matched by the given {@code pathPattern}. e.g:
      * <pre>{@code
      * Watcher<Revision> watcher = client.repositoryWatcher("foo", "bar", "/*.json");
      *
@@ -356,8 +433,8 @@ public interface CentralDogma {
     }
 
     /**
-     * Returns a {@link Watcher} which notifies its listeners when the repository that matched
-     * the given {@code pathPattern} becomes available or changes. e.g:
+     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
+     * that contains the changes for the filed matched by the given {@code pathPattern}. e.g:
      * <pre>{@code
      * Watcher<Map<String, Entry<?>> watcher = client.repositoryWatcher(
      *         "foo", "bar", "/*.json", revision -> client.getFiles(revision).get());
@@ -365,6 +442,9 @@ public interface CentralDogma {
      * watcher.watch((revision, contents) -> {
      *     ...
      * });}</pre>
+     * Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and
+     * may have to retry in the above example due to
+     * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
      */
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                      Function<Revision, ? extends T> function);
