@@ -420,7 +420,7 @@ public interface CentralDogma {
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
-     * that contains the changes for the filed matched by the given {@code pathPattern}. e.g:
+     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:
      * <pre>{@code
      * Watcher<Revision> watcher = client.repositoryWatcher("foo", "bar", "/*.json");
      *
@@ -434,7 +434,7 @@ public interface CentralDogma {
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
-     * that contains the changes for the filed matched by the given {@code pathPattern}. e.g:
+     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:
      * <pre>{@code
      * Watcher<Map<String, Entry<?>> watcher = client.repositoryWatcher(
      *         "foo", "bar", "/*.json", revision -> client.getFiles(revision).get());
