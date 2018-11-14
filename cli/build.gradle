@@ -42,7 +42,7 @@ tasks.clean.doFirst {
     // We need to grant write permission before attempting to delete them.
     def modulesDir = project.file("${goPath}/pkg/mod")
     if (modulesDir.exists()) {
-        ant.chmod(dir: modulesDir, perm: 'u+w', type: 'both', includes: '**')
+        ant.chmod(dir: modulesDir, perm: 'u+w', type: 'both', includes: '**', maxparallel: '500')
     }
 }
 
