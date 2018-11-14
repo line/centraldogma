@@ -26,28 +26,28 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
-import com.linecorp.centraldogma.server.auth.AuthenticatedSessionJsonDeserializer;
-import com.linecorp.centraldogma.server.auth.AuthenticatedSessionJsonSerializer;
+import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.SessionJsonDeserializer;
+import com.linecorp.centraldogma.server.auth.SessionJsonSerializer;
 
 public final class CreateSessionCommand extends SessionCommand {
 
-    private final AuthenticatedSession session;
+    private final Session session;
 
     @JsonCreator
     CreateSessionCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                          @JsonProperty("author") @Nullable Author author,
                          @JsonProperty("session")
-                         @JsonDeserialize(using = AuthenticatedSessionJsonDeserializer.class)
-                                 AuthenticatedSession session) {
+                         @JsonDeserialize(using = SessionJsonDeserializer.class)
+                                 Session session) {
 
         super(CommandType.CREATE_SESSION, timestamp, author);
         this.session = requireNonNull(session, "session");
     }
 
     @JsonProperty("session")
-    @JsonSerialize(using = AuthenticatedSessionJsonSerializer.class)
-    public AuthenticatedSession session() {
+    @JsonSerialize(using = SessionJsonSerializer.class)
+    public Session session() {
         return session;
     }
 

@@ -31,7 +31,6 @@ import org.apache.shiro.authc.IncorrectCredentialsException;
 import org.apache.shiro.authc.UnknownAccountException;
 import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.mgt.SecurityManager;
-import org.apache.shiro.session.Session;
 import org.apache.shiro.subject.Subject;
 import org.apache.shiro.subject.Subject.Builder;
 import org.apache.shiro.util.ThreadContext;
@@ -52,7 +51,7 @@ import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.BasicToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
-import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
@@ -65,12 +64,12 @@ final class LoginService extends AbstractHttpService {
 
     private final SecurityManager securityManager;
     private final Function<String, String> loginNameNormalizer;
-    private final Function<AuthenticatedSession, CompletableFuture<Void>> loginSessionPropagator;
+    private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Duration sessionValidDuration;
 
     LoginService(SecurityManager securityManager,
                  Function<String, String> loginNameNormalizer,
-                 Function<AuthenticatedSession, CompletableFuture<Void>> loginSessionPropagator,
+                 Function<Session, CompletableFuture<Void>> loginSessionPropagator,
                  Duration sessionValidDuration) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
         this.loginNameNormalizer = requireNonNull(loginNameNormalizer, "loginNameNormalizer");
@@ -89,11 +88,11 @@ final class LoginService extends AbstractHttpService {
                            currentUser = new Builder(securityManager).buildSubject();
                            currentUser.login(usernamePassword);
 
-                           final Session session = currentUser.getSession(false);
+                           final org.apache.shiro.session.Session session = currentUser.getSession(false);
                            final String sessionId = session.getId().toString();
-                           final AuthenticatedSession newSession =
-                                   AuthenticatedSession.of(sessionId, usernamePassword.getUsername(),
-                                                           sessionValidDuration);
+                           final Session newSession =
+                                   Session.of(sessionId, usernamePassword.getUsername(),
+                                              sessionValidDuration);
                            final Subject loginUser = currentUser;
                            // loginSessionPropagator will propagate the authenticated session to all replicas
                            // in the cluster.

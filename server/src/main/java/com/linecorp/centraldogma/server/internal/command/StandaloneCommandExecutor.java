@@ -27,8 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
-import com.linecorp.centraldogma.server.internal.admin.authentication.SessionManager;
+import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -174,7 +174,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return CompletableFuture.completedFuture(null);
         }
 
-        final AuthenticatedSession session = c.session();
+        final Session session = c.session();
         return sessionManager.create(session).exceptionally(cause -> {
             logger.warn("Failed to replicate a session creation: {}", session, cause);
             return null;

@@ -21,11 +21,11 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthenticationProvider.BUILTIN_WEB_BASE_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthenticationProvider.LOGIN_API_PATH_MAPPINGS;
-import static com.linecorp.centraldogma.server.auth.AuthenticationProvider.LOGIN_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthenticationProvider.LOGOUT_API_PATH_MAPPINGS;
-import static com.linecorp.centraldogma.server.auth.AuthenticationProvider.LOGOUT_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.BUILTIN_WEB_BASE_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_PATH_MAPPINGS;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_PATH_MAPPINGS;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_PATH;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
 import static java.util.Objects.requireNonNull;
 
@@ -89,16 +89,16 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
-import com.linecorp.centraldogma.server.auth.AuthenticationConfig;
-import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
-import com.linecorp.centraldogma.server.auth.AuthenticationProviderParameters;
-import com.linecorp.centraldogma.server.internal.admin.authentication.CachedSessionManager;
-import com.linecorp.centraldogma.server.internal.admin.authentication.CsrfTokenAuthorizer;
-import com.linecorp.centraldogma.server.internal.admin.authentication.ExpiredSessionDeletingSessionManager;
-import com.linecorp.centraldogma.server.internal.admin.authentication.FileBasedSessionManager;
-import com.linecorp.centraldogma.server.internal.admin.authentication.OrElseDefaultHttpFileService;
-import com.linecorp.centraldogma.server.internal.admin.authentication.SessionManager;
-import com.linecorp.centraldogma.server.internal.admin.authentication.SessionTokenAuthorizer;
+import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthProvider;
+import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
+import com.linecorp.centraldogma.server.internal.admin.auth.CachedSessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.auth.ExpiredSessionDeletingSessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.FileBasedSessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.OrElseDefaultHttpFileService;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
@@ -379,7 +379,7 @@ public class CentralDogma implements AutoCloseable {
 
     @Nullable
     private SessionManager initializeSessionManager() {
-        final AuthenticationConfig authCfg = cfg.authenticationConfig();
+        final AuthConfig authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
         }
@@ -427,7 +427,7 @@ public class CentralDogma implements AutoCloseable {
 
         final MetadataService mds = new MetadataService(pm, executor);
         final WatchService watchService = new WatchService();
-        final AuthenticationProvider authProvider = createAuthenticationProvider(executor, sessionManager, mds);
+        final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
 
         configureThriftService(sb, pm, executor, watchService, mds);
 
@@ -493,15 +493,15 @@ public class CentralDogma implements AutoCloseable {
     }
 
     @Nullable
-    private AuthenticationProvider createAuthenticationProvider(
+    private AuthProvider createAuthProvider(
             CommandExecutor commandExecutor, @Nullable SessionManager sessionManager, MetadataService mds) {
-        final AuthenticationConfig authCfg = cfg.authenticationConfig();
+        final AuthConfig authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
         }
 
         checkState(sessionManager != null, "SessionManager is null");
-        final AuthenticationProviderParameters parameters = new AuthenticationProviderParameters(
+        final AuthProviderParameters parameters = new AuthProviderParameters(
                 // Find application first, then find the session token.
                 new ApplicationTokenAuthorizer(mds::findTokenBySecret).orElse(
                         new SessionTokenAuthorizer(sessionManager, authCfg.administrators())),
@@ -558,12 +558,12 @@ public class CentralDogma implements AutoCloseable {
     private void configureHttpApi(ServerBuilder sb,
                                   ProjectManager pm, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
-                                  @Nullable AuthenticationProvider authenticationProvider,
+                                  @Nullable AuthProvider authProvider,
                                   @Nullable SessionManager sessionManager) {
         Function<Service<HttpRequest, HttpResponse>,
                 ? extends Service<HttpRequest, HttpResponse>> decorator;
 
-        if (authenticationProvider != null) {
+        if (authProvider != null) {
             sb.service("/security_enabled", new AbstractHttpService() {
                 @Override
                 protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req) {
@@ -571,7 +571,7 @@ public class CentralDogma implements AutoCloseable {
                 }
             });
 
-            final AuthenticationConfig authCfg = cfg.authenticationConfig();
+            final AuthConfig authCfg = cfg.authConfig();
             assert authCfg != null : "authCfg";
             assert sessionManager != null : "sessionManager";
             decorator = MetadataServiceInjector
@@ -608,8 +608,8 @@ public class CentralDogma implements AutoCloseable {
                             new ContentServiceV1(safePm, executor, watchService), decorator,
                             v1RequestConverter, v1ResponseConverter);
 
-        if (authenticationProvider != null) {
-            final AuthenticationConfig authCfg = cfg.authenticationConfig();
+        if (authProvider != null) {
+            final AuthConfig authCfg = cfg.authConfig();
             assert authCfg != null : "authCfg";
             sb.annotatedService(API_V1_PATH_PREFIX,
                                 new MetadataApiService(mds, authCfg.loginNameNormalizer()),
@@ -618,18 +618,18 @@ public class CentralDogma implements AutoCloseable {
                                 decorator, v1RequestConverter, v1ResponseConverter);
 
             // authentication services:
-            Optional.ofNullable(authenticationProvider.loginApiService())
+            Optional.ofNullable(authProvider.loginApiService())
                     .ifPresent(login -> LOGIN_API_PATH_MAPPINGS.forEach(mapping -> sb.service(mapping, login)));
 
             // Provide logout API by default.
             final Service<HttpRequest, HttpResponse> logout =
-                    Optional.ofNullable(authenticationProvider.logoutApiService())
+                    Optional.ofNullable(authProvider.logoutApiService())
                             .orElseGet(() -> new DefaultLogoutService(executor));
             for (PathMapping mapping : LOGOUT_API_PATH_MAPPINGS) {
                 sb.service(mapping, decorator.apply(logout));
             }
 
-            authenticationProvider.moreServices().forEach(sb::service);
+            authProvider.moreServices().forEach(sb::service);
         }
 
         if (cfg.isWebAppEnabled()) {
@@ -641,11 +641,11 @@ public class CentralDogma implements AutoCloseable {
               .annotatedService(API_V0_PATH_PREFIX, new RepositoryService(safePm, executor),
                                 decorator, httpApiV0Converter);
 
-            if (authenticationProvider != null) {
+            if (authProvider != null) {
                 // Will redirect to /web/auth/login by default.
-                sb.service(LOGIN_PATH, authenticationProvider.webLoginService());
+                sb.service(LOGIN_PATH, authProvider.webLoginService());
                 // Will redirect to /web/auth/logout by default.
-                sb.service(LOGOUT_PATH, authenticationProvider.webLogoutService());
+                sb.service(LOGOUT_PATH, authProvider.webLogoutService());
 
                 sb.serviceUnder(BUILTIN_WEB_BASE_PATH, new OrElseDefaultHttpFileService(
                         HttpFileService.forClassPath("auth-webapp"), "/index.html"));

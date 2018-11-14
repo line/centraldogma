@@ -32,7 +32,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.Session;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
@@ -193,7 +193,7 @@ public interface Command<T> {
         return new RemovePluginCommand(timestamp, author, projectName, pluginName);
     }
 
-    static Command<Void> createSession(AuthenticatedSession session) {
+    static Command<Void> createSession(Session session) {
         return new CreateSessionCommand(null, null, session);
     }
 

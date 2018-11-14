@@ -16,14 +16,14 @@
 
 package com.linecorp.centraldogma.server.auth.shiro;
 
-import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.PASSWORD;
-import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.USERNAME;
-import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.WRONG_PASSWORD;
-import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.WRONG_SESSION_ID;
-import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.login;
-import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.loginWithBasicAuth;
-import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.logout;
-import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.usersMe;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_SESSION_ID;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.login;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.loginWithBasicAuth;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.logout;
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.usersMe;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.apache.shiro.config.Ini;
@@ -38,7 +38,7 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
+import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class ShiroLoginAndLogoutTest {
@@ -47,7 +47,7 @@ public class ShiroLoginAndLogoutTest {
     public final CentralDogmaRule rule = new CentralDogmaRule() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.authProviderFactory(new ShiroAuthenticationProviderFactory(unused -> {
+            builder.authProviderFactory(new ShiroAuthProviderFactory(unused -> {
                 final Ini iniConfig = new Ini();
                 iniConfig.addSection("users").put(USERNAME, PASSWORD);
                 return iniConfig;
@@ -100,14 +100,14 @@ public class ShiroLoginAndLogoutTest {
     @Test
     public void shouldUseBuiltinWebPages() throws Exception {
         AggregatedHttpMessage resp;
-        resp = client.get(AuthenticationProvider.LOGIN_PATH).aggregate().join();
+        resp = client.get(AuthProvider.LOGIN_PATH).aggregate().join();
         assertThat(resp.status()).isEqualTo(HttpStatus.MOVED_PERMANENTLY);
         assertThat(resp.headers().get(HttpHeaderNames.LOCATION))
-                .isEqualTo(AuthenticationProvider.BUILTIN_WEB_LOGIN_PATH);
+                .isEqualTo(AuthProvider.BUILTIN_WEB_LOGIN_PATH);
 
-        resp = client.get(AuthenticationProvider.LOGOUT_PATH).aggregate().join();
+        resp = client.get(AuthProvider.LOGOUT_PATH).aggregate().join();
         assertThat(resp.status()).isEqualTo(HttpStatus.MOVED_PERMANENTLY);
         assertThat(resp.headers().get(HttpHeaderNames.LOCATION))
-                .isEqualTo(AuthenticationProvider.BUILTIN_WEB_LOGOUT_PATH);
+                .isEqualTo(AuthProvider.BUILTIN_WEB_LOGOUT_PATH);
     }
 }

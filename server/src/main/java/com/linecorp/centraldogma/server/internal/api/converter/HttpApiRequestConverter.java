@@ -25,8 +25,8 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -64,7 +64,7 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
                           "repository name should not be null or empty.");
 
             if (Project.REPO_DOGMA.equals(repositoryName) &&
-                !AuthenticationUtil.currentUser(ctx).isAdmin()) {
+                !AuthUtil.currentUser(ctx).isAdmin()) {
                 return HttpApiUtil.throwResponse(
                         HttpStatus.FORBIDDEN,
                         "Repository '%s/%s' can be accessed only by an administrator.",
@@ -75,11 +75,11 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
         }
 
         if (expectedResultType == Author.class) {
-            return AuthenticationUtil.currentAuthor(ctx);
+            return AuthUtil.currentAuthor(ctx);
         }
 
         if (expectedResultType == User.class) {
-            return AuthenticationUtil.currentUser(ctx);
+            return AuthUtil.currentUser(ctx);
         }
 
         return RequestConverterFunction.fallthrough();

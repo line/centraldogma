@@ -28,8 +28,8 @@ import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
-import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
@@ -46,7 +46,7 @@ abstract class AbstractRoleCheckingDecorator
                                     HttpRequest req) throws Exception {
 
         final MetadataService mds = MetadataServiceInjector.getMetadataService(ctx);
-        final User user = AuthenticationUtil.currentUser(ctx);
+        final User user = AuthUtil.currentUser(ctx);
 
         final String projectName = ctx.pathParam("projectName");
         checkArgument(!isNullOrEmpty(projectName), "no project name is specified");

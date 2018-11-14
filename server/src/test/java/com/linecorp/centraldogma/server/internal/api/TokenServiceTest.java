@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MigrationUtil;
 import com.linecorp.centraldogma.server.internal.metadata.Token;

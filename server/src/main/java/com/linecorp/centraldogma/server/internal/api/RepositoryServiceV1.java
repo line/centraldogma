@@ -43,7 +43,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.ProjectOwnersOnly;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;

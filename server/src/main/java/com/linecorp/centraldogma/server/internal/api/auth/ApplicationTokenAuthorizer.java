@@ -35,8 +35,8 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.auth.OAuth2Token;
-import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
-import com.linecorp.centraldogma.server.internal.admin.authentication.UserWithToken;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.admin.auth.UserWithToken;
 import com.linecorp.centraldogma.server.internal.metadata.Token;
 import com.linecorp.centraldogma.server.internal.metadata.Tokens;
 
@@ -71,7 +71,7 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
                                    login.append('@').append(((InetSocketAddress) ra).getHostString());
                                }
 
-                               AuthenticationUtil.setCurrentUser(
+                               AuthUtil.setCurrentUser(
                                        ctx, new UserWithToken(login.toString(), appToken));
                                res.complete(true);
                            } else {

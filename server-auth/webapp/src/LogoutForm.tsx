@@ -1,12 +1,15 @@
-import * as React from "react";
+import * as React from 'react';
 
 interface ILogoutFormState {
   completed: boolean;
 }
 
-export default class LogoutForm extends React.PureComponent<{}, ILogoutFormState> {
+export default class LogoutForm extends React.PureComponent<
+  {},
+  ILogoutFormState
+> {
   public state: ILogoutFormState = {
-    completed: false
+    completed: false,
   };
 
   public render() {
@@ -14,21 +17,17 @@ export default class LogoutForm extends React.PureComponent<{}, ILogoutFormState
     if (sessionId !== null) {
       fetch('/api/v1/logout', {
         headers: {
-          'Authorization': 'Bearer ' + sessionId,
-          'Content-Type': 'application/x-www-form-urlencoded'
+          Authorization: `Bearer ${sessionId}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        method: 'POST'
+        method: 'POST',
       }).then(() => {
         localStorage.clear();
-        this.setState({completed: true})
+        this.setState({ completed: true });
       });
     } else {
-      this.setState({completed: true})
+      this.setState({ completed: true });
     }
-    return (
-        <h2>
-          Logout {this.state.completed ? 'completed' : 'in progress'}
-        </h2>
-    );
+    return <h2>Logout {this.state.completed ? 'completed' : 'in progress'}</h2>;
   }
 }

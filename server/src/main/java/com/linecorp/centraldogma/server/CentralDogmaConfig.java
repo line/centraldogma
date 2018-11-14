@@ -54,7 +54,7 @@ import com.google.common.collect.ImmutableSet;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.auth.AuthenticationConfig;
+import com.linecorp.centraldogma.server.auth.AuthConfig;
 
 import io.netty.util.NetUtil;
 
@@ -107,7 +107,7 @@ public final class CentralDogmaConfig {
     private final String accessLogFormat;
 
     @Nullable
-    private final AuthenticationConfig authenticationConfig;
+    private final AuthConfig authConfig;
 
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
@@ -132,7 +132,7 @@ public final class CentralDogmaConfig {
             @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
-            @JsonProperty("authentication") @Nullable AuthenticationConfig authenticationConfig) {
+            @JsonProperty("authentication") @Nullable AuthConfig authConfig) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -165,7 +165,7 @@ public final class CentralDogmaConfig {
         this.csrfTokenRequiredForThrift = firstNonNull(csrfTokenRequiredForThrift, true);
         this.accessLogFormat = accessLogFormat;
 
-        this.authenticationConfig = authenticationConfig;
+        this.authConfig = authConfig;
     }
 
     @JsonProperty
@@ -285,8 +285,8 @@ public final class CentralDogmaConfig {
 
     @Nullable
     @JsonProperty("authentication")
-    public AuthenticationConfig authenticationConfig() {
-        return authenticationConfig;
+    public AuthConfig authConfig() {
+        return authConfig;
     }
 
     @Override

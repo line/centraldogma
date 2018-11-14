@@ -24,26 +24,26 @@ import java.time.temporal.ChronoUnit;
 import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.Session;
 
 public class CreateSessionCommandTest {
 
     @Test
     public void testJsonConversion() throws Exception {
-        final AuthenticatedSession session =
-                new AuthenticatedSession("session-id-12345",
-                                         "foo",
-                                         Instant.EPOCH,
-                                         Instant.EPOCH.plus(1, ChronoUnit.MINUTES),
-                                         "serializable_raw_session_object");
+        final Session session =
+                new Session("session-id-12345",
+                            "foo",
+                            Instant.EPOCH,
+                            Instant.EPOCH.plus(1, ChronoUnit.MINUTES),
+                            "serializable_raw_session_object");
 
         final String encodedSession =
-                "rO0ABXNyADpjb20ubGluZWNvcnAuY2VudHJhbGRvZ21hLnNlcnZlci5hdXRoLkF1dGhlbnRpY2F0ZWRT" +
-                "ZXNzaW9uOwY8FH6vBIECAAVMAAxjcmVhdGlvblRpbWV0ABNMamF2YS90aW1lL0luc3RhbnQ7TAAOZXhw" +
-                "aXJhdGlvblRpbWVxAH4AAUwAAmlkdAASTGphdmEvbGFuZy9TdHJpbmc7TAAKcmF3U2Vzc2lvbnQAFkxq" +
-                "YXZhL2lvL1NlcmlhbGl6YWJsZTtMAAh1c2VybmFtZXEAfgACeHBzcgANamF2YS50aW1lLlNlcpVdhLob" +
-                "IkiyDAAAeHB3DQIAAAAAAAAAAAAAAAB4c3EAfgAFdw0CAAAAAAAAADwAAAAAeHQAEHNlc3Npb24taWQt" +
-                "MTIzNDV0AB9zZXJpYWxpemFibGVfcmF3X3Nlc3Npb25fb2JqZWN0dAADZm9v";
+                "rO0ABXNyAC1jb20ubGluZWNvcnAuY2VudHJhbGRvZ21hLnNlcnZlci5hdXRoLlNlc3Npb247BjwUfq8E" +
+                "gQIABUwADGNyZWF0aW9uVGltZXQAE0xqYXZhL3RpbWUvSW5zdGFudDtMAA5leHBpcmF0aW9uVGltZXEA" +
+                "fgABTAACaWR0ABJMamF2YS9sYW5nL1N0cmluZztMAApyYXdTZXNzaW9udAAWTGphdmEvaW8vU2VyaWFs" +
+                "aXphYmxlO0wACHVzZXJuYW1lcQB+AAJ4cHNyAA1qYXZhLnRpbWUuU2VylV2EuhsiSLIMAAB4cHcNAgAA" +
+                "AAAAAAAAAAAAAHhzcQB+AAV3DQIAAAAAAAAAPAAAAAB4dAAQc2Vzc2lvbi1pZC0xMjM0NXQAH3Nlcmlh" +
+                "bGl6YWJsZV9yYXdfc2Vzc2lvbl9vYmplY3R0AANmb28=";
 
         assertJsonConversion(
                 new CreateSessionCommand(1234L, new Author("foo", "bar@baz.com"), session),

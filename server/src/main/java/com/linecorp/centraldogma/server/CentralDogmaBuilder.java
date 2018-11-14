@@ -16,9 +16,9 @@
 
 package com.linecorp.centraldogma.server;
 
-import static com.linecorp.centraldogma.server.auth.AuthenticationConfig.DEFAULT_SESSION_CACHE_SPEC;
-import static com.linecorp.centraldogma.server.auth.AuthenticationConfig.DEFAULT_SESSION_TIMEOUT_MILLIS;
-import static com.linecorp.centraldogma.server.auth.AuthenticationConfig.DEFAULT_SESSION_VALIDATION_SCHEDULE;
+import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_CACHE_SPEC;
+import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_TIMEOUT_MILLIS;
+import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_VALIDATION_SCHEDULE;
 import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
@@ -42,10 +42,10 @@ import com.google.common.collect.ImmutableSet.Builder;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
-import com.linecorp.centraldogma.server.auth.AuthenticationConfig;
-import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
-import com.linecorp.centraldogma.server.auth.AuthenticationProviderFactory;
+import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthProvider;
+import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
+import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**
@@ -100,9 +100,9 @@ public final class CentralDogmaBuilder {
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
     private String accessLogFormat;
 
-    // AuthenticationConfig properties
+    // AuthConfig properties
     @Nullable
-    private AuthenticationProviderFactory authProviderFactory;
+    private AuthProviderFactory authProviderFactory;
     private final ImmutableSet.Builder<String> administrators = new Builder<>();
     private boolean caseSensitiveLoginNames;
     private String sessionCacheSpec = DEFAULT_SESSION_CACHE_SPEC;
@@ -323,13 +323,11 @@ public final class CentralDogmaBuilder {
         return this;
     }
 
-    // AuthenticationConfig properties
-
     /**
-     * Sets a {@link AuthenticationProviderFactory} instance which is used to create a new
-     * {@link AuthenticationProvider}.
+     * Sets a {@link AuthProviderFactory} instance which is used to create a new
+     * {@link AuthProvider}.
      */
-    public CentralDogmaBuilder authProviderFactory(AuthenticationProviderFactory authProviderFactory) {
+    public CentralDogmaBuilder authProviderFactory(AuthProviderFactory authProviderFactory) {
         this.authProviderFactory = requireNonNull(authProviderFactory, "authProviderFactory");
         return this;
     }
@@ -364,8 +362,8 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets the cache specification which determines the capacity and behavior of the cache for
-     * {@link AuthenticatedSession} of the server. See {@link CaffeineSpec} for the syntax of the spec.
-     * If unspecified, the default cache spec of {@value AuthenticationConfig#DEFAULT_SESSION_CACHE_SPEC}
+     * {@link Session} of the server. See {@link CaffeineSpec} for the syntax of the spec.
+     * If unspecified, the default cache spec of {@value AuthConfig#DEFAULT_SESSION_CACHE_SPEC}
      * is used.
      */
     public CentralDogmaBuilder sessionCacheSpec(String sessionCacheSpec) {
@@ -375,7 +373,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets the session timeout for administrative web application, in milliseconds.
-     * If unspecified, {@value AuthenticationConfig#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
+     * If unspecified, {@value AuthConfig#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
      */
     public CentralDogmaBuilder sessionTimeoutMillis(long sessionTimeoutMillis) {
         this.sessionTimeoutMillis = sessionTimeoutMillis;
@@ -384,7 +382,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets the session timeout for administrative web application.
-     * If unspecified, {@value AuthenticationConfig#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
+     * If unspecified, {@value AuthConfig#DEFAULT_SESSION_TIMEOUT_MILLIS} is used.
      */
     public CentralDogmaBuilder sessionTimeout(Duration sessionTimeout) {
         return sessionTimeoutMillis(
@@ -393,7 +391,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets a schedule for validating sessions.
-     * If unspecified, {@value AuthenticationConfig#DEFAULT_SESSION_VALIDATION_SCHEDULE} is used.
+     * If unspecified, {@value AuthConfig#DEFAULT_SESSION_VALIDATION_SCHEDULE} is used.
      */
     public CentralDogmaBuilder sessionValidationSchedule(String sessionValidationSchedule) {
         this.sessionValidationSchedule =
@@ -402,7 +400,7 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets an additional properties for an {@link AuthenticationProviderFactory}.
+     * Sets an additional properties for an {@link AuthProviderFactory}.
      */
     public CentralDogmaBuilder authProviderProperties(Object authProviderProperties) {
         this.authProviderProperties = requireNonNull(authProviderProperties, "authProviderProperties");
@@ -420,17 +418,17 @@ public final class CentralDogmaBuilder {
         final List<ServerPort> ports = !this.ports.isEmpty() ? this.ports
                                                              : Collections.singletonList(DEFAULT_PORT);
         final Set<String> adminSet = administrators.build();
-        final AuthenticationConfig authCfg;
+        final AuthConfig authCfg;
         if (authProviderFactory != null) {
-            authCfg = new AuthenticationConfig(
+            authCfg = new AuthConfig(
                     authProviderFactory, adminSet, caseSensitiveLoginNames,
                     sessionCacheSpec, sessionTimeoutMillis, sessionValidationSchedule,
                     authProviderProperties != null ? Jackson.valueToTree(authProviderProperties) : null);
         } else {
             authCfg = null;
             logger.info("{} is not specified, so {} will not be configured.",
-                        AuthenticationProviderFactory.class.getSimpleName(),
-                        AuthenticationConfig.class.getSimpleName());
+                        AuthProviderFactory.class.getSimpleName(),
+                        AuthConfig.class.getSimpleName());
         }
 
         return new CentralDogmaConfig(dataDir, ports, tls, numWorkers, maxNumConnections,

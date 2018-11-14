@@ -1,5 +1,5 @@
 .. _`Apache Shiro`: https://shiro.apache.org/
-.. _`keytool`: https://docs.oracle.com/javase/10/tools/keytool.htm#JSWOR-GUID-5990A2E4-78E3-47B7-AE75-6D1826259549
+.. _`keytool`: https://docs.oracle.com/en/java/javase/11/tools/keytool.html
 .. _`OpenSAML`: https://wiki.shibboleth.net/confluence/display/OS30/Home
 .. _`Quartz cron expression`: https://www.quartz-scheduler.org/documentation/quartz-2.x/tutorials/crontrigger.html
 .. _`Security Assertion Markup Language (SAML)`: https://en.wikipedia.org/wiki/Security_Assertion_Markup_Language
@@ -41,9 +41,9 @@ The authentication configuration consists of the following properties:
 
 - ``factoryClassName`` (string)
 
-  - the fully-qualified class name of the :api:`AuthenticationProviderFactory` implementation. Can be one of
-    ``com.linecorp.centraldogma.server.auth.saml.SamlAuthenticationProviderFactory`` or
-    ``com.linecorp.centraldogma.server.auth.shiro.ShiroAuthenticationProviderFactory``.
+  - the fully-qualified class name of the :api:`AuthProviderFactory` implementation. Can be one of
+    ``com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory`` or
+    ``com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory``.
 
 - ``administrators`` (string array)
 
@@ -87,7 +87,7 @@ you delegate the authentication to.
     {
         ...
         "authentication": {
-            "factoryClassName": "com.linecorp.centraldogma.server.auth.saml.SamlAuthenticationProviderFactory",
+            "factoryClassName": "com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory",
             "administrators": [],
             "caseSensitiveLoginNames": false,
             "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
@@ -158,7 +158,7 @@ The following describes the meaning of SAML-specific properties.
 
     - the password of the keystore.
 
-  - ``keyPasswords`` (map of a name of string and a value of string)
+  - ``keyPasswords`` (map of string key-value pairs)
 
     - a map of a key name and its password. If the password is unspecified, the empty string is used by default.
 
@@ -223,7 +223,7 @@ in the ``properties`` property.
     {
         ...
         "authentication": {
-            "factoryClassName": "com.linecorp.centraldogma.server.auth.shiro.ShiroAuthenticationProviderFactory",
+            "factoryClassName": "com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory",
             "administrators": [],
             "caseSensitiveLoginNames": false,
             "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",

@@ -22,8 +22,8 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.DecoratingServiceFunction;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
+import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 /**
@@ -35,7 +35,7 @@ public class AdministratorsOnly implements DecoratingServiceFunction<HttpRequest
     public HttpResponse serve(Service<HttpRequest, HttpResponse> delegate,
                               ServiceRequestContext ctx,
                               HttpRequest req) throws Exception {
-        final User user = AuthenticationUtil.currentUser(ctx);
+        final User user = AuthUtil.currentUser(ctx);
         if (user.isAdmin()) {
             return delegate.serve(ctx, req);
         }
