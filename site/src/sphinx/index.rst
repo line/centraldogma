@@ -1,5 +1,5 @@
 .. _`Apache ZooKeeper`: https://zookeeper.apache.org/
-.. _`Java`: http://www.oracle.com/technetwork/java/javase/downloads/
+.. _`Java`: https://www.oracle.com/technetwork/java/javase/downloads/
 .. _`JSON path`: https://github.com/json-path/JsonPath
 .. _`pull request`: https://help.github.com/articles/about-pull-requests/
 .. _`the introductory slides`: https://speakerdeck.com/trustin/central-dogma-lines-git-based-highly-available-service-configuration-repository

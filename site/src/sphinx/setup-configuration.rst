@@ -190,7 +190,7 @@ down. The clients will automatically connect to an available replica.
     Central Dogma implements multi-master replication by embedding `Apache ZooKeeper <https://zookeeper.apache.org>`_.
     You may find it useful to have some prior administrative knowledge of ZooKeeper although it is not required.
     For more information about ZooKeeper administration, see
-    `ZooKeeper administrator's guide <http://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html>`_
+    `ZooKeeper administrator's guide <https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html>`_
 
 To enable replication, you need to update the ``replication`` section of ``conf/dogma.json``. The following
 example shows the configuration of the first replica in a 3-replica cluster:

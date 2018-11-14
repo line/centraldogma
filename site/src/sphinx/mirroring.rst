@@ -64,7 +64,7 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
 
 - ``schedule`` (string, optional)
 
-  - a `Quartz cron expression <http://www.quartz-scheduler.org/documentation/quartz-2.x/tutorials/crontrigger.html>`_
+  - a `Quartz cron expression <https://www.quartz-scheduler.org/documentation/quartz-2.x/tutorials/crontrigger.html>`_
     that describes when the mirroring task is supposed to be triggered. If unspecified, ``0 * * * * ?``
     (every minute) is used.
 

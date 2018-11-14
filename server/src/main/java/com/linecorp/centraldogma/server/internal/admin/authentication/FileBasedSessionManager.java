@@ -104,8 +104,8 @@ public final class FileBasedSessionManager implements SessionManager {
     private Scheduler createScheduler(String cronExpr) throws SchedulerException {
         // The scheduler can be started and stopped several times in JUnit tests, but Quartz holds
         // every scheduler instances in a singleton SchedulerRepository. So it's possible to pick up
-        // to be stopped scheduler if we use the same instance name for every scheduler, because
-        // CentralDogmaRule stops the server asynchronously using another thread.
+        // the scheduler which is going to be stopped if we use the same instance name for every scheduler,
+        // because CentralDogmaRule stops the server asynchronously using another thread.
         final String myInstanceId = String.valueOf(hashCode());
 
         final Properties cfg = new Properties();
@@ -310,9 +310,9 @@ public final class FileBasedSessionManager implements SessionManager {
                          final Path path = sessionId2Path(rootDir, session.id());
                          try {
                              Files.deleteIfExists(path);
-                             logger.debug("Deleted the expired session: {}", path);
+                             logger.debug("Deleted an expired session: {}", path);
                          } catch (Throwable cause) {
-                             logger.warn("Failed to delete a file: {}", path, cause);
+                             logger.warn("Failed to delete an expired session: {}", path, cause);
                          }
                      });
                 logger.debug("Finished {} job.", ExpiredSessionDeletingJob.class.getSimpleName());

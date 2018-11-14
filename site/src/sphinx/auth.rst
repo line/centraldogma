@@ -1,7 +1,7 @@
 .. _`Apache Shiro`: https://shiro.apache.org/
 .. _`keytool`: https://docs.oracle.com/javase/10/tools/keytool.htm#JSWOR-GUID-5990A2E4-78E3-47B7-AE75-6D1826259549
 .. _`OpenSAML`: https://wiki.shibboleth.net/confluence/display/OS30/Home
-.. _`Quartz cron expression`: http://www.quartz-scheduler.org/documentation/quartz-2.x/tutorials/crontrigger.html
+.. _`Quartz cron expression`: https://www.quartz-scheduler.org/documentation/quartz-2.x/tutorials/crontrigger.html
 .. _`Security Assertion Markup Language (SAML)`: https://en.wikipedia.org/wiki/Security_Assertion_Markup_Language
 .. _`the Caffeine API documentation`: https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html
 
@@ -15,7 +15,7 @@ Central Dogma provides the following modules to configure its authentication lay
 - ``server-auth-saml``, which is based on `OpenSAML`_
 - ``server-auth-shiro``, which is based on `Apache Shiro`_
 
-They are included to the distribution by default so that you can configure the authentication layer with
+They are included in the distribution by default so that you can configure the authentication layer with
 the following instruction.
 
 Basic authentication configuration
@@ -47,8 +47,7 @@ The authentication configuration consists of the following properties:
 
 - ``administrators`` (string array)
 
-  - login IDs of the administrators. They are valid only if ``securityEnabled`` is ``true``.
-    Please refer to :ref:`auth` for more information.
+  - login names of the administrators. A user who has a login name specified here will get the administrator role.
 
 - ``caseSensitiveLoginNames`` (boolean)
 
@@ -214,10 +213,10 @@ Configuring authentication with Apache Shiro
 --------------------------------------------
 
 `Apache Shiro`_ is a Java security framework that performs authentication, authorization, cryptography,
-and session management. Central Dogma leverages its authentication feature to authentication a user.
+and session management. Central Dogma leverages its authentication feature to authenticate a user.
 If you want to configure the authentication layer with `Apache Shiro`_, you should configure the ``authentication``
 property in your ``conf/dogma.json`` as follows. Note that the path of your INI configuration file is specified
-on the ``properties`` property.
+in the ``properties`` property.
 
 .. code-block:: json
 

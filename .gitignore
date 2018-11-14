@@ -10,7 +10,7 @@
 **/gen-src
 *.log
 /data
-**/data
+/*/*/data
 
 # Package Files #
 *.jar
