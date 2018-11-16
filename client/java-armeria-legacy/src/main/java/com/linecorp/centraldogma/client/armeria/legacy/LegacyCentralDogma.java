@@ -234,7 +234,7 @@ final class LegacyCentralDogma implements CentralDogma {
     }
 
     @Override
-    public <T> CompletableFuture<MergedEntry<?>> mergeFiles(String projectName, String repositoryName,
+    public <T> CompletableFuture<MergedEntry<T>> mergeFiles(String projectName, String repositoryName,
                                                             Revision revision,
                                                             MergerQuery<T> mergerQuery) {
         final CompletableFuture<com.linecorp.centraldogma.internal.thrift.MergedEntry> future =
@@ -250,7 +250,10 @@ final class LegacyCentralDogma implements CentralDogma {
             switch (entryType) {
                 case JSON:
                     try {
-                        return MergedEntry.of(entryType, Jackson.readTree(entry.content));
+                        @SuppressWarnings("unchecked")
+                        final MergedEntry<T> converted = (MergedEntry<T>) MergedEntry.of(
+                                entryType, Jackson.readTree(entry.content));
+                        return converted;
                     } catch (IOException e) {
                         throw new CompletionException(
                                 "failed to parse the content: " + entry.content, e);

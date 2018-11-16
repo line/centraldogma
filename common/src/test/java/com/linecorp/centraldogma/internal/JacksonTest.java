@@ -130,7 +130,7 @@ public class JacksonTest {
         final JsonNode arrayJson = readTree("[1, 2, 3]");
         assertThatThrownBy(() -> mergeJsonNodes(baseJson, arrayJson))
                 .isExactlyInstanceOf(MismatchedValueException.class)
-                .hasMessage("/ type: OBJECT (expected: ARRAY)");
+                .hasMessage("/ type: ARRAY (expected: OBJECT)");
 
         final JsonNode numberJson = readTree('{' +
                                              "   \"a\": {" +

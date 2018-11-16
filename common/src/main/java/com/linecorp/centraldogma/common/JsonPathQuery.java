@@ -47,7 +47,7 @@ final class JsonPathQuery implements Query<JsonNode> {
 
         this.path = validateJsonFilePath(path, "path");
         this.jsonPaths = Streams.stream(jsonPaths)
-                                .peek(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"))
+                                .map(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"))
                                 .collect(toImmutableList());
     }
 

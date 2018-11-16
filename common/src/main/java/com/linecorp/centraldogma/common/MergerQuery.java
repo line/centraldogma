@@ -85,7 +85,7 @@ public interface MergerQuery<T> {
     QueryType type();
 
     /**
-     * Returns the list of {@link PathAndOptional} which will be merged into one entry.
+     * Returns the list of {@link PathAndOptional}s which will be merged into one entry.
      */
     List<PathAndOptional> pathAndOptionals();
 

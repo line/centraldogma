@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
@@ -169,9 +170,16 @@ public interface CentralDogma {
 
     /**
      * Retrieves the merged entry of the specified {@link PathAndOptional}s at the specified revision.
-     * Only JSON entry merger is currently supported.
+     * Only JSON entry merger is currently supported. The JSON files are merged sequentially in the order
+     * of specified in the {@link MergerQuery}.
+     *
+     * <p>Note that only {@link ObjectNode} is recursively merged traversing the children. Other node types are
+     * simply replaced.
+     *
+     * @return the {@link MergedEntry} which contains the merged JSON files in the
+     *         specified {@code pathAndOptionals}
      */
-    default <T> CompletableFuture<MergedEntry<?>> mergeFiles(
+    default CompletableFuture<MergedEntry<?>> mergeFiles(
             String projectName, String repositoryName,
             Revision revision, PathAndOptional... pathAndOptionals) {
         return mergeFiles(projectName, repositoryName, revision,
@@ -180,20 +188,36 @@ public interface CentralDogma {
 
     /**
      * Retrieves the merged entry of the specified {@link PathAndOptional}s at the specified revision.
-     * Only JSON entry merger is currently supported.
+     * Only JSON entry merger is currently supported. The JSON files are merged sequentially in the order
+     * of specified in the {@link MergerQuery}.
+     *
+     * <p>Note that only {@link ObjectNode} is recursively merged traversing the children. Other node types are
+     * simply replaced.
+     *
+     * @return the {@link MergedEntry} which contains the merged JSON files in the
+     *         specified {@code pathAndOptionals}
      */
-    default <T> CompletableFuture<MergedEntry<?>> mergeFiles(
+    default CompletableFuture<MergedEntry<?>> mergeFiles(
             String projectName, String repositoryName,
             Revision revision, Iterable<PathAndOptional> pathAndOptionals) {
-        return mergeFiles(projectName, repositoryName, revision,
-                          MergerQuery.ofJsonPath(pathAndOptionals));
+        @SuppressWarnings("unchecked")
+        final CompletableFuture<MergedEntry<?>> future =
+                (CompletableFuture<MergedEntry<?>>) (CompletableFuture<?>) mergeFiles(
+                        projectName, repositoryName, revision, MergerQuery.ofJsonPath(pathAndOptionals));
+        return future;
     }
 
     /**
      * Retrieves the merged entry of the specified {@link MergerQuery} at the specified revision.
-     * Only JSON entry merger is currently supported.
+     * Only JSON entry merger is currently supported. The JSON files are merged sequentially in the order
+     * of specified in the {@link MergerQuery}.
+     *
+     * <p>Note that only {@link ObjectNode} is recursively merged traversing the children. Other node types are
+     * simply replaced.
+     *
+     * @return the {@link MergedEntry} which contains the merged JSON files in the specified {@link MergerQuery}
      */
-    <T> CompletableFuture<MergedEntry<?>> mergeFiles(String projectName, String repositoryName,
+    <T> CompletableFuture<MergedEntry<T>> mergeFiles(String projectName, String repositoryName,
                                                      Revision revision,
                                                      MergerQuery<T> mergerQuery);
 

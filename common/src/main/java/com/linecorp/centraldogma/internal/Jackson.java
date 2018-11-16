@@ -328,8 +328,8 @@ public final class Jackson {
 
     private static JsonNode traverse(JsonNode base, JsonNode update, StringBuilder builder, boolean isMerging) {
         if (base.getNodeType() != update.getNodeType() && (!base.isNull() || !update.isNull())) {
-            throw new MismatchedValueException(builder + " type: " + base.getNodeType() +
-                                               " (expected: " + update.getNodeType() + ')');
+            throw new MismatchedValueException(builder + " type: " + update.getNodeType() +
+                                               " (expected: " + base.getNodeType() + ')');
         }
 
         if (base.isObject() && update.isObject()) {
@@ -347,23 +347,13 @@ public final class Jackson {
                     continue;
                 }
 
-                if (baseValue.getNodeType() == updateValue.getNodeType()) {
-                    if (baseValue.isObject()) {
-                        final int length = builder.length();
-                        // Append the filed name and traverse the child.
-                        builder.append(fieldName + '/');
-                        baseObject.set(fieldName, traverse(baseValue, updateValue, builder, isMerging));
-                        // Remove the appended filed name above.
-                        builder.delete(length, builder.length());
-                    } else if (isMerging) {
-                        baseObject.set(fieldName, updateValue);
-                    }
-                    continue;
-                }
-
-                builder.append(fieldName + '/');
-                throw new MismatchedValueException(builder + " type: " + updateValue.getNodeType() +
-                                                   " (expected: " + baseValue.getNodeType() + ')');
+                final int length = builder.length();
+                // Append the filed name and traverse the child.
+                builder.append(fieldName);
+                builder.append('/');
+                baseObject.set(fieldName, traverse(baseValue, updateValue, builder, isMerging));
+                // Remove the appended filed name above.
+                builder.delete(length, builder.length());
             }
 
             return base;

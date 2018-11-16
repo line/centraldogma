@@ -16,14 +16,11 @@
 
 package com.linecorp.centraldogma.server.internal.api.converter;
 
-import java.util.List;
-
 import javax.annotation.Nullable;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
-import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -37,34 +34,34 @@ public class MergerQueryRequestConverter implements RequestConverterFunction {
 
     private static final Splitter querySplitter = Splitter.on('&').trimResults().omitEmptyStrings();
 
-    private static final Splitter keyValueSplitter = Splitter.on('=').trimResults().omitEmptyStrings();
-
     @Nullable
     @Override
     public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
                                  Class<?> expectedResultType) throws Exception {
         final String queryString = ctx.query();
         if (queryString != null) {
-            final String decodeString = QueryStringDecoder.decodeComponent(queryString);
-            final Iterable<String> queries = querySplitter.split(decodeString);
+            final String decodedString = QueryStringDecoder.decodeComponent(queryString);
+            final Iterable<String> queries = querySplitter.split(decodedString);
 
-            final Builder<PathAndOptional> builder = ImmutableList.builder();
+            final Builder<PathAndOptional> pathAndOptionalsBuilder = ImmutableList.builder();
+            final Builder<String> jsonPathsBuilder = ImmutableList.builder();
             for (String query : queries) {
-                final Iterable<String> keyValue = keyValueSplitter.split(query);
-                if (Iterables.size(keyValue) != 2) {
+                final int index = query.indexOf('=');
+                if (index < 0) {
                     continue;
                 }
-                if ("path".equals(Iterables.get(keyValue, 0))) {
-                    builder.add(new PathAndOptional(Iterables.get(keyValue, 1), false));
-                } else if ("optional_path".equals(Iterables.get(keyValue, 0))) {
-                    builder.add(new PathAndOptional(Iterables.get(keyValue, 1), true));
+                final String key = query.substring(0, index);
+                final String value = query.substring(index + 1);
+                if ("path".equals(key)) {
+                    pathAndOptionalsBuilder.add(new PathAndOptional(value, false));
+                } else if ("optional_path".equals(key)) {
+                    pathAndOptionalsBuilder.add(new PathAndOptional(value, true));
+                } else if ("jsonpath".equals(key)) {
+                    jsonPathsBuilder.add(value);
                 }
             }
 
-            final List<String> jsonPaths = new QueryStringDecoder(queryString, false).parameters()
-                                                                                     .get("jsonpath");
-            return MergerQuery.ofJsonPath(builder.build(), jsonPaths != null ? jsonPaths
-                                                                             : ImmutableList.of());
+            return MergerQuery.ofJsonPath(pathAndOptionalsBuilder.build(), jsonPathsBuilder.build());
         }
         return RequestConverterFunction.fallthrough();
     }

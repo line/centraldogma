@@ -37,7 +37,7 @@ final class JsonMergerQuery implements MergerQuery<JsonNode> {
     JsonMergerQuery(Iterable<PathAndOptional> pathAndOptionals, Iterable<String> jsonPaths) {
         this.pathAndOptionals = ImmutableList.copyOf(requireNonNull(pathAndOptionals, "pathAndOptionals"));
         this.jsonPaths = Streams.stream(requireNonNull(jsonPaths, "jsonPaths"))
-                                .peek(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"))
+                                .map(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"))
                                 .collect(toImmutableList());
     }
 
