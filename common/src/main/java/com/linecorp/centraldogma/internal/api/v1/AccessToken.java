@@ -28,7 +28,7 @@ import com.google.common.base.Ascii;
 import com.google.common.base.MoreObjects;
 
 /**
- * The access token for OAuth 2.0.
+ * An OAuth 2.0 access token.
  *
  * @see <a href="https://tools.ietf.org/html/rfc6749#section-4.2.2">Access Token Response</a>
  */
