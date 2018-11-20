@@ -251,7 +251,7 @@ public class CentralDogma implements AutoCloseable {
         startStop.close();
     }
 
-    private void doStart() {
+    private void doStart() throws Exception {
         boolean success = false;
         ThreadPoolExecutor repositoryWorker = null;
         ProjectManager pm = null;
@@ -376,29 +376,31 @@ public class CentralDogma implements AutoCloseable {
     }
 
     @Nullable
-    private SessionManager initializeSessionManager() {
+    private SessionManager initializeSessionManager() throws Exception {
         final AuthConfig authCfg = cfg.authConfig();
         if (authCfg == null) {
             return null;
         }
 
+        boolean success = false;
         SessionManager manager = null;
         try {
             manager = new FileBasedSessionManager(new File(cfg.dataDir(), "_sessions").toPath(),
                                                   authCfg.sessionValidationSchedule());
             manager = new CachedSessionManager(manager, Caffeine.from(authCfg.sessionCacheSpec()).build());
-            return new ExpiredSessionDeletingSessionManager(manager);
-        } catch (Exception e) {
-            if (manager != null) {
+            manager = new ExpiredSessionDeletingSessionManager(manager);
+            success = true;
+            return manager;
+        } finally {
+            if (!success && manager != null) {
                 try {
                     // It will eventually close FileBasedSessionManager because the other managers just forward
                     // the close method call to their delegate.
                     manager.close();
-                } catch (Exception ignore) {
-                    // noop
+                } catch (Exception e) {
+                    logger.warn("Failed to close a session manager.", e);
                 }
             }
-            throw new RuntimeException(e);
         }
     }
 
@@ -805,7 +807,13 @@ public class CentralDogma implements AutoCloseable {
 
         @Override
         protected CompletionStage<Void> doStart() throws Exception {
-            return execute("startup", CentralDogma.this::doStart);
+            return execute("startup", () -> {
+                try {
+                    CentralDogma.this.doStart();
+                } catch (Exception e) {
+                    Exceptions.throwUnsafely(e);
+                }
+            });
         }
 
         @Override
