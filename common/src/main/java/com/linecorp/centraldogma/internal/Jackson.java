@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.Writer;
+import java.time.Instant;
 import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -41,8 +42,11 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Configuration.Defaults;
 import com.jayway.jsonpath.JsonPath;
@@ -67,6 +71,9 @@ public final class Jackson {
         // Sort the attributes when serialized via the mapper.
         compactMapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
         prettyMapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+
+        registerModules(new SimpleModule().addSerializer(Instant.class, InstantSerializer.INSTANCE)
+                                          .addDeserializer(Instant.class, InstantDeserializer.INSTANT));
     }
 
     private static final JsonFactory compactFactory = new JsonFactory(compactMapper);
@@ -107,7 +114,7 @@ public final class Jackson {
         prettyMapper.registerModules(modules);
     }
 
-    public static void registerSubtypes(NamedType...subtypes) {
+    public static void registerSubtypes(NamedType... subtypes) {
         compactMapper.registerSubtypes(subtypes);
         prettyMapper.registerSubtypes(subtypes);
     }

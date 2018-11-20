@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.auth;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.util.Base64;
 
 import com.fasterxml.jackson.core.JsonParser;
@@ -25,24 +26,24 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 /**
- * Deserialized a {@link Session} from a base64-encoded string.
+ * Deserialized a raw session instance from a base64-encoded string.
  */
-public final class SessionJsonDeserializer extends StdDeserializer<Session> {
+public final class RawSessionJsonDeserializer extends StdDeserializer<Serializable> {
 
     private static final long serialVersionUID = 6711539370106208875L;
 
-    public SessionJsonDeserializer() {
-        super(Session.class);
+    public RawSessionJsonDeserializer() {
+        super(Serializable.class);
     }
 
     @Override
-    public Session deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+    public Serializable deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         try (ByteArrayInputStream bais =
                      new ByteArrayInputStream(Base64.getDecoder().decode(p.readValueAs(String.class)));
              ObjectInputStream ois = new ObjectInputStream(bais)) {
-            return (Session) ois.readObject();
+            return (Serializable) ois.readObject();
         } catch (ClassNotFoundException e) {
-            ctxt.reportInputMismatch(Session.class, "failed to deserialize a session: " + e);
+            ctxt.reportInputMismatch(Serializable.class, "failed to deserialize a raw session: " + e);
             throw new Error(); // Should never reach here
         }
     }

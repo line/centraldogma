@@ -22,8 +22,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import javax.annotation.Nullable;
-
 import org.apache.shiro.config.Ini;
 import org.apache.shiro.config.IniSecurityManagerFactory;
 import org.apache.shiro.mgt.DefaultSecurityManager;
@@ -85,13 +83,11 @@ public final class ShiroAuthProvider implements AuthProvider {
         return factory.getInstance();
     }
 
-    @Nullable
     @Override
     public Service<HttpRequest, HttpResponse> loginApiService() {
         return loginApiService;
     }
 
-    @Nullable
     @Override
     public Service<HttpRequest, HttpResponse> logoutApiService() {
         return logoutApiService;

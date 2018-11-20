@@ -25,6 +25,8 @@ import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.Util;
@@ -32,7 +34,7 @@ import com.linecorp.centraldogma.internal.Util;
 /**
  * An authenticated session which can be replicated to the other Central Dogma replicas as a serialized form.
  */
-public final class Session implements Serializable {
+public final class Session {
 
     private static final long serialVersionUID = 4253152956820423809L;
 
@@ -74,7 +76,9 @@ public final class Session implements Serializable {
                    @JsonProperty("username") String username,
                    @JsonProperty("creationTime") Instant creationTime,
                    @JsonProperty("expirationTime") Instant expirationTime,
-                   @JsonProperty("rawSession") @Nullable Serializable rawSession) {
+                   @JsonProperty("rawSession")
+                   @JsonDeserialize(using = RawSessionJsonDeserializer.class)
+                   @Nullable Serializable rawSession) {
         this.id = requireNonNull(id, "id");
         this.username = requireNonNull(username, "username");
         this.creationTime = requireNonNull(creationTime, "creationTime");
@@ -119,6 +123,7 @@ public final class Session implements Serializable {
      */
     @Nullable
     @JsonProperty
+    @JsonSerialize(using = RawSessionJsonSerializer.class)
     public Serializable rawSession() {
         return rawSession;
     }

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.auth;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.Base64;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -25,18 +26,18 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 /**
- * Serializes a {@link Session} into a base64-encoded string.
+ * Serializes a raw session instance into a base64-encoded string.
  */
-public final class SessionJsonSerializer extends StdSerializer<Session> {
+public final class RawSessionJsonSerializer extends StdSerializer<Serializable> {
 
     private static final long serialVersionUID = -8209099521255193022L;
 
-    public SessionJsonSerializer() {
-        super(Session.class);
+    public RawSessionJsonSerializer() {
+        super(Serializable.class);
     }
 
     @Override
-    public void serialize(Session value, JsonGenerator gen, SerializerProvider provider)
+    public void serialize(Serializable value, JsonGenerator gen, SerializerProvider provider)
             throws IOException {
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);

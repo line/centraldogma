@@ -22,13 +22,9 @@ import static org.quartz.JobBuilder.newJob;
 import static org.quartz.TriggerBuilder.newTrigger;
 import static org.quartz.core.jmx.JobDataMapSupport.newJobDataMap;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOError;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -54,14 +50,15 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthException;
 import com.linecorp.centraldogma.server.auth.Session;
 
 /**
  * A {@link SessionManager} based on the file system. The sessions stored in the file system would be
  * deleted when the {@link #delete(String)} method is called or when the {@link ExpiredSessionDeletingJob}
- * finds the expired session. The {@link CentralDogmaConfig#sessionClearanceSchedule()} can configure
+ * finds the expired session. The {@link AuthConfig#sessionValidationSchedule()} can configure
  * the schedule for deleting expired sessions.
  */
 public final class FileBasedSessionManager implements SessionManager {
@@ -154,8 +151,9 @@ public final class FileBasedSessionManager implements SessionManager {
             return CompletableFuture.completedFuture(null);
         }
         try {
-            return CompletableFuture.completedFuture(deserialize(Files.readAllBytes(path)));
-        } catch (IOException | ClassNotFoundException e) {
+            return CompletableFuture.completedFuture(
+                    Jackson.readValue(Files.readAllBytes(path), Session.class));
+        } catch (IOException e) {
             return CompletableFuture.completedFuture(null);
         }
     }
@@ -176,7 +174,7 @@ public final class FileBasedSessionManager implements SessionManager {
                 }
 
                 final Path tmpPath = Files.createTempFile(tmpDir, null, null);
-                Files.write(tmpPath, serialize(session));
+                Files.write(tmpPath, Jackson.writeValueAsBytes(session));
                 Files.move(tmpPath, newPath, StandardCopyOption.ATOMIC_MOVE);
                 return null;
             } catch (FileAlreadyExistsException unused) {
@@ -199,7 +197,7 @@ public final class FileBasedSessionManager implements SessionManager {
 
             try {
                 final Path newPath = Files.createTempFile(tmpDir, null, null);
-                Files.write(newPath, serialize(session));
+                Files.write(newPath, Jackson.writeValueAsBytes(session));
                 Files.move(newPath, oldPath,
                            StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
                 return null;
@@ -261,28 +259,6 @@ public final class FileBasedSessionManager implements SessionManager {
     }
 
     /**
-     * Serializes a {@link Session} into a byte array using an {@link ObjectOutputStream}.
-     */
-    static byte[] serialize(Session session) throws IOException {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
-             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-            oos.writeObject(session);
-            oos.flush();
-            return baos.toByteArray();
-        }
-    }
-
-    /**
-     * Deserializes a {@link Session} from a byte array using an {@link ObjectInputStream}.
-     */
-    static Session deserialize(byte[] encoded) throws IOException, ClassNotFoundException {
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(encoded);
-             ObjectInputStream ois = new ObjectInputStream(bais)) {
-            return (Session) ois.readObject();
-        }
-    }
-
-    /**
      * A job for deleting expired sessions from the file system.
      */
     public static class ExpiredSessionDeletingJob implements Job {
@@ -296,11 +272,17 @@ public final class FileBasedSessionManager implements SessionManager {
                      .filter(FileBasedSessionManager::isSessionFile)
                      .map(path -> {
                          try {
-                             return deserialize(Files.readAllBytes(path));
+                             return Jackson.readValue(Files.readAllBytes(path), Session.class);
                          } catch (FileNotFoundException | NoSuchFileException ignored) {
                              // Session deleted by other party.
                          } catch (Exception e) {
                              logger.warn("Failed to deserialize a session: {}", path, e);
+                             try {
+                                 Files.deleteIfExists(path);
+                                 logger.debug("Deleted an invalid session: {}", path);
+                             } catch (IOException cause) {
+                                 logger.warn("Failed to delete an invalid session: {}", path, cause);
+                             }
                          }
                          return null;
                      })

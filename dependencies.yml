@@ -35,6 +35,9 @@ com.fasterxml.jackson.core:
     javadocs:
     - https://fasterxml.github.io/jackson-databind/javadoc/2.9/
 
+com.fasterxml.jackson.datatype:
+  jackson-datatype-jsr310: { version: '2.9.7' }
+
 # TODO(trustin): Relocate Caffeine after hiding CacheStats from the public API.
 com.github.ben-manes.caffeine:
   caffeine:

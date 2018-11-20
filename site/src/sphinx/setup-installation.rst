@@ -10,16 +10,6 @@ you need to `download and install Java <https://www.oracle.com/technetwork/java/
 Once installed, make sure the ``java`` binary is in your ``PATH`` or the ``JAVA_HOME`` environment variable is
 set correctly.
 
-If you have a plan to use multi-master replication, you also need to set up an
-`Apache ZooKeeper <https://zookeeper.apache.org>`_ cluster.
-Refer to `the ZooKeeper administrator's guide <https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html>`_
-for more information.
-
-.. note::
-
-    You do not need to setup a ZooKeeper cluster right now. Central Dogma works without a ZooKeeper cluster
-    as long as replication is disabled.
-
 Download
 --------
 |download| the tarball and extract it into your preferred location:

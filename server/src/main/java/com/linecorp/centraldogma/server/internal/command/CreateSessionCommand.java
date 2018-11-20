@@ -21,14 +21,10 @@ import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.auth.Session;
-import com.linecorp.centraldogma.server.auth.SessionJsonDeserializer;
-import com.linecorp.centraldogma.server.auth.SessionJsonSerializer;
 
 public final class CreateSessionCommand extends SessionCommand {
 
@@ -37,16 +33,13 @@ public final class CreateSessionCommand extends SessionCommand {
     @JsonCreator
     CreateSessionCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                          @JsonProperty("author") @Nullable Author author,
-                         @JsonProperty("session")
-                         @JsonDeserialize(using = SessionJsonDeserializer.class)
-                                 Session session) {
+                         @JsonProperty("session") Session session) {
 
         super(CommandType.CREATE_SESSION, timestamp, author);
         this.session = requireNonNull(session, "session");
     }
 
     @JsonProperty("session")
-    @JsonSerialize(using = SessionJsonSerializer.class)
     public Session session() {
         return session;
     }

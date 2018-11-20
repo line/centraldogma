@@ -576,11 +576,11 @@ public class CentralDogma implements AutoCloseable {
             assert sessionManager != null : "sessionManager";
             decorator = MetadataServiceInjector
                     .newDecorator(mds)
-                    .andThen(delegate -> new HttpAuthServiceBuilder()
-                            .add(new ApplicationTokenAuthorizer(mds::findTokenBySecret)
-                                         .orElse(new SessionTokenAuthorizer(sessionManager,
-                                                                            authCfg.administrators())))
-                            .build(delegate));
+                    .andThen(new HttpAuthServiceBuilder()
+                                     .add(new ApplicationTokenAuthorizer(mds::findTokenBySecret)
+                                                  .orElse(new SessionTokenAuthorizer(sessionManager,
+                                                                                     authCfg.administrators())))
+                                     .newDecorator());
         } else {
             decorator = MetadataServiceInjector
                     .newDecorator(mds)

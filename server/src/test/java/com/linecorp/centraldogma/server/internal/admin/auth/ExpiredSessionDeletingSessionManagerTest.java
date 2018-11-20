@@ -37,8 +37,7 @@ public class ExpiredSessionDeletingSessionManagerTest {
         when(delegate.get(any())).thenReturn(CompletableFuture.completedFuture(expiredAfterOneHour));
 
         final ExpiredSessionDeletingSessionManager manager = new ExpiredSessionDeletingSessionManager(delegate);
-        assertThat(manager.get("id").join()).isNotNull()
-                                            .isEqualTo(expiredAfterOneHour);
+        assertThat(manager.get("id").join()).isEqualTo(expiredAfterOneHour);
     }
 
     @Test

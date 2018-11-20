@@ -16,14 +16,20 @@
 
 package com.linecorp.centraldogma.server.internal.command;
 
-import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.Session;
 
 public class CreateSessionCommandTest {
@@ -35,27 +41,41 @@ public class CreateSessionCommandTest {
                             "foo",
                             Instant.EPOCH,
                             Instant.EPOCH.plus(1, ChronoUnit.MINUTES),
-                            "serializable_raw_session_object");
+                            "abc");
 
-        final String encodedSession =
-                "rO0ABXNyAC1jb20ubGluZWNvcnAuY2VudHJhbGRvZ21hLnNlcnZlci5hdXRoLlNlc3Npb247BjwUfq8E" +
-                "gQIABUwADGNyZWF0aW9uVGltZXQAE0xqYXZhL3RpbWUvSW5zdGFudDtMAA5leHBpcmF0aW9uVGltZXEA" +
-                "fgABTAACaWR0ABJMamF2YS9sYW5nL1N0cmluZztMAApyYXdTZXNzaW9udAAWTGphdmEvaW8vU2VyaWFs" +
-                "aXphYmxlO0wACHVzZXJuYW1lcQB+AAJ4cHNyAA1qYXZhLnRpbWUuU2VylV2EuhsiSLIMAAB4cHcNAgAA" +
-                "AAAAAAAAAAAAAHhzcQB+AAV3DQIAAAAAAAAAPAAAAAB4dAAQc2Vzc2lvbi1pZC0xMjM0NXQAH3Nlcmlh" +
-                "bGl6YWJsZV9yYXdfc2Vzc2lvbl9vYmplY3R0AANmb28=";
+        // Convert the object with Jackson because a serializer and deserializer for Instant type are
+        // added to Jackson.
+        final JsonNode node = Jackson.valueToTree(
+                new CreateSessionCommand(1234L,
+                                         new Author("foo", "bar@baz.com"),
+                                         session));
 
-        assertJsonConversion(
-                new CreateSessionCommand(1234L, new Author("foo", "bar@baz.com"), session),
-                Command.class,
-                '{' +
-                "  \"type\": \"CREATE_SESSIONS\"," +
-                "  \"timestamp\": 1234," +
-                "  \"author\": {" +
-                "    \"name\": \"foo\"," +
-                "    \"email\": \"bar@baz.com\"" +
-                "  }," +
-                "  \"session\": \"" + encodedSession + '"' +
-                '}');
+        final String expectedRawSession = toSerializedBase64("abc");
+        assertThatJson(node)
+                .withTolerance(0.000000001)
+                .isEqualTo(
+                        '{' +
+                        "  \"type\": \"CREATE_SESSIONS\"," +
+                        "  \"timestamp\": 1234," +
+                        "  \"author\": {" +
+                        "    \"name\": \"foo\"," +
+                        "    \"email\": \"bar@baz.com\"" +
+                        "  }," +
+                        "  \"session\": {\n" +
+                        "    \"id\": \"session-id-12345\"," +
+                        "    \"username\": \"foo\"," +
+                        "    \"creationTime\": 0," +
+                        "    \"expirationTime\": 60," +
+                        "    \"rawSession\": \"" + expectedRawSession + '"' +
+                        "  }" +
+                        '}');
+    }
+
+    private static String toSerializedBase64(Object object) throws Exception {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(object);
+            return Base64.getEncoder().encodeToString(baos.toByteArray());
+        }
     }
 }
