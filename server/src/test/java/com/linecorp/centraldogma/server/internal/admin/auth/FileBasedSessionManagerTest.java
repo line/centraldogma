@@ -37,13 +37,13 @@ public class FileBasedSessionManagerTest {
                 new FileBasedSessionManager(rootDir.newFolder().toPath(), "0 0 0 ? * * 2099");
 
         final Session session =
-                Session.of(manager.generateSessionId(), "username", Duration.ofHours(1));
+                new Session(manager.generateSessionId(), "username", Duration.ofHours(1));
         manager.create(session).join();
         assertThat(manager.get(session.id()).join())
                 .isEqualToIgnoringGivenFields(session, "rawSession");
 
         final Session updatedSession =
-                Session.of(session.id(), "username2", Duration.ofHours(2));
+                new Session(session.id(), "username2", Duration.ofHours(2));
         manager.update(updatedSession).join();
         assertThat(manager.get(updatedSession.id()).join())
                 .isEqualToIgnoringGivenFields(updatedSession, "rawSession");
@@ -58,7 +58,7 @@ public class FileBasedSessionManagerTest {
                 new FileBasedSessionManager(rootDir.newFolder().toPath(), "*/2 * * ? * *");
 
         final Session session =
-                Session.of(manager.generateSessionId(), "username", Duration.ofSeconds(5));
+                new Session(manager.generateSessionId(), "username", Duration.ofSeconds(5));
         manager.create(session).join();
 
         await().untilAsserted(() -> assertThat(manager.get(session.id()).join()).isNull());

@@ -100,7 +100,7 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
 
         final String sessionId = sessionIdGenerator.get();
         final Session session =
-                Session.of(sessionId, loginNameNormalizer.apply(username), sessionValidDuration);
+                new Session(sessionId, loginNameNormalizer.apply(username), sessionValidDuration);
 
         return HttpResponse.from(loginSessionPropagator.apply(session).thenApply(
                 unused -> HttpResponse.of(HttpStatus.OK, MediaType.HTML_UTF_8, getHtmlWithOnload(

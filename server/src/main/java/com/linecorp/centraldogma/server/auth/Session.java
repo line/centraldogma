@@ -52,14 +52,12 @@ public final class Session {
      * @param username the name of the user which belongs to this session
      * @param sessionValidDuration the {@link Duration} that this session is valid
      */
-    public static Session of(String id, String username, Duration sessionValidDuration) {
-        requireNonNull(id, "id");
-        requireNonNull(username, "username");
-        requireNonNull(sessionValidDuration, "sessionValidDuration");
-
-        final Instant now = Instant.now();
-        final Instant expirationTime = now.plus(sessionValidDuration);
-        return new Session(id, username, now, expirationTime, null);
+    public Session(String id, String username, Duration sessionValidDuration) {
+        this.id = requireNonNull(id, "id");
+        this.username = requireNonNull(username, "username");
+        creationTime = Instant.now();
+        expirationTime = creationTime.plus(requireNonNull(sessionValidDuration, "sessionValidDuration"));
+        rawSession = null;
     }
 
     /**
@@ -134,7 +132,7 @@ public final class Session {
      * @throws NullPointerException if the {@code rawSession} is {@code null}
      * @throws ClassCastException if the {@code rawSession} cannot be casted to {@code T}
      */
-    <T> T castedRawSession() {
+    <T> T castRawSession() {
         return Util.unsafeCast(requireNonNull(rawSession, "rawSession"));
     }
 

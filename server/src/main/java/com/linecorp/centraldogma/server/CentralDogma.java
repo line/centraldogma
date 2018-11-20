@@ -30,7 +30,6 @@ import static com.linecorp.centraldogma.server.internal.command.ProjectInitializ
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
-import java.io.IOError;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -51,7 +50,6 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import org.quartz.SchedulerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -383,16 +381,24 @@ public class CentralDogma implements AutoCloseable {
         if (authCfg == null) {
             return null;
         }
-        SessionManager manager;
+
+        SessionManager manager = null;
         try {
             manager = new FileBasedSessionManager(new File(cfg.dataDir(), "_sessions").toPath(),
                                                   authCfg.sessionValidationSchedule());
             manager = new CachedSessionManager(manager, Caffeine.from(authCfg.sessionCacheSpec()).build());
             return new ExpiredSessionDeletingSessionManager(manager);
-        } catch (IOException e) {
-            throw new IOError(e);
-        } catch (SchedulerException e) {
-            throw new Error(e);
+        } catch (Exception e) {
+            if (manager != null) {
+                try {
+                    // It will eventually close FileBasedSessionManager because the other managers just forward
+                    // the close method call to their delegate.
+                    manager.close();
+                } catch (Exception ignore) {
+                    // noop
+                }
+            }
+            throw new RuntimeException(e);
         }
     }
 

@@ -98,7 +98,7 @@ public class TestAuthProvider implements AuthProvider {
                 if (USERNAME.equals(username) && PASSWORD.equals(password)) {
                     final String sessionId = sessionIdGenerator.get();
                     final Session session =
-                            Session.of(sessionId, username, Duration.ofSeconds(60));
+                            new Session(sessionId, username, Duration.ofSeconds(60));
                     loginSessionPropagator.apply(session).join();
                     final AccessToken accessToken = new AccessToken(sessionId, 60);
                     try {

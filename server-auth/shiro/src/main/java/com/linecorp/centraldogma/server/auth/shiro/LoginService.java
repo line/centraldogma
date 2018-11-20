@@ -91,8 +91,8 @@ final class LoginService extends AbstractHttpService {
                            final org.apache.shiro.session.Session session = currentUser.getSession(false);
                            final String sessionId = session.getId().toString();
                            final Session newSession =
-                                   Session.of(sessionId, usernamePassword.getUsername(),
-                                              sessionValidDuration);
+                                   new Session(sessionId, usernamePassword.getUsername(),
+                                               sessionValidDuration);
                            final Subject loginUser = currentUser;
                            // loginSessionPropagator will propagate the authenticated session to all replicas
                            // in the cluster.

@@ -38,7 +38,7 @@ public class CachedSessionManagerTest {
     @Test
     public void shouldOperateWithCache() {
         final Session session =
-                Session.of("id", "username", Duration.ofHours(1));
+                new Session("id", "username", Duration.ofHours(1));
 
         final Cache<String, Session> cache = spy(Caffeine.newBuilder().build());
 
@@ -56,7 +56,7 @@ public class CachedSessionManagerTest {
         verify(cache).getIfPresent(session.id());
 
         final Session updatedSession =
-                Session.of("id", "username", Duration.ofHours(1));
+                new Session("id", "username", Duration.ofHours(1));
 
         manager.update(updatedSession).join();
         verify(cache).put(updatedSession.id(), updatedSession);
