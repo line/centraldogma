@@ -22,16 +22,25 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.Revision;
 
 public class MergedEntryDto<T> {
+
+    private final Revision revision;
 
     private final EntryType type;
 
     private final T content;
 
-    public MergedEntryDto(EntryType type, T content) {
+    public MergedEntryDto(Revision revision, EntryType type, T content) {
+        this.revision = requireNonNull(revision, "revision");
         this.type = requireNonNull(type, "type");
         this.content = requireNonNull(content, "content");
+    }
+
+    @JsonProperty("revision")
+    public Revision revision() {
+        return revision;
     }
 
     @JsonProperty("type")
@@ -47,6 +56,7 @@ public class MergedEntryDto<T> {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .add("revision", revision)
                           .add("type", type)
                           .add("content", content)
                           .toString();

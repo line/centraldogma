@@ -49,8 +49,8 @@ import com.linecorp.centraldogma.internal.thrift.EntryType;
 import com.linecorp.centraldogma.internal.thrift.ErrorCode;
 import com.linecorp.centraldogma.internal.thrift.Markup;
 import com.linecorp.centraldogma.internal.thrift.MarkupConverter;
-import com.linecorp.centraldogma.internal.thrift.MergerQuery;
-import com.linecorp.centraldogma.internal.thrift.MergerQueryConverter;
+import com.linecorp.centraldogma.internal.thrift.MergeQuery;
+import com.linecorp.centraldogma.internal.thrift.MergeQueryConverter;
 import com.linecorp.centraldogma.internal.thrift.Project;
 import com.linecorp.centraldogma.internal.thrift.Query;
 import com.linecorp.centraldogma.internal.thrift.QueryConverter;
@@ -128,15 +128,15 @@ final class Converter {
     }
     ////////////////
 
-    ////// MergerQuery
-    static MergerQuery convert(com.linecorp.centraldogma.common.MergerQuery<?> mergerQuery) {
-        return MergerQueryConverter.TO_DATA.convert(mergerQuery);
+    ////// MergeQuery
+    static MergeQuery convert(com.linecorp.centraldogma.common.MergeQuery<?> mergeQuery) {
+        return MergeQueryConverter.TO_DATA.convert(mergeQuery);
     }
 
     @SuppressWarnings("unchecked")
-    static <T> com.linecorp.centraldogma.common.MergerQuery<T> convert(MergerQuery mergerQuery) {
-        return (com.linecorp.centraldogma.common.MergerQuery<T>)
-                MergerQueryConverter.TO_MODEL.convert(mergerQuery);
+    static <T> com.linecorp.centraldogma.common.MergeQuery<T> convert(MergeQuery mergeQuery) {
+        return (com.linecorp.centraldogma.common.MergeQuery<T>)
+                MergeQueryConverter.TO_MODEL.convert(mergeQuery);
     }
     ////////////////
 

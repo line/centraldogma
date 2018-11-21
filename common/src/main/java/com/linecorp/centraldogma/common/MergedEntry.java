@@ -27,21 +27,23 @@ import com.google.common.base.MoreObjects;
 /**
  * A merged entry in a repository.
  *
- * @param <T> the content type. It is {@link JsonNode} because only JSON merger is currently supported.
+ * @param <T> the content type. It is {@link JsonNode} because only JSON merge is currently supported.
  */
 public final class MergedEntry<T> implements ContentHolder<T> {
 
     /**
      * Returns a newly-created {@link MergedEntry}.
      *
-     * @param type the type of the {@link Entry}
-     * @param content the content of the {@link Entry}
-     * @param <T> the content type. It is {@link JsonNode} because only JSON aggregation is currently supported.
+     * @param revision the revision of the {@link MergedEntry}
+     * @param type the type of the {@link MergedEntry}
+     * @param content the content of the {@link MergedEntry}
+     * @param <T> the content type. It is {@link JsonNode} because only JSON merge is currently supported.
      */
-    public static <T> MergedEntry<T> of(EntryType type, T content) {
-        return new MergedEntry<>(type, content);
+    public static <T> MergedEntry<T> of(Revision revision, EntryType type, T content) {
+        return new MergedEntry<>(revision, type, content);
     }
 
+    private final Revision revision;
     private final EntryType type;
     private final T content;
     @Nullable
@@ -52,13 +54,19 @@ public final class MergedEntry<T> implements ContentHolder<T> {
     /**
      * Creates a new instance.
      */
-    private MergedEntry(EntryType type, T content) {
+    private MergedEntry(Revision revision, EntryType type, T content) {
+        this.revision = requireNonNull(revision, "revision");
         this.type = requireNonNull(type, "type");
         requireNonNull(content, "content");
         final Class<?> entryType = type.type();
         checkArgument(entryType.isAssignableFrom(content.getClass()),
                       "content type: %s (expected: %s)", content.getClass(), entryType);
         this.content = content;
+    }
+
+    // TODO(minwoox) Add this method to ContentHolder when we include the revision in Entry as well.
+    public Revision revision() {
+        return revision;
     }
 
     @Override
@@ -89,7 +97,7 @@ public final class MergedEntry<T> implements ContentHolder<T> {
 
     @Override
     public int hashCode() {
-        return type.hashCode() * 31 + content.hashCode();
+        return (revision.hashCode() * 31 + type.hashCode()) * 31 + content.hashCode();
     }
 
     @Override
@@ -102,12 +110,13 @@ public final class MergedEntry<T> implements ContentHolder<T> {
         }
         @SuppressWarnings("unchecked")
         final MergedEntry<T> that = (MergedEntry<T>) o;
-        return type == that.type && content.equals(that.content);
+        return revision.equals(that.revision) && type == that.type && content.equals(that.content);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .add("revision", revision)
                           .add("type", type)
                           .add("content", contentAsText())
                           .toString();

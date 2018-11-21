@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.internal;
 
-import static com.linecorp.centraldogma.internal.Jackson.mergeJsonNodes;
 import static com.linecorp.centraldogma.internal.Jackson.readTree;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -27,21 +26,23 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import com.linecorp.centraldogma.common.QueryExecutionException;
+
 public class JacksonTest {
 
     @Test
     public void nullCanBeAnyTypeWhileMerging() throws IOException {
         final JsonNode nullNode = readTree("{\"a\": null}");
         final JsonNode numberNode = readTree("{\"a\": 1}");
-        JsonNode merged = mergeJsonNodes(nullNode, numberNode);
+        JsonNode merged = Jackson.mergeTree(nullNode, numberNode);
         assertThatJson(merged).isEqualTo("{\"a\": 1}");
 
         final JsonNode stringNode = readTree("{\"a\": \"foo\"}");
-        merged = mergeJsonNodes(nullNode, stringNode);
+        merged = Jackson.mergeTree(nullNode, stringNode);
         assertThatJson(merged).isEqualTo("{\"a\": \"foo\"}");
 
         final JsonNode arrayNode = readTree("{\"a\": [1, 2, 3]}");
-        merged = mergeJsonNodes(nullNode, arrayNode);
+        merged = Jackson.mergeTree(nullNode, arrayNode);
         assertThatJson(merged).isEqualTo("{\"a\": [1, 2, 3]}");
 
         final JsonNode objectNode = readTree('{' +
@@ -49,7 +50,7 @@ public class JacksonTest {
                                              "      \"b\": \"foo\"" +
                                              "   }" +
                                              '}');
-        merged = mergeJsonNodes(nullNode, objectNode);
+        merged = Jackson.mergeTree(nullNode, objectNode);
         assertThatJson(merged).isEqualTo('{' +
                                          "   \"a\": {" +
                                          "      \"b\": \"foo\"" +
@@ -58,13 +59,13 @@ public class JacksonTest {
     }
 
     @Test
-    public void arrayNodeIsReplacedWhileMerging() throws IOException {
+    public void rootShouldBeObjectNode() throws IOException {
         final JsonNode arrayJson1 = readTree("[1, 2, 3]");
         final JsonNode arrayJson2 = readTree("[3, 4, 5]");
 
-        final JsonNode merged = mergeJsonNodes(arrayJson1, arrayJson2);
-        final String expectedJson = "[3, 4, 5]";
-        assertThatJson(merged).isEqualTo(expectedJson);
+        assertThatThrownBy(() -> Jackson.mergeTree(arrayJson1, arrayJson2))
+                .isExactlyInstanceOf(QueryExecutionException.class)
+                .hasMessageContaining("/ type: ARRAY (expected: OBJECT)");
     }
 
     @Test
@@ -102,7 +103,7 @@ public class JacksonTest {
                                                   "   }" +
                                                   '}');
 
-        final JsonNode merged = mergeJsonNodes(baseJson, additionalJson, additionalJson1);
+        final JsonNode merged = Jackson.mergeTree(baseJson, additionalJson, additionalJson1);
         final String expectedJson = '{' +
                                     "   \"a\": \"foo3\"," +
                                     "   \"b\": \"foo2\"," +
@@ -128,31 +129,31 @@ public class JacksonTest {
                                            "   }" +
                                            '}');
         final JsonNode arrayJson = readTree("[1, 2, 3]");
-        assertThatThrownBy(() -> mergeJsonNodes(baseJson, arrayJson))
-                .isExactlyInstanceOf(MismatchedValueException.class)
-                .hasMessage("/ type: ARRAY (expected: OBJECT)");
+        assertThatThrownBy(() -> Jackson.mergeTree(baseJson, arrayJson))
+                .isExactlyInstanceOf(QueryExecutionException.class)
+                .hasMessageContaining("/ type: ARRAY (expected: OBJECT)");
 
         final JsonNode numberJson = readTree('{' +
                                              "   \"a\": {" +
                                              "      \"b\": 3" +
                                              "   }" +
                                              '}');
-        assertThatThrownBy(() -> mergeJsonNodes(baseJson, numberJson))
-                .isExactlyInstanceOf(MismatchedValueException.class)
-                .hasMessage("/a/b/ type: NUMBER (expected: STRING)");
+        assertThatThrownBy(() -> Jackson.mergeTree(baseJson, numberJson))
+                .isExactlyInstanceOf(QueryExecutionException.class)
+                .hasMessageContaining("/a/b/ type: NUMBER (expected: STRING)");
 
         final JsonNode objectArrayJson = readTree('{' +
                                                   "   \"a\": [\"b\", \"c\"]" +
                                                   '}');
-        assertThatThrownBy(() -> mergeJsonNodes(baseJson, objectArrayJson))
-                .isExactlyInstanceOf(MismatchedValueException.class)
-                .hasMessage("/a/ type: ARRAY (expected: OBJECT)");
+        assertThatThrownBy(() -> Jackson.mergeTree(baseJson, objectArrayJson))
+                .isExactlyInstanceOf(QueryExecutionException.class)
+                .hasMessageContaining("/a/ type: ARRAY (expected: OBJECT)");
 
         final JsonNode nullJson = readTree('{' +
                                            "   \"a\": null" +
                                            '}');
-        assertThatThrownBy(() -> mergeJsonNodes(baseJson, nullJson, numberJson))
-                .isExactlyInstanceOf(MismatchedValueException.class)
-                .hasMessage("/a/b/ type: NUMBER (expected: STRING)");
+        assertThatThrownBy(() -> Jackson.mergeTree(baseJson, nullJson, numberJson))
+                .isExactlyInstanceOf(QueryExecutionException.class)
+                .hasMessageContaining("/a/b/ type: NUMBER (expected: STRING)");
     }
 }

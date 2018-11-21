@@ -44,7 +44,7 @@ import com.linecorp.centraldogma.internal.thrift.DiffFileResult;
 import com.linecorp.centraldogma.internal.thrift.Entry;
 import com.linecorp.centraldogma.internal.thrift.ErrorCode;
 import com.linecorp.centraldogma.internal.thrift.GetFileResult;
-import com.linecorp.centraldogma.internal.thrift.MergerQuery;
+import com.linecorp.centraldogma.internal.thrift.MergeQuery;
 import com.linecorp.centraldogma.internal.thrift.NamedQuery;
 import com.linecorp.centraldogma.internal.thrift.Plugin;
 import com.linecorp.centraldogma.internal.thrift.Project;
@@ -53,7 +53,6 @@ import com.linecorp.centraldogma.internal.thrift.Revision;
 import com.linecorp.centraldogma.internal.thrift.Schema;
 import com.linecorp.centraldogma.internal.thrift.WatchFileResult;
 import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
-import com.linecorp.centraldogma.server.internal.ServiceUtil;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
@@ -306,11 +305,9 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void mergeFiles(String projectName, String repositoryName, Revision revision,
-                           MergerQuery mergerQuery, AsyncMethodCallback resultHandler) {
-        final Repository repository = projectManager.get(projectName).repos().get(repositoryName);
-        final com.linecorp.centraldogma.common.Revision normalizedRevision =
-                repository.normalizeNow(convert(revision));
-        handle(ServiceUtil.mergeFiles(normalizedRevision, repository, convert(mergerQuery)),
+                           MergeQuery mergeQuery, AsyncMethodCallback resultHandler) {
+        handle(projectManager.get(projectName).repos().get(repositoryName)
+                             .mergeFiles(convert(revision), convert(mergeQuery)),
                resultHandler);
     }
 
@@ -333,7 +330,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     private static void handleWatchRepositoryResult(
             CompletableFuture<com.linecorp.centraldogma.common.Revision> future,
             AsyncMethodCallback resultHandler) {
-        future.whenComplete((res, cause) -> {
+        future.handle((res, cause) -> {
             if (cause == null) {
                 final WatchRepositoryResult wrr = new WatchRepositoryResult();
                 wrr.setRevision(convert(res));
@@ -343,6 +340,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             } else {
                 logAndInvokeOnError("watchRepository", resultHandler, cause);
             }
+            return null;
         });
     }
 
@@ -372,7 +370,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     private static void handleWatchFileResult(
             CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future,
             AsyncMethodCallback resultHandler) {
-        future.whenComplete((res, cause) -> {
+        future.handle((res, cause) -> {
             if (cause == null) {
                 final WatchFileResult wfr = new WatchFileResult();
                 wfr.setRevision(convert(res.revision()));
@@ -384,6 +382,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             } else {
                 logAndInvokeOnError("watchFile", resultHandler, cause);
             }
+            return null;
         });
     }
 

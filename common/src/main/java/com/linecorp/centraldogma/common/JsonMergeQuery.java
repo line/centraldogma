@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -28,27 +27,30 @@ import com.google.common.collect.Streams;
 
 import com.linecorp.centraldogma.internal.Util;
 
-final class JsonMergerQuery implements MergerQuery<JsonNode> {
+final class JsonMergeQuery implements MergeQuery<JsonNode> {
 
-    private final List<PathAndOptional> pathAndOptionals;
+    private final QueryType type;
+
+    private final List<MergeSource> mergeSources;
 
     private final List<String> jsonPaths;
 
-    JsonMergerQuery(Iterable<PathAndOptional> pathAndOptionals, Iterable<String> jsonPaths) {
-        this.pathAndOptionals = ImmutableList.copyOf(requireNonNull(pathAndOptionals, "pathAndOptionals"));
-        this.jsonPaths = Streams.stream(requireNonNull(jsonPaths, "jsonPaths"))
-                                .map(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"))
-                                .collect(toImmutableList());
+    JsonMergeQuery(QueryType type, Iterable<MergeSource> mergeSources, Iterable<String> jsonPaths) {
+        this.type = requireNonNull(type, "type");
+        this.mergeSources = ImmutableList.copyOf(requireNonNull(mergeSources, "mergeSources"));
+        Streams.stream(requireNonNull(jsonPaths, "jsonPaths"))
+               .forEach(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"));
+        this.jsonPaths = ImmutableList.copyOf(jsonPaths);
     }
 
     @Override
     public QueryType type() {
-        return QueryType.JSON_MERGER;
+        return type;
     }
 
     @Override
-    public List<PathAndOptional> pathAndOptionals() {
-        return pathAndOptionals;
+    public List<MergeSource> mergeSources() {
+        return mergeSources;
     }
 
     @Override
@@ -58,7 +60,7 @@ final class JsonMergerQuery implements MergerQuery<JsonNode> {
 
     @Override
     public int hashCode() {
-        return pathAndOptionals.hashCode() * 31 + jsonPaths.hashCode();
+        return (type.hashCode() * 31 + mergeSources.hashCode()) * 31 + jsonPaths.hashCode();
     }
 
     @Override
@@ -66,19 +68,20 @@ final class JsonMergerQuery implements MergerQuery<JsonNode> {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof JsonMergerQuery)) {
+        if (!(o instanceof JsonMergeQuery)) {
             return false;
         }
         @SuppressWarnings("unchecked")
-        final JsonMergerQuery that = (JsonMergerQuery) o;
-        return pathAndOptionals().equals(that.pathAndOptionals()) && expressions().equals(that.expressions());
+        final JsonMergeQuery that = (JsonMergeQuery) o;
+        return type() == that.type() && mergeSources().equals(that.mergeSources()) &&
+               expressions().equals(that.expressions());
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("queryType", QueryType.JSON_MERGER)
-                          .add("pathAndOptionals", pathAndOptionals())
+                          .add("type", type())
+                          .add("mergeSources", mergeSources())
                           .add("expressions", expressions())
                           .toString();
     }

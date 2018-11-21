@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
+import static com.linecorp.centraldogma.common.EntryType.JSON;
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -42,6 +43,8 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -49,9 +52,13 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
+import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -84,6 +91,32 @@ public class CachingRepositoryTest {
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
         assertThat(repo.get(new Revision(10), query).join()).isEqualTo(queryResult);
         verify(delegateRepo, never()).getOrNull(any(), any(Query.class));
+        verifyNoMoreInteractions(delegateRepo);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void mergeQuery() throws JsonParseException {
+        final Repository repo = setMockNames(newCachingRepo());
+        final MergeQuery<JsonNode> query = MergeQuery.ofJson(MergeSource.ofRequired("/foo.json"),
+                                                             MergeSource.ofRequired("/bar.json"));
+        final MergedEntry<JsonNode> queryResult = MergedEntry.of(new Revision(10), JSON,
+                                                                 Jackson.readTree("{\"a\": \"b\"}"));
+
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
+
+        // Uncached
+        when(delegateRepo.mergeFiles(any(), any(MergeQuery.class))).thenReturn(completedFuture(queryResult));
+        assertThat(repo.mergeFiles(HEAD, query).join()).isEqualTo(queryResult);
+        verify(delegateRepo).mergeFiles(new Revision(10), query);
+        verifyNoMoreInteractions(delegateRepo);
+
+        // Cached
+        clearInvocations(delegateRepo);
+        assertThat(repo.mergeFiles(HEAD, query).join()).isEqualTo(queryResult);
+        assertThat(repo.mergeFiles(new Revision(10), query).join()).isEqualTo(queryResult);
+        verify(delegateRepo, never()).mergeFiles(any(), any(MergeQuery.class));
         verifyNoMoreInteractions(delegateRepo);
     }
 

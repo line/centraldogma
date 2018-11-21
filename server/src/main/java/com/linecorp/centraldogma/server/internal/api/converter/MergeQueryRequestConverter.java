@@ -25,12 +25,12 @@ import com.google.common.collect.ImmutableList.Builder;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
-import com.linecorp.centraldogma.common.MergerQuery;
-import com.linecorp.centraldogma.common.PathAndOptional;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 
-public class MergerQueryRequestConverter implements RequestConverterFunction {
+public class MergeQueryRequestConverter implements RequestConverterFunction {
 
     private static final Splitter querySplitter = Splitter.on('&').trimResults().omitEmptyStrings();
 
@@ -43,7 +43,7 @@ public class MergerQueryRequestConverter implements RequestConverterFunction {
             final String decodedString = QueryStringDecoder.decodeComponent(queryString);
             final Iterable<String> queries = querySplitter.split(decodedString);
 
-            final Builder<PathAndOptional> pathAndOptionalsBuilder = ImmutableList.builder();
+            final Builder<MergeSource> mergeSourceBuilder = ImmutableList.builder();
             final Builder<String> jsonPathsBuilder = ImmutableList.builder();
             for (String query : queries) {
                 final int index = query.indexOf('=');
@@ -53,15 +53,15 @@ public class MergerQueryRequestConverter implements RequestConverterFunction {
                 final String key = query.substring(0, index);
                 final String value = query.substring(index + 1);
                 if ("path".equals(key)) {
-                    pathAndOptionalsBuilder.add(new PathAndOptional(value, false));
+                    mergeSourceBuilder.add(MergeSource.ofRequired(value));
                 } else if ("optional_path".equals(key)) {
-                    pathAndOptionalsBuilder.add(new PathAndOptional(value, true));
+                    mergeSourceBuilder.add(MergeSource.ofOptional(value));
                 } else if ("jsonpath".equals(key)) {
                     jsonPathsBuilder.add(value);
                 }
             }
 
-            return MergerQuery.ofJsonPath(pathAndOptionalsBuilder.build(), jsonPathsBuilder.build());
+            return MergeQuery.ofJsonPath(mergeSourceBuilder.build(), jsonPathsBuilder.build());
         }
         return RequestConverterFunction.fallthrough();
     }

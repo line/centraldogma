@@ -36,6 +36,8 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
@@ -270,6 +272,21 @@ final class CachingRepository implements Repository {
                                               Iterable<Change<?>> changes) {
 
         return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes);
+    }
+
+    @Override
+    public <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
+        requireNonNull(revision, "revision");
+        requireNonNull(query, "query");
+
+        final Revision normalizedRevision;
+        try {
+            normalizedRevision = normalizeNow(revision);
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
+
+        return unsafeCast(cache.get(new CacheableMergeQueryCall(repo, normalizedRevision, query)));
     }
 
     private <T> CompletableFuture<T> normalizeAndCompose(

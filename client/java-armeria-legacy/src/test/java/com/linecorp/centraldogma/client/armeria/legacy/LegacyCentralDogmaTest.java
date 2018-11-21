@@ -55,8 +55,8 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.MergerQuery;
-import com.linecorp.centraldogma.common.PathAndOptional;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -368,15 +368,15 @@ public class LegacyCentralDogmaTest {
     public void mergeFiles() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<MergedEntry> callback = invocation.getArgument(4);
-            callback.onComplete(new MergedEntry(TEntryType.JSON, "{\"foo\": \"bar\"}"));
+            callback.onComplete(new MergedEntry(new TRevision(1), TEntryType.JSON, "{\"foo\": \"bar\"}"));
             return null;
         }).when(iface).mergeFiles(any(), any(), any(), any(), any());
         assertThat(client.mergeFiles("project", "repo", new Revision(1),
-                                     MergerQuery.ofJsonPath(
-                                             ImmutableList.of(new PathAndOptional("/a.json", true),
-                                                              new PathAndOptional("/b.json", true)))).get())
+                                     MergeQuery.ofJson(ImmutableList.of(MergeSource.ofOptional("/a.json"),
+                                                                        MergeSource.ofRequired("/b.json"))))
+                         .get())
                 .isEqualTo(com.linecorp.centraldogma.common.MergedEntry.of(
-                        EntryType.JSON, Jackson.readTree("{\"foo\": \"bar\"}")));
+                        new Revision(1), EntryType.JSON, Jackson.readTree("{\"foo\": \"bar\"}")));
         verify(iface).mergeFiles(eq("project"), eq("repo"), any(), any(), any());
     }
 

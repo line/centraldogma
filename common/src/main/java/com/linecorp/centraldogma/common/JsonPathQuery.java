@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static java.util.Objects.requireNonNull;
 
@@ -27,6 +26,7 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
 import com.linecorp.centraldogma.internal.Jackson;
@@ -40,15 +40,17 @@ final class JsonPathQuery implements Query<JsonNode> {
     @Nullable
     private String strVal;
 
+    JsonPathQuery(String path, String... jsonPaths) {
+        this(path, ImmutableList.copyOf(requireNonNull(jsonPaths, "jsonPaths")));
+    }
+
     @JsonCreator
     JsonPathQuery(@JsonProperty("path") String path,
                   @JsonProperty("expressions") Iterable<String> jsonPaths) {
-        requireNonNull(jsonPaths, "jsonPaths");
-
         this.path = validateJsonFilePath(path, "path");
-        this.jsonPaths = Streams.stream(jsonPaths)
-                                .map(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"))
-                                .collect(toImmutableList());
+        Streams.stream(requireNonNull(jsonPaths, "jsonPaths"))
+               .forEach(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"));
+        this.jsonPaths = ImmutableList.copyOf(jsonPaths);
     }
 
     @Override

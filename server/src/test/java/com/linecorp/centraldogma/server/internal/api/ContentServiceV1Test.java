@@ -86,11 +86,12 @@ public class ContentServiceV1Test {
                              "path=/foo2.json" + '&' +
                              "optional_path=/foo3.json";
 
-        AggregatedHttpMessage aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/merger?" +
+        AggregatedHttpMessage aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/merge?" +
                                                     queryString).aggregate().join();
 
         final String expectedJson =
                 '{' +
+                "   \"revision\" : 4," +
                 "   \"type\" : \"JSON\"," +
                 "   \"content\" : {" +
                 "                     \"a\" : \"new_bar\"," +
@@ -104,9 +105,35 @@ public class ContentServiceV1Test {
                       "path=/foo1.json" + '&' +
                       "path=/foo2.json" + '&' +
                       "path=/foo3.json";
-        aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/merger?" + queryString).aggregate()
+        aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate()
                          .join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    public void mismatchedValueWhileMerging() {
+        addFilesForMergeJson();
+        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
+                                               .contentType(MediaType.JSON);
+        final String body =
+                '{' +
+                "   \"path\" : \"/foo10.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : {\"a\": 1}," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add foo3.json\"" +
+                "   }" +
+                '}';
+        httpClient.execute(headers, body).aggregate().join();
+
+        final String queryString = "path=/foo.json" + '&' +
+                             "path=/foo1.json" + '&' +
+                             "path=/foo2.json" + '&' +
+                             "path=/foo10.json";
+
+        final AggregatedHttpMessage aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/merge?" +
+                                                    queryString).aggregate().join();
+        assertThat(aRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
@@ -117,11 +144,12 @@ public class ContentServiceV1Test {
                              "path=/foo2.json" + '&' +
                              "jsonpath=$[?(@.b == \"baz\")]&jsonpath=$[0].b";
 
-        AggregatedHttpMessage aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/merger?" +
+        AggregatedHttpMessage aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/merge?" +
                                                     queryString).aggregate().join();
         final String actualJson = aRes.content().toStringUtf8();
         final String expectedJson =
                 '{' +
+                "   \"revision\" : 4," +
                 "   \"type\" : \"JSON\"," +
                 "   \"content\" : \"baz\"" +
                 '}';
@@ -131,7 +159,7 @@ public class ContentServiceV1Test {
                       "path=/foo1.json" + '&' +
                       "path=/foo2.json" + '&' +
                       "jsonpath=$.c";
-        aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/merger?" + queryString).aggregate()
+        aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate()
                          .join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
     }

@@ -25,11 +25,13 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
+import com.linecorp.centraldogma.internal.api.v1.MergedEntryDto;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
@@ -104,6 +106,11 @@ final class DtoConverter {
     public static <T> ChangeDto<T> convert(Change<T> change) {
         requireNonNull(change, "change");
         return new ChangeDto<>(change.path(), change.type(), change.content());
+    }
+
+    public static <T> MergedEntryDto<T> convert(MergedEntry<T> mergedEntry) {
+        requireNonNull(mergedEntry, "mergedEntry");
+        return new MergedEntryDto<>(mergedEntry.revision(), mergedEntry.type(), mergedEntry.content());
     }
 
     private DtoConverter() {}

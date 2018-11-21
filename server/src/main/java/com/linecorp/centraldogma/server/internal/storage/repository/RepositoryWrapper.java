@@ -27,6 +27,8 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
@@ -183,6 +185,11 @@ public class RepositoryWrapper implements Repository {
     @Override
     public <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query) {
         return unwrap().watch(lastKnownRevision, query);
+    }
+
+    @Override
+    public <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
+        return unwrap().mergeFiles(revision, query);
     }
 
     @Override

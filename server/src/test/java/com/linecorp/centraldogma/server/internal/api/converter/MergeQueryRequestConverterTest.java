@@ -27,12 +27,12 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.centraldogma.common.MergerQuery;
-import com.linecorp.centraldogma.common.PathAndOptional;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
 
-public class MergerQueryRequestConverterTest {
+public class MergeQueryRequestConverterTest {
 
-    private static final MergerQueryRequestConverter converter = new MergerQueryRequestConverter();
+    private static final MergeQueryRequestConverter converter = new MergeQueryRequestConverter();
 
     @Test
     public void convert() throws Exception {
@@ -45,14 +45,14 @@ public class MergerQueryRequestConverterTest {
                                    "revision=9999";
         when(ctx.query()).thenReturn(queryString);
         @SuppressWarnings("unchecked")
-        final MergerQuery<JsonNode> mergerQuery =
-                (MergerQuery<JsonNode>) converter.convertRequest(
+        final MergeQuery<JsonNode> mergeQuery =
+                (MergeQuery<JsonNode>) converter.convertRequest(
                         ctx, mock(AggregatedHttpMessage.class), null);
-        assertThat(mergerQuery).isEqualTo(
-                MergerQuery.ofJsonPath(
-                        ImmutableList.of(new PathAndOptional("/foo.json", false),
-                                         new PathAndOptional("/foo2.json", true),
-                                         new PathAndOptional("/foo3.json", false)),
+        assertThat(mergeQuery).isEqualTo(
+                MergeQuery.ofJsonPath(
+                        ImmutableList.of(MergeSource.ofRequired("/foo.json"),
+                                         MergeSource.ofOptional("/foo2.json"),
+                                         MergeSource.ofRequired("/foo3.json")),
                         ImmutableList.of("$.a")));
     }
 }

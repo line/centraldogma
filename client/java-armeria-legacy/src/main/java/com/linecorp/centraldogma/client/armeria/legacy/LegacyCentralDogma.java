@@ -55,8 +55,8 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
-import com.linecorp.centraldogma.common.MergerQuery;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
@@ -80,7 +80,7 @@ import com.linecorp.centraldogma.internal.thrift.DiffFileResult;
 import com.linecorp.centraldogma.internal.thrift.EntryConverter;
 import com.linecorp.centraldogma.internal.thrift.GetFileResult;
 import com.linecorp.centraldogma.internal.thrift.MarkupConverter;
-import com.linecorp.centraldogma.internal.thrift.MergerQueryConverter;
+import com.linecorp.centraldogma.internal.thrift.MergeQueryConverter;
 import com.linecorp.centraldogma.internal.thrift.Project;
 import com.linecorp.centraldogma.internal.thrift.PushResultConverter;
 import com.linecorp.centraldogma.internal.thrift.QueryConverter;
@@ -235,13 +235,12 @@ final class LegacyCentralDogma implements CentralDogma {
 
     @Override
     public <T> CompletableFuture<MergedEntry<T>> mergeFiles(String projectName, String repositoryName,
-                                                            Revision revision,
-                                                            MergerQuery<T> mergerQuery) {
+                                                            Revision revision, MergeQuery<T> mergeQuery) {
         final CompletableFuture<com.linecorp.centraldogma.internal.thrift.MergedEntry> future =
                 run(callback -> {
                     client.mergeFiles(projectName, repositoryName,
                                       RevisionConverter.TO_DATA.convert(revision),
-                                      MergerQueryConverter.TO_DATA.convert(mergerQuery),
+                                      MergeQueryConverter.TO_DATA.convert(mergeQuery),
                                       callback);
                 });
         return future.thenApply(entry -> {
@@ -252,6 +251,7 @@ final class LegacyCentralDogma implements CentralDogma {
                     try {
                         @SuppressWarnings("unchecked")
                         final MergedEntry<T> converted = (MergedEntry<T>) MergedEntry.of(
+                                RevisionConverter.TO_MODEL.convert(entry.revision),
                                 entryType, Jackson.readTree(entry.content));
                         return converted;
                     } catch (IOException e) {

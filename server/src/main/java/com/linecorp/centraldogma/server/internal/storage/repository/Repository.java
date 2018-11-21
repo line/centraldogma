@@ -18,19 +18,25 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.EXISTS_FIND_OPTIONS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.GET_FIND_OPTIONS;
 import static java.util.Objects.requireNonNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
@@ -41,11 +47,15 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
+import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
@@ -423,5 +433,63 @@ public interface Repository {
      */
     default <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query) {
         return RepositoryUtil.watch(this, lastKnownRevision, query);
+    }
+
+    /**
+     * Merges the JSON files sequentially as specified in the {@link MergeQuery}.
+     */
+    default <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
+        requireNonNull(revision, "revision");
+        requireNonNull(query, "query");
+
+        final List<MergeSource> paths = query.mergeSources();
+        // Only JSON files can currently be merged.
+        paths.forEach(path -> validateJsonFilePath(path.path(), "path"));
+
+        final Revision normalizedRevision = normalizeNow(revision);
+        final List<CompletableFuture<Entry<?>>> entryFutures = new ArrayList<>(Iterables.size(paths));
+        paths.forEach(path -> {
+            if (!path.isOptional()) {
+                entryFutures.add(get(normalizedRevision, path.path()));
+            } else {
+                entryFutures.add(getOrNull(normalizedRevision, path.path()));
+            }
+        });
+
+        final CompletableFuture<MergedEntry<JsonNode>> future = new CompletableFuture<>();
+        CompletableFutures.allAsList(entryFutures).handle((entries, cause) -> {
+            if (cause != null) {
+                future.completeExceptionally(cause);
+            }
+
+            final Builder<JsonNode> builder = ImmutableList.builder();
+            for (Entry<?> entry : entries) {
+                if (entry == null) {
+                    continue;
+                }
+                try {
+                    builder.add(entry.contentAsJson());
+                } catch (JsonParseException e) {
+                    future.completeExceptionally(e);
+                    return null;
+                }
+            }
+
+            JsonNode result;
+            try {
+                result = Jackson.mergeTree(builder.build());
+                final List<String> expressions = query.expressions();
+                if (!expressions.isEmpty()) {
+                    result = Jackson.extractTree(result, expressions);
+                }
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+                return null;
+            }
+
+            future.complete(MergedEntry.of(normalizedRevision, EntryType.JSON, result));
+            return null;
+        });
+        return unsafeCast(future);
     }
 }

@@ -21,26 +21,41 @@ import static java.util.Objects.requireNonNull;
 import com.google.common.base.MoreObjects;
 
 /**
- * A holder that contains a {@code path} and {@code isOptional} which indicates whether the path is required.
+ * A merge source that contains a {@code path} and {@code isOptional} which indicates whether the path
+ * is required or not.
  */
-public class PathAndOptional {
+public final class MergeSource {
+
+    /**
+     * Returns a newly-created {@link MergeSource} which contains a required path.
+     */
+    public static MergeSource ofRequired(String path) {
+        return new MergeSource(path, false);
+    }
+
+    /**
+     * Returns a newly-created {@link MergeSource} which contains an optional path.
+     */
+    public static MergeSource ofOptional(String path) {
+        return new MergeSource(path, true);
+    }
 
     private final String path;
 
-    private final boolean isOptional;
+    private final boolean optional;
 
     /**
      * Creates a new instance.
      */
-    public PathAndOptional(String path, boolean isOptional) {
+    private MergeSource(String path, boolean optional) {
         this.path = requireNonNull(path, "path");
-        this.isOptional = isOptional;
+        this.optional = optional;
     }
 
     /**
      * Returns the path.
      */
-    public String getPath() {
+    public String path() {
         return path;
     }
 
@@ -48,12 +63,12 @@ public class PathAndOptional {
      * Returns {@code true} if the path is optional.
      */
     public boolean isOptional() {
-        return isOptional;
+        return optional;
     }
 
     @Override
     public int hashCode() {
-        return path.hashCode() * 31 + Boolean.hashCode(isOptional);
+        return path.hashCode() * 31 + Boolean.hashCode(optional);
     }
 
     @Override
@@ -61,20 +76,20 @@ public class PathAndOptional {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof PathAndOptional)) {
+        if (!(o instanceof MergeSource)) {
             return false;
         }
 
         @SuppressWarnings("unchecked")
-        final PathAndOptional that = (PathAndOptional) o;
-        return path.equals(that.path) && isOptional == that.isOptional;
+        final MergeSource that = (MergeSource) o;
+        return path.equals(that.path) && optional == that.optional;
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("path", path)
-                          .add("isOptional", isOptional)
+                          .add("optional", optional)
                           .toString();
     }
 }
