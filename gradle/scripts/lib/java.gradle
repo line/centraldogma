@@ -1,10 +1,23 @@
+/*
+ * Copyright 2018 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+
 // Enable checkstyle if the rule file exists.
 def checkstyleConfigDir = "${rootProject.projectDir}/settings/checkstyle"
 def checkstyleEnabled = new File(checkstyleConfigDir).isDirectory() &&
-                        new File("${checkstyleConfigDir}/checkstyle.xml").isFile()
-
-// Enable JaCoCo test coverage when '-Pcoverage' option is specified.
-def jacocoEnabled = project.hasProperty('coverage')
+        new File("${checkstyleConfigDir}/checkstyle.xml").isFile()
 
 configure(rootProject) {
     apply plugin: 'eclipse'
@@ -50,7 +63,7 @@ configure(projectsWithFlags('java')) {
                     def useIncrementalCompilation = deps.size() == 0
                     options.incremental = useIncrementalCompilation
                     logger.info("${useIncrementalCompilation ? 'Enabling' : 'Disabling'} " +
-                                "incremental compilation for '${task.path}'")
+                            "incremental compilation for '${task.path}'")
                 }
             }
         }
@@ -72,14 +85,14 @@ configure(projectsWithFlags('java')) {
     def requestedTaskNames = gradle.startParameter.taskRequests.inject([]) { a, b -> a + b.args }
     tasks.sourceJar.onlyIf {
         project.ext.isSigning() ||
-        project.ext.isPublishing() ||
-        requestedTaskNames.find { it =~ /(?:^|:)sourceJar$/ }
+                project.ext.isPublishing() ||
+                requestedTaskNames.find { it =~ /(?:^|:)sourceJar$/ }
     }
     [tasks.javadoc, tasks.javadocJar].each {
         it.onlyIf {
             project.ext.isSigning() ||
-            project.ext.isPublishing() ||
-            requestedTaskNames.find { it =~ /(?:^|:)javadoc(?:Jar)?$/ }
+                    project.ext.isPublishing() ||
+                    requestedTaskNames.find { it =~ /(?:^|:)javadoc(?:Jar)?$/ }
         }
     }
 
@@ -112,42 +125,6 @@ configure(projectsWithFlags('java')) {
 
         test {
             dependsOn tasks.checkstyle
-        }
-    }
-
-    // Generate JaCoCo reports.
-    if (jacocoEnabled && !project.hasFlags('no_aggregation')) {
-        apply plugin: 'jacoco'
-
-        project.addFlags('coverage')
-
-        tasks.withType(Test) {
-            jacoco {
-                enabled = true
-                append = false
-            }
-        }
-
-        jacocoTestReport {
-            reports {
-                csv.enabled = false
-                xml.enabled = true
-                html.enabled = true
-            }
-
-            afterEvaluate {
-                // Include all sources and classes directories so that the report includes other modules.
-                sourceDirectories = files(projectsWithFlags('java').inject([], { a, b ->
-                    a + b.sourceSets.main.java.srcDirs }
-                ))
-                classDirectories = files(projectsWithFlags('java').inject([], { a, b ->
-                    b.hasFlags('no_aggregation') ? a : a + b.sourceSets.main.output.classesDirs
-                }))
-            }
-        }
-
-        tasks.withType(Test) {
-            finalizedBy tasks.jacocoTestReport
         }
     }
 }

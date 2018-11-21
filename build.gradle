@@ -28,6 +28,9 @@ ext {
         ':client:java-spring-boot1-autoconfigure': "${rootProject.name}-client-spring-boot1-autoconfigure",
         ':client:java-spring-boot1-starter': "${rootProject.name}-client-spring-boot1-starter"
     ]
+    jacocoExclusions = [
+        '/com/linecorp/centraldogma/internal/thrift/**'
+    ]
 }
 
 apply from: "${rootDir}/gradle/scripts/build-flags.gradle"
