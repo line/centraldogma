@@ -106,7 +106,7 @@ public interface AuthProvider {
 
     /**
      * Returns a {@link Service} which handles a login request sent from the built-in web login page or
-     * somewhere implemented by a {@link AuthProvider}. This service would be added to the server
+     * somewhere implemented by an {@link AuthProvider}. This service would be added to the server
      * with {@link #LOGIN_API_PATH_MAPPINGS} only if it is provided.
      */
     @Nullable
@@ -116,7 +116,7 @@ public interface AuthProvider {
 
     /**
      * Returns a {@link Service} which handles a logout request sent from the built-in web logout page or
-     * somewhere implemented by a {@link AuthProvider}. This service would be added to the server
+     * somewhere implemented by an {@link AuthProvider}. This service would be added to the server
      * with {@link #LOGOUT_API_PATH_MAPPINGS}. If it is not provided, a default service would be added
      * because the web console provides a logout button on the navigation bar by default.
      */

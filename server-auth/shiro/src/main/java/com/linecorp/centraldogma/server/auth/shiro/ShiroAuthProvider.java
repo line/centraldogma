@@ -63,7 +63,7 @@ public final class ShiroAuthProvider implements AuthProvider {
         logoutApiService = new LogoutService(securityManager, logoutSessionPropagator);
     }
 
-    private SecurityManager createSecurityManager(Ini config, Supplier<String> sessionIdGenerator) {
+    private static SecurityManager createSecurityManager(Ini config, Supplier<String> sessionIdGenerator) {
         final Factory<SecurityManager> factory = new IniSecurityManagerFactory(config) {
             @Override
             protected SecurityManager createDefaultInstance() {

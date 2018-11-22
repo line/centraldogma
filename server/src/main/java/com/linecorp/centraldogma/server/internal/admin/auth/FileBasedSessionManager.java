@@ -23,7 +23,6 @@ import static org.quartz.TriggerBuilder.newTrigger;
 import static org.quartz.core.jmx.JobDataMapSupport.newJobDataMap;
 
 import java.io.FileNotFoundException;
-import java.io.IOError;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -214,7 +213,7 @@ public final class FileBasedSessionManager implements SessionManager {
             try {
                 Files.deleteIfExists(sessionId2Path(sessionId));
             } catch (IOException e) {
-                throw new IOError(e);
+                throw new AuthException(e);
             }
             return null;
         });

@@ -285,7 +285,7 @@ public class CentralDogma implements AutoCloseable {
 
             executor = startCommandExecutor(pm, mirroringService, repositoryWorker, sessionManager);
             if (executor.isWritable()) {
-                logger.info("Started the command executor");
+                logger.info("Started the command executor.");
 
                 initializeInternalProject(executor);
 
@@ -293,10 +293,10 @@ public class CentralDogma implements AutoCloseable {
                 MigrationUtil.migrate(pm, executor);
             }
 
-            logger.info("Starting the RPC server");
+            logger.info("Starting the RPC server.");
             server = startServer(pm, executor, sessionManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
-            logger.info("Started the Central Dogma successfully");
+            logger.info("Started the Central Dogma successfully.");
             success = true;
         } finally {
             if (success) {
@@ -320,7 +320,7 @@ public class CentralDogma implements AutoCloseable {
             if (cfg.isMirroringEnabled()) {
                 logger.info("Starting the mirroring service ..");
                 mirroringService.start(exec);
-                logger.info("Started the mirroring service");
+                logger.info("Started the mirroring service.");
             } else {
                 logger.info("Not starting the mirroring service because it's disabled.");
             }
@@ -330,7 +330,7 @@ public class CentralDogma implements AutoCloseable {
             if (cfg.isMirroringEnabled()) {
                 logger.info("Stopping the mirroring service ..");
                 mirroringService.stop();
-                logger.info("Stopped the mirroring service");
+                logger.info("Stopped the mirroring service.");
             }
         };
 
@@ -703,9 +703,9 @@ public class CentralDogma implements AutoCloseable {
 
         logger.info("Stopping the Central Dogma ..");
         if (!doStop(server, executor, mirroringService, pm, repositoryWorker, sessionManager)) {
-            logger.warn("Stopped the Central Dogma with failure");
+            logger.warn("Stopped the Central Dogma with failure.");
         } else {
-            logger.info("Stopped the Central Dogma successfully");
+            logger.info("Stopped the Central Dogma successfully.");
         }
     }
 
@@ -720,7 +720,7 @@ public class CentralDogma implements AutoCloseable {
             if (sessionManager != null) {
                 logger.info("Stopping the session manager ..");
                 sessionManager.close();
-                logger.info("Stopped the session manager");
+                logger.info("Stopped the session manager.");
             }
         } catch (Throwable t) {
             success = false;
@@ -731,7 +731,7 @@ public class CentralDogma implements AutoCloseable {
             if (pm != null) {
                 logger.info("Stopping the project manager ..");
                 pm.close(ShuttingDownException::new);
-                logger.info("Stopped the project manager");
+                logger.info("Stopped the project manager.");
             }
         } catch (Throwable t) {
             success = false;
@@ -742,7 +742,7 @@ public class CentralDogma implements AutoCloseable {
             if (executor != null) {
                 logger.info("Stopping the command executor ..");
                 executor.stop();
-                logger.info("Stopped the command executor");
+                logger.info("Stopped the command executor.");
             }
         } catch (Throwable t) {
             success = false;
@@ -754,7 +754,7 @@ public class CentralDogma implements AutoCloseable {
             if (mirroringService != null && mirroringService.isStarted()) {
                 logger.info("Stopping the mirroring service not terminated by the command executor ..");
                 mirroringService.stop();
-                logger.info("Stopped the mirroring service");
+                logger.info("Stopped the mirroring service.");
             }
         } catch (Throwable t) {
             success = false;
@@ -774,7 +774,7 @@ public class CentralDogma implements AutoCloseable {
                         interruptLater = true;
                     }
                 }
-                logger.info("Stopped the repository worker");
+                logger.info("Stopped the repository worker.");
 
                 if (interruptLater) {
                     Thread.currentThread().interrupt();
@@ -789,7 +789,7 @@ public class CentralDogma implements AutoCloseable {
             if (server != null) {
                 logger.info("Stopping the RPC server ..");
                 server.stop().join();
-                logger.info("Stopped the RPC server");
+                logger.info("Stopped the RPC server.");
             }
         } catch (Throwable t) {
             success = false;

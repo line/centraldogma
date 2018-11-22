@@ -79,8 +79,8 @@ Configuring authentication with SAML
 
 `Security Assertion Markup Language (SAML)`_ is an open standard for exchanging authentication and authorization
 data between an identity provider and a service provider. In this protocol, Central Dogma acts as a service
-provider. So, you need to fill the ``properties`` property with information of an identity provider that
-you delegate the authentication to.
+provider. So, you need to fill the ``properties`` with information of an identity provider that you delegate
+the authentication to.
 
 .. code-block:: json
 

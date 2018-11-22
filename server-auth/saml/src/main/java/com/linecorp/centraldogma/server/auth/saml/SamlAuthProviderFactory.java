@@ -83,8 +83,8 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
         }
     }
 
-    private CredentialResolver credentialResolver(KeyStore keyStore) throws IOException,
-                                                                            GeneralSecurityException {
+    private static CredentialResolver credentialResolver(KeyStore keyStore)
+            throws IOException, GeneralSecurityException {
         final KeyStoreCredentialResolverBuilder builder;
         final String path = keyStore.path();
         final File file = new File(path);

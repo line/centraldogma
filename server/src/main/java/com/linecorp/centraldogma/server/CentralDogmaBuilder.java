@@ -324,8 +324,7 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets a {@link AuthProviderFactory} instance which is used to create a new
-     * {@link AuthProvider}.
+     * Sets an {@link AuthProviderFactory} instance which is used to create a new {@link AuthProvider}.
      */
     public CentralDogmaBuilder authProviderFactory(AuthProviderFactory authProviderFactory) {
         this.authProviderFactory = requireNonNull(authProviderFactory, "authProviderFactory");

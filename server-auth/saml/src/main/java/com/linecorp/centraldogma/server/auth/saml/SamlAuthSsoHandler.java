@@ -90,7 +90,7 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     public HttpResponse loginSucceeded(ServiceRequestContext ctx, AggregatedHttpMessage req,
                                        MessageContext<Response> message, @Nullable String sessionIndex,
                                        @Nullable String relayState) {
-        final Response response = message.getMessage();
+        final Response response = requireNonNull(message, "message").getMessage();
         final String username = Optional.ofNullable(findLoginNameFromSubjects(response))
                                         .orElseGet(() -> findLoginNameFromAttributes(response));
         if (Strings.isNullOrEmpty(username)) {
