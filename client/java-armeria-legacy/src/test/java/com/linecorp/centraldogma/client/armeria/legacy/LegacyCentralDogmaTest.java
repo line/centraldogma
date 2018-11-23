@@ -368,7 +368,8 @@ public class LegacyCentralDogmaTest {
     public void mergeFiles() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<MergedEntry> callback = invocation.getArgument(4);
-            callback.onComplete(new MergedEntry(new TRevision(1), TEntryType.JSON, "{\"foo\": \"bar\"}"));
+            callback.onComplete(new MergedEntry(new TRevision(1), TEntryType.JSON, "{\"foo\": \"bar\"}",
+                                                ImmutableList.of("/a.json", "/b.json")));
             return null;
         }).when(iface).mergeFiles(any(), any(), any(), any(), any());
         assertThat(client.mergeFiles("project", "repo", new Revision(1),
@@ -376,7 +377,8 @@ public class LegacyCentralDogmaTest {
                                                                         MergeSource.ofRequired("/b.json"))))
                          .get())
                 .isEqualTo(com.linecorp.centraldogma.common.MergedEntry.of(
-                        new Revision(1), EntryType.JSON, Jackson.readTree("{\"foo\": \"bar\"}")));
+                        new Revision(1), EntryType.JSON, Jackson.readTree("{\"foo\": \"bar\"}"),
+                        ImmutableList.of("/a.json", "/b.json")));
         verify(iface).mergeFiles(eq("project"), eq("repo"), any(), any(), any());
     }
 

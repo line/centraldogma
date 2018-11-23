@@ -252,7 +252,7 @@ final class LegacyCentralDogma implements CentralDogma {
                         @SuppressWarnings("unchecked")
                         final MergedEntry<T> converted = (MergedEntry<T>) MergedEntry.of(
                                 RevisionConverter.TO_MODEL.convert(entry.revision),
-                                entryType, Jackson.readTree(entry.content));
+                                entryType, Jackson.readTree(entry.content), entry.paths);
                         return converted;
                     } catch (IOException e) {
                         throw new CompletionException(

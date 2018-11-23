@@ -19,10 +19,13 @@ package com.linecorp.centraldogma.common;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
+
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 
 /**
  * A merged entry in a repository.
@@ -38,13 +41,28 @@ public final class MergedEntry<T> implements ContentHolder<T> {
      * @param type the type of the {@link MergedEntry}
      * @param content the content of the {@link MergedEntry}
      * @param <T> the content type. It is {@link JsonNode} because only JSON merge is currently supported.
+     * @param paths the paths which participated to compose the {@link MergedEntry}
      */
-    public static <T> MergedEntry<T> of(Revision revision, EntryType type, T content) {
-        return new MergedEntry<>(revision, type, content);
+    public static <T> MergedEntry<T> of(Revision revision, EntryType type, T content, String... paths) {
+        return new MergedEntry<>(revision, type, content, ImmutableList.copyOf(requireNonNull(paths, "paths")));
+    }
+
+    /**
+     * Returns a newly-created {@link MergedEntry}.
+     *
+     * @param revision the revision of the {@link MergedEntry}
+     * @param type the type of the {@link MergedEntry}
+     * @param content the content of the {@link MergedEntry}
+     * @param <T> the content type. It is {@link JsonNode} because only JSON merge is currently supported.
+     * @param paths the paths which participated to compose the {@link MergedEntry}
+     */
+    public static <T> MergedEntry<T> of(Revision revision, EntryType type, T content, Iterable<String> paths) {
+        return new MergedEntry<>(revision, type, content, paths);
     }
 
     private final Revision revision;
     private final EntryType type;
+    private final List<String> paths;
     private final T content;
     @Nullable
     private String contentAsText;
@@ -54,7 +72,7 @@ public final class MergedEntry<T> implements ContentHolder<T> {
     /**
      * Creates a new instance.
      */
-    private MergedEntry(Revision revision, EntryType type, T content) {
+    private MergedEntry(Revision revision, EntryType type, T content, Iterable<String> paths) {
         this.revision = requireNonNull(revision, "revision");
         this.type = requireNonNull(type, "type");
         requireNonNull(content, "content");
@@ -62,6 +80,7 @@ public final class MergedEntry<T> implements ContentHolder<T> {
         checkArgument(entryType.isAssignableFrom(content.getClass()),
                       "content type: %s (expected: %s)", content.getClass(), entryType);
         this.content = content;
+        this.paths = ImmutableList.copyOf(requireNonNull(paths, "paths"));
     }
 
     // TODO(minwoox) Add this method to ContentHolder when we include the revision in Entry as well.
@@ -77,6 +96,13 @@ public final class MergedEntry<T> implements ContentHolder<T> {
     @Override
     public T content() {
         return content;
+    }
+
+    /**
+     * Returns the paths which participated to compose the {@link MergedEntry}.
+     */
+    public List<String> paths() {
+        return paths;
     }
 
     @Override
@@ -110,15 +136,19 @@ public final class MergedEntry<T> implements ContentHolder<T> {
         }
         @SuppressWarnings("unchecked")
         final MergedEntry<T> that = (MergedEntry<T>) o;
-        return revision.equals(that.revision) && type == that.type && content.equals(that.content);
+        return revision.equals(that.revision) &&
+               type == that.type &&
+               content.equals(that.content) &&
+               paths.equals(that.paths);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                          .add("revision", revision)
-                          .add("type", type)
+                          .add("revision", revision())
+                          .add("type", type())
                           .add("content", contentAsText())
+                          .add("paths", paths())
                           .toString();
     }
 }

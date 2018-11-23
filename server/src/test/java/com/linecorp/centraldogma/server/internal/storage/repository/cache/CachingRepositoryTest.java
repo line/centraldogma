@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.common.EntryType.JSON;
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -81,16 +82,17 @@ public class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(queryResult));
+        when(delegateRepo.find(any(), any(), any())).thenReturn(
+                completedFuture(ImmutableMap.of(query.path(), queryResult)));
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
-        verify(delegateRepo).getOrNull(new Revision(10), query);
+        verify(delegateRepo).find(new Revision(10), query.path(), FIND_ONE_WITH_CONTENT);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
         assertThat(repo.get(new Revision(10), query).join()).isEqualTo(queryResult);
-        verify(delegateRepo, never()).getOrNull(any(), any(Query.class));
+        verify(delegateRepo, never()).find(any(), any(), any());
         verifyNoMoreInteractions(delegateRepo);
     }
 
@@ -101,22 +103,29 @@ public class CachingRepositoryTest {
         final MergeQuery<JsonNode> query = MergeQuery.ofJson(MergeSource.ofRequired("/foo.json"),
                                                              MergeSource.ofRequired("/bar.json"));
         final MergedEntry<JsonNode> queryResult = MergedEntry.of(new Revision(10), JSON,
-                                                                 Jackson.readTree("{\"a\": \"b\"}"));
+                                                                 Jackson.readTree("{\"a\": \"bar\"}"),
+                                                                 "/foo.json", "/bar.json");
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.mergeFiles(any(), any(MergeQuery.class))).thenReturn(completedFuture(queryResult));
+        when(delegateRepo.find(any(), any(), any()))
+                .thenReturn(completedFuture(ImmutableMap.of("/foo.json", Entry.ofJson(
+                        new Revision(10), "/foo.json", "{\"a\": \"foo\"}"))))
+                .thenReturn(completedFuture(ImmutableMap.of("/bar.json", Entry.ofJson(
+                        new Revision(10), "/bar.json", "{\"a\": \"bar\"}"))));
+
         assertThat(repo.mergeFiles(HEAD, query).join()).isEqualTo(queryResult);
-        verify(delegateRepo).mergeFiles(new Revision(10), query);
+        verify(delegateRepo).find(new Revision(10), "/foo.json", FIND_ONE_WITH_CONTENT);
+        verify(delegateRepo).find(new Revision(10), "/bar.json", FIND_ONE_WITH_CONTENT);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
         assertThat(repo.mergeFiles(HEAD, query).join()).isEqualTo(queryResult);
         assertThat(repo.mergeFiles(new Revision(10), query).join()).isEqualTo(queryResult);
-        verify(delegateRepo, never()).mergeFiles(any(), any(MergeQuery.class));
+        verify(delegateRepo, never()).find(any(), any(), any());
         verifyNoMoreInteractions(delegateRepo);
     }
 
@@ -130,16 +139,16 @@ public class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(null));
+        when(delegateRepo.find(any(), any(), any())).thenReturn(completedFuture(ImmutableMap.of()));
         assertThat(repo.getOrNull(HEAD, query).join()).isNull();
-        verify(delegateRepo).getOrNull(new Revision(10), query);
+        verify(delegateRepo).find(new Revision(10), query.path(), FIND_ONE_WITH_CONTENT);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
         assertThat(repo.getOrNull(HEAD, query).join()).isNull();
         assertThat(repo.getOrNull(new Revision(10), query).join()).isNull();
-        verify(delegateRepo, never()).getOrNull(any(), any(Query.class));
+        verify(delegateRepo, never()).find(any(), any(), any());
         verifyNoMoreInteractions(delegateRepo);
     }
 
@@ -170,9 +179,9 @@ public class CachingRepositoryTest {
     public void history() {
         final Repository repo = setMockNames(newCachingRepo());
         final List<Commit> commits = ImmutableList.of(
-                new Commit(new Revision(3), SYSTEM, "third",  "", Markup.MARKDOWN),
+                new Commit(new Revision(3), SYSTEM, "third", "", Markup.MARKDOWN),
                 new Commit(new Revision(3), SYSTEM, "second", "", Markup.MARKDOWN),
-                new Commit(new Revision(3), SYSTEM, "first",  "", Markup.MARKDOWN));
+                new Commit(new Revision(3), SYSTEM, "first", "", Markup.MARKDOWN));
 
         doReturn(new RevisionRange(3, 1)).when(delegateRepo).normalizeNow(HEAD, INIT);
         doReturn(new RevisionRange(3, 1)).when(delegateRepo).normalizeNow(HEAD, new Revision(-3));

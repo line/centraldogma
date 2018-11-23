@@ -93,6 +93,7 @@ struct MergedEntry {
     1: required Revision revision,
     2: required EntryType type,
     3: required string content,
+    4: required list<string> paths,
 }
 
 struct MergeSource {
@@ -359,6 +360,7 @@ service CentralDogmaService {
     /**
      * Retrieves the merged entry of the specified query at the specified revision. Only JSON entry
      * merge is currently supported. The JSON files are merged sequentially as specified in the mergeQuery.
+     * Note that only object is recursively merged traversing the children. Others are simply replaced.
      */
     MergedEntry mergeFiles(1: string projectName, 2: string repositoryName, 3: Revision revision,
                            4: MergeQuery mergeQuery) throws (1: CentralDogmaException e),

@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -35,14 +33,13 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
     static final Entry<?> EMPTY = Entry.ofDirectory(new Revision(Integer.MAX_VALUE), "/");
 
     final Revision revision;
-    final Query<Object> query;
+    final Query<?> query;
     final int hashCode;
 
     CacheableQueryCall(Repository repo, Revision revision, Query<?> query) {
         super(repo);
-
         this.revision = requireNonNull(revision, "revision");
-        this.query = unsafeCast(requireNonNull(query, "query"));
+        this.query = requireNonNull(query, "query");
 
         hashCode = Objects.hash(revision, query) * 31 + System.identityHashCode(repo);
 
@@ -64,7 +61,7 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
 
     @Override
     CompletableFuture<Entry<?>> execute() {
-        return repo.getOrNull(revision, query).thenApply(e -> firstNonNull(e, EMPTY));
+        throw new UnsupportedOperationException();
     }
 
     @Override

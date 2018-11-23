@@ -18,8 +18,11 @@ package com.linecorp.centraldogma.internal.api.v1;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Revision;
@@ -32,10 +35,13 @@ public class MergedEntryDto<T> {
 
     private final T content;
 
-    public MergedEntryDto(Revision revision, EntryType type, T content) {
+    private List<String> paths;
+
+    public MergedEntryDto(Revision revision, EntryType type, T content, Iterable<String> paths) {
         this.revision = requireNonNull(revision, "revision");
         this.type = requireNonNull(type, "type");
         this.content = requireNonNull(content, "content");
+        this.paths = ImmutableList.copyOf(requireNonNull(paths, "paths"));
     }
 
     @JsonProperty("revision")
@@ -53,12 +59,18 @@ public class MergedEntryDto<T> {
         return content;
     }
 
+    @JsonProperty("paths")
+    public List<String> paths() {
+        return paths;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("revision", revision)
                           .add("type", type)
                           .add("content", content)
+                          .add("paths", paths)
                           .toString();
     }
 }

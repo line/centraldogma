@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server.internal.metadata;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
-import static com.linecorp.centraldogma.server.internal.metadata.RepositoryUtil.convertWithJackson;
+import static com.linecorp.centraldogma.server.internal.metadata.MetadataRepository.convertWithJackson;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.validateSecret;
 import static java.util.Objects.requireNonNull;
@@ -73,15 +73,15 @@ public class MetadataService extends AbstractService {
      */
     private static final JsonPointer PROJECT_REMOVAL = JsonPointer.compile("/removal");
 
-    private final RepositoryUtil<ProjectMetadata> metadataRepo;
-    private final RepositoryUtil<Tokens> tokenRepo;
+    private final MetadataRepository<ProjectMetadata> metadataRepo;
+    private final MetadataRepository<Tokens> tokenRepo;
 
     public MetadataService(ProjectManager projectManager, CommandExecutor executor) {
         super(projectManager, executor);
-        metadataRepo = new RepositoryUtil<>(projectManager, executor,
-                                            entry -> convertWithJackson(entry, ProjectMetadata.class));
-        tokenRepo = new RepositoryUtil<>(projectManager, executor,
-                                         entry -> convertWithJackson(entry, Tokens.class));
+        metadataRepo = new MetadataRepository<>(projectManager, executor,
+                                                entry -> convertWithJackson(entry, ProjectMetadata.class));
+        tokenRepo = new MetadataRepository<>(projectManager, executor,
+                                             entry -> convertWithJackson(entry, Tokens.class));
     }
 
     /**

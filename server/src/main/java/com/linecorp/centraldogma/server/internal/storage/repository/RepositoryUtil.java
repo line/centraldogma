@@ -20,31 +20,108 @@ import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
 
-import java.util.Map;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import com.google.common.collect.ImmutableMap;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList.Builder;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Streams;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
+import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 
 /**
  * Utility methods that are useful when implementing a {@link Repository} implementation.
  */
-final class RepositoryUtil {
-
-    static final Map<FindOption<?>, Object> EXISTS_FIND_OPTIONS =
-            ImmutableMap.of(FindOption.FETCH_CONTENT, false, FindOption.MAX_ENTRIES, 1);
-    static final Map<FindOption<?>, Object> GET_FIND_OPTIONS = ImmutableMap.of(FindOption.MAX_ENTRIES, 1);
+public final class RepositoryUtil {
 
     private static final CancellationException CANCELLATION_EXCEPTION =
             Exceptions.clearTrace(new CancellationException("parent complete"));
+
+    public static CompletableFuture<MergedEntry<?>> mergeEntries(
+            List<CompletableFuture<Entry<?>>> entryFutures, Revision revision,
+            MergeQuery<?> query) {
+        requireNonNull(entryFutures, "entryFutures");
+        requireNonNull(revision, "revision");
+        requireNonNull(query, "query");
+
+        final CompletableFuture<MergedEntry<JsonNode>> future = new CompletableFuture<>();
+        CompletableFutures.allAsList(entryFutures).handle((entries, cause) -> {
+            if (cause != null) {
+                future.completeExceptionally(Exceptions.peel(cause));
+                return null;
+            }
+
+            final Builder<JsonNode> jsonNodesBuilder = ImmutableList.builder();
+            final Builder<String> pathsBuilder = ImmutableList.builder();
+            for (Entry<?> entry : entries) {
+                if (entry == null) {
+                    continue;
+                }
+                try {
+                    jsonNodesBuilder.add(entry.contentAsJson());
+                    pathsBuilder.add(entry.path());
+                } catch (JsonParseException e) {
+                    future.completeExceptionally(e);
+                    return null;
+                }
+            }
+
+            JsonNode result;
+            try {
+                final List<JsonNode> jsonNodes = jsonNodesBuilder.build();
+                if (jsonNodes.isEmpty()) {
+                    throw new EntryNotFoundException(revision, concatenatePaths(query.mergeSources()));
+                }
+
+                result = Jackson.mergeTree(jsonNodes);
+                final List<String> expressions = query.expressions();
+                if (!Iterables.isEmpty(expressions)) {
+                    result = Jackson.extractTree(result, expressions);
+                }
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+                return null;
+            }
+
+            future.complete(MergedEntry.of(revision, EntryType.JSON, result, pathsBuilder.build()));
+            return null;
+        });
+        return unsafeCast(future);
+    }
+
+    private static String concatenatePaths(Iterable<MergeSource> mergeSources) {
+        return Streams.stream(mergeSources).map(MergeSource::path).collect(Collectors.joining(","));
+    }
+
+    public static <T> void completeQueryExecutionException(CompletableFuture<MergedEntry<T>> future,
+                                                           Throwable cause) {
+        if (cause instanceof CentralDogmaException) {
+            future.completeExceptionally(cause);
+            return;
+        }
+
+        future.completeExceptionally(new QueryExecutionException(cause));
+    }
 
     static <T> CompletableFuture<Entry<T>> watch(Repository repo, Revision lastKnownRev, Query<T> query) {
 

@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
+import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -40,6 +41,8 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
         super(repo);
         this.revision = requireNonNull(revision, "revision");
         this.query = requireNonNull(query, "query");
+        // Only JSON files can currently be merged.
+        query.mergeSources().forEach(path -> validateJsonFilePath(path.path(), "path"));
 
         hashCode = Objects.hash(revision, query) * 31 + System.identityHashCode(repo);
 
@@ -67,10 +70,7 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
 
     @Override
     CompletableFuture<MergedEntry<?>> execute() {
-        @SuppressWarnings("unchecked")
-        final CompletableFuture<MergedEntry<?>> future =
-                (CompletableFuture<MergedEntry<?>>) (CompletableFuture<?>) repo.mergeFiles(revision, query);
-        return future;
+        throw new UnsupportedOperationException();
     }
 
     @Override

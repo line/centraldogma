@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.common.QueryType.IDENTITY;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -161,6 +162,30 @@ public final class Entry<T> implements ContentHolder<T> {
         if (content != null) {
             consumer.accept(content);
         }
+    }
+
+    /**
+     * Returns a new {@link Entry} which applied the specified {@link Query} to the {@link #content()}.
+     *
+     * @throws IllegalStateException if this {@link Entry} is a directory
+     * @throws QuerySyntaxException if the syntax of specified {@link Query} is invalid
+     * @throws QueryExecutionException if an {@link Exception} is raised while applying the specified
+     *                                 {@link Query} to the {@link #content()}
+     */
+    public Entry<T> applyQuery(Query<T> query) {
+        requireNonNull(query, "query");
+        content(); // Ensure that content is not null.
+        if (query.type() == IDENTITY) {
+            return this;
+        }
+
+        final EntryType entryType = type();
+
+        if (!query.type().supportedEntryTypes().contains(entryType)) {
+            throw new QueryExecutionException(query + " does not support this entry type: " + entryType);
+        }
+
+        return of(revision(), query.path(), entryType, query.apply(content()));
     }
 
     @Override

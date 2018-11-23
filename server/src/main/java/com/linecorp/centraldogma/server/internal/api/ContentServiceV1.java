@@ -23,7 +23,7 @@ import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
-import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.internal.storage.repository.Repository.DEFAULT_MAX_COMMITS;
 import static java.util.Objects.requireNonNull;
 
@@ -105,7 +105,7 @@ public class ContentServiceV1 extends AbstractService {
         final String normalizedPath = normalizePath(path);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
         listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)),
-                  NO_FETCH_CONTENT, future);
+                  FIND_ALL_WITHOUT_CONTENT, future);
         return future;
     }
 

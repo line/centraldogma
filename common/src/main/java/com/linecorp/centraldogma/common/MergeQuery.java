@@ -81,8 +81,8 @@ public interface MergeQuery<T> {
      * @param mergeSources the paths of JSON files being merged and indicates whether it is optional
      * @param jsonPaths the JSON path expressions to apply
      */
-    static MergeQuery<JsonNode> of(QueryType type, Iterable<MergeSource> mergeSources,
-                                   Iterable<String> jsonPaths) {
+    static MergeQuery<?> of(QueryType type, Iterable<MergeSource> mergeSources,
+                            Iterable<String> jsonPaths) {
         requireNonNull(type, "type");
         switch (type) {
             case IDENTITY:

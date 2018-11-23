@@ -70,7 +70,9 @@ public class CacheTest {
         final Query<String> query = Query.ofText("/foo.txt");
         final Entry<?> entry = client.getFile(project, REPO_FOO, HEAD, query).join();
         final CacheStats stats3 = cacheStatsSupplier.get();
-        assertThat(stats3.missCount()).isEqualTo(stats2.missCount() + 1);
+
+        // getFile triggers three cache misses which happen twice in getOrNull() and once in find().
+        assertThat(stats3.missCount()).isEqualTo(stats2.missCount() + 3);
 
         // Subsequent getFile() should never miss.
         for (int i = 0; i < 3; i++) {

@@ -19,8 +19,10 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
-import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.EXISTS_FIND_OPTIONS;
-import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.GET_FIND_OPTIONS;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.completeQueryExecutionException;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.mergeEntries;
 import static java.util.Objects.requireNonNull;
 
 import java.util.ArrayList;
@@ -30,13 +32,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
@@ -55,7 +53,6 @@ import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
@@ -141,7 +138,7 @@ public interface Repository {
      */
     default CompletableFuture<Boolean> exists(Revision revision, String path) {
         validateFilePath(path, "path");
-        return find(revision, path, EXISTS_FIND_OPTIONS).thenApply(result -> !result.isEmpty());
+        return find(revision, path, FIND_ONE_WITHOUT_CONTENT).thenApply(result -> !result.isEmpty());
     }
 
     /**
@@ -189,7 +186,7 @@ public interface Repository {
     default CompletableFuture<Entry<?>> getOrNull(Revision revision, String path) {
         validateFilePath(path, "path");
 
-        return find(revision, path, GET_FIND_OPTIONS).thenApply(findResult -> findResult.get(path));
+        return find(revision, path, FIND_ONE_WITH_CONTENT).thenApply(findResult -> findResult.get(path));
     }
 
     /**
@@ -201,25 +198,19 @@ public interface Repository {
      * @see #get(Revision, Query)
      */
     default <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query) {
-
         requireNonNull(query, "query");
         requireNonNull(revision, "revision");
 
-        return getOrNull(revision, query.path()).thenApply(entry -> {
-            if (entry == null) {
+        return getOrNull(revision, query.path()).thenApply(result -> {
+            if (result == null) {
                 return null;
             }
 
-            final EntryType entryType = entry.type();
-
-            if (!query.type().supportedEntryTypes().contains(entryType)) {
-                throw new QueryExecutionException("unsupported entry type: " + entryType);
-            }
-
             @SuppressWarnings("unchecked")
-            final T entryContent = (T) entry.content();
+            final Entry<T> entry = (Entry<T>) result;
+
             try {
-                return Entry.of(entry.revision(), query.path(), entryType, query.apply(entryContent));
+                return entry.applyQuery(query);
             } catch (CentralDogmaException e) {
                 throw e;
             } catch (Exception e) {
@@ -442,13 +433,13 @@ public interface Repository {
         requireNonNull(revision, "revision");
         requireNonNull(query, "query");
 
-        final List<MergeSource> paths = query.mergeSources();
+        final List<MergeSource> mergeSources = query.mergeSources();
         // Only JSON files can currently be merged.
-        paths.forEach(path -> validateJsonFilePath(path.path(), "path"));
+        mergeSources.forEach(path -> validateJsonFilePath(path.path(), "path"));
 
         final Revision normalizedRevision = normalizeNow(revision);
-        final List<CompletableFuture<Entry<?>>> entryFutures = new ArrayList<>(Iterables.size(paths));
-        paths.forEach(path -> {
+        final List<CompletableFuture<Entry<?>>> entryFutures = new ArrayList<>(mergeSources.size());
+        mergeSources.forEach(path -> {
             if (!path.isOptional()) {
                 entryFutures.add(get(normalizedRevision, path.path()));
             } else {
@@ -456,40 +447,18 @@ public interface Repository {
             }
         });
 
-        final CompletableFuture<MergedEntry<JsonNode>> future = new CompletableFuture<>();
-        CompletableFutures.allAsList(entryFutures).handle((entries, cause) -> {
+        final CompletableFuture<MergedEntry<?>> mergedEntryFuture = mergeEntries(entryFutures, revision,
+                                                                                 query);
+        final CompletableFuture<MergedEntry<T>> future = new CompletableFuture<>();
+        mergedEntryFuture.handle((mergedEntry, cause) -> {
             if (cause != null) {
-                future.completeExceptionally(cause);
-            }
-
-            final Builder<JsonNode> builder = ImmutableList.builder();
-            for (Entry<?> entry : entries) {
-                if (entry == null) {
-                    continue;
-                }
-                try {
-                    builder.add(entry.contentAsJson());
-                } catch (JsonParseException e) {
-                    future.completeExceptionally(e);
-                    return null;
-                }
-            }
-
-            JsonNode result;
-            try {
-                result = Jackson.mergeTree(builder.build());
-                final List<String> expressions = query.expressions();
-                if (!expressions.isEmpty()) {
-                    result = Jackson.extractTree(result, expressions);
-                }
-            } catch (Exception e) {
-                future.completeExceptionally(e);
+                completeQueryExecutionException(future, cause);
                 return null;
             }
-
-            future.complete(MergedEntry.of(normalizedRevision, EntryType.JSON, result));
+            future.complete(unsafeCast(mergedEntry));
             return null;
         });
-        return unsafeCast(future);
+
+        return future;
     }
 }

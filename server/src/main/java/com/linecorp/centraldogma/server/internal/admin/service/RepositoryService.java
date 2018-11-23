@@ -16,10 +16,10 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ALL_WITH_CONTENT;
 import static java.util.stream.Collectors.toList;
 
 import java.io.IOException;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -64,7 +64,6 @@ import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**
@@ -72,8 +71,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
  */
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class RepositoryService extends AbstractService {
-
-    private static final Map<FindOption<?>, Object> LIST_FILES_FIND_OPTIONS = new IdentityHashMap<>();
 
     private static final Object VOID = new Object();
 
@@ -202,7 +199,7 @@ public class RepositoryService extends AbstractService {
                                                   @Param("revision") String revision,
                                                   @Param("term") String term) {
         return projectManager().get(projectName).repos().get(repoName)
-                               .find(new Revision(revision), normalizeSearchTerm(term), LIST_FILES_FIND_OPTIONS)
+                               .find(new Revision(revision), normalizeSearchTerm(term), FIND_ALL_WITH_CONTENT)
                                .thenApply(entries -> entries.values().stream()
                                                             .map(DtoConverter::convert)
                                                             .collect(toList()));

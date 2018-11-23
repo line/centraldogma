@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.thrift;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.isReservedRepoName;
-import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.spotify.futures.CompletableFutures.allAsList;
 import static java.util.Objects.requireNonNull;
@@ -209,7 +209,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                           AsyncMethodCallback resultHandler) {
 
         handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .find(convert(revision), pathPattern, NO_FETCH_CONTENT)
+                             .find(convert(revision), pathPattern, FIND_ALL_WITHOUT_CONTENT)
                              .thenApply(entries -> {
                                  final List<Entry> ret = new ArrayList<>(entries.size());
                                  entries.forEach((path, entry) -> ret.add(

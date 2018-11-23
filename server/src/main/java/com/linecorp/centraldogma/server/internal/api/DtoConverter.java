@@ -110,7 +110,8 @@ final class DtoConverter {
 
     public static <T> MergedEntryDto<T> convert(MergedEntry<T> mergedEntry) {
         requireNonNull(mergedEntry, "mergedEntry");
-        return new MergedEntryDto<>(mergedEntry.revision(), mergedEntry.type(), mergedEntry.content());
+        return new MergedEntryDto<>(mergedEntry.revision(), mergedEntry.type(),
+                                    mergedEntry.content(), mergedEntry.paths());
     }
 
     private DtoConverter() {}
