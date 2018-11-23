@@ -19,36 +19,28 @@ import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
 
-import org.apache.shiro.session.mgt.SimpleSession;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.support.shiro.SimpleSessionJsonDeserializer;
-import com.linecorp.centraldogma.server.support.shiro.SimpleSessionJsonSerializer;
+import com.linecorp.centraldogma.server.auth.Session;
 
 public final class CreateSessionCommand extends SessionCommand {
 
-    private final SimpleSession session;
+    private final Session session;
 
     @JsonCreator
     CreateSessionCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
                          @JsonProperty("author") @Nullable Author author,
-                         @JsonProperty("session")
-                         @JsonDeserialize(using = SimpleSessionJsonDeserializer.class)
-                         SimpleSession session) {
+                         @JsonProperty("session") Session session) {
 
         super(CommandType.CREATE_SESSION, timestamp, author);
         this.session = requireNonNull(session, "session");
     }
 
     @JsonProperty("session")
-    @JsonSerialize(using = SimpleSessionJsonSerializer.class)
-    public SimpleSession session() {
+    public Session session() {
         return session;
     }
 

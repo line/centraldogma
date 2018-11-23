@@ -22,7 +22,6 @@ import javax.annotation.Nullable;
 import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
 import org.apache.commons.daemon.DaemonController;
-import org.apache.shiro.config.Ini;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,11 +61,6 @@ public final class Main implements Daemon {
     @Parameter(names = "-config", description = "The path to the config file", converter = FileConverter.class)
     private File configFile;
 
-    @Nullable
-    @Parameter(names = "-securityConfig", description = "The path to the security config file",
-            converter = FileConverter.class)
-    private File securityConfigFile;
-
     /**
      * Note that {@link Boolean} was used in lieu of {@code boolean} so that JCommander does not print the
      * default value of this option.
@@ -104,26 +98,23 @@ public final class Main implements Daemon {
     @Override
     public synchronized void start() throws Exception {
         switch (state) {
-        case NONE:
-            throw new IllegalStateException("not initialized");
-        case STARTED:
-            throw new IllegalStateException("started already");
-        case DESTROYED:
-            throw new IllegalStateException("can't start after destruction");
-        default:
-            break;
+            case NONE:
+                throw new IllegalStateException("not initialized");
+            case STARTED:
+                throw new IllegalStateException("started already");
+            case DESTROYED:
+                throw new IllegalStateException("can't start after destruction");
+            default:
+                break;
         }
 
         final File configFile = findConfigFile(this.configFile, DEFAULT_CONFIG_FILE);
-        final File securityConfigFile = findConfigFile(this.securityConfigFile, DEFAULT_SECURITY_CONFIG_FILE);
-        final Ini securityConfig =
-                securityConfigFile != null ? Ini.fromResourcePath(securityConfigFile.getPath()) : null;
 
         final CentralDogma dogma;
         if (configFile == null) {
             dogma = new CentralDogmaBuilder(DEFAULT_DATA_DIR).build();
         } else {
-            dogma = CentralDogma.forConfig(configFile, securityConfig);
+            dogma = CentralDogma.forConfig(configFile);
         }
 
         dogma.start().get();
@@ -152,12 +143,12 @@ public final class Main implements Daemon {
     @Override
     public synchronized void stop() throws Exception {
         switch (state) {
-        case NONE:
-        case INITIALIZED:
-        case STOPPED:
-            return;
-        case DESTROYED:
-            throw new IllegalStateException("can't stop after destruction");
+            case NONE:
+            case INITIALIZED:
+            case STOPPED:
+                return;
+            case DESTROYED:
+                throw new IllegalStateException("can't stop after destruction");
         }
 
         final CentralDogma dogma = this.dogma;
@@ -171,12 +162,12 @@ public final class Main implements Daemon {
     @Override
     public void destroy() {
         switch (state) {
-        case NONE:
-            return;
-        case STARTED:
-            throw new IllegalStateException("can't destroy while running");
-        case DESTROYED:
-            return;
+            case NONE:
+                return;
+            case STARTED:
+                throw new IllegalStateException("can't destroy while running");
+            case DESTROYED:
+                return;
         }
 
         // Nothing to do at the moment.

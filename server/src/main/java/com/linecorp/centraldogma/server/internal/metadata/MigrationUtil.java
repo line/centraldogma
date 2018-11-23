@@ -45,7 +45,7 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.admin.authentication.LegacyToken;
+import com.linecorp.centraldogma.server.internal.admin.auth.LegacyToken;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;

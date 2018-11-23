@@ -22,8 +22,6 @@ import java.util.Arrays;
 
 import javax.annotation.Nullable;
 
-import org.apache.shiro.session.mgt.SimpleSession;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
@@ -34,6 +32,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.auth.Session;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
@@ -194,7 +193,7 @@ public interface Command<T> {
         return new RemovePluginCommand(timestamp, author, projectName, pluginName);
     }
 
-    static Command<Void> createSession(SimpleSession session) {
+    static Command<Void> createSession(Session session) {
         return new CreateSessionCommand(null, null, session);
     }
 

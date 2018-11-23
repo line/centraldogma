@@ -43,8 +43,8 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.admin.authentication.LegacyToken;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.auth.LegacyToken;
+import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.CreateProjectCommand;
@@ -62,7 +62,7 @@ public class MigrationUtilTest {
         protected CommandExecutor newCommandExecutor(ProjectManager projectManager,
                                                      Executor worker) {
             return new LegacyProjectInitializingCommandExecutor(
-                    new StandaloneCommandExecutor(projectManager, null, worker, null, null));
+                    new StandaloneCommandExecutor(projectManager, worker, null, null, null));
         }
     };
 

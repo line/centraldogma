@@ -24,7 +24,7 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 
 /**

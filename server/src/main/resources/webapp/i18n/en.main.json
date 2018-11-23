@@ -14,7 +14,6 @@
   },
 
   "login": {
-    "auth_failed": "<strong>Authentication failed!</strong> Please check your credentials and try again.",
     "button_login": "Log in",
     "button_cancel": "Cancel",
     "logged_in": "Welcome to Central Dogma, {{username}}.",

@@ -16,6 +16,8 @@ includeWithFlags ':client:java-spring-boot1-starter',       'java', 'publish', '
 includeWithFlags ':common',                                 'java', 'publish', 'shade', 'trim'
 includeWithFlags ':common-legacy',                          'java', 'publish', 'relocate'
 includeWithFlags ':server',                                 'java', 'publish', 'relocate'
+includeWithFlags ':server-auth:saml',                       'java', 'publish', 'relocate'
+includeWithFlags ':server-auth:shiro',                      'java', 'publish', 'relocate'
 includeWithFlags ':testing',                                'java', 'publish', 'relocate'
 
 // Command line interface
@@ -24,6 +26,9 @@ include ':cli'
 // Unpublished Java projects
 includeWithFlags ':it',               'java', 'relocate'
 includeWithFlags ':testing-internal', 'java', 'relocate'
+
+// Unpublished non-Java projects
+includeWithFlags ':server-auth:webapp'
 
 // Site generation project
 includeWithFlags ':site'

@@ -21,12 +21,6 @@
             <span translate>navbar.home</span>
           </a>
         </li>
-        <li ng-switch-when="false" ng-show="$root.isSecurityEnabled">
-          <a href="" ng-click="$root.showLoginDialog()">
-            <span class="glyphicon glyphicon-log-in"></span>&#xA0;
-            <span translate>navbar.login</span>
-          </a>
-        </li>
         <li class="dropdown pointer" ng-show="$root.user && $root.isSecurityEnabled">
           <a href="" class="dropdown-toggle" data-toggle="dropdown">
             <span>
@@ -40,7 +34,7 @@
               <a ui-sref="tokens"><span translate>navbar.tokens</span></a>
             </li>
             <li ui-sref-active="active" ng-switch-when="true">
-              <a href="" ng-click="logout()">
+              <a href="/link/auth/logout">
                 <span class="glyphicon glyphicon-log-out"></span>&#xA0;
                 <span translate>navbar.logout</span>
               </a>

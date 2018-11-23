@@ -1,0 +1,130 @@
+/*
+ * Copyright 2017 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+
+package com.linecorp.centraldogma.server.internal.admin.auth;
+
+import static java.util.Objects.requireNonNull;
+
+import java.text.ParseException;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+
+import javax.annotation.Nullable;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
+
+import com.linecorp.centraldogma.server.internal.metadata.Token;
+
+/**
+ * Specifies details of an application token.
+ *
+ * @deprecated Use {@link Token}.
+ */
+@Deprecated
+@JsonInclude(Include.NON_NULL)
+public final class LegacyToken {
+
+    public static final LegacyToken EMPTY_TOKEN =
+            new LegacyToken(null, null, null, null, null);
+
+    @Nullable
+    private final String appId;
+    @Nullable
+    private final String secret;
+    @Nullable
+    private final User creator;
+    @Nullable
+    private final Instant creationTime;
+    @Nullable
+    private String creationTimeAsText;
+
+    @JsonCreator
+    public LegacyToken(@JsonProperty("appId") String appId,
+                       @JsonProperty("secret") String secret,
+                       @JsonProperty("creator") User creator,
+                       @JsonProperty("creationTime") String creationTimeAsText) throws ParseException {
+        this(requireNonNull(appId, "appId"),
+             requireNonNull(secret, "secret"),
+             requireNonNull(creator, "creator"),
+             Instant.from(DateTimeFormatter.ISO_INSTANT.parse(
+                     requireNonNull(creationTimeAsText, "creationTimeAsText"))),
+             creationTimeAsText);
+    }
+
+    public LegacyToken(String appId, String secret, User creator, Instant creationTime) {
+        this(requireNonNull(appId, "appId"),
+             requireNonNull(secret, "secret"),
+             requireNonNull(creator, "creator"),
+             requireNonNull(creationTime, "creationTime"),
+             null);
+    }
+
+    private LegacyToken(@Nullable String appId, @Nullable String secret, @Nullable User creator,
+                        @Nullable Instant creationTime, @Nullable String creationTimeAsText) {
+        this.appId = appId;
+        this.secret = secret;
+        this.creator = creator;
+        this.creationTime = creationTime;
+        this.creationTimeAsText = creationTimeAsText;
+    }
+
+    @Nullable
+    @JsonProperty
+    public String appId() {
+        return appId;
+    }
+
+    @Nullable
+    @JsonProperty
+    public String secret() {
+        return secret;
+    }
+
+    @Nullable
+    @JsonProperty
+    public User creator() {
+        return creator;
+    }
+
+    @Nullable
+    @JsonProperty
+    public String creationTime() {
+        if (creationTimeAsText == null && creationTime != null) {
+            creationTimeAsText = DateTimeFormatter.ISO_INSTANT.format(creationTime);
+        }
+        return creationTimeAsText;
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("appId", appId())
+                          .add("creator", creator())
+                          .add("creationTime", creationTime())
+                          .toString();
+    }
+
+    /**
+     * Returns a new {@link LegacyToken} instance without its secret.
+     */
+    public LegacyToken withoutSecret() {
+        return new LegacyToken(appId, null, creator, creationTime, creationTimeAsText);
+    }
+}

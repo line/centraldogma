@@ -110,7 +110,7 @@ public class ProjectManagerRule extends TemporaryFolder {
      * Override this method to customize a {@link CommandExecutor}.
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker) {
-        return new StandaloneCommandExecutor(projectManager, null, worker, null, null);
+        return new StandaloneCommandExecutor(projectManager, worker, null, null, null);
     }
 
     /**

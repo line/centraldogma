@@ -11,6 +11,9 @@ dependencies {
     // DiffUtils
     compile 'com.googlecode.java-diff-utils:diffutils'
 
+    // Jackson JSR310
+    compile 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
     // Guava
     compile 'com.google.guava:guava'
 

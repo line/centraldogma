@@ -23,8 +23,6 @@ import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_N
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_SESSION_CACHE_SPEC;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
@@ -33,7 +31,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -57,10 +54,11 @@ import com.google.common.collect.ImmutableSet;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.auth.AuthConfig;
 
 import io.netty.util.NetUtil;
 
-final class CentralDogmaConfig {
+public final class CentralDogmaConfig {
 
     private final File dataDir;
 
@@ -84,11 +82,9 @@ final class CentralDogmaConfig {
 
     // Cache
     private final String repositoryCacheSpec;
-    private final String sessionCacheSpec;
 
     // Web dashboard
     private final boolean webAppEnabled;
-    private final long webAppSessionTimeoutMillis;
 
     // Mirroring
     private final boolean mirroringEnabled;
@@ -104,47 +100,39 @@ final class CentralDogmaConfig {
     private final ReplicationConfig replicationConfig;
 
     // Security
-    private final boolean securityEnabled;
     private final boolean csrfTokenRequiredForThrift;
 
     // Access log
     @Nullable
     private final String accessLogFormat;
 
-    // Administrator
-    private final Set<String> administrators;
+    @Nullable
+    private final AuthConfig authConfig;
 
-    // Whether case-sensitive matching is performed when login names are compared
-    private final boolean caseSensitiveLoginNames;
-
-    CentralDogmaConfig(@JsonProperty(value = "dataDir", required = true) File dataDir,
-                       @JsonProperty(value = "ports", required = true)
-                       @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
-                               List<ServerPort> ports,
-                       @JsonProperty("tls") @Nullable TlsConfig tls,
-                       @JsonProperty("numWorkers") @Nullable Integer numWorkers,
-                       @JsonProperty("maxNumConnections") @Nullable Integer maxNumConnections,
-                       @JsonProperty("requestTimeoutMillis") @Nullable Long requestTimeoutMillis,
-                       @JsonProperty("idleTimeoutMillis") @Nullable Long idleTimeoutMillis,
-                       @JsonProperty("maxFrameLength") @Nullable Integer maxFrameLength,
-                       @JsonProperty("numRepositoryWorkers") @Nullable Integer numRepositoryWorkers,
-                       @JsonProperty("cacheSpec") @Nullable String cacheSpec, // for backward compatibility
-                       @JsonProperty("repositoryCacheSpec") @Nullable String repositoryCacheSpec,
-                       @JsonProperty("sessionCacheSpec") @Nullable String sessionCacheSpec,
-                       @JsonProperty("gracefulShutdownTimeout") @Nullable
-                               GracefulShutdownTimeout gracefulShutdownTimeout,
-                       @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
-                       @JsonProperty("webAppSessionTimeoutMillis") @Nullable Long webAppSessionTimeoutMillis,
-                       @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
-                       @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
-                       @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
-                       @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
-                       @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
-                       @JsonProperty("securityEnabled") @Nullable Boolean securityEnabled,
-                       @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
-                       @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
-                       @JsonProperty("administrators") @Nullable Set<String> administrators,
-                       @JsonProperty("caseSensitiveLoginNames") @Nullable Boolean caseSensitiveLoginNames) {
+    CentralDogmaConfig(
+            @JsonProperty(value = "dataDir", required = true) File dataDir,
+            @JsonProperty(value = "ports", required = true)
+            @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
+                    List<ServerPort> ports,
+            @JsonProperty("tls") @Nullable TlsConfig tls,
+            @JsonProperty("numWorkers") @Nullable Integer numWorkers,
+            @JsonProperty("maxNumConnections") @Nullable Integer maxNumConnections,
+            @JsonProperty("requestTimeoutMillis") @Nullable Long requestTimeoutMillis,
+            @JsonProperty("idleTimeoutMillis") @Nullable Long idleTimeoutMillis,
+            @JsonProperty("maxFrameLength") @Nullable Integer maxFrameLength,
+            @JsonProperty("numRepositoryWorkers") @Nullable Integer numRepositoryWorkers,
+            @JsonProperty("repositoryCacheSpec") @Nullable String repositoryCacheSpec,
+            @JsonProperty("gracefulShutdownTimeout") @Nullable
+                    GracefulShutdownTimeout gracefulShutdownTimeout,
+            @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
+            @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
+            @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
+            @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
+            @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
+            @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
+            @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
+            @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
+            @JsonProperty("authentication") @Nullable AuthConfig authConfig) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -159,20 +147,9 @@ final class CentralDogmaConfig {
         this.numRepositoryWorkers = firstNonNull(numRepositoryWorkers, DEFAULT_NUM_REPOSITORY_WORKERS);
         checkArgument(this.numRepositoryWorkers > 0,
                       "numRepositoryWorkers: %s (expected: > 0)", this.numRepositoryWorkers);
-
-        if (repositoryCacheSpec != null) {
-            this.repositoryCacheSpec = validateCacheSpec(repositoryCacheSpec);
-        } else {
-            this.repositoryCacheSpec = validateCacheSpec(
-                    firstNonNull(cacheSpec, DEFAULT_REPOSITORY_CACHE_SPEC));
-        }
-
-        this.sessionCacheSpec = validateCacheSpec(firstNonNull(sessionCacheSpec, DEFAULT_SESSION_CACHE_SPEC));
+        this.repositoryCacheSpec = validateCacheSpec(
+                firstNonNull(repositoryCacheSpec, DEFAULT_REPOSITORY_CACHE_SPEC));
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
-        this.webAppSessionTimeoutMillis = firstNonNull(webAppSessionTimeoutMillis,
-                                                       DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS);
-        checkArgument(this.webAppSessionTimeoutMillis > 0,
-                      "webAppSessionTimeoutMillis: %s (expected: > 0)", this.webAppSessionTimeoutMillis);
         this.mirroringEnabled = firstNonNull(mirroringEnabled, true);
         this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
         checkArgument(this.numMirroringThreads > 0,
@@ -185,58 +162,56 @@ final class CentralDogmaConfig {
                       "maxNumBytesPerMirror: %s (expected: > 0)", this.maxNumBytesPerMirror);
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
         this.replicationConfig = firstNonNull(replicationConfig, ReplicationConfig.NONE);
-        this.securityEnabled = firstNonNull(securityEnabled, false);
         this.csrfTokenRequiredForThrift = firstNonNull(csrfTokenRequiredForThrift, true);
         this.accessLogFormat = accessLogFormat;
-        this.administrators = administrators != null ? ImmutableSet.copyOf(administrators)
-                                                     : ImmutableSet.of();
-        this.caseSensitiveLoginNames = firstNonNull(caseSensitiveLoginNames, false);
+
+        this.authConfig = authConfig;
     }
 
     @JsonProperty
-    File dataDir() {
+    public File dataDir() {
         return dataDir;
     }
 
     @JsonProperty
     @JsonSerialize(contentUsing = ServerPortSerializer.class)
-    List<ServerPort> ports() {
+    public List<ServerPort> ports() {
         return ports;
     }
 
     @Nullable
     @JsonProperty
-    TlsConfig tls() {
+    public TlsConfig tls() {
         return tls;
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Integer> numWorkers() {
+    public Optional<Integer> numWorkers() {
         return Optional.ofNullable(numWorkers);
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Integer> maxNumConnections() {
+    public Optional<Integer> maxNumConnections() {
         return Optional.ofNullable(maxNumConnections);
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Long> requestTimeoutMillis() {
+    public Optional<Long> requestTimeoutMillis() {
         return Optional.ofNullable(requestTimeoutMillis);
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Long> idleTimeoutMillis() {
+    public Optional<Long> idleTimeoutMillis() {
         return Optional.ofNullable(idleTimeoutMillis);
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Integer> maxFrameLength() {
+    public Optional<Integer> maxFrameLength() {
         return Optional.ofNullable(maxFrameLength);
     }
 
@@ -252,85 +227,66 @@ final class CentralDogmaConfig {
      */
     @JsonProperty
     @Deprecated
-    String cacheSpec() {
+    public String cacheSpec() {
         return repositoryCacheSpec;
     }
 
     @JsonProperty
-    String repositoryCacheSpec() {
+    public String repositoryCacheSpec() {
         return repositoryCacheSpec;
-    }
-
-    @JsonProperty
-    String sessionCacheSpec() {
-        return sessionCacheSpec;
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<GracefulShutdownTimeout> gracefulShutdownTimeout() {
+    public Optional<GracefulShutdownTimeout> gracefulShutdownTimeout() {
         return Optional.ofNullable(gracefulShutdownTimeout);
     }
 
     @JsonProperty
-    boolean isWebAppEnabled() {
+    public boolean isWebAppEnabled() {
         return webAppEnabled;
     }
 
     @JsonProperty
-    long webAppSessionTimeoutMillis() {
-        return webAppSessionTimeoutMillis;
-    }
-
-    @JsonProperty
-    boolean isMirroringEnabled() {
+    public boolean isMirroringEnabled() {
         return mirroringEnabled;
     }
 
     @JsonProperty
-    int numMirroringThreads() {
+    public int numMirroringThreads() {
         return numMirroringThreads;
     }
 
     @JsonProperty
-    int maxNumFilesPerMirror() {
+    public int maxNumFilesPerMirror() {
         return maxNumFilesPerMirror;
     }
 
     @JsonProperty
-    long maxNumBytesPerMirror() {
+    public long maxNumBytesPerMirror() {
         return maxNumBytesPerMirror;
     }
 
     @JsonProperty("replication")
-    ReplicationConfig replicationConfig() {
+    public ReplicationConfig replicationConfig() {
         return replicationConfig;
     }
 
     @JsonProperty
-    boolean isSecurityEnabled() {
-        return securityEnabled;
-    }
-
-    @JsonProperty
-    boolean isCsrfTokenRequiredForThrift() {
+    public boolean isCsrfTokenRequiredForThrift() {
         return csrfTokenRequiredForThrift;
     }
 
     @JsonProperty
     @Nullable
-    String accessLogFormat() {
+    public String accessLogFormat() {
         return accessLogFormat;
     }
 
-    @JsonProperty
-    Set<String> administrators() {
-        return administrators;
-    }
-
-    @JsonProperty
-    boolean caseSensitiveLoginNames() {
-        return caseSensitiveLoginNames;
+    @Nullable
+    @JsonProperty("authentication")
+    public AuthConfig authConfig() {
+        return authConfig;
     }
 
     @Override

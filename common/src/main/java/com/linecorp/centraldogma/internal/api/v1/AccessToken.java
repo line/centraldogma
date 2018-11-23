@@ -19,22 +19,35 @@ package com.linecorp.centraldogma.internal.api.v1;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Ascii;
 import com.google.common.base.MoreObjects;
 
+/**
+ * An OAuth 2.0 access token.
+ *
+ * @see <a href="https://tools.ietf.org/html/rfc6749#section-4.2.2">Access Token Response</a>
+ */
 public class AccessToken {
 
     private static final String BEARER = "Bearer";
 
     private final String accessToken;
 
+    /**
+     * The lifetime in seconds of the access token. For example, the value "3600" denotes that the access
+     * token will expire in one hour from the time the response was generated. If omitted, the authorization
+     * server SHOULD provide the expiration time via other means or document the default value.
+     */
     private final long expiresIn;
 
     private final String refreshToken;
 
-    private final long deadline;
+    private final Instant deadline;
 
     //TODO(minwoox) Add scope if needed.
 
@@ -53,7 +66,8 @@ public class AccessToken {
         this.accessToken = requireNonNull(accessToken, "accessToken");
         this.expiresIn = expiresIn;
         this.refreshToken = requireNonNull(refreshToken, "refreshToken");
-        deadline = System.currentTimeMillis() + expiresIn;
+
+        deadline = Instant.now().plus(expiresIn, ChronoUnit.SECONDS);
     }
 
     @JsonProperty("access_token")
@@ -76,7 +90,7 @@ public class AccessToken {
         return refreshToken;
     }
 
-    public long deadline() {
+    public Instant deadline() {
         return deadline;
     }
 

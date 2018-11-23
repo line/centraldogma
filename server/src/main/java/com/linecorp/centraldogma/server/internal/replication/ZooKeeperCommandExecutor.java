@@ -84,8 +84,8 @@ import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
-                                            implements PathChildrenCacheListener {
+public final class ZooKeeperCommandExecutor
+        extends AbstractCommandExecutor implements PathChildrenCacheListener {
 
     private static final Logger logger = LoggerFactory.getLogger(ZooKeeperCommandExecutor.class);
     private static final Escaper jaasValueEscaper =
@@ -558,10 +558,9 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
                 if (log.isPresent()) {
                     final ReplicationLog<?> l = log.get();
-                    final int originatingReplicaId = l.replicaId();
                     final Command<?> command = l.command();
                     final Object expectedResult = l.result();
-                    final Object actualResult = delegate.execute(originatingReplicaId, command).get();
+                    final Object actualResult = delegate.execute(command).get();
 
                     if (!Objects.equals(expectedResult, actualResult)) {
                         throw new ReplicationException(
@@ -787,11 +786,11 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
 
     // Ensure that all logs are replayed, any other logs can not be added before end of this function.
     @Override
-    protected <T> CompletableFuture<T> doExecute(int replicaId, Command<T> command) throws Exception {
+    protected <T> CompletableFuture<T> doExecute(Command<T> command) throws Exception {
         final CompletableFuture<T> future = new CompletableFuture<>();
         executor.execute(() -> {
             try {
-                future.complete(blockingExecute(replicaId, command));
+                future.complete(blockingExecute(command));
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             }
@@ -799,7 +798,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
         return future;
     }
 
-    private <T> T blockingExecute(int replicaId, Command<T> command) throws Exception {
+    private <T> T blockingExecute(Command<T> command) throws Exception {
         createParentNodes();
 
         try (SafeLock ignored = safeLock(command.executionPath())) {
@@ -816,7 +815,7 @@ public final class ZooKeeperCommandExecutor extends AbstractCommandExecutor
                 replayLogs(lastRevision);
             }
 
-            final T result = delegate.execute(replicaId, command).get();
+            final T result = delegate.execute(command).get();
             final ReplicationLog<T> log = new ReplicationLog<>(replicaId(), command, result);
 
             // Store the command execution log to ZooKeeper.

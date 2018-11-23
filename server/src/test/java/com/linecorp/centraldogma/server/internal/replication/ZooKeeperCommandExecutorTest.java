@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +34,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -99,9 +101,13 @@ public class ZooKeeperCommandExecutorTest {
             assertThat(commandResult2.get().command()).isEqualTo(command1);
             assertThat(commandResult2.get().result()).isNull();
 
-            verify(replica1.delegate, timeout(5000).times(1)).apply(eq(command1));
-            verify(replica2.delegate, timeout(5000).times(1)).apply(eq(command1));
-            verify(replica3.delegate, timeout(5000).times(1)).apply(eq(command1));
+            await().untilAsserted(() -> verify(replica1.delegate).apply(eq(command1)));
+            await().untilAsserted(() -> verify(replica2.delegate).apply(eq(command1)));
+            await().untilAsserted(() -> verify(replica3.delegate).apply(eq(command1)));
+
+            await().until(replica1::existsLocalRevision);
+            await().until(replica2::existsLocalRevision);
+            await().until(replica3::existsLocalRevision);
 
             assertThat(replica1.localRevision()).isEqualTo(0L);
             assertThat(replica2.localRevision()).isEqualTo(0L);
@@ -112,9 +118,9 @@ public class ZooKeeperCommandExecutorTest {
 
             final Command<?> command2 = Command.createProject(Author.SYSTEM, "foo");
             replica1.rm.execute(command2).join();
-            verify(replica1.delegate, timeout(5000).times(1)).apply(eq(command2));
-            verify(replica2.delegate, timeout(5000).times(1)).apply(eq(command2));
-            verify(replica3.delegate, timeout(5000).times(0)).apply(eq(command2));
+            await().untilAsserted(() -> verify(replica1.delegate).apply(eq(command2)));
+            await().untilAsserted(() -> verify(replica2.delegate).apply(eq(command2)));
+            await().untilAsserted(() -> verify(replica3.delegate, times(0)).apply(eq(command2)));
 
             // Start the 3rd replica back again and check if it catches up.
             replica3.rm.start().join();
@@ -309,6 +315,7 @@ public class ZooKeeperCommandExecutorTest {
         Replica(InstanceSpec spec, Map<Integer, ZooKeeperAddress> servers,
                 Function<Command<?>, CompletableFuture<?>> delegate, boolean start) throws Exception {
             this.delegate = delegate;
+
             dataDir = spec.getDataDirectory();
 
             final int id = spec.getServerId();
@@ -329,7 +336,7 @@ public class ZooKeeperCommandExecutorTest {
 
                 @Override
                 @SuppressWarnings("unchecked")
-                protected <T> CompletableFuture<T> doExecute(int replicaId, Command<T> command) {
+                protected <T> CompletableFuture<T> doExecute(Command<T> command) {
                     return (CompletableFuture<T>) delegate.apply(command);
                 }
             }, null, null);
@@ -349,6 +356,10 @@ public class ZooKeeperCommandExecutorTest {
                     return Long.parseLong(br.readLine());
                 }
             }, Objects::nonNull);
+        }
+
+        boolean existsLocalRevision() {
+            return Files.isReadable(new File(dataDir, "last_revision").toPath());
         }
     }
 }

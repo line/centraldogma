@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.api.auth;
 
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.centraldogma.server.internal.admin.authentication.User;
+import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
 
 /**

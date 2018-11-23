@@ -16,42 +16,66 @@
 
 package com.linecorp.centraldogma.server.internal.command;
 
-import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 
-import java.util.Date;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 
-import org.apache.shiro.session.mgt.SimpleSession;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.auth.Session;
 
 public class CreateSessionCommandTest {
 
-    private static final SimpleSession EMPTY_SESSION = new SimpleSession();
+    @Test
+    public void testJsonConversion() throws Exception {
+        final Session session =
+                new Session("session-id-12345",
+                            "foo",
+                            Instant.EPOCH,
+                            Instant.EPOCH.plus(1, ChronoUnit.MINUTES),
+                            "abc");
 
-    static {
-        final Date epoch = new Date(0);
-        EMPTY_SESSION.setStartTimestamp(epoch);
-        EMPTY_SESSION.setLastAccessTime(epoch);
+        // Convert the object with Jackson because a serializer and deserializer for Instant type are
+        // added to Jackson.
+        final JsonNode node = Jackson.valueToTree(
+                new CreateSessionCommand(1234L,
+                                         new Author("foo", "bar@baz.com"),
+                                         session));
+
+        final String expectedRawSession = toSerializedBase64("abc");
+        assertThatJson(node)
+                .withTolerance(0.000000001)
+                .isEqualTo(
+                        '{' +
+                        "  \"type\": \"CREATE_SESSIONS\"," +
+                        "  \"timestamp\": 1234," +
+                        "  \"author\": {" +
+                        "    \"name\": \"foo\"," +
+                        "    \"email\": \"bar@baz.com\"" +
+                        "  }," +
+                        "  \"session\": {\n" +
+                        "    \"id\": \"session-id-12345\"," +
+                        "    \"username\": \"foo\"," +
+                        "    \"creationTime\": 0," +
+                        "    \"expirationTime\": 60," +
+                        "    \"rawSession\": \"" + expectedRawSession + '"' +
+                        "  }" +
+                        '}');
     }
 
-    private static final String ENCODED_EMPTY_SESSION =
-            "rO0ABXNyACpvcmcuYXBhY2hlLnNoaXJvLnNlc3Npb24ubWd0LlNpbXBsZVNlc3Npb26dHKG41YxibgMAAHhw" +
-            "dwIAGnNyAA5qYXZhLnV0aWwuRGF0ZWhqgQFLWXQZAwAAeHB3CAAAAAAAAAAAeHEAfgADdwgAAAAAABt3QHg=";
-
-    @Test
-    public void testJsonConversion() {
-        assertJsonConversion(
-                new CreateSessionCommand(1234L, new Author("foo", "bar@baz.com"), EMPTY_SESSION),
-                Command.class,
-                '{' +
-                "  \"type\": \"CREATE_SESSIONS\"," +
-                "  \"timestamp\": 1234," +
-                "  \"author\": {" +
-                "    \"name\": \"foo\"," +
-                "    \"email\": \"bar@baz.com\"" +
-                "  }," +
-                "  \"session\": \"" + ENCODED_EMPTY_SESSION + '"' +
-                '}');
+    private static String toSerializedBase64(Object object) throws Exception {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(object);
+            return Base64.getEncoder().encodeToString(baos.toByteArray());
+        }
     }
 }

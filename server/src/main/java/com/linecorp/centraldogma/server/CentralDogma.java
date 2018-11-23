@@ -16,11 +16,17 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.BUILTIN_WEB_BASE_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_PATH_MAPPINGS;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_PATH_MAPPINGS;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_PATH;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
-import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -44,15 +50,12 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import org.apache.shiro.config.Ini;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
-import com.google.common.base.Ascii;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
@@ -64,12 +67,14 @@ import com.linecorp.armeria.common.util.EventLoopGroups;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.armeria.server.AbstractHttpService;
+import com.linecorp.armeria.server.PathMapping;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.HttpAuthService;
+import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
 import com.linecorp.armeria.server.docs.DocServiceBuilder;
 import com.linecorp.armeria.server.encoding.HttpEncodingService;
 import com.linecorp.armeria.server.file.AbstractHttpVfs;
@@ -81,13 +86,18 @@ import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
-import com.linecorp.centraldogma.server.internal.admin.authentication.CentralDogmaSecurityManager;
-import com.linecorp.centraldogma.server.internal.admin.authentication.CsrfTokenAuthorizer;
-import com.linecorp.centraldogma.server.internal.admin.authentication.LoginService;
-import com.linecorp.centraldogma.server.internal.admin.authentication.LogoutService;
-import com.linecorp.centraldogma.server.internal.admin.authentication.SessionTokenAuthorizer;
+import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.auth.AuthProvider;
+import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
+import com.linecorp.centraldogma.server.internal.admin.auth.CachedSessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.auth.ExpiredSessionDeletingSessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.FileBasedSessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.OrElseDefaultHttpFileService;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionManager;
+import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
 import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
@@ -101,6 +111,7 @@ import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
+import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
@@ -133,24 +144,19 @@ public class CentralDogma implements AutoCloseable {
     }
 
     /**
-     * Creates a new instance from the given configuration file and security config.
+     * Creates a new instance from the given configuration file.
      *
      * @throws IOException if failed to load the configuration from the specified file
      */
-    public static CentralDogma forConfig(File configFile, @Nullable Ini securityConfig) throws IOException {
+    public static CentralDogma forConfig(File configFile) throws IOException {
         requireNonNull(configFile, "configFile");
-        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class),
-                                securityConfig);
+        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class));
     }
-
-    private final CentralDogmaConfig cfg;
-
-    @Nullable
-    private final Ini securityConfig;
 
     private final StartStopSupport<Void, Void> startStop = new CentralDogmaStartStop();
     private final AtomicInteger numPendingStopRequests = new AtomicInteger();
 
+    private final CentralDogmaConfig cfg;
     @Nullable
     private volatile ProjectManager pm;
     @Nullable
@@ -161,18 +167,20 @@ public class CentralDogma implements AutoCloseable {
     private CommandExecutor executor;
     @Nullable
     private DefaultMirroringService mirroringService;
+    @Nullable
+    private SessionManager sessionManager;
 
-    CentralDogma(CentralDogmaConfig cfg, @Nullable Ini securityConfig) {
+    CentralDogma(CentralDogmaConfig cfg) {
         this.cfg = requireNonNull(cfg, "cfg");
+    }
 
-        if (cfg.isSecurityEnabled()) {
-            requireNonNull(securityConfig, "securityConfig (must be non-null if securityEnabled is true)");
-            final Ini iniCopy = new Ini();
-            iniCopy.putAll(securityConfig);
-            this.securityConfig = iniCopy;
-        } else {
-            this.securityConfig = null;
-        }
+    /**
+     * Returns the configuration of the server.
+     *
+     * @return the {@link CentralDogmaConfig} instance which is used for configuring this {@link CentralDogma}.
+     */
+    public CentralDogmaConfig config() {
+        return cfg;
     }
 
     /**
@@ -243,14 +251,14 @@ public class CentralDogma implements AutoCloseable {
         startStop.close();
     }
 
-    private void doStart() {
+    private void doStart() throws Exception {
         boolean success = false;
         ThreadPoolExecutor repositoryWorker = null;
         ProjectManager pm = null;
         DefaultMirroringService mirroringService = null;
         CommandExecutor executor = null;
         Server server = null;
-        CentralDogmaSecurityManager securityManager = null;
+        SessionManager sessionManager = null;
         try {
             logger.info("Starting the Central Dogma ..");
             repositoryWorker = new ThreadPoolExecutor(
@@ -271,18 +279,13 @@ public class CentralDogma implements AutoCloseable {
                                                            cfg.numMirroringThreads(),
                                                            cfg.maxNumFilesPerMirror(),
                                                            cfg.maxNumBytesPerMirror());
-
-            if (cfg.isSecurityEnabled()) {
-                assert securityConfig != null;
-                securityManager = new CentralDogmaSecurityManager(cfg.dataDir(), securityConfig,
-                                                                  cfg.webAppSessionTimeoutMillis(),
-                                                                  cfg.sessionCacheSpec());
-            }
+            sessionManager = initializeSessionManager();
 
             logger.info("Starting the command executor ..");
-            executor = startCommandExecutor(pm, mirroringService, repositoryWorker, securityManager);
+
+            executor = startCommandExecutor(pm, mirroringService, repositoryWorker, sessionManager);
             if (executor.isWritable()) {
-                logger.info("Started the command executor");
+                logger.info("Started the command executor.");
 
                 initializeInternalProject(executor);
 
@@ -290,10 +293,10 @@ public class CentralDogma implements AutoCloseable {
                 MigrationUtil.migrate(pm, executor);
             }
 
-            logger.info("Starting the RPC server");
-            server = startServer(pm, executor, securityManager);
+            logger.info("Starting the RPC server.");
+            server = startServer(pm, executor, sessionManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
-            logger.info("Started the Central Dogma successfully");
+            logger.info("Started the Central Dogma successfully.");
             success = true;
         } finally {
             if (success) {
@@ -302,29 +305,24 @@ public class CentralDogma implements AutoCloseable {
                 this.executor = executor;
                 this.mirroringService = mirroringService;
                 this.server = server;
+                this.sessionManager = sessionManager;
             } else {
-                doStop(server, executor, mirroringService, pm, repositoryWorker);
+                doStop(server, executor, mirroringService, pm, repositoryWorker, sessionManager);
             }
         }
     }
 
     private CommandExecutor startCommandExecutor(
             ProjectManager pm, DefaultMirroringService mirroringService,
-            Executor repositoryWorker, @Nullable CentralDogmaSecurityManager securityManager) {
+            Executor repositoryWorker, @Nullable SessionManager sessionManager) {
 
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
             if (cfg.isMirroringEnabled()) {
                 logger.info("Starting the mirroring service ..");
                 mirroringService.start(exec);
-                logger.info("Started the mirroring service");
+                logger.info("Started the mirroring service.");
             } else {
                 logger.info("Not starting the mirroring service because it's disabled.");
-            }
-
-            if (securityManager != null) {
-                logger.info("Starting the periodic session validation ..");
-                securityManager.enableSessionValidation();
-                logger.info("Started the periodic session validation");
             }
         };
 
@@ -332,13 +330,7 @@ public class CentralDogma implements AutoCloseable {
             if (cfg.isMirroringEnabled()) {
                 logger.info("Stopping the mirroring service ..");
                 mirroringService.stop();
-                logger.info("Stopped the mirroring service");
-            }
-
-            if (securityManager != null) {
-                logger.info("Stopping the periodic session validation ..");
-                securityManager.disableSessionValidation();
-                logger.info("Stopped the periodic session validation");
+                logger.info("Stopped the mirroring service.");
             }
         };
 
@@ -346,12 +338,12 @@ public class CentralDogma implements AutoCloseable {
         final ReplicationMethod replicationMethod = cfg.replicationConfig().method();
         switch (replicationMethod) {
             case ZOOKEEPER:
-                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, securityManager,
+                executor = newZooKeeperCommandExecutor(pm, repositoryWorker, sessionManager,
                                                        onTakeLeadership, onReleaseLeadership);
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
-                executor = new StandaloneCommandExecutor(pm, securityManager, repositoryWorker,
+                executor = new StandaloneCommandExecutor(pm, repositoryWorker, sessionManager,
                                                          onTakeLeadership, onReleaseLeadership);
                 break;
             default:
@@ -383,8 +375,37 @@ public class CentralDogma implements AutoCloseable {
         return executor;
     }
 
+    @Nullable
+    private SessionManager initializeSessionManager() throws Exception {
+        final AuthConfig authCfg = cfg.authConfig();
+        if (authCfg == null) {
+            return null;
+        }
+
+        boolean success = false;
+        SessionManager manager = null;
+        try {
+            manager = new FileBasedSessionManager(new File(cfg.dataDir(), "_sessions").toPath(),
+                                                  authCfg.sessionValidationSchedule());
+            manager = new CachedSessionManager(manager, Caffeine.from(authCfg.sessionCacheSpec()).build());
+            manager = new ExpiredSessionDeletingSessionManager(manager);
+            success = true;
+            return manager;
+        } finally {
+            if (!success && manager != null) {
+                try {
+                    // It will eventually close FileBasedSessionManager because the other managers just forward
+                    // the close method call to their delegate.
+                    manager.close();
+                } catch (Exception e) {
+                    logger.warn("Failed to close a session manager.", e);
+                }
+            }
+        }
+    }
+
     private Server startServer(ProjectManager pm, CommandExecutor executor,
-                               @Nullable CentralDogmaSecurityManager securityManager) {
+                               @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = new ServerBuilder();
         cfg.ports().forEach(sb::port);
 
@@ -412,8 +433,9 @@ public class CentralDogma implements AutoCloseable {
         cfg.gracefulShutdownTimeout().ifPresent(
                 t -> sb.gracefulShutdownTimeout(t.quietPeriodMillis(), t.timeoutMillis()));
 
-        final WatchService watchService = new WatchService();
         final MetadataService mds = new MetadataService(pm, executor);
+        final WatchService watchService = new WatchService();
+        final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
 
         configureThriftService(sb, pm, executor, watchService, mds);
 
@@ -460,7 +482,7 @@ public class CentralDogma implements AutoCloseable {
                                                "bearer " + CsrfToken.ANONYMOUS))
                                                .build());
 
-        configureHttpApi(sb, pm, executor, watchService, mds, securityManager);
+        configureHttpApi(sb, pm, executor, watchService, mds, authProvider, sessionManager);
 
         final String accessLogFormat = cfg.accessLogFormat();
         if (isNullOrEmpty(accessLogFormat)) {
@@ -478,11 +500,31 @@ public class CentralDogma implements AutoCloseable {
         return s;
     }
 
+    @Nullable
+    private AuthProvider createAuthProvider(
+            CommandExecutor commandExecutor, @Nullable SessionManager sessionManager, MetadataService mds) {
+        final AuthConfig authCfg = cfg.authConfig();
+        if (authCfg == null) {
+            return null;
+        }
+
+        checkState(sessionManager != null, "SessionManager is null");
+        final AuthProviderParameters parameters = new AuthProviderParameters(
+                // Find application first, then find the session token.
+                new ApplicationTokenAuthorizer(mds::findTokenBySecret).orElse(
+                        new SessionTokenAuthorizer(sessionManager, authCfg.administrators())),
+                cfg,
+                sessionManager::generateSessionId,
+                // Propagate login and logout events to the other replicas.
+                session -> commandExecutor.execute(Command.createSession(session)),
+                sessionId -> commandExecutor.execute(Command.removeSession(sessionId)));
+        return authCfg.factory().create(parameters);
+    }
+
     private CommandExecutor newZooKeeperCommandExecutor(ProjectManager pm, Executor repositoryWorker,
-                                                        @Nullable CentralDogmaSecurityManager securityManager,
+                                                        @Nullable SessionManager sessionManager,
                                                         @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                                         @Nullable Runnable onReleaseLeadership) {
-
         final ZooKeeperReplicationConfig zkCfg = (ZooKeeperReplicationConfig) cfg.replicationConfig();
 
         // Delete the old UUID replica ID which is not used anymore.
@@ -492,8 +534,8 @@ public class CentralDogma implements AutoCloseable {
         //                so that we can recover from ZooKeeper maintenance automatically.
         return new ZooKeeperCommandExecutor(zkCfg, cfg.dataDir(),
                                             new StandaloneCommandExecutor(pm,
-                                                                          securityManager,
                                                                           repositoryWorker,
+                                                                          sessionManager,
                                                                           null, null),
                                             onTakeLeadership, onReleaseLeadership);
     }
@@ -524,26 +566,12 @@ public class CentralDogma implements AutoCloseable {
     private void configureHttpApi(ServerBuilder sb,
                                   ProjectManager pm, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
-                                  @Nullable CentralDogmaSecurityManager securityManager) {
-        // TODO(hyangtack) Replace the prefix with something like "/api/web/" or "/api/admin/".
-        final String apiV0PathPrefix = "/api/v0/";
-        final Function<String, String> loginNameNormalizer =
-                cfg.caseSensitiveLoginNames() ? Function.identity() : Ascii::toLowerCase;
-
-        final Service<HttpRequest, HttpResponse> loginService;
-        final Service<HttpRequest, HttpResponse> logoutService;
+                                  @Nullable AuthProvider authProvider,
+                                  @Nullable SessionManager sessionManager) {
         Function<Service<HttpRequest, HttpResponse>,
                 ? extends Service<HttpRequest, HttpResponse>> decorator;
 
-        if (cfg.isSecurityEnabled()) {
-            requireNonNull(securityManager, "securityManager");
-
-            final Cache<String, AccessToken> sessionCache =
-                    Caffeine.from(validateCacheSpec(cfg.sessionCacheSpec())).build();
-
-            loginService = new LoginService(securityManager, executor, loginNameNormalizer, sessionCache);
-            logoutService = new LogoutService(securityManager, executor, sessionCache);
-
+        if (authProvider != null) {
             sb.service("/security_enabled", new AbstractHttpService() {
                 @Override
                 protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req) {
@@ -551,31 +579,21 @@ public class CentralDogma implements AutoCloseable {
                 }
             });
 
-            final ApplicationTokenAuthorizer ata =
-                    new ApplicationTokenAuthorizer(mds::findTokenBySecret);
-            final SessionTokenAuthorizer sta = new SessionTokenAuthorizer(securityManager,
-                                                                          cfg.administrators());
-
-            decorator = MetadataServiceInjector.newDecorator(mds)
-                                               .andThen(HttpAuthService.newDecorator(ata, sta));
+            final AuthConfig authCfg = cfg.authConfig();
+            assert authCfg != null : "authCfg";
+            assert sessionManager != null : "sessionManager";
+            decorator = MetadataServiceInjector
+                    .newDecorator(mds)
+                    .andThen(new HttpAuthServiceBuilder()
+                                     .add(new ApplicationTokenAuthorizer(mds::findTokenBySecret)
+                                                  .orElse(new SessionTokenAuthorizer(sessionManager,
+                                                                                     authCfg.administrators())))
+                                     .newDecorator());
         } else {
-            // If the security is not enabled, return the 'anonymous' token.
-            loginService = (ServiceRequestContext ctx, HttpRequest req) -> {
-                final AccessToken accessToken = new AccessToken(CsrfToken.ANONYMOUS, Integer.MAX_VALUE);
-                return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
-                                       Jackson.writeValueAsBytes(accessToken));
-            };
-            logoutService = (ServiceRequestContext ctx, HttpRequest req) -> HttpResponse.of(HttpStatus.OK);
-
-            decorator = MetadataServiceInjector.newDecorator(mds)
-                                               .andThen(HttpAuthService.newDecorator(
-                                                       new CsrfTokenAuthorizer()));
+            decorator = MetadataServiceInjector
+                    .newDecorator(mds)
+                    .andThen(HttpAuthService.newDecorator(new CsrfTokenAuthorizer()));
         }
-
-        sb.service(apiV0PathPrefix + "authenticate", loginService)
-          .service(API_V1_PATH_PREFIX + "login", loginService)
-          .service(apiV0PathPrefix + "logout", logoutService)
-          .service(API_V1_PATH_PREFIX + "logout", logoutService);
 
         final SafeProjectManager safePm = new SafeProjectManager(pm);
 
@@ -598,25 +616,50 @@ public class CentralDogma implements AutoCloseable {
                             new ContentServiceV1(safePm, executor, watchService), decorator,
                             v1RequestConverter, v1ResponseConverter);
 
-        if (cfg.isSecurityEnabled()) {
+        if (authProvider != null) {
+            final AuthConfig authCfg = cfg.authConfig();
+            assert authCfg != null : "authCfg";
             sb.annotatedService(API_V1_PATH_PREFIX,
-                                new MetadataApiService(mds, loginNameNormalizer), decorator,
-                                v1RequestConverter, v1ResponseConverter);
+                                new MetadataApiService(mds, authCfg.loginNameNormalizer()),
+                                decorator, v1RequestConverter, v1ResponseConverter);
             sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(pm, executor, mds),
                                 decorator, v1RequestConverter, v1ResponseConverter);
+
+            // authentication services:
+            Optional.ofNullable(authProvider.loginApiService())
+                    .ifPresent(login -> LOGIN_API_PATH_MAPPINGS.forEach(mapping -> sb.service(mapping, login)));
+
+            // Provide logout API by default.
+            final Service<HttpRequest, HttpResponse> logout =
+                    Optional.ofNullable(authProvider.logoutApiService())
+                            .orElseGet(() -> new DefaultLogoutService(executor));
+            for (PathMapping mapping : LOGOUT_API_PATH_MAPPINGS) {
+                sb.service(mapping, decorator.apply(logout));
+            }
+
+            authProvider.moreServices().forEach(sb::service);
         }
 
         if (cfg.isWebAppEnabled()) {
             final RestfulJsonResponseConverter httpApiV0Converter = new RestfulJsonResponseConverter();
 
             // TODO(hyangtack): Simplify this if https://github.com/line/armeria/issues/582 is resolved.
-            sb.annotatedService(apiV0PathPrefix, new UserService(safePm, executor),
+            sb.annotatedService(API_V0_PATH_PREFIX, new UserService(safePm, executor),
                                 decorator, httpApiV0Converter)
-              .annotatedService(apiV0PathPrefix, new RepositoryService(safePm, executor),
+              .annotatedService(API_V0_PATH_PREFIX, new RepositoryService(safePm, executor),
                                 decorator, httpApiV0Converter);
-        }
 
-        sb.serviceUnder("/", HttpFileService.forClassPath("webapp"));
+            if (authProvider != null) {
+                // Will redirect to /web/auth/login by default.
+                sb.service(LOGIN_PATH, authProvider.webLoginService());
+                // Will redirect to /web/auth/logout by default.
+                sb.service(LOGOUT_PATH, authProvider.webLogoutService());
+
+                sb.serviceUnder(BUILTIN_WEB_BASE_PATH, new OrElseDefaultHttpFileService(
+                        HttpFileService.forClassPath("auth-webapp"), "/index.html"));
+            }
+            sb.serviceUnder("/", HttpFileService.forClassPath("webapp"));
+        }
     }
 
     private static Function<Service<HttpRequest, HttpResponse>,
@@ -649,32 +692,46 @@ public class CentralDogma implements AutoCloseable {
         final DefaultMirroringService mirroringService = this.mirroringService;
         final ProjectManager pm = this.pm;
         final ExecutorService repositoryWorker = this.repositoryWorker;
+        final SessionManager sessionManager = this.sessionManager;
 
         this.server = null;
         this.executor = null;
         this.mirroringService = null;
         this.pm = null;
         this.repositoryWorker = null;
+        this.sessionManager = null;
 
         logger.info("Stopping the Central Dogma ..");
-        if (!doStop(server, executor, mirroringService, pm, repositoryWorker)) {
-            logger.warn("Stopped the Central Dogma with failure");
+        if (!doStop(server, executor, mirroringService, pm, repositoryWorker, sessionManager)) {
+            logger.warn("Stopped the Central Dogma with failure.");
         } else {
-            logger.info("Stopped the Central Dogma successfully");
+            logger.info("Stopped the Central Dogma successfully.");
         }
     }
 
     private static boolean doStop(
             @Nullable Server server, @Nullable CommandExecutor executor,
             @Nullable DefaultMirroringService mirroringService,
-            @Nullable ProjectManager pm, @Nullable ExecutorService repositoryWorker) {
+            @Nullable ProjectManager pm, @Nullable ExecutorService repositoryWorker,
+            @Nullable SessionManager sessionManager) {
 
         boolean success = true;
+        try {
+            if (sessionManager != null) {
+                logger.info("Stopping the session manager ..");
+                sessionManager.close();
+                logger.info("Stopped the session manager.");
+            }
+        } catch (Throwable t) {
+            success = false;
+            logger.warn("Failed to stop the session manager:", t);
+        }
+
         try {
             if (pm != null) {
                 logger.info("Stopping the project manager ..");
                 pm.close(ShuttingDownException::new);
-                logger.info("Stopped the project manager");
+                logger.info("Stopped the project manager.");
             }
         } catch (Throwable t) {
             success = false;
@@ -685,7 +742,7 @@ public class CentralDogma implements AutoCloseable {
             if (executor != null) {
                 logger.info("Stopping the command executor ..");
                 executor.stop();
-                logger.info("Stopped the command executor");
+                logger.info("Stopped the command executor.");
             }
         } catch (Throwable t) {
             success = false;
@@ -697,7 +754,7 @@ public class CentralDogma implements AutoCloseable {
             if (mirroringService != null && mirroringService.isStarted()) {
                 logger.info("Stopping the mirroring service not terminated by the command executor ..");
                 mirroringService.stop();
-                logger.info("Stopped the mirroring service");
+                logger.info("Stopped the mirroring service.");
             }
         } catch (Throwable t) {
             success = false;
@@ -717,7 +774,7 @@ public class CentralDogma implements AutoCloseable {
                         interruptLater = true;
                     }
                 }
-                logger.info("Stopped the repository worker");
+                logger.info("Stopped the repository worker.");
 
                 if (interruptLater) {
                     Thread.currentThread().interrupt();
@@ -732,7 +789,7 @@ public class CentralDogma implements AutoCloseable {
             if (server != null) {
                 logger.info("Stopping the RPC server ..");
                 server.stop().join();
-                logger.info("Stopped the RPC server");
+                logger.info("Stopped the RPC server.");
             }
         } catch (Throwable t) {
             success = false;
@@ -750,7 +807,13 @@ public class CentralDogma implements AutoCloseable {
 
         @Override
         protected CompletionStage<Void> doStart() throws Exception {
-            return execute("startup", CentralDogma.this::doStart);
+            return execute("startup", () -> {
+                try {
+                    CentralDogma.this.doStart();
+                } catch (Exception e) {
+                    Exceptions.throwUnsafely(e);
+                }
+            });
         }
 
         @Override

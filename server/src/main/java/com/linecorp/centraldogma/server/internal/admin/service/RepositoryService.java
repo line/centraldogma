@@ -51,7 +51,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.admin.authentication.AuthenticationUtil;
+import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.admin.dto.ChangeDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.CommitDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.CommitMessageDto;
@@ -133,7 +133,7 @@ public class RepositoryService extends AbstractService {
         final Entry<CommitMessageDto, Change<?>> p = commitMessageAndChange(message);
         final CommitMessageDto commitMessage = p.getKey();
         final Change<?> change = p.getValue();
-        return push(projectName, repoName, new Revision(revision), AuthenticationUtil.currentAuthor(ctx),
+        return push(projectName, repoName, new Revision(revision), AuthUtil.currentAuthor(ctx),
                     commitMessage.getSummary(), commitMessage.getDetail().getContent(),
                     Markup.valueOf(commitMessage.getDetail().getMarkup()), change)
                 // This is so weird but there is no way to find a converter for 'null' with the current
@@ -163,7 +163,7 @@ public class RepositoryService extends AbstractService {
         }
 
         final CompletableFuture<?> future =
-                push(projectName, repoName, new Revision(revision), AuthenticationUtil.currentAuthor(ctx),
+                push(projectName, repoName, new Revision(revision), AuthUtil.currentAuthor(ctx),
                      commitMessage.getSummary(), commitMessage.getDetail().getContent(),
                      Markup.valueOf(commitMessage.getDetail().getMarkup()), Change.ofRemoval(path));
 
