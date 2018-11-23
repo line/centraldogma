@@ -26,24 +26,25 @@ dependencies {
     testCompile 'org.testng:testng'
 }
 
-// Run the test cases based on reactive-streams-tck
+// Run the JSON patch test cases.
 task testNg(type: Test,
-        group: 'Verification',
-        description: 'Runs the TestNG unit tests.') {
-    useTestNG()
-    testClassesDirs = tasks.test.testClassesDirs
-    classpath = tasks.test.classpath
-    scanForTestClasses = false
-}
-tasks.test.finalizedBy tasks.testNg
-tasks.check.dependsOn tasks.testNg
+            group: 'Verification',
+            description: 'Runs the TestNG unit tests.',
+            dependsOn: tasks.shadedTestClasses) {
 
-if (hasFlags('coverage')) {
-    jacocoTestReport {
-        // Include the coverage data from the TestNG test cases.
-        executionData file("${project.buildDir}/jacoco/testNg.exec")
+    useTestNG()
+    include '/com/linecorp/centraldogma/internal/jsonpatch/**'
+
+    scanForTestClasses = false
+    testClassesDirs = tasks.shadedTest.testClassesDirs
+
+    // Set the class path as late as possible so that the 'shadedTest' task has the correct classpath.
+    afterProjectsWithFlag('java') {
+        classpath = tasks.shadedTest.classpath
     }
 }
+tasks.shadedTest.finalizedBy tasks.testNg
+tasks.check.dependsOn tasks.testNg
 
 tasks.trimShadedJar.configure {
     keep "class !com.linecorp.centraldogma.internal.shaded.**,com.linecorp.centraldogma.** { *; }"
