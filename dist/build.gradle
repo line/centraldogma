@@ -27,7 +27,7 @@ ext {
 dependencies {
     // Logging
     runtime 'ch.qos.logback:logback-classic'
-    runtime 'com.linecorp.armeria:armeria-logback-shaded'
+    runtime 'com.linecorp.armeria:armeria-logback'
     ['jcl-over-slf4j', 'jul-to-slf4j', 'log4j-over-slf4j'].each {
         runtime "org.slf4j:$it"
     }
