@@ -16,12 +16,15 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+
+import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
@@ -36,6 +39,9 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
     private final Revision revision;
     private final MergeQuery<?> query;
     private final int hashCode;
+
+    @Nullable
+    MergedEntry<?> computedValue;
 
     CacheableMergeQueryCall(Repository repo, Revision revision, MergeQuery<?> query) {
         super(repo);
@@ -70,7 +76,13 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
 
     @Override
     CompletableFuture<MergedEntry<?>> execute() {
-        throw new UnsupportedOperationException();
+        checkState(computedValue != null, "computedValue is not set yet.");
+        return CompletableFuture.completedFuture(computedValue);
+    }
+
+    void computedValue(MergedEntry<?> computedValue) {
+        checkState(this.computedValue == null, "computedValue is already set.");
+        this.computedValue = requireNonNull(computedValue, "computedValue");
     }
 
     @Override

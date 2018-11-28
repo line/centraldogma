@@ -41,7 +41,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
         AggregatedHttpMessage aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
                                                       queryString).aggregate().join();
 
-        final String expectedJson =
+        String expectedJson =
                 '{' +
                 "   \"revision\" : 4," +
                 "   \"type\" : \"JSON\"," +
@@ -61,7 +61,12 @@ public class MergeFileTest extends ContentServiceV1TestBase {
         aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate()
                            .join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(aRes.content().toStringUtf8()).contains("Entry '/foo3.json (4)' does not exist.");
+        expectedJson =
+                '{' +
+                "     \"exception\": \"com.linecorp.centraldogma.common.EntryNotFoundException\"," +
+                "     \"message\": \"Entry '/foo3.json (revision: 4)' does not exist.\"" +
+                '}';
+        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -73,8 +78,12 @@ public class MergeFileTest extends ContentServiceV1TestBase {
         final AggregatedHttpMessage aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
                                                             queryString).aggregate().join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(aRes.content().toStringUtf8()).contains(
-                "Entry '/no_exist1.json,/no_exist2.json (4)' does not exist.");
+        final String expectedJson =
+                '{' +
+                "     \"exception\": \"com.linecorp.centraldogma.common.EntryNotFoundException\"," +
+                "     \"message\": \"Entry '/no_exist1.json,/no_exist2.json (revision: 4)' does not exist.\"" +
+                '}';
+        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -101,7 +110,12 @@ public class MergeFileTest extends ContentServiceV1TestBase {
         final AggregatedHttpMessage aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
                                                             queryString).aggregate().join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(aRes.content().toStringUtf8()).contains("Failed to merge tree.");
+        final String expectedJson =
+                '{' +
+                "     \"exception\": \"com.linecorp.centraldogma.common.QueryExecutionException\"," +
+                "     \"message\": \"Failed to merge tree. /a/ type: NUMBER (expected: STRING)\"" +
+                '}';
+        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -115,7 +129,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
         AggregatedHttpMessage aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
                                                       queryString).aggregate().join();
         final String actualJson = aRes.content().toStringUtf8();
-        final String expectedJson =
+        String expectedJson =
                 '{' +
                 "   \"revision\" : 4," +
                 "   \"type\" : \"JSON\"," +
@@ -131,7 +145,12 @@ public class MergeFileTest extends ContentServiceV1TestBase {
         aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate()
                            .join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(aRes.content().toStringUtf8()).contains("JSON path evaluation failed: $.c");
+        expectedJson =
+                '{' +
+                "     \"exception\": \"com.linecorp.centraldogma.common.QueryExecutionException\"," +
+                "     \"message\": \"JSON path evaluation failed: $.c\"" +
+                '}';
+        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
     }
 
     private void addFilesForMergeJson() {

@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
-import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.completeQueryExecutionException;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.applyQuery;
 import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.mergeEntries;
 import static com.linecorp.centraldogma.server.internal.storage.repository.cache.CacheableQueryCall.EMPTY;
 import static java.util.Objects.requireNonNull;
@@ -121,15 +121,17 @@ final class CachingRepository implements Repository {
             @SuppressWarnings("unchecked")
             final Entry<T> entry = (Entry<T>) entries.get(query.path());
             if (entry == null) {
+                key.computedValue(EMPTY);
+                cache.get(key); // Cache the result as emtpy.
                 future.complete(null);
-                cache.get(key, unused -> EMPTY); // Cache the result as emtpy.
                 return null;
             }
 
             try {
-                final Entry<T> result = entry.applyQuery(query);
+                final Entry<T> result = applyQuery(entry, query);
+                key.computedValue(result);
+                cache.get(key); // Cache the result.
                 future.complete(result);
-                cache.get(key, unused -> result); // Cache the result.
             } catch (CentralDogmaException e) {
                 future.completeExceptionally(e);
             } catch (Exception e) {
@@ -366,10 +368,14 @@ final class CachingRepository implements Repository {
         final CompletableFuture<MergedEntry<T>> future = new CompletableFuture<>();
         mergedEntryFuture.handle((mergedEntry, cause) -> {
             if (cause != null) {
-                completeQueryExecutionException(future, cause);
+                if (!(cause instanceof CentralDogmaException)) {
+                    cause = new QueryExecutionException(cause);
+                }
+                future.completeExceptionally(cause);
                 return null;
             }
-            cache.get(key, unused -> mergedEntry); // Cache the result.
+            key.computedValue(mergedEntry);
+            cache.get(key); // Cache the result.
             future.complete(unsafeCast(mergedEntry));
             return null;
         });

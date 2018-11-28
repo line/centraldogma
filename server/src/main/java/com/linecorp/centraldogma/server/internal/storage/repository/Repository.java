@@ -21,7 +21,7 @@ import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
-import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.completeQueryExecutionException;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.applyQuery;
 import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.mergeEntries;
 import static java.util.Objects.requireNonNull;
 
@@ -210,7 +210,7 @@ public interface Repository {
             final Entry<T> entry = (Entry<T>) result;
 
             try {
-                return entry.applyQuery(query);
+                return applyQuery(entry, query);
             } catch (CentralDogmaException e) {
                 throw e;
             } catch (Exception e) {
@@ -244,7 +244,12 @@ public interface Repository {
         requireNonNull(to, "to");
         requireNonNull(query, "query");
 
-        final RevisionRange range = normalizeNow(from, to).toAscending();
+        final RevisionRange range;
+        try {
+            range = normalizeNow(from, to).toAscending();
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
 
         final String path = query.path();
         final CompletableFuture<Entry<?>> fromEntryFuture = getOrNull(range.from(), path);
@@ -437,7 +442,12 @@ public interface Repository {
         // Only JSON files can currently be merged.
         mergeSources.forEach(path -> validateJsonFilePath(path.path(), "path"));
 
-        final Revision normalizedRevision = normalizeNow(revision);
+        final Revision normalizedRevision;
+        try {
+            normalizedRevision = normalizeNow(revision);
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
         final List<CompletableFuture<Entry<?>>> entryFutures = new ArrayList<>(mergeSources.size());
         mergeSources.forEach(path -> {
             if (!path.isOptional()) {
@@ -452,7 +462,10 @@ public interface Repository {
         final CompletableFuture<MergedEntry<T>> future = new CompletableFuture<>();
         mergedEntryFuture.handle((mergedEntry, cause) -> {
             if (cause != null) {
-                completeQueryExecutionException(future, cause);
+                if (!(cause instanceof CentralDogmaException)) {
+                    cause = new QueryExecutionException(cause);
+                }
+                future.completeExceptionally(cause);
                 return null;
             }
             future.complete(unsafeCast(mergedEntry));

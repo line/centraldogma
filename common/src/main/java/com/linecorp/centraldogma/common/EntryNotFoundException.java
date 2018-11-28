@@ -32,7 +32,7 @@ public class EntryNotFoundException extends CentralDogmaException {
      * Creates a new instance.
      */
     public EntryNotFoundException(Revision revision, String path) {
-        this(path + " (" + revision.text() + ')');
+        this(path + " (revision: " + revision.text() + ')');
     }
 
     /**
