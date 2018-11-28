@@ -164,12 +164,13 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
             }
 
             if (zkAddr.equals(ip)) {
+                final int serverId = entry.getKey().intValue();
                 if (currentServerId < 0) {
-                    currentServerId = entry.getKey().intValue();
-                } else {
+                    currentServerId = serverId;
+                } else if (currentServerId != serverId) {
                     throw new IllegalStateException(
                             "cannot auto-detect server ID because there are more than one IP address match. " +
-                            "Both server ID " + currentServerId + " and " + entry.getKey() +
+                            "Both server ID " + currentServerId + " and " + serverId +
                             " have a matching IP address. Consider specifying server ID explicitly.");
                 }
             }
