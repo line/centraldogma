@@ -29,7 +29,6 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.EntryType;
 
@@ -79,13 +78,9 @@ public class EntryDto<T> {
 
     @Override
     public String toString() {
-        final ToStringHelper stringHelper = MoreObjects.toStringHelper(this)
-                                                       .add("path", path())
-                                                       .add("type", type());
-        if (content() != null) {
-            stringHelper.add("content", content());
-        }
-
-        return stringHelper.toString();
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("path", path)
+                          .add("type", type)
+                          .add("content", content).toString();
     }
 }

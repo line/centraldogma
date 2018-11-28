@@ -18,13 +18,12 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.common.EntryType.DIRECTORY;
 import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
-import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.internal.storage.repository.Repository.DEFAULT_MAX_COMMITS;
 import static java.util.Objects.requireNonNull;
 
@@ -56,6 +55,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
@@ -67,6 +67,7 @@ import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
+import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
@@ -104,16 +105,16 @@ public class ContentServiceV1 extends AbstractService {
         final String normalizedPath = normalizePath(path);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
         listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)),
-                  NO_FETCH_CONTENT, future);
+                  FIND_ALL_WITHOUT_CONTENT, future);
         return future;
     }
 
     private static void listFiles(Repository repository, String pathPattern, Revision normalizedRevision,
                                   Map<FindOption<?>, ?> options, CompletableFuture<List<EntryDto<?>>> result) {
-        repository.find(normalizedRevision, pathPattern, options).handle(voidFunction((entries, thrown) -> {
+        repository.find(normalizedRevision, pathPattern, options).handle((entries, thrown) -> {
             if (thrown != null) {
                 result.completeExceptionally(thrown);
-                return;
+                return null;
             }
             // If the pathPattern is a valid file path and the result is a directory, the client forgets to add
             // "/*" to the end of the path. So, let's do it and invoke once more.
@@ -126,7 +127,8 @@ public class ContentServiceV1 extends AbstractService {
                                        .map(entry -> convert(repository, entry))
                                        .collect(toImmutableList()));
             }
-        }));
+            return null;
+        });
     }
 
     /**
@@ -368,5 +370,13 @@ public class ContentServiceV1 extends AbstractService {
             return collection.stream().map(converter).collect(toImmutableList());
         }
         return converter.apply(Iterables.getOnlyElement(collection));
+    }
+
+    @Get("/projects/{projectName}/repos/{repoName}/merge")
+    public <T> CompletableFuture<?> mergeFiles(@Param("revision") @Default("-1") String revision,
+                                               Repository repository,
+                                               @RequestConverter(MergeQueryRequestConverter.class)
+                                                       MergeQuery<T> query) {
+        return repository.mergeFiles(new Revision(revision), query).thenApply(DtoConverter::convert);
     }
 }

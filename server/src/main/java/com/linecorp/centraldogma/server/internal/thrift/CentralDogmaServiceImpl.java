@@ -16,10 +16,9 @@
 package com.linecorp.centraldogma.server.internal.thrift;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.server.internal.storage.project.Project.isReservedRepoName;
-import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.spotify.futures.CompletableFutures.allAsList;
 import static java.util.Objects.requireNonNull;
@@ -45,6 +44,7 @@ import com.linecorp.centraldogma.internal.thrift.DiffFileResult;
 import com.linecorp.centraldogma.internal.thrift.Entry;
 import com.linecorp.centraldogma.internal.thrift.ErrorCode;
 import com.linecorp.centraldogma.internal.thrift.GetFileResult;
+import com.linecorp.centraldogma.internal.thrift.MergeQuery;
 import com.linecorp.centraldogma.internal.thrift.NamedQuery;
 import com.linecorp.centraldogma.internal.thrift.Plugin;
 import com.linecorp.centraldogma.internal.thrift.Project;
@@ -209,7 +209,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                           AsyncMethodCallback resultHandler) {
 
         handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .find(convert(revision), pathPattern, NO_FETCH_CONTENT)
+                             .find(convert(revision), pathPattern, FIND_ALL_WITHOUT_CONTENT)
                              .thenApply(entries -> {
                                  final List<Entry> ret = new ArrayList<>(entries.size());
                                  entries.forEach((path, entry) -> ret.add(
@@ -304,6 +304,14 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     }
 
     @Override
+    public void mergeFiles(String projectName, String repositoryName, Revision revision,
+                           MergeQuery mergeQuery, AsyncMethodCallback resultHandler) {
+        handle(projectManager.get(projectName).repos().get(repositoryName)
+                             .mergeFiles(convert(revision), convert(mergeQuery)),
+               resultHandler);
+    }
+
+    @Override
     public void watchRepository(
             String projectName, String repositoryName, Revision lastKnownRevision,
             String pathPattern, long timeoutMillis, AsyncMethodCallback resultHandler) {
@@ -322,7 +330,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     private static void handleWatchRepositoryResult(
             CompletableFuture<com.linecorp.centraldogma.common.Revision> future,
             AsyncMethodCallback resultHandler) {
-        future.handle(voidFunction((res, cause) -> {
+        future.handle((res, cause) -> {
             if (cause == null) {
                 final WatchRepositoryResult wrr = new WatchRepositoryResult();
                 wrr.setRevision(convert(res));
@@ -332,7 +340,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             } else {
                 logAndInvokeOnError("watchRepository", resultHandler, cause);
             }
-        }));
+            return null;
+        });
     }
 
     @Override
@@ -361,7 +370,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     private static void handleWatchFileResult(
             CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future,
             AsyncMethodCallback resultHandler) {
-        future.handle(voidFunction((res, cause) -> {
+        future.handle((res, cause) -> {
             if (cause == null) {
                 final WatchFileResult wfr = new WatchFileResult();
                 wfr.setRevision(convert(res.revision()));
@@ -373,7 +382,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
             } else {
                 logAndInvokeOnError("watchFile", resultHandler, cause);
             }
-        }));
+            return null;
+        });
     }
 
     private static void logAndInvokeOnError(

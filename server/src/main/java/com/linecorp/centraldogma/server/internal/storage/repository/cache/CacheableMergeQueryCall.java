@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2018 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,8 +17,10 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
@@ -26,26 +28,27 @@ import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
-import com.linecorp.centraldogma.common.Entry;
-import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
+import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
-final class CacheableQueryCall extends CacheableCall<Entry<?>> {
+final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
 
-    static final Entry<?> EMPTY = Entry.ofDirectory(new Revision(Integer.MAX_VALUE), "/");
-
-    final Revision revision;
-    final Query<?> query;
-    final int hashCode;
+    private final Revision revision;
+    private final MergeQuery<?> query;
+    private final int hashCode;
 
     @Nullable
-    Entry<?> computedValue;
+    MergedEntry<?> computedValue;
 
-    CacheableQueryCall(Repository repo, Revision revision, Query<?> query) {
+    CacheableMergeQueryCall(Repository repo, Revision revision, MergeQuery<?> query) {
         super(repo);
         this.revision = requireNonNull(revision, "revision");
         this.query = requireNonNull(query, "query");
+        // Only JSON files can currently be merged.
+        query.mergeSources().forEach(path -> validateJsonFilePath(path.path(), "path"));
 
         hashCode = Objects.hash(revision, query) * 31 + System.identityHashCode(repo);
 
@@ -53,25 +56,31 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
     }
 
     @Override
-    int weigh(Entry<?> value) {
+    int weigh(MergedEntry<?> value) {
         int weight = 0;
-        weight += query.path().length();
-        for (String e : query.expressions()) {
-            weight += e.length();
+        final List<MergeSource> mergeSources = query.mergeSources();
+        weight += mergeSources.size();
+        for (MergeSource mergeSource : mergeSources) {
+            weight += mergeSource.path().length();
         }
-        if (value != null && value.hasContent()) {
+        final List<String> expressions = query.expressions();
+        weight += expressions.size();
+        for (String expression : expressions) {
+            weight += expression.length();
+        }
+        if (value != null) {
             weight += value.contentAsText().length();
         }
         return weight;
     }
 
     @Override
-    CompletableFuture<Entry<?>> execute() {
+    CompletableFuture<MergedEntry<?>> execute() {
         checkState(computedValue != null, "computedValue is not set yet.");
         return CompletableFuture.completedFuture(computedValue);
     }
 
-    void computedValue(Entry<?> computedValue) {
+    void computedValue(MergedEntry<?> computedValue) {
         checkState(this.computedValue == null, "computedValue is already set.");
         this.computedValue = requireNonNull(computedValue, "computedValue");
     }
@@ -87,7 +96,7 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
             return false;
         }
 
-        final CacheableQueryCall that = (CacheableQueryCall) o;
+        final CacheableMergeQueryCall that = (CacheableMergeQueryCall) o;
         return revision.equals(that.revision) &&
                query.equals(that.query);
     }

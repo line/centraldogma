@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.internal;
 
+import static com.fasterxml.jackson.databind.node.JsonNodeType.OBJECT;
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -23,6 +25,7 @@ import java.io.IOError;
 import java.io.IOException;
 import java.io.Writer;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -45,8 +48,11 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Configuration.Defaults;
 import com.jayway.jsonpath.JsonPath;
@@ -264,6 +270,13 @@ public final class Jackson {
         return node != null && node.getNodeType() == JsonNodeType.STRING ? node.textValue() : defaultValue;
     }
 
+    public static JsonNode extractTree(JsonNode jsonNode, Iterable<String> jsonPaths) {
+        for (String jsonPath : jsonPaths) {
+            jsonNode = extractTree(jsonNode, jsonPath);
+        }
+        return jsonNode;
+    }
+
     public static JsonNode extractTree(JsonNode jsonNode, String jsonPath) {
         requireNonNull(jsonNode, "jsonNode");
         requireNonNull(jsonPath, "jsonPath");
@@ -286,6 +299,70 @@ public final class Jackson {
     public static String escapeText(String text) {
         final JsonStringEncoder enc = BufferRecyclers.getJsonStringEncoder();
         return new String(enc.quoteAsString(text));
+    }
+
+    public static JsonNode mergeTree(JsonNode... jsonNodes) {
+        return mergeTree(ImmutableList.copyOf(requireNonNull(jsonNodes, "jsonNodes")));
+    }
+
+    public static JsonNode mergeTree(Iterable<JsonNode> jsonNodes) {
+        requireNonNull(jsonNodes, "jsonNodes");
+        final int size = Iterables.size(jsonNodes);
+        checkArgument(size > 0, "jsonNodes is empty.");
+        final Iterator<JsonNode> it = jsonNodes.iterator();
+        final JsonNode first = it.next();
+        JsonNode merged = first.deepCopy();
+
+        final StringBuilder fieldNameAppender = new StringBuilder("/");
+        while (it.hasNext()) {
+            final JsonNode addition = it.next();
+            merged = traverse(merged, addition, fieldNameAppender, true, true);
+        }
+
+        if (size > 2) {
+            // Traverse once more to find the mismatched value between the first and the merged node.
+            traverse(first, merged, fieldNameAppender, false, true);
+        }
+        return merged;
+    }
+
+    private static JsonNode traverse(JsonNode base, JsonNode update, StringBuilder fieldNameAppender,
+                                     boolean isMerging, boolean isRoot) {
+        if (base.isObject() && update.isObject()) {
+            final ObjectNode baseObject = (ObjectNode) base;
+            final Iterator<String> fieldNames = update.fieldNames();
+            while (fieldNames.hasNext()) {
+                final String fieldName = fieldNames.next();
+                final JsonNode baseValue = baseObject.get(fieldName);
+                final JsonNode updateValue = update.get(fieldName);
+
+                if (baseValue == null || baseValue.isNull() || updateValue.isNull()) {
+                    if (isMerging) {
+                        baseObject.set(fieldName, updateValue);
+                    }
+                    continue;
+                }
+
+                final int length = fieldNameAppender.length();
+                // Append the filed name and traverse the child.
+                fieldNameAppender.append(fieldName);
+                fieldNameAppender.append('/');
+                baseObject.set(fieldName,
+                               traverse(baseValue, updateValue, fieldNameAppender, isMerging, false));
+                // Remove the appended filed name above.
+                fieldNameAppender.delete(length, fieldNameAppender.length());
+            }
+
+            return base;
+        }
+
+        if (isRoot || (base.getNodeType() != update.getNodeType() && (!base.isNull() || !update.isNull()))) {
+            throw new QueryExecutionException("Failed to merge tree. " + fieldNameAppender +
+                                              " type: " + update.getNodeType() +
+                                              " (expected: " + (isRoot ? OBJECT : base.getNodeType()) + ')');
+        }
+
+        return update;
     }
 
     private Jackson() {}

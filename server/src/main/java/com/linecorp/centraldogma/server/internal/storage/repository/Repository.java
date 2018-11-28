@@ -18,10 +18,14 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
-import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.EXISTS_FIND_OPTIONS;
-import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.GET_FIND_OPTIONS;
+import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.applyQuery;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryUtil.mergeEntries;
 import static java.util.Objects.requireNonNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +45,9 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
+import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.Revision;
@@ -131,7 +138,7 @@ public interface Repository {
      */
     default CompletableFuture<Boolean> exists(Revision revision, String path) {
         validateFilePath(path, "path");
-        return find(revision, path, EXISTS_FIND_OPTIONS).thenApply(result -> !result.isEmpty());
+        return find(revision, path, FIND_ONE_WITHOUT_CONTENT).thenApply(result -> !result.isEmpty());
     }
 
     /**
@@ -179,7 +186,7 @@ public interface Repository {
     default CompletableFuture<Entry<?>> getOrNull(Revision revision, String path) {
         validateFilePath(path, "path");
 
-        return find(revision, path, GET_FIND_OPTIONS).thenApply(findResult -> findResult.get(path));
+        return find(revision, path, FIND_ONE_WITH_CONTENT).thenApply(findResult -> findResult.get(path));
     }
 
     /**
@@ -191,25 +198,19 @@ public interface Repository {
      * @see #get(Revision, Query)
      */
     default <T> CompletableFuture<Entry<T>> getOrNull(Revision revision, Query<T> query) {
-
         requireNonNull(query, "query");
         requireNonNull(revision, "revision");
 
-        return getOrNull(revision, query.path()).thenApply(entry -> {
-            if (entry == null) {
+        return getOrNull(revision, query.path()).thenApply(result -> {
+            if (result == null) {
                 return null;
             }
 
-            final EntryType entryType = entry.type();
-
-            if (!query.type().supportedEntryTypes().contains(entryType)) {
-                throw new QueryExecutionException("unsupported entry type: " + entryType);
-            }
-
             @SuppressWarnings("unchecked")
-            final T entryContent = (T) entry.content();
+            final Entry<T> entry = (Entry<T>) result;
+
             try {
-                return Entry.of(entry.revision(), query.path(), entryType, query.apply(entryContent));
+                return applyQuery(entry, query);
             } catch (CentralDogmaException e) {
                 throw e;
             } catch (Exception e) {
@@ -243,7 +244,12 @@ public interface Repository {
         requireNonNull(to, "to");
         requireNonNull(query, "query");
 
-        final RevisionRange range = normalizeNow(from, to).toAscending();
+        final RevisionRange range;
+        try {
+            range = normalizeNow(from, to).toAscending();
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
 
         final String path = query.path();
         final CompletableFuture<Entry<?>> fromEntryFuture = getOrNull(range.from(), path);
@@ -423,5 +429,49 @@ public interface Repository {
      */
     default <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query) {
         return RepositoryUtil.watch(this, lastKnownRevision, query);
+    }
+
+    /**
+     * Merges the JSON files sequentially as specified in the {@link MergeQuery}.
+     */
+    default <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
+        requireNonNull(revision, "revision");
+        requireNonNull(query, "query");
+
+        final List<MergeSource> mergeSources = query.mergeSources();
+        // Only JSON files can currently be merged.
+        mergeSources.forEach(path -> validateJsonFilePath(path.path(), "path"));
+
+        final Revision normalizedRevision;
+        try {
+            normalizedRevision = normalizeNow(revision);
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
+        final List<CompletableFuture<Entry<?>>> entryFutures = new ArrayList<>(mergeSources.size());
+        mergeSources.forEach(path -> {
+            if (!path.isOptional()) {
+                entryFutures.add(get(normalizedRevision, path.path()));
+            } else {
+                entryFutures.add(getOrNull(normalizedRevision, path.path()));
+            }
+        });
+
+        final CompletableFuture<MergedEntry<?>> mergedEntryFuture = mergeEntries(entryFutures, revision,
+                                                                                 query);
+        final CompletableFuture<MergedEntry<T>> future = new CompletableFuture<>();
+        mergedEntryFuture.handle((mergedEntry, cause) -> {
+            if (cause != null) {
+                if (!(cause instanceof CentralDogmaException)) {
+                    cause = new QueryExecutionException(cause);
+                }
+                future.completeExceptionally(cause);
+                return null;
+            }
+            future.complete(unsafeCast(mergedEntry));
+            return null;
+        });
+
+        return future;
     }
 }

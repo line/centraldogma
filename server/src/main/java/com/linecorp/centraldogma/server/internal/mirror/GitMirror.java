@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.NO_FETCH_CONTENT;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
 import java.io.File;
 import java.net.URI;
@@ -213,7 +213,7 @@ public final class GitMirror extends Mirror {
             }
 
             final Map<String, Entry<?>> oldEntries = localRepo().find(
-                    localRev, localPath() + "**", NO_FETCH_CONTENT).join();
+                    localRev, localPath() + "**", FIND_ALL_WITHOUT_CONTENT).join();
             oldEntries.keySet().removeAll(changes.keySet());
 
             // Add the removed entries.

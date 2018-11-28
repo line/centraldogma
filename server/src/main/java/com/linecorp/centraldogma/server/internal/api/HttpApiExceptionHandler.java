@@ -33,6 +33,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
+import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -82,7 +83,9 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                                                      "Revision %s does not exist.", cause.getMessage()))
                .put(TokenNotFoundException.class,
                     (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
-                                                     "Token '%s' does not exist.", cause.getMessage()));
+                                                     "Token '%s' does not exist.", cause.getMessage()))
+               .put(QueryExecutionException.class,
+                    (ctx, req, cause) -> newResponse(HttpStatus.BAD_REQUEST, cause));
 
         exceptionHandlers = builder.build();
     }

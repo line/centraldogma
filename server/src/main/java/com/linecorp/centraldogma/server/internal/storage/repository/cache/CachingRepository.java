@@ -16,7 +16,9 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
+import static com.linecorp.centraldogma.server.internal.storage.repository.cache.CacheableQueryCall.EMPTY;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -24,7 +26,6 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.function.Function;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.base.Throwables;
@@ -36,6 +37,8 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
@@ -85,11 +88,30 @@ final class CachingRepository implements Repository {
         requireNonNull(revision, "revision");
         requireNonNull(query, "query");
 
-        final CompletableFuture<Object> future = normalizeAndCompose(
-                revision,
-                rev -> cache.get(new CacheableQueryCall(repo, rev, query))
-                            .thenApply(result -> result != CacheableQueryCall.EMPTY ? result : null));
-        return unsafeCast(future);
+        final Revision normalizedRevision;
+        try {
+            normalizedRevision = normalizeNow(revision);
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
+
+        final CacheableQueryCall key = new CacheableQueryCall(repo, normalizedRevision, query);
+        final CompletableFuture<Object> value = cache.getIfPresent(key);
+        if (value != null) {
+            return value.thenApply(entry -> entry == EMPTY ? null : unsafeCast(entry));
+        }
+
+        return Repository.super.getOrNull(normalizedRevision, query).thenApply(entry -> {
+            if (entry == null) {
+                key.computedValue(EMPTY);
+                cache.get(key); // Cache the result as emtpy.
+                return null;
+            }
+
+            key.computedValue(entry);
+            cache.get(key); // Cache the result.
+            return entry;
+        });
     }
 
     @Override
@@ -99,11 +121,14 @@ final class CachingRepository implements Repository {
         requireNonNull(pathPattern, "pathPattern");
         requireNonNull(options, "options");
 
-        final CompletableFuture<Object> future = normalizeAndCompose(
-                revision,
-                rev -> cache.get(new CacheableFindCall(repo, rev, pathPattern, options)));
+        final Revision normalizedRevision;
+        try {
+            normalizedRevision = normalizeNow(revision);
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
 
-        return unsafeCast(future);
+        return unsafeCast(cache.get(new CacheableFindCall(repo, normalizedRevision, pathPattern, options)));
     }
 
     @Override
@@ -272,8 +297,36 @@ final class CachingRepository implements Repository {
         return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes);
     }
 
-    private <T> CompletableFuture<T> normalizeAndCompose(
-            Revision revision, Function<Revision, CompletableFuture<T>> function) {
-        return normalize(revision).thenCompose(function);
+    @Override
+    public <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
+        requireNonNull(revision, "revision");
+        requireNonNull(query, "query");
+
+        final Revision normalizedRevision;
+        try {
+            normalizedRevision = normalizeNow(revision);
+        } catch (Exception e) {
+            return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
+
+        final CacheableMergeQueryCall key = new CacheableMergeQueryCall(repo, normalizedRevision, query);
+        final CompletableFuture<Object> value = cache.getIfPresent(key);
+        if (value != null) {
+            return unsafeCast(value);
+        }
+
+        return Repository.super.mergeFiles(normalizedRevision, query).thenApply(mergedEntry -> {
+            key.computedValue(mergedEntry);
+            cache.get(key);
+            return mergedEntry;
+        });
+    }
+
+    @Override
+    public String toString() {
+        return toStringHelper(this)
+                .add("repo", repo)
+                .add("firstCommit", firstCommit)
+                .toString();
     }
 }

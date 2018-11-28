@@ -55,14 +55,18 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeQuery;
+import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 import com.linecorp.centraldogma.internal.thrift.ChangeType;
 import com.linecorp.centraldogma.internal.thrift.Comment;
 import com.linecorp.centraldogma.internal.thrift.DiffFileResult;
 import com.linecorp.centraldogma.internal.thrift.GetFileResult;
+import com.linecorp.centraldogma.internal.thrift.MergedEntry;
 import com.linecorp.centraldogma.internal.thrift.Project;
 import com.linecorp.centraldogma.internal.thrift.Repository;
 import com.linecorp.centraldogma.internal.thrift.WatchFileResult;
@@ -358,6 +362,24 @@ public class LegacyCentralDogmaTest {
         assertThat(client.getFile("project", "repo", new Revision(1), Query.ofText("/a.txt")).get())
                 .isEqualTo(Entry.ofText(new Revision(1), "/a.txt", "content"));
         verify(iface).getFile(eq("project"), eq("repo"), any(), any(), any());
+    }
+
+    @Test
+    public void mergeFiles() throws Exception {
+        doAnswer(invocation -> {
+            final AsyncMethodCallback<MergedEntry> callback = invocation.getArgument(4);
+            callback.onComplete(new MergedEntry(new TRevision(1), TEntryType.JSON, "{\"foo\": \"bar\"}",
+                                                ImmutableList.of("/a.json", "/b.json")));
+            return null;
+        }).when(iface).mergeFiles(any(), any(), any(), any(), any());
+        assertThat(client.mergeFiles("project", "repo", new Revision(1),
+                                     MergeQuery.ofJson(ImmutableList.of(MergeSource.ofOptional("/a.json"),
+                                                                        MergeSource.ofRequired("/b.json"))))
+                         .get())
+                .isEqualTo(com.linecorp.centraldogma.common.MergedEntry.of(
+                        new Revision(1), EntryType.JSON, Jackson.readTree("{\"foo\": \"bar\"}"),
+                        ImmutableList.of("/a.json", "/b.json")));
+        verify(iface).mergeFiles(eq("project"), eq("repo"), any(), any(), any());
     }
 
     @Test

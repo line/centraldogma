@@ -24,10 +24,15 @@ import com.google.common.collect.ImmutableMap;
  */
 public final class FindOptions {
 
-    /**
-     * Do not fetch the entry content.
-     */
-    public static final Map<FindOption<?>, ?> NO_FETCH_CONTENT =
+    public static final Map<FindOption<?>, ?> FIND_ONE_WITH_CONTENT =
+            ImmutableMap.of(FindOption.MAX_ENTRIES, 1);
+
+    public static final Map<FindOption<?>, ?> FIND_ONE_WITHOUT_CONTENT =
+            ImmutableMap.of(FindOption.FETCH_CONTENT, false, FindOption.MAX_ENTRIES, 1);
+
+    public static final Map<FindOption<?>, ?> FIND_ALL_WITH_CONTENT = ImmutableMap.of();
+
+    public static final Map<FindOption<?>, ?> FIND_ALL_WITHOUT_CONTENT =
             ImmutableMap.of(FindOption.FETCH_CONTENT, false);
 
     private FindOptions() {}
