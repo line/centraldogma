@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.76.1
+- com.linecorp.armeria:armeria-bom:0.76.2
 
 ch.qos.logback:
   logback-classic:
