@@ -30,7 +30,9 @@ dependencies {
     testCompile 'org.apache.curator:curator-test'
 
     // jCommander
-    compile 'com.beust:jcommander'
+    compile('com.beust:jcommander') {
+        ext.optional = true
+    }
 
     // jGit
     compile 'org.eclipse.jgit:org.eclipse.jgit'
