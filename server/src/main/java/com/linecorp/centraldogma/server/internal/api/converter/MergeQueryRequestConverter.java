@@ -40,9 +40,10 @@ public class MergeQueryRequestConverter implements RequestConverterFunction {
                                  Class<?> expectedResultType) throws Exception {
         final String queryString = ctx.query();
         if (queryString != null) {
-            // Decode queryString here so that the original order of "path" and "optional_path" is preserved.
-            // For example if a user specify the query as "path=/a.json&optional_path=b.json&path=c.json",
-            // the mergeQuery will merge the files in the order of "/a.json", "/b.json" and "/c.json".
+            // Decode queryString manually so that the original order of "path" and "optional_path" is
+            // preserved. For example if a user specifies the query as
+            // "path=/a.json&optional_path=b.json&path=c.json", the mergeQuery will merge the files
+            // in the order of "/a.json", "/b.json" and "/c.json".
             final String decodedString = QueryStringDecoder.decodeComponent(queryString);
             final Iterable<String> queries = querySplitter.split(decodedString);
             final Builder<MergeSource> mergeSourceBuilder = ImmutableList.builder();

@@ -106,11 +106,11 @@ public final class Util {
 
     public static String validateJsonPath(String jsonPath, String paramName) {
         requireNonNull(jsonPath, paramName);
-        if (isValidJsonPath(jsonPath)) {
-            return jsonPath;
+        if (!isValidJsonPath(jsonPath)) {
+            throw new IllegalArgumentException(paramName + " is invalid JSON path: " + jsonPath);
         }
 
-        throw new IllegalArgumentException(paramName + " is invalid JSON path: " + jsonPath);
+        return jsonPath;
     }
 
     public static boolean isValidJsonPath(String jsonPath) {

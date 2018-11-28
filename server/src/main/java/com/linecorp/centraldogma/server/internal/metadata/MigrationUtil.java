@@ -18,9 +18,9 @@ package com.linecorp.centraldogma.server.internal.metadata;
 
 import static com.linecorp.centraldogma.server.internal.command.Command.createRepository;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
-import static com.linecorp.centraldogma.server.internal.metadata.MetadataRepository.convertWithJackson;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
+import static com.linecorp.centraldogma.server.internal.metadata.RepositorySupport.convertWithJackson;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toMap;
 
@@ -89,9 +89,9 @@ public final class MigrationUtil {
         requireNonNull(projectManager, "projectManager");
         requireNonNull(executor, "executor");
 
-        final MetadataRepository<ProjectMetadata> metadataRepo =
-                new MetadataRepository<>(projectManager, executor,
-                                         entry -> convertWithJackson(entry, ProjectMetadata.class));
+        final RepositorySupport<ProjectMetadata> metadataRepo =
+                new RepositorySupport<>(projectManager, executor,
+                                        entry -> convertWithJackson(entry, ProjectMetadata.class));
 
         final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
 
@@ -168,7 +168,7 @@ public final class MigrationUtil {
         }
     }
 
-    private static void commitProjectMetadata(MetadataRepository<ProjectMetadata> metadataRepo,
+    private static void commitProjectMetadata(RepositorySupport<ProjectMetadata> metadataRepo,
                                               CommandExecutor executor, String projectName,
                                               ProjectMetadata metadata) {
         try {
@@ -196,9 +196,9 @@ public final class MigrationUtil {
     private static Collection<Token> migrateTokens(ProjectManager projectManager,
                                                    CommandExecutor executor) {
 
-        final MetadataRepository<Tokens> tokensRepo =
-                new MetadataRepository<>(projectManager, executor,
-                                         entry -> convertWithJackson(entry, Tokens.class));
+        final RepositorySupport<Tokens> tokensRepo =
+                new RepositorySupport<>(projectManager, executor,
+                                        entry -> convertWithJackson(entry, Tokens.class));
 
         final Project project = projectManager.get(INTERNAL_PROJ);
 

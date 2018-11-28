@@ -83,7 +83,10 @@ public final class MergedEntry<T> implements ContentHolder<T> {
         this.paths = ImmutableList.copyOf(requireNonNull(paths, "paths"));
     }
 
-    // TODO(minwoox) Add this method to ContentHolder when we include the revision in Entry as well.
+    // TODO(minwoox) Move this method upto ContentHolder when we include the revision in Entry as well.
+    /**
+     * Returns the {@link Revision} of this {@link MergedEntry}.
+     */
     public Revision revision() {
         return revision;
     }

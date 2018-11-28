@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
-import static java.util.Objects.requireNonNull;
+import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 
 import com.google.common.base.MoreObjects;
 
@@ -48,7 +48,7 @@ public final class MergeSource {
      * Creates a new instance.
      */
     private MergeSource(String path, boolean optional) {
-        this.path = requireNonNull(path, "path");
+        this.path = validateFilePath(path, "path");
         this.optional = optional;
     }
 

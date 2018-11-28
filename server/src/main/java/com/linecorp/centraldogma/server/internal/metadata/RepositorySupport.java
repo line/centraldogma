@@ -42,14 +42,14 @@ import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
-final class MetadataRepository<T> {
+final class RepositorySupport<T> {
 
     private final ProjectManager projectManager;
     private final CommandExecutor executor;
     private final Function<Entry<?>, T> entryConverter;
 
-    MetadataRepository(ProjectManager projectManager, CommandExecutor executor,
-                       Function<Entry<?>, T> entryConverter) {
+    RepositorySupport(ProjectManager projectManager, CommandExecutor executor,
+                      Function<Entry<?>, T> entryConverter) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.executor = requireNonNull(executor, "executor");
         this.entryConverter = requireNonNull(entryConverter, "entryConverter");

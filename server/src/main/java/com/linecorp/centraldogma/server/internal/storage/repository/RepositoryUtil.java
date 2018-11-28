@@ -132,7 +132,8 @@ public final class RepositoryUtil {
 
         final QueryType queryType = query.type();
         if (!queryType.supportedEntryTypes().contains(entryType)) {
-            throw new QueryExecutionException(query + " does not support this entry type: " + entryType);
+            throw new QueryExecutionException("Unsupported entry type: " + entryType +
+                                              " (query: " + query + ')');
         }
 
         if (queryType == IDENTITY) {
@@ -140,7 +141,8 @@ public final class RepositoryUtil {
         } else if (queryType == JSON_PATH) {
             return Entry.of(entry.revision(), query.path(), entryType, query.apply(entry.content()));
         } else {
-            throw new QueryExecutionException(query + " does not support this entry type: " + entryType);
+            throw new QueryExecutionException("Unsupported entry type: " + entryType +
+                                              " (query: " + query + ')');
         }
     }
 

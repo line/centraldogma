@@ -56,7 +56,7 @@ public interface MergeQuery<T> {
      * Returns a newly-created {@link MergeQuery} that merges the JSON contents as specified in the
      * {@code mergeSources}. Then, the specified
      * <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path expressions</a>
-     * are applied to the content.
+     * are applied to the content of the {@link MergedEntry}.
      *
      * @param mergeSources the paths of JSON files being merged and indicates whether it is optional
      * @param jsonPaths the JSON path expressions to apply
@@ -66,6 +66,15 @@ public interface MergeQuery<T> {
         return ofJsonPath(mergeSources, ImmutableList.copyOf(requireNonNull(jsonPaths, "jsonPaths")));
     }
 
+    /**
+     * Returns a newly-created {@link MergeQuery} that merges the JSON contents as specified in the
+     * {@code mergeSources}. Then, the specified
+     * <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path expressions</a>
+     * are applied to the content.
+     *
+     * @param mergeSources the paths of JSON files being merged and indicates whether it is optional
+     * @param jsonPaths the JSON path expressions to apply
+     */
     static MergeQuery<JsonNode> ofJsonPath(Iterable<MergeSource> mergeSources,
                                            Iterable<String> jsonPaths) {
         return new JsonMergeQuery(JSON_PATH, mergeSources, jsonPaths);
@@ -73,22 +82,21 @@ public interface MergeQuery<T> {
 
     /**
      * Returns a newly-created {@link MergeQuery} that merges the JSON contents as specified in the
-     * {@code mergeSources}. Then, the specified
-     * <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path expressions</a>
-     * are applied to the content.
+     * {@code mergeSources}. Then, the specified expressions are applied to the content of the
+     * {@link MergedEntry}.
      *
      * @param type the type of the {@link MergeQuery}
      * @param mergeSources the paths of JSON files being merged and indicates whether it is optional
-     * @param jsonPaths the JSON path expressions to apply
+     * @param expressions the expressions to apply to the content of the {@link MergedEntry}
      */
     static MergeQuery<?> of(QueryType type, Iterable<MergeSource> mergeSources,
-                            Iterable<String> jsonPaths) {
+                            Iterable<String> expressions) {
         requireNonNull(type, "type");
         switch (type) {
             case IDENTITY:
                 return ofJson(mergeSources);
             case JSON_PATH:
-                return ofJsonPath(mergeSources, jsonPaths);
+                return ofJsonPath(mergeSources, expressions);
             default:
                 throw new IllegalArgumentException("Illegal query type: " + type.name());
         }
