@@ -68,6 +68,8 @@ First, we should create a new instance of :api:`com.linecorp.centraldogma.client
     Internally, the client uses `Armeria`_ as its networking layer. You may want to customize the client
     settings, such as specifying alternative Armeria ``ClientFactory`` or configuring Armeria ``ClientBuilder``.
 
+.. _getting-a-file:
+
 Getting a file
 --------------
 Once a client is created, you can get a file from a repository:
@@ -140,6 +142,118 @@ You would get:
 
     Central Dogma uses `Jayway's JSON path implementation <https://github.com/json-path/JsonPath>`_.
     Refer to their project page for syntax, example and the list of supported functions.
+
+Getting a merged file
+---------------------
+You can get a merged file from a repository:
+
+.. code-block:: java
+
+    import com.linecorp.centraldogma.common.MergeQuery;
+    import com.linecorp.centraldogma.common.MergeSource;
+
+    CentralDogma dogma = ...;
+    List<MergeSource> mergeSources = Arrays.asList(MergeSource.ofRequired("/a.json"),
+                                                   MergeSource.ofRequired("/b.json"),
+                                                   MergeSource.ofRequired("/c.json"));
+    CompletableFuture<MergedEntry<JsonNode>> future =
+            dogma.mergeFiles("myProj", "myRepo", Revision.HEAD, MergeQuery.ofJson(mergeSources));
+
+    MergedEntry<JsonNode> mergedEntry = future.join();
+    assert mergedEntry.type() == EntryType.JSON
+    assert mergedEntry.content() instanceof JsonNode;
+    System.err.println(mergedEntry.content());
+
+The ``mergeFiles()`` call above will retrieve the :api:`MergedEntry` which contains a JSON file merged
+sequentially as specified in the :api:`MergeQuery`. We specified ``Revision.HEAD``, so the latest revision of
+``/a.json``, ``/b.json`` and ``/c.json`` will be merged. If you want to fetch at the specific
+revision, you can specify the revision as we did in :ref:`getting-a-file`.
+
+Only merging JSON files is currently supported. The merge happens traversing children in the JSON object
+recursively. In the merge process, the value is simply replaced by the value who has same property name.
+Let's consider that the contents of the ``/a.json``, ``/b.json`` and ``/c.json`` are as follows:
+
+``/a.json``
+
+.. code-block:: json
+
+    {
+      "someObject": {
+        "nullInSomeObject": null
+      },
+      "otherValue": "foo"
+    }
+
+``/b.json``
+
+.. code-block:: json
+
+    {
+      "someObject": {
+        "booleanInSomeObject": true // Add this field because it it not in "/a.json".
+      },
+      "otherValue": "bar" // Replace the value with "bar".
+    }
+
+``/c.json``
+
+.. code-block:: json
+
+    {
+      "someObject": {
+        "nullInSomeObject": 100 // Replace the null with 100. null can be converted to any type.
+      }
+    }
+
+Then, the content of the merged entry will be:
+
+.. code-block:: json
+
+    {
+      "someObject": {
+        "nullInSomeObject": 100,
+        "booleanInSomeObject": true
+      },
+      "otherValue": "bar"
+    }
+
+.. note::
+
+    Corresponding types of values should be same or one of the types must be ``null`` to replace.
+    If they don't meet such conditions, you will get an :api:`QueryExecutionException`.
+
+You can mark some files which are involved in merge as optional.
+
+.. code-block:: java
+
+    CentralDogma dogma = ...;
+    List<MergeSource> mergeSources = Arrays.asList(MergeSource.ofRequired("/a.json"),
+                                                   MergeSource.ofOptional("/b.json"),
+                                                   MergeSource.ofRequired("/c.json"));
+    CompletableFuture<MergedEntry<JsonNode>> future =
+            dogma.mergeFiles("myProj", "myRepo", Revision.HEAD, MergeQuery.ofJson(mergeSources));
+
+Note that we used ``MergeSource.ofOptional("/b.json")``, which tells to include the ``/b.json`` file only if it
+exists in the server. If it does not exist, ``/a.json`` and ``/c.json`` will be merged sequentially. The files
+specified as required should exist in the server. If they don't, you will get an :api:`EntryNotFoundException`.
+You will get the :api:`EntryNotFoundException` as well when you specify all of the files as optional
+and none of them exists.
+
+As we used ``Query.ofJsonPath()`` in :ref:`getting-a-file`, you can use ``MergeQuery.ofJsonPath()`` to
+retrieve the result of JSON path evaluation of the :api:`MergedEntry`.
+
+.. code-block:: java
+
+    CentralDogma dogma = ...;
+    List<MergeSource> mergeSources = Arrays.asList(MergeSource.ofRequired("/a.json"),
+                                                   MergeSource.ofOptional("/b.json"),
+                                                   MergeSource.ofRequired("/c.json"));
+    CompletableFuture<MergedEntry<JsonNode>> future =
+            dogma.mergeFiles("myProj", "myRepo", Revision.HEAD,
+                             MergeQuery.ofJsonPath(mergeSources, "$.someValue"));
+
+Central Dogma server will apply the JSON path expression ``$.someValue`` to the content of the
+:api:`MergedEntry`, and return the query result to the client.
 
 Pushing a commit
 ----------------
