@@ -164,10 +164,11 @@ You can get a merged file from a repository:
     assert mergedEntry.content() instanceof JsonNode;
     System.err.println(mergedEntry.content());
 
-The ``mergeFiles()`` call above will retrieve the :api:`MergedEntry` which contains a JSON file merged
-sequentially as specified in the :api:`MergeQuery`. We specified ``Revision.HEAD``, so the latest revision of
-``/a.json``, ``/b.json`` and ``/c.json`` will be merged. If you want to fetch at the specific
-revision, you can specify the revision as we did in :ref:`getting-a-file`.
+The ``mergeFiles()`` call above will retrieve the :api:`MergedEntry` which contains a JSON document which
+is the result of merging the files specified in the :api:`MergeQuery` sequentially.
+We specified ``Revision.HEAD``, so the latest revision of ``/a.json``, ``/b.json`` and ``/c.json``
+will be merged. If you want to fetch at the specific revision, you can specify the revision as we
+did in :ref:`getting-a-file`.
 
 Only merging JSON files is currently supported. The merge happens traversing children in the JSON object
 recursively. In the merge process, the value is simply replaced by the value who has same property name.
@@ -181,7 +182,7 @@ Let's consider that the contents of the ``/a.json``, ``/b.json`` and ``/c.json``
       "someObject": {
         "nullInSomeObject": null
       },
-      "otherValue": "foo"
+      "someValue": "foo"
     }
 
 ``/b.json``
@@ -192,7 +193,7 @@ Let's consider that the contents of the ``/a.json``, ``/b.json`` and ``/c.json``
       "someObject": {
         "booleanInSomeObject": true // Add this field because it it not in "/a.json".
       },
-      "otherValue": "bar" // Replace the value with "bar".
+      "someValue": "bar" // Replace the value with "bar".
     }
 
 ``/c.json``
@@ -214,28 +215,29 @@ Then, the content of the merged entry will be:
         "nullInSomeObject": 100,
         "booleanInSomeObject": true
       },
-      "otherValue": "bar"
+      "someValue": "bar"
     }
 
 .. note::
 
     Corresponding types of values should be same or one of the types must be ``null`` to replace.
-    If they don't meet such conditions, you will get an :api:`QueryExecutionException`.
+    If their types do not match or neither value is ``null``, you will get a :api:`QueryExecutionException`.
 
-You can mark some files which are involved in merge as optional.
+You can mark some files involved in the merge process as optional.
 
 .. code-block:: java
 
     CentralDogma dogma = ...;
     List<MergeSource> mergeSources = Arrays.asList(MergeSource.ofRequired("/a.json"),
-                                                   MergeSource.ofOptional("/b.json"),
+                                                   MergeSource.ofOptional("/b.json"), // <-- It's optional!
                                                    MergeSource.ofRequired("/c.json"));
     CompletableFuture<MergedEntry<JsonNode>> future =
             dogma.mergeFiles("myProj", "myRepo", Revision.HEAD, MergeQuery.ofJson(mergeSources));
 
 Note that we used ``MergeSource.ofOptional("/b.json")``, which tells to include the ``/b.json`` file only if it
-exists in the server. If it does not exist, ``/a.json`` and ``/c.json`` will be merged sequentially. The files
-specified as required should exist in the server. If they don't, you will get an :api:`EntryNotFoundException`.
+exists in the repository. If it does not exist, ``/a.json`` and ``/c.json`` will be merged sequentially.
+The files specified as required must exist in the repository. You will get an :api:`EntryNotFoundException`
+otherwise.
 You will get the :api:`EntryNotFoundException` as well when you specify all of the files as optional
 and none of them exists.
 
