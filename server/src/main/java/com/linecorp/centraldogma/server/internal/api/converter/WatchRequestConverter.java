@@ -29,6 +29,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
 /**
  * A request converter that converts to {@link WatchRequest} when the request contains
@@ -56,7 +57,8 @@ public final class WatchRequestConverter implements RequestConverterFunction {
                 timeoutMillis = DEFAULT_TIMEOUT_MILLIS;
             }
             // Update timeout according to the watch API specifications.
-            ctx.setRequestTimeoutMillis(timeoutMillis);
+            ctx.setRequestTimeoutMillis(
+                    WatchTimeout.makeReasonable(timeoutMillis, ctx.requestTimeoutMillis()));
             return Optional.of(new WatchRequest(lastKnownRevision, timeoutMillis));
         }
         return Optional.empty();

@@ -35,8 +35,10 @@ public class ContentServiceV1TestBase {
     public final CentralDogmaRule dogma = new CentralDogmaRule() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            // Shorten the default request timeout here, in order to do a test that a watch request overrides
-            // the default request timeout.
+            // Shorten the default request timeout here, in order to do the following tests
+            // that a watch request overrides the default request timeout.
+            // - ContentServiceV1Test#watchRepositoryTimeout
+            // - ContentServiceV1Test#watchFileTimeout
             builder.requestTimeoutMillis(3_000);
         }
     };
