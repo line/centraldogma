@@ -55,6 +55,8 @@ public final class WatchRequestConverter implements RequestConverterFunction {
             } else {
                 timeoutMillis = DEFAULT_TIMEOUT_MILLIS;
             }
+            // Update timeout according to the watch API specifications.
+            ctx.setRequestTimeoutMillis(timeoutMillis);
             return Optional.of(new WatchRequest(lastKnownRevision, timeoutMillis));
         }
         return Optional.empty();

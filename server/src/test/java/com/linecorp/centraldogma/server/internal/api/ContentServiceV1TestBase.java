@@ -26,12 +26,20 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class ContentServiceV1TestBase {
 
     @Rule
-    public final CentralDogmaRule dogma = new CentralDogmaRule();
+    public final CentralDogmaRule dogma = new CentralDogmaRule() {
+        @Override
+        protected void configure(CentralDogmaBuilder builder) {
+            // Shorten the default request timeout here, in order to do a test that a watch request overrides
+            // the default request timeout.
+            builder.requestTimeoutMillis(3_000);
+        }
+    };
 
     static final String CONTENTS_PREFIX = "/api/v1/projects/myPro/repos/myRepo/contents";
 
