@@ -30,6 +30,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 import io.netty.channel.EventLoop;
@@ -86,6 +87,7 @@ public final class WatchService {
 
         final ScheduledFuture<?> timeoutFuture;
         if (timeoutMillis > 0) {
+            timeoutMillis = WatchTimeout.makeReasonable(timeoutMillis);
             timeoutMillis = applyJitter(timeoutMillis);
             final EventLoop eventLoop = RequestContext.current().eventLoop();
             timeoutFuture = eventLoop.schedule(() -> result.completeExceptionally(CANCELLATION_EXCEPTION),

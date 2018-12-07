@@ -32,6 +32,16 @@ public final class WatchTimeout {
      * Returns a reasonable timeout duration for a watch request.
      *
      * @param expectedTimeoutMillis timeout duration that a user wants to use, in milliseconds
+     * @return timeout duration in milliseconds, between 1 and the {@link #MAX_MILLIS}.
+     */
+    public static long makeReasonable(long expectedTimeoutMillis) {
+        return makeReasonable(expectedTimeoutMillis, 0);
+    }
+
+    /**
+     * Returns a reasonable timeout duration for a watch request.
+     *
+     * @param expectedTimeoutMillis timeout duration that a user wants to use, in milliseconds
      * @param bufferMillis buffer duration which needs to be added, in milliseconds
      * @return timeout duration in milliseconds, between the specified {@code bufferMillis} and
      *         the {@link #MAX_MILLIS}.
