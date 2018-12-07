@@ -23,6 +23,7 @@ import com.linecorp.armeria.common.RpcResponse;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
 public final class CentralDogmaTimeoutScheduler extends SimpleDecoratingService<RpcRequest, RpcResponse> {
 
@@ -38,11 +39,8 @@ public final class CentralDogmaTimeoutScheduler extends SimpleDecoratingService<
                 final List<Object> params = req.params();
                 final long timeout = (Long) params.get(params.size() - 1);
                 if (timeout > 0) {
-                    if (timeout > Long.MAX_VALUE - ctx.requestTimeoutMillis()) {
-                        ctx.setRequestTimeoutMillis(0);
-                    } else {
-                        ctx.setRequestTimeoutMillis(ctx.requestTimeoutMillis() + timeout);
-                    }
+                    ctx.setRequestTimeoutMillis(
+                            WatchTimeout.makeReasonable(timeout, ctx.requestTimeoutMillis()));
                 }
             }
         }

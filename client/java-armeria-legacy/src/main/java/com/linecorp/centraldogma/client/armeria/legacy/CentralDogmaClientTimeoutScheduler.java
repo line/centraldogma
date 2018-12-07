@@ -23,6 +23,7 @@ import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.SimpleDecoratingClient;
 import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
+import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
 /**
  * Decorates a {@link Client} to enlarge responseTimeout when requesting watchFile or watchRepository.
@@ -44,11 +45,8 @@ class CentralDogmaClientTimeoutScheduler extends SimpleDecoratingClient<RpcReque
                 final List<Object> params = req.params();
                 final long timeout = (Long) params.get(params.size() - 1);
                 if (timeout > 0) {
-                    if (timeout > Long.MAX_VALUE - ctx.responseTimeoutMillis()) {
-                        ctx.setResponseTimeoutMillis(0);
-                    } else {
-                        ctx.setResponseTimeoutMillis(ctx.responseTimeoutMillis() + timeout);
-                    }
+                    ctx.setResponseTimeoutMillis(
+                            WatchTimeout.makeReasonable(timeout, ctx.responseTimeoutMillis()));
                 }
             }
         }

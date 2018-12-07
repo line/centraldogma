@@ -565,9 +565,9 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     public void watchRepositoryTimeout() {
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX)
                                                .add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                               .add(HttpHeaderNames.PREFER, "wait=1"); // 1 second
+                                               .add(HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
-        await().atMost(3, TimeUnit.SECONDS).untilAsserted(future::isDone);
+        await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
         assertThat(future.join().headers().status()).isSameAs(HttpStatus.NOT_MODIFIED);
     }
 
@@ -575,9 +575,9 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     public void watchFileTimeout() {
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json")
                                                .add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                               .add(HttpHeaderNames.PREFER, "wait=1"); // 1 second
+                                               .add(HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
-        await().atMost(3, TimeUnit.SECONDS).untilAsserted(future::isDone);
+        await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
         assertThat(future.join().headers().status()).isSameAs(HttpStatus.NOT_MODIFIED);
     }
 

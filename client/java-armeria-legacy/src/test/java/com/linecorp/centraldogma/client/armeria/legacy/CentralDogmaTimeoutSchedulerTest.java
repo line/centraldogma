@@ -42,6 +42,7 @@ import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
+import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
 import io.netty.channel.DefaultEventLoop;
@@ -77,7 +78,7 @@ public class CentralDogmaTimeoutSchedulerTest {
 
     @Test
     public void execute_watch_timeoutOverflow() throws Exception {
-        check("watchRepository", Long.MAX_VALUE - 10, 100L, 0);
+        check("watchRepository", Long.MAX_VALUE - 10, 100L, WatchTimeout.MAX_MILLIS);
     }
 
     @Test
