@@ -26,7 +26,7 @@ public final class WatchTimeout {
     /**
      * The maximum timeout duration, in milliseconds.
      */
-    public static final long MAX_MILLIS = TimeUnit.DAYS.toMillis(365);
+    public static final long MAX_MILLIS = TimeUnit.DAYS.toMillis(1);
 
     /**
      * Returns a reasonable timeout duration for a watch request.
