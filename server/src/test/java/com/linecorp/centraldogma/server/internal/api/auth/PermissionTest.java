@@ -44,7 +44,6 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.Service;
-import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -135,20 +134,20 @@ public class PermissionTest {
                             new ApplicationTokenAuthorizer(mds::findTokenBySecret)));
             sb.annotatedService(new Object() {
                 @Get("/projects/{projectName}")
-                @Decorator(ProjectMembersOnly.class)
+                @RequiresRole(roles = { ProjectRole.OWNER, ProjectRole.MEMBER })
                 public HttpResponse project(@Param("projectName") String projectName) {
                     return HttpResponse.of(HttpStatus.OK);
                 }
 
                 @Post("/projects/{projectName}/repos/{repoName}")
-                @Decorator(HasWritePermission.class)
+                @RequiresWritePermission
                 public HttpResponse write(@Param("projectName") String projectName,
                                           @Param("repoName") String repoName) {
                     return HttpResponse.of(HttpStatus.OK);
                 }
 
                 @Get("/projects/{projectName}/repos/{repoName}")
-                @Decorator(HasReadPermission.class)
+                @RequiresReadPermission
                 public HttpResponse read(@Param("projectName") String projectName,
                                          @Param("repoName") String repoName) {
                     return HttpResponse.of(HttpStatus.OK);

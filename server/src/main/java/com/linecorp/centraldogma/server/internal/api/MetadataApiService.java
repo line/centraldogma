@@ -34,7 +34,6 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.annotation.Consumes;
-import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Param;
@@ -47,7 +46,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.server.internal.admin.auth.User;
-import com.linecorp.centraldogma.server.internal.api.auth.ProjectOwnersOnly;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.internal.metadata.Permission;
@@ -57,6 +56,7 @@ import com.linecorp.centraldogma.server.internal.metadata.Token;
 /**
  * Annotated service object for managing metadata of projects.
  */
+@RequiresRole(roles = ProjectRole.OWNER)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class MetadataApiService {
 
@@ -77,7 +77,6 @@ public class MetadataApiService {
      * <p>Adds a member to the specified {@code projectName}.
      */
     @Post("/metadata/{projectName}/members")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> addMember(@Param("projectName") String projectName,
                                                  IdentifierWithRole request,
                                                  Author author) {
@@ -94,7 +93,6 @@ public class MetadataApiService {
      */
     @Patch("/metadata/{projectName}/members/{memberId}")
     @Consumes("application/json-patch+json")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateMember(@Param("projectName") String projectName,
                                                     @Param("memberId") String memberId,
                                                     JsonPatch jsonPatch,
@@ -112,7 +110,6 @@ public class MetadataApiService {
      * <p>Removes the specified {@code memberId} from the specified {@code projectName}.
      */
     @Delete("/metadata/{projectName}/members/{memberId}")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> removeMember(@Param("projectName") String projectName,
                                                     @Param("memberId") String memberId,
                                                     Author author) {
@@ -127,7 +124,6 @@ public class MetadataApiService {
      * <p>Adds a {@link Token} to the specified {@code projectName}.
      */
     @Post("/metadata/{projectName}/tokens")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> addToken(@Param("projectName") String projectName,
                                                 IdentifierWithRole request,
                                                 Author author) {
@@ -144,7 +140,6 @@ public class MetadataApiService {
      */
     @Patch("/metadata/{projectName}/tokens/{appId}")
     @Consumes("application/json-patch+json")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateTokenRole(@Param("projectName") String projectName,
                                                        @Param("appId") String appId,
                                                        JsonPatch jsonPatch,
@@ -161,7 +156,6 @@ public class MetadataApiService {
      * <p>Removes the {@link Token} of the specified {@code appId} from the specified {@code projectName}.
      */
     @Delete("/metadata/{projectName}/tokens/{appId}")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> removeToken(@Param("projectName") String projectName,
                                                    @Param("appId") String appId,
                                                    Author author) {
@@ -176,7 +170,6 @@ public class MetadataApiService {
      * {@code projectName}.
      */
     @Post("/metadata/{projectName}/repos/{repoName}/perm/role")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateRolePermission(@Param("projectName") String projectName,
                                                             @Param("repoName") String repoName,
                                                             PerRolePermissions newPermission,
@@ -191,7 +184,6 @@ public class MetadataApiService {
      * specified {@code projectName}.
      */
     @Post("/metadata/{projectName}/repos/{repoName}/perm/users")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> addSpecificUserPermission(
             @Param("projectName") String projectName,
             @Param("repoName") String repoName,
@@ -210,7 +202,6 @@ public class MetadataApiService {
      */
     @Patch("/metadata/{projectName}/repos/{repoName}/perm/users/{memberId}")
     @Consumes("application/json-patch+json")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateSpecificUserPermission(@Param("projectName") String projectName,
                                                                     @Param("repoName") String repoName,
                                                                     @Param("memberId") String memberId,
@@ -232,7 +223,6 @@ public class MetadataApiService {
      * in the specified {@code projectName}.
      */
     @Delete("/metadata/{projectName}/repos/{repoName}/perm/users/{memberId}")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> removeSpecificUserPermission(@Param("projectName") String projectName,
                                                                     @Param("repoName") String repoName,
                                                                     @Param("memberId") String memberId,
@@ -250,7 +240,6 @@ public class MetadataApiService {
      * {@code projectName}.
      */
     @Post("/metadata/{projectName}/repos/{repoName}/perm/tokens")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> addSpecificTokenPermission(
             @Param("projectName") String projectName,
             @Param("repoName") String repoName,
@@ -268,7 +257,6 @@ public class MetadataApiService {
      */
     @Patch("/metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}")
     @Consumes("application/json-patch+json")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> updateSpecificTokenPermission(@Param("projectName") String projectName,
                                                                      @Param("repoName") String repoName,
                                                                      @Param("appId") String appId,
@@ -288,7 +276,6 @@ public class MetadataApiService {
      * in the specified {@code projectName}.
      */
     @Delete("/metadata/{projectName}/repos/{repoName}/perm/tokens/{appId}")
-    @Decorator(ProjectOwnersOnly.class)
     public CompletableFuture<Revision> removeSpecificTokenPermission(@Param("projectName") String projectName,
                                                                      @Param("repoName") String repoName,
                                                                      @Param("appId") String appId,

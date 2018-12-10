@@ -3,7 +3,7 @@
 angular.module('CentralDogmaAdmin')
     .controller('RepositoryFileDeleteController',
                 function ($scope, $uibModalInstance, project, repository, revision, file,
-                          RepositoryService, StringUtil) {
+                          RepositoryService, StringUtil, NotificationUtil) {
 
                   $scope.project = project;
                   $scope.repository = repository;
@@ -31,6 +31,7 @@ angular.module('CentralDogmaAdmin')
                             interpolateParams: {path: $scope.file.path}
                           });
                         }, function (error) {
+                          NotificationUtil.error(error);
                           $uibModalInstance.dismiss(error.message);
                         });
                   };
