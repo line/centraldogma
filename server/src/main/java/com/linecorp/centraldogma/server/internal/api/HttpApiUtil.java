@@ -27,6 +27,9 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -39,6 +42,7 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
+import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**
@@ -46,6 +50,7 @@ import com.linecorp.centraldogma.internal.Jackson;
  */
 //TODO(minwoox) change this class to package-local when the admin API is integrated with HTTP API
 public final class HttpApiUtil {
+    private static final Logger logger = LoggerFactory.getLogger(HttpApiUtil.class);
 
     static final JsonNode unremoveRequest = Jackson.valueToTree(
             ImmutableList.of(
@@ -152,6 +157,18 @@ public final class HttpApiUtil {
         }
 
         node.put("message", message != null ? message : status.reasonPhrase());
+
+        // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return
+        //                 the stack trace of the cause to the trusted client.
+        if (status == HttpStatus.INTERNAL_SERVER_ERROR) {
+            if (cause != null) {
+                logger.warn("Returning an internal server error with a cause:", cause);
+            } else if (message != null) {
+                logger.warn("Returning an internal server error with a message: {}", message);
+            }
+        } else if (status == HttpStatus.CONFLICT && cause instanceof ChangeConflictException) {
+            logger.warn("Returning a conflict with a cause:", cause);
+        }
 
         // TODO(minwoox) refine the error message
         try {
