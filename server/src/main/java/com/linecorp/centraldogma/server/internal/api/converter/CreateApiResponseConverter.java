@@ -62,7 +62,7 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
             return HttpResponse.of(headers, HttpData.of(Jackson.writeValueAsBytes(jsonNode)));
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);
-            return HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, e);
+            return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
         }
     }
 

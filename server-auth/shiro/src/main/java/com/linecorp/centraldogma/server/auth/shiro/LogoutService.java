@@ -91,7 +91,7 @@ final class LogoutService extends AbstractHttpService {
                                logoutSessionPropagator.apply(sessionId).handle((unused, cause) -> {
                                    if (cause != null) {
                                        return HttpResponse.of(HttpApiUtil.newResponse(
-                                               HttpStatus.INTERNAL_SERVER_ERROR, cause));
+                                               ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause));
                                    } else {
                                        return HttpResponse.of(HttpStatus.OK);
                                    }

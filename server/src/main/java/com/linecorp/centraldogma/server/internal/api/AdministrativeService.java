@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpStatusException;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Patch;
@@ -62,7 +63,8 @@ public final class AdministrativeService extends AbstractService {
     @Patch("/status")
     @Consumes("application/json-patch+json")
     @RequiresAdministrator
-    public CompletableFuture<ServerStatus> updateStatus(JsonNode patch) throws Exception {
+    public CompletableFuture<ServerStatus> updateStatus(ServiceRequestContext ctx,
+                                                        JsonNode patch) throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
         final ServerStatus oldStatus = status();
         final JsonNode oldValue = Jackson.valueToTree(oldStatus);
@@ -87,7 +89,7 @@ public final class AdministrativeService extends AbstractService {
         final boolean writable = writableNode.asBoolean();
         final boolean replicating = replicatingNode.asBoolean();
         if (writable && !replicating) {
-            return HttpApiUtil.throwResponse(HttpStatus.BAD_REQUEST,
+            return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
                                              "'replicating' must be 'true' if 'writable' is 'true'.");
         }
 

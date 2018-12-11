@@ -47,7 +47,7 @@ public final class RequiresAdministratorDecorator
             return delegate().serve(ctx, req);
         }
         return HttpApiUtil.throwResponse(
-                HttpStatus.FORBIDDEN,
+                ctx, HttpStatus.FORBIDDEN,
                 "You must be an administrator to perform this operation.");
     }
 

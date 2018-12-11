@@ -49,7 +49,7 @@ public class RestfulJsonResponseConverter implements ResponseConverterFunction {
                                    MediaType.JSON_UTF_8,
                                    httpData);
         } catch (JsonProcessingException e) {
-            return HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, e);
+            return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
         }
     }
 }

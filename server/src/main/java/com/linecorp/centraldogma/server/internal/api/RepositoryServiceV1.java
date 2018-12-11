@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
@@ -74,7 +75,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Returns the list of the repositories or removed repositories.
      */
     @Get("/projects/{projectName}/repos")
-    public CompletableFuture<List<RepositoryDto>> listRepositories(Project project,
+    public CompletableFuture<List<RepositoryDto>> listRepositories(ServiceRequestContext ctx, Project project,
                                                                    @Param("status") Optional<String> status,
                                                                    User user) {
         status.ifPresent(HttpApiUtil::checkStatusArgument);
@@ -86,7 +87,7 @@ public class RepositoryServiceV1 extends AbstractService {
                                   .collect(toImmutableList());
                 }
                 return HttpApiUtil.throwResponse(
-                        HttpStatus.FORBIDDEN,
+                        ctx, HttpStatus.FORBIDDEN,
                         "You must be an owner of project '%s' to remove it.", project.name());
             }
 
@@ -106,11 +107,11 @@ public class RepositoryServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos")
     @ResponseConverter(CreateApiResponseConverter.class)
     @RequiresRole(roles = ProjectRole.OWNER)
-    public CompletableFuture<RepositoryDto> createRepository(Project project,
+    public CompletableFuture<RepositoryDto> createRepository(ServiceRequestContext ctx, Project project,
                                                              CreateRepositoryRequest request,
                                                              Author author) {
         if (Project.isReservedRepoName(request.name())) {
-            return HttpApiUtil.throwResponse(HttpStatus.FORBIDDEN,
+            return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "A reserved repository cannot be created.");
         }
         return execute(Command.createRepository(author, project.name(), request.name()))
@@ -125,11 +126,12 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Delete("/projects/{projectName}/repos/{repoName}")
     @RequiresRole(roles = ProjectRole.OWNER)
-    public CompletableFuture<Void> removeRepository(@Param("repoName") String repoName,
+    public CompletableFuture<Void> removeRepository(ServiceRequestContext ctx,
+                                                    @Param("repoName") String repoName,
                                                     Repository repository,
                                                     Author author) {
         if (Project.isReservedRepoName(repoName)) {
-            return HttpApiUtil.throwResponse(HttpStatus.FORBIDDEN,
+            return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                              "A reserved repository cannot be removed.");
         }
         return execute(Command.removeRepository(author, repository.parent().name(), repository.name()))

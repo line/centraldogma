@@ -40,9 +40,11 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
-import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.QueryExecutionException;
+import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
 
 /**
@@ -62,92 +64,99 @@ public final class HttpApiUtil {
      * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
      * {@code message}.
      */
-    public static <T> T throwResponse(HttpStatus status, String message) {
-        throw HttpResponseException.of(newResponse(status, message));
+    public static <T> T throwResponse(RequestContext ctx, HttpStatus status, String message) {
+        throw HttpResponseException.of(newResponse(ctx, status, message));
     }
 
     /**
      * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus} and
      * the formatted message.
      */
-    public static <T> T throwResponse(HttpStatus status, String format, Object... args) {
-        throw HttpResponseException.of(newResponse(status, format, args));
+    public static <T> T throwResponse(RequestContext ctx, HttpStatus status, String format, Object... args) {
+        throw HttpResponseException.of(newResponse(ctx, status, format, args));
     }
 
     /**
      * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus},
      * {@code cause} and {@code message}.
      */
-    public static <T> T throwResponse(HttpStatus status, Throwable cause, String message) {
-        throw HttpResponseException.of(newResponse(status, cause, message));
+    public static <T> T throwResponse(RequestContext ctx, HttpStatus status, Throwable cause, String message) {
+        throw HttpResponseException.of(newResponse(ctx, status, cause, message));
     }
 
     /**
      * Throws a newly created {@link HttpResponseException} with the specified {@link HttpStatus},
      * {@code cause} and the formatted message.
      */
-    public static <T> T throwResponse(HttpStatus status, Throwable cause, String format, Object... args) {
-        throw HttpResponseException.of(newResponse(status, cause, format, args));
+    public static <T> T throwResponse(RequestContext ctx, HttpStatus status, Throwable cause,
+                                      String format, Object... args) {
+        throw HttpResponseException.of(newResponse(ctx, status, cause, format, args));
     }
 
     /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and the formatted
      * message.
      */
-    public static HttpResponse newResponse(HttpStatus status, String format, Object... args) {
+    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status,
+                                           String format, Object... args) {
+        requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
         requireNonNull(format, "format");
         requireNonNull(args, "args");
-        return newResponse(status, String.format(Locale.ENGLISH, format, args));
+        return newResponse(ctx, status, String.format(Locale.ENGLISH, format, args));
     }
 
     /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and {@code message}.
      */
-    public static HttpResponse newResponse(HttpStatus status, String message) {
+    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status, String message) {
+        requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
         requireNonNull(message, "message");
-        return newResponse0(status, null, message);
+        return newResponse0(ctx, status, null, message);
     }
 
     /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus} and {@code cause}.
      */
-    public static HttpResponse newResponse(HttpStatus status, Throwable cause) {
+    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status, Throwable cause) {
+        requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
         requireNonNull(cause, "cause");
-        return newResponse0(status, cause, null);
+        return newResponse0(ctx, status, cause, null);
     }
 
     /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus}, {@code cause} and
      * the formatted message.
      */
-    public static HttpResponse newResponse(HttpStatus status, Throwable cause,
+    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status, Throwable cause,
                                            String format, Object... args) {
+        requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
         requireNonNull(cause, "cause");
         requireNonNull(format, "format");
         requireNonNull(args, "args");
 
-        return newResponse(status, cause, String.format(Locale.ENGLISH, format, args));
+        return newResponse(ctx, status, cause, String.format(Locale.ENGLISH, format, args));
     }
 
     /**
      * Returns a newly created {@link HttpResponse} with the specified {@link HttpStatus}, {@code cause} and
      * {@code message}.
      */
-    public static HttpResponse newResponse(HttpStatus status, Throwable cause, String message) {
+    public static HttpResponse newResponse(RequestContext ctx, HttpStatus status,
+                                           Throwable cause, String message) {
+        requireNonNull(ctx, "ctx");
         requireNonNull(status, "status");
         requireNonNull(cause, "cause");
         requireNonNull(message, "message");
 
-        return newResponse0(status, cause, message);
+        return newResponse0(ctx, status, cause, message);
     }
 
-    private static HttpResponse newResponse0(HttpStatus status,
-                                             @Nullable Throwable cause,
-                                             @Nullable String message) {
+    private static HttpResponse newResponse0(RequestContext ctx, HttpStatus status,
+                                             @Nullable Throwable cause, @Nullable String message) {
         final ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (cause != null) {
             node.put("exception", cause.getClass().getName());
@@ -156,18 +165,21 @@ public final class HttpApiUtil {
             }
         }
 
-        node.put("message", message != null ? message : status.reasonPhrase());
+        final String m = message != null ? message : status.reasonPhrase();
+        node.put("message", m);
 
         // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return
         //                 the stack trace of the cause to the trusted client.
         if (status == HttpStatus.INTERNAL_SERVER_ERROR) {
             if (cause != null) {
-                logger.warn("Returning an internal server error with a cause:", cause);
-            } else if (message != null) {
-                logger.warn("Returning an internal server error with a message: {}", message);
+                logger.warn("{} Returning an internal server error: {}", ctx, m, cause);
+            } else {
+                logger.warn("{} Returning an internal server error: {}", ctx, m);
             }
-        } else if (status == HttpStatus.CONFLICT && cause instanceof ChangeConflictException) {
-            logger.warn("Returning a conflict with a cause:", cause);
+        } else if (status == HttpStatus.CONFLICT && !(cause instanceof RedundantChangeException)) {
+            logger.warn("{} Returning a conflict: {}", ctx, m, cause);
+        } else if (status == HttpStatus.BAD_REQUEST && cause instanceof QueryExecutionException) {
+            logger.warn("{} Returning a bad request: {}", ctx, m, cause);
         }
 
         // TODO(minwoox) refine the error message
