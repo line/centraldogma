@@ -31,7 +31,6 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.annotation.Consumes;
-import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
@@ -44,8 +43,8 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
 import com.linecorp.centraldogma.server.internal.admin.auth.User;
-import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
-import com.linecorp.centraldogma.server.internal.api.auth.ProjectOwnersOnly;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
@@ -106,7 +105,7 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Post("/projects/{projectName}/repos")
     @ResponseConverter(CreateApiResponseConverter.class)
-    @Decorator(ProjectOwnersOnly.class)
+    @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<RepositoryDto> createRepository(Project project,
                                                              CreateRepositoryRequest request,
                                                              Author author) {
@@ -125,7 +124,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Removes a repository.
      */
     @Delete("/projects/{projectName}/repos/{repoName}")
-    @Decorator(ProjectOwnersOnly.class)
+    @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<Void> removeRepository(@Param("repoName") String repoName,
                                                     Repository repository,
                                                     Author author) {
@@ -145,7 +144,7 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}/repos/{repoName}")
-    @Decorator(ProjectOwnersOnly.class)
+    @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<RepositoryDto> patchRepository(@Param("repoName") String repoName,
                                                             Project project,
                                                             JsonNode node,
@@ -162,7 +161,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Normalizes the revision into an absolute revision.
      */
     @Get("/projects/{projectName}/repos/{repoName}/revision/{revision}")
-    @Decorator(HasReadPermission.class)
+    @RequiresReadPermission
     public Map<String, Integer> normalizeRevision(Repository repository, @Param("revision") String revision) {
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
         return ImmutableMap.of("revision", normalizedRevision.major());

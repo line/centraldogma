@@ -37,7 +37,6 @@ import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
@@ -59,8 +58,8 @@ import com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
-import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
-import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -69,6 +68,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 /**
  * Annotated service object for managing repositories.
  */
+@RequiresReadPermission
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class RepositoryService extends AbstractService {
 
@@ -85,7 +85,6 @@ public class RepositoryService extends AbstractService {
      * Normalizes the revision into an absolute revision.
      */
     @Get("/projects/{projectName}/repositories/{repoName}/revision/{revision}")
-    @Decorator(HasReadPermission.class)
     public RevisionDto normalizeRevision(@Param("projectName") String projectName,
                                          @Param("repoName") String repoName,
                                          @Param("revision") String revision) {
@@ -99,7 +98,6 @@ public class RepositoryService extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/files/revisions/(?<revision>[^/]+)(?<path>/.*$)")
-    @Decorator(HasReadPermission.class)
     public CompletionStage<EntryDto> getFile(@Param("projectName") String projectName,
                                              @Param("repoName") String repoName,
                                              @Param("revision") String revision,
@@ -121,7 +119,7 @@ public class RepositoryService extends AbstractService {
     @Post
     @Put
     @Path("/projects/{projectName}/repositories/{repoName}/files/revisions/{revision}")
-    @Decorator(HasWritePermission.class)
+    @RequiresWritePermission
     public CompletionStage<Object> addOrEditFile(@Param("projectName") String projectName,
                                                  @Param("repoName") String repoName,
                                                  @Param("revision") String revision,
@@ -144,7 +142,7 @@ public class RepositoryService extends AbstractService {
      */
     @Post("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
           "/delete/revisions/(?<revision>[^/]+)(?<path>/.*$)")
-    @Decorator(HasWritePermission.class)
+    @RequiresWritePermission
     public HttpResponse deleteFile(@Param("projectName") String projectName,
                                    @Param("repoName") String repoName,
                                    @Param("revision") String revision,
@@ -173,7 +171,6 @@ public class RepositoryService extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/history(?<path>/.*$)")
-    @Decorator(HasReadPermission.class)
     public CompletionStage<List<CommitDto>> getHistory(@Param("projectName") String projectName,
                                                        @Param("repoName") String repoName,
                                                        @Param("path") String path,
@@ -193,7 +190,6 @@ public class RepositoryService extends AbstractService {
      * Finds the files matched by {@code term}.
      */
     @Get("/projects/{projectName}/repositories/{repoName}/search/revisions/{revision}")
-    @Decorator(HasReadPermission.class)
     public CompletionStage<List<EntryDto>> search(@Param("projectName") String projectName,
                                                   @Param("repoName") String repoName,
                                                   @Param("revision") String revision,
@@ -211,7 +207,6 @@ public class RepositoryService extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/diff(?<path>/.*$)")
-    @Decorator(HasReadPermission.class)
     public CompletionStage<List<ChangeDto>> getDiff(@Param("projectName") String projectName,
                                                     @Param("repoName") String repoName,
                                                     @Param("path") String path,

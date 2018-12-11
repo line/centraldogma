@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.server.annotation.Consumes;
-import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
@@ -40,14 +39,14 @@ import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
-import com.linecorp.centraldogma.server.internal.api.auth.AdministratorsOnly;
-import com.linecorp.centraldogma.server.internal.api.auth.ProjectMembersOnly;
-import com.linecorp.centraldogma.server.internal.api.auth.ProjectOwnersOnly;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 
@@ -103,7 +102,7 @@ public class ProjectServiceV1 extends AbstractService {
      * permission to read the metadata of the specified {@code projectName}.
      */
     @Get("/projects/{projectName}")
-    @Decorator(ProjectMembersOnly.class)
+    @RequiresRole(roles = { ProjectRole.OWNER, ProjectRole.MEMBER })
     public CompletableFuture<ProjectMetadata> getProjectMetadata(
             @Param("projectName") String projectName,
             @Param("checkPermissionOnly") Optional<Boolean> isCheckPermissionOnly) {
@@ -119,7 +118,7 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Removes a project.
      */
     @Delete("/projects/{projectName}")
-    @Decorator(ProjectOwnersOnly.class)
+    @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<Void> removeProject(Project project, Author author) {
         // Metadata must be updated first because it cannot be updated if the project is removed.
         return mds.removeProject(author, project.name())
@@ -134,7 +133,7 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}")
-    @Decorator(AdministratorsOnly.class)
+    @RequiresAdministrator
     public CompletableFuture<ProjectDto> patchProject(@Param("projectName") String projectName,
                                                       JsonNode node,
                                                       Author author) {

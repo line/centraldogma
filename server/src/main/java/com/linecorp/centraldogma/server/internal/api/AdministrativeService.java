@@ -27,13 +27,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.annotation.Consumes;
-import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchException;
-import com.linecorp.centraldogma.server.internal.api.auth.AdministratorsOnly;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 
@@ -62,7 +61,7 @@ public final class AdministrativeService extends AbstractService {
      */
     @Patch("/status")
     @Consumes("application/json-patch+json")
-    @Decorator(AdministratorsOnly.class)
+    @RequiresAdministrator
     public CompletableFuture<ServerStatus> updateStatus(JsonNode patch) throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
         final ServerStatus oldStatus = status();

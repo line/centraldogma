@@ -18,14 +18,22 @@ package com.linecorp.centraldogma.server.internal.api.auth;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
+
+import java.util.Set;
+import java.util.function.Function;
+
+import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.DecoratingServiceFunction;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
@@ -36,15 +44,24 @@ import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjecto
 import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
 
 /**
- * An abstract class for checking the project role of the user sent a request.
+ * A decorator for checking the project role of the user sent a request.
  */
-abstract class AbstractRoleCheckingDecorator
-        implements DecoratingServiceFunction<HttpRequest, HttpResponse> {
+public final class RequiresRoleDecorator
+        extends SimpleDecoratingService<HttpRequest, HttpResponse> {
+
+    private final Set<ProjectRole> accessibleRoles;
+    private final String roleNames;
+
+    RequiresRoleDecorator(Service<HttpRequest, HttpResponse> delegate,
+                          Set<ProjectRole> accessibleRoles) {
+        super(delegate);
+        this.accessibleRoles = ImmutableSet.copyOf(requireNonNull(accessibleRoles, "accessibleRoles"));
+        roleNames = String.join(",",
+                                accessibleRoles.stream().map(ProjectRole::name).collect(toImmutableList()));
+    }
 
     @Override
-    public final HttpResponse serve(Service<HttpRequest, HttpResponse> delegate, ServiceRequestContext ctx,
-                                    HttpRequest req) throws Exception {
-
+    public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         final MetadataService mds = MetadataServiceInjector.getMetadataService(ctx);
         final User user = AuthUtil.currentUser(ctx);
 
@@ -56,13 +73,14 @@ abstract class AbstractRoleCheckingDecorator
                 if (cause != null) {
                     return handleException(cause);
                 }
-                if (!isAccessAllowed(ctx, req, user, role)) {
+                if (!user.isAdmin() && !accessibleRoles.contains(role)) {
                     return HttpApiUtil.throwResponse(
                             HttpStatus.FORBIDDEN,
-                            "You must be %s of project '%s'.", role, projectName);
+                            "You must have one of the following roles to access the project '%s': %s",
+                            projectName, roleNames);
                 }
                 try {
-                    return delegate.serve(ctx, req);
+                    return delegate().serve(ctx, req);
                 } catch (Exception e) {
                     return Exceptions.throwUnsafely(e);
                 }
@@ -82,6 +100,13 @@ abstract class AbstractRoleCheckingDecorator
         }
     }
 
-    protected abstract boolean isAccessAllowed(ServiceRequestContext ctx, HttpRequest req,
-                                               User user, ProjectRole role);
+    public static final class RequiresRoleDecoratorFactory
+            implements DecoratorFactoryFunction<RequiresRole> {
+
+        @Override
+        public Function<Service<HttpRequest, HttpResponse>,
+                ? extends Service<HttpRequest, HttpResponse>> newDecorator(RequiresRole parameter) {
+            return delegate -> new RequiresRoleDecorator(delegate, ImmutableSet.copyOf(parameter.roles()));
+        }
+    }
 }

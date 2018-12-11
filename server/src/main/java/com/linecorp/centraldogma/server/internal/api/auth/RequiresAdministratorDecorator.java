@@ -16,31 +16,50 @@
 
 package com.linecorp.centraldogma.server.internal.api.auth;
 
+import java.util.function.Function;
+
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.server.DecoratingServiceFunction;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.armeria.server.annotation.Decorator;
+import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 /**
- * A decorator only to allow a request from administrator.
+ * A {@link Decorator} to allow a request from an administrator only.
  */
-public class AdministratorsOnly implements DecoratingServiceFunction<HttpRequest, HttpResponse> {
+public final class RequiresAdministratorDecorator
+        extends SimpleDecoratingService<HttpRequest, HttpResponse> {
+
+    RequiresAdministratorDecorator(Service<HttpRequest, HttpResponse> delegate) {
+        super(delegate);
+    }
 
     @Override
-    public HttpResponse serve(Service<HttpRequest, HttpResponse> delegate,
-                              ServiceRequestContext ctx,
-                              HttpRequest req) throws Exception {
+    public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         final User user = AuthUtil.currentUser(ctx);
         if (user.isAdmin()) {
-            return delegate.serve(ctx, req);
+            return delegate().serve(ctx, req);
         }
         return HttpApiUtil.throwResponse(
                 HttpStatus.FORBIDDEN,
                 "You must be an administrator to perform this operation.");
+    }
+
+    /**
+     * A {@link DecoratorFactoryFunction} which creates a {@link RequiresAdministratorDecorator}.
+     */
+    public static final class RequiresAdministratorDecoratorFactory
+            implements DecoratorFactoryFunction<RequiresAdministrator> {
+        @Override
+        public Function<Service<HttpRequest, HttpResponse>,
+                ? extends Service<HttpRequest, HttpResponse>> newDecorator(RequiresAdministrator parameter) {
+            return RequiresAdministratorDecorator::new;
+        }
     }
 }

@@ -44,7 +44,6 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
@@ -63,8 +62,8 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
-import com.linecorp.centraldogma.server.internal.api.auth.HasReadPermission;
-import com.linecorp.centraldogma.server.internal.api.auth.HasWritePermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.CommitMessageRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequestConverter;
@@ -80,6 +79,7 @@ import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 /**
  * Annotated service object for managing and watching contents.
  */
+@RequiresReadPermission
 @RequestConverter(CommitMessageRequestConverter.class)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class ContentServiceV1 extends AbstractService {
@@ -98,7 +98,6 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns the list of files in the path.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/list(?<path>(|/.*))$")
-    @Decorator(HasReadPermission.class)
     public CompletableFuture<List<EntryDto<?>>> listFiles(@Param("path") String path,
                                                           @Param("revision") @Default("-1") String revision,
                                                           Repository repository) {
@@ -162,7 +161,7 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Adds or edits a file.
      */
     @Post("/projects/{projectName}/repos/{repoName}/contents")
-    @Decorator(HasWritePermission.class)
+    @RequiresWritePermission
     public CompletableFuture<PushResultDto> commit(
             @Param("revision") @Default("-1") String revision,
             Repository repository,
@@ -213,14 +212,11 @@ public class ContentServiceV1 extends AbstractService {
      * {@link HttpStatus#NOT_MODIFIED} otherwise.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
-    @Decorator(HasReadPermission.class)
-    public CompletableFuture<?> getFiles(@Param("path") String path,
-                                         @Param("revision") @Default("-1") String revision,
-                                         Repository repository,
-                                         @RequestConverter(WatchRequestConverter.class)
-                                         Optional<WatchRequest> watchRequest,
-                                         @RequestConverter(QueryRequestConverter.class)
-                                         Optional<Query<?>> query) {
+    public CompletableFuture<?> getFiles(
+            @Param("path") String path, @Param("revision") @Default("-1") String revision,
+            Repository repository,
+            @RequestConverter(WatchRequestConverter.class) Optional<WatchRequest> watchRequest,
+            @RequestConverter(QueryRequestConverter.class) Optional<Query<?>> query) {
         final String normalizedPath = normalizePath(path);
 
         // watch repository or a file
@@ -302,7 +298,6 @@ public class ContentServiceV1 extends AbstractService {
      * specify {@code to}, this will return the list of commits.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/commits(?<revision>(|/.*))$")
-    @Decorator(HasReadPermission.class)
     public CompletableFuture<?> listCommits(@Param("revision") String revision,
                                             @Param("path") @Default("/**") String path,
                                             @Param("to") Optional<String> to,
@@ -345,13 +340,11 @@ public class ContentServiceV1 extends AbstractService {
      * pathPattern={pathPattern}&amp;from={from}&amp;to={to} returns diffs.
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
-    @Decorator(HasReadPermission.class)
-    public CompletableFuture<?> getDiff(@Param("pathPattern") @Default("/**") String pathPattern,
-                                        @Param("from") @Default("1") String from,
-                                        @Param("to") @Default("head") String to,
-                                        Repository repository,
-                                        @RequestConverter(QueryRequestConverter.class)
-                                        Optional<Query<?>> query) {
+    public CompletableFuture<?> getDiff(
+            @Param("pathPattern") @Default("/**") String pathPattern,
+            @Param("from") @Default("1") String from, @Param("to") @Default("head") String to,
+            Repository repository,
+            @RequestConverter(QueryRequestConverter.class) Optional<Query<?>> query) {
         if (query.isPresent()) {
             return repository.diff(new Revision(from), new Revision(to), query.get())
                              .thenApply(DtoConverter::convert);
@@ -372,11 +365,16 @@ public class ContentServiceV1 extends AbstractService {
         return converter.apply(Iterables.getOnlyElement(collection));
     }
 
+    /**
+     * GET /projects/{projectName}/repos/{repoName}/merge?
+     * revision={revision}&amp;path={path}&amp;optional_path={optional_path}
+     *
+     * <p>Returns a merged entry of files which are specified in the query string.
+     */
     @Get("/projects/{projectName}/repos/{repoName}/merge")
-    public <T> CompletableFuture<?> mergeFiles(@Param("revision") @Default("-1") String revision,
-                                               Repository repository,
-                                               @RequestConverter(MergeQueryRequestConverter.class)
-                                                       MergeQuery<T> query) {
+    public <T> CompletableFuture<?> mergeFiles(
+            @Param("revision") @Default("-1") String revision, Repository repository,
+            @RequestConverter(MergeQueryRequestConverter.class) MergeQuery<T> query) {
         return repository.mergeFiles(new Revision(revision), query).thenApply(DtoConverter::convert);
     }
 }
