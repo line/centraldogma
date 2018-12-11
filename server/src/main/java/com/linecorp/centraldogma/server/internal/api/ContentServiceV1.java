@@ -212,13 +212,11 @@ public class ContentServiceV1 extends AbstractService {
      * {@link HttpStatus#NOT_MODIFIED} otherwise.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
-    public CompletableFuture<?> getFiles(@Param("path") String path,
-                                         @Param("revision") @Default("-1") String revision,
-                                         Repository repository,
-                                         @RequestConverter(WatchRequestConverter.class)
-                                                 Optional<WatchRequest> watchRequest,
-                                         @RequestConverter(QueryRequestConverter.class)
-                                                 Optional<Query<?>> query) {
+    public CompletableFuture<?> getFiles(
+            @Param("path") String path, @Param("revision") @Default("-1") String revision,
+            Repository repository,
+            @RequestConverter(WatchRequestConverter.class) Optional<WatchRequest> watchRequest,
+            @RequestConverter(QueryRequestConverter.class) Optional<Query<?>> query) {
         final String normalizedPath = normalizePath(path);
 
         // watch repository or a file
@@ -342,12 +340,11 @@ public class ContentServiceV1 extends AbstractService {
      * pathPattern={pathPattern}&amp;from={from}&amp;to={to} returns diffs.
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
-    public CompletableFuture<?> getDiff(@Param("pathPattern") @Default("/**") String pathPattern,
-                                        @Param("from") @Default("1") String from,
-                                        @Param("to") @Default("head") String to,
-                                        Repository repository,
-                                        @RequestConverter(QueryRequestConverter.class)
-                                                Optional<Query<?>> query) {
+    public CompletableFuture<?> getDiff(
+            @Param("pathPattern") @Default("/**") String pathPattern,
+            @Param("from") @Default("1") String from, @Param("to") @Default("head") String to,
+            Repository repository,
+            @RequestConverter(QueryRequestConverter.class) Optional<Query<?>> query) {
         if (query.isPresent()) {
             return repository.diff(new Revision(from), new Revision(to), query.get())
                              .thenApply(DtoConverter::convert);
@@ -375,10 +372,9 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns a merged entry of files which are specified in the query string.
      */
     @Get("/projects/{projectName}/repos/{repoName}/merge")
-    public <T> CompletableFuture<?> mergeFiles(@Param("revision") @Default("-1") String revision,
-                                               Repository repository,
-                                               @RequestConverter(MergeQueryRequestConverter.class)
-                                                       MergeQuery<T> query) {
+    public <T> CompletableFuture<?> mergeFiles(
+            @Param("revision") @Default("-1") String revision, Repository repository,
+            @RequestConverter(MergeQueryRequestConverter.class) MergeQuery<T> query) {
         return repository.mergeFiles(new Revision(revision), query).thenApply(DtoConverter::convert);
     }
 }

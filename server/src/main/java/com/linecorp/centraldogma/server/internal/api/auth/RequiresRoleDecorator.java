@@ -76,7 +76,7 @@ public final class RequiresRoleDecorator
                 if (!user.isAdmin() && !accessibleRoles.contains(role)) {
                     return HttpApiUtil.throwResponse(
                             HttpStatus.FORBIDDEN,
-                            "You must be granted one of the following roles in project '%s': %s",
+                            "You must have one of the following roles to access the project '%s': %s",
                             projectName, roleNames);
                 }
                 try {
