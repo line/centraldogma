@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.server.auth.saml.HtmlUtil.getHtmlWithOnl
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -31,6 +32,7 @@ import javax.annotation.Nullable;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.schema.XSString;
 import org.opensaml.messaging.context.MessageContext;
+import org.opensaml.saml.common.messaging.context.SAMLBindingContext;
 import org.opensaml.saml.saml2.core.AuthnRequest;
 import org.opensaml.saml.saml2.core.NameIDType;
 import org.opensaml.saml.saml2.core.Response;
@@ -43,10 +45,13 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.saml.SamlBindingProtocol;
 import com.linecorp.armeria.server.saml.SamlIdentityProviderConfig;
 import com.linecorp.armeria.server.saml.SamlSingleSignOnHandler;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
+
+import io.netty.handler.codec.http.QueryStringDecoder;
 
 /**
  * A {@link SamlSingleSignOnHandler} implementation for the Central Dogma server.
@@ -83,6 +88,21 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     public CompletionStage<Void> beforeInitiatingSso(ServiceRequestContext ctx, HttpRequest req,
                                                      MessageContext<AuthnRequest> message,
                                                      SamlIdentityProviderConfig idpConfig) {
+        final QueryStringDecoder decoder = new QueryStringDecoder(req.path(), true);
+        final List<String> ref = decoder.parameters().get("ref");
+        if (ref == null || ref.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        final String relayState = ref.get(0);
+        if (idpConfig.ssoEndpoint().bindingProtocol() == SamlBindingProtocol.HTTP_REDIRECT &&
+            relayState.length() > 80) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        final SAMLBindingContext sub = message.getSubcontext(SAMLBindingContext.class, true);
+        assert sub != null : SAMLBindingContext.class.getName();
+        sub.setRelayState(relayState);
         return CompletableFuture.completedFuture(null);
     }
 
@@ -102,10 +122,16 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
         final Session session =
                 new Session(sessionId, loginNameNormalizer.apply(username), sessionValidDuration);
 
+        final String redirectionScript;
+        if (!Strings.isNullOrEmpty(relayState)) {
+            redirectionScript = "window.location.href='/#" + relayState + '\'';
+        } else {
+            redirectionScript = "window.location.href='/'";
+        }
         return HttpResponse.from(loginSessionPropagator.apply(session).thenApply(
                 unused -> HttpResponse.of(HttpStatus.OK, MediaType.HTML_UTF_8, getHtmlWithOnload(
                         "localStorage.setItem('sessionId','" + sessionId + "')",
-                        "window.location.href='/'"))));
+                        redirectionScript))));
     }
 
     @Nullable

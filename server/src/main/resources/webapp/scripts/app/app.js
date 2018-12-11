@@ -33,7 +33,7 @@ angular.module(
              Security.resolve().then(function () {
                Principal.refresh().then(function () {
                  if (!Principal.isAuthenticated()) {
-                   $window.location.href= "/link/auth/login";
+                   $window.location.href= "/link/auth/login?ref=" + $location.path();
                  }
                });
              });
