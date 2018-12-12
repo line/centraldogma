@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
@@ -101,8 +102,7 @@ public class TokenService extends AbstractService {
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<HolderWithLocation<Token>> createToken(@Param("appId") String appId,
                                                                     @Param("isAdmin") boolean isAdmin,
-                                                                    Author author,
-                                                                    User loginUser) {
+                                                                    Author author, User loginUser) {
         checkArgument(!isAdmin || loginUser.isAdmin(),
                       "Only administrators are allowed to create an admin-level token.");
         return mds.createToken(author, appId, isAdmin)
@@ -116,10 +116,10 @@ public class TokenService extends AbstractService {
      * <p>Deletes a token of the specified ID then returns it.
      */
     @Delete("/tokens/{appId}")
-    public CompletableFuture<Token> deleteToken(@Param("appId") String appId,
-                                                Author author,
-                                                User loginUser) {
-        return getTokenOrRespondForbidden(appId, loginUser).thenCompose(
+    public CompletableFuture<Token> deleteToken(ServiceRequestContext ctx,
+                                                @Param("appId") String appId,
+                                                Author author, User loginUser) {
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                 token -> mds.destroyToken(author, appId)
                             .thenApply(unused -> token.withoutSecret()));
     }
@@ -131,17 +131,16 @@ public class TokenService extends AbstractService {
      */
     @Patch("/tokens/{appId}")
     @Consumes("application/json-patch+json")
-    public CompletableFuture<Token> updateToken(@Param("appId") String appId,
-                                                JsonNode node,
-                                                Author author,
-                                                User loginUser) {
+    public CompletableFuture<Token> updateToken(ServiceRequestContext ctx,
+                                                @Param("appId") String appId,
+                                                JsonNode node, Author author, User loginUser) {
         if (node.equals(activation)) {
-            return getTokenOrRespondForbidden(appId, loginUser).thenCompose(
+            return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                     token -> mds.activateToken(author, appId)
                                 .thenApply(unused -> token.withoutSecret()));
         }
         if (node.equals(deactivation)) {
-            return getTokenOrRespondForbidden(appId, loginUser).thenCompose(
+            return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                     token -> mds.deactivateToken(author, appId)
                                 .thenApply(unused -> token.withoutSecret()));
         }
@@ -149,13 +148,13 @@ public class TokenService extends AbstractService {
                                            " (expected: " + activation + " or " + deactivation + ')');
     }
 
-    private CompletableFuture<Token> getTokenOrRespondForbidden(String appId,
-                                                                User loginUser) {
+    private CompletableFuture<Token> getTokenOrRespondForbidden(ServiceRequestContext ctx,
+                                                                String appId, User loginUser) {
         return mds.findTokenByAppId(appId).thenApply(token -> {
             // Give permission to the administrators.
             if (!loginUser.isAdmin() &&
                 !token.creation().user().equals(loginUser.id())) {
-                return HttpApiUtil.throwResponse(HttpStatus.FORBIDDEN,
+                return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
                                                  "Unauthorized token: %s", token);
             }
             return token;

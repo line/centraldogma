@@ -80,7 +80,8 @@ final class LoginService extends AbstractHttpService {
     @Override
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         return HttpResponse.from(
-                req.aggregate().thenApply(this::usernamePassword)
+                req.aggregate()
+                   .thenApply(msg -> usernamePassword(ctx, msg))
                    .thenComposeAsync(usernamePassword -> {
                        ThreadContext.bind(securityManager);
                        Subject currentUser = null;
@@ -101,7 +102,7 @@ final class LoginService extends AbstractHttpService {
                                    ThreadContext.bind(securityManager);
                                    logoutUserQuietly(ctx, loginUser);
                                    ThreadContext.unbindSecurityManager();
-                                   return HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                                   return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR,
                                                                   Exceptions.peel(cause));
                                }
 
@@ -115,22 +116,22 @@ final class LoginService extends AbstractHttpService {
                                    return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
                                                           Jackson.writeValueAsBytes(accessToken));
                                } catch (JsonProcessingException e) {
-                                   return HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, e);
+                                   return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
                                }
                            });
                        } catch (IncorrectCredentialsException e) {
                            // Not authorized
                            logger.debug("{} Incorrect password: {}", ctx, usernamePassword.getUsername());
                            return CompletableFuture.completedFuture(
-                                   HttpApiUtil.newResponse(HttpStatus.UNAUTHORIZED, "Incorrect password"));
+                                   HttpApiUtil.newResponse(ctx, HttpStatus.UNAUTHORIZED, "Incorrect password"));
                        } catch (UnknownAccountException e) {
                            logger.debug("{} unknown account: {}", ctx, usernamePassword.getUsername());
                            return CompletableFuture.completedFuture(
-                                   HttpApiUtil.newResponse(HttpStatus.UNAUTHORIZED, "unknown account"));
+                                   HttpApiUtil.newResponse(ctx, HttpStatus.UNAUTHORIZED, "unknown account"));
                        } catch (Throwable t) {
                            logger.warn("{} Failed to authenticate: {}", ctx, usernamePassword.getUsername(), t);
                            return CompletableFuture.completedFuture(
-                                   HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, t));
+                                   HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, t));
                        } finally {
                            logoutUserQuietly(ctx, currentUser);
                            ThreadContext.unbindSecurityManager();
@@ -151,7 +152,7 @@ final class LoginService extends AbstractHttpService {
     /**
      * Returns {@link UsernamePasswordToken} which holds a username and a password.
      */
-    private UsernamePasswordToken usernamePassword(AggregatedHttpMessage req) {
+    private UsernamePasswordToken usernamePassword(ServiceRequestContext ctx, AggregatedHttpMessage req) {
         // check the Basic HTTP authentication first (https://tools.ietf.org/html/rfc7617)
         final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(req.headers());
         if (basicToken != null) {
@@ -160,7 +161,7 @@ final class LoginService extends AbstractHttpService {
 
         final MediaType mediaType = req.headers().contentType();
         if (mediaType != MediaType.FORM_DATA) {
-            return throwResponse(HttpStatus.BAD_REQUEST,
+            return throwResponse(ctx, HttpStatus.BAD_REQUEST,
                                  "The content type of a login request must be '%s'.", MediaType.FORM_DATA);
         }
 
@@ -176,6 +177,7 @@ final class LoginService extends AbstractHttpService {
             return new UsernamePasswordToken(loginNameNormalizer.apply(username), password);
         }
 
-        return throwResponse(HttpStatus.BAD_REQUEST, "A login request must contain username and password.");
+        return throwResponse(ctx, HttpStatus.BAD_REQUEST,
+                             "A login request must contain username and password.");
     }
 }

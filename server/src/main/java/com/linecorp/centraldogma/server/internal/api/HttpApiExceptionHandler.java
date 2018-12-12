@@ -56,36 +56,36 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                 ExceptionHandlerFunction> builder = ImmutableMap.builder();
 
         builder.put(ChangeConflictException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.CONFLICT, cause,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
                                                      "The given changeset or revision has a conflict."))
                .put(EntryNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                      "Entry '%s' does not exist.", cause.getMessage()))
                .put(ProjectExistsException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.CONFLICT, cause,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
                                                      "Project '%s' exists already.", cause.getMessage()))
                .put(ProjectNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                      "Project '%s' does not exist.", cause.getMessage()))
                .put(RedundantChangeException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.CONFLICT, cause,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
                                                      "The given changeset does not change anything."))
                .put(RepositoryExistsException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.CONFLICT, cause,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
                                                      "Repository '%s' exists already.", cause.getMessage()))
                .put(RepositoryMetadataException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause))
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause))
                .put(RepositoryNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                      "Repository '%s' does not exist.", cause.getMessage()))
                .put(RevisionNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                      "Revision %s does not exist.", cause.getMessage()))
                .put(TokenNotFoundException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.NOT_FOUND, cause,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                      "Token '%s' does not exist.", cause.getMessage()))
                .put(QueryExecutionException.class,
-                    (ctx, req, cause) -> newResponse(HttpStatus.BAD_REQUEST, cause));
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause));
 
         exceptionHandlers = builder.build();
     }
@@ -105,9 +105,9 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
         }
 
         if (cause instanceof IllegalArgumentException) {
-            return newResponse(HttpStatus.BAD_REQUEST, cause);
+            return newResponse(ctx, HttpStatus.BAD_REQUEST, cause);
         }
 
-        return newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause);
+        return newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause);
     }
 }

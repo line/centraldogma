@@ -71,11 +71,11 @@ public final class RequiresRoleDecorator
         try {
             return HttpResponse.from(mds.findRole(projectName, user).handle((role, cause) -> {
                 if (cause != null) {
-                    return handleException(cause);
+                    return handleException(ctx, cause);
                 }
                 if (!user.isAdmin() && !accessibleRoles.contains(role)) {
                     return HttpApiUtil.throwResponse(
-                            HttpStatus.FORBIDDEN,
+                            ctx, HttpStatus.FORBIDDEN,
                             "You must have one of the following roles to access the project '%s': %s",
                             projectName, roleNames);
                 }
@@ -86,15 +86,15 @@ public final class RequiresRoleDecorator
                 }
             }));
         } catch (Throwable cause) {
-            return handleException(cause);
+            return handleException(ctx, cause);
         }
     }
 
-    static HttpResponse handleException(Throwable cause) {
+    static HttpResponse handleException(ServiceRequestContext ctx, Throwable cause) {
         cause = Exceptions.peel(cause);
         if (cause instanceof RepositoryNotFoundException ||
             cause instanceof ProjectNotFoundException) {
-            return HttpApiUtil.newResponse(HttpStatus.NOT_FOUND, cause);
+            return HttpApiUtil.newResponse(ctx, HttpStatus.NOT_FOUND, cause);
         } else {
             return Exceptions.throwUnsafely(cause);
         }

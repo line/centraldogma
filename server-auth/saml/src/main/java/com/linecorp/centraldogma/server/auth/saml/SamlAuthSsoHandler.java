@@ -173,6 +173,6 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     @Override
     public HttpResponse loginFailed(ServiceRequestContext ctx, AggregatedHttpMessage req,
                                     @Nullable MessageContext<Response> message, Throwable cause) {
-        return HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause);
+        return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause);
     }
 }

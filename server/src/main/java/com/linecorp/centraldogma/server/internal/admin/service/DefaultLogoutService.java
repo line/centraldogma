@@ -45,6 +45,7 @@ public class DefaultLogoutService extends AbstractHttpService {
                        return executor.execute(Command.removeSession(sessionId));
                    })
                    .thenApply(unused -> HttpResponse.of(HttpStatus.OK))
-                   .exceptionally(cause -> HttpApiUtil.newResponse(HttpStatus.INTERNAL_SERVER_ERROR, cause)));
+                   .exceptionally(cause -> HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR,
+                                                                   cause)));
     }
 }

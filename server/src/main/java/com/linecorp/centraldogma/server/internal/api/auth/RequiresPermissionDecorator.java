@@ -84,11 +84,11 @@ public final class RequiresPermissionDecorator
         // accessing to the internal repository.
         return HttpResponse.from(mds.findRole(projectName, user).handle((role, cause) -> {
             if (cause != null) {
-                return handleException(cause);
+                return handleException(ctx, cause);
             }
             if (!user.isAdmin()) {
                 return HttpApiUtil.throwResponse(
-                        HttpStatus.FORBIDDEN,
+                        ctx, HttpStatus.FORBIDDEN,
                         "Repository '%s/%s' can be accessed only by an administrator.",
                         projectName, Project.REPO_DOGMA);
             }
@@ -107,16 +107,16 @@ public final class RequiresPermissionDecorator
         try {
             f = mds.findPermissions(projectName, repoName, user);
         } catch (Throwable cause) {
-            return handleException(cause);
+            return handleException(ctx, cause);
         }
 
         return HttpResponse.from(f.handle((permission, cause) -> {
             if (cause != null) {
-                return handleException(cause);
+                return handleException(ctx, cause);
             }
             if (!permission.contains(requiredPermission)) {
                 return HttpApiUtil.throwResponse(
-                        HttpStatus.FORBIDDEN,
+                        ctx, HttpStatus.FORBIDDEN,
                         "You must have %s permission for repository '%s/%s'.",
                         requiredPermission, projectName, repoName);
             }

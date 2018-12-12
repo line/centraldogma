@@ -66,7 +66,7 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
             if (Project.REPO_DOGMA.equals(repositoryName) &&
                 !AuthUtil.currentUser(ctx).isAdmin()) {
                 return HttpApiUtil.throwResponse(
-                        HttpStatus.FORBIDDEN,
+                        ctx, HttpStatus.FORBIDDEN,
                         "Repository '%s/%s' can be accessed only by an administrator.",
                         projectName, Project.REPO_DOGMA);
             }
