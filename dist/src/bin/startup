@@ -24,7 +24,7 @@ eecho "Starting up $APP_NAME .."
 "$JSVC_BIN" \
   -java-home "$JAVA_HOME" \
   -pidfile "$APP_PID_FILE" \
-  -wait 10 \
+  -wait 60 \
   -cwd "$APP_HOME" \
   -outfile "$APP_STDOUT_FILE" \
   -errfile "$APP_STDERR_FILE" \
