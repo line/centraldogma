@@ -328,8 +328,8 @@ public final class ZooKeeperCommandExecutor
             copyZkProperty(zkProps, "syncLimit", "10");
             copyZkProperty(zkProps, "tickTime", "3000");
             copyZkProperty(zkProps, "syncEnabled", "true");
-            copyZkProperty(zkProps, "autopurge.snapRetainCount", "7");
-            copyZkProperty(zkProps, "autopurge.purgeInterval", "24");
+            copyZkProperty(zkProps, "autopurge.snapRetainCount", "3");
+            copyZkProperty(zkProps, "autopurge.purgeInterval", "1");
 
             // Set the data directories.
             zkProps.setProperty("dataDir", zkDataDir.getPath());
