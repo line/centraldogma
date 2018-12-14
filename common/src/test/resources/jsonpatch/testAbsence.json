@@ -11,6 +11,11 @@
             "message": "existent path: /x/y"
         },
         {
+            "op": { "op": "testAbsence", "path": "/~1~0x/y" },
+            "node": { "/~x": { "y" : {} } },
+            "message": "existent path: /~1~0x/y"
+        },
+        {
             "op": { "op": "testAbsence", "path": "/0" },
             "node": [ 1 ],
             "message": "existent path: /0"

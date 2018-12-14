@@ -56,6 +56,14 @@
         ]
     },
     {
+        "message": "'~' and '/' in a property name are encoded to '~0' and '~1' respectively",
+        "first": { "/a~": null },
+        "second": { "/a~": 6 },
+        "patch": [
+            { "op": "safeReplace", "path": "/~1a~0", "oldValue": null, "value": 6 }
+        ]
+    },
+    {
         "message": "full value replacement is accounted for",
         "first": [ 1, 2, 3 ],
         "second": { "hello": "world" },

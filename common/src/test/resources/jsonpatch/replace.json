@@ -18,6 +18,11 @@
             "expected": { "x": { "a": "b", "y": "hello" } }
         },
         {
+            "op": { "op": "replace", "path": "/x/~1~0y", "value": "hello" },
+            "node": { "x": { "a": "b", "/~y": {} } },
+            "expected": { "x": { "a": "b", "/~y": "hello" } }
+        },
+        {
             "op": { "op": "replace", "path": "/0/2", "value": "x" },
             "node": [ [ "a", "b", "c"], "d", "e" ],
             "expected": [ [ "a", "b", "x" ], "d", "e" ]

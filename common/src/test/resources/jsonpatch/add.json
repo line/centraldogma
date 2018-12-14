@@ -43,6 +43,11 @@
             "expected": { "a": 1 }
         },
         {
+            "op": { "op": "add", "path": "/~0~1a", "value": 1 },
+            "node": { "~/a": "b" },
+            "expected": { "~/a": 1 }
+        },
+        {
             "op": { "op": "add", "path": "/array/-", "value": 1 },
             "node": { "array": [ 2, null, {}, 1 ] },
             "expected": { "array": [ 2, null, {}, 1, 1 ] }

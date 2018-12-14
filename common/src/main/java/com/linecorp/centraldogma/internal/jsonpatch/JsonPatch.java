@@ -34,6 +34,7 @@
 
 package com.linecorp.centraldogma.internal.jsonpatch;
 
+import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
@@ -208,15 +209,15 @@ public final class JsonPatch implements JsonSerializable {
         Iterators.addAll(targetFields, target.fieldNames());
 
         for (final String field : Sets.difference(sourceFields, targetFields)) {
-            processor.valueRemoved(pointer.append(JsonPointer.valueOf('/' + field)));
+            processor.valueRemoved(pointer.append(JsonPointer.valueOf(encodeSegment(field))));
         }
 
         for (final String field : Sets.difference(targetFields, sourceFields)) {
-            processor.valueAdded(pointer.append(JsonPointer.valueOf('/' + field)), target.get(field));
+            processor.valueAdded(pointer.append(JsonPointer.valueOf(encodeSegment(field))), target.get(field));
         }
 
         for (final String field : Sets.intersection(sourceFields, targetFields)) {
-            generateDiffs(processor, pointer.append(JsonPointer.valueOf('/' + field)),
+            generateDiffs(processor, pointer.append(JsonPointer.valueOf(encodeSegment(field))),
                           source.get(field), target.get(field));
         }
     }
@@ -289,7 +290,7 @@ public final class JsonPatch implements JsonSerializable {
             if (!target.has(name)) {
                 continue;
             }
-            computeUnchanged(ret, pointer.append(JsonPointer.valueOf('/' + name)),
+            computeUnchanged(ret, pointer.append(JsonPointer.valueOf(encodeSegment(name))),
                              source.get(name), target.get(name));
         }
     }
