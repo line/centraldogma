@@ -182,6 +182,7 @@ org.apache.zookeeper:
     - commons-cli:commons-cli
     - org.apache.yetus:audience-annotations
     - io.netty:netty
+    - org.slf4j:slf4j-log4j12
 
 org.assertj:
   assertj-core: { version: '3.11.1' }
