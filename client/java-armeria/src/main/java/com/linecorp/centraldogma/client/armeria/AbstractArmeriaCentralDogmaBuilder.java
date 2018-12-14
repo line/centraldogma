@@ -15,11 +15,13 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -52,9 +54,11 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     @VisibleForTesting
     static final AtomicLong nextAnonymousGroupId = new AtomicLong();
 
+    private static final int DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS = 15000;
+
     private ClientFactory clientFactory = ClientFactory.DEFAULT;
     private ArmeriaClientConfigurator clientConfigurator = cb -> {};
-    private boolean healthCheckEnabled = true;
+    private Duration healthCheckInterval = Duration.ofMillis(DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS);
 
     /**
      * Returns the {@link ClientFactory} that will create an underlying
@@ -90,9 +94,33 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
         return self();
     }
 
-    @VisibleForTesting
-    void disableHealthCheck() {
-        healthCheckEnabled = false;
+    /**
+     * Sets the interval between health check requests. The default value is
+     * {@value #DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS} seconds.
+     *
+     * @param healthCheckInterval the interval between health check requests. {@link Duration#ZERO} disables
+     *                            health check requests.
+     */
+    public final B healthCheckInterval(Duration healthCheckInterval) {
+        requireNonNull(healthCheckInterval, "healthCheckInterval");
+        checkArgument(!healthCheckInterval.isNegative(),
+                      "healthCheckInterval: %s (expected: >= 0)", healthCheckInterval);
+        this.healthCheckInterval = healthCheckInterval;
+        return self();
+    }
+
+    /**
+     * Sets the interval between health check requests in milliseconds. The default value is
+     * {@value #DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS} milliseconds.
+     *
+     * @param healthCheckIntervalMillis the interval between health check requests in milliseconds.
+     *                                  {@code 0} disables health check requests.
+     */
+    public final B healthCheckIntervalMillis(long healthCheckIntervalMillis) {
+        checkArgument(healthCheckIntervalMillis >= 0,
+                      "healthCheckIntervalMillis: %s (expected: >= 0)", healthCheckIntervalMillis);
+        healthCheckInterval = Duration.ofMillis(healthCheckIntervalMillis);
+        return self();
     }
 
     /**
@@ -154,10 +182,11 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
                 }
             }
 
-            if (healthCheckEnabled) {
+            if (!healthCheckInterval.isZero()) {
                 group = new HttpHealthCheckedEndpointGroupBuilder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
                         .clientFactory(clientFactory)
                         .protocol(isUseTls() ? SessionProtocol.HTTPS : SessionProtocol.HTTP)
+                        .retryInterval(healthCheckInterval)
                         .build();
             }
 
