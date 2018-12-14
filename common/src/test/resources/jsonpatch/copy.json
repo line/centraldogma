@@ -23,6 +23,11 @@
             "expected": { "a": 1, "b": 1 }
         },
         {
+            "op": { "op": "copy", "from": "/~0~1a", "path": "/~0~1b" },
+            "node": { "~/a": 1, "~/b": false },
+            "expected": { "~/a": 1, "~/b": 1 }
+        },
+        {
             "op": { "op": "copy", "from": "/0", "path": "/-" },
             "node": [ 1, 2, 3, 4 ],
             "expected": [ 1, 2, 3, 4, 1 ]

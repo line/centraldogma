@@ -31,6 +31,11 @@
             "op": { "op": "removeIfExists", "path": "/x/3" },
             "node": { "x": [ "y", "z" ], "foo": "bar" },
             "expected": { "x": [ "y", "z" ], "foo": "bar" }
+        },
+        {
+            "op": { "op": "removeIfExists", "path": "/x/~1~0y" },
+            "node": { "x": { "a": "b", "/~y": {} } },
+            "expected": { "x": { "a": "b" } }
         }
     ]
 }

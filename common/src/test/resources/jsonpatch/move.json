@@ -23,6 +23,11 @@
             "expected": { "x": { "a": "helo" } }
         },
         {
+            "op": { "op": "move", "from": "/x/~1~0a", "path": "/x/~1~0b" },
+            "node": { "x": { "/~a": "helo" } },
+            "expected": { "x": { "/~b": "helo" } }
+        },
+        {
             "op": { "op": "move", "from": "/0", "path": "/0/x" },
             "node": [ "victim", {}, {} ],
             "expected": [ { "x": "victim" }, {} ]

@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.metadata;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
+import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
 import static com.linecorp.centraldogma.server.internal.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
@@ -148,7 +149,7 @@ public class MetadataService extends AbstractService {
         requireNonNull(projectRole, "projectRole");
 
         final Member newMember = new Member(member, projectRole, UserAndTimestamp.of(author));
-        final JsonPointer path = JsonPointer.compile("/members/" + newMember.id());
+        final JsonPointer path = JsonPointer.compile("/members" + encodeSegment(newMember.id()));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    asJsonArray(new TestAbsenceOperation(path),
@@ -178,7 +179,8 @@ public class MetadataService extends AbstractService {
                                     .stream().filter(r -> r.perUserPermissions().containsKey(member.id()))
                                     .forEach(r -> patches.add(new RemoveOperation(
                                             perUserPermissionPointer(r.name(), member.id()))));
-                            patches.add(new RemoveOperation(JsonPointer.compile("/members/" + member.id())));
+                            patches.add(new RemoveOperation(JsonPointer.compile("/members" +
+                                                                                encodeSegment(member.id()))));
                             final Change<JsonNode> change =
                                     Change.ofJsonPatch(METADATA_JSON, Jackson.valueToTree(patches.build()));
                             return HolderWithRevision.of(change, metadataWithRevision.revision());
@@ -198,7 +200,7 @@ public class MetadataService extends AbstractService {
 
         final Change<JsonNode> change = Change.ofJsonPatch(
                 METADATA_JSON,
-                new ReplaceOperation(JsonPointer.compile("/members/" + member.id() + "/role"),
+                new ReplaceOperation(JsonPointer.compile("/members" + encodeSegment(member.id()) + "/role"),
                                      Jackson.valueToTree(projectRole)).toJsonNode());
         final String commitSummary = "Updates the role of the member '" + member.id() +
                                      "' as '" + projectRole + "' for the project " + projectName;
@@ -235,7 +237,7 @@ public class MetadataService extends AbstractService {
         requireNonNull(repoName, "repoName");
         requireNonNull(permission, "permission");
 
-        final JsonPointer path = JsonPointer.compile("/repos/" + repoName);
+        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName));
         final RepositoryMetadata newRepositoryMetadata = new RepositoryMetadata(repoName,
                                                                                 UserAndTimestamp.of(author),
                                                                                 permission);
@@ -268,7 +270,7 @@ public class MetadataService extends AbstractService {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
 
-        final JsonPointer path = JsonPointer.compile("/repos/" + repoName + "/removal");
+        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) + "/removal");
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    asJsonArray(new TestAbsenceOperation(path),
@@ -290,7 +292,7 @@ public class MetadataService extends AbstractService {
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    new RemoveOperation(JsonPointer.compile(
-                                           "/repos/" + repoName + "/removal")).toJsonNode());
+                                           "/repos" + encodeSegment(repoName) + "/removal")).toJsonNode());
         final String commitSummary = "Restore the repo '" + repoName + "' from the project " + projectName;
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
@@ -307,7 +309,8 @@ public class MetadataService extends AbstractService {
         requireNonNull(repoName, "repoName");
         requireNonNull(perRolePermissions, "perRolePermissions");
 
-        final JsonPointer path = JsonPointer.compile("/repos/" + repoName + "/perRolePermissions");
+        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) +
+                                                     "/perRolePermissions");
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    new ReplaceOperation(path, Jackson.valueToTree(perRolePermissions))
@@ -341,7 +344,7 @@ public class MetadataService extends AbstractService {
 
             final TokenRegistration registration = new TokenRegistration(appId, role,
                                                                          UserAndTimestamp.of(author));
-            final JsonPointer path = JsonPointer.compile("/tokens/" + registration.id());
+            final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
             final Change<JsonNode> change =
                     Change.ofJsonPatch(METADATA_JSON,
                                        asJsonArray(new TestAbsenceOperation(path),
@@ -385,9 +388,11 @@ public class MetadataService extends AbstractService {
                             .forEach(r -> patches.add(
                                     new RemoveOperation(perTokenPermissionPointer(r.name(), appId))));
                     if (quiet) {
-                        patches.add(new RemoveIfExistsOperation(JsonPointer.compile("/tokens/" + appId)));
+                        patches.add(new RemoveIfExistsOperation(JsonPointer.compile("/tokens" +
+                                                                                    encodeSegment(appId))));
                     } else {
-                        patches.add(new RemoveOperation(JsonPointer.compile("/tokens/" + appId)));
+                        patches.add(new RemoveOperation(JsonPointer.compile("/tokens" +
+                                                                            encodeSegment(appId))));
                     }
                     final Change<JsonNode> change =
                             Change.ofJsonPatch(METADATA_JSON, Jackson.valueToTree(patches.build()));
@@ -408,7 +413,7 @@ public class MetadataService extends AbstractService {
 
         final TokenRegistration registration = new TokenRegistration(token.appId(), role,
                                                                      UserAndTimestamp.of(author));
-        final JsonPointer path = JsonPointer.compile("/tokens/" + registration.id());
+        final JsonPointer path = JsonPointer.compile("/tokens" + encodeSegment(registration.id()));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(METADATA_JSON,
                                    new ReplaceOperation(path, Jackson.valueToTree(registration))
@@ -719,8 +724,10 @@ public class MetadataService extends AbstractService {
         checkArgument(secret.startsWith(SECRET_PREFIX), "secret must start with: " + SECRET_PREFIX);
 
         final Token newToken = new Token(appId, secret, isAdmin, UserAndTimestamp.of(author));
-        final JsonPointer appIdPath = JsonPointer.compile("/appIds/" + newToken.id());
-        final JsonPointer secretPath = JsonPointer.compile("/secrets/" + newToken.secret());
+        final JsonPointer appIdPath = JsonPointer.compile("/appIds" + encodeSegment(newToken.id()));
+        final String newTokenSecret = newToken.secret();
+        assert newTokenSecret != null;
+        final JsonPointer secretPath = JsonPointer.compile("/secrets" + encodeSegment(newTokenSecret));
         final Change<JsonNode> change =
                 Change.ofJsonPatch(TOKEN_JSON,
                                    asJsonArray(new TestAbsenceOperation(appIdPath),
@@ -752,9 +759,11 @@ public class MetadataService extends AbstractService {
                                .thenApply(tokens -> {
                                    final Token token = tokens.object().get(appId);
                                    final JsonPointer appIdPath =
-                                           JsonPointer.compile("/appIds/" + appId);
+                                           JsonPointer.compile("/appIds" + encodeSegment(appId));
+                                   final String secret = token.secret();
+                                   assert secret != null;
                                    final JsonPointer secretPath =
-                                           JsonPointer.compile("/secrets/" + token.secret());
+                                           JsonPointer.compile("/secrets" + encodeSegment(secret));
                                    final Change<?> change = Change.ofJsonPatch(
                                            TOKEN_JSON,
                                            asJsonArray(new RemoveOperation(appIdPath),
@@ -778,9 +787,13 @@ public class MetadataService extends AbstractService {
                                       .thenApply(tokens -> {
                                           final Token token = tokens.object().get(appId);
                                           final JsonPointer removalPath =
-                                                  JsonPointer.compile("/appIds/" + appId + "/deactivation");
+                                                  JsonPointer.compile("/appIds" + encodeSegment(appId) +
+                                                                      "/deactivation");
+                                          final String secret = token.secret();
+                                          assert secret != null;
                                           final JsonPointer secretPath =
-                                                  JsonPointer.compile("/secrets/" + token.secret());
+                                                  JsonPointer.compile("/secrets" +
+                                                                      encodeSegment(secret));
                                           final Change<JsonNode> change = Change.ofJsonPatch(
                                                   TOKEN_JSON,
                                                   asJsonArray(new RemoveOperation(removalPath),
@@ -805,9 +818,13 @@ public class MetadataService extends AbstractService {
                                       .thenApply(tokens -> {
                                           final Token token = tokens.object().get(appId);
                                           final JsonPointer removalPath =
-                                                  JsonPointer.compile("/appIds/" + appId + "/deactivation");
+                                                  JsonPointer.compile("/appIds" + encodeSegment(appId) +
+                                                                      "/deactivation");
+                                          final String secret = token.secret();
+                                          assert secret != null;
                                           final JsonPointer secretPath =
-                                                  JsonPointer.compile("/secrets/" + token.secret());
+                                                  JsonPointer.compile("/secrets" +
+                                                                      encodeSegment(secret));
                                           final Change<?> change = Change.ofJsonPatch(
                                                   TOKEN_JSON,
                                                   asJsonArray(new TestAbsenceOperation(removalPath),
@@ -864,7 +881,8 @@ public class MetadataService extends AbstractService {
      * specified {@code repoName}.
      */
     private static JsonPointer perUserPermissionPointer(String repoName, String memberId) {
-        return JsonPointer.compile("/repos/" + repoName + "/perUserPermissions/" + memberId);
+        return JsonPointer.compile("/repos" + encodeSegment(repoName) +
+                                   "/perUserPermissions" + encodeSegment(memberId));
     }
 
     /**
@@ -872,6 +890,7 @@ public class MetadataService extends AbstractService {
      * in the specified {@code repoName}.
      */
     private static JsonPointer perTokenPermissionPointer(String repoName, String appId) {
-        return JsonPointer.compile("/repos/" + repoName + "/perTokenPermissions/" + appId);
+        return JsonPointer.compile("/repos" + encodeSegment(repoName) +
+                                   "/perTokenPermissions" + encodeSegment(appId));
     }
 }

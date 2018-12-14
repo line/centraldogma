@@ -26,6 +26,11 @@
             "op": { "op": "test", "path": "/a/1", "value": "hello" },
             "node": { "a": [ null, "hello", "world" ] },
             "expected": { "a": [ null, "hello", "world" ] }
+        },
+        {
+            "op": { "op": "test", "path": "/~1~0a/1", "value": "hello" },
+            "node": { "/~a": [ null, "hello", "world" ] },
+            "expected": { "/~a": [ null, "hello", "world" ] }
         }
     ]
 }
