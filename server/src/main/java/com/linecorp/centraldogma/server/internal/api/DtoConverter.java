@@ -35,7 +35,6 @@ import com.linecorp.centraldogma.internal.api.v1.MergedEntryDto;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.RepositoryDto;
-import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -93,14 +92,6 @@ final class DtoConverter {
     public static CommitDto convert(Revision revision, Author author, CommitMessageDto commitMessage,
                                     long commitTimeMillis) {
         return new CommitDto(revision, author, commitMessage, commitTimeMillis);
-    }
-
-    public static WatchResultDto convert(Commit commit, @Nullable EntryDto<?> entry) {
-        requireNonNull(commit, "commit");
-
-        return new WatchResultDto(commit.revision(), commit.author(),
-                                  new CommitMessageDto(commit.summary(), commit.detail(), commit.markup()),
-                                  commit.when(), entry);
     }
 
     public static <T> ChangeDto<T> convert(Change<T> change) {
