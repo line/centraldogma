@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
-import static com.linecorp.centraldogma.server.internal.storage.repository.cache.CacheableQueryCall.EMPTY;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -95,23 +94,10 @@ final class CachingRepository implements Repository {
             return CompletableFutures.exceptionallyCompletedFuture(e);
         }
 
-        final CacheableQueryCall key = new CacheableQueryCall(repo, normalizedRevision, query);
-        final CompletableFuture<Object> value = cache.getIfPresent(key);
-        if (value != null) {
-            return value.thenApply(entry -> entry == EMPTY ? null : unsafeCast(entry));
-        }
-
-        return Repository.super.getOrNull(normalizedRevision, query).thenApply(entry -> {
-            if (entry == null) {
-                key.computedValue(EMPTY);
-                cache.get(key); // Cache the result as emtpy.
-                return null;
-            }
-
-            key.computedValue(entry);
-            cache.get(key); // Cache the result.
-            return entry;
-        });
+        final CompletableFuture<Object> future =
+                cache.get(new CacheableQueryCall(repo, normalizedRevision, query))
+                     .thenApply(result -> result != CacheableQueryCall.EMPTY ? result : null);
+        return unsafeCast(future);
     }
 
     @Override
