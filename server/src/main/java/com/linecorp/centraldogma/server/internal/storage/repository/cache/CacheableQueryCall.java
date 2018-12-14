@@ -16,13 +16,11 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
-import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-
-import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
@@ -38,9 +36,6 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
     final Revision revision;
     final Query<?> query;
     final int hashCode;
-
-    @Nullable
-    Entry<?> computedValue;
 
     CacheableQueryCall(Repository repo, Revision revision, Query<?> query) {
         super(repo);
@@ -67,13 +62,7 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
 
     @Override
     CompletableFuture<Entry<?>> execute() {
-        checkState(computedValue != null, "computedValue is not set yet.");
-        return CompletableFuture.completedFuture(computedValue);
-    }
-
-    void computedValue(Entry<?> computedValue) {
-        checkState(this.computedValue == null, "computedValue is already set.");
-        this.computedValue = requireNonNull(computedValue, "computedValue");
+        return repo.getOrNull(revision, query).thenApply(e -> firstNonNull(e, EMPTY));
     }
 
     @Override

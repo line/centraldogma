@@ -82,17 +82,16 @@ public class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.find(any(), any(), any())).thenReturn(
-                completedFuture(ImmutableMap.of(query.path(), queryResult)));
+        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(queryResult));
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
-        verify(delegateRepo).find(new Revision(10), query.path(), FIND_ONE_WITH_CONTENT);
+        verify(delegateRepo).getOrNull(new Revision(10), query);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
         assertThat(repo.get(HEAD, query).join()).isEqualTo(queryResult);
         assertThat(repo.get(new Revision(10), query).join()).isEqualTo(queryResult);
-        verify(delegateRepo, never()).find(any(), any(), any());
+        verify(delegateRepo, never()).getOrNull(any(), any(Query.class));
         verifyNoMoreInteractions(delegateRepo);
     }
 
@@ -139,16 +138,16 @@ public class CachingRepositoryTest {
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
 
         // Uncached
-        when(delegateRepo.find(any(), any(), any())).thenReturn(completedFuture(ImmutableMap.of()));
+        when(delegateRepo.getOrNull(any(), any(Query.class))).thenReturn(completedFuture(null));
         assertThat(repo.getOrNull(HEAD, query).join()).isNull();
-        verify(delegateRepo).find(new Revision(10), query.path(), FIND_ONE_WITH_CONTENT);
+        verify(delegateRepo).getOrNull(new Revision(10), query);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
         assertThat(repo.getOrNull(HEAD, query).join()).isNull();
         assertThat(repo.getOrNull(new Revision(10), query).join()).isNull();
-        verify(delegateRepo, never()).find(any(), any(), any());
+        verify(delegateRepo, never()).getOrNull(any(), any(Query.class));
         verifyNoMoreInteractions(delegateRepo);
     }
 
