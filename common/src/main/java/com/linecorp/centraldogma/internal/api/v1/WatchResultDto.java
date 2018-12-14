@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.internal.api.v1;
 
+import static java.util.Objects.requireNonNull;
+
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -23,18 +25,22 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 
 @JsonInclude(Include.NON_EMPTY)
-public class WatchResultDto extends CommitDto {
+public class WatchResultDto {
 
+    private final Revision revision;
     private final EntryDto<?> entry;
 
-    public WatchResultDto(Revision revision, Author author, CommitMessageDto commitMessage,
-                          long commitTimeMillis, @Nullable EntryDto<?> entry) {
-        super(revision, author, commitMessage, commitTimeMillis);
+    public WatchResultDto(Revision revision, @Nullable EntryDto<?> entry) {
+        this.revision = requireNonNull(revision, "revision");
         this.entry = entry;
+    }
+
+    @JsonProperty("revision")
+    public Revision revision() {
+        return revision;
     }
 
     @JsonProperty("entry")
@@ -47,9 +53,6 @@ public class WatchResultDto extends CommitDto {
         return MoreObjects.toStringHelper(this)
                           .omitNullValues()
                           .add("revision", revision())
-                          .add("author", author())
-                          .add("commitMessage", commitMessage())
-                          .add("pushedAt", pushedAt())
                           .add("entry", entry())
                           .toString();
     }

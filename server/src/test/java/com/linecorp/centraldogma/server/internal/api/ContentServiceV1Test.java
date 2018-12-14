@@ -545,17 +545,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
 
         final String expectedJson =
                 '{' +
-                "   \"revision\" : 3," +
-                "   \"author\" : {" +
-                "       \"name\" : \"${json-unit.ignore}\"," +
-                "       \"email\" : \"${json-unit.ignore}\"" +
-                "   }," +
-                "   \"pushedAt\" : \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : {" +
-                "       \"summary\" : \"Edit foo.json\"," +
-                "       \"detail\" : \"Edit because we need it.\"," +
-                "       \"markup\" : \"PLAINTEXT\"" +
-                "   }" +
+                "   \"revision\" : 3" +
                 '}';
         final String actualJson = res.content().toStringUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
@@ -601,16 +591,6 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final String expectedJson =
                 '{' +
                 "   \"revision\" : 4," +
-                "   \"author\" : {" +
-                "       \"name\" : \"${json-unit.ignore}\"," +
-                "       \"email\" : \"${json-unit.ignore}\"" +
-                "   }," +
-                "   \"pushedAt\" : \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : {" +
-                "       \"summary\" : \"Edit foo.json\"," +
-                "       \"detail\" : \"Edit because we need it.\"," +
-                "       \"markup\" : \"PLAINTEXT\"" +
-                "   }," +
                 "   \"entry\": {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
@@ -644,16 +624,6 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final String expectedJson =
                 '{' +
                 "   \"revision\" : 4," +
-                "   \"author\" : {" +
-                "       \"name\" : \"${json-unit.ignore}\"," +
-                "       \"email\" : \"${json-unit.ignore}\"" +
-                "   }," +
-                "   \"pushedAt\" : \"${json-unit.ignore}\"," +
-                "   \"commitMessage\" : {" +
-                "       \"summary\" : \"Edit foo.json\"," +
-                "       \"detail\" : \"Edit because we need it.\"," +
-                "       \"markup\" : \"PLAINTEXT\"" +
-                "   }," +
                 "   \"entry\": {" +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +

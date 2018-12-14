@@ -62,6 +62,7 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
+import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
@@ -248,28 +249,20 @@ public class ContentServiceV1 extends AbstractService {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis);
 
-        return future.thenCompose(result -> handleWatchFileSuccess(repository, query, result))
+        return future.thenApply(entry -> {
+            final Revision revision = entry.revision();
+            final EntryDto<?> entryDto = convert(repository, entry);
+            return (Object) new WatchResultDto(revision, entryDto);
+        }).exceptionally(ContentServiceV1::handleWatchFailure);
+    }
+
+    private CompletableFuture<?> watchRepository(Repository repository, Revision lastKnownRevision,
+                                                 String pathPattern, long timeOutMillis) {
+        final CompletableFuture<Revision> future =
+                watchService.watchRepository(repository, lastKnownRevision, pathPattern, timeOutMillis);
+
+        return future.thenApply(revision -> (Object) new WatchResultDto(revision, null))
                      .exceptionally(ContentServiceV1::handleWatchFailure);
-    }
-
-    private static CompletableFuture<Object> handleWatchFileSuccess(
-            Repository repository, Query<?> query, Entry<?> entry) {
-        final Revision revision = entry.revision();
-        final EntryDto<?> entryDto = convert(repository, entry);
-        return repository.history(revision, revision, query.path())
-                         .thenApply(commits -> {
-                             // The size of 'commits' should be 1.
-                             return convert(commits.get(0), entryDto);
-                         });
-    }
-
-    private static CompletableFuture<Object> handleWatchRepositorySuccess(
-            Repository repository, Revision revision, String pathPattern) {
-        return repository.history(revision, revision, pathPattern)
-                         .thenApply(commits -> {
-                             // The size of 'commits' should be 1.
-                             return convert(commits.get(0), null);
-                         });
     }
 
     private static Object handleWatchFailure(Throwable thrown) {
@@ -278,15 +271,6 @@ public class ContentServiceV1 extends AbstractService {
             return HttpResponse.of(HttpStatus.NOT_MODIFIED);
         }
         return Exceptions.throwUnsafely(thrown);
-    }
-
-    private CompletableFuture<?> watchRepository(Repository repository, Revision lastKnownRevision,
-                                                 String pathPattern, long timeOutMillis) {
-        final CompletableFuture<Revision> future =
-                watchService.watchRepository(repository, lastKnownRevision, pathPattern, timeOutMillis);
-
-        return future.thenCompose(revision -> handleWatchRepositorySuccess(repository, revision, pathPattern))
-                     .exceptionally(ContentServiceV1::handleWatchFailure);
     }
 
     /**
