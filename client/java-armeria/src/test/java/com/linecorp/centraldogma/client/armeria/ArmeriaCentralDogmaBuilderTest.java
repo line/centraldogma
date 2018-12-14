@@ -38,7 +38,7 @@ public class ArmeriaCentralDogmaBuilderTest {
         final String groupName = "centraldogma-profile-xip";
         try {
             final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
-            b.disableHealthCheck();
+            b.healthCheckIntervalMillis(0);
             b.profile("xip");
             final Endpoint endpoint = b.endpoint();
             assertThat(endpoint.isGroup()).isTrue();
@@ -84,7 +84,7 @@ public class ArmeriaCentralDogmaBuilderTest {
         final String expectedGroupName = "centraldogma-anonymous-" + id;
 
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
-        b.disableHealthCheck();
+        b.healthCheckIntervalMillis(0);
         b.host("1.2.3.4.xip.io");
         assertThat(b.endpoint()).isEqualTo(Endpoint.ofGroup(expectedGroupName));
 
@@ -103,7 +103,7 @@ public class ArmeriaCentralDogmaBuilderTest {
         final String groupName = "centraldogma-anonymous-" + id;
         try {
             final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
-            b.disableHealthCheck();
+            b.healthCheckIntervalMillis(0);
             b.host("1.2.3.4.xip.io", 1); // Unresolved host
             b.host("5.6.7.8.xip.io", 2); // Another unresolved host
             b.host("4.3.2.1", 3); // Resolved host
