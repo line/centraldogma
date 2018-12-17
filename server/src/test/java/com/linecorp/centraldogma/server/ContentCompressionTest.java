@@ -42,8 +42,6 @@ import com.linecorp.armeria.client.encoding.HttpDecodingClient;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
@@ -98,7 +96,7 @@ public class ContentCompressionTest {
         final Iface clientWithDecompressor = Clients.newDerivedClient(
                 clientWithoutDecompressor,
                 options -> new ClientOptionsBuilder(options)
-                        .decorator(HttpRequest.class, HttpResponse.class, HttpDecodingClient.newDecorator())
+                        .decorator(HttpDecodingClient.newDecorator())
                         .build());
 
         final GetFileResult result = clientWithDecompressor.getFile(PROJ, REPO, head, query);
