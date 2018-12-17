@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.76.2
+- com.linecorp.armeria:armeria-bom:0.77.0
 
 ch.qos.logback:
   logback-classic:
@@ -18,7 +18,7 @@ com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
 com.bmuschko:
-  gradle-docker-plugin: { version: '4.0.5' }
+  gradle-docker-plugin: { version: '4.2.0' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
@@ -32,7 +32,7 @@ com.cronutils:
 
 com.fasterxml.jackson.core:
   jackson-annotations:
-    version: &JACKSON_VERSION '2.9.7'
+    version: &JACKSON_VERSION '2.9.8'
     javadocs:
     - https://fasterxml.github.io/jackson-annotations/javadoc/2.9/
   jackson-core:
@@ -110,7 +110,7 @@ com.linecorp.armeria:
     - https://line.github.io/armeria/apidocs/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.14' }
+  checkstyle: { version: '8.15' }
 
 com.spotify:
   completable-futures:
@@ -150,7 +150,7 @@ me.champeau.gradle:
   jmh-gradle-plugin: { version: '0.4.7' }
 
 net.javacrumbs.json-unit:
-  json-unit: { version: &JSON_UNIT_VERSION '2.1.1' }
+  json-unit: { version: &JSON_UNIT_VERSION '2.2.0' }
   json-unit-fluent: { version: *JSON_UNIT_VERSION }
 
 net.sf.proguard:
@@ -188,7 +188,7 @@ org.assertj:
   assertj-core: { version: '3.11.1' }
 
 org.awaitility:
-  awaitility: { version: '3.1.3' }
+  awaitility: { version: '3.1.5' }
 
 org.eclipse.jetty.alpn:
   alpn-api: { version: '1.1.3.v20160715' }
@@ -200,7 +200,7 @@ org.hibernate.validator:
   hibernate-validator: { version: '6.0.13.Final' }
 
 org.javassist:
-  javassist: { version: '3.24.0-GA' }
+  javassist: { version: '3.24.1-GA' }
 
 org.mockito:
   mockito-core: { version: '2.23.4' }
@@ -223,7 +223,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.1.0.RELEASE'
+    version: &SPRING_BOOT_VERSION '2.1.1.RELEASE'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
