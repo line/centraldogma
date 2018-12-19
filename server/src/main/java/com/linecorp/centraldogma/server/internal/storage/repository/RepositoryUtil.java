@@ -55,12 +55,12 @@ import com.linecorp.centraldogma.internal.Jackson;
 /**
  * Utility methods that are useful when implementing a {@link Repository} implementation.
  */
-public final class RepositoryUtil {
+final class RepositoryUtil {
 
     private static final CancellationException CANCELLATION_EXCEPTION =
             Exceptions.clearTrace(new CancellationException("parent complete"));
 
-    public static CompletableFuture<MergedEntry<?>> mergeEntries(
+    static CompletableFuture<MergedEntry<?>> mergeEntries(
             List<CompletableFuture<Entry<?>>> entryFutures, Revision revision,
             MergeQuery<?> query) {
         requireNonNull(entryFutures, "entryFutures");
@@ -125,7 +125,7 @@ public final class RepositoryUtil {
      * @throws QueryExecutionException if an {@link Exception} is raised while applying the specified
      *                                 {@link Query} to the {@link Entry#content()}
      */
-    public static <T> Entry<T> applyQuery(Entry<T> entry, Query<T> query) {
+    static <T> Entry<T> applyQuery(Entry<T> entry, Query<T> query) {
         requireNonNull(query, "query");
         entry.content(); // Ensure that content is not null.
         final EntryType entryType = entry.type();

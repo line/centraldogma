@@ -73,10 +73,36 @@ public class CachingRepositoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void query() {
+    public void identityQuery() {
         final Repository repo = setMockNames(newCachingRepo());
         final Query<String> query = Query.ofText("/baz.txt");
-        final Entry<String> queryResult = Entry.ofText(new Revision(10), query.path(), "qux");
+
+        final Entry<String> result = Entry.ofText(new Revision(10), "/baz.txt", "qux");
+        final Map<String, Entry<?>> entries = ImmutableMap.of("/baz.txt", result);
+
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
+
+        // Uncached
+        when(delegateRepo.find(any(), any(), any())).thenReturn(completedFuture(entries));
+        assertThat(repo.get(HEAD, query).join()).isEqualTo(result);
+        verify(delegateRepo).find(new Revision(10), "/baz.txt", FIND_ONE_WITH_CONTENT);
+        verifyNoMoreInteractions(delegateRepo);
+
+        // Cached
+        clearInvocations(delegateRepo);
+        assertThat(repo.get(HEAD, query).join()).isEqualTo(result);
+        assertThat(repo.get(new Revision(10), query).join()).isEqualTo(result);
+        verify(delegateRepo, never()).find(any(), any(), any());
+        verifyNoMoreInteractions(delegateRepo);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void jsonPathQuery() throws JsonParseException {
+        final Repository repo = setMockNames(newCachingRepo());
+        final Query<JsonNode> query = Query.ofJsonPath("/baz.json", "$.a");
+        final Entry<JsonNode> queryResult = Entry.ofJson(new Revision(10), query.path(), "{\"a\": \"b\"}");
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
@@ -130,9 +156,32 @@ public class CachingRepositoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void queryMissingEntry() {
+    public void identityQueryMissingEntry() {
         final Repository repo = setMockNames(newCachingRepo());
         final Query<String> query = Query.ofText("/baz.txt");
+
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
+        doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
+
+        // Uncached
+        when(delegateRepo.find(any(), any(), any())).thenReturn(completedFuture(ImmutableMap.of()));
+        assertThat(repo.getOrNull(HEAD, query).join()).isNull();
+        verify(delegateRepo).find(new Revision(10), "/baz.txt", FIND_ONE_WITH_CONTENT);
+        verifyNoMoreInteractions(delegateRepo);
+
+        // Cached
+        clearInvocations(delegateRepo);
+        assertThat(repo.getOrNull(HEAD, query).join()).isNull();
+        assertThat(repo.getOrNull(new Revision(10), query).join()).isNull();
+        verify(delegateRepo, never()).find(any(), any(), any());
+        verifyNoMoreInteractions(delegateRepo);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void jsonPathQueryMissingEntry() {
+        final Repository repo = setMockNames(newCachingRepo());
+        final Query<JsonNode> query = Query.ofJsonPath("/baz.json", "$.a");
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(HEAD);
