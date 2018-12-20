@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
+import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -39,6 +40,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
@@ -92,6 +94,15 @@ final class CachingRepository implements Repository {
             normalizedRevision = normalizeNow(revision);
         } catch (Exception e) {
             return CompletableFutures.exceptionallyCompletedFuture(e);
+        }
+
+        if (query.type() == QueryType.IDENTITY) {
+            // If the query is an IDENTITY type, call find() so that the caches are reused in one place when
+            // calls getOrNull(), find() and mergeFiles().
+            final String path = query.path();
+            final CompletableFuture<Entry<?>> future =
+                    find(revision, path, FIND_ONE_WITH_CONTENT).thenApply(findResult -> findResult.get(path));
+            return unsafeCast(future);
         }
 
         final CompletableFuture<Object> future =
