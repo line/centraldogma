@@ -262,8 +262,8 @@ option will show the full usage of the client:
          edit       Edits a file in the path
          get        Downloads a file in the path
          cat        Prints a file in the path
-         rm         Removes a file in the path
          watch      Watches a file in the path
+         rm         Removes a file in the path
          diff       Gets diff of given path
          log        Shows commit logs of the path
          normalize  Normalizes a revision into an absolute revision
@@ -271,10 +271,9 @@ option will show the full usage of the client:
 
     GLOBAL OPTIONS:
        --connect value, -c value   Specifies host or IP address with port to connect to:[hostname:port] or [http://hostname:port]
-       --username value, -u value  Specifies the username to log in as
        --token value, -t value     Specifies an authorization token to access resources on the server
        --help, -h                  Shows help
-
+       --version, -v              print the version
 
 Appending the ``--help`` option after a command will print the detailed usage for the command:
 
