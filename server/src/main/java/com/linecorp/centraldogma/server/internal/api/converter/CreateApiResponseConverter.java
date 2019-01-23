@@ -37,7 +37,6 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
-import com.linecorp.centraldogma.server.internal.metadata.HolderWithLocation;
 
 /**
  * A {@link ResponseConverterFunction} for the HTTP API which creates a resource.
@@ -57,20 +56,14 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
                 httpHeaders.contentType(MediaType.JSON_UTF_8);
             }
 
-            if (resObj instanceof HolderWithLocation) {
-                final HolderWithLocation holderWithLocation = (HolderWithLocation) resObj;
-                httpHeaders.add(HttpHeaderNames.LOCATION, holderWithLocation.location());
-                return HttpResponse.of(headers,
-                                       HttpData.of(Jackson.writeValueAsBytes(holderWithLocation.object())),
-                                       trailingHeaders);
-            }
-
             final JsonNode jsonNode = Jackson.valueToTree(resObj);
-            final String url = jsonNode.get("url").asText();
+            if (httpHeaders.get(HttpHeaderNames.LOCATION) == null) {
+                final String url = jsonNode.get("url").asText();
 
-            // Remove the url field and send it with the LOCATION header.
-            ((ObjectNode) jsonNode).remove("url");
-            httpHeaders.add(HttpHeaderNames.LOCATION, url);
+                // Remove the url field and send it with the LOCATION header.
+                ((ObjectNode) jsonNode).remove("url");
+                httpHeaders.add(HttpHeaderNames.LOCATION, url);
+            }
 
             return HttpResponse.of(httpHeaders, HttpData.of(Jackson.writeValueAsBytes(jsonNode)),
                                    trailingHeaders);

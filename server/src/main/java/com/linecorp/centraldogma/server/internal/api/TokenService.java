@@ -29,12 +29,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
+import com.linecorp.armeria.server.annotation.HttpResult;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
@@ -45,7 +48,6 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.metadata.HolderWithLocation;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.Token;
 import com.linecorp.centraldogma.server.internal.metadata.Tokens;
@@ -102,14 +104,18 @@ public class TokenService extends AbstractService {
     @Post("/tokens")
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
-    public CompletableFuture<HolderWithLocation<Token>> createToken(@Param("appId") String appId,
+    public CompletableFuture<HttpResult<Token>> createToken(@Param("appId") String appId,
                                                                     @Param("isAdmin") boolean isAdmin,
                                                                     Author author, User loginUser) {
         checkArgument(!isAdmin || loginUser.isAdmin(),
                       "Only administrators are allowed to create an admin-level token.");
         return mds.createToken(author, appId, isAdmin)
                   .thenCompose(unused -> mds.findTokenByAppId(appId))
-                  .thenApply(token -> HolderWithLocation.of(token, "/tokens/" + appId));
+                  .thenApply(token -> {
+                      final HttpHeaders headers = HttpHeaders.of(HttpStatus.CREATED)
+                                                             .add(HttpHeaderNames.LOCATION, "/tokens/" + appId);
+                      return HttpResult.of(headers, token);
+                  });
     }
 
     /**

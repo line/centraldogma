@@ -77,8 +77,7 @@ public class SearchFirstActiveDirectoryRealm extends ActiveDirectoryRealm {
     /**
      * Sets a search filter string.
      */
-    @Override
-    public void setSearchFilter(String searchFilter) {
+    protected void setSearchFilter(String searchFilter) {
         this.searchFilter = requireNonNull(searchFilter, "searchFilter");
     }
 

@@ -57,13 +57,16 @@ public final class HttpApiResponseConverter implements ResponseConverterFunction
                 return HttpResponse.of(HttpStatus.NO_CONTENT);
             }
 
-            final HttpHeaders httpHeaders = toMutableHeaders(headers);
-            if (httpHeaders.contentType() == null) {
-                httpHeaders.contentType(MediaType.JSON_UTF_8);
+            final HttpHeaders resHeaders;
+            if (headers.contentType() == null) {
+                resHeaders = toMutableHeaders(headers);
+                resHeaders.contentType(MediaType.JSON_UTF_8);
+            } else {
+                resHeaders = headers;
             }
 
             final HttpData httpData = HttpData.of(Jackson.writeValueAsBytes(resObj));
-            return HttpResponse.of(httpHeaders, httpData, trailingHeaders);
+            return HttpResponse.of(resHeaders, httpData, trailingHeaders);
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);
             return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
