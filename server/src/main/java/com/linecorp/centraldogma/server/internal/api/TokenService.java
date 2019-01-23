@@ -39,6 +39,7 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
+import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.admin.auth.User;
@@ -99,6 +100,7 @@ public class TokenService extends AbstractService {
      * <p>Returns a newly-generated token belonging to the current login user.
      */
     @Post("/tokens")
+    @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<HolderWithLocation<Token>> createToken(@Param("appId") String appId,
                                                                     @Param("isAdmin") boolean isAdmin,

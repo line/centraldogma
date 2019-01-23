@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -57,6 +58,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 
+import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpRequest;
@@ -78,6 +80,8 @@ import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
 import com.linecorp.armeria.server.docs.DocServiceBuilder;
 import com.linecorp.armeria.server.encoding.HttpEncodingService;
 import com.linecorp.armeria.server.file.AbstractHttpVfs;
+import com.linecorp.armeria.server.file.HttpFile;
+import com.linecorp.armeria.server.file.HttpFileBuilder;
 import com.linecorp.armeria.server.file.HttpFileService;
 import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
@@ -441,10 +445,11 @@ public class CentralDogma implements AutoCloseable {
 
         sb.service("/hostname", HttpFileService.forVfs(new AbstractHttpVfs() {
             @Override
-            public Entry get(String path, @Nullable String contentEncoding) {
+            public HttpFile get(String path, Clock clock, @Nullable String contentEncoding) {
                 requireNonNull(path, "path");
-                return new ByteArrayEntry(path, MediaType.PLAIN_TEXT_UTF_8,
-                                          server.defaultHostname().getBytes(StandardCharsets.UTF_8));
+                return HttpFileBuilder.of(HttpData.of(StandardCharsets.UTF_8, server.defaultHostname()))
+                                      .setHeader(HttpHeaderNames.CONTENT_TYPE, MediaType.PLAIN_TEXT_UTF_8)
+                                      .build();
             }
 
             @Override
