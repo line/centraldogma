@@ -39,6 +39,7 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
+import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.CreateRepositoryRequest;
@@ -105,6 +106,7 @@ public class RepositoryServiceV1 extends AbstractService {
      * <p>Creates a new repository.
      */
     @Post("/projects/{projectName}/repos")
+    @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<RepositoryDto> createRepository(ServiceRequestContext ctx, Project project,

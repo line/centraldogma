@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.78.1
+- com.linecorp.armeria:armeria-bom:0.79.0
 
 ch.qos.logback:
   logback-classic:
@@ -18,7 +18,7 @@ com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
 com.bmuschko:
-  gradle-docker-plugin: { version: '4.2.0' }
+  gradle-docker-plugin: { version: '4.3.0' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
@@ -47,7 +47,7 @@ com.fasterxml.jackson.core:
     version: *JACKSON_VERSION
 
 com.fasterxml.jackson.datatype:
-  jackson-datatype-jsr310: { version: '2.9.7' }
+  jackson-datatype-jsr310: { version: '2.9.8' }
 
 # TODO(trustin): Relocate Caffeine after hiding CacheStats from the public API.
 com.github.ben-manes.caffeine:
@@ -57,7 +57,7 @@ com.github.ben-manes.caffeine:
     - https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/
 
 com.github.jengelman.gradle.plugins:
-  shadow: { version: '4.0.3' }
+  shadow: { version: '4.0.4' }
 
 com.google.code.findbugs:
   jsr305: { version: '3.0.2' }
@@ -112,7 +112,7 @@ com.linecorp.armeria:
     - https://line.github.io/armeria/apidocs/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.15' }
+  checkstyle: { version: '8.16' }
 
 com.spotify:
   completable-futures:
@@ -128,7 +128,7 @@ commons-daemon:
     - https://commons.apache.org/proper/commons-daemon/apidocs/
 
 gradle.plugin.com.github.blindpirate:
-  gogradle: { version: '0.10.2' }
+  gogradle: { version: '0.11.1' }
 
 gradle.plugin.net.davidecavestro:
   gradle-jxr-plugin: { version: '0.2.1' }
@@ -149,10 +149,10 @@ kr.motd.gradle:
   sphinx-gradle-plugin: { version: '2.3.1' }
 
 me.champeau.gradle:
-  jmh-gradle-plugin: { version: '0.4.7' }
+  jmh-gradle-plugin: { version: '0.4.8' }
 
 net.javacrumbs.json-unit:
-  json-unit: { version: &JSON_UNIT_VERSION '2.2.0' }
+  json-unit: { version: &JSON_UNIT_VERSION '2.3.0' }
   json-unit-fluent: { version: *JSON_UNIT_VERSION }
 
 net.sf.proguard:
@@ -196,10 +196,10 @@ org.eclipse.jetty.alpn:
   alpn-api: { version: '1.1.3.v20160715' }
 
 org.eclipse.jgit:
-  org.eclipse.jgit: { version: '5.2.0.201812061821-r' }
+  org.eclipse.jgit: { version: '5.2.1.201812262042-r' }
 
 org.hibernate.validator:
-  hibernate-validator: { version: '6.0.13.Final' }
+  hibernate-validator: { version: '6.0.14.Final' }
 
 org.javassist:
   javassist: { version: '3.24.1-GA' }
@@ -225,7 +225,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.1.1.RELEASE'
+    version: &SPRING_BOOT_VERSION '2.1.2.RELEASE'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }

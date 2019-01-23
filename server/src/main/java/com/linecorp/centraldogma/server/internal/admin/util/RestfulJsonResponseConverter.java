@@ -16,9 +16,14 @@
 
 package com.linecorp.centraldogma.server.internal.admin.util;
 
+import static com.linecorp.armeria.internal.annotation.ResponseConversionUtil.toMutableHeaders;
+
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
@@ -38,16 +43,24 @@ public class RestfulJsonResponseConverter implements ResponseConverterFunction {
     private static final HttpData EMPTY_RESULT = HttpData.ofUtf8("{}");
 
     @Override
-    public HttpResponse convertResponse(ServiceRequestContext ctx, Object resObj) throws Exception {
+    public HttpResponse convertResponse(ServiceRequestContext ctx, HttpHeaders headers,
+                                        @Nullable Object resObj,
+                                        HttpHeaders trailingHeaders) throws Exception {
         try {
             final HttpRequest request = RequestContext.current().request();
             final HttpData httpData =
+                    resObj != null &&
                     resObj.getClass() == Object.class ? EMPTY_RESULT
                                                       : HttpData.of(Jackson.writeValueAsBytes(resObj));
-            return HttpResponse.of(HttpMethod.POST == request.method() ? HttpStatus.CREATED
-                                                                       : HttpStatus.OK,
-                                   MediaType.JSON_UTF_8,
-                                   httpData);
+
+            final HttpHeaders httpHeaders = toMutableHeaders(headers);
+            if (HttpMethod.POST == request.method()) {
+                httpHeaders.status(HttpStatus.CREATED);
+            }
+            if (httpHeaders.contentType() == null) {
+                httpHeaders.contentType(MediaType.JSON_UTF_8);
+            }
+            return HttpResponse.of(httpHeaders, httpData, trailingHeaders);
         } catch (JsonProcessingException e) {
             return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
         }

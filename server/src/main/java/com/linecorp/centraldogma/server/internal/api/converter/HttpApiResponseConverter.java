@@ -16,6 +16,10 @@
 
 package com.linecorp.centraldogma.server.internal.api.converter;
 
+import static com.linecorp.armeria.internal.annotation.ResponseConversionUtil.toMutableHeaders;
+
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +27,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.common.HttpData;
+import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
@@ -42,16 +47,26 @@ public final class HttpApiResponseConverter implements ResponseConverterFunction
     private static final Logger logger = LoggerFactory.getLogger(HttpApiResponseConverter.class);
 
     @Override
-    public HttpResponse convertResponse(ServiceRequestContext ctx, Object resObj) throws Exception {
+    public HttpResponse convertResponse(ServiceRequestContext ctx, HttpHeaders headers,
+                                        @Nullable Object resObj,
+                                        HttpHeaders trailingHeaders) throws Exception {
         try {
             final HttpRequest request = RequestContext.current().request();
-            if (HttpMethod.DELETE == request.method() ||
+            if (resObj == null || HttpMethod.DELETE == request.method() ||
                 (resObj instanceof Iterable && Iterables.size((Iterable<?>) resObj) == 0)) {
                 return HttpResponse.of(HttpStatus.NO_CONTENT);
             }
 
+            final HttpHeaders resHeaders;
+            if (headers.contentType() == null) {
+                resHeaders = toMutableHeaders(headers);
+                resHeaders.contentType(MediaType.JSON_UTF_8);
+            } else {
+                resHeaders = headers;
+            }
+
             final HttpData httpData = HttpData.of(Jackson.writeValueAsBytes(resObj));
-            return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8, httpData);
+            return HttpResponse.of(resHeaders, httpData, trailingHeaders);
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);
             return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);

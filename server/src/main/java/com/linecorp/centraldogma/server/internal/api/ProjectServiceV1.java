@@ -36,6 +36,7 @@ import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
+import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.api.v1.CreateProjectRequest;
 import com.linecorp.centraldogma.internal.api.v1.ProjectDto;
@@ -88,6 +89,7 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Creates a new project.
      */
     @Post("/projects")
+    @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<ProjectDto> createProject(CreateProjectRequest request, Author author) {
         return execute(Command.createProject(author, request.name()))

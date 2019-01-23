@@ -16,6 +16,10 @@
 
 package com.linecorp.centraldogma.server.internal.api.converter;
 
+import static com.linecorp.armeria.internal.annotation.ResponseConversionUtil.toMutableHeaders;
+
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +37,6 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
-import com.linecorp.centraldogma.server.internal.metadata.HolderWithLocation;
 
 /**
  * A {@link ResponseConverterFunction} for the HTTP API which creates a resource.
@@ -44,34 +47,29 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
     private static final Logger logger = LoggerFactory.getLogger(CreateApiResponseConverter.class);
 
     @Override
-    public HttpResponse convertResponse(ServiceRequestContext ctx, Object resObj) throws Exception {
+    public HttpResponse convertResponse(ServiceRequestContext ctx, HttpHeaders headers,
+                                        @Nullable Object resObj,
+                                        HttpHeaders trailingHeaders) throws Exception {
         try {
-            if (resObj instanceof HolderWithLocation) {
-                return handleWithLocation((HolderWithLocation<?>) resObj);
+            final HttpHeaders httpHeaders = toMutableHeaders(headers);
+            if (httpHeaders.contentType() == null) {
+                httpHeaders.contentType(MediaType.JSON_UTF_8);
             }
 
             final JsonNode jsonNode = Jackson.valueToTree(resObj);
-            final String url = jsonNode.get("url").asText();
+            if (httpHeaders.get(HttpHeaderNames.LOCATION) == null) {
+                final String url = jsonNode.get("url").asText();
 
-            // Remove the url field and send it with the LOCATION header.
-            ((ObjectNode) jsonNode).remove("url");
-            final HttpHeaders headers = HttpHeaders.of(HttpStatus.CREATED)
-                                                   .add(HttpHeaderNames.LOCATION, url)
-                                                   .contentType(MediaType.JSON_UTF_8);
+                // Remove the url field and send it with the LOCATION header.
+                ((ObjectNode) jsonNode).remove("url");
+                httpHeaders.add(HttpHeaderNames.LOCATION, url);
+            }
 
-            return HttpResponse.of(headers, HttpData.of(Jackson.writeValueAsBytes(jsonNode)));
+            return HttpResponse.of(httpHeaders, HttpData.of(Jackson.writeValueAsBytes(jsonNode)),
+                                   trailingHeaders);
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);
             return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
         }
-    }
-
-    private static HttpResponse handleWithLocation(HolderWithLocation<?> holderWithLocation)
-            throws JsonProcessingException {
-        return HttpResponse.of(
-                HttpHeaders.of(HttpStatus.CREATED)
-                           .add(HttpHeaderNames.LOCATION, holderWithLocation.location())
-                           .contentType(MediaType.JSON_UTF_8),
-                HttpData.of(Jackson.writeValueAsBytes(holderWithLocation.object())));
     }
 }
