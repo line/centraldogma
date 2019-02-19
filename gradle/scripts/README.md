@@ -82,7 +82,7 @@ sensible defaults. By applying them, you can:
            mavenCentral()
        }
        dependencies {
-           classpath 'com.google.gradle:osdetector-gradle-plugin:1.6.1'
+           classpath 'com.google.gradle:osdetector-gradle-plugin:1.6.2'
            classpath 'io.spring.gradle:dependency-management-plugin:1.0.6.RELEASE'
        }
    }
@@ -169,7 +169,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath "com.google.gradle:osdetector-gradle-plugin:1.6.1"
+        classpath "com.google.gradle:osdetector-gradle-plugin:1.6.2"
         classpath 'io.spring.gradle:dependency-management-plugin:1.0.6.RELEASE'
     }
 }
@@ -395,7 +395,7 @@ When a project has a `java` flag:
 
 - The `.thrift` files under `src/*/thrift` will be compiled into Java code.
 
-  - Thrift compiler 0.11 will be used by default. Override `thriftVersion`
+  - Thrift compiler 0.12 will be used by default. Override `thriftVersion`
     property if you prefer 0.9:
 
     ```groovy
