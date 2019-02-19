@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.api.converter;
 
-import static com.linecorp.armeria.internal.annotation.ResponseConversionUtil.toMutableHeaders;
-
 import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
@@ -59,7 +57,7 @@ public final class HttpApiResponseConverter implements ResponseConverterFunction
 
             final HttpHeaders resHeaders;
             if (headers.contentType() == null) {
-                resHeaders = toMutableHeaders(headers);
+                resHeaders = headers.toMutable();
                 resHeaders.contentType(MediaType.JSON_UTF_8);
             } else {
                 resHeaders = headers;
