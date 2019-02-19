@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.admin.util;
 
-import static com.linecorp.armeria.internal.annotation.ResponseConversionUtil.toMutableHeaders;
-
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -53,7 +51,7 @@ public class RestfulJsonResponseConverter implements ResponseConverterFunction {
                     resObj.getClass() == Object.class ? EMPTY_RESULT
                                                       : HttpData.of(Jackson.writeValueAsBytes(resObj));
 
-            final HttpHeaders httpHeaders = toMutableHeaders(headers);
+            final HttpHeaders httpHeaders = headers.toMutable();
             if (HttpMethod.POST == request.method()) {
                 httpHeaders.status(HttpStatus.CREATED);
             }
