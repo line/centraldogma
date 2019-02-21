@@ -34,6 +34,7 @@ public final class TestAuthMessageUtil {
     public static final String PASSWORD = "bar";
     public static final String WRONG_PASSWORD = "baz";
     public static final String WRONG_SESSION_ID = "00000000-0000-0000-0000-000000000000";
+    public static final String MALFORMED_SESSION_ID = "not_a_session_id";
 
     private static final Encoder encoder = Base64.getEncoder();
 

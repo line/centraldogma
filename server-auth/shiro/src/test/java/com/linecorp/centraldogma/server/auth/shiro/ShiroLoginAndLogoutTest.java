@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.auth.shiro;
 
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.MALFORMED_SESSION_ID;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_PASSWORD;
@@ -95,6 +96,7 @@ public class ShiroLoginAndLogoutTest {
     @Test
     public void incorrectLogout() throws Exception {
         assertThat(logout(client, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(logout(client, MALFORMED_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test

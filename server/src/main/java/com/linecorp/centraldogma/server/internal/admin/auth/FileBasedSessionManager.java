@@ -36,6 +36,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
@@ -78,23 +80,29 @@ public final class FileBasedSessionManager implements SessionManager {
     private final Path rootDir;
     private final Path tmpDir;
 
+    @Nullable
     private final Scheduler scheduler;
 
     /**
      * Creates a new instance.
      *
      * @param rootDir the {@link Path} that the sessions are kept
-     * @param cronExpr the cron expression which specifies the schedule for deleting expired sessions
+     * @param cronExpr the cron expression which specifies the schedule for deleting expired sessions.
+     *                 {@code null} to disable the session expiration.
      */
-    public FileBasedSessionManager(Path rootDir, String cronExpr) throws IOException, SchedulerException {
+    public FileBasedSessionManager(
+            Path rootDir, @Nullable String cronExpr) throws IOException, SchedulerException {
         this.rootDir = requireNonNull(rootDir, "rootDir");
-        requireNonNull(cronExpr, "cronExpr");
 
         tmpDir = rootDir.resolve("tmp");
         Files.createDirectories(tmpDir);
 
-        scheduler = createScheduler(cronExpr);
-        scheduler.start();
+        if (cronExpr != null) {
+            scheduler = createScheduler(cronExpr);
+            scheduler.start();
+        } else {
+            scheduler = null;
+        }
     }
 
     private Scheduler createScheduler(String cronExpr) throws SchedulerException {
@@ -138,14 +146,14 @@ public final class FileBasedSessionManager implements SessionManager {
     @Override
     public CompletableFuture<Boolean> exists(String sessionId) {
         requireNonNull(sessionId, "sessionId");
-        return CompletableFuture.completedFuture(isSessionFile(sessionId2Path(sessionId)));
+        return CompletableFuture.completedFuture(isSessionFile(sessionId2PathOrNull(sessionId)));
     }
 
     @Override
     public CompletableFuture<Session> get(String sessionId) {
         requireNonNull(sessionId, "sessionId");
 
-        final Path path = sessionId2Path(sessionId);
+        final Path path = sessionId2PathOrNull(sessionId);
         if (!isSessionFile(path)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -221,7 +229,7 @@ public final class FileBasedSessionManager implements SessionManager {
 
     @Override
     public void close() throws Exception {
-        if (!scheduler.isShutdown()) {
+        if (scheduler != null && !scheduler.isShutdown()) {
             // Graceful shutdown.
             // We don't use InterruptableJob for simplicity, but just waiting for the job to be completed.
             scheduler.shutdown(true);
@@ -229,17 +237,29 @@ public final class FileBasedSessionManager implements SessionManager {
     }
 
     private Path sessionId2Path(String sessionId) {
-        return sessionId2Path(rootDir, sessionId);
+        final Path path = sessionId2PathOrNull(sessionId);
+        checkArgument(path != null, "sessionId: %s (expected: UUID)", sessionId);
+        return path;
     }
 
-    private static Path sessionId2Path(Path rootDir, String sessionId) {
-        checkArgument(SESSION_ID_PATTERN.matcher(sessionId).matches(),
-                      "sessionId: %s (expected: UUID)", sessionId);
+    @Nullable
+    private Path sessionId2PathOrNull(String sessionId) {
+        return sessionId2PathOrNull(rootDir, sessionId);
+    }
+
+    @Nullable
+    private static Path sessionId2PathOrNull(Path rootDir, String sessionId) {
+        if (!SESSION_ID_PATTERN.matcher(sessionId).matches()) {
+            return null;
+        }
         return rootDir.resolve(sessionId.substring(0, SESSION_ID_1ST_PART_LENGTH))
                       .resolve(sessionId.substring(SESSION_ID_1ST_PART_LENGTH));
     }
 
-    private static boolean isSessionFile(Path path) {
+    private static boolean isSessionFile(@Nullable Path path) {
+        if (path == null) {
+            return false;
+        }
         if (!Files.isRegularFile(path)) {
             return false;
         }
@@ -288,7 +308,10 @@ public final class FileBasedSessionManager implements SessionManager {
                      .filter(Objects::nonNull)
                      .filter(session -> now.isAfter(session.expirationTime()))
                      .forEach(session -> {
-                         final Path path = sessionId2Path(rootDir, session.id());
+                         final Path path = sessionId2PathOrNull(rootDir, session.id());
+                         if (path == null) {
+                             return;
+                         }
                          try {
                              Files.deleteIfExists(path);
                              logger.debug("Deleted an expired session: {}", path);
