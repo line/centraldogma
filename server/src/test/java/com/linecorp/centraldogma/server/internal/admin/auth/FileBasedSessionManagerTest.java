@@ -16,9 +16,11 @@
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
+import java.util.concurrent.CompletionException;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -33,11 +35,8 @@ public class FileBasedSessionManagerTest {
 
     @Test
     public void shouldDoBasicOperations() throws Exception {
-        final FileBasedSessionManager manager =
-                new FileBasedSessionManager(rootDir.newFolder().toPath(), "0 0 0 ? * * 2099");
-
-        final Session session =
-                new Session(manager.generateSessionId(), "username", Duration.ofHours(1));
+        final FileBasedSessionManager manager = new FileBasedSessionManager(rootDir.newFolder().toPath(), null);
+        final Session session = new Session(manager.generateSessionId(), "username", Duration.ofHours(1));
         manager.create(session).join();
         assertThat(manager.get(session.id()).join())
                 .isEqualToIgnoringGivenFields(session, "rawSession");
@@ -62,5 +61,29 @@ public class FileBasedSessionManagerTest {
         manager.create(session).join();
 
         await().untilAsserted(() -> assertThat(manager.get(session.id()).join()).isNull());
+    }
+
+    @Test
+    public void invalidSessionIds() throws Exception {
+        final FileBasedSessionManager manager = new FileBasedSessionManager(rootDir.newFolder().toPath(), null);
+        assertThat(manager.get("anonymous").join()).isNull();
+        assertThat(manager.exists("anonymous").join()).isFalse();
+
+        // Other operations such as create, update and delete should fail.
+        final Session session = new Session("anonymous", "username", Duration.ofHours(1));
+        assertThatThrownBy(() -> manager.create(session).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .satisfies(cause -> assertThat(cause.getCause()).hasMessageContaining("sessionId:"));
+
+        assertThatThrownBy(() -> manager.update(session).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .satisfies(cause -> assertThat(cause.getCause()).hasMessageContaining("sessionId:"));
+
+        assertThatThrownBy(() -> manager.delete("anonymous").join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .satisfies(cause -> assertThat(cause.getCause()).hasMessageContaining("sessionId:"));
     }
 }

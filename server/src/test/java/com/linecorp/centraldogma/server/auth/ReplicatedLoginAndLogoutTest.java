@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.auth;
 
+import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.MALFORMED_SESSION_ID;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.PASSWORD;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.USERNAME;
 import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil.WRONG_PASSWORD;
@@ -187,6 +188,7 @@ public class ReplicatedLoginAndLogoutTest {
     public void incorrectLogout() throws Exception {
         final int baselineReplicationLogCount = replicationLogCount();
         assertThat(logout(client1, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(logout(client1, MALFORMED_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
         // Ensure that a failed logout attempt does not produce any replication logs.
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount);
