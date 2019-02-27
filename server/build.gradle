@@ -21,9 +21,6 @@ dependencies {
     // JSch
     compile 'com.jcraft:jsch'
 
-    // Commons Daemon
-    compile 'commons-daemon:commons-daemon'
-
     // Curator & ZooKeeper
     compile 'org.apache.curator:curator-recipes'
     compile 'org.apache.zookeeper:zookeeper'
@@ -33,6 +30,9 @@ dependencies {
     compile('com.beust:jcommander') {
         ext.optional = true
     }
+
+    // jnr-ffi
+    compile 'com.github.jnr:jnr-ffi'
 
     // jGit
     compile 'org.eclipse.jgit:org.eclipse.jgit'

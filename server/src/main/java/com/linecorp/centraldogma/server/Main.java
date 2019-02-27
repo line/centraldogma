@@ -16,12 +16,14 @@
 package com.linecorp.centraldogma.server;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 
-import org.apache.commons.daemon.Daemon;
-import org.apache.commons.daemon.DaemonContext;
-import org.apache.commons.daemon.DaemonController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,10 +31,13 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.FileConverter;
 
+import jnr.ffi.LibraryLoader;
+import jnr.ffi.types.pid_t;
+
 /**
  * Entry point of a standalone server. Use {@link CentralDogmaBuilder} to embed a server.
  */
-public final class Main implements Daemon {
+public final class Main {
 
     enum State {
         NONE,
@@ -52,14 +57,16 @@ public final class Main implements Daemon {
                      File.separatorChar + "conf" +
                      File.separatorChar + "dogma.json");
 
-    private static final File DEFAULT_SECURITY_CONFIG_FILE =
-            new File(System.getProperty("user.dir", ".") +
-                     File.separatorChar + "conf" +
-                     File.separatorChar + "shiro.ini");
-
     @Nullable
     @Parameter(names = "-config", description = "The path to the config file", converter = FileConverter.class)
     private File configFile;
+
+    @Nullable
+    @Parameter(names = "-pidfile",
+            description = "The path to the file containing the pid of the server" +
+                          " (defaults to /var/run/centraldogma.pid)",
+            converter = FileConverter.class)
+    private File pidFile;
 
     /**
      * Note that {@link Boolean} was used in lieu of {@code boolean} so that JCommander does not print the
@@ -72,31 +79,24 @@ public final class Main implements Daemon {
     private State state = State.NONE;
     @Nullable
     private CentralDogma dogma;
+    @Nullable
+    private PidFile procIdFile;
 
-    @Override
-    public synchronized void init(DaemonContext context) {
-        if (state != State.NONE) {
-            throw new IllegalStateException("initialized already");
-        }
-
+    private Main(String[] args) {
         final JCommander commander = new JCommander(this);
         commander.setProgramName(getClass().getName());
-        commander.parse(context.getArguments());
+        commander.parse(args);
 
         if (help != null && help) {
             commander.usage();
-            final DaemonController controller = context.getController();
-            if (controller != null) {
-                controller.fail();
-            }
-            return;
+        } else {
+            procIdFile = new PidFile(Optional.ofNullable(pidFile)
+                                             .orElseGet(() -> new File("/var/run/centraldogma.pid")));
+            state = State.INITIALIZED;
         }
-
-        state = State.INITIALIZED;
     }
 
-    @Override
-    public synchronized void start() throws Exception {
+    synchronized void start() throws Exception {
         switch (state) {
             case NONE:
                 throw new IllegalStateException("not initialized");
@@ -121,6 +121,11 @@ public final class Main implements Daemon {
 
         this.dogma = dogma;
         state = State.STARTED;
+
+        // The server would be stopped even if we fail to create the PID file from here,
+        // because the state has been updated.
+        assert procIdFile != null;
+        procIdFile.create();
     }
 
     @Nullable
@@ -140,8 +145,7 @@ public final class Main implements Daemon {
         return null;
     }
 
-    @Override
-    public synchronized void stop() throws Exception {
+    synchronized void stop() throws Exception {
         switch (state) {
             case NONE:
             case INITIALIZED:
@@ -159,8 +163,7 @@ public final class Main implements Daemon {
         state = State.STOPPED;
     }
 
-    @Override
-    public void destroy() {
+    void destroy() {
         switch (state) {
             case NONE:
                 return;
@@ -170,7 +173,12 @@ public final class Main implements Daemon {
                 return;
         }
 
-        // Nothing to do at the moment.
+        assert procIdFile != null;
+        try {
+            procIdFile.destroy();
+        } catch (IOException e) {
+            logger.warn("Failed to destroy the PID file:", e);
+        }
 
         state = State.DESTROYED;
     }
@@ -179,7 +187,7 @@ public final class Main implements Daemon {
      * Starts a new Central Dogma server.
      */
     public static void main(String[] args) throws Exception {
-        final Main main = new Main();
+        final Main main = new Main(args);
 
         // Register the shutdown hook.
         Runtime.getRuntime().addShutdownHook(new Thread("Central Dogma shutdown hook") {
@@ -199,35 +207,60 @@ public final class Main implements Daemon {
             }
         });
 
-        // Initialize the main with a dummy context.
-        main.init(new DaemonContextImpl(args));
-
         // Exit if initialization failed.
         if (main.state != State.INITIALIZED) {
             System.exit(1);
             return;
         }
 
-        main.start();
+        try {
+            main.start();
+        } catch (Throwable cause) {
+            logger.warn("Failed to start the Central Dogma:", cause);
+            // Trigger the shutdown hook.
+            System.exit(1);
+        }
     }
 
-    private static final class DaemonContextImpl implements DaemonContext {
+    /**
+     * An interface to load the standard C library.
+     */
+    public interface StandardLibrary {
+        @pid_t
+        long getpid();
+    }
 
-        private final String[] args;
+    /**
+     * Manages a process ID file for the Central Dogma server.
+     */
+    static final class PidFile {
 
-        DaemonContextImpl(String[] args) {
-            this.args = args;
+        private final File file;
+
+        private PidFile(File file) {
+            this.file = file;
         }
 
-        @Nullable
-        @Override
-        public DaemonController getController() {
-            return null;
+        void create() throws IOException {
+            if (file.exists()) {
+                throw new IllegalStateException("Failed to create a PID file. A file already exists: " +
+                                                file.getPath());
+            }
+
+            final StandardLibrary lib = LibraryLoader.create(StandardLibrary.class).load("c");
+            final long pid = lib.getpid();
+
+            final Path temp = Files.createTempFile("central-dogma", ".tmp");
+            Files.write(temp, Long.toString(pid).getBytes());
+            Files.move(temp, file.toPath(), StandardCopyOption.ATOMIC_MOVE);
+
+            logger.debug("A PID file created: " + file.getPath());
         }
 
-        @Override
-        public String[] getArguments() {
-            return args;
+        void destroy() throws IOException {
+            if (Files.deleteIfExists(file.toPath())) {
+                logger.debug("Successfully deleted the PID file: " + file.getPath());
+            }
         }
     }
 }

@@ -1,11 +1,11 @@
 #
 # CentralDogma Dockerfile
 #
-FROM openjdk:8
+FROM openjdk:latest
 
 # Environment variables.
 ENV CENTRALDOGMA_HOME "/opt/centraldogma"
-ENV CENTRALDOGMA_OPTS "-nodetach"
+ENV CENTRALDOGMA_OPTS ""
 ENV JAVA_OPTS "$CENTRALDOGMA_OPTS"
 ENV PATH "$CENTRALDOGMA_HOME/bin:$PATH"
 
@@ -30,4 +30,5 @@ COPY build/dist/licenses/*   "$CENTRALDOGMA_HOME"/licenses/
 # Expose ports.
 EXPOSE 36462
 
-CMD ["sh", "-c", "${CENTRALDOGMA_HOME}/bin/startup"]
+# Entrypoint doesn't allow an environment variable.
+ENTRYPOINT ["/opt/centraldogma/bin/startup", "-nodetach"]

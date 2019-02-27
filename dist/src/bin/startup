@@ -3,6 +3,23 @@
 source "$(dirname "$0")/common.sh"
 cd "$APP_HOME"
 
+NODETACH=0
+
+while [[ $# -gt 0 ]]
+do
+  case "$1" in
+    -nodetach)
+      NODETACH=1
+      ;;
+    *)
+      eecho "Unknown argument: $1"
+      eecho "Usage: `basename $0` [-nodetach]"
+      exit 10
+      ;;
+  esac
+  shift
+done
+
 if [[ -f "$APP_PID_FILE" ]]; then
   PID="`cat "$APP_PID_FILE"`"
   if [[ ! "$PID" =~ (^[0-9]+$) ]]; then
@@ -10,7 +27,7 @@ if [[ -f "$APP_PID_FILE" ]]; then
   fi
   if ps -p "$PID" >/dev/null 2>&1; then
     eecho "$APP_NAME started already with PID $PID; aborting."
-    exit 10
+    exit 100
   else
     eecho "PID file exists, but its process ($PID) does not exist; removing $APP_PID_FILE"
   fi
@@ -18,28 +35,41 @@ fi
 
 rm -f "$APP_PID_FILE" >/dev/null 2>&1
 
-# Start the application up with jsvc
+mkdir -p `dirname $APP_STDOUT_FILE`
+mkdir -p `dirname $APP_STDERR_FILE`
+
+# Start the application up
 set +e
 eecho "Starting up $APP_NAME .."
-"$JSVC_BIN" \
-  -java-home "$JAVA_HOME" \
-  -pidfile "$APP_PID_FILE" \
-  -wait 60 \
-  -cwd "$APP_HOME" \
-  -outfile "$APP_STDOUT_FILE" \
-  -errfile "$APP_STDERR_FILE" \
+
+nohup "$JAVA_HOME"/bin/java \
   ${JAVA_OPTS} \
   -classpath "$APP_HOME/conf:$APP_LIB_DIR/ext/*:$APP_LIB_DIR/*" \
   "$APP_MAIN" \
-  $APP_OPTS
+  -pidfile "$APP_PID_FILE" \
+  $APP_OPTS \
+  1> "$APP_STDOUT_FILE" \
+  2> "$APP_STDERR_FILE" \
+  &
 
-JSVC_EXIT_CODE=$?
+COUNT=0
+while [[ $APP_WAIT_TIME -eq 0 ]] || [[ $COUNT -lt $APP_WAIT_TIME ]]; do
+  sleep 1
+  if [[ -f "$APP_PID_FILE" ]]; then
+    PID=$(cat "$APP_PID_FILE")
+    kill -0 $PID > /dev/null 2>&1
+    if [[ $? -eq 0 ]]; then
+      eecho "Started up $APP_NAME successfully: $PID"
+      if [[ $NODETACH -eq 1 ]]; then
+        trap "$APP_BIN_DIR/shutdown" SIGINT SIGTERM SIGKILL SIGHUP
+        wait $PID
+      fi
+      exit 0
+    fi
+    break
+  fi
+  COUNT=`expr $COUNT + 1`
+done
 
-if [[ "$JSVC_EXIT_CODE" -ne 0 ]]; then
-  eecho "Failed to start up $APP_NAME (exit code: $JSVC_EXIT_CODE)"
-  exit $JSVC_EXIT_CODE
-else
-  eecho "Started up $APP_NAME successfully: $(cat "$APP_PID_FILE")"
-  exit 0
-fi
-
+eecho "Failed to start up $APP_NAME"
+exit 255
