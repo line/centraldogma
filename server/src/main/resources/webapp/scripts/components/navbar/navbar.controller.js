@@ -8,6 +8,7 @@ angular.module('CentralDogmaAdmin')
                   $scope.isAuthenticated = Principal.isAuthenticated;
 
                   Hostname.get().then(function (data) {
-                    $scope.hostname = data;
+                    $scope.hostname = data.hostname;
+                    $scope.title = angular.isDefined(data.title) ? data.title : "";
                   });
                 });

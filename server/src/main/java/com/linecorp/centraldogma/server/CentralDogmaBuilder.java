@@ -91,6 +91,8 @@ public final class CentralDogmaBuilder {
     @Nullable
     private String repositoryCacheSpec = DEFAULT_REPOSITORY_CACHE_SPEC;
     private boolean webAppEnabled = true;
+    @Nullable
+    private String webAppTitle;
     private boolean mirroringEnabled = true;
     private int numMirroringThreads = DEFAULT_NUM_MIRRORING_THREADS;
     private int maxNumFilesPerMirror = DEFAULT_MAX_NUM_FILES_PER_MIRROR;
@@ -257,6 +259,14 @@ public final class CentralDogmaBuilder {
      */
     public CentralDogmaBuilder webAppEnabled(boolean webAppEnabled) {
         this.webAppEnabled = webAppEnabled;
+        return this;
+    }
+
+    /**
+     * Sets the title text which is displayed on the navigation bar of the administrative web application.
+     */
+    public CentralDogmaBuilder webAppTitle(String webAppTitle) {
+        this.webAppTitle = requireNonNull(webAppTitle, "webAppTitle");
         return this;
     }
 
@@ -433,7 +443,7 @@ public final class CentralDogmaBuilder {
         return new CentralDogmaConfig(dataDir, ports, tls, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, repositoryCacheSpec, gracefulShutdownTimeout,
-                                      webAppEnabled, mirroringEnabled, numMirroringThreads,
+                                      webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
                                       null, accessLogFormat, authCfg);
     }
