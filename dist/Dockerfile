@@ -1,7 +1,7 @@
 #
 # CentralDogma Dockerfile
 #
-FROM openjdk:latest
+FROM openjdk:11-jre
 
 # Environment variables.
 ENV CENTRALDOGMA_HOME "/opt/centraldogma"

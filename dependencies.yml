@@ -59,7 +59,7 @@ com.github.jengelman.gradle.plugins:
   shadow: { version: '4.0.4' }
 
 com.github.jnr:
-  jnr-ffi: { version: '2.1.9' }
+  jnr-posix: { version: '3.0.49' }
 
 com.google.code.findbugs:
   jsr305: { version: '3.0.2' }

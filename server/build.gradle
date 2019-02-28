@@ -31,8 +31,8 @@ dependencies {
         ext.optional = true
     }
 
-    // jnr-ffi
-    compile 'com.github.jnr:jnr-ffi'
+    // jnr-posix
+    compile 'com.github.jnr:jnr-posix'
 
     // jGit
     compile 'org.eclipse.jgit:org.eclipse.jgit'

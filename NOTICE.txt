@@ -250,10 +250,10 @@ This product depends on jGit, distributed by Eclipse Foundation:
   * License: licenses/LICENSE.jgit.edl10.txt (Eclipse Distribution License v1.0)
   * Homepage: https://eclipse.org/jgit/
 
-This product depends on jnr-ffi, distributed by jnr contributors:
+This product depends on jnr-posix, distributed by jnr contributors:
 
-  * License: licenses/LICENSE.jnr-ffi.al20.txt (Apache License v2.0)
-  * Homepage: https://github.com/jnr/jnr-ffi
+  * License: licenses/LICENSE.jnr-posix.epl20.txt (Eclipse Public License v2.0)
+  * Homepage: https://github.com/jnr/jnr-posix
 
 This product depends on JSch, distributed by JCraft, Inc:
 

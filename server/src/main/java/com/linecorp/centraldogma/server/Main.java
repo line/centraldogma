@@ -31,8 +31,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.FileConverter;
 
-import jnr.ffi.LibraryLoader;
-import jnr.ffi.types.pid_t;
+import jnr.posix.POSIXFactory;
 
 /**
  * Entry point of a standalone server. Use {@link CentralDogmaBuilder} to embed a server.
@@ -216,18 +215,10 @@ public final class Main {
         try {
             main.start();
         } catch (Throwable cause) {
-            logger.warn("Failed to start the Central Dogma:", cause);
+            logger.error("Failed to start the Central Dogma:", cause);
             // Trigger the shutdown hook.
             System.exit(1);
         }
-    }
-
-    /**
-     * An interface to load the standard C library.
-     */
-    public interface StandardLibrary {
-        @pid_t
-        long getpid();
     }
 
     /**
@@ -247,11 +238,9 @@ public final class Main {
                                                 file.getPath());
             }
 
-            final StandardLibrary lib = LibraryLoader.create(StandardLibrary.class).load("c");
-            final long pid = lib.getpid();
-
+            final int pid = POSIXFactory.getPOSIX().getpid();
             final Path temp = Files.createTempFile("central-dogma", ".tmp");
-            Files.write(temp, Long.toString(pid).getBytes());
+            Files.write(temp, Integer.toString(pid).getBytes());
             Files.move(temp, file.toPath(), StandardCopyOption.ATOMIC_MOVE);
 
             logger.debug("A PID file created: " + file.getPath());
