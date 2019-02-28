@@ -243,12 +243,12 @@ public final class Main {
             Files.write(temp, Integer.toString(pid).getBytes());
             Files.move(temp, file.toPath(), StandardCopyOption.ATOMIC_MOVE);
 
-            logger.debug("A PID file created: " + file.getPath());
+            logger.debug("A PID file has been created: {}", file);
         }
 
         void destroy() throws IOException {
             if (Files.deleteIfExists(file.toPath())) {
-                logger.debug("Successfully deleted the PID file: " + file.getPath());
+                logger.debug("Successfully deleted the PID file: {}", file);
             }
         }
     }
