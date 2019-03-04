@@ -461,9 +461,7 @@ public class CentralDogma implements AutoCloseable {
                                           .setHeader(HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_UTF_8)
                                           .build();
                 } catch (JsonProcessingException e) {
-                    return HttpFileBuilder.of(HttpData.ofUtf8("{\"hostname\":\"" + s.defaultHostname() + "\"}"))
-                                          .setHeader(HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_UTF_8)
-                                          .build();
+                    throw new Error("Failed to send the hostname:", e);
                 }
             }
 
