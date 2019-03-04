@@ -11,6 +11,7 @@
         <span ng-hide="hostname" translate>window.title</span>
         <span ng-show="hostname">{{ 'window.title_with_hostname' |
                                     translate: "{ hostname: '" + hostname + "' }" }}</span>&#xA0;
+        <span ng-show="title">{{ title }}</span>
       </a>
     </div>
     <div class="collapse navbar-collapse" id="navbar-collapse" ng-switch="isAuthenticated()">

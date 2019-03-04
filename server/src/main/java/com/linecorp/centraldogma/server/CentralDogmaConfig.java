@@ -86,6 +86,9 @@ public final class CentralDogmaConfig {
     // Web dashboard
     private final boolean webAppEnabled;
 
+    @Nullable
+    private final String webAppTitle;
+
     // Mirroring
     private final boolean mirroringEnabled;
     private final int numMirroringThreads;
@@ -125,6 +128,7 @@ public final class CentralDogmaConfig {
             @JsonProperty("gracefulShutdownTimeout") @Nullable
                     GracefulShutdownTimeout gracefulShutdownTimeout,
             @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
+            @JsonProperty("webAppTitle") @Nullable String webAppTitle,
             @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
             @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
             @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
@@ -150,6 +154,7 @@ public final class CentralDogmaConfig {
         this.repositoryCacheSpec = validateCacheSpec(
                 firstNonNull(repositoryCacheSpec, DEFAULT_REPOSITORY_CACHE_SPEC));
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
+        this.webAppTitle = webAppTitle;
         this.mirroringEnabled = firstNonNull(mirroringEnabled, true);
         this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
         checkArgument(this.numMirroringThreads > 0,
@@ -245,6 +250,12 @@ public final class CentralDogmaConfig {
     @JsonProperty
     public boolean isWebAppEnabled() {
         return webAppEnabled;
+    }
+
+    @Nullable
+    @JsonProperty("webAppTitle")
+    public String webAppTitle() {
+        return webAppTitle;
     }
 
     @JsonProperty

@@ -32,6 +32,7 @@ defaults:
       "numRepositoryWorkers": 16,
       "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
       "webAppEnabled": true,
+      "webAppTitle": null,
       "gracefulShutdownTimeout": {
         "quietPeriodMillis": 1000,
         "timeoutMillis": 10000
@@ -119,6 +120,10 @@ Core properties
 - ``webAppEnabled`` (boolean)
 
   - whether to enable the web-based administrative console. Enabled by default.
+
+- ``webAppTitle`` (string)
+
+  - the title text which is displayed on the navigation bar of the web-based administrative console.
 
 - ``gracefulShutdownTimeout``
 
@@ -337,6 +342,7 @@ in ``dogma.json`` as follows.
       "numRepositoryWorkers": 16,
       "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
       "webAppEnabled": true,
+      "webAppTitle": null,
       "gracefulShutdownTimeout": {
         "quietPeriodMillis": 1000,
         "timeoutMillis": 10000
