@@ -1,4 +1,4 @@
-# Common script for JSVC-based Java application
+# Common script for Java application
 #
 # This script checks if the following environment variables exist and sets their default values if necessary.
 # -----------------------------------------------------------------------------------------------------------
@@ -26,12 +26,12 @@
 # APP_STDERR_FILE (Optional) The path to the file that contains the stderr console output
 #                 If not set, '$APP_LOG_DIR/$APP_NAME.stderr' is used.
 #
+# APP_WAIT_TIME   (Optional) Wait the specified seconds for the service to start or stop.
+#                 If not set, 60 seconds are used.
+#
 # JAVA_HOME       (Required) The location of the installed JDK/JRE
 #
 # JAVA_OPTS       (Optional) The JVM options
-#
-# JSVC_BIN        (Optional) The patch to the JSVC executable.
-#                 If not set, '$APP_HOME/bin/jsvc.<auto-detected-os-classifier>' is used.
 #
 
 set -e
@@ -88,30 +88,15 @@ if [[ -z "$APP_STDERR_FILE" ]]; then
   APP_STDERR_FILE="$APP_LOG_DIR/$APP_NAME".stderr
 fi
 
+if [[ -z "$APP_WAIT_TIME" ]]; then
+  APP_WAIT_TIME=60
+elif [[ ! "$APP_WAIT_TIME" =~ (^[0-9]+$) ]]; then
+  eecho "Invalid APP_WAIT_TIME: $APP_WAIT_TIME"
+  exit 5
+fi
+
 if [[ -z "$APP_PID_FILE" ]]; then
   APP_PID_FILE="$APP_HOME/$APP_NAME".pid
-fi
-
-JSVC_AUTODETECT=1
-if [[ -n "$JSVC_BIN" ]]; then
-  if [[ ! -x "$JSVC_BIN" ]]; then
-    eecho "$JSVC_BIN is not an executable; falling back to auto-detection."
-  else
-    JSVC_AUTODETECT=0
-  fi
-fi
-
-if [[ $JSVC_AUTODETECT -ne 0 ]]; then
- case "`uname`" in
-  Darwin) JSVC_BIN="$APP_BIN_DIR/jsvc.osx" ;;
-  Linux)  JSVC_BIN="$APP_BIN_DIR/jsvc.linux-`uname -m`" ;;
-  *)      JSVC_BIN="$APP_BIN_DIR/jsvc.unknown" ;;
-  esac
-fi
-
-if [[ ! -x ${JSVC_BIN} ]]; then
-  eecho "Could not find the suitable JSVC executable. Set the JSVC environment variable to override auto-detection."
-  exit 5
 fi
 
 if [[ -f "$(dirname "$0")/common.post.sh" ]]; then
@@ -128,9 +113,9 @@ export APP_BIN_DIR \
        APP_PID_FILE \
        APP_STDOUT_FILE \
        APP_STDERR_FILE \
+       APP_WAIT_TIME \
        JAVA_HOME \
-       JAVA_OPTS \
-       JSVC_BIN
+       JAVA_OPTS
 
 eecho "Environment variables:"
 eecho "======================"
@@ -144,7 +129,7 @@ eecho "APP_OPTS:        $APP_OPTS"
 eecho "APP_PID_FILE:    $APP_PID_FILE"
 eecho "APP_STDOUT_FILE: $APP_STDOUT_FILE"
 eecho "APP_STDERR_FILE: $APP_STDERR_FILE"
+eecho "APP_WAIT_TIME:   $APP_WAIT_TIME"
 eecho "JAVA_HOME:       $JAVA_HOME"
 eecho "JAVA_OPTS:       $JAVA_OPTS"
-eecho "JSVC_BIN:        $JSVC_BIN"
 eecho

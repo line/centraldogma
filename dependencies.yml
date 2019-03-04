@@ -48,9 +48,6 @@ com.fasterxml.jackson.datatype:
   jackson-datatype-jsr310:
     version: *JACKSON_VERSION
 
-com.fasterxml.jackson.datatype:
-  jackson-datatype-jsr310: { version: '2.9.8' }
-
 # TODO(trustin): Relocate Caffeine after hiding CacheStats from the public API.
 com.github.ben-manes.caffeine:
   caffeine:
@@ -60,6 +57,9 @@ com.github.ben-manes.caffeine:
 
 com.github.jengelman.gradle.plugins:
   shadow: { version: '4.0.4' }
+
+com.github.jnr:
+  jnr-posix: { version: '3.0.49' }
 
 com.google.code.findbugs:
   jsr305: { version: '3.0.2' }
@@ -122,12 +122,6 @@ com.spotify:
     relocations:
     - from: com.spotify.futures
       to:   com.linecorp.centraldogma.internal.shaded.futures
-
-commons-daemon:
-  commons-daemon:
-    version: '1.0.15'
-    javadocs:
-    - https://commons.apache.org/proper/commons-daemon/apidocs/
 
 gradle.plugin.com.github.blindpirate:
   gogradle: { version: '0.11.3' }
