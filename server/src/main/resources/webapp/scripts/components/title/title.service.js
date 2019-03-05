@@ -1,12 +1,12 @@
 'use strict';
 
 angular.module('CentralDogmaAdmin')
-    .factory('Hostname',
+    .factory('Title',
              function ($http, $q) {
                return {
                  get: function() {
                    var deferred = $q.defer();
-                   $http.get('/hostname').then(function (response) {
+                   $http.get('/title').then(function (response) {
                      deferred.resolve(response.data);
                    }, function (response) {
                      deferred.reject(response.status);

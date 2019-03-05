@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
@@ -57,7 +58,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
-import com.google.common.collect.ImmutableMap.Builder;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -444,30 +445,42 @@ public class CentralDogma implements AutoCloseable {
 
         configureThriftService(sb, pm, executor, watchService, mds);
 
-        sb.service("/hostname", HttpFileService.forVfs(new AbstractHttpVfs() {
+        sb.service("/title", HttpFileService.forVfs(new AbstractHttpVfs() {
+            @Nullable
+            private volatile Map<String, String> titleAndHostname;
+
             @Override
             public HttpFile get(String path, Clock clock, @Nullable String contentEncoding) {
                 requireNonNull(path, "path");
-                final Server s = server;
-                assert s != null;
-                final Builder<String, String> b = new Builder<>();
-                b.put("hostname", s.defaultHostname());
-                final String title = cfg.webAppTitle();
-                if (!isNullOrEmpty(title)) {
-                    b.put("title", title);
+
+                Map<String, String> titleAndHostname = this.titleAndHostname;
+                if (titleAndHostname == null) {
+                    // This request is only sent from web-based administrative console,
+                    // so it's not sensitive to the performance.
+                    synchronized (this) {
+                        titleAndHostname = this.titleAndHostname;
+                        if (titleAndHostname == null) {
+                            final Server server = CentralDogma.this.server;
+                            assert server != null;
+                            titleAndHostname = ImmutableMap.of(
+                                    "title", firstNonNull(cfg.webAppTitle(), "Central Dogma at {{hostname}}"),
+                                    "hostname", server.defaultHostname());
+                            this.titleAndHostname = titleAndHostname;
+                        }
+                    }
                 }
                 try {
-                    return HttpFileBuilder.of(HttpData.ofUtf8(Jackson.writeValueAsString(b.build())))
+                    return HttpFileBuilder.of(HttpData.ofUtf8(Jackson.writeValueAsString(titleAndHostname)))
                                           .setHeader(HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_UTF_8)
                                           .build();
                 } catch (JsonProcessingException e) {
-                    throw new Error("Failed to send the hostname:", e);
+                    throw new Error("Failed to send the title and hostname:", e);
                 }
             }
 
             @Override
             public String meterTag() {
-                return "hostname";
+                return "title";
             }
         }));
 

@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -241,7 +242,11 @@ public final class Main {
             final int pid = POSIXFactory.getPOSIX().getpid();
             final Path temp = Files.createTempFile("central-dogma", ".tmp");
             Files.write(temp, Integer.toString(pid).getBytes());
-            Files.move(temp, file.toPath(), StandardCopyOption.ATOMIC_MOVE);
+            try {
+                Files.move(temp, file.toPath(), StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temp, file.toPath());
+            }
 
             logger.debug("A PID file has been created: {}", file);
         }

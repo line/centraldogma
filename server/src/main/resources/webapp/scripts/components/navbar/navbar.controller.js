@@ -3,12 +3,12 @@
 angular.module('CentralDogmaAdmin')
     .controller('NavbarController',
                 function ($scope, $rootScope, $state, $q, $uibModal, $window,
-                          Hostname, Principal) {
+                          Title, Principal) {
 
                   $scope.isAuthenticated = Principal.isAuthenticated;
 
-                  Hostname.get().then(function (data) {
+                  Title.get().then(function (data) {
+                    $scope.title = data.title;
                     $scope.hostname = data.hostname;
-                    $scope.title = angular.isDefined(data.title) ? data.title : "";
                   });
                 });

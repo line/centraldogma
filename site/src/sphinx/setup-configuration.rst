@@ -124,6 +124,8 @@ Core properties
 - ``webAppTitle`` (string)
 
   - the title text which is displayed on the navigation bar of the web-based administrative console.
+    If ``null``, the default value of ``Central Dogma at {{hostname}}`` is used. Note that ``{{hostname}}``
+    will be replaced with the actual hostname that the server is running on.
 
 - ``gracefulShutdownTimeout``
 
