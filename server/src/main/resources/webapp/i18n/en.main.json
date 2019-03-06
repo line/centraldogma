@@ -1,7 +1,6 @@
 {
   "window": {
-    "title": "Central Dogma",
-    "title_with_hostname": "Central Dogma at {{hostname}}"
+    "title": "Central Dogma"
   },
 
   "navbar": {

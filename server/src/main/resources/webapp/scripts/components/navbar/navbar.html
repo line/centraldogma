@@ -8,10 +8,8 @@
         <span class="icon-bar"></span>
       </button>
       <a href="#/" class="navbar-brand">
-        <span ng-hide="hostname" translate>window.title</span>
-        <span ng-show="hostname">{{ 'window.title_with_hostname' |
-                                    translate: "{ hostname: '" + hostname + "' }" }}</span>&#xA0;
-        <span ng-show="title">{{ title }}</span>
+        <span ng-show="title">{{ title |
+                                 translate: "{ hostname: '" + hostname + "' }" }}</span>&#xA0;
       </a>
     </div>
     <div class="collapse navbar-collapse" id="navbar-collapse" ng-switch="isAuthenticated()">
