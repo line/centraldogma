@@ -51,14 +51,12 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 import com.google.common.math.IntMath;
 import com.google.common.math.LongMath;
-import com.google.common.net.UrlEscapers;
 
 import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.HttpClient;
