@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
-import static java.util.Objects.requireNonNull;
+import static com.linecorp.centraldogma.internal.Util.validatePathPattern;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +52,7 @@ final class PathPatternFilter extends TreeFilter {
     private final String pathPattern;
 
     private PathPatternFilter(String pathPattern) {
-        requireNonNull(pathPattern, "pathPattern");
+        validatePathPattern(pathPattern, "pathPattern");
 
         final String[] pathPatterns = SPLIT.split(pathPattern);
         final StringBuilder pathPatternBuf = new StringBuilder(pathPattern.length());

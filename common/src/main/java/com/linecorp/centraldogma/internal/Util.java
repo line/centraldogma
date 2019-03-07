@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
@@ -44,6 +45,7 @@ public final class Util {
             "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+\\.(?i)json$");
     private static final Pattern DIR_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$");
+    private static final Pattern PATH_PATTERN_PATTERN = Pattern.compile("^[- /*_.,0-9a-zA-Z]+$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[_A-Za-z0-9-+]+(?:\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9]+)*(?:\\.[A-Za-z]{2,})$");
     private static final Pattern GENERAL_EMAIL_PATTERN = Pattern.compile(
@@ -59,12 +61,9 @@ public final class Util {
 
     public static String validateFileName(String name, String paramName) {
         requireNonNull(name, paramName);
-        if (isValidFileName(name)) {
-            return name;
-        }
-
-        throw new IllegalArgumentException(
-                paramName + ": " + name + " (expected: " + FILE_NAME_PATTERN.pattern() + ')');
+        checkArgument(isValidFileName(name),
+                      "%s: %s (expected: %s)", paramName, name, FILE_NAME_PATTERN);
+        return name;
     }
 
     public static boolean isValidFileName(String name) {
@@ -74,12 +73,9 @@ public final class Util {
 
     public static String validateFilePath(String path, String paramName) {
         requireNonNull(path, paramName);
-        if (isValidFilePath(path)) {
-            return path;
-        }
-
-        throw new IllegalArgumentException(
-                paramName + ": " + path + " (expected: " + FILE_PATH_PATTERN.pattern() + ')');
+        checkArgument(isValidFilePath(path),
+                      "%s: %s (expected: %s)", paramName, path, FILE_PATH_PATTERN);
+        return path;
     }
 
     public static boolean isValidFilePath(String path) {
@@ -90,12 +86,9 @@ public final class Util {
 
     public static String validateJsonFilePath(String path, String paramName) {
         requireNonNull(path, paramName);
-        if (isValidJsonFilePath(path)) {
-            return path;
-        }
-
-        throw new IllegalArgumentException(
-                paramName + ": " + path + " (expected: " + JSON_FILE_PATH_PATTERN.pattern() + ')');
+        checkArgument(isValidJsonFilePath(path),
+                      "%s: %s (expected: %s)", paramName, path, JSON_FILE_PATH_PATTERN);
+        return path;
     }
 
     public static boolean isValidJsonFilePath(String path) {
@@ -106,10 +99,8 @@ public final class Util {
 
     public static String validateJsonPath(String jsonPath, String paramName) {
         requireNonNull(jsonPath, paramName);
-        if (!isValidJsonPath(jsonPath)) {
-            throw new IllegalArgumentException(paramName + " is invalid JSON path: " + jsonPath);
-        }
-
+        checkArgument(isValidJsonPath(jsonPath),
+                      "%s: %s (expected: a valid JSON path)", paramName, jsonPath);
         return jsonPath;
     }
 
@@ -124,38 +115,9 @@ public final class Util {
 
     public static String validateDirPath(String path, String paramName) {
         requireNonNull(path, paramName);
-        if (isValidDirPath(path)) {
-            return path;
-        }
-
-        throw new IllegalArgumentException(
-                paramName + ": " + path + " (expected: " + DIR_PATH_PATTERN.pattern() + ')');
-    }
-
-    public static boolean isValidProjectName(String projectName) {
-        requireNonNull(projectName, "projectName");
-        return PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
-    }
-
-    public static String validateProjectName(String projectName, String paramName) {
-        if (isValidProjectName(projectName)) {
-            return projectName;
-        }
-        throw new IllegalArgumentException(paramName + ": " + projectName +
-                                           " (expected: " + PROJECT_AND_REPO_NAME_PATTERN.pattern() + ')');
-    }
-
-    public static boolean isValidRepositoryName(String repoName) {
-        requireNonNull(repoName, "projectName");
-        return PROJECT_AND_REPO_NAME_PATTERN.matcher(repoName).matches();
-    }
-
-    public static String validateRepositoryName(String repoName, String paramName) {
-        if (isValidRepositoryName(repoName)) {
-            return repoName;
-        }
-        throw new IllegalArgumentException(paramName + ": " + repoName +
-                                           " (expected: " + PROJECT_AND_REPO_NAME_PATTERN.pattern() + ')');
+        checkArgument(isValidDirPath(path),
+                      "%s: %s (expected: %s)", paramName, path, DIR_PATH_PATTERN);
+        return path;
     }
 
     public static boolean isValidDirPath(String path) {
@@ -171,8 +133,51 @@ public final class Util {
                DIR_PATH_PATTERN.matcher(path).matches();
     }
 
+    public static String validatePathPattern(String pathPattern, String paramName) {
+        requireNonNull(pathPattern, paramName);
+        checkArgument(isValidPathPattern(pathPattern),
+                      "%s: %s (expected: %s)", paramName, pathPattern, PATH_PATTERN_PATTERN);
+        return pathPattern;
+    }
+
+    public static boolean isValidPathPattern(String pathPattern) {
+        requireNonNull(pathPattern, "pathPattern");
+        return PATH_PATTERN_PATTERN.matcher(pathPattern).matches();
+    }
+
+    public static String validateProjectName(String projectName, String paramName) {
+        requireNonNull(projectName, paramName);
+        checkArgument(isValidProjectName(projectName),
+                      "%s: %s (expected: %s)", paramName, projectName, PROJECT_AND_REPO_NAME_PATTERN);
+        return projectName;
+    }
+
+    public static boolean isValidProjectName(String projectName) {
+        requireNonNull(projectName, "projectName");
+        return PROJECT_AND_REPO_NAME_PATTERN.matcher(projectName).matches();
+    }
+
+    public static String validateRepositoryName(String repoName, String paramName) {
+        requireNonNull(repoName, paramName);
+        checkArgument(isValidRepositoryName(repoName),
+                      "%s: %s (expected: %s)", paramName, repoName, PROJECT_AND_REPO_NAME_PATTERN);
+        return repoName;
+    }
+
+    public static boolean isValidRepositoryName(String repoName) {
+        requireNonNull(repoName, "projectName");
+        return PROJECT_AND_REPO_NAME_PATTERN.matcher(repoName).matches();
+    }
+
+    public static String validateEmailAddress(String emailAddr, String paramName) {
+        requireNonNull(emailAddr, paramName);
+        checkArgument(isValidEmailAddress(emailAddr),
+                      "%s: %s (expected: a valid e-mail address)", paramName, emailAddr);
+        return emailAddr;
+    }
+
     public static boolean isValidEmailAddress(String emailAddr) {
-        requireNonNull(emailAddr);
+        requireNonNull(emailAddr, "emailAddr");
         if (EMAIL_PATTERN.matcher(emailAddr).matches()) {
             return true;
         }
@@ -184,17 +189,6 @@ public final class Util {
                    isValidIpV6Address(domainPart);
         }
         return false;
-    }
-
-    public static String validateEmailAddress(String emailAddr, String paramName) {
-        requireNonNull(emailAddr, paramName);
-        if (isValidEmailAddress(emailAddr)) {
-            return emailAddr;
-        }
-
-        throw new IllegalArgumentException(
-                paramName + ": " + emailAddr +
-                " (expected: " + EMAIL_PATTERN.pattern() + " or IP address domain)");
     }
 
     public static String toEmailAddress(String emailAddr, String paramName) {

@@ -52,7 +52,7 @@ public class ContentServiceV1TestBase {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
         final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
         httpClient = new HttpClientBuilder(serverUri)
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer anonymous").build();
+                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").build();
 
         // the default project used for unit tests
         HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, "/api/v1/projects").contentType(MediaType.JSON);

@@ -207,7 +207,6 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Previews the actual changes which will be resulted by the given changes.
      */
     @Post("/projects/{projectName}/repos/{repoName}/preview")
-    @RequiresReadPermission
     public CompletableFuture<Iterable<ChangeDto<?>>> preview(
             @Param("revision") @Default("-1") String revision,
             Repository repository,

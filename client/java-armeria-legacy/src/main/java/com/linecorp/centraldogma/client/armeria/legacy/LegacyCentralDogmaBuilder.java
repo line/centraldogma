@@ -52,7 +52,7 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         builder.decorator((delegate, ctx, req) -> {
             if (!req.headers().contains(HttpHeaderNames.AUTHORIZATION)) {
                 // To prevent CSRF attack, we add 'Authorization' header to every request.
-                req.headers().set(HttpHeaderNames.AUTHORIZATION, "bearer " + CsrfToken.ANONYMOUS);
+                req.headers().set(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS);
             }
             return delegate.execute(ctx, req);
         });

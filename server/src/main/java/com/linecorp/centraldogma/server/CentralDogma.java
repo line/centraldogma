@@ -511,7 +511,7 @@ public class CentralDogma implements AutoCloseable {
                         new DocServiceBuilder().exampleHttpHeaders(
                                 CentralDogmaService.class,
                                 HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
-                                               "bearer " + CsrfToken.ANONYMOUS))
+                                               "Bearer " + CsrfToken.ANONYMOUS))
                                                .build());
 
         configureHttpApi(sb, pm, executor, watchService, mds, authProvider, sessionManager);

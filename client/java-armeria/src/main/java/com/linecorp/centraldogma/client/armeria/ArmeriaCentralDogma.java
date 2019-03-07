@@ -22,6 +22,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
+import static com.linecorp.centraldogma.internal.Util.validatePathPattern;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
@@ -51,8 +52,10 @@ import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 import com.google.common.math.LongMath;
+import com.google.common.net.UrlEscapers;
 
 import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.HttpClient;
@@ -126,7 +129,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     ArmeriaCentralDogma(ScheduledExecutorService executor, HttpClient client, String accessToken) {
         super(executor);
         this.client = requireNonNull(client, "client");
-        authorization = "bearer " + requireNonNull(accessToken, "accessToken");
+        authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
     }
 
     @Override
@@ -338,15 +341,14 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         try {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(revision, "revision");
-            requireNonNull(pathPattern, "pathPattern");
-            checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+            validatePathPattern(pathPattern, "pathPattern");
 
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/list");
             if (pathPattern.charAt(0) != '/') {
                 path.append("/**/");
             }
-            path.append(pathPattern);
+            path.append(encodePathPattern(pathPattern));
             path.append("?revision=").append(revision.major());
 
             return client.execute(headers(HttpMethod.GET, path.toString()))
@@ -408,8 +410,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         try {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(revision, "revision");
-            requireNonNull(pathPattern, "pathPattern");
-            checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+            validatePathPattern(pathPattern, "pathPattern");
 
             return normalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
                 final StringBuilder path = pathBuilder(projectName, repositoryName);
@@ -417,7 +418,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 if (pathPattern.charAt(0) != '/') {
                     path.append("/**/");
                 }
-                path.append(pathPattern);
+                path.append(encodePathPattern(pathPattern));
                 path.append("?revision=").append(normRev.major());
 
                 return client.execute(headers(HttpMethod.GET, path.toString()))
@@ -458,16 +459,15 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             requireNonNull(revision, "revision");
             requireNonNull(mergeQuery, "mergeQuery");
 
-            return normalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
-                final StringBuilder path = pathBuilder(projectName, repositoryName);
-                path.append("/merge?revision=").append(normRev.major());
-                mergeQuery.mergeSources().forEach(
-                        src -> path.append(src.isOptional() ? "&optional_path=" : "&path=").append(src.path()));
-                appendJsonPaths(path, mergeQuery.type(), mergeQuery.expressions());
-                return client.execute(headers(HttpMethod.GET, path.toString()))
-                             .aggregate()
-                             .thenApply(ArmeriaCentralDogma::mergeFiles);
-            });
+            final StringBuilder path = pathBuilder(projectName, repositoryName);
+            path.append("/merge?revision=").append(revision.major());
+            mergeQuery.mergeSources().forEach(
+                    src -> path.append(src.isOptional() ? "&optional_path=" : "&path=")
+                               .append(encodeParam(src.path())));
+            appendJsonPaths(path, mergeQuery.type(), mergeQuery.expressions());
+            return client.execute(headers(HttpMethod.GET, path.toString()))
+                         .aggregate()
+                         .thenApply(ArmeriaCentralDogma::mergeFiles);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
@@ -528,8 +528,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(from, "from");
             requireNonNull(to, "to");
-            requireNonNull(pathPattern, "pathPattern");
-            checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+            validatePathPattern(pathPattern, "pathPattern");
 
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/commits/").append(from.text());
@@ -599,8 +598,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(from, "from");
             requireNonNull(to, "to");
-            requireNonNull(pathPattern, "pathPattern");
-            checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+            validatePathPattern(pathPattern, "pathPattern");
 
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/compare");
@@ -680,9 +678,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(baseRevision, "baseRevision");
             requireNonNull(summary, "summary");
-            checkArgument(!summary.isEmpty(), "empty summary");
+            checkArgument(!summary.isEmpty(), "summary is empty.");
             requireNonNull(markup, "markup");
             requireNonNull(changes, "changes");
+            checkArgument(!Iterables.isEmpty(changes), "changes is empty.");
 
             final String path = pathBuilder(projectName, repositoryName)
                     .append("/contents?revision=")
@@ -732,8 +731,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         try {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(lastKnownRevision, "lastKnownRevision");
-            requireNonNull(pathPattern, "pathPattern");
-            checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+            validatePathPattern(pathPattern, "pathPattern");
             checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
 
             final StringBuilder path = pathBuilder(projectName, repositoryName);
@@ -741,7 +739,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             if (pathPattern.charAt(0) != '/') {
                 path.append("/**/");
             }
-            path.append(pathPattern);
+            path.append(encodePathPattern(pathPattern));
 
             return watch(lastKnownRevision, timeoutMillis, path.toString(),
                          ArmeriaCentralDogma::watchRepository);
@@ -835,10 +833,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         switch (method) {
             case POST:
             case PUT:
-                headers.setObject(HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_UTF_8);
+                headers.contentType(MediaType.JSON_UTF_8);
                 break;
             case PATCH:
-                headers.setObject(HttpHeaderNames.CONTENT_TYPE, JSON_PATCH_UTF8);
+                headers.contentType(JSON_PATCH_UTF8);
                 break;
         }
 
@@ -860,12 +858,16 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @SuppressWarnings("CharsetObjectCanBeUsed") // We target Java 8.
-    private static String encodeParam(String pathPattern) {
+    private static String encodeParam(String param) {
         try {
-            return URLEncoder.encode(pathPattern, "UTF-8");
+            return URLEncoder.encode(param, "UTF-8");
         } catch (UnsupportedEncodingException e) {
             throw new Error(); // Never reaches here.
         }
+    }
+
+    private static String encodePathPattern(String pathPattern) {
+        return UrlEscapers.urlFragmentEscaper().escape(pathPattern);
     }
 
     /**
@@ -957,8 +959,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         final JsonNode commitMessageNode = getField(node, "commitMessage");
         final String summary = getField(commitMessageNode, "summary").asText();
         final String detail = getField(commitMessageNode, "detail").asText();
-        final Markup marksup = Markup.valueOf(getField(commitMessageNode, "markup").asText());
-        return new Commit(revision, author, pushedAt, summary, detail, marksup);
+        final Markup markup = Markup.valueOf(getField(commitMessageNode, "markup").asText());
+        return new Commit(revision, author, pushedAt, summary, detail, markup);
     }
 
     private static <T> Change<T> toChange(JsonNode node) {

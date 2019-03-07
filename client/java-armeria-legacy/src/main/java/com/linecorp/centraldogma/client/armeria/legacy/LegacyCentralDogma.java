@@ -20,7 +20,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
-import static com.linecorp.centraldogma.internal.Util.validateProjectName;
+import static com.linecorp.centraldogma.internal.Util.validatePathPattern;
+import static com.linecorp.centraldogma.internal.Util.validateRepositoryName;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
@@ -41,6 +42,7 @@ import javax.annotation.Nullable;
 import org.apache.thrift.TException;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.thrift.ThriftCompletableFuture;
@@ -198,8 +200,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 run(callback -> {
                     validateProjectAndRepositoryName(projectName, repositoryName);
                     requireNonNull(revision, "revision");
-                    requireNonNull(pathPattern, "pathPattern");
-                    checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+                    validatePathPattern(pathPattern, "pathPattern");
 
                     client.listFiles(projectName, repositoryName,
                                      RevisionConverter.TO_DATA.convert(revision),
@@ -259,8 +260,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
         return normalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
             final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Entry>> future =
                     run(callback -> {
-                        requireNonNull(pathPattern, "pathPattern");
-                        checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+                        validatePathPattern(pathPattern, "pathPattern");
                         client.getFiles(projectName, repositoryName,
                                         RevisionConverter.TO_DATA.convert(normRev),
                                         pathPattern, callback);
@@ -315,8 +315,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                     validateProjectAndRepositoryName(projectName, repositoryName);
                     requireNonNull(from, "from");
                     requireNonNull(to, "to");
-                    requireNonNull(pathPattern, "pathPattern");
-                    checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+                    validatePathPattern(pathPattern, "pathPattern");
 
                     client.getHistory(projectName, repositoryName,
                                       RevisionConverter.TO_DATA.convert(from),
@@ -380,8 +379,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                     validateProjectAndRepositoryName(projectName, repositoryName);
                     requireNonNull(from, "from");
                     requireNonNull(to, "to");
-                    requireNonNull(pathPattern, "pathPattern");
-                    checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+                    validatePathPattern(pathPattern, "pathPattern");
                     client.getDiffs(projectName, repositoryName,
                                     RevisionConverter.TO_DATA.convert(from),
                                     RevisionConverter.TO_DATA.convert(to), pathPattern, callback);
@@ -426,6 +424,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
             requireNonNull(detail, "detail");
             requireNonNull(markup, "markup");
             requireNonNull(changes, "changes");
+            checkArgument(!Iterables.isEmpty(changes), "changes is empty.");
             client.push(projectName, repositoryName,
                         RevisionConverter.TO_DATA.convert(baseRevision),
                         AuthorConverter.TO_DATA.convert(author), summary,
@@ -444,8 +443,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
         final CompletableFuture<WatchRepositoryResult> future = run(callback -> {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(lastKnownRevision, "lastKnownRevision");
-            requireNonNull(pathPattern, "pathPattern");
-            checkArgument(!pathPattern.isEmpty(), "empty pathPattern");
+            validatePathPattern(pathPattern, "pathPattern");
             client.watchRepository(projectName, repositoryName,
                                    RevisionConverter.TO_DATA.convert(lastKnownRevision),
                                    pathPattern, timeoutMillis,
@@ -513,7 +511,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     private static void validateProjectAndRepositoryName(String projectName, String repositoryName) {
         validateProjectName(projectName);
-        Util.validateRepositoryName(repositoryName, "repositoryName");
+        validateRepositoryName(repositoryName, "repositoryName");
     }
 
     @Nullable
