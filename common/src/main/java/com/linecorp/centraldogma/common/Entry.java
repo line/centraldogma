@@ -219,7 +219,7 @@ public final class Entry<T> implements ContentHolder<T> {
                           .add("revision", revision.text())
                           .add("path", path)
                           .add("type", type)
-                          .add("content", contentAsText())
+                          .add("content", hasContent() ? contentAsText() : null)
                           .toString();
     }
 }

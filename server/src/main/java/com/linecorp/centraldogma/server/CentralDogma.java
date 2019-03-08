@@ -413,6 +413,7 @@ public class CentralDogma implements AutoCloseable {
     private Server startServer(ProjectManager pm, CommandExecutor executor,
                                @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = new ServerBuilder();
+        sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
 
         if (cfg.ports().stream().anyMatch(ServerPort::hasTls)) {
@@ -510,7 +511,7 @@ public class CentralDogma implements AutoCloseable {
                         new DocServiceBuilder().exampleHttpHeaders(
                                 CentralDogmaService.class,
                                 HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
-                                               "bearer " + CsrfToken.ANONYMOUS))
+                                               "Bearer " + CsrfToken.ANONYMOUS))
                                                .build());
 
         configureHttpApi(sb, pm, executor, watchService, mds, authProvider, sessionManager);

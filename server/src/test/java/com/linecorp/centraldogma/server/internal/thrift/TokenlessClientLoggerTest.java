@@ -143,7 +143,7 @@ public class TokenlessClientLoggerTest {
 
     private static HttpRequest newRequestWithToken() {
         return HttpRequest.of(HttpHeaders.of(HttpMethod.GET, "/")
-                                         .set(HttpHeaderNames.AUTHORIZATION, "bearer anonymous"));
+                                         .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous"));
     }
 
     private static HttpRequest newRequestWithoutToken() {

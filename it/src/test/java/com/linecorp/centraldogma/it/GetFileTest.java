@@ -31,14 +31,18 @@ import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 
-public class GetFileTest {
+public class GetFileTest extends AbstractMultiClientTest {
 
     @ClassRule
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
 
+    public GetFileTest(ClientType clientType) {
+        super(clientType);
+    }
+
     @Test
     public void testInvalidJsonPath() {
-        assertThatThrownBy(() -> rule.client().getFile(
+        assertThatThrownBy(() -> client().getFile(
                 rule.project(), rule.repo1(), Revision.HEAD,
                 Query.ofJsonPath("/test/test2.json", "$.non_exist_path")).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(QueryExecutionException.class);
@@ -47,7 +51,7 @@ public class GetFileTest {
     @Test
     public void testInvalidFile() throws Exception {
         assertThatThrownByWithExpectedException(EntryNotFoundException.class, "non_existing_file", () ->
-                rule.client().getFile(rule.project(), rule.repo1(), Revision.HEAD,
+                client().getFile(rule.project(), rule.repo1(), Revision.HEAD,
                                       Query.ofJsonPath("/test/non_existing_file.json", "$.a")).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(EntryNotFoundException.class);
     }
@@ -55,7 +59,7 @@ public class GetFileTest {
     @Test
     public void testInvalidRepo() throws Exception {
         assertThatThrownByWithExpectedException(RepositoryNotFoundException.class, "non_exist_repo", () ->
-                rule.client().getFile(rule.project(), "non_exist_repo", Revision.HEAD,
+                client().getFile(rule.project(), "non_exist_repo", Revision.HEAD,
                                       Query.ofJsonPath("/test/test2.json", "$.a")).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RepositoryNotFoundException.class);
     }
@@ -63,7 +67,7 @@ public class GetFileTest {
     @Test
     public void testInvalidProject() throws Exception {
         assertThatThrownByWithExpectedException(ProjectNotFoundException.class, "non_exist_proj", () ->
-                rule.client().getFile("non_exist_proj", rule.repo1(), Revision.HEAD,
+                client().getFile("non_exist_proj", rule.repo1(), Revision.HEAD,
                                       Query.ofJsonPath("/test/test2.json", "$.non_exist_path")).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ProjectNotFoundException.class);
     }

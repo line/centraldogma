@@ -22,7 +22,7 @@ Gradle:
     ...
     dependencies {
         ...
-        compile 'com.linecorp.centraldogma:centraldogma-client-armeria-legacy:\ |release|\ '
+        compile 'com.linecorp.centraldogma:centraldogma-client-armeria:\ |release|\ '
         ...
     }
     ...
@@ -37,7 +37,7 @@ Maven:
       ...
       <dependency>
         <groupId>com.linecorp.centraldogma</groupId>
-        <artifactId>centraldogma-client-armeria-legacy</artifactId>
+        <artifactId>centraldogma-client-armeria</artifactId>
         <version>\ |release|\ </version>
       </dependency>
       ...
@@ -51,14 +51,14 @@ First, we should create a new instance of :api:`com.linecorp.centraldogma.client
 .. code-block:: java
 
     import com.linecorp.centraldogma.client.CentralDogma;
-    import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
+    import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 
     // The default port 36462 is used if unspecified.
-    CentralDogma dogma = new LegacyCentralDogmaBuilder()
+    CentralDogma dogma = new ArmeriaCentralDogmaBuilder()
             .host("127.0.0.1")
             .build();
     // You can specify an alternative port or enable TLS as well:
-    CentralDogma dogma2 = new LegacyCentralDogmaBuilder()
+    CentralDogma dogma2 = new ArmeriaCentralDogmaBuilder()
             .useTls()                   // Enable TLS.
             .host("example.com", 8443); // Use port 8443.
             .build();
@@ -67,6 +67,22 @@ First, we should create a new instance of :api:`com.linecorp.centraldogma.client
 
     Internally, the client uses `Armeria`_ as its networking layer. You may want to customize the client
     settings, such as specifying alternative Armeria ``ClientFactory`` or configuring Armeria ``ClientBuilder``.
+
+Specifying an access token
+--------------------------
+You must specify an access token if your Central Dogma server has enabled authorization.
+
+.. code-block:: java
+
+    CentralDogma dogma = new ArmeriaCentralDogmaBuilder()
+            .host("127.0.0.1")
+            .accessToken("appToken-cffed349-d573-457f-8f74-4727ad9341ce")
+            .build();
+
+.. note::
+
+    See :ref:`auth` for more information about securing a Central Dogma server and managing permissions and
+    access tokens.
 
 .. _getting-a-file:
 
@@ -331,9 +347,9 @@ You can also specify more than one host using the ``host()`` method:
 
 .. code-block:: java
 
-    import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
+    import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 
-    LegacyCentralDogmaBuilder builder = new LegacyCentralDogmaBuilder();
+    ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
     // The default port 36462 is used if unspecified.
     builder.host("replica1.example.com");
     // You can specify an alternative port number.
@@ -345,14 +361,14 @@ You can also specify more than one host using the ``host()`` method:
 Using client profiles
 ---------------------
 You can load the list of the Central Dogma servers from one of the following JSON files in the class path using
-``LegacyCentralDogmaBuilder.profile(String...)``:
+``ArmeriaCentralDogmaBuilder.profile(String...)``:
 
 - ``centraldogma-profiles-test.json``
 - ``centraldogma-profiles.json`` (if ``centraldogma-profiles-test.json`` is missing)
 
 .. code-block:: java
 
-    LegacyCentralDogmaBuilder builder = new LegacyCentralDogmaBuilder();
+    ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
     // Loads the profile 'beta' from /centraldogma-profiles-test.json or /centraldogma-profiles.json
     builder.profile("beta");
     CentralDogma dogma = builder.build();

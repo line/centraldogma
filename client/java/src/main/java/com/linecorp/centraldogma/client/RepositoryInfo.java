@@ -20,22 +20,25 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.common.Commit;
+import com.linecorp.centraldogma.common.Revision;
 
 /**
  * An immutable holder of repository information.
  */
 public final class RepositoryInfo {
 
+    // TODO(trustin): Add createdAt and creator property once we remove the Thrift API.
+
     private final String name;
-    private final Commit lastCommit;
+    private final Revision headRevision;
 
     /**
-     * Creates a new instance with the specified repository name and the last {@link Commit} of the repository.
+     * Creates a new instance with the specified repository name and the latest {@link Revision} of the
+     * repository.
      */
-    public RepositoryInfo(String name, Commit lastCommit) {
+    public RepositoryInfo(String name, Revision headRevision) {
         this.name = requireNonNull(name, "name");
-        this.lastCommit = requireNonNull(lastCommit, "lastCommit");
+        this.headRevision = requireNonNull(headRevision, "headRevision");
     }
 
     /**
@@ -46,10 +49,10 @@ public final class RepositoryInfo {
     }
 
     /**
-     * Returns the last {@link Commit} of the repository.
+     * Returns the latest {@link Revision} of the repository.
      */
-    public Commit lastCommit() {
-        return lastCommit;
+    public Revision headRevision() {
+        return headRevision;
     }
 
     @Override
@@ -63,19 +66,19 @@ public final class RepositoryInfo {
         }
 
         final RepositoryInfo that = (RepositoryInfo) o;
-        return name.equals(that.name) && lastCommit.equals(that.lastCommit);
+        return name.equals(that.name) && headRevision.equals(that.headRevision);
     }
 
     @Override
     public int hashCode() {
-        return name.hashCode() * 31 + lastCommit.hashCode();
+        return name.hashCode() * 31 + headRevision.hashCode();
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("name", name)
-                          .add("lastCommit", lastCommit)
+                          .add("headRevision", headRevision)
                           .toString();
     }
 }

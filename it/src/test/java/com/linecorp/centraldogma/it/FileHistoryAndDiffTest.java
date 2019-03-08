@@ -21,10 +21,14 @@ import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Revision;
 
-public class FileHistoryAndDiffTest {
+public class FileHistoryAndDiffTest extends AbstractMultiClientTest {
 
     @ClassRule
     public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
+
+    public FileHistoryAndDiffTest(ClientType clientType) {
+        super(clientType);
+    }
 
     // getHistory
     // getDiff
@@ -33,7 +37,7 @@ public class FileHistoryAndDiffTest {
     public void testGetHistory() throws Exception {
         // TODO(trustin): Implement me.
         System.err.println(
-                rule.client().getHistory(rule.project(), rule.repo1(),
-                                         new Revision(1), Revision.HEAD, "/**").join());
+                client().getHistory(rule.project(), rule.repo1(),
+                                    new Revision(1), Revision.HEAD, "/**").join());
     }
 }

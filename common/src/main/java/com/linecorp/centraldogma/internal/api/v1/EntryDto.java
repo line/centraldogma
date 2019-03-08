@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.internal.api.v1;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.CONTENTS;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
@@ -27,7 +26,6 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.EntryType;
@@ -46,11 +44,7 @@ public class EntryDto<T> {
     public EntryDto(String path, EntryType type, String projectName, String repoName, @Nullable T content) {
         this.path = requireNonNull(path, "path");
         this.type = requireNonNull(type, "type");
-        if (content instanceof NullNode || (content instanceof String && isNullOrEmpty((String) content))) {
-            this.content = null;
-        } else {
-            this.content = content;
-        }
+        this.content = content;
         url = PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName + CONTENTS + path;
     }
 

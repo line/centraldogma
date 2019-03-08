@@ -39,7 +39,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.client.armeria.legacy.ThriftTypes.TAuthor;
@@ -85,7 +85,7 @@ public class LegacyCentralDogmaTest {
 
     @Before
     public void setup() {
-        client = new LegacyCentralDogma(ClientFactory.DEFAULT, iface);
+        client = new LegacyCentralDogma(CommonPools.workerGroup(), iface);
     }
 
     @Test
@@ -189,13 +189,7 @@ public class LegacyCentralDogmaTest {
             return null;
         }).when(iface).listRepositories(any(), any());
         assertThat(client.listRepositories("project").get()).isEqualTo(ImmutableMap.of(
-                "repo",
-                new RepositoryInfo(
-                        "repo",
-                        new Commit(new Revision(42),
-                                   new Author("hitchhiker", "arthur@dent.com"),
-                                   Instant.parse("1978-03-08T00:00:00Z").toEpochMilli(),
-                                   "The primary phrase", "", Markup.PLAINTEXT))));
+                "repo", new RepositoryInfo("repo", new Revision(42))));
         verify(iface).listRepositories(eq("project"), any());
     }
 

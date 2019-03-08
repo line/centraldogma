@@ -62,7 +62,7 @@ public final class TestAuthMessageUtil {
                 HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
                                HttpHeaderNames.PATH, "/api/v1/logout",
                                HttpHeaderNames.AUTHORIZATION,
-                               "bearer " + sessionId)).aggregate().join();
+                               "Bearer " + sessionId)).aggregate().join();
     }
 
     public static AggregatedHttpMessage usersMe(HttpClient client, String sessionId) {
@@ -70,7 +70,7 @@ public final class TestAuthMessageUtil {
                 HttpHeaders.of(HttpHeaderNames.METHOD, "GET",
                                HttpHeaderNames.PATH, "/api/v0/users/me",
                                HttpHeaderNames.AUTHORIZATION,
-                               "bearer " + sessionId)).aggregate().join();
+                               "Bearer " + sessionId)).aggregate().join();
     }
 
     private TestAuthMessageUtil() {}

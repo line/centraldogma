@@ -23,8 +23,6 @@ import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
-import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
-import static com.linecorp.centraldogma.server.internal.storage.repository.Repository.DEFAULT_MAX_COMMITS;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -37,7 +35,6 @@ import java.util.function.Function;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -59,6 +56,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
@@ -75,6 +73,7 @@ import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
+import com.linecorp.centraldogma.server.internal.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**
@@ -104,13 +103,15 @@ public class ContentServiceV1 extends AbstractService {
                                                           Repository repository) {
         final String normalizedPath = normalizePath(path);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)),
-                  FIND_ALL_WITHOUT_CONTENT, future);
+        listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)), false, future);
         return future;
     }
 
     private static void listFiles(Repository repository, String pathPattern, Revision normalizedRevision,
-                                  Map<FindOption<?>, ?> options, CompletableFuture<List<EntryDto<?>>> result) {
+                                  boolean withContent, CompletableFuture<List<EntryDto<?>>> result) {
+        final Map<FindOption<?>, ?> options = withContent ? FindOptions.FIND_ALL_WITH_CONTENT
+                                                          : FindOptions.FIND_ALL_WITHOUT_CONTENT;
+
         repository.find(normalizedRevision, pathPattern, options).handle((entries, thrown) -> {
             if (thrown != null) {
                 result.completeExceptionally(thrown);
@@ -121,10 +122,10 @@ public class ContentServiceV1 extends AbstractService {
             // This is called once at most, because the pathPattern is not a valid file path anymore.
             if (isValidFilePath(pathPattern) && entries.size() == 1 &&
                 entries.values().iterator().next().type() == DIRECTORY) {
-                listFiles(repository, pathPattern + "/*", normalizedRevision, options, result);
+                listFiles(repository, pathPattern + "/*", normalizedRevision, withContent, result);
             } else {
                 result.complete(entries.values().stream()
-                                       .map(entry -> convert(repository, entry))
+                                       .map(entry -> convert(repository, entry, withContent))
                                        .collect(toImmutableList()));
             }
             return null;
@@ -159,11 +160,11 @@ public class ContentServiceV1 extends AbstractService {
     /**
      * POST /projects/{projectName}/repos/{repoName}/contents?revision={revision}
      *
-     * <p>Adds or edits a file.
+     * <p>Pushes a commit.
      */
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @RequiresWritePermission
-    public CompletableFuture<PushResultDto> commit(
+    public CompletableFuture<PushResultDto> push(
             @Param("revision") @Default("-1") String revision,
             Repository repository,
             Author author,
@@ -176,11 +177,11 @@ public class ContentServiceV1 extends AbstractService {
                 repository.previewDiff(normalizedRevision, changes);
 
         return changesFuture.thenCompose(previewDiffs -> {
-            final long commitTimeMillis = System.currentTimeMillis();
             if (previewDiffs.isEmpty()) {
                 throw new RedundantChangeException();
             }
 
+            final long commitTimeMillis = System.currentTimeMillis();
             return push(commitTimeMillis, author, repository, normalizedRevision,
                         commitMessage, previewDiffs.values())
                     .toCompletableFuture()
@@ -198,6 +199,27 @@ public class ContentServiceV1 extends AbstractService {
         return execute(Command.push(
                 commitTimeMills, author, repository.parent().name(), repository.name(),
                 revision, summary, detail, markup, changes));
+    }
+
+    /**
+     * POST /projects/{projectName}/repos/{repoName}/preview?revision={revision}
+     *
+     * <p>Previews the actual changes which will be resulted by the given changes.
+     */
+    @Post("/projects/{projectName}/repos/{repoName}/preview")
+    public CompletableFuture<Iterable<ChangeDto<?>>> preview(
+            @Param("revision") @Default("-1") String revision,
+            Repository repository,
+            @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
+
+        final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
+
+        final CompletableFuture<Map<String, Change<?>>> changesFuture =
+                repository.previewDiff(normalizedRevision, changes);
+
+        return changesFuture.thenApply(previewDiffs -> previewDiffs.values().stream()
+                                                                   .map(DtoConverter::convert)
+                                                                   .collect(toImmutableList()));
     }
 
     /**
@@ -234,13 +256,12 @@ public class ContentServiceV1 extends AbstractService {
         if (query.isPresent()) {
             // get a file
             return repository.get(new Revision(revision), query.get())
-                             .handle(returnOrThrow((Entry<?> result) -> convert(repository, result)));
+                             .handle(returnOrThrow((Entry<?> result) -> convert(repository, result, true)));
         }
 
         // get files
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)),
-                  ImmutableMap.of(), future);
+        listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)), true, future);
         return future;
     }
 
@@ -251,7 +272,7 @@ public class ContentServiceV1 extends AbstractService {
 
         return future.thenApply(entry -> {
             final Revision revision = entry.revision();
-            final EntryDto<?> entryDto = convert(repository, entry);
+            final EntryDto<?> entryDto = convert(repository, entry, true);
             return (Object) new WatchResultDto(revision, entryDto);
         }).exceptionally(ContentServiceV1::handleWatchFailure);
     }
@@ -303,8 +324,8 @@ public class ContentServiceV1 extends AbstractService {
         }
 
         final RevisionRange range = repository.normalizeNow(fromRevision, toRevision).toDescending();
-        final int maxCommits0 = maxCommits.map(integer -> Math.min(integer, DEFAULT_MAX_COMMITS))
-                                          .orElse(DEFAULT_MAX_COMMITS);
+        final int maxCommits0 = maxCommits.map(integer -> Math.min(integer, Repository.DEFAULT_MAX_COMMITS))
+                                          .orElse(Repository.DEFAULT_MAX_COMMITS);
         return repository
                 .history(range.from(), range.to(), normalizePath(path), maxCommits0)
                 .thenApply(commits -> {

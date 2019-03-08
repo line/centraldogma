@@ -47,18 +47,18 @@ import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
 import io.netty.channel.DefaultEventLoop;
 
-public class CentralDogmaTimeoutSchedulerTest {
+public class LegacyCentralDogmaTimeoutSchedulerTest {
     @Rule
     public MockitoRule rule = MockitoJUnit.rule();
 
     @Mock
     private Client<RpcRequest, RpcResponse> client;
 
-    private CentralDogmaClientTimeoutScheduler decorator;
+    private LegacyCentralDogmaTimeoutScheduler decorator;
 
     @Before
     public void setup() {
-        decorator = new CentralDogmaClientTimeoutScheduler(client);
+        decorator = new LegacyCentralDogmaTimeoutScheduler(client);
     }
 
     @Test

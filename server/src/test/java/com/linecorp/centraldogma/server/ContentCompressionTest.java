@@ -84,7 +84,7 @@ public class ContentCompressionTest {
         // Should fail to decode without the decompressor.
         final Iface clientWithoutDecompressor = new ClientBuilder(
                 "ttext+http://127.0.0.1:" + rule.serverAddress().getPort() + "/cd/thrift/v1")
-                .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer " + CsrfToken.ANONYMOUS)
+                .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                 .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
                 .build(Iface.class);
 
@@ -107,7 +107,7 @@ public class ContentCompressionTest {
     public void http() throws Exception {
         final HttpClient client = new HttpClientBuilder(
                 "http://127.0.0.1:" + rule.serverAddress().getPort())
-                .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer " + CsrfToken.ANONYMOUS)
+                .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                 .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
                 .build();
 

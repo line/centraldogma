@@ -209,7 +209,7 @@ public class PermissionTest {
     @Test
     public void test() {
         final HttpClient client = new HttpClientBuilder(rule.uri("/"))
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer " + secret).build();
+                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret).build();
 
         AggregatedHttpMessage response;
 

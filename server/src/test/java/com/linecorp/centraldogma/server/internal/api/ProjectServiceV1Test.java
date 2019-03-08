@@ -56,7 +56,7 @@ public class ProjectServiceV1Test {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
         final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
         httpClient = new HttpClientBuilder(serverUri)
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "bearer anonymous").build();
+                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").build();
     }
 
     @Test

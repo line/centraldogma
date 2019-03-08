@@ -38,7 +38,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
-public class CacheTest {
+public class CacheTest extends AbstractMultiClientTest {
 
     private static final String REPO_FOO = "foo";
 
@@ -50,10 +50,14 @@ public class CacheTest {
     @Rule
     public final TestName testName = new TestName();
 
+    public CacheTest(ClientType clientType) {
+        super(clientType);
+    }
+
     @Test
     public void getFile() {
-        final String project = testName.getMethodName();
-        final CentralDogma client = rule.client();
+        final String project = projectName();
+        final CentralDogma client = client();
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
@@ -61,10 +65,14 @@ public class CacheTest {
         final PushResult res = client.push(project, REPO_FOO, HEAD, "Add a file",
                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
 
-        // NB: A push operation involves a history() operation to retrieve the last commit.
-        //     Therefore we should observe one cache miss.
         final CacheStats stats2 = cacheStatsSupplier.get();
-        assertThat(stats2.missCount()).isEqualTo(stats1.missCount() + 1);
+        if (clientType() == ClientType.LEGACY) {
+            // NB: A push operation involves a history() operation to retrieve the last commit.
+            //     Therefore we should observe one cache miss. (Thrift only)
+            assertThat(stats2.missCount()).isEqualTo(stats1.missCount() + 1);
+        } else {
+            assertThat(stats2.missCount()).isEqualTo(stats1.missCount());
+        }
 
         // First getFile() should miss.
         final Query<String> query = Query.ofText("/foo.txt");
@@ -94,13 +102,13 @@ public class CacheTest {
 
     @Test
     public void history() throws Exception {
-        final String project = testName.getMethodName();
-        final CentralDogma client = rule.client();
+        final String project = projectName();
+        final CentralDogma client = client();
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
         final PushResult res1 = client.push(project, REPO_FOO, HEAD, "Add a file",
-                                           Change.ofTextUpsert("/foo.txt", "bar")).join();
+                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
 
         final CacheStats stats1 = cacheStatsSupplier.get();
 
@@ -128,8 +136,8 @@ public class CacheTest {
 
     @Test
     public void getDiffs() throws Exception {
-        final String project = testName.getMethodName();
-        final CentralDogma client = rule.client();
+        final String project = projectName();
+        final CentralDogma client = client();
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
@@ -158,5 +166,9 @@ public class CacheTest {
         // Should miss once and hit 3 times.
         assertThat(stats2.missCount()).isEqualTo(stats1.missCount() + 1);
         assertThat(stats2.hitCount()).isEqualTo(stats1.hitCount() + 3);
+    }
+
+    private String projectName() {
+        return testName.getMethodName().replaceAll("[^a-zA-Z0-9]", "");
     }
 }

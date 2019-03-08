@@ -48,17 +48,17 @@ public interface CentralDogma {
     /**
      * Creates a project.
      */
-    CompletableFuture<Void> createProject(String name);
+    CompletableFuture<Void> createProject(String projectName);
 
     /**
      * Removes a project. A removed project can be unremoved using {@link #unremoveProject(String)}.
      */
-    CompletableFuture<Void> removeProject(String name);
+    CompletableFuture<Void> removeProject(String projectName);
 
     /**
      * Unremoves a project.
      */
-    CompletableFuture<Void> unremoveProject(String name);
+    CompletableFuture<Void> unremoveProject(String projectName);
 
     /**
      * Retrieves the list of the projects.
