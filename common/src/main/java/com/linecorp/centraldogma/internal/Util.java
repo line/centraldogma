@@ -165,7 +165,7 @@ public final class Util {
     }
 
     public static boolean isValidRepositoryName(String repoName) {
-        requireNonNull(repoName, "projectName");
+        requireNonNull(repoName, "repoName");
         return PROJECT_AND_REPO_NAME_PATTERN.matcher(repoName).matches();
     }
 
