@@ -33,7 +33,6 @@ import static java.util.Objects.requireNonNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.time.Clock;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -74,17 +73,18 @@ import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.PathMapping;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
+import com.linecorp.armeria.server.ServerCacheControl;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.VirtualHostBuilder;
 import com.linecorp.armeria.server.auth.HttpAuthService;
 import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
 import com.linecorp.armeria.server.docs.DocServiceBuilder;
 import com.linecorp.armeria.server.encoding.HttpEncodingService;
-import com.linecorp.armeria.server.file.AbstractHttpVfs;
 import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.file.HttpFileBuilder;
-import com.linecorp.armeria.server.file.HttpFileService;
+import com.linecorp.armeria.server.file.HttpFileServiceBuilder;
 import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
 import com.linecorp.armeria.server.thrift.THttpService;
@@ -446,44 +446,9 @@ public class CentralDogma implements AutoCloseable {
 
         configureThriftService(sb, pm, executor, watchService, mds);
 
-        sb.service("/title", HttpFileService.forVfs(new AbstractHttpVfs() {
-            @Nullable
-            private volatile Map<String, String> titleAndHostname;
-
-            @Override
-            public HttpFile get(String path, Clock clock, @Nullable String contentEncoding) {
-                requireNonNull(path, "path");
-
-                Map<String, String> titleAndHostname = this.titleAndHostname;
-                if (titleAndHostname == null) {
-                    // This request is only sent from web-based administrative console,
-                    // so it's not sensitive to the performance.
-                    synchronized (this) {
-                        titleAndHostname = this.titleAndHostname;
-                        if (titleAndHostname == null) {
-                            final Server server = CentralDogma.this.server;
-                            assert server != null;
-                            titleAndHostname = ImmutableMap.of(
-                                    "title", firstNonNull(cfg.webAppTitle(), "Central Dogma at {{hostname}}"),
-                                    "hostname", server.defaultHostname());
-                            this.titleAndHostname = titleAndHostname;
-                        }
-                    }
-                }
-                try {
-                    return HttpFileBuilder.of(HttpData.ofUtf8(Jackson.writeValueAsString(titleAndHostname)))
-                                          .setHeader(HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_UTF_8)
-                                          .build();
-                } catch (JsonProcessingException e) {
-                    throw new Error("Failed to send the title and hostname:", e);
-                }
-            }
-
-            @Override
-            public String meterTag() {
-                return "title";
-            }
-        }));
+        // TODO(trustin): Add an easy way to get the default hostname without instantiating Server in Armeria.
+        final String hostname = new VirtualHostBuilder().build().defaultHostname();
+        sb.service("/title", webAppTitleFile(cfg.webAppTitle(), hostname).asService());
 
         sb.service("/cache_stats", new AbstractHttpService() {
             @Override
@@ -530,6 +495,23 @@ public class CentralDogma implements AutoCloseable {
         final Server s = sb.build();
         s.start().join();
         return s;
+    }
+
+    static HttpFile webAppTitleFile(@Nullable String webAppTitle, String hostname) {
+        requireNonNull(hostname, "hostname");
+        final Map<String, String> titleAndHostname = ImmutableMap.of(
+                "title", firstNonNull(webAppTitle, "Central Dogma at {{hostname}}"),
+                "hostname", hostname);
+
+        try {
+            final HttpData data = HttpData.ofUtf8(Jackson.writeValueAsString(titleAndHostname));
+            return HttpFileBuilder.of(data)
+                                  .contentType(MediaType.JSON_UTF_8)
+                                  .cacheControl(ServerCacheControl.REVALIDATED)
+                                  .build();
+        } catch (JsonProcessingException e) {
+            throw new Error("Failed to encode the title and hostname:", e);
+        }
     }
 
     @Nullable
@@ -688,9 +670,14 @@ public class CentralDogma implements AutoCloseable {
                 sb.service(LOGOUT_PATH, authProvider.webLogoutService());
 
                 sb.serviceUnder(BUILTIN_WEB_BASE_PATH, new OrElseDefaultHttpFileService(
-                        HttpFileService.forClassPath("auth-webapp"), "/index.html"));
+                        HttpFileServiceBuilder.forClassPath("auth-webapp")
+                                              .cacheControl(ServerCacheControl.REVALIDATED)
+                                              .build(),
+                        "/index.html"));
             }
-            sb.serviceUnder("/", HttpFileService.forClassPath("webapp"));
+            sb.serviceUnder("/", HttpFileServiceBuilder.forClassPath("webapp")
+                                                       .cacheControl(ServerCacheControl.REVALIDATED)
+                                                       .build());
         }
     }
 
