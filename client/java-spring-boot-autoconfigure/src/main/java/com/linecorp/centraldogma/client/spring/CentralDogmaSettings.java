@@ -32,16 +32,16 @@ import com.google.common.base.MoreObjects;
 /**
  * Settings for a Central Dogma client.
  *
- * <h3>Example with {@code "host"} option</h3>
+ * <h3>Example with {@code "hosts"} option</h3>
  * <pre>{@code
  * centraldogma:
  *   hosts:
  *   - replica1.examples.com:36462
  *   - replica2.examples.com:36462
  *   - replica3.examples.com:36462
- *   accessToken: appToken-cffed349-d573-457f-8f74-4727ad9341ce
- *   healthCheckIntervalMillis: 15000
- *   useTls: false
+ *   access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
+ *   health-check-interval-millis: 15000
+ *   use-tls: false
  * }</pre>
  *
  * <h3>Example with {@code "profile"} option</h3>
