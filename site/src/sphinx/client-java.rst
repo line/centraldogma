@@ -557,7 +557,7 @@ named ``application.yml``:
       - replica1.example.com:36462
       - replica2.example.com:36462
       - replica3.example.com:36462
-      accessToken: appToken-cffed349-d573-457f-8f74-4727ad9341ce
+      access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
 
 If you prefer using client profiles as described in :ref:`using_client_profiles`, use the ``profile`` property:
 
@@ -565,6 +565,7 @@ If you prefer using client profiles as described in :ref:`using_client_profiles`
 
     centraldogma:
       profile: beta
+      access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
 
 If neither ``hosts`` nor ``profile`` property is specified, currently active
 `Spring Boot profile <https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html>`_
@@ -581,6 +582,7 @@ You can also enable a TLS connection or override the default health check reques
 
     centraldogma:
       profile: staging
+      access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
       use-tls: true
       health-check-interval-millis: 15000
 

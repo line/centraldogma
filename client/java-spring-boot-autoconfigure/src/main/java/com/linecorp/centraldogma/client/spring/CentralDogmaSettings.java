@@ -48,9 +48,9 @@ import com.google.common.base.MoreObjects;
  * <pre>{@code
  * centraldogma:
  *   profile: beta
- *   accessToken: appToken-cffed349-d573-457f-8f74-4727ad9341ce
- *   healthCheckIntervalMillis: 15000
- *   useTls: false
+ *   access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
+ *   health-check-interval-millis: 15000
+ *   use-tls: false
  * }</pre>
  *
  * <p>Note that {@code "healthCheckIntervalMillis"} and {@code "useTls"} are optional.</p>
