@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -28,12 +28,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationTest.TestConfiguration;
+import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationSpringProfileTest.TestConfiguration;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestConfiguration.class)
-@ActiveProfiles({ "local", "confTest" })
-public class CentralDogmaClientAutoConfigurationTest {
+@ActiveProfiles({ "local", "useHosts", "confTest" })
+public class CentralDogmaClientAutoConfigurationHostsTest {
     @Configuration
     @Import(CentralDogmaClientAutoConfiguration.class)
     public static class TestConfiguration {}
@@ -41,8 +41,19 @@ public class CentralDogmaClientAutoConfigurationTest {
     @Inject
     CentralDogma client;
 
+    @Inject
+    CentralDogmaSettings settings;
+
     @Test
     public void centralDogmaClient() throws Exception {
         assertThat(client).isNotNull();
+    }
+
+    @Test
+    public void settings() {
+        assertThat(settings.getHosts()).containsExactly("alice.com", "bob.com:8080", "charlie.com:36462");
+        assertThat(settings.getProfile()).isNull();
+        assertThat(settings.getUseTls()).isNull();
+        assertThat(settings.getHealthCheckIntervalMillis()).isNull();
     }
 }
