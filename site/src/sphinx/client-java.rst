@@ -571,6 +571,10 @@ If neither ``hosts`` nor ``profile`` property is specified, currently active
 will be used as the client profile. When more than one Spring Boot profile are active, the last matching one
 will be chosen.
 
+.. note::
+
+    Do not confuse 'Central Dogma client profile' with 'Spring Boot profile'.
+
 You can also enable a TLS connection or override the default health check request interval:
 
 .. code-block:: yaml
