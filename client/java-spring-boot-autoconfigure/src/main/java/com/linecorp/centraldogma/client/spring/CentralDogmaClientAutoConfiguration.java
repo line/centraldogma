@@ -111,6 +111,10 @@ public class CentralDogmaClientAutoConfiguration {
         final String profile = settings.getProfile();
         final List<String> hosts = settings.getHosts();
         if (profile != null) {
+            if (hosts != null) {
+                throw new IllegalStateException(
+                        "'hosts' and 'profile' are mutually exclusive. Do not set both of them.");
+            }
             builder.profile(CentralDogmaClientAutoConfiguration.class.getClassLoader(), profile);
         } else if (hosts != null) {
             for (String h : hosts) {
