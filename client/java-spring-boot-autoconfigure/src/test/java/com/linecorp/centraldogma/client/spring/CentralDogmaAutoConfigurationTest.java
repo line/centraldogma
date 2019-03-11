@@ -48,11 +48,11 @@ public class CentralDogmaAutoConfigurationTest {
     }
 
     @Inject
-    CentralDogma client;
+    private CentralDogma client;
 
     @Inject
     @ForCentralDogma
-    ClientFactory clientFactory;
+    private ClientFactory clientFactory;
 
     @Test
     public void centralDogmaClient() throws Exception {

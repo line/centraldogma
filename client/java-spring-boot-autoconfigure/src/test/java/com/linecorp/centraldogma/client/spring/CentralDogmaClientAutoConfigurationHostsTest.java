@@ -39,10 +39,10 @@ public class CentralDogmaClientAutoConfigurationHostsTest {
     public static class TestConfiguration {}
 
     @Inject
-    CentralDogma client;
+    private CentralDogma client;
 
     @Inject
-    CentralDogmaSettings settings;
+    private CentralDogmaSettings settings;
 
     @Test
     public void centralDogmaClient() throws Exception {
