@@ -28,21 +28,32 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationTest.TestConfiguration;
+import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationSpringProfileTest.TestConfiguration;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestConfiguration.class)
 @ActiveProfiles({ "local", "confTest" })
-public class CentralDogmaClientAutoConfigurationTest {
+public class CentralDogmaClientAutoConfigurationSpringProfileTest {
     @Configuration
     @Import(CentralDogmaClientAutoConfiguration.class)
     public static class TestConfiguration {}
 
     @Inject
-    CentralDogma client;
+    private CentralDogma client;
+
+    @Inject
+    private CentralDogmaSettings settings;
 
     @Test
     public void centralDogmaClient() throws Exception {
         assertThat(client).isNotNull();
+    }
+
+    @Test
+    public void settings() {
+        assertThat(settings.getHosts()).isNull();
+        assertThat(settings.getProfile()).isNull();
+        assertThat(settings.getUseTls()).isNull();
+        assertThat(settings.getHealthCheckIntervalMillis()).isNull();
     }
 }

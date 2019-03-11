@@ -64,18 +64,18 @@ public class CentralDogmaClientAutoConfigurationWithClientFactoryTest {
     private static class TestBean {}
 
     @Inject
-    CentralDogma client;
+    private CentralDogma client;
 
     @Inject
-    TestBean testBean;
+    private TestBean testBean;
 
     @Inject
     @Qualifier("other")
-    ClientFactory clientFactoryForTest;
+    private ClientFactory clientFactoryForTest;
 
     @Inject
     @ForCentralDogma
-    ClientFactory clientFactoryForCentralDogma;
+    private ClientFactory clientFactoryForCentralDogma;
 
     @Test
     public void centralDogmaClient() throws Exception {

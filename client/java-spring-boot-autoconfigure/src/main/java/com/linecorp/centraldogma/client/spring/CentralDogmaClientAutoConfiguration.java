@@ -18,10 +18,13 @@ package com.linecorp.centraldogma.client.spring;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Optional;
 
 import javax.inject.Qualifier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
@@ -29,6 +32,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Condition;
 import org.springframework.context.annotation.ConditionContext;
@@ -39,17 +43,22 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.core.type.MethodMetadata;
 
+import com.google.common.net.HostAndPort;
+
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
-import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 
 /**
  * Spring bean configuration for {@link CentralDogma} client.
  */
 @Configuration
 @ConditionalOnMissingBean(CentralDogma.class)
+@EnableConfigurationProperties(CentralDogmaSettings.class)
 public class CentralDogmaClientAutoConfiguration {
+
+    private static final Logger logger = LoggerFactory.getLogger(CentralDogmaClientAutoConfiguration.class);
 
     /**
      * A {@link Qualifier} annotation that tells {@link CentralDogmaClientAutoConfiguration} to use a specific
@@ -76,15 +85,55 @@ public class CentralDogmaClientAutoConfiguration {
     @Bean
     public CentralDogma client(
             Environment env,
+            CentralDogmaSettings settings,
             @ForCentralDogma ClientFactory clientFactory,
             Optional<ArmeriaClientConfigurator> armeriaClientConfigurator) throws UnknownHostException {
 
-        return new LegacyCentralDogmaBuilder()
-                .clientFactory(clientFactory)
-                .profile(env.getActiveProfiles())
-                .clientConfigurator(cb -> armeriaClientConfigurator.ifPresent(
-                        configurator -> configurator.configure(cb)))
-                .build();
+        final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
+
+        builder.clientFactory(clientFactory);
+        builder.clientConfigurator(cb -> armeriaClientConfigurator.ifPresent(
+                configurator -> configurator.configure(cb)));
+
+        // Set health check interval.
+        final Long healthCheckIntervalMillis = settings.getHealthCheckIntervalMillis();
+        if (healthCheckIntervalMillis != null) {
+            builder.healthCheckIntervalMillis(healthCheckIntervalMillis);
+        }
+
+        // Enable or disable TLS.
+        final Boolean useTls = settings.getUseTls();
+        if (useTls != null) {
+            builder.useTls(useTls);
+        }
+
+        // Set profile or hosts.
+        final String profile = settings.getProfile();
+        final List<String> hosts = settings.getHosts();
+        if (profile != null) {
+            if (hosts != null) {
+                throw new IllegalStateException(
+                        "'hosts' and 'profile' are mutually exclusive. Do not set both of them.");
+            }
+            builder.profile(CentralDogmaClientAutoConfiguration.class.getClassLoader(), profile);
+        } else if (hosts != null) {
+            for (String h : hosts) {
+                final HostAndPort hostAndPort = HostAndPort.fromString(h);
+                if (hostAndPort.hasPort()) {
+                    builder.host(hostAndPort.getHost(), hostAndPort.getPort());
+                } else {
+                    builder.host(hostAndPort.getHost());
+                }
+            }
+        } else {
+            // Use the currently active Spring Boot profiles if neither profile nor hosts was specified.
+            final String[] springBootProfiles = env.getActiveProfiles();
+            logger.info("Using the Spring Boot profiles as the source of the Central Dogma client profile: {}",
+                        springBootProfiles);
+            builder.profile(springBootProfiles);
+        }
+
+        return builder.build();
     }
 
     /**
@@ -96,6 +145,10 @@ public class CentralDogmaClientAutoConfiguration {
         @Override
         public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
             final ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+            if (beanFactory == null) {
+                return true;
+            }
+
             final String[] beanNames =
                     BeanFactoryUtils.beanNamesForTypeIncludingAncestors(beanFactory, ClientFactory.class);
 

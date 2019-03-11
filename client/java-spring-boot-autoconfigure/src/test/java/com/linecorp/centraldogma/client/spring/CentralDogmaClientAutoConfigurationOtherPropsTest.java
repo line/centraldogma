@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,42 +21,39 @@ import javax.inject.Inject;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import com.linecorp.armeria.client.ClientFactory;
-import com.linecorp.armeria.client.ClientFactoryBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.spring.CentralDogmaAutoConfigurationTest.TestConfiguration;
-import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfiguration.ForCentralDogma;
+import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationSpringProfileTest.TestConfiguration;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestConfiguration.class)
-@ActiveProfiles({ "local", "confTest" })
-public class CentralDogmaAutoConfigurationTest {
-    @SpringBootApplication
-    public static class TestConfiguration {
-        static final ClientFactory clientFactoryNotForCentralDogma = new ClientFactoryBuilder().build();
-
-        @Bean
-        public ClientFactory clientFactory() {
-            return clientFactoryNotForCentralDogma;
-        }
-    }
+@ActiveProfiles({ "local", "otherProps", "confTest" })
+public class CentralDogmaClientAutoConfigurationOtherPropsTest {
+    @Configuration
+    @Import(CentralDogmaClientAutoConfiguration.class)
+    public static class TestConfiguration {}
 
     @Inject
     private CentralDogma client;
 
     @Inject
-    @ForCentralDogma
-    private ClientFactory clientFactory;
+    private CentralDogmaSettings settings;
 
     @Test
     public void centralDogmaClient() throws Exception {
         assertThat(client).isNotNull();
-        assertThat(clientFactory).isSameAs(ClientFactory.DEFAULT);
+    }
+
+    @Test
+    public void settings() {
+        assertThat(settings.getHosts()).isNull();
+        assertThat(settings.getProfile()).isNull();
+        assertThat(settings.getUseTls()).isTrue();
+        assertThat(settings.getHealthCheckIntervalMillis()).isEqualTo(60000);
     }
 }

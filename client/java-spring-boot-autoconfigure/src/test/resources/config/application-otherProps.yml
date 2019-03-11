@@ -1,0 +1,3 @@
+centraldogma:
+  use-tls: true
+  health-check-interval-millis: 60000

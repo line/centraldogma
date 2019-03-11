@@ -515,17 +515,79 @@ client profile JAR again.
 Spring Boot integration
 -----------------------
 If you are using `Spring Framework <https://spring.io/>`_, you can inject :api:`com.linecorp.centraldogma.client.CentralDogma`
-client very easily.
+client very easily. First, add ``centraldogma-client-spring-boot-starter`` into your dependencies.
 
-1. Add ``centraldogma-client-spring-boot-autoconfigure`` into your dependencies.
-2. Add the client profile to your class path, as described in :ref:`using_client_profiles`.
+Gradle:
 
-A new :api:`com.linecorp.centraldogma.client.CentralDogma` client will be created and injected using your
-`Spring Boot profile <https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html>`_.
-When more than one profile is active, the last matching one will be used from ``/centraldogma-profiles-test.json``
-or ``/centraldogma-profiles.json``.
+.. parsed-literal::
+    :class: highlight-groovy
 
-Once configured correctly, you would be able to run an application like the following:
+    ...
+    dependencies {
+        ...
+        compile 'com.linecorp.centraldogma:centraldogma-client-spring-boot-starter:\ |release|\ '
+        ...
+    }
+    ...
+
+Maven:
+
+.. parsed-literal::
+    :class: highlight-xml
+
+    ...
+    <dependencies>
+      ...
+      <dependency>
+        <groupId>com.linecorp.centraldogma</groupId>
+        <artifactId>centraldogma-client-spring-boot-starter</artifactId>
+        <version>\ |release|\ </version>
+      </dependency>
+      ...
+    </dependencies>
+    ...
+
+Then, add a new section called ``centraldogma`` to your Spring Boot application configuration, which is often
+named ``application.yml``:
+
+.. code-block:: yaml
+
+    centraldogma:
+      hosts:
+      - replica1.example.com:36462
+      - replica2.example.com:36462
+      - replica3.example.com:36462
+      access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
+
+If you prefer using client profiles as described in :ref:`using_client_profiles`, use the ``profile`` property:
+
+.. code-block:: yaml
+
+    centraldogma:
+      profile: beta
+      access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
+
+If neither ``hosts`` nor ``profile`` property is specified, currently active
+`Spring Boot profile <https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html>`_
+will be used as the client profile. When more than one Spring Boot profile are active, the last matching one
+will be chosen.
+
+.. note::
+
+    Do not confuse 'Central Dogma client profile' with 'Spring Boot profile'.
+
+You can also enable a TLS connection or override the default health check request interval:
+
+.. code-block:: yaml
+
+    centraldogma:
+      profile: staging
+      access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
+      use-tls: true
+      health-check-interval-millis: 15000
+
+Once configured correctly, a new :api:`com.linecorp.centraldogma.client.CentralDogma` client will be created and
+injected into your application like the following:
 
 .. code-block:: java
 

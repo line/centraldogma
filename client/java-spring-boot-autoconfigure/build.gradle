@@ -1,7 +1,8 @@
 dependencies {
     compile project(':client:java-armeria-legacy')
-    compile 'javax.validation:validation-api'
+    compileOnly 'javax.validation:validation-api'
     compile 'org.springframework.boot:spring-boot-starter'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
     testCompile project(':client:java-armeria')
     testCompile 'org.springframework.boot:spring-boot-starter-test'

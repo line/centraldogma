@@ -8,9 +8,34 @@
         "port": 36462
       },
       {
+        "host": "foo.com",
+        "protocol": "https",
+        "port": 36463
+      },
+      {
         "host": "bar.com",
         "protocol": "http",
         "port": 8080
+      },
+      {
+        "host": "bar.com",
+        "protocol": "https",
+        "port": 8443
+      }
+    ]
+  },
+  {
+    "name": "myprofile",
+    "hosts": [
+      {
+        "host": "baz.com",
+        "protocol": "http",
+        "port": 8080
+      },
+      {
+        "host": "qux.com",
+        "protocol": "http",
+        "port": 36462
       }
     ]
   }
