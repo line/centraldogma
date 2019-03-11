@@ -515,7 +515,7 @@ client profile JAR again.
 Spring Boot integration
 -----------------------
 If you are using `Spring Framework <https://spring.io/>`_, you can inject :api:`com.linecorp.centraldogma.client.CentralDogma`
-client very easily. First, add ``centraldogma-client-spring-boot-autoconfigure`` into your dependencies.
+client very easily. First, add ``centraldogma-client-spring-boot-starter`` into your dependencies.
 
 Gradle:
 
@@ -525,7 +525,7 @@ Gradle:
     ...
     dependencies {
         ...
-        compile 'com.linecorp.centraldogma:centraldogma-client-spring-boot-autoconfigure:\ |release|\ '
+        compile 'com.linecorp.centraldogma:centraldogma-client-spring-boot-starter:\ |release|\ '
         ...
     }
     ...
@@ -540,7 +540,7 @@ Maven:
       ...
       <dependency>
         <groupId>com.linecorp.centraldogma</groupId>
-        <artifactId>centraldogma-client-spring-boot-autoconfigure</artifactId>
+        <artifactId>centraldogma-client-spring-boot-starter</artifactId>
         <version>\ |release|\ </version>
       </dependency>
       ...
