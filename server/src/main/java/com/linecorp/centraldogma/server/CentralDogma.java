@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -59,6 +60,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
@@ -124,6 +126,8 @@ import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.MigrationUtil;
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringService;
+import com.linecorp.centraldogma.server.internal.pluggable.PluggableServices;
+import com.linecorp.centraldogma.server.internal.pluggable.PluggableServicesStartStop;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -132,6 +136,8 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTra
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
+import com.linecorp.centraldogma.server.pluggable.LeaderService;
+import com.linecorp.centraldogma.server.pluggable.PluggableService;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -322,7 +328,31 @@ public class CentralDogma implements AutoCloseable {
             ProjectManager pm, DefaultMirroringService mirroringService,
             Executor repositoryWorker, @Nullable SessionManager sessionManager) {
 
+        final List<PluggableService> leaderServices =
+                PluggableServices.load(CentralDogma.class.getClassLoader(), LeaderService.class,
+                                       LeaderService::toPluggableService);
+
+        // TODO(hyangtack) Need to use another executor?
+        // TODO(hyangtack) Fix here after migrating MirrorService to LeaderService.
+        final PluggableServicesStartStop leaderServicesStartStop =
+                !leaderServices.isEmpty() ? new PluggableServicesStartStop(CommonPools.blockingTaskExecutor(),
+                                                                           leaderServices)
+                                          : null;
+
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
+            if (leaderServicesStartStop != null) {
+                logger.info("Starting LeaderServices ..");
+                leaderServicesStartStop.start(false).handle((unused, cause) -> {
+                    if (cause == null) {
+                        logger.info("Started LeaderServices.");
+                    } else {
+                        logger.error("Failed to start LeaderServices.", cause);
+                    }
+                    return null;
+                });
+            }
+
+            // TODO(hyangtack) Remove.
             if (cfg.isMirroringEnabled()) {
                 logger.info("Starting the mirroring service ..");
                 mirroringService.start(exec);
@@ -333,6 +363,19 @@ public class CentralDogma implements AutoCloseable {
         };
 
         final Runnable onReleaseLeadership = () -> {
+            if (leaderServicesStartStop != null) {
+                logger.info("Stopping LeaderServices ..");
+                leaderServicesStartStop.stop().handle((unused, cause) -> {
+                    if (cause == null) {
+                        logger.info("Stopped LeaderServices.");
+                    } else {
+                        logger.error("Failed to stop LeaderServices.", cause);
+                    }
+                    return null;
+                });
+            }
+
+            // TODO(hyangtack) Remove.
             if (cfg.isMirroringEnabled()) {
                 logger.info("Stopping the mirroring service ..");
                 mirroringService.stop();
