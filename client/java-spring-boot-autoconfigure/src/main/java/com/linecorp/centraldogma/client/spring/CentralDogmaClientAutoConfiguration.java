@@ -23,6 +23,8 @@ import java.util.Optional;
 
 import javax.inject.Qualifier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
@@ -55,6 +57,8 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
 @ConditionalOnMissingBean(CentralDogma.class)
 @EnableConfigurationProperties(CentralDogmaSettings.class)
 public class CentralDogmaClientAutoConfiguration {
+
+    private static final Logger logger = LoggerFactory.getLogger(CentralDogmaClientAutoConfiguration.class);
 
     /**
      * A {@link Qualifier} annotation that tells {@link CentralDogmaClientAutoConfiguration} to use a specific
@@ -119,7 +123,10 @@ public class CentralDogmaClientAutoConfiguration {
             }
         } else {
             // Use the currently active Spring Boot profiles if neither profile nor hosts was specified.
-            builder.profile(env.getActiveProfiles());
+            final String[] springBootProfiles = env.getActiveProfiles();
+            logger.info("Using the Spring Boot profiles as the source of the Central Dogma client profile: {}",
+                        springBootProfiles);
+            builder.profile(springBootProfiles);
         }
 
         return builder.build();
