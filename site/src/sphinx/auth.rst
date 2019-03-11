@@ -339,9 +339,3 @@ creator and the administrator are allowed to deactivate and/or remove the token.
 There are two levels of a token, which are ``Admin`` and ``User``. ``Admin`` level token can be created by
 only the administrators. A client who sends a request with the token is allowed to access administrator-level
 APIs.
-
-.. note::
-
-    The Java client library is not under the access control system for now. Currently it accesses Central Dogma
-    via Thrift API but would replace its underlying API requests with HTTP API soon. After that, it would be
-    under the access control system and you can use ``Application Token`` to control the accesses from a user.
