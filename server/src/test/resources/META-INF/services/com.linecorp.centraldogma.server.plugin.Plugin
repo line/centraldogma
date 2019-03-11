@@ -1,0 +1,2 @@
+com.linecorp.centraldogma.server.plugin.NoopPluginForAllReplicas
+com.linecorp.centraldogma.server.plugin.NoopPluginForLeader

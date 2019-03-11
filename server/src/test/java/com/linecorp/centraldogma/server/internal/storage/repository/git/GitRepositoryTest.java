@@ -48,7 +48,6 @@ import javax.annotation.Nullable;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.RefDatabase;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.junit.AfterClass;
@@ -77,9 +76,9 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.server.internal.storage.StorageException;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.StorageException;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public class GitRepositoryTest {
 
@@ -1035,7 +1034,7 @@ public class GitRepositoryTest {
 
         final Entry<JsonNode> res3 = repo.get(HEAD, Query.ofJsonPath(
                 "/instances.json", "$[?(@.groups[?(@.type == 'phase' && @.name == 'alpha')] empty false)]"))
-                                               .join();
+                                         .join();
 
         assertThatJson(res3.content()).isEqualTo("[{" +
                                                  "  \"name\": \"a\"," +
@@ -1246,12 +1245,10 @@ public class GitRepositoryTest {
 
     private static void testDoUpdateRef(String ref, ObjectId commitId, boolean tagExists) throws Exception {
         final org.eclipse.jgit.lib.Repository jGitRepo = mock(org.eclipse.jgit.lib.Repository.class);
-        final RefDatabase refDatabase = mock(RefDatabase.class);
         final RevWalk revWalk = mock(RevWalk.class);
         final RefUpdate refUpdate = mock(RefUpdate.class);
 
-        when(jGitRepo.getRefDatabase()).thenReturn(refDatabase);
-        when(refDatabase.exactRef(ref)).thenReturn(tagExists ? mock(Ref.class) : null);
+        when(jGitRepo.exactRef(ref)).thenReturn(tagExists ? mock(Ref.class) : null);
         when(jGitRepo.updateRef(ref)).thenReturn(refUpdate);
 
         when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.NEW);

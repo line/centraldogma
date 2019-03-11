@@ -113,12 +113,12 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
-import com.linecorp.centraldogma.server.internal.storage.StorageException;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
-import com.linecorp.centraldogma.server.internal.storage.repository.FindOptions;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
+import com.linecorp.centraldogma.server.storage.StorageException;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.FindOption;
+import com.linecorp.centraldogma.server.storage.repository.FindOptions;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import difflib.DiffUtils;
 import difflib.Patch;
@@ -501,27 +501,27 @@ class GitRepository implements Repository {
                 if (fetchContent) {
                     final byte[] content = reader.open(treeWalk.getObjectId(0)).getBytes();
                     switch (entryType) {
-                    case JSON:
-                        final JsonNode jsonNode = Jackson.readTree(content);
-                        entry = Entry.ofJson(normRevision, path, jsonNode);
-                        break;
-                    case TEXT:
-                        final String strVal = sanitizeText(new String(content, UTF_8));
-                        entry = Entry.ofText(normRevision, path, strVal);
-                        break;
-                    default:
-                        throw new Error("unexpected entry type: " + entryType);
+                        case JSON:
+                            final JsonNode jsonNode = Jackson.readTree(content);
+                            entry = Entry.ofJson(normRevision, path, jsonNode);
+                            break;
+                        case TEXT:
+                            final String strVal = sanitizeText(new String(content, UTF_8));
+                            entry = Entry.ofText(normRevision, path, strVal);
+                            break;
+                        default:
+                            throw new Error("unexpected entry type: " + entryType);
                     }
                 } else {
                     switch (entryType) {
-                    case JSON:
-                        entry = Entry.ofJson(normRevision, path, Jackson.nullNode);
-                        break;
-                    case TEXT:
-                        entry = Entry.ofText(normRevision, path, "");
-                        break;
-                    default:
-                        throw new Error("unexpected entry type: " + entryType);
+                        case JSON:
+                            entry = Entry.ofJson(normRevision, path, Jackson.nullNode);
+                            break;
+                        case TEXT:
+                            entry = Entry.ofText(normRevision, path, "");
+                            break;
+                        default:
+                            throw new Error("unexpected entry type: " + entryType);
                     }
                 }
 
@@ -737,71 +737,74 @@ class GitRepository implements Repository {
                 final String newPath = '/' + diffEntry.getNewPath();
 
                 switch (diffEntry.getChangeType()) {
-                case MODIFY:
-                    final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
-                    switch (oldEntryType) {
-                    case JSON:
-                        if (!oldPath.equals(newPath)) {
-                            putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
-                        }
+                    case MODIFY:
+                        final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
+                        switch (oldEntryType) {
+                            case JSON:
+                                if (!oldPath.equals(newPath)) {
+                                    putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
+                                }
 
-                        final JsonNode oldJsonNode =
-                                Jackson.readTree(reader.open(diffEntry.getOldId().toObjectId()).getBytes());
-                        final JsonNode newJsonNode =
-                                Jackson.readTree(reader.open(diffEntry.getNewId().toObjectId()).getBytes());
-                        final JsonPatch patch =
-                                JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
+                                final JsonNode oldJsonNode =
+                                        Jackson.readTree(
+                                                reader.open(diffEntry.getOldId().toObjectId()).getBytes());
+                                final JsonNode newJsonNode =
+                                        Jackson.readTree(
+                                                reader.open(diffEntry.getNewId().toObjectId()).getBytes());
+                                final JsonPatch patch =
+                                        JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
 
-                        if (!patch.isEmpty()) {
-                            putChange(changeMap, newPath,
-                                      Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
+                                if (!patch.isEmpty()) {
+                                    putChange(changeMap, newPath,
+                                              Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
+                                }
+                                break;
+                            case TEXT:
+                                final String oldText = sanitizeText(new String(
+                                        reader.open(diffEntry.getOldId().toObjectId()).getBytes(), UTF_8));
+
+                                final String newText = sanitizeText(new String(
+                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
+
+                                if (!oldPath.equals(newPath)) {
+                                    putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
+                                }
+
+                                if (!oldText.equals(newText)) {
+                                    putChange(changeMap, newPath,
+                                              Change.ofTextPatch(newPath, oldText, newText));
+                                }
+                                break;
+                            default:
+                                throw new Error("unexpected old entry type: " + oldEntryType);
                         }
                         break;
-                    case TEXT:
-                        final String oldText = sanitizeText(new String(
-                                reader.open(diffEntry.getOldId().toObjectId()).getBytes(), UTF_8));
+                    case ADD:
+                        final EntryType newEntryType = EntryType.guessFromPath(newPath);
+                        switch (newEntryType) {
+                            case JSON: {
+                                final JsonNode jsonNode = Jackson.readTree(
+                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes());
 
-                        final String newText = sanitizeText(new String(
-                                reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
+                                putChange(changeMap, newPath, Change.ofJsonUpsert(newPath, jsonNode));
+                                break;
+                            }
+                            case TEXT: {
+                                final String text = sanitizeText(new String(
+                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
 
-                        if (!oldPath.equals(newPath)) {
-                            putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
+                                putChange(changeMap, newPath, Change.ofTextUpsert(newPath, text));
+                                break;
+                            }
+                            default:
+                                throw new Error("unexpected new entry type: " + newEntryType);
                         }
-
-                        if (!oldText.equals(newText)) {
-                            putChange(changeMap, newPath, Change.ofTextPatch(newPath, oldText, newText));
-                        }
+                        break;
+                    case DELETE:
+                        putChange(changeMap, oldPath, Change.ofRemoval(oldPath));
                         break;
                     default:
-                        throw new Error("unexpected old entry type: " + oldEntryType);
-                    }
-                    break;
-                case ADD:
-                    final EntryType newEntryType = EntryType.guessFromPath(newPath);
-                    switch (newEntryType) {
-                    case JSON: {
-                        final JsonNode jsonNode = Jackson.readTree(
-                                reader.open(diffEntry.getNewId().toObjectId()).getBytes());
-
-                        putChange(changeMap, newPath, Change.ofJsonUpsert(newPath, jsonNode));
-                        break;
-                    }
-                    case TEXT: {
-                        final String text = sanitizeText(new String(
-                                reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
-
-                        putChange(changeMap, newPath, Change.ofTextUpsert(newPath, text));
-                        break;
-                    }
-                    default:
-                        throw new Error("unexpected new entry type: " + newEntryType);
-                    }
-                    break;
-                case DELETE:
-                    putChange(changeMap, oldPath, Change.ofRemoval(oldPath));
-                    break;
-                default:
-                    throw new Error();
+                        throw new Error();
                 }
             }
             return changeMap;
@@ -973,139 +976,140 @@ class GitRepository implements Repository {
                                                            : null;
 
                 switch (change.type()) {
-                case UPSERT_JSON: {
-                    final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
-                    final JsonNode newJsonNode = firstNonNull((JsonNode) change.content(),
-                                                              JsonNodeFactory.instance.nullNode());
+                    case UPSERT_JSON: {
+                        final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
+                        final JsonNode newJsonNode = firstNonNull((JsonNode) change.content(),
+                                                                  JsonNodeFactory.instance.nullNode());
 
-                    // Upsert only when the contents are really different.
-                    if (!Objects.equals(newJsonNode, oldJsonNode)) {
-                        applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
-                        numEdits++;
-                    }
-                    break;
-                }
-                case UPSERT_TEXT: {
-                    final String sanitizedOldText;
-                    if (oldContent != null) {
-                        sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
-                    } else {
-                        sanitizedOldText = null;
-                    }
-
-                    final String sanitizedNewText = sanitizeText(change.contentAsText());
-
-                    // Upsert only when the contents are really different.
-                    if (!sanitizedNewText.equals(sanitizedOldText)) {
-                        applyPathEdit(dirCache, new InsertText(changePath, inserter, sanitizedNewText));
-                        numEdits++;
-                    }
-                    break;
-                }
-                case REMOVE:
-                    if (oldEntry != null) {
-                        applyPathEdit(dirCache, new DeletePath(changePath));
-                        numEdits++;
+                        // Upsert only when the contents are really different.
+                        if (!Objects.equals(newJsonNode, oldJsonNode)) {
+                            applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                            numEdits++;
+                        }
                         break;
                     }
+                    case UPSERT_TEXT: {
+                        final String sanitizedOldText;
+                        if (oldContent != null) {
+                            sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
+                        } else {
+                            sanitizedOldText = null;
+                        }
 
-                    // The path might be a directory.
-                    if (applyDirectoryEdits(dirCache, changePath, null, change)) {
-                        numEdits++;
-                    } else {
-                        // Was not a directory either; conflict.
-                        reportNonExistentEntry(change);
+                        final String sanitizedNewText = sanitizeText(change.contentAsText());
+
+                        // Upsert only when the contents are really different.
+                        if (!sanitizedNewText.equals(sanitizedOldText)) {
+                            applyPathEdit(dirCache, new InsertText(changePath, inserter, sanitizedNewText));
+                            numEdits++;
+                        }
                         break;
                     }
-                    break;
-                case RENAME: {
-                    final String newPath = ((String) change.content()).substring(1); // Strip the leading '/'.
-
-                    if (dirCache.getEntry(newPath) != null) {
-                        throw new ChangeConflictException("a file exists at the target path: " + change);
-                    }
-
-                    if (oldEntry != null) {
-                        if (changePath.equals(newPath)) {
-                            // Redundant rename request - old path and new path are same.
+                    case REMOVE:
+                        if (oldEntry != null) {
+                            applyPathEdit(dirCache, new DeletePath(changePath));
+                            numEdits++;
                             break;
                         }
 
-                        final DirCacheEditor editor = dirCache.editor();
-                        editor.add(new DeletePath(changePath));
-                        editor.add(new CopyOldEntry(newPath, oldEntry));
-                        editor.finish();
-                        numEdits++;
+                        // The path might be a directory.
+                        if (applyDirectoryEdits(dirCache, changePath, null, change)) {
+                            numEdits++;
+                        } else {
+                            // Was not a directory either; conflict.
+                            reportNonExistentEntry(change);
+                            break;
+                        }
+                        break;
+                    case RENAME: {
+                        final String newPath = ((String) change.content()).substring(
+                                1); // Strip the leading '/'.
+
+                        if (dirCache.getEntry(newPath) != null) {
+                            throw new ChangeConflictException("a file exists at the target path: " + change);
+                        }
+
+                        if (oldEntry != null) {
+                            if (changePath.equals(newPath)) {
+                                // Redundant rename request - old path and new path are same.
+                                break;
+                            }
+
+                            final DirCacheEditor editor = dirCache.editor();
+                            editor.add(new DeletePath(changePath));
+                            editor.add(new CopyOldEntry(newPath, oldEntry));
+                            editor.finish();
+                            numEdits++;
+                            break;
+                        }
+
+                        // The path might be a directory.
+                        if (applyDirectoryEdits(dirCache, changePath, newPath, change)) {
+                            numEdits++;
+                        } else {
+                            // Was not a directory either; conflict.
+                            reportNonExistentEntry(change);
+                        }
                         break;
                     }
-
-                    // The path might be a directory.
-                    if (applyDirectoryEdits(dirCache, changePath, newPath, change)) {
-                        numEdits++;
-                    } else {
-                        // Was not a directory either; conflict.
-                        reportNonExistentEntry(change);
-                    }
-                    break;
-                }
-                case APPLY_JSON_PATCH: {
-                    final JsonNode oldJsonNode;
-                    if (oldContent != null) {
-                        oldJsonNode = Jackson.readTree(oldContent);
-                    } else {
-                        oldJsonNode = Jackson.nullNode;
-                    }
-
-                    final JsonNode newJsonNode;
-                    try {
-                        newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
-                    } catch (Exception e) {
-                        throw new ChangeConflictException("failed to apply JSON patch: " + change, e);
-                    }
-
-                    // Apply only when the contents are really different.
-                    if (!newJsonNode.equals(oldJsonNode)) {
-                        applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
-                        numEdits++;
-                    }
-                    break;
-                }
-                case APPLY_TEXT_PATCH:
-                    final Patch<String> patch = DiffUtils.parseUnifiedDiff(
-                            Util.stringToLines(sanitizeText((String) change.content())));
-
-                    final String sanitizedOldText;
-                    final List<String> sanitizedOldTextLines;
-                    if (oldContent != null) {
-                        sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
-                        sanitizedOldTextLines = Util.stringToLines(sanitizedOldText);
-                    } else {
-                        sanitizedOldText = null;
-                        sanitizedOldTextLines = Collections.emptyList();
-                    }
-
-                    final String newText;
-                    try {
-                        final List<String> newTextLines = DiffUtils.patch(sanitizedOldTextLines, patch);
-                        if (newTextLines.isEmpty()) {
-                            newText = "";
+                    case APPLY_JSON_PATCH: {
+                        final JsonNode oldJsonNode;
+                        if (oldContent != null) {
+                            oldJsonNode = Jackson.readTree(oldContent);
                         } else {
-                            final StringJoiner joiner = new StringJoiner("\n", "", "\n");
-                            for (String line : newTextLines) {
-                                joiner.add(line);
-                            }
-                            newText = joiner.toString();
+                            oldJsonNode = Jackson.nullNode;
                         }
-                    } catch (Exception e) {
-                        throw new ChangeConflictException("failed to apply text patch: " + change, e);
-                    }
 
-                    // Apply only when the contents are really different.
-                    if (!newText.equals(sanitizedOldText)) {
-                        applyPathEdit(dirCache, new InsertText(changePath, inserter, newText));
-                        numEdits++;
+                        final JsonNode newJsonNode;
+                        try {
+                            newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
+                        } catch (Exception e) {
+                            throw new ChangeConflictException("failed to apply JSON patch: " + change, e);
+                        }
+
+                        // Apply only when the contents are really different.
+                        if (!newJsonNode.equals(oldJsonNode)) {
+                            applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                            numEdits++;
+                        }
+                        break;
                     }
-                    break;
+                    case APPLY_TEXT_PATCH:
+                        final Patch<String> patch = DiffUtils.parseUnifiedDiff(
+                                Util.stringToLines(sanitizeText((String) change.content())));
+
+                        final String sanitizedOldText;
+                        final List<String> sanitizedOldTextLines;
+                        if (oldContent != null) {
+                            sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
+                            sanitizedOldTextLines = Util.stringToLines(sanitizedOldText);
+                        } else {
+                            sanitizedOldText = null;
+                            sanitizedOldTextLines = Collections.emptyList();
+                        }
+
+                        final String newText;
+                        try {
+                            final List<String> newTextLines = DiffUtils.patch(sanitizedOldTextLines, patch);
+                            if (newTextLines.isEmpty()) {
+                                newText = "";
+                            } else {
+                                final StringJoiner joiner = new StringJoiner("\n", "", "\n");
+                                for (String line : newTextLines) {
+                                    joiner.add(line);
+                                }
+                                newText = joiner.toString();
+                            }
+                        } catch (Exception e) {
+                            throw new ChangeConflictException("failed to apply text patch: " + change, e);
+                        }
+
+                        // Apply only when the contents are really different.
+                        if (!newText.equals(sanitizedOldText)) {
+                            applyPathEdit(dirCache, new InsertText(changePath, inserter, newText));
+                            numEdits++;
+                        }
+                        break;
                 }
             }
         } catch (CentralDogmaException | IllegalArgumentException e) {
@@ -1162,7 +1166,8 @@ class GitRepository implements Repository {
         final int numEntries = dirCache.getEntryCount();
         DirCacheEditor editor = null;
 
-        loop: for (int i = 0; i < numEntries; i++) {
+        loop:
+        for (int i = 0; i < numEntries; i++) {
             final DirCacheEntry e = dirCache.getEntry(i);
             final byte[] rawPath = e.getRawPath();
 

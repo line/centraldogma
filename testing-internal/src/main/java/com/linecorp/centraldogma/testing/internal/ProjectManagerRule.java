@@ -23,11 +23,11 @@ import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 import com.linecorp.centraldogma.common.ShuttingDownException;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.command.ProjectInitializer;
-import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
  * JUnit {@link Rule} that starts a {@link ProjectManager}.

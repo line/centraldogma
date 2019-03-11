@@ -32,7 +32,7 @@ import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.Project;
 
 public class RepositoryManagementTest extends AbstractMultiClientTest {
 

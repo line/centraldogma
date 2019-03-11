@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.plugin;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
+import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
 import static java.util.Objects.requireNonNull;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -46,9 +46,9 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.server.internal.storage.project.DefaultProject;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 @Ignore("Nashorn raises an AssertionError for an unknown reason.")
 public class PluginTest {
@@ -79,20 +79,20 @@ public class PluginTest {
 
     @Test(timeout = 5000)
     public void testHelloWorld() throws Exception {
-        final Project p = newProject();
+        final DefaultProject p = newProject();
         assertThat(p.plugins().invoke("hello", "world"), is("Hello, world!"));
     }
 
     @Test(timeout = 5000)
     public void testRequireJs() throws Exception {
-        final Project p = newProject();
+        final DefaultProject p = newProject();
         assertThat(p.plugins().invoke("hello", "world"), is("Howdy, 'world'!"));
         assertThat(p.plugins().invoke("loadCount"), is(1));
     }
 
     @Test(timeout = 5000)
     public void testPromise() throws Exception {
-        final Project p = newProject();
+        final DefaultProject p = newProject();
         assertThat(p.plugins().invoke("hello", "world"), is("Hellworldo, !"));
     }
 
@@ -114,8 +114,8 @@ public class PluginTest {
         }
     }
 
-    private Project newProject() {
-        final Project p = pm.create(testName.getMethodName(), Author.SYSTEM);
+    private DefaultProject newProject() {
+        final DefaultProject p = (DefaultProject) pm.create(testName.getMethodName(), Author.SYSTEM);
         p.repos().create(REPO_META, Author.SYSTEM);
         p.repos().create(REPO_FOO, Author.SYSTEM);
         p.metaRepo().commit(Revision.HEAD, 0L, Author.SYSTEM, "", loadChanges("meta"));

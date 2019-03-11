@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.storage.project;
 
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -49,14 +49,15 @@ import com.linecorp.centraldogma.server.internal.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.internal.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.internal.plugin.PluginManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
-import com.linecorp.centraldogma.server.internal.storage.repository.MetaRepository;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
-class DefaultProject implements Project {
+public class DefaultProject implements Project {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultProject.class);
 
@@ -193,7 +194,6 @@ class DefaultProject implements Project {
         return repos;
     }
 
-    @Override
     public synchronized PluginManager plugins() {
         if (plugins != null) {
             return plugins;

@@ -19,8 +19,8 @@ package com.linecorp.centraldogma.server.internal.metadata;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_DOGMA;
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
+import static com.linecorp.centraldogma.server.storage.project.Project.REPO_DOGMA;
+import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.InetSocketAddress;

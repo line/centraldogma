@@ -67,8 +67,8 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.ZooKeeperAddress;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
-import com.linecorp.centraldogma.server.internal.command.AbstractCommandExecutor;
-import com.linecorp.centraldogma.server.internal.command.Command;
+import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
+import com.linecorp.centraldogma.server.command.Command;
 
 public class ZooKeeperCommandExecutorTest {
 

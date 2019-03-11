@@ -27,13 +27,14 @@ import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_PATH_
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_PATH_MAPPINGS;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_PATH;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.initializeInternalProject;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.initializeInternalProject;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -57,6 +58,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpData;
@@ -96,12 +98,15 @@ import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
+import com.linecorp.centraldogma.server.auth.SessionManager;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.CachedSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.ExpiredSessionDeletingSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.FileBasedSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.OrElseDefaultHttpFileService;
-import com.linecorp.centraldogma.server.internal.admin.auth.SessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
@@ -117,21 +122,20 @@ import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
-import com.linecorp.centraldogma.server.internal.command.Command;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.MigrationUtil;
-import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringService;
+import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTranslator;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
+import com.linecorp.centraldogma.server.plugin.Plugin;
+import com.linecorp.centraldogma.server.plugin.PluginTarget;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -159,8 +163,14 @@ public class CentralDogma implements AutoCloseable {
         return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class));
     }
 
-    private final CentralDogmaStartStop startStop = new CentralDogmaStartStop();
+    private final CentralDogmaStartStop startStop;
+
     private final AtomicInteger numPendingStopRequests = new AtomicInteger();
+
+    @Nullable
+    private final PluginGroup pluginsForAllReplicas;
+    @Nullable
+    private final PluginGroup pluginsForLeaderOnly;
 
     private final CentralDogmaConfig cfg;
     @Nullable
@@ -172,12 +182,15 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private CommandExecutor executor;
     @Nullable
-    private DefaultMirroringService mirroringService;
-    @Nullable
     private SessionManager sessionManager;
 
     CentralDogma(CentralDogmaConfig cfg) {
         this.cfg = requireNonNull(cfg, "cfg");
+        pluginsForAllReplicas = PluginGroup.loadPlugins(
+                CentralDogma.class.getClassLoader(), PluginTarget.ALL_REPLICAS, cfg);
+        pluginsForLeaderOnly = PluginGroup.loadPlugins(
+                CentralDogma.class.getClassLoader(), PluginTarget.LEADER_ONLY, cfg);
+        startStop = new CentralDogmaStartStop(pluginsForAllReplicas);
     }
 
     /**
@@ -221,7 +234,30 @@ public class CentralDogma implements AutoCloseable {
      *         {@link Optional#empty()} otherwise.
      */
     public Optional<MirroringService> mirroringService() {
-        return Optional.ofNullable(mirroringService);
+        if (pluginsForLeaderOnly == null) {
+            return Optional.empty();
+        }
+        return pluginsForLeaderOnly.findFirstPlugin(DefaultMirroringServicePlugin.class)
+                                   .map(DefaultMirroringServicePlugin::mirroringService);
+    }
+
+    /**
+     * Returns the {@link Plugin}s which have been loaded.
+     *
+     * @param target the {@link PluginTarget} of the {@link Plugin}s to be returned
+     */
+    public List<Plugin> plugins(PluginTarget target) {
+        switch (requireNonNull(target, "target")) {
+            case LEADER_ONLY:
+                return pluginsForLeaderOnly != null ? ImmutableList.copyOf(pluginsForLeaderOnly.plugins())
+                                                    : ImmutableList.of();
+            case ALL_REPLICAS:
+                return pluginsForAllReplicas != null ? ImmutableList.copyOf(pluginsForAllReplicas.plugins())
+                                                     : ImmutableList.of();
+            default:
+                // Should not reach here.
+                throw new Error("Unknown plugin target: " + target);
+        }
     }
 
     /**
@@ -261,7 +297,6 @@ public class CentralDogma implements AutoCloseable {
         boolean success = false;
         ThreadPoolExecutor repositoryWorker = null;
         ProjectManager pm = null;
-        DefaultMirroringService mirroringService = null;
         CommandExecutor executor = null;
         Server server = null;
         SessionManager sessionManager = null;
@@ -280,16 +315,11 @@ public class CentralDogma implements AutoCloseable {
 
             logger.info("Current settings:\n{}", cfg);
 
-            mirroringService = new DefaultMirroringService(new File(cfg.dataDir(), "_mirrors"),
-                                                           pm,
-                                                           cfg.numMirroringThreads(),
-                                                           cfg.maxNumFilesPerMirror(),
-                                                           cfg.maxNumBytesPerMirror());
             sessionManager = initializeSessionManager();
 
             logger.info("Starting the command executor ..");
 
-            executor = startCommandExecutor(pm, mirroringService, repositoryWorker, sessionManager);
+            executor = startCommandExecutor(pm, repositoryWorker, sessionManager);
             if (executor.isWritable()) {
                 logger.info("Started the command executor.");
 
@@ -309,34 +339,41 @@ public class CentralDogma implements AutoCloseable {
                 this.repositoryWorker = repositoryWorker;
                 this.pm = pm;
                 this.executor = executor;
-                this.mirroringService = mirroringService;
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
-                doStop(server, executor, mirroringService, pm, repositoryWorker, sessionManager);
+                doStop(server, executor, pm, repositoryWorker, sessionManager);
             }
         }
     }
 
     private CommandExecutor startCommandExecutor(
-            ProjectManager pm, DefaultMirroringService mirroringService,
-            Executor repositoryWorker, @Nullable SessionManager sessionManager) {
-
+            ProjectManager pm, Executor repositoryWorker, @Nullable SessionManager sessionManager) {
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
-            if (cfg.isMirroringEnabled()) {
-                logger.info("Starting the mirroring service ..");
-                mirroringService.start(exec);
-                logger.info("Started the mirroring service.");
-            } else {
-                logger.info("Not starting the mirroring service because it's disabled.");
+            if (pluginsForLeaderOnly != null) {
+                logger.info("Starting plug-ins on the leader replica ..");
+                pluginsForLeaderOnly.start(cfg, pm, exec).handle((unused, cause) -> {
+                    if (cause == null) {
+                        logger.info("Started plug-ins on the leader replica.");
+                    } else {
+                        logger.error("Failed to start plug-ins on the leader replica..", cause);
+                    }
+                    return null;
+                });
             }
         };
 
-        final Runnable onReleaseLeadership = () -> {
-            if (cfg.isMirroringEnabled()) {
-                logger.info("Stopping the mirroring service ..");
-                mirroringService.stop();
-                logger.info("Stopped the mirroring service.");
+        final Consumer<CommandExecutor> onReleaseLeadership = exec -> {
+            if (pluginsForLeaderOnly != null) {
+                logger.info("Stopping plug-ins on the leader replica ..");
+                pluginsForLeaderOnly.stop(cfg, pm, exec).handle((unused, cause) -> {
+                    if (cause == null) {
+                        logger.info("Stopped plug-ins on the leader replica.");
+                    } else {
+                        logger.error("Failed to stop plug-ins on the leader replica.", cause);
+                    }
+                    return null;
+                });
             }
         };
 
@@ -533,10 +570,10 @@ public class CentralDogma implements AutoCloseable {
         return authCfg.factory().create(parameters);
     }
 
-    private CommandExecutor newZooKeeperCommandExecutor(ProjectManager pm, Executor repositoryWorker,
-                                                        @Nullable SessionManager sessionManager,
-                                                        @Nullable Consumer<CommandExecutor> onTakeLeadership,
-                                                        @Nullable Runnable onReleaseLeadership) {
+    private CommandExecutor newZooKeeperCommandExecutor(
+            ProjectManager pm, Executor repositoryWorker, @Nullable SessionManager sessionManager,
+            @Nullable Consumer<CommandExecutor> onTakeLeadership,
+            @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
         final ZooKeeperReplicationConfig zkCfg = (ZooKeeperReplicationConfig) cfg.replicationConfig();
 
         // Delete the old UUID replica ID which is not used anymore.
@@ -707,20 +744,18 @@ public class CentralDogma implements AutoCloseable {
 
         final Server server = this.server;
         final CommandExecutor executor = this.executor;
-        final DefaultMirroringService mirroringService = this.mirroringService;
         final ProjectManager pm = this.pm;
         final ExecutorService repositoryWorker = this.repositoryWorker;
         final SessionManager sessionManager = this.sessionManager;
 
         this.server = null;
         this.executor = null;
-        this.mirroringService = null;
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
 
         logger.info("Stopping the Central Dogma ..");
-        if (!doStop(server, executor, mirroringService, pm, repositoryWorker, sessionManager)) {
+        if (!doStop(server, executor, pm, repositoryWorker, sessionManager)) {
             logger.warn("Stopped the Central Dogma with failure.");
         } else {
             logger.info("Stopped the Central Dogma successfully.");
@@ -729,7 +764,6 @@ public class CentralDogma implements AutoCloseable {
 
     private static boolean doStop(
             @Nullable Server server, @Nullable CommandExecutor executor,
-            @Nullable DefaultMirroringService mirroringService,
             @Nullable ProjectManager pm, @Nullable ExecutorService repositoryWorker,
             @Nullable SessionManager sessionManager) {
 
@@ -765,18 +799,6 @@ public class CentralDogma implements AutoCloseable {
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);
-        }
-
-        try {
-            // Stop the mirroring service if the command executor did not stop it.
-            if (mirroringService != null && mirroringService.isStarted()) {
-                logger.info("Stopping the mirroring service not terminated by the command executor ..");
-                mirroringService.stop();
-                logger.info("Stopped the mirroring service.");
-            }
-        } catch (Throwable t) {
-            success = false;
-            logger.warn("Failed to stop the mirroring service:", t);
         }
 
         try {
@@ -819,15 +841,26 @@ public class CentralDogma implements AutoCloseable {
 
     private final class CentralDogmaStartStop extends StartStopSupport<Void, Void, Void, Void> {
 
-        CentralDogmaStartStop() {
+        @Nullable
+        private final PluginGroup pluginsForAllReplicas;
+
+        CentralDogmaStartStop(@Nullable PluginGroup pluginsForAllReplicas) {
             super(GlobalEventExecutor.INSTANCE);
+            this.pluginsForAllReplicas = pluginsForAllReplicas;
         }
 
         @Override
-        protected CompletionStage<Void> doStart(@Nullable Void arg) throws Exception {
+        protected CompletionStage<Void> doStart(@Nullable Void unused) throws Exception {
             return execute("startup", () -> {
                 try {
                     CentralDogma.this.doStart();
+                    if (pluginsForAllReplicas != null) {
+                        final ProjectManager pm = CentralDogma.this.pm;
+                        final CommandExecutor executor = CentralDogma.this.executor;
+                        if (pm != null && executor != null) {
+                            pluginsForAllReplicas.start(cfg, pm, executor).join();
+                        }
+                    }
                 } catch (Exception e) {
                     Exceptions.throwUnsafely(e);
                 }
@@ -835,8 +868,17 @@ public class CentralDogma implements AutoCloseable {
         }
 
         @Override
-        protected CompletionStage<Void> doStop(@Nullable Void arg) throws Exception {
-            return execute("shutdown", CentralDogma.this::doStop);
+        protected CompletionStage<Void> doStop(@Nullable Void unused) throws Exception {
+            return execute("shutdown", () -> {
+                if (pluginsForAllReplicas != null) {
+                    final ProjectManager pm = CentralDogma.this.pm;
+                    final CommandExecutor executor = CentralDogma.this.executor;
+                    if (pm != null && executor != null) {
+                        pluginsForAllReplicas.stop(cfg, pm, executor).join();
+                    }
+                }
+                CentralDogma.this.doStop();
+            });
         }
 
         private CompletionStage<Void> execute(String mode, Runnable task) {

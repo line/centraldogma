@@ -19,10 +19,10 @@ package com.linecorp.centraldogma.server.internal.metadata;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
 import static com.linecorp.centraldogma.server.internal.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.validateSecret;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -46,13 +46,13 @@ import com.linecorp.centraldogma.internal.jsonpatch.RemoveIfExistsOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.RemoveOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.admin.auth.UserWithToken;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
  * A service class for metadata management.

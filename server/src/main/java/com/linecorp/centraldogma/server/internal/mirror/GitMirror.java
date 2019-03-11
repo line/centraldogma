@@ -16,7 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
+import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
+import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
 import java.io.File;
 import java.net.URI;
@@ -54,14 +55,15 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.MirrorException;
-import com.linecorp.centraldogma.server.internal.command.Command;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredential;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-public final class GitMirror extends Mirror {
+public final class GitMirror extends AbstractMirror {
 
     private static final Logger logger = LoggerFactory.getLogger(GitMirror.class);
 
@@ -70,9 +72,9 @@ public final class GitMirror extends Mirror {
 
     private static final int GIT_TIMEOUT_SECS = 10;
 
-    GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-              Repository localRepo, String localPath,
-              URI remoteRepoUri, String remotePath, String remoteBranch) {
+    public GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
+                     Repository localRepo, String localPath,
+                     URI remoteRepoUri, String remotePath, String remoteBranch) {
         super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch);
     }
 

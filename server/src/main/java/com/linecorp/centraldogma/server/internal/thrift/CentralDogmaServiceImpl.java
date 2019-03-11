@@ -17,9 +17,9 @@ package com.linecorp.centraldogma.server.internal.thrift;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.isReservedRepoName;
-import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
+import static com.linecorp.centraldogma.server.storage.project.Project.isReservedRepoName;
+import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static com.spotify.futures.CompletableFutures.allAsList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
@@ -54,12 +54,12 @@ import com.linecorp.centraldogma.internal.thrift.Revision;
 import com.linecorp.centraldogma.internal.thrift.Schema;
 import com.linecorp.centraldogma.internal.thrift.WatchFileResult;
 import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
-import com.linecorp.centraldogma.server.internal.command.Command;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
@@ -135,7 +135,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void listProjects(AsyncMethodCallback resultHandler) {
         handle(() -> {
-            final Map<String, com.linecorp.centraldogma.server.internal.storage.project.Project> projects =
+            final Map<String, com.linecorp.centraldogma.server.storage.project.Project> projects =
                     projectManager.list();
             final List<Project> ret = new ArrayList<>(projects.size());
             projects.forEach((key, value) -> ret.add(convert(key, value)));

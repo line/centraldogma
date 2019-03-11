@@ -29,7 +29,7 @@ import org.eclipse.jgit.treewalk.filter.TreeFilter;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CacheableCompareTreesCall extends CacheableCall<List<DiffEntry>> {
 

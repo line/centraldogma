@@ -33,7 +33,7 @@ import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
 

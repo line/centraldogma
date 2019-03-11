@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
-import static com.linecorp.centraldogma.server.internal.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
+import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -41,11 +41,11 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
-import com.linecorp.centraldogma.server.internal.storage.StorageException;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
+import com.linecorp.centraldogma.server.storage.StorageException;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.FindOption;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CachingRepository implements Repository {
 

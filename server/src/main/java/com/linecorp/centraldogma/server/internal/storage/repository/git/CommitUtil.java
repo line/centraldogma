@@ -29,7 +29,7 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.storage.StorageException;
+import com.linecorp.centraldogma.server.storage.StorageException;
 
 final class CommitUtil {
 

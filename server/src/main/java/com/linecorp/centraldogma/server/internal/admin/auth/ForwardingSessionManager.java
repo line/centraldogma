@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.SessionManager;
 
 /**
  * A {@link SessionManager} which forwards all its method calls to another {@link SessionManager}.

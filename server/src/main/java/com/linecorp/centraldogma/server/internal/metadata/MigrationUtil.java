@@ -16,11 +16,11 @@
 
 package com.linecorp.centraldogma.server.internal.metadata;
 
-import static com.linecorp.centraldogma.server.internal.command.Command.createRepository;
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.command.Command.createRepository;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.RepositorySupport.convertWithJackson;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toMap;
 
@@ -45,12 +45,12 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.LegacyToken;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
  * A utility class for upgrading Central Dogma servers.

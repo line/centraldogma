@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.SessionManager;
 
 /**
  * A {@link SessionManager} which deletes expired sessions while getting them.

@@ -37,13 +37,13 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 public class GitRepositoryManager extends DirectoryBasedStorageManager<Repository>
-                                  implements RepositoryManager {
+        implements RepositoryManager {
 
     private static final Logger logger = LoggerFactory.getLogger(GitRepositoryManager.class);
 

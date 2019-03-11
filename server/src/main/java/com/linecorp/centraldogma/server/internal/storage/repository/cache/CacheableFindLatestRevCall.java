@@ -25,7 +25,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CacheableFindLatestRevCall extends CacheableCall<Revision> {
 

@@ -31,6 +31,8 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableSet;
 
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+
 abstract class AbstractMirrorCredential implements MirrorCredential {
 
     @Nullable

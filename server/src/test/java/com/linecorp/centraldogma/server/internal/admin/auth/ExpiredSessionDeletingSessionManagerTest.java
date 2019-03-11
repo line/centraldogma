@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.Test;
 
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.auth.SessionManager;
 
 public class ExpiredSessionDeletingSessionManagerTest {
 

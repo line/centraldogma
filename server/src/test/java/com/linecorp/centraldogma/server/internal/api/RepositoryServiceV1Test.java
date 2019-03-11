@@ -41,7 +41,7 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class RepositoryServiceV1Test {

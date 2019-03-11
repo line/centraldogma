@@ -22,6 +22,8 @@ import java.util.concurrent.CompletableFuture;
 
 import com.google.common.base.MoreObjects;
 
+import com.linecorp.centraldogma.server.storage.repository.Repository;
+
 // XXX(trustin): Consider using reflection or AOP so that it takes less effort to add more call types.
 public abstract class CacheableCall<T> {
 

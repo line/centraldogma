@@ -30,6 +30,8 @@ import org.junit.Test;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableSet;
 
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+
 public class MirrorCredentialTest {
 
     static final Iterable<Pattern> HOSTNAME_PATTERNS = ImmutableSet.of(Pattern.compile("^foo\\.com$"));

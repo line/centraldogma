@@ -33,7 +33,9 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 public class RepositoryManagerWrapper implements RepositoryManager {
     private final RepositoryManager delegate;

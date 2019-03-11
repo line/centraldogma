@@ -16,14 +16,14 @@
 
 package com.linecorp.centraldogma.server.internal.metadata;
 
-import static com.linecorp.centraldogma.server.internal.command.ProjectInitializer.INTERNAL_PROJ;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_JSON;
 import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_REPO;
 import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_DOGMA;
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.storage.project.Project.REPO_DOGMA;
+import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
@@ -43,16 +43,16 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.CreateProjectCommand;
+import com.linecorp.centraldogma.server.command.ForwardingCommandExecutor;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.LegacyToken;
 import com.linecorp.centraldogma.server.internal.admin.auth.User;
-import com.linecorp.centraldogma.server.internal.command.Command;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.command.CreateProjectCommand;
-import com.linecorp.centraldogma.server.internal.command.ForwardingCommandExecutor;
-import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
 
 public class MigrationUtilTest {
