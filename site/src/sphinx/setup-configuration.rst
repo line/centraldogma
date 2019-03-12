@@ -383,7 +383,7 @@ Java client, call the ``useTls()`` method when building a ``CentralDogma`` insta
 .. code-block:: java
 
     CentralDogma dogma = new ArmeriaCentralDogmaBuilder()
-            .host("centraldogma.example.com", 36462)
+            .host("centraldogma.example.com", 8443)
             .accessToken("appToken-********")
             .useTls()
             .build();
