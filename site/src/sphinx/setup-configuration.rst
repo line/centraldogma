@@ -232,7 +232,7 @@ example shows the configuration of the first replica in a 3-replica cluster:
         "numWorkers": null,
         "maxLogCount": null,
         "minLogAgeMillis": null
-      },
+      }
     }
 
 - ``method`` (string)
@@ -377,12 +377,13 @@ in ``dogma.json`` as follows.
     - the password of the private key file. Specify ``null`` if no password is set. Note that ``null``
       (no password) and ``"null"`` (password is 'null') are different.
 
-If you run your Central Dogma with TLS, you need to enable TLS on the client side as well. Call the
-``useTls()`` method when building a ``CentralDogma`` instance:
+If you run your Central Dogma with TLS, you need to enable TLS on the client side as well. In case of
+Java client, call the ``useTls()`` method when building a ``CentralDogma`` instance:
 
 .. code-block:: java
 
-    CentralDogma dogma = new LegacyCentralDogmaBuilder()
-            .host("centraldogma.example.com", 36462)
+    CentralDogma dogma = new ArmeriaCentralDogmaBuilder()
+            .host("centraldogma.example.com", 8443)
+            .accessToken("appToken-********")
             .useTls()
             .build();

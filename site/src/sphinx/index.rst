@@ -33,13 +33,16 @@ Give it a try!
 |download| now and give it a try (`Java`_ required):
 
 .. parsed-literal::
+    :class: highlight-shell
 
     $ tar zxvf centraldogma-\ |release|\ .tgz
     $ cd centraldogma-\ |release|\ /
     $ bin/startup
-    # Open http://127.0.0.1:36462/ in your browser for administrative console.
+    <Open http://127.0.0.1:36462/ in your browser for administrative console.>
 
-Using Docker? Launch our image at `Docker Hub <https://hub.docker.com/r/line/centraldogma/>`_::
+Using Docker? Launch our image at `Docker Hub <https://hub.docker.com/r/line/centraldogma/>`_:
+
+.. code-block:: shell
 
     $ docker run -p 36462:36462 line/centraldogma
 

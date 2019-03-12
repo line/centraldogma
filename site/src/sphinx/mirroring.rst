@@ -175,7 +175,9 @@ repositories defined in ``/mirrors.json``:
 
 .. note::
 
-    You may want to convert your private key into a JSON string using a ``perl`` command::
+    You may want to convert your private key into a JSON string using a ``perl`` command:
+
+    .. code-block:: shell
 
         $ cat ~/.ssh/id_rsa | perl -p -0 -e 's/\r?\n/\\n/g'
 
