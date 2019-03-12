@@ -26,9 +26,8 @@ Creating projects and repositories
 ----------------------------------
 Use the ``new`` command to create a project:
 
-.. code-block:: bash
+.. code-block:: shell
 
-    # Create two projects.
     $ dogma new projFoo
     Created: /projFoo
     $ dogma new projBar
@@ -36,7 +35,7 @@ Use the ``new`` command to create a project:
 
 ``new`` command is also used for creating a repository:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma new projFoo/repoA
     Created: /projFoo/repoA
@@ -47,7 +46,7 @@ Use the ``ls`` command to list projects, repositories or files.
 
 To list projects, specify no arguments:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma ls
     [
@@ -73,7 +72,7 @@ To list projects, specify no arguments:
 
 To list repositories, specify a project name:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma ls projFoo
     [
@@ -93,10 +92,9 @@ To list repositories, specify a project name:
 To list files or directories in a repository, specify a project name, a repository name and more.
 But before that, let's add a sample file to use under ``samples`` directory:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ echo '{"a":"b"}' > a.json
-
     $ dogma put projFoo/repoA/samples/a.json a.json -m "Add a.json"
     Put: /projFoo/repoA/samples/a.json
 
@@ -104,7 +102,7 @@ We will learn more about adding and editing files in a repository later in the s
 
 Then, list the directory:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma ls projFoo/repoA/samples
     [
@@ -119,7 +117,7 @@ Retrieving a file
 -----------------
 Use the ``cat`` command to retrieve the content of a file:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma cat projFoo/repoA/samples/a.json
     {
@@ -128,21 +126,21 @@ Use the ``cat`` command to retrieve the content of a file:
 
 You can also query a JSON file using JSON path with a flag ``--jsonpath`` or simply ``-j``:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma cat --jsonpath '$.a' projFoo/repoA/samples/a.json
     "b"
 
 You can use multiple JSON paths as well:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma cat -j '$[?(@.a != "notMyValue")]' -j '$[0].a' projFoo/repoA/samples/a.json
     "b"
 
 Alternatively, you can use the ``get`` command to download the file:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma get projFoo/repoA/samples/a.json
     Downloaded: bar.json
@@ -155,14 +153,13 @@ You can add, edit or remove an individual file in a repository using ``put``, ``
 
 First, let's create a JSON file and add it:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ echo '[1, 2, 3]' > three.json
-
     $ dogma put projFoo/repoA/numbers/3.json three.json
     Put: /projFoo/repoA/numbers/3.json
 
-The command above uploads ``three.json`` as ``3.json`` under ``/projFoo/repoA/numbers/``.
+The above command uploads ``three.json`` as ``3.json`` under ``/projFoo/repoA/numbers/``.
 
 If you don't specify the file name, the file name will be attached automatically. For example,
 if you do ``dogma put projFoo/repoA/numbers/ three.json``, then ``/projFoo/repoA/numbers/three.json`` will be added.
@@ -176,7 +173,7 @@ if you do ``dogma put projFoo/repoA/numbers/ three.json``, then ``/projFoo/repoA
 
 And then, check it out:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma cat projFoo/repoA/numbers/3.json
     [
@@ -192,14 +189,14 @@ And then, check it out:
 
 With the ``edit`` command, you can edit a file using a text editor:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma edit projFoo/repoA/numbers/3.json
     ... Text editor shows up ...
 
 Use the ``rm`` command to remove a file:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma rm projFoo/repoA/samples/foo.txt
     Removed: /projFoo/repoA/samples/foo.txt
@@ -209,7 +206,7 @@ Specifying a revision
 Most commands have an option called ``--revision`` which makes the commands retrieve a file at a specific
 revision. If not specified, the client assumes ``-1`` which means the latest revision in the repository:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma cat --revision -1 projFoo/repoA/numbers/3.json
     ... Success ...
@@ -220,7 +217,7 @@ Watching a file
 ---------------
 You can be noticed when a file on the Central Dogma server is changed using the ``watch`` command:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma watch --revision 8 projFoo/repoA/numbers/3.json
     Watcher noticed updated file: projFoo/repoA/numbers/3.json, rev=9
@@ -229,7 +226,7 @@ You can be noticed when a file on the Central Dogma server is changed using the 
 The ``revision`` option represents that you want to watch the change of the file after the revision.
 If you want to keep watching it, use ``--streaming`` option:
 
-.. code-block:: bash
+.. code-block:: shell
 
     $ dogma watch --revision 8 --streaming projFoo/repoA/numbers/3.json
     Watcher noticed updated file: projFoo/repoA/numbers/3.json, rev=9
@@ -239,7 +236,7 @@ If you want to keep watching it, use ``--streaming`` option:
     Watcher noticed updated file: projFoo/repoA/numbers/3.json, rev=11
     Content: ...
 
-    // press CTRL+C
+    <Press CTRL+C>
     Received an interrupt, stopping watcher...
 
 Use the ``--help`` option
@@ -247,8 +244,9 @@ Use the ``--help`` option
 The ``dogma`` client provides more commands and features than what's demonstrated in this tutorial. ``--help``
 option will show the full usage of the client:
 
-.. code-block:: bash
+.. code-block:: shell
 
+    $ dogma --help
     NAME:
        Central Dogma - Central Dogma client
 
@@ -277,8 +275,9 @@ option will show the full usage of the client:
 
 Appending the ``--help`` option after a command will print the detailed usage for the command:
 
-.. code-block:: bash
+.. code-block:: shell
 
+    $ dogma ls --help
     DESCRIPTION:
        Lists the projects, repositories or files
 

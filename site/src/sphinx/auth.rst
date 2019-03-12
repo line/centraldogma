@@ -28,15 +28,16 @@ The authentication configuration consists of the following properties:
 .. code-block:: json
 
     {
-        ...
-        "authentication": {
-            "factoryClassName": "the fully-qualified class name of an AuthenticationProviderFactory",
-            "administrators": [],
-            "caseSensitiveLoginNames": false,
-            "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
-            "sessionTimeoutMillis": 604800000,
-            "sessionValidationSchedule": "0 30 */4 ? * *",
-            "properties": null
+      ...
+      "authentication": {
+        "factoryClassName": "the fully-qualified class name of an AuthenticationProviderFactory",
+        "administrators": [],
+        "caseSensitiveLoginNames": false,
+        "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
+        "sessionTimeoutMillis": 604800000,
+        "sessionValidationSchedule": "0 30 */4 ? * *",
+        "properties": null
+      }
     }
 
 - ``factoryClassName`` (string)
@@ -85,40 +86,40 @@ the authentication to.
 .. code-block:: json
 
     {
-        ...
-        "authentication": {
-            "factoryClassName": "com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory",
-            "administrators": [],
-            "caseSensitiveLoginNames": false,
-            "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
-            "sessionTimeoutMillis": 604800000,
-            "sessionValidationSchedule": "0 30 */4 ? * *",
-            "properties": {
-                "entityId": "dogma",
-                "hostname": "dogma-example.linecorp.com",
-                "signingKey": "signing",
-                "encryptionKey": "encryption",
-                "keyStore": {
-                    "type": "PKCS12",
-                    "path": "./conf/saml.jks",
-                    "password": null,
-                    "keyPasswords": {
-                        "signing": null,
-                        "encryption": null
-                    },
-                    "signatureAlgorithm": "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
-                },
-                "idp": {
-                    "entityId": "some-idp",
-                    "uri": "https://idp.some-service.com/saml/single_sign_on_service",
-                    "binding": "HTTP_POST",
-                    "signingKey": "some-idp",
-                    "encryptionKey": "some-idp",
-                    "subjectLoginNameIdFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
-                    "attributeLoginName": null
-                }
-            }
+      ...
+      "authentication": {
+        "factoryClassName": "com.linecorp.centraldogma.server.auth.saml.SamlAuthProviderFactory",
+        "administrators": [],
+        "caseSensitiveLoginNames": false,
+        "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
+        "sessionTimeoutMillis": 604800000,
+        "sessionValidationSchedule": "0 30 */4 ? * *",
+        "properties": {
+          "entityId": "dogma",
+          "hostname": "dogma-example.linecorp.com",
+          "signingKey": "signing",
+          "encryptionKey": "encryption",
+          "keyStore": {
+            "type": "PKCS12",
+            "path": "./conf/saml.jks",
+            "password": null,
+            "keyPasswords": {
+              "signing": null,
+              "encryption": null
+            },
+            "signatureAlgorithm": "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
+          },
+          "idp": {
+            "entityId": "some-idp",
+            "uri": "https://idp.some-service.com/saml/single_sign_on_service",
+            "binding": "HTTP_POST",
+            "signingKey": "some-idp",
+            "encryptionKey": "some-idp",
+            "subjectLoginNameIdFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+            "attributeLoginName": null
+          }
         }
+      }
     }
 
 The following describes the meaning of SAML-specific properties.
@@ -221,16 +222,16 @@ in the ``properties`` property.
 .. code-block:: json
 
     {
-        ...
-        "authentication": {
-            "factoryClassName": "com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory",
-            "administrators": [],
-            "caseSensitiveLoginNames": false,
-            "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
-            "sessionTimeoutMillis": 604800000,
-            "sessionValidationSchedule": "0 30 */4 ? * *",
-            "properties": "./conf/shiro.ini"
-        }
+      ...
+      "authentication": {
+        "factoryClassName": "com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory",
+        "administrators": [],
+        "caseSensitiveLoginNames": false,
+        "sessionCacheSpec": "maximumSize=8192,expireAfterWrite=604800s",
+        "sessionTimeoutMillis": 604800000,
+        "sessionValidationSchedule": "0 30 */4 ? * *",
+        "properties": "./conf/shiro.ini"
+      }
     }
 
 You may configure ``conf/shiro.ini`` simply as follows, which uses a local database system of `Apache Shiro`_:

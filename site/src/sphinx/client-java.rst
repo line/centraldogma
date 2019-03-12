@@ -17,32 +17,24 @@ Adding ``centraldogma-client`` as a dependency
 Gradle:
 
 .. parsed-literal::
-    :class: highlight-groovy
+    :class: highlight-gradle
 
-    ...
     dependencies {
-        ...
         compile 'com.linecorp.centraldogma:centraldogma-client-armeria:\ |release|\ '
-        ...
     }
-    ...
 
 Maven:
 
 .. parsed-literal::
     :class: highlight-xml
 
-    ...
     <dependencies>
-      ...
       <dependency>
         <groupId>com.linecorp.centraldogma</groupId>
         <artifactId>centraldogma-client-armeria</artifactId>
         <version>\ |release|\ </version>
       </dependency>
-      ...
     </dependencies>
-    ...
 
 Creating a client
 -----------------
@@ -421,12 +413,13 @@ the replicas in the ``beta`` profile support ``http`` only:
 
 You may want to archive this file into a JAR file and distribute it as the *official* client profiles via
 a Maven repository, so that your users get the up-to-date host list easily. For example, a user could put
-``centraldogma-profiles-1.0.jar`` into his or her class path::
+``centraldogma-profiles-1.0.jar`` into his or her class path:
+
+.. code-block:: shell
 
     $ cat centraldogma-profiles.json
     [ { "name": "beta",    "priority": 0, "hosts": [ ... ] },
       { "name": "release", "priority": 0, "hosts": [ ... ] } ]
-
     $ jar cvf centraldogma-profiles-1.0.jar centraldogma-profiles.json
     added manifest
     adding: centraldogma-profiles.json
@@ -476,7 +469,9 @@ Using DNS-based lookup
 Central Dogma Java client always retrieves all the IP addresses of a host from the current system DNS server or
 the ``/etc/host`` file. Instead of specifying all the individual replica addresses in a client profile,
 consider specifying a single host name that's very unlikely to change in the client profile and add multiple
-``A`` or ``AAAA`` DNS records to the host name::
+``A`` or ``AAAA`` DNS records to the host name:
+
+.. code-block:: shell
 
     $ cat centraldogma-profiles.json
     [ {
@@ -487,9 +482,7 @@ consider specifying a single host name that's very unlikely to change in the cli
         "port": 36462
       } ]
     } ]
-
     $ dig all.dogma.example.com
-
     ; <<>> DiG 9.12.1-P2 <<>> all.dogma.example.com
     ;; global options: +cmd
     ;; Got answer:
@@ -520,32 +513,24 @@ client very easily. First, add ``centraldogma-client-spring-boot-starter`` into 
 Gradle:
 
 .. parsed-literal::
-    :class: highlight-groovy
+    :class: highlight-gradle
 
-    ...
     dependencies {
-        ...
         compile 'com.linecorp.centraldogma:centraldogma-client-spring-boot-starter:\ |release|\ '
-        ...
     }
-    ...
 
 Maven:
 
 .. parsed-literal::
     :class: highlight-xml
 
-    ...
     <dependencies>
-      ...
       <dependency>
         <groupId>com.linecorp.centraldogma</groupId>
         <artifactId>centraldogma-client-spring-boot-starter</artifactId>
         <version>\ |release|\ </version>
       </dependency>
-      ...
     </dependencies>
-    ...
 
 Then, add a new section called ``centraldogma`` to your Spring Boot application configuration, which is often
 named ``application.yml``:
