@@ -34,7 +34,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -60,7 +59,6 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
@@ -125,9 +123,6 @@ import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecut
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.MigrationUtil;
-import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringService;
-import com.linecorp.centraldogma.server.internal.pluggable.PluggableServices;
-import com.linecorp.centraldogma.server.internal.pluggable.PluggableServicesStartStop;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
@@ -136,8 +131,8 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaExceptionTra
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaServiceImpl;
 import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutScheduler;
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
-import com.linecorp.centraldogma.server.pluggable.LeaderService;
-import com.linecorp.centraldogma.server.pluggable.PluggableService;
+import com.linecorp.centraldogma.server.plugin.PluginContext;
+import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -177,8 +172,6 @@ public class CentralDogma implements AutoCloseable {
     private ExecutorService repositoryWorker;
     @Nullable
     private CommandExecutor executor;
-    @Nullable
-    private DefaultMirroringService mirroringService;
     @Nullable
     private SessionManager sessionManager;
 
@@ -227,7 +220,7 @@ public class CentralDogma implements AutoCloseable {
      *         {@link Optional#empty()} otherwise.
      */
     public Optional<MirroringService> mirroringService() {
-        return Optional.ofNullable(mirroringService);
+        return Optional.empty();
     }
 
     /**
@@ -267,7 +260,6 @@ public class CentralDogma implements AutoCloseable {
         boolean success = false;
         ThreadPoolExecutor repositoryWorker = null;
         ProjectManager pm = null;
-        DefaultMirroringService mirroringService = null;
         CommandExecutor executor = null;
         Server server = null;
         SessionManager sessionManager = null;
@@ -286,16 +278,11 @@ public class CentralDogma implements AutoCloseable {
 
             logger.info("Current settings:\n{}", cfg);
 
-            mirroringService = new DefaultMirroringService(new File(cfg.dataDir(), "_mirrors"),
-                                                           pm,
-                                                           cfg.numMirroringThreads(),
-                                                           cfg.maxNumFilesPerMirror(),
-                                                           cfg.maxNumBytesPerMirror());
             sessionManager = initializeSessionManager();
 
             logger.info("Starting the command executor ..");
 
-            executor = startCommandExecutor(pm, mirroringService, repositoryWorker, sessionManager);
+            executor = startCommandExecutor(pm, repositoryWorker, sessionManager);
             if (executor.isWritable()) {
                 logger.info("Started the command executor.");
 
@@ -315,71 +302,48 @@ public class CentralDogma implements AutoCloseable {
                 this.repositoryWorker = repositoryWorker;
                 this.pm = pm;
                 this.executor = executor;
-                this.mirroringService = mirroringService;
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
-                doStop(server, executor, mirroringService, pm, repositoryWorker, sessionManager);
+                doStop(server, executor, pm, repositoryWorker, sessionManager);
             }
         }
     }
 
     private CommandExecutor startCommandExecutor(
-            ProjectManager pm, DefaultMirroringService mirroringService,
-            Executor repositoryWorker, @Nullable SessionManager sessionManager) {
+            ProjectManager pm, Executor repositoryWorker, @Nullable SessionManager sessionManager) {
 
-        final List<PluggableService> leaderServices =
-                PluggableServices.load(CentralDogma.class.getClassLoader(), LeaderService.class,
-                                       LeaderService::toPluggableService);
-
-        // TODO(hyangtack) Need to use another executor?
         // TODO(hyangtack) Fix here after migrating MirrorService to LeaderService.
-        final PluggableServicesStartStop leaderServicesStartStop =
-                !leaderServices.isEmpty() ? new PluggableServicesStartStop(CommonPools.blockingTaskExecutor(),
-                                                                           leaderServices)
-                                          : null;
-
+        final PluginStartStopSupport leaderOnlyPlugins =
+                PluginStartStopSupport.loadPlugins(CentralDogma.class.getClassLoader(),
+                                                   PluginTarget.LEADER_ONLY);
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
-            if (leaderServicesStartStop != null) {
-                logger.info("Starting LeaderServices ..");
-                leaderServicesStartStop.start(false).handle((unused, cause) -> {
+            if (leaderOnlyPlugins != null) {
+                logger.info("Starting plug-ins on the leader replica ..");
+                leaderOnlyPlugins.context(new PluginContext(cfg, pm, exec));
+                leaderOnlyPlugins.start(false).handle((unused, cause) -> {
                     if (cause == null) {
-                        logger.info("Started LeaderServices.");
+                        logger.info("Started plug-ins on the leader replica.");
                     } else {
-                        logger.error("Failed to start LeaderServices.", cause);
+                        logger.error("Failed to start plug-ins on the leader replica..", cause);
                     }
                     return null;
                 });
-            }
-
-            // TODO(hyangtack) Remove.
-            if (cfg.isMirroringEnabled()) {
-                logger.info("Starting the mirroring service ..");
-                mirroringService.start(exec);
-                logger.info("Started the mirroring service.");
-            } else {
-                logger.info("Not starting the mirroring service because it's disabled.");
             }
         };
 
         final Runnable onReleaseLeadership = () -> {
-            if (leaderServicesStartStop != null) {
-                logger.info("Stopping LeaderServices ..");
-                leaderServicesStartStop.stop().handle((unused, cause) -> {
+            if (leaderOnlyPlugins != null) {
+                logger.info("Stopping plug-ins on the leader replica ..");
+                leaderOnlyPlugins.context(new PluginContext(cfg, pm, null));
+                leaderOnlyPlugins.stop().handle((unused, cause) -> {
                     if (cause == null) {
-                        logger.info("Stopped LeaderServices.");
+                        logger.info("Stopped plug-ins on the leader replica.");
                     } else {
-                        logger.error("Failed to stop LeaderServices.", cause);
+                        logger.error("Failed to stop plug-ins on the leader replica.", cause);
                     }
                     return null;
                 });
-            }
-
-            // TODO(hyangtack) Remove.
-            if (cfg.isMirroringEnabled()) {
-                logger.info("Stopping the mirroring service ..");
-                mirroringService.stop();
-                logger.info("Stopped the mirroring service.");
             }
         };
 
@@ -751,20 +715,18 @@ public class CentralDogma implements AutoCloseable {
 
         final Server server = this.server;
         final CommandExecutor executor = this.executor;
-        final DefaultMirroringService mirroringService = this.mirroringService;
         final ProjectManager pm = this.pm;
         final ExecutorService repositoryWorker = this.repositoryWorker;
         final SessionManager sessionManager = this.sessionManager;
 
         this.server = null;
         this.executor = null;
-        this.mirroringService = null;
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
 
         logger.info("Stopping the Central Dogma ..");
-        if (!doStop(server, executor, mirroringService, pm, repositoryWorker, sessionManager)) {
+        if (!doStop(server, executor, pm, repositoryWorker, sessionManager)) {
             logger.warn("Stopped the Central Dogma with failure.");
         } else {
             logger.info("Stopped the Central Dogma successfully.");
@@ -773,7 +735,6 @@ public class CentralDogma implements AutoCloseable {
 
     private static boolean doStop(
             @Nullable Server server, @Nullable CommandExecutor executor,
-            @Nullable DefaultMirroringService mirroringService,
             @Nullable ProjectManager pm, @Nullable ExecutorService repositoryWorker,
             @Nullable SessionManager sessionManager) {
 
@@ -809,18 +770,6 @@ public class CentralDogma implements AutoCloseable {
         } catch (Throwable t) {
             success = false;
             logger.warn("Failed to stop the command executor:", t);
-        }
-
-        try {
-            // Stop the mirroring service if the command executor did not stop it.
-            if (mirroringService != null && mirroringService.isStarted()) {
-                logger.info("Stopping the mirroring service not terminated by the command executor ..");
-                mirroringService.stop();
-                logger.info("Stopped the mirroring service.");
-            }
-        } catch (Throwable t) {
-            success = false;
-            logger.warn("Failed to stop the mirroring service:", t);
         }
 
         try {

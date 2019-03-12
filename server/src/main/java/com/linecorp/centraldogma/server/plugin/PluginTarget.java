@@ -13,10 +13,20 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Supports pluggable services which are running on the Central Dogma server.
- */
-@NonNullByDefault
-package com.linecorp.centraldogma.server.pluggable;
+package com.linecorp.centraldogma.server.plugin;
 
-import com.linecorp.centraldogma.common.util.NonNullByDefault;
+/**
+ * Targets that a {@link Plugin} is applied to which replica.
+ */
+public enum PluginTarget {
+    /**
+     * Run the {@link Plugin} on the all replicas. It would be started after the replica is started
+     * and would be stopped before the replica is stopped.
+     */
+    ALL_REPLICAS,
+    /**
+     * Run the {@link Plugin} on the leader replica. It would be started after the replica has taken
+     * the leadership and would be stopped when the replica is about to release the leadership.
+     */
+    LEADER_ONLY
+}

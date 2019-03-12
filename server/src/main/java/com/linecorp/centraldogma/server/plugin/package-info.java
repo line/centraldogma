@@ -13,24 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.pluggable;
-
-import java.util.concurrent.CompletionStage;
-
 /**
- * An interface which defines callbacks invoked when a pluggable service is supposed to be started/stopped.
- * Note that currently only {@link LeaderService} is available to be plugged-in.
- *
- * @see LeaderService
+ * Supports plug-ins which are running on the Central Dogma server.
  */
-public interface PluggableService {
-    /**
-     * Invoked when this service is supposed to be started.
-     */
-    CompletionStage<Void> start();
+@NonNullByDefault
+package com.linecorp.centraldogma.server.plugin;
 
-    /**
-     * Invoked when this service is supposed to be stopped.
-     */
-    CompletionStage<Void> stop();
-}
+import com.linecorp.centraldogma.common.util.NonNullByDefault;
