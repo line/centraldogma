@@ -107,6 +107,12 @@ public class CentralDogmaClientAutoConfiguration {
             builder.useTls(useTls);
         }
 
+        // Set access token.
+        final String accessToken = settings.getAccessToken();
+        if (accessToken != null) {
+            builder.accessToken(accessToken);
+        }
+
         // Set profile or hosts.
         final String profile = settings.getProfile();
         final List<String> hosts = settings.getHosts();

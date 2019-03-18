@@ -55,5 +55,6 @@ public class CentralDogmaClientAutoConfigurationOtherPropsTest {
         assertThat(settings.getProfile()).isNull();
         assertThat(settings.getUseTls()).isTrue();
         assertThat(settings.getHealthCheckIntervalMillis()).isEqualTo(60000);
+        assertThat(settings.getAccessToken()).isEqualTo("my-dogma-access-token");
     }
 }
