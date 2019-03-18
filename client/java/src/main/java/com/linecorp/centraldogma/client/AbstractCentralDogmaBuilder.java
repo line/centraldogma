@@ -41,6 +41,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.net.InetAddresses;
 
+import com.linecorp.centraldogma.internal.CsrfToken;
+
 /**
  * Builds a {@link CentralDogma} client.
  */
@@ -58,6 +60,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     private List<String> profileResourcePaths = DEFAULT_PROFILE_RESOURCE_PATHS;
     @Nullable
     private String selectedProfile;
+    private String accessToken = CsrfToken.ANONYMOUS;
 
     /**
      * Returns {@code this}.
@@ -324,5 +327,22 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      */
     protected final Set<InetSocketAddress> hosts() {
         return hosts;
+    }
+
+    /**
+     * Sets the access token to use when authenticating a client.
+     */
+    public final B accessToken(String accessToken) {
+        requireNonNull(accessToken, "accessToken");
+        checkArgument(!accessToken.isEmpty(), "accessToken is empty.");
+        this.accessToken = accessToken;
+        return self();
+    }
+
+    /**
+     * Returns the access token to use when authenticating a client.
+     */
+    protected String accessToken() {
+        return accessToken;
     }
 }

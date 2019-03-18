@@ -24,7 +24,6 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.AbstractArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
 /**
@@ -49,10 +48,11 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
                .decorator(HttpDecodingClient.newDecorator())
                .rpcDecorator(LegacyCentralDogmaTimeoutScheduler::new);
 
+        final String authorization = "Bearer " + accessToken();
         builder.decorator((delegate, ctx, req) -> {
             if (!req.headers().contains(HttpHeaderNames.AUTHORIZATION)) {
                 // To prevent CSRF attack, we add 'Authorization' header to every request.
-                req.headers().set(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS);
+                req.headers().set(HttpHeaderNames.AUTHORIZATION, authorization);
             }
             return delegate.execute(ctx, req);
         });

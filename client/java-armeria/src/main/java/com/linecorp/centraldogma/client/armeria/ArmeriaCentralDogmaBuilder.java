@@ -15,9 +15,6 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.requireNonNull;
-
 import java.net.UnknownHostException;
 
 import com.linecorp.armeria.client.ClientBuilder;
@@ -25,23 +22,9 @@ import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.encoding.HttpDecodingClient;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.internal.CsrfToken;
 
 public final class ArmeriaCentralDogmaBuilder
         extends AbstractArmeriaCentralDogmaBuilder<ArmeriaCentralDogmaBuilder> {
-
-    private String accessToken = CsrfToken.ANONYMOUS;
-
-    /**
-     * Sets the access token to use when authenticating a client.
-     */
-    public ArmeriaCentralDogmaBuilder accessToken(String accessToken) {
-        requireNonNull(accessToken, "accessToken");
-        checkArgument(!accessToken.isEmpty(), "accessToken is empty.");
-        this.accessToken = accessToken;
-        return this;
-    }
-
     /**
      * Returns a newly-created {@link CentralDogma} instance.
      *
@@ -56,6 +39,6 @@ public final class ArmeriaCentralDogmaBuilder
         builder.factory(clientFactory());
         builder.decorator(HttpDecodingClient.newDecorator());
         return new ArmeriaCentralDogma(clientFactory().eventLoopGroup(),
-                                       builder.build(HttpClient.class), accessToken);
+                                       builder.build(HttpClient.class), accessToken());
     }
 }
