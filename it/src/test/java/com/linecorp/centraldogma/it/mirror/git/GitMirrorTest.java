@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.it.mirror.git;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_COMMIT_SECTION;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_GPGSIGN;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,6 +37,7 @@ import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.junit.After;
@@ -102,7 +105,8 @@ public class GitMirrorTest {
     public void initGitRepo() throws Exception {
         gitWorkTree = new File(gitRepoDir.getRoot(), testName.getMethodName()).getAbsoluteFile();
         final Repository gitRepo = new FileRepositoryBuilder().setWorkTree(gitWorkTree).build();
-        gitRepo.create();
+        createGitRepo(gitRepo);
+
         git = Git.wrap(gitRepo);
         gitUri = "git+file://" +
                  (gitWorkTree.getPath().startsWith(File.separator) ? "" : "/") +
@@ -111,6 +115,15 @@ public class GitMirrorTest {
 
         // Start the master branch with an empty commit.
         git.commit().setMessage("Initial commit").call();
+    }
+
+    private static void createGitRepo(Repository gitRepo) throws IOException {
+        gitRepo.create();
+
+        // Disable GPG signing.
+        final StoredConfig config = gitRepo.getConfig();
+        config.setBoolean(CONFIG_COMMIT_SECTION, null, CONFIG_KEY_GPGSIGN, false);
+        config.save();
     }
 
     @Before
@@ -301,7 +314,7 @@ public class GitMirrorTest {
                 new File(gitRepoDir.getRoot(), testName.getMethodName() + ".submodule").getAbsoluteFile();
         final Repository gitSubmoduleRepo =
                 new FileRepositoryBuilder().setWorkTree(gitSubmoduleWorkTree).build();
-        gitSubmoduleRepo.create();
+        createGitRepo(gitSubmoduleRepo);
         final Git gitSubmodule = Git.wrap(gitSubmoduleRepo);
         final String gitSubmoduleUri = "file://" +
                  (gitSubmoduleWorkTree.getPath().startsWith(File.separator) ? "" : "/") +

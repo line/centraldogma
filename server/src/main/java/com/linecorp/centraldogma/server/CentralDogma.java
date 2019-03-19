@@ -69,6 +69,7 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.util.EventLoopGroups;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
+import com.linecorp.armeria.common.util.SystemInfo;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.PathMapping;
 import com.linecorp.armeria.server.Server;
@@ -77,7 +78,6 @@ import com.linecorp.armeria.server.ServerCacheControl;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.VirtualHostBuilder;
 import com.linecorp.armeria.server.auth.HttpAuthService;
 import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
 import com.linecorp.armeria.server.docs.DocServiceBuilder;
@@ -446,9 +446,7 @@ public class CentralDogma implements AutoCloseable {
 
         configureThriftService(sb, pm, executor, watchService, mds);
 
-        // TODO(trustin): Add an easy way to get the default hostname without instantiating Server in Armeria.
-        final String hostname = new VirtualHostBuilder().build().defaultHostname();
-        sb.service("/title", webAppTitleFile(cfg.webAppTitle(), hostname).asService());
+        sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
 
         sb.service("/cache_stats", new AbstractHttpService() {
             @Override

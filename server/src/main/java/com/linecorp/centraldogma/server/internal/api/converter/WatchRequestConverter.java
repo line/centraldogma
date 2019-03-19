@@ -22,6 +22,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
@@ -31,17 +32,23 @@ import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
+import io.netty.util.AsciiString;
+
 /**
  * A request converter that converts to {@link WatchRequest} when the request contains
  * {@link HttpHeaderNames#IF_NONE_MATCH}.
  */
 public final class WatchRequestConverter implements RequestConverterFunction {
 
+    // TODO(trustin): Replace with HttpHeaderNames.PREFER.
+    @VisibleForTesting
+    static final AsciiString HEADER_NAME_PREFER = HttpHeaderNames.of("prefer");
+
     private static final long DEFAULT_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(120);
 
     /**
      * Converts the specified {@code request} to {@link Optional} which contains {@link WatchRequest} when
-     * the request has {@link HttpHeaderNames#IF_NONE_MATCH}. {@link Optional#EMPTY} otherwise.
+     * the request has {@link HttpHeaderNames#IF_NONE_MATCH}. {@link Optional#empty()} otherwise.
      */
     @Override
     public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
@@ -49,7 +56,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
         final String ifNoneMatch = request.headers().get(HttpHeaderNames.IF_NONE_MATCH);
         if (!isNullOrEmpty(ifNoneMatch)) {
             final Revision lastKnownRevision = new Revision(ifNoneMatch);
-            final String prefer = request.headers().get(HttpHeaderNames.PREFER);
+            final String prefer = request.headers().get(HEADER_NAME_PREFER);
             final long timeoutMillis;
             if (!isNullOrEmpty(prefer)) {
                 timeoutMillis = getTimeoutMillis(prefer);
