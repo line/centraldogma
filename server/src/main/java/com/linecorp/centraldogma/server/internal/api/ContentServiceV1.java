@@ -53,7 +53,6 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
@@ -103,16 +102,16 @@ public class ContentServiceV1 extends AbstractService {
                                                           Repository repository) {
         final String normalizedPath = normalizePath(path);
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)), false, future);
+        listFiles(repository, normalizedPath, new Revision(revision), false, future);
         return future;
     }
 
-    private static void listFiles(Repository repository, String pathPattern, Revision normalizedRevision,
+    private static void listFiles(Repository repository, String pathPattern, Revision revision,
                                   boolean withContent, CompletableFuture<List<EntryDto<?>>> result) {
         final Map<FindOption<?>, ?> options = withContent ? FindOptions.FIND_ALL_WITH_CONTENT
                                                           : FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
-        repository.find(normalizedRevision, pathPattern, options).handle((entries, thrown) -> {
+        repository.find(revision, pathPattern, options).handle((entries, thrown) -> {
             if (thrown != null) {
                 result.completeExceptionally(thrown);
                 return null;
@@ -122,7 +121,7 @@ public class ContentServiceV1 extends AbstractService {
             // This is called once at most, because the pathPattern is not a valid file path anymore.
             if (isValidFilePath(pathPattern) && entries.size() == 1 &&
                 entries.values().iterator().next().type() == DIRECTORY) {
-                listFiles(repository, pathPattern + "/*", normalizedRevision, withContent, result);
+                listFiles(repository, pathPattern + "/*", revision, withContent, result);
             } else {
                 result.complete(entries.values().stream()
                                        .map(entry -> convert(repository, entry, withContent))
@@ -171,22 +170,10 @@ public class ContentServiceV1 extends AbstractService {
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
 
-        final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
-
-        final CompletableFuture<Map<String, Change<?>>> changesFuture =
-                repository.previewDiff(normalizedRevision, changes);
-
-        return changesFuture.thenCompose(previewDiffs -> {
-            if (previewDiffs.isEmpty()) {
-                throw new RedundantChangeException();
-            }
-
-            final long commitTimeMillis = System.currentTimeMillis();
-            return push(commitTimeMillis, author, repository, normalizedRevision,
-                        commitMessage, previewDiffs.values())
-                    .toCompletableFuture()
-                    .thenApply(rrev -> convert(rrev, commitTimeMillis));
-        });
+        final long commitTimeMillis = System.currentTimeMillis();
+        return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
+                .toCompletableFuture()
+                .thenApply(rrev -> convert(rrev, commitTimeMillis));
     }
 
     private CompletableFuture<Revision> push(long commitTimeMills, Author author, Repository repository,
@@ -212,10 +199,8 @@ public class ContentServiceV1 extends AbstractService {
             Repository repository,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
 
-        final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
-
         final CompletableFuture<Map<String, Change<?>>> changesFuture =
-                repository.previewDiff(normalizedRevision, changes);
+                repository.previewDiff(new Revision(revision), changes);
 
         return changesFuture.thenApply(previewDiffs -> previewDiffs.values().stream()
                                                                    .map(DtoConverter::convert)
@@ -261,7 +246,7 @@ public class ContentServiceV1 extends AbstractService {
 
         // get files
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, repository.normalizeNow(new Revision(revision)), true, future);
+        listFiles(repository, normalizedPath, new Revision(revision), true, future);
         return future;
     }
 
