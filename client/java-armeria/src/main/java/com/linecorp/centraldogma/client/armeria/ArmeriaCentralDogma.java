@@ -99,7 +99,12 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
+import io.netty.util.AsciiString;
+
 final class ArmeriaCentralDogma extends AbstractCentralDogma {
+
+    // TODO(trustin): Replace with HttpHeaderNames.PREFER.
+    private static final AsciiString HEADER_NAME_PREFER = HttpHeaderNames.of("prefer");
 
     private static final MediaType JSON_PATCH_UTF8 = MediaType.JSON_PATCH.withCharset(StandardCharsets.UTF_8);
 
@@ -807,7 +812,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                                            String path, Function<AggregatedHttpMessage, T> func) {
         final HttpHeaders headers = headers(HttpMethod.GET, path)
                 .set(HttpHeaderNames.IF_NONE_MATCH, lastKnownRevision.text())
-                .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
+                .set(HEADER_NAME_PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
 
         try (SafeCloseable ignored = Clients.withContextCustomizer(ctx -> {
             ctx.setResponseTimeoutMillis(

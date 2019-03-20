@@ -19,10 +19,12 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_COMMIT_SECTION;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_CORE_SECTION;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_DIFF_SECTION;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_ALGORITHM;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_FILEMODE;
+import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_GPGSIGN;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_HIDEDOTFILES;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_RENAMES;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_REPO_FORMAT_VERSION;
@@ -200,6 +202,9 @@ class GitRepository implements Repository {
                 config.setEnum(CONFIG_CORE_SECTION, null, CONFIG_KEY_HIDEDOTFILES, HideDotFiles.FALSE);
                 config.setBoolean(CONFIG_CORE_SECTION, null, CONFIG_KEY_SYMLINKS, false);
                 config.setBoolean(CONFIG_CORE_SECTION, null, CONFIG_KEY_FILEMODE, false);
+
+                // Disable GPG signing.
+                config.setBoolean(CONFIG_COMMIT_SECTION, null, CONFIG_KEY_GPGSIGN, false);
 
                 // Set the diff algorithm.
                 config.setString(CONFIG_DIFF_SECTION, null, CONFIG_KEY_ALGORITHM, "histogram");

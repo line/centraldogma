@@ -40,7 +40,12 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
 
+import io.netty.util.AsciiString;
+
 public class ContentServiceV1Test extends ContentServiceV1TestBase {
+
+    // TODO(trustin): Replace with HttpHeaderNames.PREFER.
+    private static final AsciiString HEADER_NAME_PREFER = HttpHeaderNames.of("prefer");
 
     // TODO(minwoox) replace this unit test using nested structure in junit 5
     // Rule is used instead of ClassRule because the listFiles is
@@ -555,7 +560,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     public void watchRepositoryTimeout() {
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX)
                                                .add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                               .add(HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
+                                               .add(HEADER_NAME_PREFER, "wait=5"); // 5 seconds
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
         await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
         assertThat(future.join().headers().status()).isSameAs(HttpStatus.NOT_MODIFIED);
@@ -565,7 +570,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     public void watchFileTimeout() {
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json")
                                                .add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                               .add(HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
+                                               .add(HEADER_NAME_PREFER, "wait=5"); // 5 seconds
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
         await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
         assertThat(future.join().headers().status()).isSameAs(HttpStatus.NOT_MODIFIED);

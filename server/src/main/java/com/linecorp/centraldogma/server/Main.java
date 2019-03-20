@@ -32,7 +32,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.FileConverter;
 
-import jnr.posix.POSIXFactory;
+import com.linecorp.armeria.common.util.SystemInfo;
 
 /**
  * Entry point of a standalone server. Use {@link CentralDogmaBuilder} to embed a server.
@@ -239,7 +239,7 @@ public final class Main {
                                                 file.getPath());
             }
 
-            final int pid = POSIXFactory.getPOSIX().getpid();
+            final int pid = SystemInfo.pid();
             final Path temp = Files.createTempFile("central-dogma", ".tmp");
             Files.write(temp, Integer.toString(pid).getBytes());
             try {
