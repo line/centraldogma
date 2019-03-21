@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.nullToEmpty;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Locale;
@@ -167,7 +168,7 @@ public final class HttpApiUtil {
             }
         }
 
-        final String m = message != null ? message : status.reasonPhrase();
+        final String m = nullToEmpty(message);
         node.put("message", m);
 
         // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return

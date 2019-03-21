@@ -600,6 +600,7 @@ public class CentralDogma implements AutoCloseable {
                                      .add(new ApplicationTokenAuthorizer(mds::findTokenBySecret)
                                                   .orElse(new SessionTokenAuthorizer(sessionManager,
                                                                                      authCfg.administrators())))
+                                     .onFailure(new CentralDogmaAuthFailureHandler())
                                      .newDecorator());
         } else {
             decorator = MetadataServiceInjector
