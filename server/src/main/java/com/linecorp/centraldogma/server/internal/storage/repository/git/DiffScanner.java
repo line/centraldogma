@@ -165,18 +165,21 @@ final class DiffScanner {
                     return true;
                 }
             } else if (!oldId.equals(newId)) {
-                final DiffEntry entry = new DiffEntry(path, path, diffAttribute, oldMode, newMode,
-                                                      ChangeType.MODIFY, oldId, newId);
                 if (sameType(oldMode, newMode)) {
+                    final DiffEntry entry = new DiffEntry(path, path, diffAttribute, oldMode, newMode,
+                                                          ChangeType.MODIFY, oldId, newId);
                     if (matcher.test(entry)) {
                         return true;
                     }
                 } else {
-                    final DiffEntry[] brokenEntries = breakModify(entry);
-                    if (matcher.test(brokenEntries[0])) {
+                    if (matcher.test(new DiffEntry(path, DEV_NULL, diffAttribute,
+                                                   oldMode, FileMode.MISSING, ChangeType.DELETE,
+                                                   oldId, ObjectId.zeroId()))) {
                         return true;
                     }
-                    if (matcher.test(brokenEntries[1])) {
+                    if (matcher.test(new DiffEntry(DEV_NULL, path, diffAttribute,
+                                                   FileMode.MISSING, newMode, ChangeType.ADD,
+                                                   ObjectId.zeroId(), newId))) {
                         return true;
                     }
                 }
@@ -229,25 +232,6 @@ final class DiffScanner {
         final int aType = a.getBits() & FileMode.TYPE_MASK;
         final int bType = b.getBits() & FileMode.TYPE_MASK;
         return aType == bType;
-    }
-
-    /**
-     * Breaks apart a DiffEntry into two entries, one DELETE and one ADD.
-     *
-     * @param entry the DiffEntry to break apart.
-     * @return a list containing two entries. Calling {@link DiffEntry#getChangeType()}
-     *         on the first entry will return ChangeType.DELETE. Calling it on
-     *         the second entry will return ChangeType.ADD.
-     */
-    static DiffEntry[] breakModify(DiffEntry entry) {
-        return new DiffEntry[] {
-                new DiffEntry(entry.getOldPath(), DEV_NULL, entry.getDiffAttribute(),
-                              entry.getOldMode(), FileMode.MISSING, ChangeType.DELETE,
-                              entry.getOldId(), ObjectId.zeroId()),
-                new DiffEntry(DEV_NULL, entry.getNewPath(), entry.getDiffAttribute(),
-                              FileMode.MISSING, entry.getNewMode(), ChangeType.ADD,
-                              ObjectId.zeroId(), entry.getNewId())
-        };
     }
 
     private DiffScanner() {}
