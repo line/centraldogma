@@ -51,7 +51,6 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
-import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
@@ -90,6 +89,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -671,8 +671,7 @@ class GitRepository implements Repository {
 
         readLock();
         try (ObjectReader reader = jGitRepository.newObjectReader();
-             RevWalk revWalk = new RevWalk(reader);
-             DiffFormatter diffFormatter = new DiffFormatter(NullOutputStream.INSTANCE)) {
+             RevWalk revWalk = new RevWalk(reader)) {
 
             final ObjectId baseTreeId = toTreeId(revWalk, baseRevision);
             final DirCache dirCache = DirCache.newInCore();
@@ -683,9 +682,12 @@ class GitRepository implements Repository {
 
             final CanonicalTreeParser p = new CanonicalTreeParser();
             p.reset(reader, baseTreeId);
-            diffFormatter.setRepository(jGitRepository);
-            final List<DiffEntry> result = diffFormatter.scan(p, new DirCacheIterator(dirCache));
-            return toChangeMap(result);
+            final ImmutableList.Builder<DiffEntry> builder = ImmutableList.builder();
+            DiffGenerator.scan(jGitRepository, p, new DirCacheIterator(dirCache), TreeFilter.ALL, entry -> {
+                builder.add(entry);
+                return false;
+            });
+            return toChangeMap(builder.build());
         } catch (IOException e) {
             throw new StorageException("failed to perform a dry-run diff", e);
         } finally {
@@ -1302,33 +1304,32 @@ class GitRepository implements Repository {
 
         // Slow path: compare the two trees.
         final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
+        final boolean matches;
         readLock();
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-            final List<DiffEntry> diff = compareTrees(toTreeId(revWalk, range.from()),
-                                                      toTreeId(revWalk, range.to()), TreeFilter.ALL);
-            for (DiffEntry e : diff) {
-                final String path;
-                switch (e.getChangeType()) {
-                    case ADD:
-                        path = e.getNewPath();
-                        break;
-                    case MODIFY:
-                    case DELETE:
-                        path = e.getOldPath();
-                        break;
-                    default:
-                        throw new Error();
-                }
+            matches = DiffGenerator.scan(
+                    jGitRepository, toTreeId(revWalk, range.from()), toTreeId(revWalk, range.to()),
+                    TreeFilter.ALL, e -> {
+                        final String path;
+                        switch (e.getChangeType()) {
+                            case ADD:
+                                path = e.getNewPath();
+                                break;
+                            case MODIFY:
+                            case DELETE:
+                                path = e.getOldPath();
+                                break;
+                            default:
+                                throw new Error();
+                        }
 
-                if (filter.matches(path)) {
-                    return range.to();
-                }
-            }
+                        return filter.matches(path);
+                    });
         } finally {
             readUnlock();
         }
 
-        return null;
+        return matches ? range.to() : null;
     }
 
     @Override
@@ -1361,20 +1362,20 @@ class GitRepository implements Repository {
     }
 
     private void notifyWatchers(Revision newRevision, @Nullable ObjectId prevTreeId, ObjectId nextTreeId) {
-        final List<DiffEntry> diff = compareTrees(prevTreeId, nextTreeId, TreeFilter.ALL);
-        for (DiffEntry e: diff) {
-            switch (e.getChangeType()) {
-            case ADD:
-                commitWatchers.notify(newRevision, e.getNewPath());
-                break;
-            case MODIFY:
-            case DELETE:
-                commitWatchers.notify(newRevision, e.getOldPath());
-                break;
-            default:
-                throw new Error();
+        DiffGenerator.scan(jGitRepository, prevTreeId, nextTreeId, TreeFilter.ALL, entry -> {
+            switch (entry.getChangeType()) {
+                case ADD:
+                    commitWatchers.notify(newRevision, entry.getNewPath());
+                    break;
+                case MODIFY:
+                case DELETE:
+                    commitWatchers.notify(newRevision, entry.getOldPath());
+                    break;
+                default:
+                    throw new Error();
             }
-        }
+            return false;
+        });
     }
 
     private Revision cachedHeadRevision() {
@@ -1410,9 +1411,12 @@ class GitRepository implements Repository {
             diffFormatter.setRepository(jGitRepository);
             diffFormatter.setPathFilter(filter);
 
-            return diffFormatter.scan(prevTreeId, nextTreeId);
-        } catch (IOException e) {
-            throw new StorageException("failed to compare two trees: " + prevTreeId + " vs. " + nextTreeId, e);
+            final ImmutableList.Builder<DiffEntry> builder = ImmutableList.builder();
+            DiffGenerator.scan(jGitRepository, prevTreeId, nextTreeId, filter, entry -> {
+                builder.add(entry);
+                return false;
+            });
+            return builder.build();
         }
     }
 
