@@ -58,7 +58,11 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
 import java.util.function.Predicate;
 
 import org.eclipse.jgit.attributes.Attribute;
@@ -81,19 +85,57 @@ import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
 import org.eclipse.jgit.treewalk.filter.IndexDiffFilter;
 import org.eclipse.jgit.treewalk.filter.NotIgnoredFilter;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.DiffEntry.ChangeType;
 
 final class DiffScanner {
 
+    private static final Logger logger = LoggerFactory.getLogger(DiffScanner.class);
+
     /**
      * Magical file name used for file adds or deletes.
      */
     private static final String DEV_NULL = "/dev/null";
 
-    static boolean scan(Repository repository, AnyObjectId a, AnyObjectId b,
-                        TreeFilter filter, Predicate<DiffEntry> matcher) {
+    private static final LoadingCache<CacheKey, List<DiffEntry>> cache =
+            Caffeine.newBuilder().maximumSize(8192).expireAfterAccess(Duration.ofMinutes(10)).build(key -> {
+                final ImmutableList.Builder<DiffEntry> builder = ImmutableList.builder();
+                scan(key.repo, key.oidA, key.oidB, TreeFilter.ALL, e -> {
+                    builder.add(e);
+                    return false;
+                });
+                logger.info("Cache miss: {}", key);
+                return builder.build();
+            });
+
+    static boolean scanCached(Repository repository, AnyObjectId a, AnyObjectId b,
+                              TreeFilter filter, Predicate<DiffEntry> matcher) {
+        if (filter == TreeFilter.ALL) {
+            final CacheKey key = new CacheKey(repository, a, b);
+            final List<DiffEntry> entries = cache.get(key);
+            if (entries != null) {
+                for (DiffEntry e : entries) {
+                    if (matcher.test(e)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        // Uncached version.
+        return scan(repository, a, b, filter, matcher);
+    }
+
+    private static boolean scan(Repository repository, AnyObjectId a, AnyObjectId b,
+                                TreeFilter filter, Predicate<DiffEntry> matcher) {
         try (ObjectReader reader = repository.newObjectReader();
              RevWalk rw = new RevWalk(reader)) {
             final RevTree aTree = a != null ? rw.parseTree(a) : null;
@@ -235,4 +277,43 @@ final class DiffScanner {
     }
 
     private DiffScanner() {}
+
+    private static final class CacheKey {
+        final Repository repo;
+        final ObjectId oidA;
+        final ObjectId oidB;
+
+        CacheKey(Repository repo, AnyObjectId oidA, AnyObjectId oidB) {
+            this.repo = requireNonNull(repo, "repo");
+            this.oidA = requireNonNull(oidA, "a").toObjectId();
+            this.oidB = requireNonNull(oidB, "b").toObjectId();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            final CacheKey that = (CacheKey) o;
+            return repo == that.repo && oidA.equals(that.oidA) && oidB.equals(that.oidB);
+        }
+
+        @Override
+        public int hashCode() {
+            return (System.identityHashCode(repo) * 31 + oidA.hashCode()) * 31 + oidB.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return "CacheKey{" +
+                   "repo=" + repo +
+                   ", a=" + oidA +
+                   ", b=" + oidB +
+                   '}';
+        }
+    }
 }
