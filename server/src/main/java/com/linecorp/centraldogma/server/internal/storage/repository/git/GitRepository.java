@@ -91,6 +91,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.RequestContext;
+import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
@@ -128,6 +131,9 @@ class GitRepository implements Repository {
 
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
+
+    private static final IllegalStateException REQUEST_ALREADY_TIMED_OUT =
+            Exceptions.clearTrace(new IllegalStateException("Request already timed out."));
 
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Project parent;
@@ -426,9 +432,17 @@ class GitRepository implements Repository {
     @Override
     public CompletableFuture<Map<String, Entry<?>>> find(
             Revision revision, String pathPattern, Map<FindOption<?>, ?> options) {
-
-        return CompletableFuture.supplyAsync(() -> blockingFind(revision, pathPattern, options),
-                                             repositoryWorker);
+        final ServiceRequestContext ctx =
+                RequestContext.mapCurrent(ServiceRequestContext.class::cast, null);
+        return CompletableFuture.supplyAsync(() -> {
+            if (ctx != null && ctx.isTimedOut()) {
+                logger.info("{} Ignoring find operation. The request has already timed out: " +
+                            "project={}, repo={}, revision={}, pathPattern={}, options={}",
+                            ctx, parent.name(), name, revision, pathPattern, options);
+                throw REQUEST_ALREADY_TIMED_OUT;
+            }
+            return blockingFind(revision, pathPattern, options);
+        }, repositoryWorker);
     }
 
     private Map<String, Entry<?>> blockingFind(
@@ -1278,8 +1292,17 @@ class GitRepository implements Repository {
 
     @Override
     public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
-        return CompletableFuture.supplyAsync(() -> blockingFindLatestRevision(lastKnownRevision, pathPattern),
-                                             repositoryWorker);
+        final ServiceRequestContext ctx =
+                RequestContext.mapCurrent(ServiceRequestContext.class::cast, null);
+        return CompletableFuture.supplyAsync(() -> {
+            if (ctx != null && ctx.isTimedOut()) {
+                logger.info("{} Ignoring findLatestRevision operation. The request has already timed out: " +
+                            "project={}, repo={}, lastKnownRevision={}, pathPattern={}",
+                            ctx, parent.name(), name, lastKnownRevision, pathPattern);
+                throw REQUEST_ALREADY_TIMED_OUT;
+            }
+            return blockingFindLatestRevision(lastKnownRevision, pathPattern);
+        }, repositoryWorker);
     }
 
     @Nullable
@@ -1334,8 +1357,17 @@ class GitRepository implements Repository {
 
     @Override
     public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+        final ServiceRequestContext ctx =
+                RequestContext.mapCurrent(ServiceRequestContext.class::cast, null);
         final CompletableFuture<Revision> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
+            if (ctx != null && ctx.isTimedOut()) {
+                logger.info("{} Ignoring watch operation. The request has already timed out: " +
+                            "project={}, repo={}, lastKnownRevision={}, pathPattern={}",
+                            ctx, parent.name(), name, lastKnownRevision, pathPattern);
+                throw REQUEST_ALREADY_TIMED_OUT;
+            }
+
             requireNonNull(lastKnownRevision, "lastKnownRevision");
             requireNonNull(pathPattern, "pathPattern");
 
