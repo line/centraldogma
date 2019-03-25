@@ -1330,7 +1330,7 @@ class GitRepository implements Repository {
         final boolean matches;
         readLock();
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-            matches = DiffScanner.scan(
+            matches = DiffScanner.scanCached(
                     jGitRepository, toTreeId(revWalk, range.from()), toTreeId(revWalk, range.to()),
                     TreeFilter.ALL, e -> {
                         final String path;
@@ -1394,7 +1394,7 @@ class GitRepository implements Repository {
     }
 
     private void notifyWatchers(Revision newRevision, @Nullable ObjectId prevTreeId, ObjectId nextTreeId) {
-        DiffScanner.scan(jGitRepository, prevTreeId, nextTreeId, TreeFilter.ALL, entry -> {
+        DiffScanner.scanCached(jGitRepository, prevTreeId, nextTreeId, TreeFilter.ALL, entry -> {
             switch (entry.getChangeType()) {
                 case ADD:
                     commitWatchers.notify(newRevision, entry.getNewPath());
@@ -1444,7 +1444,7 @@ class GitRepository implements Repository {
             diffFormatter.setPathFilter(filter);
 
             final ImmutableList.Builder<DiffEntry> builder = ImmutableList.builder();
-            DiffScanner.scan(jGitRepository, prevTreeId, nextTreeId, filter, entry -> {
+            DiffScanner.scanCached(jGitRepository, prevTreeId, nextTreeId, filter, entry -> {
                 builder.add(entry);
                 return false;
             });
