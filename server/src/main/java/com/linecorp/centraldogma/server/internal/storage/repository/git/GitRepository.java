@@ -714,9 +714,9 @@ class GitRepository implements Repository {
                         }
 
                         final JsonNode oldJsonNode =
-                                Jackson.readTree(reader.open(diffEntry.getOldId().toObjectId()).getBytes());
+                                Jackson.readTree(reader.open(diffEntry.getOldId()).getBytes());
                         final JsonNode newJsonNode =
-                                Jackson.readTree(reader.open(diffEntry.getNewId().toObjectId()).getBytes());
+                                Jackson.readTree(reader.open(diffEntry.getNewId()).getBytes());
                         final JsonPatch patch =
                                 JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
 
