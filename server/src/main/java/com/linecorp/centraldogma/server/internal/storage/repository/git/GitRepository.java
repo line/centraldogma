@@ -132,6 +132,9 @@ class GitRepository implements Repository {
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
+    private static final IllegalStateException REQUEST_ALREADY_TIMED_OUT =
+            Exceptions.clearTrace(new IllegalStateException("Request already timed out."));
+
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Project parent;
     private final Executor repositoryWorker;
@@ -142,9 +145,6 @@ class GitRepository implements Repository {
     private final CommitWatchers commitWatchers = new CommitWatchers();
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-
-    private static final IllegalStateException REQUEST_ALREADY_TIMED_OUT =
-            Exceptions.clearTrace(new IllegalStateException("Request already timed out."));
 
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
@@ -437,8 +437,8 @@ class GitRepository implements Repository {
         return CompletableFuture.supplyAsync(() -> {
             if (ctx != null && ctx.isTimedOut()) {
                 logger.info("{} Ignoring find operation. The request has already timed out: " +
-                            "revision={}, pathPattern={}, options={}",
-                            ctx, revision, pathPattern, options);
+                            "project={}, repo={}, revision={}, pathPattern={}, options={}",
+                            ctx, parent.name(), name, revision, pathPattern, options);
                 throw REQUEST_ALREADY_TIMED_OUT;
             }
             return blockingFind(revision, pathPattern, options);
@@ -1295,8 +1295,8 @@ class GitRepository implements Repository {
         return CompletableFuture.supplyAsync(() -> {
             if (ctx != null && ctx.isTimedOut()) {
                 logger.info("{} Ignoring findLatestRevision operation. The request has already timed out: " +
-                            "lastKnownRevision={}, pathPattern={}",
-                            ctx, lastKnownRevision, pathPattern);
+                            "project={}, repo={}, lastKnownRevision={}, pathPattern={}",
+                            ctx, parent.name(), name, lastKnownRevision, pathPattern);
                 throw REQUEST_ALREADY_TIMED_OUT;
             }
             return blockingFindLatestRevision(lastKnownRevision, pathPattern);
@@ -1362,8 +1362,8 @@ class GitRepository implements Repository {
         CompletableFuture.runAsync(() -> {
             if (ctx != null && ctx.isTimedOut()) {
                 logger.info("{} Ignoring watch operation. The request has already timed out: " +
-                            "lastKnownRevision={}, pathPattern={}",
-                            ctx, lastKnownRevision, pathPattern);
+                            "project={}, repo={}, lastKnownRevision={}, pathPattern={}",
+                            ctx, parent.name(), name, lastKnownRevision, pathPattern);
                 throw REQUEST_ALREADY_TIMED_OUT;
             }
 
