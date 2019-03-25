@@ -62,7 +62,6 @@ import java.io.IOException;
 import java.util.function.Predicate;
 
 import org.eclipse.jgit.dircache.DirCacheIterator;
-import org.eclipse.jgit.internal.JGitText;
 import org.eclipse.jgit.lib.AbbreviatedObjectId;
 import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.Constants;
@@ -130,17 +129,7 @@ final class DiffGenerator {
         walk.addTree(a);
         walk.addTree(b);
         walk.setRecursive(true);
-
         walk.setFilter(AndTreeFilter.create(filter, getDiffTreeFilterFor(a, b)));
-
-        return scan(walk, matcher);
-    }
-
-    static boolean scan(TreeWalk walk, Predicate<DiffEntry> matcher) throws IOException {
-        if (walk.getTreeCount() != 2) {
-            throw new IllegalArgumentException(
-                    JGitText.get().treeWalkMustHaveExactlyTwoTrees);
-        }
 
         final MutableObjectId idBuf = new MutableObjectId();
         while (walk.next()) {
