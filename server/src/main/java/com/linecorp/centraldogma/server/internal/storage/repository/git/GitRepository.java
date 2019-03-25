@@ -441,7 +441,7 @@ class GitRepository implements Repository {
                             ctx, revision, pathPattern, options);
                 throw REQUEST_ALREADY_TIMED_OUT;
             }
-            blockingFind(revision, pathPattern, options);
+            return blockingFind(revision, pathPattern, options);
         }, repositoryWorker);
     }
 
@@ -1290,8 +1290,17 @@ class GitRepository implements Repository {
 
     @Override
     public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
-        return CompletableFuture.supplyAsync(() -> blockingFindLatestRevision(lastKnownRevision, pathPattern),
-                                             repositoryWorker);
+        final ServiceRequestContext ctx =
+                RequestContext.mapCurrent(ServiceRequestContext.class::cast, null);
+        return CompletableFuture.supplyAsync(() -> {
+            if (ctx != null && ctx.isTimedOut()) {
+                logger.info("{} Ignoring findLatestRevision operation. The request has already timed out: " +
+                            "lastKnownRevision={}, pathPattern={}",
+                            ctx, lastKnownRevision, pathPattern);
+                throw REQUEST_ALREADY_TIMED_OUT;
+            }
+            return blockingFindLatestRevision(lastKnownRevision, pathPattern);
+        }, repositoryWorker);
     }
 
     @Nullable
