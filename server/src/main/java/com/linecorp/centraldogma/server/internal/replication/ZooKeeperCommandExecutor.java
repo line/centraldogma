@@ -536,10 +536,17 @@ public final class ZooKeeperCommandExecutor
     }
 
     private void updateLastReplayedRevision(long lastReplayedRevision) throws Exception {
+        boolean success = false;
         try (FileOutputStream fos = new FileOutputStream(revisionFile)) {
             fos.write(String.valueOf(lastReplayedRevision).getBytes(StandardCharsets.UTF_8));
+            success = true;
+        } finally {
+            if (success) {
+                logger.info("Updated lastReplayedRevision to: {}", lastReplayedRevision);
+            } else {
+                logger.error("Failed to update lastReplayedRevision to: {}", lastReplayedRevision);
+            }
         }
-        logger.info("Update lastReplayedRevision to: {}", lastReplayedRevision);
     }
 
     private synchronized void replayLogs(long targetRevision) {
@@ -573,29 +580,21 @@ public final class ZooKeeperCommandExecutor
                 }
 
                 info.lastReplayedRevision = nextRevision;
+                updateLastReplayedRevision(nextRevision);
                 if (nextRevision == targetRevision) {
                     break;
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable t) {
             logger.error("Failed to replay a log at revision {}; entering read-only mode",
-                         info.lastReplayedRevision, e);
+                         info.lastReplayedRevision, t);
             stopLater();
 
-            if (e instanceof ReplicationException) {
-                throw (ReplicationException) e;
+            if (t instanceof ReplicationException) {
+                throw (ReplicationException) t;
             }
             throw new ReplicationException("failed to replay a log at revision " +
-                                           info.lastReplayedRevision, e);
-        }
-
-        try {
-            updateLastReplayedRevision(targetRevision);
-        } catch (Exception e) {
-            logger.error("Failed to update {} to {}; entering read-only mode",
-                         revisionFile, targetRevision, e);
-            stopLater();
-            throw new ReplicationException("failed to update " + revisionFile + " to " + targetRevision, e);
+                                           info.lastReplayedRevision, t);
         }
     }
 
