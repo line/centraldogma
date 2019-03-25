@@ -280,13 +280,13 @@ final class DiffScanner {
 
     private static final class CacheKey {
         final Repository repo;
-        final AnyObjectId oidA;
-        final AnyObjectId oidB;
+        final ObjectId oidA;
+        final ObjectId oidB;
 
         CacheKey(Repository repo, AnyObjectId oidA, AnyObjectId oidB) {
             this.repo = requireNonNull(repo, "repo");
-            this.oidA = requireNonNull(oidA, "a");
-            this.oidB = requireNonNull(oidB, "b");
+            this.oidA = requireNonNull(oidA, "a").toObjectId();
+            this.oidB = requireNonNull(oidB, "b").toObjectId();
         }
 
         @Override
