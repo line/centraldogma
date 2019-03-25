@@ -163,7 +163,7 @@ final class DiffEntry {
      * <p>The meaning of the old name can differ depending on the semantic meaning
      * of this patch:
      * <ul>
-     * <li><i>file add</i>: always <code>/dev/null</code></li>
+     * <li><i>file add</i>: always {@code /dev/null}</li>
      * <li><i>file modify</i>: always {@link #getNewPath()}</li>
      * <li><i>file delete</i>: always the file being deleted</li>
      * <li><i>file copy</i>: source file the copy originates from</li>
@@ -184,7 +184,7 @@ final class DiffEntry {
      * <ul>
      * <li><i>file add</i>: always the file being created</li>
      * <li><i>file modify</i>: always {@link #getOldPath()}</li>
-     * <li><i>file delete</i>: always <code>/dev/null</code></li>
+     * <li><i>file delete</i>: always {@code /dev/null}</li>
      * <li><i>file copy</i>: destination file the copy ends up at</li>
      * <li><i>file rename</i>: destination file the rename ends up at</li>
      * </ul>
@@ -230,7 +230,7 @@ final class DiffEntry {
     }
 
     /**
-     * Get the old object id from the <code>index</code>.
+     * Get the old object id from the {@code index}.
      *
      * @return the object id; null if there is no index line
      */
@@ -239,7 +239,7 @@ final class DiffEntry {
     }
 
     /**
-     * Get the new object id from the <code>index</code>.
+     * Get the new object id from the {@code index}.
      *
      * @return the object id; null if there is no index line
      */
@@ -262,8 +262,6 @@ final class DiffEntry {
                 buf.append(oldPath + "->" + newPath);
                 break;
             case DELETE:
-                buf.append(oldPath);
-                break;
             case MODIFY:
                 buf.append(oldPath);
                 break;
