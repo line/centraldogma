@@ -111,6 +111,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
+import com.linecorp.centraldogma.server.internal.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 import difflib.DiffUtils;
@@ -1290,6 +1291,16 @@ class GitRepository implements Repository {
             return null;
         }
 
+        if (range.from().major() == 1) {
+            // Fast path: no need to compare because we are sure there is nothing at revision 1.
+            if (blockingFind(range.to(), pathPattern, FindOptions.FIND_ONE_WITHOUT_CONTENT).isEmpty()) {
+                return null;
+            } else {
+                return range.to();
+            }
+        }
+
+        // Slow path: compare the two trees.
         final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
         readLock();
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
