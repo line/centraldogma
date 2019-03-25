@@ -58,8 +58,8 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import org.eclipse.jgit.attributes.Attribute;
-import org.eclipse.jgit.lib.AbbreviatedObjectId;
 import org.eclipse.jgit.lib.FileMode;
+import org.eclipse.jgit.lib.ObjectId;
 
 /**
  * A value class representing a change to a file.
@@ -108,42 +108,54 @@ final class DiffEntry {
     /**
      * File name of the old (pre-image).
      */
-    String oldPath;
+    private final String oldPath;
 
     /**
      * File name of the new (post-image).
      */
-    String newPath;
+    private final String newPath;
 
     /**
      * diff filter attribute.
      */
-    Attribute diffAttribute;
+    private final Attribute diffAttribute;
 
     /**
      * Old mode of the file, if described by the patch, else null.
      */
-    FileMode oldMode;
+    private final FileMode oldMode;
 
     /**
      * New mode of the file, if described by the patch, else null.
      */
-    FileMode newMode;
+    private final FileMode newMode;
 
     /**
      * General type of change indicated by the patch.
      */
-    ChangeType changeType;
+    private final ChangeType changeType;
 
     /**
      * ObjectId listed on the index line for the old (pre-image).
      */
-    AbbreviatedObjectId oldId;
+    private final ObjectId oldId;
 
     /**
      * ObjectId listed on the index line for the new (post-image).
      */
-    AbbreviatedObjectId newId;
+    private final ObjectId newId;
+
+    DiffEntry(String oldPath, String newPath, Attribute diffAttribute, FileMode oldMode, FileMode newMode,
+              ChangeType changeType, ObjectId oldId, ObjectId newId) {
+        this.oldPath = oldPath;
+        this.newPath = newPath;
+        this.diffAttribute = diffAttribute;
+        this.oldMode = oldMode;
+        this.newMode = newMode;
+        this.changeType = changeType;
+        this.oldId = oldId;
+        this.newId = newId;
+    }
 
     /**
      * Get the old name associated with this file.
@@ -184,6 +196,13 @@ final class DiffEntry {
     }
 
     /**
+     * Returns the {@link Attribute} determining filters to be applied.
+     */
+    public Attribute getDiffAttribute() {
+        return diffAttribute;
+    }
+
+    /**
      * Get the old file mode.
      *
      * @return the old file mode, if described in the patch
@@ -215,7 +234,7 @@ final class DiffEntry {
      *
      * @return the object id; null if there is no index line
      */
-    AbbreviatedObjectId getOldId() {
+    ObjectId getOldId() {
         return oldId;
     }
 
@@ -224,7 +243,7 @@ final class DiffEntry {
      *
      * @return the object id; null if there is no index line
      */
-    AbbreviatedObjectId getNewId() {
+    ObjectId getNewId() {
         return newId;
     }
 

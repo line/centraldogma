@@ -683,7 +683,7 @@ class GitRepository implements Repository {
             final CanonicalTreeParser p = new CanonicalTreeParser();
             p.reset(reader, baseTreeId);
             final ImmutableList.Builder<DiffEntry> builder = ImmutableList.builder();
-            DiffGenerator.scan(jGitRepository, p, new DirCacheIterator(dirCache), TreeFilter.ALL, entry -> {
+            DiffScanner.scan(jGitRepository, p, new DirCacheIterator(dirCache), TreeFilter.ALL, entry -> {
                 builder.add(entry);
                 return false;
             });
@@ -1307,7 +1307,7 @@ class GitRepository implements Repository {
         final boolean matches;
         readLock();
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-            matches = DiffGenerator.scan(
+            matches = DiffScanner.scan(
                     jGitRepository, toTreeId(revWalk, range.from()), toTreeId(revWalk, range.to()),
                     TreeFilter.ALL, e -> {
                         final String path;
@@ -1362,7 +1362,7 @@ class GitRepository implements Repository {
     }
 
     private void notifyWatchers(Revision newRevision, @Nullable ObjectId prevTreeId, ObjectId nextTreeId) {
-        DiffGenerator.scan(jGitRepository, prevTreeId, nextTreeId, TreeFilter.ALL, entry -> {
+        DiffScanner.scan(jGitRepository, prevTreeId, nextTreeId, TreeFilter.ALL, entry -> {
             switch (entry.getChangeType()) {
                 case ADD:
                     commitWatchers.notify(newRevision, entry.getNewPath());
@@ -1412,7 +1412,7 @@ class GitRepository implements Repository {
             diffFormatter.setPathFilter(filter);
 
             final ImmutableList.Builder<DiffEntry> builder = ImmutableList.builder();
-            DiffGenerator.scan(jGitRepository, prevTreeId, nextTreeId, filter, entry -> {
+            DiffScanner.scan(jGitRepository, prevTreeId, nextTreeId, filter, entry -> {
                 builder.add(entry);
                 return false;
             });

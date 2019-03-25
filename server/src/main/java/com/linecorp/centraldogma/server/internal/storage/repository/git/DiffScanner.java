@@ -61,8 +61,8 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import java.io.IOException;
 import java.util.function.Predicate;
 
+import org.eclipse.jgit.attributes.Attribute;
 import org.eclipse.jgit.dircache.DirCacheIterator;
-import org.eclipse.jgit.lib.AbbreviatedObjectId;
 import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
@@ -85,17 +85,12 @@ import org.eclipse.jgit.treewalk.filter.TreeFilter;
 import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.DiffEntry.ChangeType;
 
-final class DiffGenerator {
-
-    /**
-     * Magical SHA1 used for file adds or deletes.
-     */
-    private static final AbbreviatedObjectId A_ZERO = AbbreviatedObjectId.fromObjectId(ObjectId.zeroId());
+final class DiffScanner {
 
     /**
      * Magical file name used for file adds or deletes.
      */
-    private static final String DEV_NULL = "/dev/null"; //$NON-NLS-1$
+    private static final String DEV_NULL = "/dev/null";
 
     static boolean scan(Repository repository, AnyObjectId a, AnyObjectId b,
                         TreeFilter filter, Predicate<DiffEntry> matcher) {
@@ -133,38 +128,46 @@ final class DiffGenerator {
 
         final MutableObjectId idBuf = new MutableObjectId();
         while (walk.next()) {
-            final DiffEntry entry = new DiffEntry();
+            final ObjectId oldId;
+            final ObjectId newId;
+            final FileMode oldMode;
+            final FileMode newMode;
+            final String path;
+            final Attribute diffAttribute;
 
             walk.getObjectId(idBuf, 0);
-            entry.oldId = AbbreviatedObjectId.fromObjectId(idBuf);
+            oldId = idBuf.copy();
 
             walk.getObjectId(idBuf, 1);
-            entry.newId = AbbreviatedObjectId.fromObjectId(idBuf);
+            newId = idBuf.copy();
 
-            entry.oldMode = walk.getFileMode(0);
-            entry.newMode = walk.getFileMode(1);
-            entry.newPath = entry.oldPath = walk.getPathString();
+            oldMode = walk.getFileMode(0);
+            newMode = walk.getFileMode(1);
+            path = walk.getPathString();
 
             if (walk.getAttributesNodeProvider() != null) {
-                entry.diffAttribute = walk.getAttributes()
-                                          .get(Constants.ATTR_DIFF);
+                diffAttribute = walk.getAttributes().get(Constants.ATTR_DIFF);
+            } else {
+                diffAttribute = null;
             }
 
-            if (entry.oldMode == FileMode.MISSING) {
-                entry.oldPath = DEV_NULL;
-                entry.changeType = ChangeType.ADD;
+            if (oldMode == FileMode.MISSING) {
+                final DiffEntry entry = new DiffEntry(DEV_NULL, path, diffAttribute, oldMode, newMode,
+                                                      ChangeType.ADD, oldId, newId);
+
                 if (matcher.test(entry)) {
                     return true;
                 }
-            } else if (entry.newMode == FileMode.MISSING) {
-                entry.newPath = DEV_NULL;
-                entry.changeType = ChangeType.DELETE;
+            } else if (newMode == FileMode.MISSING) {
+                final DiffEntry entry = new DiffEntry(path, DEV_NULL, diffAttribute, oldMode, newMode,
+                                                      ChangeType.DELETE, oldId, newId);
                 if (matcher.test(entry)) {
                     return true;
                 }
-            } else if (!entry.oldId.equals(entry.newId)) {
-                entry.changeType = ChangeType.MODIFY;
-                if (sameType(entry.oldMode, entry.newMode)) {
+            } else if (!oldId.equals(newId)) {
+                final DiffEntry entry = new DiffEntry(path, path, diffAttribute, oldMode, newMode,
+                                                      ChangeType.MODIFY, oldId, newId);
+                if (sameType(oldMode, newMode)) {
                     if (matcher.test(entry)) {
                         return true;
                     }
@@ -177,8 +180,9 @@ final class DiffGenerator {
                         return true;
                     }
                 }
-            } else if (entry.oldMode != entry.newMode) {
-                entry.changeType = ChangeType.MODIFY;
+            } else if (oldMode != newMode) {
+                final DiffEntry entry = new DiffEntry(path, path, diffAttribute, oldMode, newMode,
+                                                      ChangeType.MODIFY, oldId, newId);
                 if (matcher.test(entry)) {
                     return true;
                 }
@@ -222,7 +226,6 @@ final class DiffGenerator {
         // Files have to be of the same type in order to rename them.
         // We would never want to rename a file to a gitlink, or a
         // symlink to a file.
-        //
         final int aType = a.getBits() & FileMode.TYPE_MASK;
         final int bType = b.getBits() & FileMode.TYPE_MASK;
         return aType == bType;
@@ -231,36 +234,21 @@ final class DiffGenerator {
     /**
      * Breaks apart a DiffEntry into two entries, one DELETE and one ADD.
      *
-     * @param entry
-     *            the DiffEntry to break apart.
+     * @param entry the DiffEntry to break apart.
      * @return a list containing two entries. Calling {@link DiffEntry#getChangeType()}
      *         on the first entry will return ChangeType.DELETE. Calling it on
      *         the second entry will return ChangeType.ADD.
      */
     static DiffEntry[] breakModify(DiffEntry entry) {
-        final DiffEntry del = new DiffEntry();
-        del.oldId = entry.getOldId();
-        del.oldMode = entry.getOldMode();
-        del.oldPath = entry.getOldPath();
-
-        del.newId = A_ZERO;
-        del.newMode = FileMode.MISSING;
-        del.newPath = DEV_NULL;
-        del.changeType = ChangeType.DELETE;
-        del.diffAttribute = entry.diffAttribute;
-
-        final DiffEntry add = new DiffEntry();
-        add.oldId = A_ZERO;
-        add.oldMode = FileMode.MISSING;
-        add.oldPath = DEV_NULL;
-
-        add.newId = entry.getNewId();
-        add.newMode = entry.getNewMode();
-        add.newPath = entry.getNewPath();
-        add.changeType = ChangeType.ADD;
-        add.diffAttribute = entry.diffAttribute;
-        return new DiffEntry[] { del, add };
+        return new DiffEntry[] {
+                new DiffEntry(entry.getOldPath(), DEV_NULL, entry.getDiffAttribute(),
+                              entry.getOldMode(), FileMode.MISSING, ChangeType.DELETE,
+                              entry.getOldId(), ObjectId.zeroId()),
+                new DiffEntry(DEV_NULL, entry.getNewPath(), entry.getDiffAttribute(),
+                              FileMode.MISSING, entry.getNewMode(), ChangeType.ADD,
+                              ObjectId.zeroId(), entry.getNewId())
+        };
     }
 
-    private DiffGenerator() {}
+    private DiffScanner() {}
 }
