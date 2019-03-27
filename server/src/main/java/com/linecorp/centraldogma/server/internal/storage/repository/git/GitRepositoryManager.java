@@ -25,6 +25,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +39,7 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
 
 public class GitRepositoryManager extends DirectoryBasedStorageManager<Repository>
@@ -44,17 +47,23 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
 
     private static final Logger logger = LoggerFactory.getLogger(GitRepositoryManager.class);
 
-    public GitRepositoryManager(Project parent, File rootDir, Executor repositoryWorker) {
-        this(parent, rootDir, GitRepositoryFormat.V1, repositoryWorker);
+    @Nullable
+    private final RepositoryCache cache;
+
+    public GitRepositoryManager(Project parent, File rootDir, Executor repositoryWorker,
+                                @Nullable RepositoryCache cache) {
+        this(parent, rootDir, GitRepositoryFormat.V1, repositoryWorker, cache);
     }
 
     public GitRepositoryManager(Project parent, File rootDir, GitRepositoryFormat preferredFormat,
-                                Executor repositoryWorker) {
+                                Executor repositoryWorker, @Nullable RepositoryCache cache) {
 
         super(rootDir, Repository.class,
               requireNonNull(parent, "parent"),
               requireNonNull(preferredFormat, "preferredFormat"),
               requireNonNull(repositoryWorker, "repositoryWorker"));
+
+        this.cache = cache;
     }
 
     @Override
@@ -67,7 +76,7 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
         final Project project = (Project) childArgs[0];
         final GitRepositoryFormat preferredFormat = (GitRepositoryFormat) childArgs[1];
         final Executor repositoryWorker = (Executor) childArgs[2];
-        final GitRepository repository = new GitRepository(project, childDir, repositoryWorker);
+        final GitRepository repository = new GitRepository(project, childDir, repositoryWorker, cache);
         if (repository.needsMigration(preferredFormat)) {
             return migrate(childDir, project, repositoryWorker, repository, preferredFormat);
         } else {
@@ -75,8 +84,8 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
         }
     }
 
-    private static Repository migrate(File childDir, Project project, Executor repositoryWorker,
-                                      GitRepository oldRepo, GitRepositoryFormat newFormat) throws IOException {
+    private Repository migrate(File childDir, Project project, Executor repositoryWorker,
+                               GitRepository oldRepo, GitRepositoryFormat newFormat) throws IOException {
         boolean closedOldRepo = false;
         try {
             logger.info("Migrating from {} to {}: {}", oldRepo.format(), newFormat, oldRepo);
@@ -103,7 +112,7 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
                 throw new IOException("failed to rename " + newChildDir + " to " + childDir);
             }
 
-            final GitRepository newRepo = new GitRepository(project, childDir, repositoryWorker);
+            final GitRepository newRepo = new GitRepository(project, childDir, repositoryWorker, cache);
             logger.info("Migrated from {} to {}: {}", oldRepo.format(), newFormat, newRepo);
             return newRepo;
         } finally {
@@ -127,7 +136,7 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
         final GitRepositoryFormat preferredFormat = (GitRepositoryFormat) childArgs[1];
         final Executor repositoryWorker = (Executor) childArgs[2];
         return new GitRepository(project, childDir, preferredFormat, repositoryWorker,
-                                 creationTimeMillis, author);
+                                 creationTimeMillis, author, cache);
     }
 
     @Override

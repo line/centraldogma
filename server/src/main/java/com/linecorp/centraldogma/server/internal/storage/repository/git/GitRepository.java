@@ -16,7 +16,10 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.context;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.failFastIfTimedOut;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_COMMIT_SECTION;
@@ -43,14 +46,14 @@ import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
+import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
@@ -82,17 +85,16 @@ import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
-import org.eclipse.jgit.util.io.NullOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 
-import com.linecorp.armeria.common.RequestContext;
-import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -116,6 +118,7 @@ import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOptions;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 
 import difflib.DiffUtils;
 import difflib.Patch;
@@ -132,12 +135,10 @@ class GitRepository implements Repository {
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
-    private static final IllegalStateException REQUEST_ALREADY_TIMED_OUT =
-            Exceptions.clearTrace(new IllegalStateException("Request already timed out."));
-
-    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    private final StampedLock lock = new StampedLock();
     private final Project parent;
     private final Executor repositoryWorker;
+    private final RepositoryCache cache;
     private final String name;
     private final org.eclipse.jgit.lib.Repository jGitRepository;
     private final GitRepositoryFormat format;
@@ -161,9 +162,10 @@ class GitRepository implements Repository {
      *
      * @throws StorageException if failed to create a new repository
      */
+    @VisibleForTesting
     GitRepository(Project parent, File repoDir, Executor repositoryWorker,
                   long creationTimeMillis, Author author) {
-        this(parent, repoDir, GitRepositoryFormat.V1, repositoryWorker, creationTimeMillis, author);
+        this(parent, repoDir, GitRepositoryFormat.V1, repositoryWorker, creationTimeMillis, author, null);
     }
 
     /**
@@ -178,12 +180,13 @@ class GitRepository implements Repository {
      * @throws StorageException if failed to create a new repository
      */
     GitRepository(Project parent, File repoDir, GitRepositoryFormat format, Executor repositoryWorker,
-                  long creationTimeMillis, Author author) {
+                  long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
 
         this.parent = requireNonNull(parent, "parent");
         name = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.format = requireNonNull(format, "format");
+        this.cache = cache;
 
         requireNonNull(author, "author");
 
@@ -259,10 +262,11 @@ class GitRepository implements Repository {
      *
      * @throws StorageException if failed to open the repository at the specified location
      */
-    GitRepository(Project parent, File repoDir, Executor repositoryWorker) {
+    GitRepository(Project parent, File repoDir, Executor repositoryWorker, @Nullable RepositoryCache cache) {
         this.parent = requireNonNull(parent, "parent");
         name = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
+        this.cache = cache;
 
         final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
         try {
@@ -327,7 +331,7 @@ class GitRepository implements Repository {
         requireNonNull(failureCauseSupplier, "failureCauseSupplier");
         if (closePending.compareAndSet(null, failureCauseSupplier)) {
             repositoryWorker.execute(() -> {
-                rwLock.writeLock().lock();
+                final long writeLockStamp = lock.writeLock();
                 try {
                     if (commitIdDatabase != null) {
                         try {
@@ -346,7 +350,7 @@ class GitRepository implements Repository {
                         }
                     }
                 } finally {
-                    rwLock.writeLock().unlock();
+                    lock.unlockWrite(writeLockStamp);
                     commitWatchers.close(failureCauseSupplier);
                     closeFuture.complete(null);
                 }
@@ -425,22 +429,15 @@ class GitRepository implements Repository {
     @Override
     public RevisionRange normalizeNow(Revision from, Revision to) {
         final int baseMajor = cachedHeadRevision().major();
-
         return new RevisionRange(normalizeNow(from, baseMajor), normalizeNow(to, baseMajor));
     }
 
     @Override
     public CompletableFuture<Map<String, Entry<?>>> find(
             Revision revision, String pathPattern, Map<FindOption<?>, ?> options) {
-        final ServiceRequestContext ctx =
-                RequestContext.mapCurrent(ServiceRequestContext.class::cast, null);
+        final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
-            if (ctx != null && ctx.isTimedOut()) {
-                logger.info("{} Ignoring find operation. The request has already timed out: " +
-                            "project={}, repo={}, revision={}, pathPattern={}, options={}",
-                            ctx, parent.name(), name, revision, pathPattern, options);
-                throw REQUEST_ALREADY_TIMED_OUT;
-            }
+            failFastIfTimedOut(this, logger, ctx, "find", revision, pathPattern, options);
             return blockingFind(revision, pathPattern, options);
         }, repositoryWorker);
     }
@@ -456,7 +453,7 @@ class GitRepository implements Repository {
         final boolean fetchContent = FindOption.FETCH_CONTENT.get(options);
         final int maxEntries = FindOption.MAX_ENTRIES.get(options);
 
-        readLock();
+        final ReadLockStamp readLockStamp = readLock(null);
         try (ObjectReader reader = jGitRepository.newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
@@ -537,7 +534,7 @@ class GitRepository implements Repository {
             throw new StorageException(
                     "failed to get data from " + jGitRepository + " at " + pathPattern + " for " + revision, e);
         } finally {
-            readUnlock();
+            readLockStamp.unlock();
         }
     }
 
@@ -545,8 +542,11 @@ class GitRepository implements Repository {
     public CompletableFuture<List<Commit>> history(
             Revision from, Revision to, String pathPattern, int maxCommits) {
 
-        return CompletableFuture.supplyAsync(
-                () -> blockingHistory(from, to, pathPattern, maxCommits), repositoryWorker);
+        final ServiceRequestContext ctx = context();
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "history", from, to, pathPattern, maxCommits);
+            return blockingHistory(from, to, pathPattern, maxCommits);
+        }, repositoryWorker);
     }
 
     private List<Commit> blockingHistory(Revision from, Revision to, String pathPattern, int maxCommits) {
@@ -561,7 +561,7 @@ class GitRepository implements Repository {
         final RevisionRange descendingRange = range.toDescending();
 
         // At this point, we are sure: from.major >= to.major
-        readLock();
+        final ReadLockStamp readLockStamp = readLock(null);
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
             final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
             final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
@@ -617,7 +617,7 @@ class GitRepository implements Repository {
                     "failed to retrieve the history: " + jGitRepository +
                     " (" + pathPattern + ", " + from + ".." + to + ')', e);
         } finally {
-            readUnlock();
+            readLockStamp.unlock();
         }
     }
 
@@ -651,31 +651,53 @@ class GitRepository implements Repository {
      */
     @Override
     public CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern) {
-        return CompletableFuture.supplyAsync(() -> blockingDiff(from, to, pathPattern), repositoryWorker);
+        final ServiceRequestContext ctx = context();
+        return CompletableFuture.supplyAsync(() -> {
+            requireNonNull(from, "from");
+            requireNonNull(to, "to");
+            requireNonNull(pathPattern, "pathPattern");
+
+            failFastIfTimedOut(this, logger, ctx, "diff", from, to, pathPattern);
+
+            final RevisionRange range = normalizeNow(from, to).toAscending();
+            final ReadLockStamp readLockStamp = readLock(null);
+            try (RevWalk rw = new RevWalk(jGitRepository)) {
+                final RevTree treeA = rw.parseTree(commitIdDatabase.get(range.from()));
+                final RevTree treeB = rw.parseTree(commitIdDatabase.get(range.to()));
+
+                // Compare the two Git trees.
+                // Note that we do not cache here because CachingRepository caches the final result already.
+                return toChangeMap(blockingCompareTreeUncached(readLockStamp, treeA, treeB,
+                                                               pathPatternFilterOrTreeFilter(pathPattern)));
+            } catch (StorageException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new StorageException("failed to parse two trees: range=" + range, e);
+            } finally {
+                readLockStamp.unlock();
+            }
+        }, repositoryWorker);
     }
 
-    private Map<String, Change<?>> blockingDiff(Revision from, Revision to, String pathPattern) {
-        requireNonNull(from, "from");
-        requireNonNull(to, "to");
-        requireNonNull(pathPattern, "pathPattern");
-
-        final RevisionRange range = normalizeNow(from, to).toAscending();
-
-        readLock();
-        try {
-            return toChangeMap(compareTrees(commitIdDatabase.get(range.from()),
-                                            commitIdDatabase.get(range.to()),
-                                            PathPatternFilter.of(pathPattern)));
-        } finally {
-            readUnlock();
+    private static TreeFilter pathPatternFilterOrTreeFilter(@Nullable String pathPattern) {
+        final TreeFilter filter;
+        if (pathPattern != null) {
+            final PathPatternFilter pathPatternFilter = PathPatternFilter.of(pathPattern);
+            filter = pathPatternFilter.matchesAll() ? TreeFilter.ALL : pathPatternFilter;
+        } else {
+            filter = TreeFilter.ALL;
         }
+        return filter;
     }
 
     @Override
     public CompletableFuture<Map<String, Change<?>>> previewDiff(Revision baseRevision,
                                                                  Iterable<Change<?>> changes) {
-        return CompletableFuture.supplyAsync(
-                () -> blockingPreviewDiff(baseRevision, changes), repositoryWorker);
+        final ServiceRequestContext ctx = context();
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "previewDiff", baseRevision);
+            return blockingPreviewDiff(baseRevision, changes);
+        }, repositoryWorker);
     }
 
     private Map<String, Change<?>> blockingPreviewDiff(Revision baseRevision, Iterable<Change<?>> changes) {
@@ -683,11 +705,12 @@ class GitRepository implements Repository {
         requireNonNull(changes, "changes");
         baseRevision = normalizeNow(baseRevision);
 
-        readLock();
+        final ReadLockStamp readLockStamp = readLock(null);
         try (ObjectReader reader = jGitRepository.newObjectReader();
-             RevWalk revWalk = new RevWalk(reader)) {
+             RevWalk revWalk = new RevWalk(reader);
+             DiffFormatter diffFormatter = new DiffFormatter(null)) {
 
-            final ObjectId baseTreeId = toTreeId(revWalk, baseRevision);
+            final ObjectId baseTreeId = toTree(revWalk, baseRevision);
             final DirCache dirCache = DirCache.newInCore();
             final int numEdits = applyChanges(baseRevision, baseTreeId, dirCache, changes);
             if (numEdits == 0) {
@@ -696,21 +719,17 @@ class GitRepository implements Repository {
 
             final CanonicalTreeParser p = new CanonicalTreeParser();
             p.reset(reader, baseTreeId);
-            final ImmutableList.Builder<DiffEntry> builder = ImmutableList.builder();
-            DiffScanner.scan(jGitRepository, p, new DirCacheIterator(dirCache), TreeFilter.ALL, entry -> {
-                builder.add(entry);
-                return false;
-            });
-            return toChangeMap(builder.build());
+            diffFormatter.setRepository(jGitRepository);
+            final List<DiffEntry> result = diffFormatter.scan(p, new DirCacheIterator(dirCache));
+            return toChangeMap(result);
         } catch (IOException e) {
             throw new StorageException("failed to perform a dry-run diff", e);
         } finally {
-            readUnlock();
+            readLockStamp.unlock();
         }
     }
 
     private Map<String, Change<?>> toChangeMap(List<DiffEntry> diffEntryList) {
-
         try (ObjectReader reader = jGitRepository.newObjectReader()) {
             final Map<String, Change<?>> changeMap = new LinkedHashMap<>();
 
@@ -728,9 +747,9 @@ class GitRepository implements Repository {
                         }
 
                         final JsonNode oldJsonNode =
-                                Jackson.readTree(reader.open(diffEntry.getOldId()).getBytes());
+                                Jackson.readTree(reader.open(diffEntry.getOldId().toObjectId()).getBytes());
                         final JsonNode newJsonNode =
-                                Jackson.readTree(reader.open(diffEntry.getNewId()).getBytes());
+                                Jackson.readTree(reader.open(diffEntry.getNewId().toObjectId()).getBytes());
                         final JsonPatch patch =
                                 JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
 
@@ -801,10 +820,12 @@ class GitRepository implements Repository {
     public CompletableFuture<Revision> commit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
             String detail, Markup markup, Iterable<Change<?>> changes) {
-
-        return CompletableFuture.supplyAsync(
-                () -> blockingCommit(baseRevision, commitTimeMillis,
-                                     author, summary, detail, markup, changes, false), repositoryWorker);
+        final ServiceRequestContext ctx = context();
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "commit", baseRevision, author, summary);
+            return blockingCommit(baseRevision, commitTimeMillis,
+                                  author, summary, detail, markup, changes, false);
+        }, repositoryWorker);
     }
 
     private Revision blockingCommit(
@@ -814,7 +835,7 @@ class GitRepository implements Repository {
         requireNonNull(baseRevision, "baseRevision");
 
         final CommitResult res;
-        rwLock.writeLock().lock();
+        final long writeLockStamp = lock.writeLock();
         try {
             if (closePending.get() != null) {
                 throw closePending.get().get();
@@ -833,11 +854,11 @@ class GitRepository implements Repository {
 
             this.headRevision = res.revision;
         } finally {
-            rwLock.writeLock().unlock();
+            lock.unlockWrite(writeLockStamp);
         }
 
         // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
-        notifyWatchers(res.revision, res.parentTreeId, res.treeId);
+        notifyWatchers(res.revision, res.diffEntries);
         return res.revision;
     }
 
@@ -858,7 +879,7 @@ class GitRepository implements Repository {
              ObjectReader reader = jGitRepository.newObjectReader();
              RevWalk revWalk = new RevWalk(reader)) {
 
-            final ObjectId prevTreeId = prevRevision != null ? toTreeId(revWalk, prevRevision) : null;
+            final ObjectId prevTreeId = prevRevision != null ? toTree(revWalk, prevRevision) : null;
 
             // The staging area that keeps the entries of the new tree.
             // It starts with the entries of the tree at the prevRevision (or with no entries if the
@@ -870,23 +891,25 @@ class GitRepository implements Repository {
             final int numEdits = applyChanges(prevRevision, prevTreeId, dirCache, changes);
 
             // Reject empty commit if necessary.
-            if (!allowEmpty) {
-                boolean isEmpty = numEdits == 0;
-                if (!isEmpty) {
-                    // Even if there are edits, the resulting tree might be identical with the previous tree.
-                    final CanonicalTreeParser p = new CanonicalTreeParser();
-                    p.reset(reader, prevTreeId);
-                    final DiffFormatter diffFormatter = new DiffFormatter(NullOutputStream.INSTANCE);
-                    diffFormatter.setRepository(jGitRepository);
-                    isEmpty = diffFormatter.scan(p, new DirCacheIterator(dirCache)).isEmpty();
-                }
+            final List<DiffEntry> diffEntries;
+            boolean isEmpty = numEdits == 0;
+            if (!isEmpty) {
+                // Even if there are edits, the resulting tree might be identical with the previous tree.
+                final CanonicalTreeParser p = new CanonicalTreeParser();
+                p.reset(reader, prevTreeId);
+                final DiffFormatter diffFormatter = new DiffFormatter(null);
+                diffFormatter.setRepository(jGitRepository);
+                diffEntries = diffFormatter.scan(p, new DirCacheIterator(dirCache));
+                isEmpty = diffEntries.isEmpty();
+            } else {
+                diffEntries = ImmutableList.of();
+            }
 
-                if (isEmpty) {
-                    throw new RedundantChangeException(
-                            "changes did not change anything in " + parent().name() + '/' + name() +
-                            " at revision " + (prevRevision != null ? prevRevision.major() : 0) +
-                            ": " + changes);
-                }
+            if (!allowEmpty && isEmpty) {
+                throw new RedundantChangeException(
+                        "changes did not change anything in " + parent().name() + '/' + name() +
+                        " at revision " + (prevRevision != null ? prevRevision.major() : 0) +
+                        ": " + changes);
             }
 
             // flush the current index to repository and get the result tree object id.
@@ -918,7 +941,7 @@ class GitRepository implements Repository {
             commitIdDatabase.put(nextRevision, nextCommitId);
             doRefUpdate(revWalk, R_HEADS_MASTER, nextCommitId);
 
-            return new CommitResult(nextRevision, prevTreeId, nextTreeId);
+            return new CommitResult(nextRevision, diffEntries);
         } catch (CentralDogmaException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
@@ -953,17 +976,12 @@ class GitRepository implements Repository {
                 switch (change.type()) {
                 case UPSERT_JSON: {
                     final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
-                    final JsonNode newJsonNode = (JsonNode) change.content();
+                    final JsonNode newJsonNode = firstNonNull((JsonNode) change.content(),
+                                                              JsonNodeFactory.instance.nullNode());
 
                     // Upsert only when the contents are really different.
                     if (!Objects.equals(newJsonNode, oldJsonNode)) {
-                        applyPathEdit(dirCache, new PathEdit(changePath) {
-                            @Override
-                            public void apply(DirCacheEntry ent) {
-                                ent.setFileMode(FileMode.REGULAR_FILE);
-                                ent.setObjectId(newBlob(inserter, newJsonNode));
-                            }
-                        });
+                        applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
                         numEdits++;
                     }
                     break;
@@ -980,13 +998,7 @@ class GitRepository implements Repository {
 
                     // Upsert only when the contents are really different.
                     if (!sanitizedNewText.equals(sanitizedOldText)) {
-                        applyPathEdit(dirCache, new PathEdit(changePath) {
-                            @Override
-                            public void apply(DirCacheEntry ent) {
-                                ent.setFileMode(FileMode.REGULAR_FILE);
-                                ent.setObjectId(newBlob(inserter, sanitizedNewText.getBytes(UTF_8)));
-                            }
-                        });
+                        applyPathEdit(dirCache, new InsertText(changePath, inserter, sanitizedNewText));
                         numEdits++;
                     }
                     break;
@@ -1022,13 +1034,7 @@ class GitRepository implements Repository {
 
                         final DirCacheEditor editor = dirCache.editor();
                         editor.add(new DeletePath(changePath));
-                        editor.add(new PathEdit(newPath) {
-                            @Override
-                            public void apply(DirCacheEntry ent) {
-                                ent.setFileMode(oldEntry.getFileMode());
-                                ent.setObjectId(oldEntry.getObjectId());
-                            }
-                        });
+                        editor.add(new CopyOldEntry(newPath, oldEntry));
                         editor.finish();
                         numEdits++;
                         break;
@@ -1060,13 +1066,7 @@ class GitRepository implements Repository {
 
                     // Apply only when the contents are really different.
                     if (!newJsonNode.equals(oldJsonNode)) {
-                        applyPathEdit(dirCache, new PathEdit(changePath) {
-                            @Override
-                            public void apply(DirCacheEntry ent) {
-                                ent.setFileMode(FileMode.REGULAR_FILE);
-                                ent.setObjectId(newBlob(inserter, newJsonNode));
-                            }
-                        });
+                        applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
                         numEdits++;
                     }
                     break;
@@ -1103,13 +1103,7 @@ class GitRepository implements Repository {
 
                     // Apply only when the contents are really different.
                     if (!newText.equals(sanitizedOldText)) {
-                        applyPathEdit(dirCache, new PathEdit(changePath) {
-                            @Override
-                            public void apply(DirCacheEntry ent) {
-                                ent.setFileMode(FileMode.REGULAR_FILE);
-                                ent.setObjectId(newBlob(inserter, newText.getBytes(UTF_8)));
-                            }
-                        });
+                        applyPathEdit(dirCache, new InsertText(changePath, inserter, newText));
                         numEdits++;
                     }
                     break;
@@ -1138,24 +1132,6 @@ class GitRepository implements Repository {
 
     private static void reportNonExistentEntry(Change<?> change) {
         throw new ChangeConflictException("non-existent file/directory: " + change);
-    }
-
-    private static ObjectId newBlob(ObjectInserter inserter, JsonNode content) {
-        try {
-            return newBlob(inserter, Jackson.writeValueAsBytes(content));
-        } catch (IOException e) {
-            throw new StorageException("failed to serialize a JSON value: " + content, e);
-        }
-    }
-
-    private static ObjectId newBlob(ObjectInserter inserter, byte[] content) {
-        final ObjectId id;
-        try {
-            id = inserter.insert(Constants.OBJ_BLOB, content);
-        } catch (IOException e) {
-            throw new StorageException("failed to create a new blob", e);
-        }
-        return id;
     }
 
     private static void applyPathEdit(DirCache dirCache, PathEdit edit) {
@@ -1244,13 +1220,7 @@ class GitRepository implements Repository {
 
             final String oldPath = e.getPathString();
             final String newPath = newDir + oldPath.substring(oldDir.length());
-            editor.add(new PathEdit(newPath) {
-                @Override
-                public void apply(DirCacheEntry ent) {
-                    ent.setFileMode(e.getFileMode());
-                    ent.setObjectId(e.getObjectId());
-                }
-            });
+            editor.add(new CopyOldEntry(newPath, e));
         }
 
         if (editor != null) {
@@ -1292,109 +1262,112 @@ class GitRepository implements Repository {
 
     @Override
     public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
-        final ServiceRequestContext ctx =
-                RequestContext.mapCurrent(ServiceRequestContext.class::cast, null);
-        return CompletableFuture.supplyAsync(() -> {
-            if (ctx != null && ctx.isTimedOut()) {
-                logger.info("{} Ignoring findLatestRevision operation. The request has already timed out: " +
-                            "project={}, repo={}, lastKnownRevision={}, pathPattern={}",
-                            ctx, parent.name(), name, lastKnownRevision, pathPattern);
-                throw REQUEST_ALREADY_TIMED_OUT;
-            }
-            return blockingFindLatestRevision(lastKnownRevision, pathPattern);
-        }, repositoryWorker);
-    }
-
-    @Nullable
-    private Revision blockingFindLatestRevision(Revision lastKnownRevision, String pathPattern) {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
 
+        final ServiceRequestContext ctx = context();
+        return findLatestRevision(ctx, null, "findLatestRevision", lastKnownRevision, pathPattern);
+    }
+
+    private CompletableFuture<Revision> findLatestRevision(@Nullable ServiceRequestContext ctx,
+                                                           @Nullable ReadLockStamp readLockStamp,
+                                                           String operationName,
+                                                           Revision lastKnownRevision, String pathPattern) {
         final RevisionRange range = normalizeNow(lastKnownRevision, Revision.HEAD);
         if (range.from().equals(range.to())) {
             // Empty range.
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
 
         if (range.from().major() == 1) {
             // Fast path: no need to compare because we are sure there is nothing at revision 1.
-            if (blockingFind(range.to(), pathPattern, FindOptions.FIND_ONE_WITHOUT_CONTENT).isEmpty()) {
-                return null;
-            } else {
-                return range.to();
-            }
+            return find(range.to(), pathPattern, FindOptions.FIND_ONE_WITHOUT_CONTENT)
+                    .thenApply(result -> !result.isEmpty() ? range.to() : null);
         }
 
         // Slow path: compare the two trees.
         final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
-        final boolean matches;
-        readLock();
-        try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-            matches = DiffScanner.scanCached(
-                    jGitRepository, toTreeId(revWalk, range.from()), toTreeId(revWalk, range.to()),
-                    TreeFilter.ALL, e -> {
-                        final String path;
-                        switch (e.getChangeType()) {
-                            case ADD:
-                                path = e.getNewPath();
-                                break;
-                            case MODIFY:
-                            case DELETE:
-                                path = e.getOldPath();
-                                break;
-                            default:
-                                throw new Error();
-                        }
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, operationName, lastKnownRevision, pathPattern);
+            // Convert the revisions to Git trees.
+            final ReadLockStamp newReadLockStamp = readLock(readLockStamp);
+            try (RevWalk revWalk = new RevWalk(jGitRepository)) {
+                final RevTree treeA = toTree(revWalk, range.from());
+                final RevTree treeB = toTree(revWalk, range.to());
+                return Maps.immutableEntry(treeA, treeB);
+            } finally {
+                newReadLockStamp.unlock();
+            }
+        }, repositoryWorker).thenCompose(treePair -> {
+            failFastIfTimedOut(this, logger, ctx, operationName, lastKnownRevision, pathPattern);
+            // Compare the two Git trees.
+            final RevTree treeA = treePair.getKey();
+            final RevTree treeB = treePair.getValue();
+            if (cache != null) {
+                return cache.get(new CacheableCompareTreesCall(this, treeA, treeB));
+            } else {
+                return CompletableFuture.completedFuture(
+                        blockingCompareTreeUncached(readLockStamp, treeA, treeB, TreeFilter.ALL));
+            }
+        }).thenApply(diffEntries -> {
+            // Return the latest revision if the changes between the two trees contain the file.
+            for (DiffEntry e : diffEntries) {
+                final String path;
+                switch (e.getChangeType()) {
+                    case ADD:
+                        path = e.getNewPath();
+                        break;
+                    case MODIFY:
+                    case DELETE:
+                        path = e.getOldPath();
+                        break;
+                    default:
+                        throw new Error();
+                }
 
-                        return filter.matches(path);
-                    });
-        } finally {
-            readUnlock();
-        }
+                if (filter.matches(path)) {
+                    return range.to();
+                }
+            }
 
-        return matches ? range.to() : null;
+            return null;
+        });
     }
 
     @Override
     public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
-        final ServiceRequestContext ctx =
-                RequestContext.mapCurrent(ServiceRequestContext.class::cast, null);
-        final CompletableFuture<Revision> future = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            if (ctx != null && ctx.isTimedOut()) {
-                logger.info("{} Ignoring watch operation. The request has already timed out: " +
-                            "project={}, repo={}, lastKnownRevision={}, pathPattern={}",
-                            ctx, parent.name(), name, lastKnownRevision, pathPattern);
-                throw REQUEST_ALREADY_TIMED_OUT;
+        requireNonNull(lastKnownRevision, "lastKnownRevision");
+        requireNonNull(pathPattern, "pathPattern");
+
+        final ServiceRequestContext ctx = context();
+        final Revision normLastKnownRevision = normalizeNow(lastKnownRevision);
+        final AtomicReference<ReadLockStamp> readLockStamp = new AtomicReference<>();
+        return CompletableFuture.runAsync(() -> {
+            readLockStamp.set(readLock(null));
+        }, repositoryWorker).thenCompose(unused -> {
+            return findLatestRevision(ctx, readLockStamp.get(), "watch", normLastKnownRevision, pathPattern);
+        }).thenCompose(latestRevision -> {
+            if (latestRevision != null) {
+                return CompletableFuture.completedFuture(latestRevision);
             }
 
-            requireNonNull(lastKnownRevision, "lastKnownRevision");
-            requireNonNull(pathPattern, "pathPattern");
-
-            final Revision normLastKnownRevision = normalizeNow(lastKnownRevision);
-            readLock();
             try {
-                // If lastKnownRevision is outdated already and the recent changes match,
-                // there's no need to watch.
-                final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern);
-                if (latestRevision != null) {
-                    future.complete(latestRevision);
-                } else {
-                    commitWatchers.add(normLastKnownRevision, pathPattern, future);
-                }
+                final CompletableFuture<Revision> future = new CompletableFuture<>();
+                commitWatchers.add(normLastKnownRevision, pathPattern, future);
+                return future;
             } finally {
-                readUnlock();
+                readLockStamp.getAndSet(null).unlock();
             }
-        }, repositoryWorker).exceptionally(cause -> {
-            future.completeExceptionally(cause);
-            return null;
+        }).whenComplete((unused1, unused2) -> {
+            final ReadLockStamp stamp = readLockStamp.get();
+            if (stamp != null) {
+                stamp.unlock();
+            }
         });
-
-        return future;
     }
 
-    private void notifyWatchers(Revision newRevision, @Nullable ObjectId prevTreeId, ObjectId nextTreeId) {
-        DiffScanner.scanCached(jGitRepository, prevTreeId, nextTreeId, TreeFilter.ALL, entry -> {
+    private void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {
+        for (DiffEntry entry : diffEntries) {
             switch (entry.getChangeType()) {
                 case ADD:
                     commitWatchers.notify(newRevision, entry.getNewPath());
@@ -1406,8 +1379,7 @@ class GitRepository implements Repository {
                 default:
                     throw new Error();
             }
-            return false;
-        });
+        }
     }
 
     private Revision cachedHeadRevision() {
@@ -1436,41 +1408,46 @@ class GitRepository implements Repository {
     /**
      * Compares the old tree and the new tree to get the list of the affected files.
      */
-    private List<DiffEntry> compareTrees(
-            @Nullable ObjectId prevTreeId, ObjectId nextTreeId, TreeFilter filter) {
+    CompletableFuture<List<DiffEntry>> compareTreesUncached(@Nullable RevTree treeA,
+                                                            @Nullable RevTree treeB,
+                                                            TreeFilter filter) {
+        return CompletableFuture.supplyAsync(
+                () -> blockingCompareTreeUncached(null, treeA, treeB, filter),
+                repositoryWorker);
+    }
 
-        try (DiffFormatter diffFormatter = new DiffFormatter(NullOutputStream.INSTANCE)) {
+    private List<DiffEntry> blockingCompareTreeUncached(@Nullable ReadLockStamp readLockStamp,
+                                                        @Nullable RevTree treeA,
+                                                        @Nullable RevTree treeB,
+                                                        TreeFilter filter) {
+        final ReadLockStamp newReadLockStamp = readLock(readLockStamp);
+        try (DiffFormatter diffFormatter = new DiffFormatter(null)) {
             diffFormatter.setRepository(jGitRepository);
             diffFormatter.setPathFilter(filter);
-
-            final ImmutableList.Builder<DiffEntry> builder = ImmutableList.builder();
-            DiffScanner.scanCached(jGitRepository, prevTreeId, nextTreeId, filter, entry -> {
-                builder.add(entry);
-                return false;
-            });
-            return builder.build();
+            return ImmutableList.copyOf(diffFormatter.scan(treeA, treeB));
+        } catch (IOException e) {
+            throw new StorageException("failed to compare two trees: " + treeA + " vs. " + treeB, e);
+        } finally {
+            newReadLockStamp.unlock();
         }
     }
 
-    private ObjectId toTreeId(RevWalk revWalk, Revision revision) {
+    private RevTree toTree(RevWalk revWalk, Revision revision) {
         final ObjectId commitId = commitIdDatabase.get(revision);
         try {
-            return revWalk.parseCommit(commitId).getTree().getId();
+            return revWalk.parseCommit(commitId).getTree();
         } catch (IOException e) {
             throw new StorageException("failed to parse a commit: " + commitId, e);
         }
     }
 
-    private void readLock() {
-        rwLock.readLock().lock();
+    private ReadLockStamp readLock(@Nullable ReadLockStamp readLockStamp) {
+        final ReadLockStamp newReadLockStamp = ReadLockStamp.lock(lock, readLockStamp);
         if (closePending.get() != null) {
-            rwLock.readLock().unlock();
+            newReadLockStamp.unlock();
             throw closePending.get().get();
         }
-    }
-
-    private void readUnlock() {
-        rwLock.readLock().unlock();
+        return newReadLockStamp;
     }
 
     /**
@@ -1510,7 +1487,7 @@ class GitRepository implements Repository {
 
         final Revision endRevision = normalizeNow(Revision.HEAD);
         final GitRepository newRepo = new GitRepository(parent, newRepoDir, format, repositoryWorker,
-                                                        creationTimeMillis(), author());
+                                                        creationTimeMillis(), author(), cache);
 
         progressListener.accept(1, endRevision.major());
         boolean success = false;
@@ -1535,7 +1512,7 @@ class GitRepository implements Repository {
 
                     final Revision baseRevision = revision.backward(1);
                     final Collection<Change<?>> changes =
-                            blockingDiff(previousNonEmptyRevision, revision, Repository.ALL_PATH).values();
+                            diff(previousNonEmptyRevision, revision, Repository.ALL_PATH).join().values();
 
                     try {
                         newRepo.blockingCommit(
@@ -1582,14 +1559,70 @@ class GitRepository implements Repository {
 
     private static final class CommitResult {
         final Revision revision;
-        @Nullable
-        final ObjectId parentTreeId;
-        final ObjectId treeId;
+        final List<DiffEntry> diffEntries;
 
-        CommitResult(Revision revision, @Nullable ObjectId parentTreeId, ObjectId treeId) {
+        CommitResult(Revision revision, List<DiffEntry> diffEntries) {
             this.revision = revision;
-            this.parentTreeId = parentTreeId;
-            this.treeId = treeId;
+            this.diffEntries = diffEntries;
+        }
+    }
+
+    // PathEdit implementations which is used when applying changes.
+
+    private static final class InsertText extends PathEdit {
+        private final ObjectInserter inserter;
+        private final String text;
+
+        InsertText(String entryPath, ObjectInserter inserter, String text) {
+            super(entryPath);
+            this.inserter = inserter;
+            this.text = text;
+        }
+
+        @Override
+        public void apply(DirCacheEntry ent) {
+            try {
+                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, text.getBytes(UTF_8)));
+                ent.setFileMode(FileMode.REGULAR_FILE);
+            } catch (IOException e) {
+                throw new StorageException("failed to create a new text blob", e);
+            }
+        }
+    }
+
+    private static final class InsertJson extends PathEdit {
+        private final ObjectInserter inserter;
+        private final JsonNode jsonNode;
+
+        InsertJson(String entryPath, ObjectInserter inserter, JsonNode jsonNode) {
+            super(entryPath);
+            this.inserter = inserter;
+            this.jsonNode = jsonNode;
+        }
+
+        @Override
+        public void apply(DirCacheEntry ent) {
+            try {
+                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, Jackson.writeValueAsBytes(jsonNode)));
+                ent.setFileMode(FileMode.REGULAR_FILE);
+            } catch (IOException e) {
+                throw new StorageException("failed to create a new JSON blob", e);
+            }
+        }
+    }
+
+    private static final class CopyOldEntry extends PathEdit {
+        private final DirCacheEntry oldEntry;
+
+        CopyOldEntry(String entryPath, DirCacheEntry oldEntry) {
+            super(entryPath);
+            this.oldEntry = oldEntry;
+        }
+
+        @Override
+        public void apply(DirCacheEntry ent) {
+            ent.setFileMode(oldEntry.getFileMode());
+            ent.setObjectId(oldEntry.getObjectId());
         }
     }
 }

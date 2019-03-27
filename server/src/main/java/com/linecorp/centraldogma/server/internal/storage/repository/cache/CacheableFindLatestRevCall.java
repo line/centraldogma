@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 final class CacheableFindLatestRevCall extends CacheableCall<Revision> {
@@ -49,13 +50,13 @@ final class CacheableFindLatestRevCall extends CacheableCall<Revision> {
     }
 
     @Override
-    int weigh(Revision value) {
+    protected int weigh(Revision value) {
         return pathPattern.length();
     }
 
     @Override
-    CompletableFuture<Revision> execute() {
-        return repo.findLatestRevision(lastKnownRevision, pathPattern).thenApply(e -> firstNonNull(e, EMPTY));
+    public CompletableFuture<Revision> execute() {
+        return repo().findLatestRevision(lastKnownRevision, pathPattern).thenApply(e -> firstNonNull(e, EMPTY));
     }
 
     @Override
@@ -76,7 +77,7 @@ final class CacheableFindLatestRevCall extends CacheableCall<Revision> {
     }
 
     @Override
-    void toString(ToStringHelper helper) {
+    protected void toString(ToStringHelper helper) {
         helper.add("lastKnownRevision", lastKnownRevision)
               .add("headRevision", headRevision)
               .add("pathPattern", pathPattern);

@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server;
 import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_CACHE_SPEC;
 import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_TIMEOUT_MILLIS;
 import static com.linecorp.centraldogma.server.auth.AuthConfig.DEFAULT_SESSION_VALIDATION_SCHEDULE;
-import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;

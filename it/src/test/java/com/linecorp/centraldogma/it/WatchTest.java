@@ -63,9 +63,7 @@ public class WatchTest extends AbstractMultiClientTest {
 
     @Test
     public void testWatchRepository() throws Exception {
-        final Revision rev1 = client()
-                                  .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
-                                  .join();
+        final Revision rev1 = client().normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD).join();
 
         final CompletableFuture<Revision> future =
                 client().watchRepository(rule.project(), rule.repo1(), rev1, "/**", 3000);
@@ -82,6 +80,55 @@ public class WatchTest extends AbstractMultiClientTest {
         final Revision rev2 = result.revision();
 
         assertThat(rev2).isEqualTo(rev1.forward(1));
+        assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
+    }
+
+    @Test
+    public void testWatchRepositoryImmediateWakeup() throws Exception {
+        final Revision rev1 = client().normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD).join();
+        final Change<JsonNode> change = Change.ofJsonUpsert("/test/test3.json",
+                                                            "[" + System.currentTimeMillis() + ", " +
+                                                            System.nanoTime() + ']');
+
+        final PushResult result = client().push(
+                rule.project(), rule.repo1(), rev1, "Add test3.json", change).join();
+
+        final Revision rev2 = result.revision();
+
+        assertThat(rev2).isEqualTo(rev1.forward(1));
+
+        final CompletableFuture<Revision> future =
+                client().watchRepository(rule.project(), rule.repo1(), rev1, "/**", 3000);
+        assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
+    }
+
+    @Test
+    public void testWatchRepositoryWithUnrelatedChange() throws Exception {
+        final Revision rev0 = client().normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD).join();
+        final CompletableFuture<Revision> future =
+                client().watchRepository(rule.project(), rule.repo1(), rev0, "/test/test4.json", 3000);
+
+        final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test3.json",
+                                                             "[" + System.currentTimeMillis() + ", " +
+                                                             System.nanoTime() + ']');
+        final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test4.json",
+                                                             "[" + System.currentTimeMillis() + ", " +
+                                                             System.nanoTime() + ']');
+
+        final PushResult result1 = client().push(
+                rule.project(), rule.repo1(), rev0, "Add test3.json", change1).join();
+        final Revision rev1 = result1.revision();
+        assertThat(rev1).isEqualTo(rev0.forward(1));
+
+        // Ensure that the watcher is not notified because the path pattern does not match test3.json.
+        assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+
+        final PushResult result2 = client().push(
+                rule.project(), rule.repo1(), rev1, "Add test4.json", change2).join();
+        final Revision rev2 = result2.revision();
+        assertThat(rev2).isEqualTo(rev1.forward(1));
+
+        // Now it should be notified.
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
     }
 

@@ -26,6 +26,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
@@ -49,7 +50,7 @@ final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
     }
 
     @Override
-    int weigh(Change<?> value) {
+    protected int weigh(Change<?> value) {
         int weight = 0;
         weight += query.path().length();
         for (String e : query.expressions()) {
@@ -64,8 +65,8 @@ final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
     }
 
     @Override
-    CompletableFuture<Change<?>> execute() {
-        return repo.diff(from, to, query);
+    public CompletableFuture<Change<?>> execute() {
+        return repo().diff(from, to, query);
     }
 
     @Override
@@ -86,7 +87,7 @@ final class CacheableSingleDiffCall extends CacheableCall<Change<?>> {
     }
 
     @Override
-    void toString(ToStringHelper helper) {
+    protected void toString(ToStringHelper helper) {
         helper.add("from", from)
               .add("to", to)
               .add("query", query);

@@ -51,9 +51,9 @@ import com.linecorp.centraldogma.server.internal.plugin.PluginManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
 
 class DefaultProject implements Project {
@@ -120,7 +120,7 @@ class DefaultProject implements Project {
     private RepositoryManager newRepoManager(File rootDir, Executor repositoryWorker,
                                              @Nullable RepositoryCache cache) {
         // Enable caching if 'cache' is not null.
-        final GitRepositoryManager gitRepos = new GitRepositoryManager(this, rootDir, repositoryWorker);
+        final GitRepositoryManager gitRepos = new GitRepositoryManager(this, rootDir, repositoryWorker, cache);
         return cache == null ? gitRepos : new CachingRepositoryManager(gitRepos, cache);
     }
 

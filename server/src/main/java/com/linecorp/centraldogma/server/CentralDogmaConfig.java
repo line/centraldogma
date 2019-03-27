@@ -23,7 +23,7 @@ import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_N
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
-import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;

@@ -26,6 +26,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>> {
@@ -49,7 +50,7 @@ final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>>
     }
 
     @Override
-    int weigh(Map<String, Change<?>> value) {
+    protected int weigh(Map<String, Change<?>> value) {
         int weight = 0;
         weight += pathPattern.length();
         for (Change<?> e : value.values()) {
@@ -63,8 +64,8 @@ final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>>
     }
 
     @Override
-    CompletableFuture<Map<String, Change<?>>> execute() {
-        return repo.diff(from, to, pathPattern);
+    public CompletableFuture<Map<String, Change<?>>> execute() {
+        return repo().diff(from, to, pathPattern);
     }
 
     @Override
@@ -85,7 +86,7 @@ final class CacheableMultiDiffCall extends CacheableCall<Map<String, Change<?>>>
     }
 
     @Override
-    void toString(ToStringHelper helper) {
+    protected void toString(ToStringHelper helper) {
         helper.add("from", from)
               .add("to", to)
               .add("pathPattern", pathPattern);

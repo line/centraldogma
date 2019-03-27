@@ -59,7 +59,8 @@ public class GitRepositoryMigrationTest {
     @Test
     public void legacyFormatCreation() {
         final File repoDir0 = tempDir.getRoot();
-        final GitRepository repo0 = new GitRepository(proj, repoDir0, V0, commonPool(), 0L, Author.SYSTEM);
+        final GitRepository repo0 = new GitRepository(proj, repoDir0, V0, commonPool(),
+                                                      0L, Author.SYSTEM, null);
         try {
             assertThat(repo0.format()).isSameAs(V0);
             assertThat(Paths.get(repoDir0.getPath(), "refs", "heads", "master"))
@@ -95,7 +96,8 @@ public class GitRepositoryMigrationTest {
     public void singleRepositoryMigration() {
         final File repoDir0 = new File(tempDir.getRoot(), "legacy");
         final File repoDir1 = new File(tempDir.getRoot(), "modern");
-        final GitRepository repo0 = new GitRepository(proj, repoDir0, V0, commonPool(), 0, Author.SYSTEM);
+        final GitRepository repo0 = new GitRepository(proj, repoDir0, V0, commonPool(),
+                                                      0, Author.SYSTEM, null);
         try {
             assertThat(repo0.format()).isSameAs(V0);
 
@@ -109,7 +111,7 @@ public class GitRepositoryMigrationTest {
             // Build a clone in modern format.
             repo0.cloneTo(repoDir1);
 
-            final GitRepository repo1 = new GitRepository(proj, repoDir1, commonPool());
+            final GitRepository repo1 = new GitRepository(proj, repoDir1, commonPool(), null);
             try {
                 assertThat(repo1.format()).isSameAs(V1);
 
@@ -162,7 +164,7 @@ public class GitRepositoryMigrationTest {
     public void multipleRepositoryMigration() {
         final File tempDir = this.tempDir.getRoot();
         // Create repositories of older format.
-        final GitRepositoryManager managerA = new GitRepositoryManager(proj, tempDir, V0, commonPool());
+        final GitRepositoryManager managerA = new GitRepositoryManager(proj, tempDir, V0, commonPool(), null);
         try {
             assertThat(((GitRepository) managerA.create("foo", Author.SYSTEM)).format()).isSameAs(V0);
             assertThat(((GitRepository) managerA.create("bar", Author.SYSTEM)).format()).isSameAs(V0);
@@ -171,7 +173,7 @@ public class GitRepositoryMigrationTest {
         }
 
         // Load the repositories with newer format to trigger automatic migration.
-        final GitRepositoryManager managerB = new GitRepositoryManager(proj, tempDir, commonPool());
+        final GitRepositoryManager managerB = new GitRepositoryManager(proj, tempDir, commonPool(), null);
         try {
             assertThat(((GitRepository) managerB.get("foo")).format()).isSameAs(V1);
             assertThat(((GitRepository) managerB.get("bar")).format()).isSameAs(V1);

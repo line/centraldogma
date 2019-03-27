@@ -26,6 +26,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 final class CacheableHistoryCall extends CacheableCall<List<Commit>> {
@@ -51,7 +52,7 @@ final class CacheableHistoryCall extends CacheableCall<List<Commit>> {
     }
 
     @Override
-    int weigh(List<Commit> value) {
+    protected int weigh(List<Commit> value) {
         int weight = 0;
         weight += pathPattern.length();
         for (Commit c : value) {
@@ -62,8 +63,8 @@ final class CacheableHistoryCall extends CacheableCall<List<Commit>> {
     }
 
     @Override
-    CompletableFuture<List<Commit>> execute() {
-        return repo.history(from, to, pathPattern, maxCommits);
+    public CompletableFuture<List<Commit>> execute() {
+        return repo().history(from, to, pathPattern, maxCommits);
     }
 
     @Override
@@ -85,7 +86,7 @@ final class CacheableHistoryCall extends CacheableCall<List<Commit>> {
     }
 
     @Override
-    void toString(ToStringHelper helper) {
+    protected void toString(ToStringHelper helper) {
         helper.add("from", from)
               .add("to", to)
               .add("pathPattern", pathPattern)

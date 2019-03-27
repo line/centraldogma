@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.server.auth;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
+import static com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.text.ParseException;

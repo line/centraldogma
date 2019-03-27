@@ -21,6 +21,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
@@ -206,7 +208,7 @@ public class Revision implements Comparable<Revision> {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
         if (this == o) {
             return true;
         }

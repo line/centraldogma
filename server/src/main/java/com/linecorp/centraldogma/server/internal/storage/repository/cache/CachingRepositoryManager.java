@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static java.util.Objects.requireNonNull;
 
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryManagerWrapper;
 
