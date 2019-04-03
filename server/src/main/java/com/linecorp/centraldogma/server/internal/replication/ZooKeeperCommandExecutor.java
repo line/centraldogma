@@ -331,6 +331,10 @@ public final class ZooKeeperCommandExecutor
             copyZkProperty(zkProps, "autopurge.snapRetainCount", "3");
             copyZkProperty(zkProps, "autopurge.purgeInterval", "1");
 
+            // Set the properties that must be set in System properties.
+            System.setProperty("zookeeper.fsync.warningthresholdms",
+                               cfg.additionalProperties().getOrDefault("fsync.warningthresholdms", "1000"));
+
             // Set the data directories.
             zkProps.setProperty("dataDir", zkDataDir.getPath());
             zkProps.setProperty("dataLogDir", zkLogDir.getPath());
