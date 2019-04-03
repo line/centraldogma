@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository.cache;
+package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static java.util.Objects.requireNonNull;
 
@@ -22,20 +22,22 @@ import java.util.concurrent.CompletableFuture;
 
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
-
 // XXX(trustin): Consider using reflection or AOP so that it takes less effort to add more call types.
-abstract class CacheableCall<T> {
+public abstract class CacheableCall<T> {
 
     final Repository repo;
 
-    CacheableCall(Repository repo) {
+    protected CacheableCall(Repository repo) {
         this.repo = requireNonNull(repo, "repo");
     }
 
-    abstract int weigh(T value);
+    public final Repository repo() {
+        return repo;
+    }
 
-    abstract CompletableFuture<T> execute();
+    protected abstract int weigh(T value);
+
+    public abstract CompletableFuture<T> execute();
 
     @Override
     public int hashCode() {
@@ -69,5 +71,5 @@ abstract class CacheableCall<T> {
         return helper.toString();
     }
 
-    abstract void toString(MoreObjects.ToStringHelper helper);
+    protected abstract void toString(MoreObjects.ToStringHelper helper);
 }

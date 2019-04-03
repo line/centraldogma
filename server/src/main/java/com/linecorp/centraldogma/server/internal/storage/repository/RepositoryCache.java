@@ -14,9 +14,11 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.storage.repository.cache;
+package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static java.util.Objects.requireNonNull;
+
+import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
@@ -49,7 +51,7 @@ public final class RepositoryCache {
     }
 
     @SuppressWarnings("rawtypes")
-    final AsyncLoadingCache<CacheableCall, Object> cache;
+    private final AsyncLoadingCache<CacheableCall, Object> cache;
     private final String cacheSpec;
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -65,6 +67,21 @@ public final class RepositoryCache {
                            logger.debug("Cache miss: {}", key);
                            return key.execute();
                        });
+    }
+
+    public <T> CompletableFuture<T> get(CacheableCall<T> call) {
+        requireNonNull(call, "call");
+        @SuppressWarnings("unchecked")
+        final CompletableFuture<T> f = (CompletableFuture<T>) cache.get(call);
+        return f;
+    }
+
+    @Nullable
+    public <T> CompletableFuture<T> getIfPresent(CacheableCall<T> call) {
+        requireNonNull(call, "call");
+        @SuppressWarnings("unchecked")
+        final CompletableFuture<T> f = (CompletableFuture<T>) cache.getIfPresent(call);
+        return f;
     }
 
     public CacheStats stats() {

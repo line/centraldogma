@@ -32,6 +32,7 @@ import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
@@ -56,7 +57,7 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
     }
 
     @Override
-    int weigh(MergedEntry<?> value) {
+    protected int weigh(MergedEntry<?> value) {
         int weight = 0;
         final List<MergeSource> mergeSources = query.mergeSources();
         weight += mergeSources.size();
@@ -75,7 +76,7 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
     }
 
     @Override
-    CompletableFuture<MergedEntry<?>> execute() {
+    public CompletableFuture<MergedEntry<?>> execute() {
         checkState(computedValue != null, "computedValue is not set yet.");
         return CompletableFuture.completedFuture(computedValue);
     }
@@ -102,7 +103,7 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
     }
 
     @Override
-    void toString(ToStringHelper helper) {
+    protected void toString(ToStringHelper helper) {
         helper.add("revision", revision)
               .add("query", query);
     }

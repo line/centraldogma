@@ -27,6 +27,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 final class CacheableQueryCall extends CacheableCall<Entry<?>> {
@@ -48,7 +49,7 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
     }
 
     @Override
-    int weigh(Entry<?> value) {
+    protected int weigh(Entry<?> value) {
         int weight = 0;
         weight += query.path().length();
         for (String e : query.expressions()) {
@@ -61,8 +62,8 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
     }
 
     @Override
-    CompletableFuture<Entry<?>> execute() {
-        return repo.getOrNull(revision, query).thenApply(e -> firstNonNull(e, EMPTY));
+    public CompletableFuture<Entry<?>> execute() {
+        return repo().getOrNull(revision, query).thenApply(e -> firstNonNull(e, EMPTY));
     }
 
     @Override
@@ -82,7 +83,7 @@ final class CacheableQueryCall extends CacheableCall<Entry<?>> {
     }
 
     @Override
-    void toString(ToStringHelper helper) {
+    protected void toString(ToStringHelper helper) {
         helper.add("revision", revision)
               .add("query", query);
     }

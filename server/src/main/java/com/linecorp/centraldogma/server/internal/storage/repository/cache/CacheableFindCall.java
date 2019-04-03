@@ -26,6 +26,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
@@ -49,7 +50,7 @@ final class CacheableFindCall extends CacheableCall<Map<String, Entry<?>>> {
     }
 
     @Override
-    int weigh(Map<String, Entry<?>> value) {
+    protected int weigh(Map<String, Entry<?>> value) {
         int weight = 0;
         weight += pathPattern.length();
         weight += options.size();
@@ -63,8 +64,8 @@ final class CacheableFindCall extends CacheableCall<Map<String, Entry<?>>> {
     }
 
     @Override
-    CompletableFuture<Map<String, Entry<?>>> execute() {
-        return repo.find(revision, pathPattern, options);
+    public CompletableFuture<Map<String, Entry<?>>> execute() {
+        return repo().find(revision, pathPattern, options);
     }
 
     @Override
@@ -85,7 +86,7 @@ final class CacheableFindCall extends CacheableCall<Map<String, Entry<?>>> {
     }
 
     @Override
-    void toString(ToStringHelper helper) {
+    protected void toString(ToStringHelper helper) {
         helper.add("revision", revision)
               .add("pathPattern", pathPattern)
               .add("options", options);

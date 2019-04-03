@@ -31,7 +31,7 @@ import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager;
-import com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 
 public class DefaultProjectManager extends DirectoryBasedStorageManager<Project> implements ProjectManager {
 

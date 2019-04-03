@@ -235,6 +235,10 @@ final class PathPatternFilter extends TreeFilter {
         return false;
     }
 
+    public boolean matchesAll() {
+        return pathPatterns == null;
+    }
+
     @Override
     public boolean shouldBeRecursive() {
         return true;

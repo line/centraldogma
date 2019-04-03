@@ -27,9 +27,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.base.Throwables;
-import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
@@ -47,6 +45,7 @@ import com.linecorp.centraldogma.server.internal.storage.StorageException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 
 final class CachingRepository implements Repository {
 
@@ -54,15 +53,12 @@ final class CachingRepository implements Repository {
             Exceptions.clearTrace(new CancellationException("watch cancelled by caller"));
 
     private final Repository repo;
-
-    @SuppressWarnings("rawtypes")
-    private final AsyncLoadingCache<CacheableCall, Object> cache;
-
+    private final RepositoryCache cache;
     private final Commit firstCommit;
 
     CachingRepository(Repository repo, RepositoryCache cache) {
         this.repo = requireNonNull(repo, "repo");
-        this.cache = requireNonNull(cache, "cache").cache;
+        this.cache = requireNonNull(cache, "cache");
 
         try {
             final List<Commit> history = repo.history(Revision.INIT, Revision.INIT, ALL_PATH, 1).join();
@@ -89,13 +85,7 @@ final class CachingRepository implements Repository {
         requireNonNull(revision, "revision");
         requireNonNull(query, "query");
 
-        final Revision normalizedRevision;
-        try {
-            normalizedRevision = normalizeNow(revision);
-        } catch (Exception e) {
-            return CompletableFutures.exceptionallyCompletedFuture(e);
-        }
-
+        final Revision normalizedRevision = normalizeNow(revision);
         if (query.type() == QueryType.IDENTITY) {
             // If the query is an IDENTITY type, call find() so that the caches are reused in one place when
             // calls getOrNull(), find() and mergeFiles().
@@ -118,14 +108,8 @@ final class CachingRepository implements Repository {
         requireNonNull(pathPattern, "pathPattern");
         requireNonNull(options, "options");
 
-        final Revision normalizedRevision;
-        try {
-            normalizedRevision = normalizeNow(revision);
-        } catch (Exception e) {
-            return CompletableFutures.exceptionallyCompletedFuture(e);
-        }
-
-        return unsafeCast(cache.get(new CacheableFindCall(repo, normalizedRevision, pathPattern, options)));
+        final Revision normalizedRevision = normalizeNow(revision);
+        return cache.get(new CacheableFindCall(repo, normalizedRevision, pathPattern, options));
     }
 
     @Override
@@ -138,19 +122,14 @@ final class CachingRepository implements Repository {
             throw new IllegalArgumentException("maxCommits: " + maxCommits + " (expected: > 0)");
         }
 
-        final RevisionRange range;
-        try {
-            range = normalizeNow(from, to);
-        } catch (Exception e) {
-            return CompletableFutures.exceptionallyCompletedFuture(e);
-        }
+        final RevisionRange range = normalizeNow(from, to);
 
         // Make sure maxCommits do not exceed its theoretical limit to increase the chance of cache hit.
         // e.g. when from = 2 and to = 4, the same result should be yielded when maxCommits >= 3.
         final int actualMaxCommits = Math.min(
                 maxCommits, Math.abs(range.from().major() - range.to().major()) + 1);
-        return unsafeCast(cache.get(
-                new CacheableHistoryCall(repo, range.from(), range.to(), pathPattern, actualMaxCommits)));
+        return cache.get(new CacheableHistoryCall(repo, range.from(), range.to(),
+                                                  pathPattern, actualMaxCommits));
     }
 
     @Override
@@ -159,14 +138,8 @@ final class CachingRepository implements Repository {
         requireNonNull(to, "to");
         requireNonNull(query, "query");
 
-        final RevisionRange range;
-        try {
-            range = normalizeNow(from, to).toAscending();
-        } catch (Exception e) {
-            return CompletableFutures.exceptionallyCompletedFuture(e);
-        }
-
-        return unsafeCast(cache.get(new CacheableSingleDiffCall(repo, range.from(), range.to(), query)));
+        final RevisionRange range = normalizeNow(from, to).toAscending();
+        return cache.get(new CacheableSingleDiffCall(repo, range.from(), range.to(), query));
     }
 
     @Override
@@ -175,14 +148,8 @@ final class CachingRepository implements Repository {
         requireNonNull(to, "to");
         requireNonNull(pathPattern, "pathPattern");
 
-        final RevisionRange range;
-        try {
-            range = normalizeNow(from, to).toAscending();
-        } catch (Exception e) {
-            return CompletableFutures.exceptionallyCompletedFuture(e);
-        }
-
-        return unsafeCast(cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(), pathPattern)));
+        final RevisionRange range = normalizeNow(from, to).toAscending();
+        return cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(), pathPattern));
     }
 
     @Override
@@ -190,21 +157,14 @@ final class CachingRepository implements Repository {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
 
-        final RevisionRange range;
-        try {
-            range = normalizeNow(lastKnownRevision, Revision.HEAD);
-        } catch (Exception e) {
-            return CompletableFutures.exceptionallyCompletedFuture(e);
-        }
-
+        final RevisionRange range = normalizeNow(lastKnownRevision, Revision.HEAD);
         if (range.from().equals(range.to())) {
+            // Empty range.
             return CompletableFuture.completedFuture(null);
         }
 
-        final CompletableFuture<Object> future =
-                cache.get(new CacheableFindLatestRevCall(repo, range.from(), range.to(), pathPattern))
-                     .thenApply(result -> result != CacheableFindLatestRevCall.EMPTY ? result : null);
-        return unsafeCast(future);
+        return cache.get(new CacheableFindLatestRevCall(repo, range.from(), range.to(), pathPattern))
+                    .thenApply(result -> result != CacheableFindLatestRevCall.EMPTY ? result : null);
     }
 
     @Override
@@ -212,7 +172,8 @@ final class CachingRepository implements Repository {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
 
-        final CompletableFuture<Revision> latestRevFuture = findLatestRevision(lastKnownRevision, pathPattern);
+        final CompletableFuture<Revision> latestRevFuture =
+                findLatestRevision(lastKnownRevision, pathPattern);
         if (latestRevFuture.isCompletedExceptionally() || latestRevFuture.getNow(null) != null) {
             return latestRevFuture;
         }
@@ -299,15 +260,9 @@ final class CachingRepository implements Repository {
         requireNonNull(revision, "revision");
         requireNonNull(query, "query");
 
-        final Revision normalizedRevision;
-        try {
-            normalizedRevision = normalizeNow(revision);
-        } catch (Exception e) {
-            return CompletableFutures.exceptionallyCompletedFuture(e);
-        }
-
+        final Revision normalizedRevision = normalizeNow(revision);
         final CacheableMergeQueryCall key = new CacheableMergeQueryCall(repo, normalizedRevision, query);
-        final CompletableFuture<Object> value = cache.getIfPresent(key);
+        final CompletableFuture<MergedEntry<?>> value = cache.getIfPresent(key);
         if (value != null) {
             return unsafeCast(value);
         }

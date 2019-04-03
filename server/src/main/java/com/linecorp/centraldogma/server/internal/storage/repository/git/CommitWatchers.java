@@ -70,6 +70,10 @@ final class CommitWatchers {
     void notify(Revision revision, String path) {
         List<Watch> eligibleWatches = null;
         synchronized (watchesMap) {
+            if (watchesMap.isEmpty()) {
+                return;
+            }
+
             for (final Entry<PathPatternFilter, Set<Watch>> e : watchesMap.entrySet()) {
                 if (!e.getKey().matches(path)) {
                     continue;

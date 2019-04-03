@@ -55,7 +55,7 @@ public class RepositoryManagerWrapperTest {
     @Before
     public void init() throws IOException {
         m = new RepositoryManagerWrapper(new GitRepositoryManager(mock(Project.class), rootDir.getRoot(),
-                                                                  ForkJoinPool.commonPool()),
+                                                                  ForkJoinPool.commonPool(), null),
                                          RepositoryWrapper::new);
     }
 

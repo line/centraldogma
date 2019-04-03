@@ -122,6 +122,6 @@ public class GitRepositoryManagerTest {
     }
 
     private GitRepositoryManager newRepositoryManager() {
-        return new GitRepositoryManager(mock(Project.class), rootDir(), ForkJoinPool.commonPool());
+        return new GitRepositoryManager(mock(Project.class), rootDir(), ForkJoinPool.commonPool(), null);
     }
 }

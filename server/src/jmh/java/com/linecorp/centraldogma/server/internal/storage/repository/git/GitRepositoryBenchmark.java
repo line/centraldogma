@@ -57,7 +57,7 @@ public class GitRepositoryBenchmark {
     public void init() throws Exception {
         repoDir = Files.createTempDirectory("jmh-gitrepository.").toFile();
         repo = new GitRepository(mock(Project.class), repoDir, format, ForkJoinPool.commonPool(),
-                                 System.currentTimeMillis(), AUTHOR);
+                                 System.currentTimeMillis(), AUTHOR, null);
         currentRevision = 1;
 
         for (int i = 0; i < previousCommits; i++) {
