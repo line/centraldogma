@@ -73,7 +73,7 @@ public class ShiroLoginAndLogoutTest {
         assertThat(loginRes.status()).isEqualTo(HttpStatus.OK);
 
         // Ensure authorization works.
-        final AccessToken accessToken = Jackson.readValue(loginRes.content().toStringUtf8(), AccessToken.class);
+        final AccessToken accessToken = Jackson.readValue(loginRes.contentUtf8(), AccessToken.class);
         final String sessionId = accessToken.accessToken();
 
         assertThat(usersMe(client, sessionId).status()).isEqualTo(HttpStatus.OK);

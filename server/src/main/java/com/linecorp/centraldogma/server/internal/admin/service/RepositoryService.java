@@ -151,7 +151,7 @@ public class RepositoryService extends AbstractService {
                                    ServiceRequestContext ctx) {
         final CommitMessageDto commitMessage;
         try {
-            final JsonNode node = Jackson.readTree(message.content().toStringUtf8());
+            final JsonNode node = Jackson.readTree(message.contentUtf8());
             commitMessage = Jackson.convertValue(node.get("commitMessage"), CommitMessageDto.class);
         } catch (IOException e) {
             throw new IllegalArgumentException("invalid data to be parsed", e);
@@ -242,7 +242,7 @@ public class RepositoryService extends AbstractService {
 
     private static Entry<CommitMessageDto, Change<?>> commitMessageAndChange(AggregatedHttpMessage message) {
         try {
-            final JsonNode node = Jackson.readTree(message.content().toStringUtf8());
+            final JsonNode node = Jackson.readTree(message.contentUtf8());
             final CommitMessageDto commitMessage =
                     Jackson.convertValue(node.get("commitMessage"), CommitMessageDto.class);
             final EntryDto file = Jackson.convertValue(node.get("file"), EntryDto.class);

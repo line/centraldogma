@@ -68,7 +68,7 @@ public class ProjectServiceV1Test {
         final String location = headers.get(HttpHeaderNames.LOCATION);
         assertThat(location).isEqualTo("/api/v1/projects/myPro");
 
-        final JsonNode jsonNode = Jackson.readTree(aRes.content().toStringUtf8());
+        final JsonNode jsonNode = Jackson.readTree(aRes.contentUtf8());
         assertThat(jsonNode.get("name").asText()).isEqualTo("myPro");
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
     }
@@ -91,7 +91,7 @@ public class ProjectServiceV1Test {
                 "   \"exception\": \"" + ProjectExistsException.class.getName() + "\"," +
                 "   \"message\": \"Project 'myPro' exists already.\"" +
                 '}';
-        assertThatJson(res.content().toStringUtf8()).isEqualTo(expectedJson);
+        assertThatJson(res.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -131,8 +131,7 @@ public class ProjectServiceV1Test {
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }" +
                 ']';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -171,11 +170,10 @@ public class ProjectServiceV1Test {
                 "       \"name\": \"minwoox\"" +
                 "   }" +
                 ']';
-        final String actualJson = removedRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(removedRes.contentUtf8()).isEqualTo(expectedJson);
 
         final AggregatedHttpMessage remainedRes = httpClient.get(PROJECTS_PREFIX).aggregate().join();
-        final String remains = remainedRes.content().toStringUtf8();
+        final String remains = remainedRes.contentUtf8();
         final JsonNode jsonNode = Jackson.readTree(remains);
 
         // only trustin project is left
@@ -204,8 +202,7 @@ public class ProjectServiceV1Test {
                 "   \"url\": \"/api/v1/projects/bar\"," +
                 "   \"createdAt\": \"${json-unit.ignore}\"" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test

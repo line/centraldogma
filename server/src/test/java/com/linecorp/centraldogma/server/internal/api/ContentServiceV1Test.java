@@ -40,12 +40,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
 
-import io.netty.util.AsciiString;
-
 public class ContentServiceV1Test extends ContentServiceV1TestBase {
-
-    // TODO(trustin): Replace with HttpHeaderNames.PREFER.
-    private static final AsciiString HEADER_NAME_PREFER = HttpHeaderNames.of("prefer");
 
     // TODO(minwoox) replace this unit test using nested structure in junit 5
     // Rule is used instead of ClassRule because the listFiles is
@@ -59,7 +54,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   \"revision\": 2," +
                 "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
+        final String actualJson = aRes.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -85,7 +80,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   \"revision\": 3," +
                 "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
+        final String actualJson = aRes.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -111,7 +106,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   \"revision\": 3," +
                 "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
+        final String actualJson = aRes.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -145,7 +140,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   \"revision\": 2," +
                 "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
+        final String actualJson = aRes.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -170,7 +165,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         // check whether the change is right
         final AggregatedHttpMessage res1 = httpClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=2&to=3").aggregate().join();
-        final JsonNode content1 = Jackson.readTree(res1.content().toStringUtf8()).get(0).get("content");
+        final JsonNode content1 = Jackson.readTree(res1.contentUtf8()).get(0).get("content");
         assertThat(content1.size()).isOne();
         assertThat(content1.get(0).toString()).isEqualToIgnoringCase(
                 "{\"op\":\"safeReplace\",\"path\":\"/a\",\"oldValue\":\"bar\",\"value\":\"baz\"}");
@@ -193,7 +188,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         // check whether the change is right
         final AggregatedHttpMessage res2 = httpClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=4&to=5").aggregate().join();
-        final JsonNode content2 = Jackson.readTree(res2.content().toStringUtf8()).get(0).get("content");
+        final JsonNode content2 = Jackson.readTree(res2.contentUtf8()).get(0).get("content");
         assertThat(content2.textValue()).isEqualToIgnoringCase("--- /a/bar.txt\n" +
                                                                "+++ /a/bar.txt\n" +
                                                                "@@ -1,1 +1,1 @@\n" +
@@ -254,7 +249,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       }]" +
                 "   }" +
                 ']';
-        final String actualJson = aRes.content().toStringUtf8();
+        final String actualJson = aRes.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -265,12 +260,13 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
 
         final String expectedJson =
                 '{' +
+                "   \"revision\": 2," +
                 "   \"path\": \"/foo.json\"," +
                 "   \"type\": \"JSON\"," +
                 "   \"content\" : {\"a\":\"bar\"}," +
                 "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
+        final String actualJson = aRes.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -283,12 +279,13 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
 
         final String expectedJson =
                 '{' +
+                "   \"revision\": 2," +
                 "   \"path\": \"/foo.json\"," +
                 "   \"type\": \"JSON\"," +
                 "   \"content\" : \"bar\"," +
                 "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
+        final String actualJson = aRes.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -302,23 +299,25 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final String expectedJson1 =
                 '[' +
                 "   {" +
+                "       \"revision\": 3," +
                 "       \"path\": \"/a\"," +
                 "       \"type\": \"DIRECTORY\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
                 "   }," +
                 "   {" +
+                "       \"revision\": 3," +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                 "   }," +
                 "   {" +
+                "       \"revision\": 3," +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
-        final String actualJson1 = res1.content().toStringUtf8();
-        assertThatJson(actualJson1).isEqualTo(expectedJson1);
+        assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson1);
 
         // get the list of files only under root
         final AggregatedHttpMessage res2 = httpClient()
@@ -326,18 +325,19 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final String expectedJson2 =
                 '[' +
                 "   {" +
+                "       \"revision\": 3," +
                 "       \"path\": \"/a\"," +
                 "       \"type\": \"DIRECTORY\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
                 "   }," +
                 "   {" +
+                "       \"revision\": 3," +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
-        final String actualJson2 = res2.content().toStringUtf8();
-        assertThatJson(actualJson2).isEqualTo(expectedJson2);
+        assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson2);
 
         // get the list of all files with revision 2, so only foo.json will be fetched
         final AggregatedHttpMessage res3 = httpClient()
@@ -345,17 +345,27 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final String expectedJson3 =
                 '[' +
                 "   {" +
+                "       \"revision\": 2," +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
-        assertThatJson(expectedJson3).isEqualTo(res3.content().toStringUtf8());
+        assertThatJson(res3.contentUtf8()).isEqualTo(expectedJson3);
 
         // get the list with a file path
         final AggregatedHttpMessage res4 = httpClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/list/foo.json").aggregate().join();
-        assertThatJson(expectedJson3).isEqualTo(res4.content().toStringUtf8());
+        final String expectedJson4 =
+                '[' +
+                "   {" +
+                "       \"revision\": 3," +
+                "       \"path\": \"/foo.json\"," +
+                "       \"type\": \"JSON\"," +
+                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
+                "   }" +
+                ']';
+        assertThatJson(res4.contentUtf8()).isEqualTo(expectedJson4);
     }
 
     @Test
@@ -368,39 +378,41 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final String expectedJson1 =
                 '[' +
                 "   {" +
+                "       \"revision\": 3," +
                 "       \"path\": \"/a\"," +
                 "       \"type\": \"DIRECTORY\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
                 "   }," +
                 "   {" +
+                "       \"revision\": 3," +
                 "       \"path\": \"/a/bar.txt\"," +
                 "       \"type\": \"TEXT\"," +
                 "       \"content\" : \"text in the file.\\n\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                 "   }," +
                 "   {" +
+                "       \"revision\": 3," +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\" : {\"a\":\"bar\"}," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
-        final String actualJson1 = res1.content().toStringUtf8();
-        assertThatJson(actualJson1).isEqualTo(expectedJson1);
+        assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson1);
 
         final AggregatedHttpMessage res2 = httpClient().get(CONTENTS_PREFIX + "/**?revision=2")
                                                        .aggregate().join();
         final String expectedJson2 =
                 '[' +
                 "   {" +
+                "       \"revision\": 2," +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\" : {\"a\":\"bar\"}," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                 "   }" +
                 ']';
-        final String actualJson2 = res2.content().toStringUtf8();
-        assertThatJson(actualJson2).isEqualTo(expectedJson2);
+        assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson2);
     }
 
     @Test
@@ -423,7 +435,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
 
         final AggregatedHttpMessage res2 = httpClient().get(CONTENTS_PREFIX + "/**").aggregate().join();
         // /a directory and /a/bar.txt file are left
-        assertThat(Jackson.readTree(res2.content().toStringUtf8()).size()).isEqualTo(2);
+        assertThat(Jackson.readTree(res2.contentUtf8()).size()).isEqualTo(2);
     }
 
     @Test
@@ -442,7 +454,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                                                .contentType(MediaType.JSON);
         final AggregatedHttpMessage res = httpClient().execute(headers, body).aggregate().join();
         assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
-        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+        assertThatJson(res.contentUtf8()).isEqualTo(
                 '{' +
                 "  \"exception\": \"" + ChangeConflictException.class.getName() + "\"," +
                 "  \"message\": \"${json-unit.ignore}\"" +
@@ -474,7 +486,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                                                .contentType(MediaType.JSON);
         final AggregatedHttpMessage res = httpClient().execute(headers, body).aggregate().join();
         assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
-        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+        assertThatJson(res.contentUtf8()).isEqualTo(
                 '{' +
                 "  \"exception\": \"" + RedundantChangeException.class.getName() + "\"," +
                 "  \"message\": \"${json-unit.ignore}\"" +
@@ -490,11 +502,11 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   \"revision\": 3," +
                 "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
-        final String actualJson = res1.content().toStringUtf8();
+        final String actualJson = res1.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
 
         final AggregatedHttpMessage res2 = httpClient().get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
-        assertThat(Jackson.readTree(res2.content().toStringUtf8()).get("content").get("a").textValue())
+        assertThat(Jackson.readTree(res2.contentUtf8()).get("content").get("a").textValue())
                 .isEqualToIgnoringCase("baz");
     }
 
@@ -525,11 +537,11 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   \"revision\": 3," +
                 "   \"pushedAt\": \"${json-unit.ignore}\"" +
                 '}';
-        final String actualJson = res1.content().toStringUtf8();
+        final String actualJson = res1.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
 
         final AggregatedHttpMessage res2 = httpClient().get(CONTENTS_PREFIX + "/a/bar.txt").aggregate().join();
-        assertThat(Jackson.readTree(res2.content().toStringUtf8()).get("content").textValue())
+        assertThat(Jackson.readTree(res2.contentUtf8()).get("content").textValue())
                 .isEqualTo("text in some file.\n");
     }
 
@@ -552,7 +564,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '{' +
                 "   \"revision\" : 3" +
                 '}';
-        final String actualJson = res.content().toStringUtf8();
+        final String actualJson = res.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -560,7 +572,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     public void watchRepositoryTimeout() {
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX)
                                                .add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                               .add(HEADER_NAME_PREFER, "wait=5"); // 5 seconds
+                                               .add(HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
         await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
         assertThat(future.join().headers().status()).isSameAs(HttpStatus.NOT_MODIFIED);
@@ -570,7 +582,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     public void watchFileTimeout() {
         final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json")
                                                .add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                               .add(HEADER_NAME_PREFER, "wait=5"); // 5 seconds
+                                               .add(HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
         await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
         assertThat(future.join().headers().status()).isSameAs(HttpStatus.NOT_MODIFIED);
@@ -597,6 +609,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '{' +
                 "   \"revision\" : 4," +
                 "   \"entry\": {" +
+                "       \"revision\" : 4," +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\": {\"a\":\"baz\"}," +
@@ -604,7 +617,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   }" +
                 '}';
         final AggregatedHttpMessage res = future.join();
-        final String actualJson = res.content().toStringUtf8();
+        final String actualJson = res.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -630,6 +643,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '{' +
                 "   \"revision\" : 4," +
                 "   \"entry\": {" +
+                "       \"revision\" : 4," +
                 "       \"path\": \"/foo.json\"," +
                 "       \"type\": \"JSON\"," +
                 "       \"content\": \"baz\"," +
@@ -637,7 +651,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   }" +
                 '}';
         final AggregatedHttpMessage res = future.join();
-        final String actualJson = res.content().toStringUtf8();
+        final String actualJson = res.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
     }
 
@@ -658,6 +672,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final String expectedJson =
                 '[' +
                 "   {" +
+                "       \"revision\": 2," +
                 "       \"path\": \"/a.json/b.json\"," +
                 "       \"type\": \"DIRECTORY\"," +
                 "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a.json/b.json\"" +
@@ -666,12 +681,12 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         // List directory without slash.
         final AggregatedHttpMessage res1 = httpClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/list/a.json").aggregate().join();
-        assertThatJson(res1.content().toStringUtf8()).isEqualTo(expectedJson);
+        assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson);
 
         // Listing directory with a slash is same with the listing director without slash which is res1.
         final AggregatedHttpMessage res2 = httpClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/list/a.json/").aggregate().join();
-        assertThatJson(res2.content().toStringUtf8()).isEqualTo(expectedJson);
+        assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson);
     }
 
     private AggregatedHttpMessage addFooJson() {

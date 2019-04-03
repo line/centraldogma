@@ -29,9 +29,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.Revision;
 
 @JsonInclude(Include.NON_NULL)
 public class EntryDto<T> {
+
+    private final Revision revision;
 
     private final String path;
 
@@ -41,30 +44,37 @@ public class EntryDto<T> {
 
     private final String url;
 
-    public EntryDto(String path, EntryType type, String projectName, String repoName, @Nullable T content) {
+    public EntryDto(Revision revision, String path, EntryType type,
+                    String projectName, String repoName, @Nullable T content) {
+        this.revision = requireNonNull(revision, "revision");
         this.path = requireNonNull(path, "path");
         this.type = requireNonNull(type, "type");
         this.content = content;
         url = PROJECTS_PREFIX + '/' + projectName + REPOS + '/' + repoName + CONTENTS + path;
     }
 
-    @JsonProperty("path")
+    @JsonProperty
+    public Revision revision() {
+        return revision;
+    }
+
+    @JsonProperty
     public String path() {
         return path;
     }
 
-    @JsonProperty("type")
+    @JsonProperty
     public EntryType type() {
         return type;
     }
 
-    @JsonProperty("content")
+    @JsonProperty
     @Nullable
     public T content() {
         return content;
     }
 
-    @JsonProperty("url")
+    @JsonProperty
     @Nullable
     public String url() {
         return url;
@@ -73,6 +83,7 @@ public class EntryDto<T> {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("revision", revision)
                           .add("path", path)
                           .add("type", type)
                           .add("content", content).toString();

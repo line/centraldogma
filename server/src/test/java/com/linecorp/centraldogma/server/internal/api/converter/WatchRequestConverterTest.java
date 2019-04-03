@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.api.converter;
 
-import static com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.HEADER_NAME_PREFER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -42,7 +41,7 @@ public class WatchRequestConverterTest {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final AggregatedHttpMessage request = mock(AggregatedHttpMessage.class);
         final HttpHeaders headers = new DefaultHttpHeaders().add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                                            .add(HEADER_NAME_PREFER, "wait=10");
+                                                            .add(HttpHeaderNames.PREFER, "wait=10");
 
         when(request.headers()).thenReturn(headers);
 

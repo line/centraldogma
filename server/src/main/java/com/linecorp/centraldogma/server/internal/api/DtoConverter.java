@@ -58,23 +58,29 @@ final class DtoConverter {
                                  repository.creationTimeMillis());
     }
 
-    public static <T> EntryDto<T> convert(Repository repository, Entry<T> entry, boolean withContent) {
+    public static <T> EntryDto<T> convert(Repository repository, Revision revision,
+                                          Entry<T> entry, boolean withContent) {
         requireNonNull(entry, "entry");
         if (withContent && entry.hasContent()) {
-            return convert(repository, entry.path(), entry.type(), entry.content());
+            return convert(repository, revision, entry.path(), entry.type(), entry.content());
         }
-        return convert(repository, entry.path(), entry.type());
+        return convert(repository, revision, entry.path(), entry.type());
     }
 
-    public static <T> EntryDto<T> convert(Repository repository, String path, EntryType type) {
-        return convert(repository, path, type, null);
+    private static <T> EntryDto<T> convert(Repository repository, Revision revision,
+                                           String path, EntryType type) {
+        return convert(repository, revision, path, type, null);
     }
 
-    public static <T> EntryDto<T> convert(Repository repository, String path, EntryType type,
-                                          @Nullable T content) {
+    private static <T> EntryDto<T> convert(Repository repository, Revision revision, String path,
+                                           EntryType type, @Nullable T content) {
         requireNonNull(repository, "repository");
-        return new EntryDto<>(requireNonNull(path, "path"), requireNonNull(type, "type"),
-                              repository.parent().name(), repository.name(), content);
+        return new EntryDto<>(requireNonNull(revision, "revision"),
+                              requireNonNull(path, "path"),
+                              requireNonNull(type, "type"),
+                              repository.parent().name(),
+                              repository.name(),
+                              content);
     }
 
     public static PushResultDto convert(Revision revision, long commitTimeMillis) {

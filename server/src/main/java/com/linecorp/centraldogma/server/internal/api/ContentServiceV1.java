@@ -101,17 +101,18 @@ public class ContentServiceV1 extends AbstractService {
                                                           @Param("revision") @Default("-1") String revision,
                                                           Repository repository) {
         final String normalizedPath = normalizePath(path);
+        final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, new Revision(revision), false, future);
+        listFiles(repository, normalizedPath, normalizedRev, false, future);
         return future;
     }
 
-    private static void listFiles(Repository repository, String pathPattern, Revision revision,
+    private static void listFiles(Repository repository, String pathPattern, Revision normalizedRev,
                                   boolean withContent, CompletableFuture<List<EntryDto<?>>> result) {
         final Map<FindOption<?>, ?> options = withContent ? FindOptions.FIND_ALL_WITH_CONTENT
                                                           : FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
-        repository.find(revision, pathPattern, options).handle((entries, thrown) -> {
+        repository.find(normalizedRev, pathPattern, options).handle((entries, thrown) -> {
             if (thrown != null) {
                 result.completeExceptionally(thrown);
                 return null;
@@ -121,10 +122,10 @@ public class ContentServiceV1 extends AbstractService {
             // This is called once at most, because the pathPattern is not a valid file path anymore.
             if (isValidFilePath(pathPattern) && entries.size() == 1 &&
                 entries.values().iterator().next().type() == DIRECTORY) {
-                listFiles(repository, pathPattern + "/*", revision, withContent, result);
+                listFiles(repository, pathPattern + "/*", normalizedRev, withContent, result);
             } else {
                 result.complete(entries.values().stream()
-                                       .map(entry -> convert(repository, entry, withContent))
+                                       .map(entry -> convert(repository, normalizedRev, entry, withContent))
                                        .collect(toImmutableList()));
             }
             return null;
@@ -238,15 +239,17 @@ public class ContentServiceV1 extends AbstractService {
             return watchRepository(repository, lastKnownRevision, normalizedPath, timeOutMillis);
         }
 
+        final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
         if (query.isPresent()) {
             // get a file
-            return repository.get(new Revision(revision), query.get())
-                             .handle(returnOrThrow((Entry<?> result) -> convert(repository, result, true)));
+            return repository.get(normalizedRev, query.get())
+                             .handle(returnOrThrow((Entry<?> result) -> convert(repository, normalizedRev,
+                                                                                result, true)));
         }
 
         // get files
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(repository, normalizedPath, new Revision(revision), true, future);
+        listFiles(repository, normalizedPath, normalizedRev, true, future);
         return future;
     }
 
@@ -257,7 +260,7 @@ public class ContentServiceV1 extends AbstractService {
 
         return future.thenApply(entry -> {
             final Revision revision = entry.revision();
-            final EntryDto<?> entryDto = convert(repository, entry, true);
+            final EntryDto<?> entryDto = convert(repository, revision, entry, true);
             return (Object) new WatchResultDto(revision, entryDto);
         }).exceptionally(ContentServiceV1::handleWatchFailure);
     }

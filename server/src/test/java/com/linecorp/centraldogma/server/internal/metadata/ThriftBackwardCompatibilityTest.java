@@ -87,7 +87,7 @@ public class ThriftBackwardCompatibilityTest {
         AggregatedHttpMessage res;
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName + REPOS).aggregate().join();
         final List<JsonNode> nodes = new ArrayList<>();
-        Jackson.readTree(res.content().toStringUtf8()).elements().forEachRemaining(nodes::add);
+        Jackson.readTree(res.contentUtf8()).elements().forEachRemaining(nodes::add);
 
         assertThat(nodes.stream().map(n -> n.get("name").textValue()).collect(Collectors.toList()))
                 .containsAnyOf(REPO_DOGMA, REPO_META, repo1);
@@ -95,7 +95,7 @@ public class ThriftBackwardCompatibilityTest {
         ProjectMetadata metadata;
 
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
-        metadata = Jackson.readValue(res.content().toStringUtf8(), ProjectMetadata.class);
+        metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
         assertThat(metadata.repos().size()).isEqualTo(2);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNull();
@@ -105,7 +105,7 @@ public class ThriftBackwardCompatibilityTest {
         client.removeRepository(projectName, repo1);
 
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
-        metadata = Jackson.readValue(res.content().toStringUtf8(), ProjectMetadata.class);
+        metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
         assertThat(metadata.repos().size()).isEqualTo(2);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNotNull();
@@ -115,7 +115,7 @@ public class ThriftBackwardCompatibilityTest {
         client.unremoveRepository(projectName, repo1);
 
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
-        metadata = Jackson.readValue(res.content().toStringUtf8(), ProjectMetadata.class);
+        metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
         assertThat(metadata.repos().size()).isEqualTo(2);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNull();
