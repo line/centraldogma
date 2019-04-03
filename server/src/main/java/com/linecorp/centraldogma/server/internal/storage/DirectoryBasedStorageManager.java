@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -56,12 +57,12 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     private static final String SUFFIX_REMOVED = ".removed";
 
     private final String childTypeName;
-    private final Object[] childArgs;
     private final File rootDir;
     private final ConcurrentMap<String, T> children = new ConcurrentHashMap<>();
     private final AtomicReference<Supplier<CentralDogmaException>> closed = new AtomicReference<>();
+    private boolean initialized;
 
-    protected DirectoryBasedStorageManager(File rootDir, Class<? extends T> childType, Object... childArgs) {
+    protected DirectoryBasedStorageManager(File rootDir, Class<? extends T> childType) {
         requireNonNull(rootDir, "rootDir");
 
         if (!rootDir.exists()) {
@@ -82,17 +83,14 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
         this.rootDir = rootDir;
         childTypeName = Util.simpleTypeName(requireNonNull(childType, "childTypeName"), true);
-        this.childArgs = requireNonNull(childArgs, "childArgs").clone();
-
-        loadChildren();
     }
 
-    protected Object childArg(int index) {
-        return childArgs[index];
-    }
-
-    private void loadChildren() {
-        boolean success = false;
+    /**
+     * Initializes this {@link StorageManager} by loading all children.
+     */
+    protected final void init() {
+        checkState(!initialized, "initialized already");
+        Throwable cause = null;
         try {
             final File[] childFiles = rootDir.listFiles();
             if (childFiles != null) {
@@ -100,11 +98,20 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
                     loadChild(f);
                 }
             }
-            success = true;
-        } finally {
-            if (!success) {
-                close(() -> new CentralDogmaException("should never reach here"));
+            initialized = true;
+        } catch (Throwable t) {
+            cause = t;
+        }
+
+        if (cause != null) {
+            final CentralDogmaException finalCause;
+            if (cause instanceof CentralDogmaException) {
+                finalCause = (CentralDogmaException) cause;
+            } else {
+                finalCause = new CentralDogmaException("Failed to load a child: " + cause, cause);
             }
+            close(() -> finalCause);
+            throw finalCause;
         }
     }
 
@@ -124,7 +131,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
 
         try {
-            final T child = openChild(f, childArgs);
+            final T child = openChild(f);
             children.put(name, child);
             return child;
         } catch (RuntimeException e) {
@@ -134,10 +141,9 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         }
     }
 
-    protected abstract T openChild(File childDir, Object[] childArgs) throws Exception;
+    protected abstract T openChild(File childDir) throws Exception;
 
-    protected abstract T createChild(File childDir, Object[] childArgs,
-                                     Author author, long creationTimeMillis) throws Exception;
+    protected abstract T createChild(File childDir, Author author, long creationTimeMillis) throws Exception;
 
     private void closeChild(String name, T child, Supplier<CentralDogmaException> failureCauseSupplier) {
         closeChild(new File(rootDir, name), child, failureCauseSupplier);
@@ -207,7 +213,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         final File f = new File(rootDir, name);
         boolean success = false;
         try {
-            final T newChild = createChild(f, childArgs, author, creationTimeMillis);
+            final T newChild = createChild(f, author, creationTimeMillis);
             success = true;
             return newChild;
         } catch (RuntimeException e) {
@@ -317,6 +323,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     @Override
     public void ensureOpen() {
+        checkState(initialized, "not initialized yet");
         if (closed.get() != null) {
             throw closed.get().get();
         }

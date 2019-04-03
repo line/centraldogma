@@ -138,7 +138,8 @@ class GitRepository implements Repository {
     private final StampedLock lock = new StampedLock();
     private final Project parent;
     private final Executor repositoryWorker;
-    private final RepositoryCache cache;
+    @VisibleForTesting
+    final RepositoryCache cache;
     private final String name;
     private final org.eclipse.jgit.lib.Repository jGitRepository;
     private final GitRepositoryFormat format;

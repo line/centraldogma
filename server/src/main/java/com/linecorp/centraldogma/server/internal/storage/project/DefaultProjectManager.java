@@ -35,14 +35,15 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCa
 
 public class DefaultProjectManager extends DirectoryBasedStorageManager<Project> implements ProjectManager {
 
+    private final Executor repositoryWorker;
     @Nullable
     private final RepositoryCache cache;
 
     public DefaultProjectManager(File rootDir, Executor repositoryWorker, @Nullable String cacheSpec) {
-        super(rootDir, Project.class,
-              requireNonNull(repositoryWorker, "repositoryWorker"),
-              cacheSpec != null ? new RepositoryCache(cacheSpec) : null);
-        cache = (RepositoryCache) childArg(1);
+        super(rootDir, Project.class);
+        this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
+        cache = cacheSpec != null ? new RepositoryCache(cacheSpec) : null;
+        init();
     }
 
     @Override
@@ -59,16 +60,13 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
     }
 
     @Override
-    protected Project openChild(File childDir, Object[] childArgs) throws Exception {
-        return new DefaultProject(childDir, (Executor) childArgs[0], (RepositoryCache) childArgs[1]);
+    protected Project openChild(File childDir) throws Exception {
+        return new DefaultProject(childDir, repositoryWorker, cache);
     }
 
     @Override
-    protected Project createChild(File childDir, Object[] childArgs,
-                                  Author author, long creationTimeMillis) throws Exception {
-        return new DefaultProject(childDir, (Executor) childArgs[0], (RepositoryCache) childArgs[1],
-                                  creationTimeMillis, author
-        );
+    protected Project createChild(File childDir, Author author, long creationTimeMillis) throws Exception {
+        return new DefaultProject(childDir, repositoryWorker, cache, creationTimeMillis, author);
     }
 
     @Override

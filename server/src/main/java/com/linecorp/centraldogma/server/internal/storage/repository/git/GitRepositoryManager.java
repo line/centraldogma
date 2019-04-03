@@ -47,7 +47,9 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
 
     private static final Logger logger = LoggerFactory.getLogger(GitRepositoryManager.class);
 
-    @Nullable
+    private final Project parent;
+    private final GitRepositoryFormat preferredFormat;
+    private final Executor repositoryWorker;
     private final RepositoryCache cache;
 
     public GitRepositoryManager(Project parent, File rootDir, Executor repositoryWorker,
@@ -58,34 +60,32 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
     public GitRepositoryManager(Project parent, File rootDir, GitRepositoryFormat preferredFormat,
                                 Executor repositoryWorker, @Nullable RepositoryCache cache) {
 
-        super(rootDir, Repository.class,
-              requireNonNull(parent, "parent"),
-              requireNonNull(preferredFormat, "preferredFormat"),
-              requireNonNull(repositoryWorker, "repositoryWorker"));
-
+        super(rootDir, Repository.class);
+        this.parent = requireNonNull(parent, "parent");
+        this.preferredFormat = requireNonNull(preferredFormat, "preferredFormat");
+        this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.cache = cache;
+        init();
     }
 
     @Override
     public Project parent() {
-        return (Project) childArg(0);
+        return parent;
     }
 
     @Override
-    protected Repository openChild(File childDir, Object[] childArgs) throws Exception {
-        final Project project = (Project) childArgs[0];
-        final GitRepositoryFormat preferredFormat = (GitRepositoryFormat) childArgs[1];
-        final Executor repositoryWorker = (Executor) childArgs[2];
-        final GitRepository repository = new GitRepository(project, childDir, repositoryWorker, cache);
+    protected Repository openChild(File childDir) throws Exception {
+        final GitRepository repository = new GitRepository(parent, childDir, repositoryWorker, cache);
         if (repository.needsMigration(preferredFormat)) {
-            return migrate(childDir, project, repositoryWorker, repository, preferredFormat);
+            return migrate(childDir, parent, repositoryWorker, repository, preferredFormat, cache);
         } else {
             return repository;
         }
     }
 
-    private Repository migrate(File childDir, Project project, Executor repositoryWorker,
-                               GitRepository oldRepo, GitRepositoryFormat newFormat) throws IOException {
+    private static Repository migrate(File childDir, Project project, Executor repositoryWorker,
+                                      GitRepository oldRepo, GitRepositoryFormat newFormat,
+                                      RepositoryCache cache) throws IOException {
         boolean closedOldRepo = false;
         try {
             logger.info("Migrating from {} to {}: {}", oldRepo.format(), newFormat, oldRepo);
@@ -129,13 +129,8 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
     }
 
     @Override
-    protected Repository createChild(File childDir, Object[] childArgs,
-                                     Author author, long creationTimeMillis) throws Exception {
-
-        final Project project = (Project) childArgs[0];
-        final GitRepositoryFormat preferredFormat = (GitRepositoryFormat) childArgs[1];
-        final Executor repositoryWorker = (Executor) childArgs[2];
-        return new GitRepository(project, childDir, preferredFormat, repositoryWorker,
+    protected Repository createChild(File childDir, Author author, long creationTimeMillis) throws Exception {
+        return new GitRepository(parent, childDir, preferredFormat, repositoryWorker,
                                  creationTimeMillis, author, cache);
     }
 
