@@ -159,7 +159,7 @@ public class CentralDogma implements AutoCloseable {
         return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class));
     }
 
-    private final StartStopSupport<Void, Void> startStop = new CentralDogmaStartStop();
+    private final CentralDogmaStartStop startStop = new CentralDogmaStartStop();
     private final AtomicInteger numPendingStopRequests = new AtomicInteger();
 
     private final CentralDogmaConfig cfg;
@@ -817,14 +817,14 @@ public class CentralDogma implements AutoCloseable {
         return success;
     }
 
-    private final class CentralDogmaStartStop extends StartStopSupport<Void, Void> {
+    private final class CentralDogmaStartStop extends StartStopSupport<Void, Void, Void, Void> {
 
         CentralDogmaStartStop() {
             super(GlobalEventExecutor.INSTANCE);
         }
 
         @Override
-        protected CompletionStage<Void> doStart() throws Exception {
+        protected CompletionStage<Void> doStart(@Nullable Void arg) throws Exception {
             return execute("startup", () -> {
                 try {
                     CentralDogma.this.doStart();
@@ -835,7 +835,7 @@ public class CentralDogma implements AutoCloseable {
         }
 
         @Override
-        protected CompletionStage<Void> doStop() throws Exception {
+        protected CompletionStage<Void> doStop(@Nullable Void arg) throws Exception {
             return execute("shutdown", CentralDogma.this::doStop);
         }
 

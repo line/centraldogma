@@ -111,14 +111,14 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
                           .toString();
     }
 
-    private final class CommandExecutorStartStop extends StartStopSupport<Void, Void> {
+    private final class CommandExecutorStartStop extends StartStopSupport<Void, Void, Void, Void> {
 
         CommandExecutorStartStop() {
             super(ForkJoinPool.commonPool());
         }
 
         @Override
-        protected CompletionStage<Void> doStart() throws Exception {
+        protected CompletionStage<Void> doStart(Void arg) throws Exception {
             return execute("command-executor", () -> {
                 try {
                     final Runnable onTakeLeadership;
@@ -138,7 +138,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
         }
 
         @Override
-        protected CompletionStage<Void> doStop() throws Exception {
+        protected CompletionStage<Void> doStop(Void arg) throws Exception {
             return execute("command-executor-shutdown",
                            () -> {
                                try {
