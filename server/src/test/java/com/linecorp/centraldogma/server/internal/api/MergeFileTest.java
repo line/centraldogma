@@ -51,8 +51,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "   }," +
                 "   \"paths\" : [\"/foo.json\", \"/foo1.json\", \"/foo2.json\"] " +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
 
         queryString = "path=/foo.json" + '&' +
                       "path=/foo1.json" + '&' +
@@ -66,7 +65,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "     \"exception\": \"com.linecorp.centraldogma.common.EntryNotFoundException\"," +
                 "     \"message\": \"Entry '/foo3.json (revision: 4)' does not exist.\"" +
                 '}';
-        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -83,7 +82,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "     \"exception\": \"com.linecorp.centraldogma.common.EntryNotFoundException\"," +
                 "     \"message\": \"Entry '/no_exist1.json,/no_exist2.json (revision: 4)' does not exist.\"" +
                 '}';
-        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -115,7 +114,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "     \"exception\": \"com.linecorp.centraldogma.common.QueryExecutionException\"," +
                 "     \"message\": \"Failed to merge tree. /a/ type: NUMBER (expected: STRING)\"" +
                 '}';
-        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -128,7 +127,6 @@ public class MergeFileTest extends ContentServiceV1TestBase {
 
         AggregatedHttpMessage aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
                                                       queryString).aggregate().join();
-        final String actualJson = aRes.content().toStringUtf8();
         String expectedJson =
                 '{' +
                 "   \"revision\" : 4," +
@@ -136,7 +134,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "   \"content\" : \"baz\"," +
                 "   \"paths\" : [\"/foo.json\", \"/foo1.json\", \"/foo2.json\"] " +
                 '}';
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
 
         queryString = "path=/foo.json" + '&' +
                       "path=/foo1.json" + '&' +
@@ -150,7 +148,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "     \"exception\": \"com.linecorp.centraldogma.common.QueryExecutionException\"," +
                 "     \"message\": \"JSON path evaluation failed: $.c\"" +
                 '}';
-        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     private void addFilesForMergeJson() {

@@ -153,7 +153,7 @@ public class ReplicatedLoginAndLogoutTest {
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount + 1);
 
         // Ensure authorization works at the 2nd replica.
-        final AccessToken accessToken = Jackson.readValue(loginRes.content().toStringUtf8(), AccessToken.class);
+        final AccessToken accessToken = Jackson.readValue(loginRes.contentUtf8(), AccessToken.class);
         final String sessionId = accessToken.accessToken();
         await().pollDelay(Duration.TWO_HUNDRED_MILLISECONDS)
                .pollInterval(Duration.ONE_SECOND)

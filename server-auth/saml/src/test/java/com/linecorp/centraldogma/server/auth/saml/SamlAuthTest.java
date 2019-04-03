@@ -78,7 +78,7 @@ public class SamlAuthTest {
         resp = rule.httpClient().get(AuthProvider.LOGIN_PATH).aggregate().join();
         assertThat(resp.status()).isEqualTo(HttpStatus.OK);
         assertThat(resp.headers().contentType()).isEqualTo(MediaType.HTML_UTF_8);
-        assertThat(resp.content().toStringUtf8()).contains("<input type=\"hidden\" name=\"SAMLRequest\"");
+        assertThat(resp.contentUtf8()).contains("<input type=\"hidden\" name=\"SAMLRequest\"");
 
         // Redirect to built-in web logout page.
         resp = rule.httpClient().get(AuthProvider.LOGOUT_PATH).aggregate().join();
@@ -97,7 +97,7 @@ public class SamlAuthTest {
 
         // Check ACS URLs for the service provider.
         final int port = rule.serverAddress().getPort();
-        assertThat(resp.content().toStringUtf8())
+        assertThat(resp.contentUtf8())
                 .contains("entityID=\"test-sp\"")
                 .contains("<md:AssertionConsumerService " +
                           "Binding=\"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST\" " +

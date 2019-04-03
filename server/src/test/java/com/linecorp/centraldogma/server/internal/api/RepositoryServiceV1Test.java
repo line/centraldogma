@@ -80,7 +80,7 @@ public class RepositoryServiceV1Test {
         final String location = headers.get(HttpHeaderNames.LOCATION);
         assertThat(location).isEqualTo("/api/v1/projects/myPro/repos/myRepo");
 
-        final JsonNode jsonNode = Jackson.readTree(aRes.content().toStringUtf8());
+        final JsonNode jsonNode = Jackson.readTree(aRes.contentUtf8());
         assertThat(jsonNode.get("name").asText()).isEqualTo("myRepo");
         assertThat(jsonNode.get("headRevision").asInt()).isOne();
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
@@ -106,7 +106,7 @@ public class RepositoryServiceV1Test {
                 "  \"exception\": \"" + RepositoryExistsException.class.getName() + "\"," +
                 "  \"message\": \"Repository 'myPro/myRepo' exists already.\"" +
                 '}';
-        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -121,7 +121,7 @@ public class RepositoryServiceV1Test {
                 "  \"exception\": \"" + ProjectNotFoundException.class.getName() + "\"," +
                 "  \"message\": \"Project 'absentProject' does not exist.\"" +
                 '}';
-        assertThatJson(aRes.content().toStringUtf8()).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -163,8 +163,7 @@ public class RepositoryServiceV1Test {
                 "       \"createdAt\": \"${json-unit.ignore}\"" +
                 "   }" +
                 ']';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -210,11 +209,10 @@ public class RepositoryServiceV1Test {
                 "       \"name\": \"minwoox\"" +
                 "   }" +
                 ']';
-        final String actualJson = removedRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(removedRes.contentUtf8()).isEqualTo(expectedJson);
 
         final AggregatedHttpMessage remainedRes = httpClient.get(REPOS_PREFIX).aggregate().join();
-        final String remains = remainedRes.content().toStringUtf8();
+        final String remains = remainedRes.contentUtf8();
         final JsonNode jsonNode = Jackson.readTree(remains);
 
         // dogma, meta and trustin repositories are left
@@ -244,8 +242,7 @@ public class RepositoryServiceV1Test {
                 "   \"url\": \"/api/v1/projects/myPro/repos/foo\"," +
                 "   \"createdAt\": \"${json-unit.ignore}\"" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -265,8 +262,6 @@ public class RepositoryServiceV1Test {
         createRepository("foo");
         final AggregatedHttpMessage res = httpClient.get(REPOS_PREFIX + "/foo/revision/-1")
                                                     .aggregate().join();
-        final String expectedJson = "{\"revision\":1}";
-        final String actualJson = res.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(res.contentUtf8()).isEqualTo("{\"revision\":1}");
     }
 }

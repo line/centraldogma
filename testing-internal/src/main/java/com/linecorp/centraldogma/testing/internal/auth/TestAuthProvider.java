@@ -90,8 +90,7 @@ public class TestAuthProvider implements AuthProvider {
                     username = basicToken.username();
                     password = basicToken.password();
                 } else {
-                    final QueryStringDecoder decoder =
-                            new QueryStringDecoder(msg.content().toStringUtf8(), false);
+                    final QueryStringDecoder decoder = new QueryStringDecoder(msg.contentUtf8(), false);
                     username = decoder.parameters().get("username").get(0);
                     password = decoder.parameters().get("password").get(0);
                 }
@@ -129,4 +128,3 @@ public class TestAuthProvider implements AuthProvider {
         }
     }
 }
-

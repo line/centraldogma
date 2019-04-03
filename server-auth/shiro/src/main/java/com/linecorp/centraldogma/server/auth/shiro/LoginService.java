@@ -165,9 +165,8 @@ final class LoginService extends AbstractHttpService {
                                  "The content type of a login request must be '%s'.", MediaType.FORM_DATA);
         }
 
-        final Map<String, List<String>> parameters = new QueryStringDecoder(
-                req.content().toStringUtf8(), false).parameters();
-
+        final Map<String, List<String>> parameters = new QueryStringDecoder(req.contentUtf8(),
+                                                                            false).parameters();
         // assume that the grant_type is "password"
         final List<String> usernames = parameters.get("username");
         final List<String> passwords = parameters.get("password");

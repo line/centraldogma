@@ -55,7 +55,7 @@ public class AdministrativeServiceTest {
     public void status() {
         final AggregatedHttpMessage res = httpClient.get(API_V1_PATH_PREFIX + "status").aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
-        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+        assertThatJson(res.contentUtf8()).isEqualTo(
                 "{ \"writable\": true, \"replicating\": true }");
     }
 
@@ -67,7 +67,7 @@ public class AdministrativeServiceTest {
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }]").aggregate().join();
 
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
-        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+        assertThatJson(res.contentUtf8()).isEqualTo(
                 "{ \"writable\": false, \"replicating\": true }");
     }
 
@@ -80,7 +80,7 @@ public class AdministrativeServiceTest {
                 " { \"op\": \"replace\", \"path\": \"/replicating\", \"value\": false }]").aggregate().join();
 
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
-        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+        assertThatJson(res.contentUtf8()).isEqualTo(
                 "{ \"writable\": false, \"replicating\": false }");
     }
 
@@ -126,7 +126,7 @@ public class AdministrativeServiceTest {
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();
 
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
-        assertThatJson(res.content().toStringUtf8()).isEqualTo(
+        assertThatJson(res.contentUtf8()).isEqualTo(
                 "{ \"writable\": true, \"replicating\": true }");
     }
 }

@@ -128,8 +128,7 @@ public class ListCommitsAndDiffTest {
                 "       }" +
                 "   }" +
                 ']';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -166,8 +165,7 @@ public class ListCommitsAndDiffTest {
                 "       }" +
                 "   }" +
                 ']';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -188,8 +186,7 @@ public class ListCommitsAndDiffTest {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -212,8 +209,7 @@ public class ListCommitsAndDiffTest {
                 "       }" +
                 "   }" +
                 ']';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -249,12 +245,10 @@ public class ListCommitsAndDiffTest {
                 "       }" +
                 "   }" +
                 ']';
-        final String actualJson1 = res1.content().toStringUtf8();
-        assertThatJson(actualJson1).isEqualTo(expectedJson);
+        assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson);
         final AggregatedHttpMessage res2 = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/3?to=2")
                                                      .aggregate().join();
-        final String actualJson2 = res2.content().toStringUtf8();
-        assertThatJson(actualJson2).isEqualTo(expectedJson);
+        assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -285,8 +279,7 @@ public class ListCommitsAndDiffTest {
                 "       }]" +
                 "   }" +
                 ']';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
@@ -307,8 +300,7 @@ public class ListCommitsAndDiffTest {
                 "       \"value\": \"baz0\"" +
                 "   }]" +
                 '}';
-        final String actualJson = aRes.content().toStringUtf8();
-        assertThatJson(actualJson).isEqualTo(expectedJson);
+        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
 
     private static void editFooFile() {
