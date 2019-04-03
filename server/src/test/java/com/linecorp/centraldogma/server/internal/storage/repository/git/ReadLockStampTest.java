@@ -33,7 +33,7 @@ public class ReadLockStampTest {
         assertThat(lock.tryWriteLock()).isZero();
 
         // Check the internal properties.
-        assertThat(stamp.readLockStamp).isNotZero();
+        assertThat(stamp.value).isNotZero();
         assertThat(stamp.depth).isOne();
 
         // Unlock must decrease the depth to zero.

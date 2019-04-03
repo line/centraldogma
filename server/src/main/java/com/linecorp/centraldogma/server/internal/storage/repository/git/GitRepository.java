@@ -680,14 +680,12 @@ class GitRepository implements Repository {
     }
 
     private static TreeFilter pathPatternFilterOrTreeFilter(@Nullable String pathPattern) {
-        final TreeFilter filter;
-        if (pathPattern != null) {
-            final PathPatternFilter pathPatternFilter = PathPatternFilter.of(pathPattern);
-            filter = pathPatternFilter.matchesAll() ? TreeFilter.ALL : pathPatternFilter;
-        } else {
-            filter = TreeFilter.ALL;
+        if (pathPattern == null) {
+            return TreeFilter.ALL;
         }
-        return filter;
+
+        final PathPatternFilter pathPatternFilter = PathPatternFilter.of(pathPattern);
+        return pathPatternFilter.matchesAll() ? TreeFilter.ALL : pathPatternFilter;
     }
 
     @Override
@@ -1342,7 +1340,7 @@ class GitRepository implements Repository {
         final ServiceRequestContext ctx = context();
         final Revision normLastKnownRevision = normalizeNow(lastKnownRevision);
         final AtomicReference<ReadLockStamp> readLockStamp = new AtomicReference<>();
-        return CompletableFuture.runAsync(() -> {
+        final CompletableFuture<Revision> f = CompletableFuture.runAsync(() -> {
             readLockStamp.set(readLock(null));
         }, repositoryWorker).thenCompose(unused -> {
             return findLatestRevision(ctx, readLockStamp.get(), "watch", normLastKnownRevision, pathPattern);
@@ -1358,12 +1356,17 @@ class GitRepository implements Repository {
             } finally {
                 readLockStamp.getAndSet(null).unlock();
             }
-        }).whenComplete((unused1, unused2) -> {
+        });
+
+        f.handle((unused1, unused2) -> {
             final ReadLockStamp stamp = readLockStamp.get();
             if (stamp != null) {
                 stamp.unlock();
             }
+            return null;
         });
+
+        return f;
     }
 
     private void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {

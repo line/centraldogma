@@ -47,22 +47,22 @@ final class ReadLockStamp {
 
     private final StampedLock lock;
     @VisibleForTesting
-    final long readLockStamp;
+    final long value;
     @VisibleForTesting
     volatile int depth = 1;
 
-    private ReadLockStamp(StampedLock lock, long readLockStamp) {
+    private ReadLockStamp(StampedLock lock, long value) {
         // StampedLock.readLock() Javadoc does not mention that 0 has a special meaning,
         // but it seems like that 0 is used to represent a lock acquisition failure internally
-        // accodring to OpenJDK source code.
+        // according to OpenJDK source code.
         //
         // Here, we ensure that StampedLock.readLock() never returns 0 just in case this
         // assumption is broken although unlikely, because we set 0 to a stamp to avoid
         // unlocking the same stamp twice. See watch() for more context.
-        assert readLockStamp != 0 : "readLockStamp";
+        assert value != 0 : "value is zero.";
 
         this.lock = lock;
-        this.readLockStamp = readLockStamp;
+        this.value = value;
     }
 
     void unlock() {
@@ -70,7 +70,7 @@ final class ReadLockStamp {
         checkState(newDepth >= 0, "unlocked too many times: %s", newDepth);
 
         if (newDepth == 0) {
-            lock.unlockRead(readLockStamp);
+            lock.unlockRead(value);
         }
     }
 }
