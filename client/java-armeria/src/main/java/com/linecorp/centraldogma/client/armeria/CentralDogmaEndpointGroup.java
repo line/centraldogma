@@ -59,7 +59,7 @@ import com.linecorp.centraldogma.common.Query;
  */
 public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaEndpointGroup.class);
-    private static final long WATCH_INITIALIZATION_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10);
+    private static final long WATCH_INITIALIZATION_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(30);
 
     private final Watcher<T> instanceListWatcher;
     private final EndpointListDecoder<T> endpointListDecoder;
