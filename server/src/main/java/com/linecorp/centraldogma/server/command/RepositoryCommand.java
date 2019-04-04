@@ -28,7 +28,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.centraldogma.common.Author;
 
 /**
- * A super class of the {@link Command}s which perform operations to a repository.
+ * A super class of the {@link Command}s which perform operations on a repository.
  *
  * @param <T> the result type of a {@link Command}
  */

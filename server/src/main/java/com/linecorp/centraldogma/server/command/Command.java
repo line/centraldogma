@@ -30,12 +30,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
-import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
 
 /**
- * A Central Dogma command which is used to manage projects and repositories.
+ * A Central Dogma command which is used to mutate projects and repositories.
  *
  * @param <T> the result type of a {@link Command}
  */
@@ -48,10 +47,6 @@ import com.linecorp.centraldogma.server.auth.Session;
         @Type(value = RemoveRepositoryCommand.class, name = "REMOVE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
         @Type(value = PushCommand.class, name = "PUSH"),
-        @Type(value = SaveNamedQueryCommand.class, name = "SAVE_NAMED_QUERY"),
-        @Type(value = RemoveNamedQueryCommand.class, name = "REMOVE_NAMED_QUERY"),
-        @Type(value = SavePluginCommand.class, name = "SAVE_PLUGIN"),
-        @Type(value = RemovePluginCommand.class, name = "REMOVE_PLUGIN"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
 })
@@ -281,79 +276,6 @@ public interface Command<T> {
         requireNonNull(author, "author");
         return new PushCommand(timestamp, author, projectName, repositoryName, baseRevision,
                                summary, detail, markup, changes);
-    }
-
-    /**
-     * Not implemented.
-     */
-    static Command<Void> saveNamedQuery(Author author, String projectName,
-                                        String queryName, boolean enabled, String repositoryName,
-                                        Query<?> query, String comment, Markup markup) {
-
-        return saveNamedQuery(null, author, projectName,
-                              queryName, enabled, repositoryName,
-                              query, comment, markup);
-    }
-
-    /**
-     * Not implemented.
-     */
-    static Command<Void> saveNamedQuery(@Nullable Long timestamp, Author author, String projectName,
-                                        String queryName, boolean enabled, String repositoryName,
-                                        Query<?> query, String comment, Markup markup) {
-
-        requireNonNull(author, "author");
-        return new SaveNamedQueryCommand(timestamp, author, projectName,
-                                         queryName, enabled, repositoryName,
-                                         query, comment, markup);
-    }
-
-    /**
-     * Not implemented.
-     */
-    static Command<Void> removeNamedQuery(Author author, String projectName, String name) {
-        return removeNamedQuery(null, author, projectName, name);
-    }
-
-    /**
-     * Not implemented.
-     */
-    static Command<Void> removeNamedQuery(@Nullable Long timestamp, Author author,
-                                          String projectName, String name) {
-        requireNonNull(author, "author");
-        return new RemoveNamedQueryCommand(timestamp, author, projectName, name);
-    }
-
-    /**
-     * Not implemented.
-     */
-    static Command<Void> savePlugin(Author author, String projectName, String pluginName, String path) {
-        return savePlugin(null, author, projectName, pluginName, path);
-    }
-
-    /**
-     * Not implemented.
-     */
-    static Command<Void> savePlugin(@Nullable Long timestamp, Author author,
-                                    String projectName, String pluginName, String path) {
-        requireNonNull(author, "author");
-        return new SavePluginCommand(timestamp, author, projectName, pluginName, path);
-    }
-
-    /**
-     * Not implemented.
-     */
-    static Command<Void> removePlugin(Author author, String projectName, String pluginName) {
-        return removePlugin(null, author, projectName, pluginName);
-    }
-
-    /**
-     * Not implemented.
-     */
-    static Command<Void> removePlugin(@Nullable Long timestamp, Author author,
-                                      String projectName, String pluginName) {
-        requireNonNull(author, "author");
-        return new RemovePluginCommand(timestamp, author, projectName, pluginName);
     }
 
     /**

@@ -49,8 +49,8 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
     /**
      * Creates a new instance.
      *
-     * @param onTakeLeadership the callback to be performed after the replica has taken the leadership
-     * @param onReleaseLeadership the callback to be performed before the replica releases the leadership
+     * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
+     * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
      */
     protected AbstractCommandExecutor(@Nullable Consumer<CommandExecutor> onTakeLeadership,
                                       @Nullable Consumer<CommandExecutor> onReleaseLeadership) {

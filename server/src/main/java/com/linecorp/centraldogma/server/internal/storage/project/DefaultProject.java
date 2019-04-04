@@ -47,7 +47,6 @@ import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadata;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.internal.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.internal.metadata.UserAndTimestamp;
-import com.linecorp.centraldogma.server.internal.plugin.PluginManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
@@ -64,7 +63,6 @@ public class DefaultProject implements Project {
     private final String name;
     final RepositoryManager repos;
     private final AtomicReference<MetaRepository> metaRepo = new AtomicReference<>();
-    private PluginManager plugins;
 
     /**
      * Opens an existing project.
@@ -192,14 +190,6 @@ public class DefaultProject implements Project {
     @Override
     public RepositoryManager repos() {
         return repos;
-    }
-
-    public synchronized PluginManager plugins() {
-        if (plugins != null) {
-            return plugins;
-        }
-
-        return plugins = new PluginManager(this);
     }
 
     @Override

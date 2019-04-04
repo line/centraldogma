@@ -23,6 +23,8 @@ import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
 
+import com.google.common.base.MoreObjects;
+
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
@@ -73,5 +75,12 @@ public final class DefaultMirroringServicePlugin implements Plugin {
     @Nullable
     public DefaultMirroringService mirroringService() {
         return mirroringService;
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("target", target())
+                          .toString();
     }
 }

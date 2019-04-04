@@ -28,6 +28,9 @@ import java.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.spotify.futures.CompletableFutures;
@@ -46,9 +49,11 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 final class PluginGroup {
 
+    private static final Logger logger = LoggerFactory.getLogger(PluginGroup.class);
+
     /**
      * Returns a new {@link PluginGroup} which holds the {@link Plugin}s loaded from the classpath.
-     * {@code null} is returned if there is no {@link Plugin} which target equals to the specified
+     * {@code null} is returned if there is no {@link Plugin} whose target equals to the specified
      * {@code target}.
      *
      * @param target the {@link PluginTarget} which would be loaded
@@ -60,17 +65,17 @@ final class PluginGroup {
 
     /**
      * Returns a new {@link PluginGroup} which holds the {@link Plugin}s loaded from the classpath.
-     * {@code null} is returned if there is no {@link Plugin} which target equals to the specified
+     * {@code null} is returned if there is no {@link Plugin} whose target equals to the specified
      * {@code target}.
      *
      * @param classLoader which is used to load the {@link Plugin}s
      * @param target the {@link PluginTarget} which would be loaded
      */
     @Nullable
-    static PluginGroup loadPlugins(ClassLoader classLoader, PluginTarget target,
-                                   CentralDogmaConfig config) {
+    static PluginGroup loadPlugins(ClassLoader classLoader, PluginTarget target, CentralDogmaConfig config) {
         requireNonNull(classLoader, "classLoader");
         requireNonNull(target, "target");
+        requireNonNull(config, "config");
 
         final ServiceLoader<Plugin> loader = ServiceLoader.load(Plugin.class, classLoader);
         final Builder<Plugin> plugins = new Builder<>();
@@ -85,8 +90,8 @@ final class PluginGroup {
             return null;
         }
 
-        return new PluginGroup(list, Executors.newSingleThreadExecutor(
-                new DefaultThreadFactory("plugins-for-" + target.name().toLowerCase(), true)));
+        return new PluginGroup(list, Executors.newSingleThreadExecutor(new DefaultThreadFactory(
+                "plugins-for-" + target.name().toLowerCase().replace("_", "-"), true)));
     }
 
     private final List<Plugin> plugins;
@@ -138,16 +143,26 @@ final class PluginGroup {
         @Override
         protected CompletionStage<Void> doStart(@Nullable PluginContext arg) throws Exception {
             assert arg != null;
-            final List<CompletionStage<Void>> futures =
-                    plugins.stream().map(plugin -> plugin.start(arg)).collect(toImmutableList());
+            final List<CompletionStage<Void>> futures = plugins.stream().map(
+                    plugin -> plugin.start(arg)
+                                    .thenAccept(unused -> logger.info("Plugin started: {}", plugin))
+                                    .exceptionally(cause -> {
+                                        logger.info("Failed to start plugin: {}", plugin, cause);
+                                        return null;
+                                    })).collect(toImmutableList());
             return CompletableFutures.allAsList(futures).thenApply(unused -> null);
         }
 
         @Override
         protected CompletionStage<Void> doStop(@Nullable PluginContext arg) throws Exception {
             assert arg != null;
-            final List<CompletionStage<Void>> futures =
-                    plugins.stream().map(plugin -> plugin.stop(arg)).collect(toImmutableList());
+            final List<CompletionStage<Void>> futures = plugins.stream().map(
+                    plugin -> plugin.stop(arg)
+                                    .thenAccept(unused -> logger.info("Plugin stopped: {}", plugin))
+                                    .exceptionally(cause -> {
+                                        logger.info("Failed to stop plugin: {}", plugin, cause);
+                                        return null;
+                                    })).collect(toImmutableList());
             return CompletableFutures.allAsList(futures).thenApply(unused -> null);
         }
     }

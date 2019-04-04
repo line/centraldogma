@@ -33,7 +33,7 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
- * A {@link CommandExecutor} implementation which performs operations to the local storage.
+ * A {@link CommandExecutor} implementation which performs operations on the local storage.
  */
 public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
@@ -50,8 +50,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      * @param projectManager the project manager for accessing the storage
      * @param repositoryWorker the executor which is used for performing storage operations
      * @param sessionManager the session manager for creating/removing a session
-     * @param onTakeLeadership the callback to be performed after the replica has taken the leadership
-     * @param onReleaseLeadership the callback to be performed before the replica releases the leadership
+     * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
+     * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
      */
     public StandaloneCommandExecutor(ProjectManager projectManager,
                                      Executor repositoryWorker,

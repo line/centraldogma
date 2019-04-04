@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 import com.linecorp.centraldogma.internal.Util;
 
 /**
- * An option which is used to find files.
+ * An option which is specified when retrieving one or more files.
  *
  * @param <T> the type of the value
  */

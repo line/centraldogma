@@ -21,7 +21,7 @@ import java.util.Set;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 
 /**
- * A Revision-controlled filesystem-like repository which is named {@code meta}.
+ * A Revision-controlled filesystem-like repository which is named {@code "meta"}.
  */
 public interface MetaRepository extends Repository {
     /**

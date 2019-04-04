@@ -31,14 +31,14 @@ public interface Plugin {
     /**
      * Invoked when this {@link Plugin} is supposed to be started.
      *
-     * @param context the context consists of the objects required to execute this {@link Plugin}
+     * @param context the context which consists of the objects required to execute this {@link Plugin}
      */
     CompletionStage<Void> start(PluginContext context);
 
     /**
      * Invoked when this {@link Plugin} is supposed to be stopped.
      *
-     * @param context the context consists of the objects required to execute this {@link Plugin}
+     * @param context the context which consists of the objects required to execute this {@link Plugin}
      */
     CompletionStage<Void> stop(PluginContext context);
 

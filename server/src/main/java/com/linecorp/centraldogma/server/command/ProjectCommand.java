@@ -26,7 +26,7 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.centraldogma.common.Author;
 
 /**
- * A super class of the {@link Command}s which perform operations to a project.
+ * A super class of the {@link Command}s which perform operations on a project.
  *
  * @param <T> the result type of a {@link Command}
  */

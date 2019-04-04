@@ -97,6 +97,10 @@ public interface StorageManager<T> {
 
     /**
      * Ensures that this manager is open.
+     *
+     * @throws IllegalStateException if this manager is not initialized yet
+     * @throws CentralDogmaException if this manager has already been closed with a cause.
+     *                               See {@link #close(Supplier)} method.
      */
     void ensureOpen();
 }

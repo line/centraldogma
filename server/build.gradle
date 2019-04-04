@@ -75,7 +75,7 @@ clientDependencies {
     }
 }
 
-task copyWebApp(type:Copy){
+task copyWebApp(type: Copy) {
     dependsOn ':server-auth:webapp:buildWebApp'
 
     def dst = "${project.ext.genSrcDir}/main/resources/auth-webapp";

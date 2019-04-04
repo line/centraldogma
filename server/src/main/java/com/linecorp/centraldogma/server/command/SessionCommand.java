@@ -20,7 +20,7 @@ import javax.annotation.Nullable;
 import com.linecorp.centraldogma.common.Author;
 
 /**
- * A super class of the {@link Command}s which perform operations to the session storage.
+ * A super class of the {@link Command}s which perform operations on the session storage.
  */
 public abstract class SessionCommand extends AbstractCommand<Void> {
     SessionCommand(CommandType type, @Nullable Long timestamp, @Nullable Author author) {

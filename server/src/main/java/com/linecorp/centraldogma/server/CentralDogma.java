@@ -351,12 +351,12 @@ public class CentralDogma implements AutoCloseable {
             ProjectManager pm, Executor repositoryWorker, @Nullable SessionManager sessionManager) {
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
-                logger.info("Starting plug-ins on the leader replica ..");
+                logger.info("Starting plugins on the leader replica ..");
                 pluginsForLeaderOnly.start(cfg, pm, exec).handle((unused, cause) -> {
                     if (cause == null) {
-                        logger.info("Started plug-ins on the leader replica.");
+                        logger.info("Started plugins on the leader replica.");
                     } else {
-                        logger.error("Failed to start plug-ins on the leader replica..", cause);
+                        logger.error("Failed to start plugins on the leader replica..", cause);
                     }
                     return null;
                 });
@@ -365,12 +365,12 @@ public class CentralDogma implements AutoCloseable {
 
         final Consumer<CommandExecutor> onReleaseLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
-                logger.info("Stopping plug-ins on the leader replica ..");
+                logger.info("Stopping plugins on the leader replica ..");
                 pluginsForLeaderOnly.stop(cfg, pm, exec).handle((unused, cause) -> {
                     if (cause == null) {
-                        logger.info("Stopped plug-ins on the leader replica.");
+                        logger.info("Stopped plugins on the leader replica.");
                     } else {
-                        logger.error("Failed to stop plug-ins on the leader replica.", cause);
+                        logger.error("Failed to stop plugins on the leader replica.", cause);
                     }
                     return null;
                 });

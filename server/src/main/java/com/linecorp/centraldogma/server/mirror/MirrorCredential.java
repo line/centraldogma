@@ -56,7 +56,7 @@ public interface MirrorCredential {
     /**
      * Returns {@code true} if the specified {@code uri} is matched by one of the host name patterns.
      *
-     * @param uri a URI to a Git repository
+     * @param uri a URI of a Git repository
      */
     boolean matches(URI uri);
 }
