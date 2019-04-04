@@ -36,6 +36,7 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.project.Project;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 
 public class GitRepositoryManagerTest {
 
@@ -48,16 +49,30 @@ public class GitRepositoryManagerTest {
         return rootDir.getRoot();
     }
 
-    /**
-     * Create a {@link Repository} on existing directory will result exception.
-     */
     @Test
     public void testCreate() throws Exception {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         final Repository repository = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(repository).isInstanceOf(GitRepository.class);
+        assertThat(((GitRepository) repository).cache).isNotNull();
+
+        // Must disallow creating a duplicate.
         assertThatThrownBy(() -> gitRepositoryManager.create(TEST_REPO, Author.SYSTEM))
                 .isInstanceOf(RepositoryExistsException.class);
+    }
+
+    @Test
+    public void testOpen() throws Exception {
+        // Create a new repository and close the manager.
+        GitRepositoryManager gitRepositoryManager = newRepositoryManager();
+        gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
+        gitRepositoryManager.close(() -> null);
+
+        // Create a new manager so that it loads the repository we created above.
+        gitRepositoryManager = newRepositoryManager();
+        final Repository repository = gitRepositoryManager.get(TEST_REPO);
+        assertThat(repository).isInstanceOf(GitRepository.class);
+        assertThat(((GitRepository) repository).cache).isNotNull();
     }
 
     @Test
@@ -122,6 +137,7 @@ public class GitRepositoryManagerTest {
     }
 
     private GitRepositoryManager newRepositoryManager() {
-        return new GitRepositoryManager(mock(Project.class), rootDir(), ForkJoinPool.commonPool(), null);
+        return new GitRepositoryManager(mock(Project.class), rootDir(), ForkJoinPool.commonPool(),
+                                        mock(RepositoryCache.class));
     }
 }

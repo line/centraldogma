@@ -32,7 +32,7 @@ import com.github.benmanes.caffeine.cache.Weigher;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.base.MoreObjects;
 
-public final class RepositoryCache {
+public class RepositoryCache {
 
     private static final Logger logger = LoggerFactory.getLogger(RepositoryCache.class);
 
