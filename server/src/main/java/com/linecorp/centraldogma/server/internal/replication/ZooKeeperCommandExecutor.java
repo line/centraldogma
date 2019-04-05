@@ -78,9 +78,9 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
-import com.linecorp.centraldogma.server.internal.command.AbstractCommandExecutor;
-import com.linecorp.centraldogma.server.internal.command.Command;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -236,7 +236,7 @@ public final class ZooKeeperCommandExecutor
     public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
                                     File dataDir, CommandExecutor delegate,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
-                                    @Nullable Runnable onReleaseLeadership) {
+                                    @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
         super(onTakeLeadership, onReleaseLeadership);
 
         this.cfg = requireNonNull(cfg, "cfg");

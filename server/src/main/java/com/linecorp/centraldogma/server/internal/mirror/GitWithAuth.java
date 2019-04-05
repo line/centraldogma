@@ -16,6 +16,9 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTP;
+import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTPS;
+import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -55,10 +58,10 @@ import com.jcraft.jsch.Session;
 import com.jcraft.jsch.UserInfo;
 
 import com.linecorp.centraldogma.server.MirrorException;
-import com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
-import com.linecorp.centraldogma.server.internal.storage.repository.MetaRepository;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
 final class GitWithAuth extends Git {
 
@@ -148,13 +151,13 @@ final class GitWithAuth extends Git {
     private <T extends TransportCommand<?, ?>> T configure(T command) {
         final MirrorCredential c = mirror.credential();
         switch (mirror.remoteRepoUri().getScheme()) {
-            case Mirror.SCHEME_GIT_HTTP:
-            case Mirror.SCHEME_GIT_HTTPS:
+            case SCHEME_GIT_HTTP:
+            case SCHEME_GIT_HTTPS:
                 if (c instanceof PasswordMirrorCredential) {
                     configureHttp(command, (PasswordMirrorCredential) c);
                 }
                 break;
-            case Mirror.SCHEME_GIT_SSH:
+            case SCHEME_GIT_SSH:
                 if (c instanceof PasswordMirrorCredential) {
                     configureSsh(command, (PasswordMirrorCredential) c);
                 } else if (c instanceof PublicKeyMirrorCredential) {

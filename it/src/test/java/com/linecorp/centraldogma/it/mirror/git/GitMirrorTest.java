@@ -60,7 +60,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class GitMirrorTest {

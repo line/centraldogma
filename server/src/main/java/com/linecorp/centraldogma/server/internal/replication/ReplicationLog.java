@@ -29,7 +29,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.server.internal.command.Command;
+import com.linecorp.centraldogma.server.command.Command;
 
 public final class ReplicationLog<T> {
 

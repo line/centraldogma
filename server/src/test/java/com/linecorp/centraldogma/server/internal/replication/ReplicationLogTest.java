@@ -24,7 +24,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.internal.command.Command;
+import com.linecorp.centraldogma.server.command.Command;
 
 public class ReplicationLogTest {
 

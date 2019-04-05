@@ -51,10 +51,12 @@ import com.google.common.collect.ImmutableSet;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.mirror.Mirror;
-import com.linecorp.centraldogma.server.internal.mirror.MirrorDirection;
-import com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredential;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
+import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
 
@@ -271,10 +273,10 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                 @JsonProperty("defaultCredentialId") @Nullable String defaultCredentialId,
                 @JsonProperty(value = "includes", required = true)
                 @JsonDeserialize(contentAs = MirrorInclude.class)
-                Iterable<MirrorInclude> includes,
+                        Iterable<MirrorInclude> includes,
                 @JsonProperty("excludes") @Nullable
                 @JsonDeserialize(contentAs = Pattern.class)
-                Iterable<Pattern> excludes) {
+                        Iterable<Pattern> excludes) {
 
             super(firstNonNull(enabled, true));
             this.defaultSchedule = cronParser.parse(firstNonNull(defaultSchedule, DEFAULT_SCHEDULE));

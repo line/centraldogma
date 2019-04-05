@@ -25,7 +25,7 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.internal.admin.auth.User;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**
  * Specifies details of a member who belongs to the {@link Project}.

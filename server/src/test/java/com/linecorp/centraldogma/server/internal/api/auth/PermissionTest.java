@@ -50,11 +50,10 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.auth.HttpAuthService;
 import com.linecorp.armeria.testing.server.ServerRule;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
-import com.linecorp.centraldogma.server.internal.command.Command;
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.command.ProjectInitializer;
-import com.linecorp.centraldogma.server.internal.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.internal.metadata.MigrationUtil;
@@ -62,7 +61,8 @@ import com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.internal.metadata.Permission;
 import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
-import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 @RunWith(Parameterized.class)
 public class PermissionTest {

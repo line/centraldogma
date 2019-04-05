@@ -33,8 +33,8 @@ import com.linecorp.centraldogma.server.internal.admin.dto.EntryDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.ProjectDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RepositoryDto;
 import com.linecorp.centraldogma.server.internal.admin.dto.RevisionDto;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
  * A utility class to convert domain objects to DTO objects.

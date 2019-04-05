@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.Test;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 public class PasswordMirrorCredentialTest {
 

@@ -23,18 +23,19 @@ import java.net.URI;
 
 import com.cronutils.model.Cron;
 
-import com.linecorp.centraldogma.server.internal.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredential;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-final class CentralDogmaMirror extends Mirror {
+public final class CentralDogmaMirror extends AbstractMirror {
 
     private final String remoteProject;
     private final String remoteRepo;
 
-    CentralDogmaMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                       Repository localRepo, String localPath,
-                       URI remoteRepoUri, String remoteProject, String remoteRepo, String remotePath) {
+    public CentralDogmaMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
+                              Repository localRepo, String localPath,
+                              URI remoteRepoUri, String remoteProject, String remoteRepo, String remotePath) {
         // Central Dogma has no notion of 'branch', so we just pass null as a placeholder.
         super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, null);
 

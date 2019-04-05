@@ -33,6 +33,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.auth.OAuth2Token;
+import com.linecorp.centraldogma.server.auth.SessionManager;
 
 /**
  * A decorator to check whether the request holds a valid token. If it holds a valid token, this

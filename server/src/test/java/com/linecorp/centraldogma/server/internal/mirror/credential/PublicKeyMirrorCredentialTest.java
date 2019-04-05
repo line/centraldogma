@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 public class PublicKeyMirrorCredentialTest {
 

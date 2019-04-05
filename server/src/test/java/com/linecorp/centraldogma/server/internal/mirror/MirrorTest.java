@@ -32,9 +32,11 @@ import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 
-import com.linecorp.centraldogma.server.internal.mirror.credential.MirrorCredential;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public class MirrorTest {
 
@@ -127,7 +129,7 @@ public class MirrorTest {
 
     @Test
     public void jitter() {
-        final Mirror mirror = newMirror("git://a.com/b.git", Mirror.class);
+        final AbstractMirror mirror = newMirror("git://a.com/b.git", AbstractMirror.class);
 
         assertThat(mirror.schedule()).isSameAs(EVERY_MINUTE);
 

@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server.internal.metadata;
 import static com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions.NO_PERMISSION;
 import static com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions.READ_ONLY;
 import static com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions.READ_WRITE;
-import static com.linecorp.centraldogma.server.internal.storage.project.Project.REPO_META;
+import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -30,8 +30,8 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.internal.admin.auth.User;
-import com.linecorp.centraldogma.server.internal.command.Command;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
 
 public class MetadataServiceTest {

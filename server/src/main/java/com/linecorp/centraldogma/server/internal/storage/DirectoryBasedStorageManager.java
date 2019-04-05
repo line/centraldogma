@@ -42,6 +42,8 @@ import org.slf4j.LoggerFactory;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.server.storage.StorageException;
+import com.linecorp.centraldogma.server.storage.StorageManager;
 
 public abstract class DirectoryBasedStorageManager<T> implements StorageManager<T> {
 

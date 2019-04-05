@@ -27,8 +27,8 @@ import com.google.common.base.MoreObjects.ToStringHelper;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
-import com.linecorp.centraldogma.server.internal.storage.repository.FindOption;
-import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
+import com.linecorp.centraldogma.server.storage.repository.FindOption;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 final class CacheableFindCall extends CacheableCall<Map<String, Entry<?>>> {
 

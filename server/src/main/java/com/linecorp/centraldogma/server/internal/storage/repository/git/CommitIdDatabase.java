@@ -41,7 +41,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.StorageException;
+import com.linecorp.centraldogma.server.storage.StorageException;
 
 /**
  * Simple file-based database of {@link Revision}-to-{@link ObjectId} mappings.

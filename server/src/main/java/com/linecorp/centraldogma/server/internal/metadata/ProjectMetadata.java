@@ -31,7 +31,7 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
-import com.linecorp.centraldogma.server.internal.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**
  * Specifies details of a {@link Project}.

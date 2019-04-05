@@ -25,6 +25,7 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 public class NoneMirrorCredentialTest {
     @Test

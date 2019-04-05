@@ -157,17 +157,17 @@ final class Converter {
 
     // The parameter 'project' is not used at the moment, but will be used once schema and plugin support lands.
     static Project convert(
-            String name, com.linecorp.centraldogma.server.internal.storage.project.Project project) {
+            String name, com.linecorp.centraldogma.server.storage.project.Project project) {
         return new Project(name);
     }
 
     static CompletableFuture<Repository> convert(
-            String name, com.linecorp.centraldogma.server.internal.storage.repository.Repository repo) {
+            String name, com.linecorp.centraldogma.server.storage.repository.Repository repo) {
 
         return repo.history(
                 com.linecorp.centraldogma.common.Revision.HEAD,
                 com.linecorp.centraldogma.common.Revision.HEAD,
-                com.linecorp.centraldogma.server.internal.storage.repository.Repository.ALL_PATH, 1).thenApply(
+                com.linecorp.centraldogma.server.storage.repository.Repository.ALL_PATH, 1).thenApply(
                         history -> new Repository(name).setHead(convert(history.get(0))));
     }
 
