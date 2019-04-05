@@ -53,12 +53,13 @@ nohup "$JAVA_HOME"/bin/java \
   &
 
 COUNT=0
-while [[ $APP_WAIT_TIME -eq 0 ]] || [[ $COUNT -lt $APP_WAIT_TIME ]]; do
-  sleep 1
+eecho -n "Waiting for PID file creation up to $APP_WAIT_TIME second(s) .."
+while true; do
   if [[ -f "$APP_PID_FILE" ]]; then
     PID=$(cat "$APP_PID_FILE")
     kill -0 $PID > /dev/null 2>&1
     if [[ $? -eq 0 ]]; then
+      eecho ' done'
       eecho "Started up $APP_NAME successfully: $PID"
       if [[ $NODETACH -eq 1 ]]; then
         trap "$APP_BIN_DIR/shutdown" SIGINT SIGTERM SIGKILL SIGHUP
@@ -66,9 +67,18 @@ while [[ $APP_WAIT_TIME -eq 0 ]] || [[ $COUNT -lt $APP_WAIT_TIME ]]; do
       fi
       exit 0
     fi
+    eecho " invalid PID: $PID"
     break
   fi
-  COUNT=`expr $COUNT + 1`
+
+  sleep 1
+  ((COUNT++))
+  eecho -n '.'
+
+  if [[ $APP_WAIT_TIME -ne 0 ]] && [[ $COUNT -ge $APP_WAIT_TIME ]]; then
+    eecho ' timed out'
+    break
+  fi
 done
 
 eecho "Failed to start up $APP_NAME"
