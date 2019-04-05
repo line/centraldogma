@@ -23,6 +23,7 @@ import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_H
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.DOGMA_PATH_PATTERN;
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.split;
+import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.net.URI;
@@ -55,6 +56,13 @@ public interface Mirror {
      */
     static Mirror of(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath, URI remoteUri) {
+        requireNonNull(schedule, "schedule");
+        requireNonNull(direction, "direction");
+        requireNonNull(credential, "credential");
+        requireNonNull(localRepo, "localRepo");
+        requireNonNull(localPath, "localPath");
+        requireNonNull(remoteUri, "remoteUri");
+
         final String scheme = remoteUri.getScheme();
         if (scheme == null) {
             throw new IllegalArgumentException("no scheme in remoteUri: " + remoteUri);

@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server.mirror;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -35,6 +37,7 @@ public final class MirrorUtil {
      * Also, it would not have consecutive {@code /}.
      */
     public static String normalizePath(String path) {
+        requireNonNull(path, "path");
         if (path.isEmpty()) {
             return "/";
         }

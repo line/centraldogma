@@ -69,7 +69,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
 
     @Override
     public boolean isEnabled(CentralDogmaConfig config) {
-        return config.isMirroringEnabled();
+        return requireNonNull(config, "config").isMirroringEnabled();
     }
 
     @Nullable
