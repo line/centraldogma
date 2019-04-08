@@ -144,7 +144,8 @@ class GitRepository implements Repository {
     private final org.eclipse.jgit.lib.Repository jGitRepository;
     private final GitRepositoryFormat format;
     private final CommitIdDatabase commitIdDatabase;
-    private final CommitWatchers commitWatchers = new CommitWatchers();
+    @VisibleForTesting
+    final CommitWatchers commitWatchers = new CommitWatchers();
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
@@ -1346,6 +1347,7 @@ class GitRepository implements Repository {
         final ServiceRequestContext ctx = context();
         final Revision normLastKnownRevision = normalizeNow(lastKnownRevision);
         final AtomicReference<ReadLockStamp> readLockStamp = new AtomicReference<>();
+        final AtomicReference<CompletableFuture<Revision>> watchFuture = new AtomicReference<>();
         final CompletableFuture<Revision> f = CompletableFuture.runAsync(() -> {
             readLockStamp.set(readLock(null));
         }, repositoryWorker).thenCompose(unused -> {
@@ -1358,17 +1360,31 @@ class GitRepository implements Repository {
             try {
                 final CompletableFuture<Revision> future = new CompletableFuture<>();
                 commitWatchers.add(normLastKnownRevision, pathPattern, future);
+                watchFuture.set(future);
                 return future;
             } finally {
                 readLockStamp.getAndSet(null).unlock();
             }
         });
 
-        f.handle((unused1, unused2) -> {
+        f.handle((result, cause) -> {
             final ReadLockStamp stamp = readLockStamp.get();
             if (stamp != null) {
                 stamp.unlock();
             }
+
+            final CompletableFuture<Revision> future = watchFuture.get();
+            if (future != null) {
+                if (cause == null) {
+                    // Should never reach here unless a user set the result explicitly,
+                    // but we handle this case anyway just in case.
+                    future.complete(result);
+                } else {
+                    // Reaches here when a user failed or cancelled the watch.
+                    future.completeExceptionally(cause);
+                }
+            }
+
             return null;
         });
 

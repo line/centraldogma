@@ -33,6 +33,8 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
 
@@ -40,7 +42,8 @@ final class CommitWatchers {
 
     private static final Logger logger = LoggerFactory.getLogger(CommitWatchers.class);
 
-    private final Map<PathPatternFilter, Set<Watch>> watchesMap = new WatcherMap(8192);
+    @VisibleForTesting
+    final Map<PathPatternFilter, Set<Watch>> watchesMap = new WatcherMap(8192);
 
     void add(Revision lastKnownRev, String pathPattern, CompletableFuture<Revision> future) {
         add0(PathPatternFilter.of(pathPattern), new Watch(lastKnownRev, future));
@@ -62,7 +65,11 @@ final class CommitWatchers {
             // Remove manually only when the watch was not removed from the set successfully.
             // This usually happens when a user cancels the promise.
             synchronized (watchesMap) {
-                watchesMap.get(pathPattern).remove(watch);
+                final Set<Watch> watches = watchesMap.get(pathPattern);
+                watches.remove(watch);
+                if (watches.isEmpty()) {
+                    watchesMap.remove(pathPattern);
+                }
             }
         });
     }
@@ -74,12 +81,15 @@ final class CommitWatchers {
                 return;
             }
 
-            for (final Entry<PathPatternFilter, Set<Watch>> e : watchesMap.entrySet()) {
-                if (!e.getKey().matches(path)) {
+            for (final Iterator<Entry<PathPatternFilter, Set<Watch>>> mapIt = watchesMap.entrySet().iterator();
+                 mapIt.hasNext();) {
+
+                final Entry<PathPatternFilter, Set<Watch>> entry = mapIt.next();
+                if (!entry.getKey().matches(path)) {
                     continue;
                 }
 
-                final Set<Watch> watches = e.getValue();
+                final Set<Watch> watches = entry.getValue();
                 for (final Iterator<Watch> i = watches.iterator(); i.hasNext();) {
                     final Watch w = i.next();
                     final Revision lastKnownRevision = w.lastKnownRevision;
@@ -88,6 +98,10 @@ final class CommitWatchers {
                     } else {
                         logIneligibleFuture(lastKnownRevision, revision);
                     }
+                }
+
+                if (watches.isEmpty()) {
+                    mapIt.remove();
                 }
             }
         }
