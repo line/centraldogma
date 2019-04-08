@@ -22,6 +22,7 @@ import static java.util.concurrent.ForkJoinPool.commonPool;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -1060,6 +1061,8 @@ public class GitRepositoryTest {
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
 
         assertThat(repo.normalizeNow(HEAD)).isEqualTo(rev2);
+
+        ensureWatcherCleanUp();
     }
 
     @Test
@@ -1080,6 +1083,8 @@ public class GitRepositoryTest {
         repo.commit(rev2, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[1]).join();
         assertThat(repo.normalizeNow(HEAD)).isEqualTo(rev3);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(rev3);
+
+        ensureWatcherCleanUp();
     }
 
     @Test
@@ -1092,6 +1097,8 @@ public class GitRepositoryTest {
         // Should notify very soon.
         final CompletableFuture<Revision> f = repo.watch(lastKnownRev, Repository.ALL_PATH);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(latestRev);
+
+        ensureWatcherCleanUp();
     }
 
     @Test
@@ -1111,6 +1118,8 @@ public class GitRepositoryTest {
                                                   jsonUpserts[1]).join();
         assertThat(repo.normalizeNow(HEAD)).isEqualTo(newLatestRev);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(newLatestRev);
+
+        ensureWatcherCleanUp();
     }
 
     @Test
@@ -1143,6 +1152,8 @@ public class GitRepositoryTest {
         assertThat(res.revision()).isEqualTo(rev3);
         assertThat(res.type()).isEqualTo(EntryType.JSON);
         assertThat(res.content()).isEqualTo(TextNode.valueOf("jupiter"));
+
+        ensureWatcherCleanUp();
     }
 
     @Test(timeout = 10000)
@@ -1158,6 +1169,8 @@ public class GitRepositoryTest {
         assertThat(res.type()).isEqualTo(EntryType.TEXT);
         // Text must be sanitized so that the last line ends with \n.
         assertThat(res.content()).isEqualTo(textUpserts[1].content() + '\n');
+
+        ensureWatcherCleanUp();
     }
 
     @Test
@@ -1195,6 +1208,8 @@ public class GitRepositoryTest {
         assertThat(res.revision()).isEqualTo(rev2);
         assertThat(res.type()).isEqualTo(EntryType.JSON);
         assertThatJson(res.content()).isEqualTo(upsert2.content());
+
+        ensureWatcherCleanUp();
     }
 
     @Test
@@ -1232,6 +1247,13 @@ public class GitRepositoryTest {
 
         // No new subtask should be spawned.
         assertThat(numSubtasks.get()).isEqualTo(1);
+
+        ensureWatcherCleanUp();
+    }
+
+    private static void ensureWatcherCleanUp() {
+        // Make sure CommitWatchers has cleared the watch.
+        await().untilAsserted(() -> assertThat(repo.commitWatchers.watchesMap).isEmpty());
     }
 
     @Test
