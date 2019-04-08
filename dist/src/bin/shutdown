@@ -27,15 +27,49 @@ eecho "Shutting down $APP_NAME ($(cat "$APP_PID_FILE")) .."
 
 kill -TERM $PID
 
+# Wait until the PID file is removed by the application.
+WAITING=1
 COUNT=0
-while [[ $APP_WAIT_TIME -eq 0 ]] || [[ $COUNT -lt $APP_WAIT_TIME ]]; do
-  sleep 1
+eecho -n "Waiting for PID file deletion up to $APP_WAIT_TIME second(s) .."
+while true; do
   if [[ ! -f "$APP_PID_FILE" ]]; then
-    eecho "Shut down $APP_NAME successfully."
-    exit 0
+    eecho ' done'
+    break
   fi
-  COUNT=`expr $COUNT + 1`
+
+  ((COUNT++))
+  sleep 1
+  eecho -n '.'
+
+  if [[ $APP_WAIT_TIME -ne 0 ]] && [[ $COUNT -ge $APP_WAIT_TIME ]]; then
+    eecho ' timed out'
+    WAITING=0
+    break
+  fi
 done
+
+if [[ "$WAITING" -eq 1 ]]; then
+  # Wait until the process is actually gone.
+  eecho -n "Waiting for process $PID to terminate up to $APP_WAIT_TIME second(s) .."
+  while true; do
+    if kill -0 $PID >/dev/null 2>&1; then
+      # Process still exists.
+      ((COUNT++))
+      sleep 1
+      eecho -n '.'
+
+      if [[ $APP_WAIT_TIME -ne 0 ]] && [[ $COUNT -ge $APP_WAIT_TIME ]]; then
+        eecho ' timed out'
+        WAITING=0
+        break
+      fi
+    else
+      eecho ' done'
+      eecho "Shut down $APP_NAME successfully."
+      exit 0
+    fi
+  done
+fi
 
 eecho "Failed to shut down $APP_NAME"
 exit 255
