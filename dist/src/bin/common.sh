@@ -30,7 +30,7 @@
 #                      If not set, '$APP_LOG_DIR/$APP_NAME.stderr' is used.
 #
 # APP_WAIT_TIME        (Optional) Wait the specified seconds for the service to start or stop.
-#                      If not set, 60 seconds are used.
+#                      If not set, 180 seconds are used.
 #
 # JAVA_HOME            (Required) The location of the installed JDK/JRE
 #
@@ -96,7 +96,7 @@ if [[ -z "$APP_STDERR_FILE" ]]; then
 fi
 
 if [[ -z "$APP_WAIT_TIME" ]]; then
-  APP_WAIT_TIME=60
+  APP_WAIT_TIME=180
 elif [[ ! "$APP_WAIT_TIME" =~ (^[0-9]+$) ]]; then
   eecho "Invalid APP_WAIT_TIME: $APP_WAIT_TIME"
   exit 5

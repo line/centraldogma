@@ -21,7 +21,6 @@ else
   exit 100
 fi
 
-
 # Shut the application down
 set +e
 eecho "Shutting down $APP_NAME ($(cat "$APP_PID_FILE")) .."
