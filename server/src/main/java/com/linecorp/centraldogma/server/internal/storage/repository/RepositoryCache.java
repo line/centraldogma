@@ -84,6 +84,12 @@ public class RepositoryCache {
         return f;
     }
 
+    public <T> void put(CacheableCall<T> call, T value) {
+        requireNonNull(call, "call");
+        requireNonNull(value, "value");
+        cache.put(call, CompletableFuture.completedFuture(value));
+    }
+
     public CacheStats stats() {
         return cache.synchronous().stats();
     }

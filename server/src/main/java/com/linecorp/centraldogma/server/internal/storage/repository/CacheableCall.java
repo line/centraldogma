@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.google.common.base.MoreObjects;
 
@@ -26,6 +28,15 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 // XXX(trustin): Consider using reflection or AOP so that it takes less effort to add more call types.
 public abstract class CacheableCall<T> {
+
+    private static final Lock[] locks;
+
+    static {
+        locks = new Lock[8192];
+        for (int i = 0; i < locks.length; i++) {
+            locks[i] = new ReentrantLock();
+        }
+    }
 
     final Repository repo;
 
@@ -35,6 +46,10 @@ public abstract class CacheableCall<T> {
 
     public final Repository repo() {
         return repo;
+    }
+
+    public final Lock coarseGrainedLock() {
+        return locks[Math.abs(hashCode() % locks.length)];
     }
 
     protected abstract int weigh(T value);
