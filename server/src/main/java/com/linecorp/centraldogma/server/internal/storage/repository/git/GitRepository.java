@@ -46,7 +46,9 @@ import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.StampedLock;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -93,7 +95,6 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
@@ -135,7 +136,7 @@ class GitRepository implements Repository {
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
-    private final StampedLock lock = new StampedLock();
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Project parent;
     private final Executor repositoryWorker;
     @VisibleForTesting
@@ -333,7 +334,7 @@ class GitRepository implements Repository {
         requireNonNull(failureCauseSupplier, "failureCauseSupplier");
         if (closePending.compareAndSet(null, failureCauseSupplier)) {
             repositoryWorker.execute(() -> {
-                final long writeLockStamp = lock.writeLock();
+                rwLock.writeLock().lock();
                 try {
                     if (commitIdDatabase != null) {
                         try {
@@ -352,7 +353,7 @@ class GitRepository implements Repository {
                         }
                     }
                 } finally {
-                    lock.unlockWrite(writeLockStamp);
+                    rwLock.writeLock().unlock();
                     commitWatchers.close(failureCauseSupplier);
                     closeFuture.complete(null);
                 }
@@ -455,7 +456,7 @@ class GitRepository implements Repository {
         final boolean fetchContent = FindOption.FETCH_CONTENT.get(options);
         final int maxEntries = FindOption.MAX_ENTRIES.get(options);
 
-        final ReadLockStamp readLockStamp = readLock(null);
+        readLock();
         try (ObjectReader reader = jGitRepository.newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = new RevWalk(reader)) {
@@ -536,7 +537,7 @@ class GitRepository implements Repository {
             throw new StorageException(
                     "failed to get data from " + jGitRepository + " at " + pathPattern + " for " + revision, e);
         } finally {
-            readLockStamp.unlock();
+            readUnlock();
         }
     }
 
@@ -563,7 +564,7 @@ class GitRepository implements Repository {
         final RevisionRange descendingRange = range.toDescending();
 
         // At this point, we are sure: from.major >= to.major
-        final ReadLockStamp readLockStamp = readLock(null);
+        readLock();
         try (RevWalk revWalk = new RevWalk(jGitRepository)) {
             final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
             final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
@@ -619,7 +620,7 @@ class GitRepository implements Repository {
                     "failed to retrieve the history: " + jGitRepository +
                     " (" + pathPattern + ", " + from + ".." + to + ')', e);
         } finally {
-            readLockStamp.unlock();
+            readUnlock();
         }
     }
 
@@ -662,21 +663,21 @@ class GitRepository implements Repository {
             failFastIfTimedOut(this, logger, ctx, "diff", from, to, pathPattern);
 
             final RevisionRange range = normalizeNow(from, to).toAscending();
-            final ReadLockStamp readLockStamp = readLock(null);
+            readLock();
             try (RevWalk rw = new RevWalk(jGitRepository)) {
                 final RevTree treeA = rw.parseTree(commitIdDatabase.get(range.from()));
                 final RevTree treeB = rw.parseTree(commitIdDatabase.get(range.to()));
 
                 // Compare the two Git trees.
                 // Note that we do not cache here because CachingRepository caches the final result already.
-                return toChangeMap(blockingCompareTreeUncached(readLockStamp, treeA, treeB,
-                                                               pathPatternFilterOrTreeFilter(pathPattern)));
+                return toChangeMap(blockingCompareTreesUncached(treeA, treeB,
+                                                                pathPatternFilterOrTreeFilter(pathPattern)));
             } catch (StorageException e) {
                 throw e;
             } catch (Exception e) {
                 throw new StorageException("failed to parse two trees: range=" + range, e);
             } finally {
-                readLockStamp.unlock();
+                readUnlock();
             }
         }, repositoryWorker);
     }
@@ -705,7 +706,7 @@ class GitRepository implements Repository {
         requireNonNull(changes, "changes");
         baseRevision = normalizeNow(baseRevision);
 
-        final ReadLockStamp readLockStamp = readLock(null);
+        readLock();
         try (ObjectReader reader = jGitRepository.newObjectReader();
              RevWalk revWalk = new RevWalk(reader);
              DiffFormatter diffFormatter = new DiffFormatter(null)) {
@@ -725,7 +726,7 @@ class GitRepository implements Repository {
         } catch (IOException e) {
             throw new StorageException("failed to perform a dry-run diff", e);
         } finally {
-            readLockStamp.unlock();
+            readUnlock();
         }
     }
 
@@ -838,7 +839,7 @@ class GitRepository implements Repository {
         requireNonNull(baseRevision, "baseRevision");
 
         final CommitResult res;
-        final long writeLockStamp = lock.writeLock();
+        rwLock.writeLock().lock();
         try {
             if (closePending.get() != null) {
                 throw closePending.get().get();
@@ -857,7 +858,7 @@ class GitRepository implements Repository {
 
             this.headRevision = res.revision;
         } finally {
-            lock.unlockWrite(writeLockStamp);
+            rwLock.writeLock().unlock();
         }
 
         // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
@@ -1271,72 +1272,118 @@ class GitRepository implements Repository {
         requireNonNull(pathPattern, "pathPattern");
 
         final ServiceRequestContext ctx = context();
-        return findLatestRevision(ctx, null, "findLatestRevision", lastKnownRevision, pathPattern);
+        return CompletableFuture.supplyAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "findLatestRevision", lastKnownRevision, pathPattern);
+            return blockingFindLatestRevision(lastKnownRevision, pathPattern);
+        }, repositoryWorker);
     }
 
-    private CompletableFuture<Revision> findLatestRevision(@Nullable ServiceRequestContext ctx,
-                                                           @Nullable ReadLockStamp readLockStamp,
-                                                           String operationName,
-                                                           Revision lastKnownRevision, String pathPattern) {
+    @Nullable
+    private Revision blockingFindLatestRevision(Revision lastKnownRevision, String pathPattern) {
         final RevisionRange range = normalizeNow(lastKnownRevision, Revision.HEAD);
         if (range.from().equals(range.to())) {
             // Empty range.
-            return CompletableFuture.completedFuture(null);
+            return null;
         }
 
         if (range.from().major() == 1) {
             // Fast path: no need to compare because we are sure there is nothing at revision 1.
-            return find(range.to(), pathPattern, FindOptions.FIND_ONE_WITHOUT_CONTENT)
-                    .thenApply(result -> !result.isEmpty() ? range.to() : null);
+            final Map<String, Entry<?>> entries =
+                    blockingFind(range.to(), pathPattern, FindOptions.FIND_ONE_WITHOUT_CONTENT);
+            return !entries.isEmpty() ? range.to() : null;
         }
 
         // Slow path: compare the two trees.
         final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
-        return CompletableFuture.supplyAsync(() -> {
-            failFastIfTimedOut(this, logger, ctx, operationName, lastKnownRevision, pathPattern);
-            // Convert the revisions to Git trees.
-            final ReadLockStamp newReadLockStamp = readLock(readLockStamp);
-            try (RevWalk revWalk = new RevWalk(jGitRepository)) {
-                final RevTree treeA = toTree(revWalk, range.from());
-                final RevTree treeB = toTree(revWalk, range.to());
-                return Maps.immutableEntry(treeA, treeB);
-            } finally {
-                newReadLockStamp.unlock();
-            }
-        }, repositoryWorker).thenCompose(treePair -> {
-            failFastIfTimedOut(this, logger, ctx, operationName, lastKnownRevision, pathPattern);
-            // Compare the two Git trees.
-            final RevTree treeA = treePair.getKey();
-            final RevTree treeB = treePair.getValue();
-            if (cache != null) {
-                return cache.get(new CacheableCompareTreesCall(this, treeA, treeB));
-            } else {
-                return CompletableFuture.completedFuture(
-                        blockingCompareTreeUncached(readLockStamp, treeA, treeB, TreeFilter.ALL));
-            }
-        }).thenApply(diffEntries -> {
-            // Return the latest revision if the changes between the two trees contain the file.
-            for (DiffEntry e : diffEntries) {
-                final String path;
-                switch (e.getChangeType()) {
-                    case ADD:
-                        path = e.getNewPath();
-                        break;
-                    case MODIFY:
-                    case DELETE:
-                        path = e.getOldPath();
-                        break;
-                    default:
-                        throw new Error();
-                }
+        // Convert the revisions to Git trees.
+        final List<DiffEntry> diffEntries;
+        readLock();
+        try (RevWalk revWalk = new RevWalk(jGitRepository)) {
+            final RevTree treeA = toTree(revWalk, range.from());
+            final RevTree treeB = toTree(revWalk, range.to());
+            diffEntries = blockingCompareTrees(treeA, treeB);
+        } finally {
+            readUnlock();
+        }
 
-                if (filter.matches(path)) {
-                    return range.to();
-                }
+        // Return the latest revision if the changes between the two trees contain the file.
+        for (DiffEntry e : diffEntries) {
+            final String path;
+            switch (e.getChangeType()) {
+                case ADD:
+                    path = e.getNewPath();
+                    break;
+                case MODIFY:
+                case DELETE:
+                    path = e.getOldPath();
+                    break;
+                default:
+                    throw new Error();
             }
 
-            return null;
-        });
+            if (filter.matches(path)) {
+                return range.to();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Compares the two Git trees (with caching).
+     */
+    private List<DiffEntry> blockingCompareTrees(RevTree treeA, RevTree treeB) {
+        if (cache == null) {
+            return blockingCompareTreesUncached(treeA, treeB, TreeFilter.ALL);
+        }
+
+        final CacheableCompareTreesCall key = new CacheableCompareTreesCall(this, treeA, treeB);
+        CompletableFuture<List<DiffEntry>> existingFuture = cache.getIfPresent(key);
+        if (existingFuture != null) {
+            final List<DiffEntry> existingDiffEntries = existingFuture.getNow(null);
+            if (existingDiffEntries != null) {
+                // Cached already.
+                return existingDiffEntries;
+            }
+        }
+
+        // Not cached yet. Acquire a lock so that we do not compare the same tree pairs simultaneously.
+        final List<DiffEntry> newDiffEntries;
+        final Lock lock = key.coarseGrainedLock();
+        lock.lock();
+        try {
+            existingFuture = cache.getIfPresent(key);
+            if (existingFuture != null) {
+                final List<DiffEntry> existingDiffEntries = existingFuture.getNow(null);
+                if (existingDiffEntries != null) {
+                    // Other thread already put the entries to the cache before we acquire the lock.
+                    return existingDiffEntries;
+                }
+            }
+
+            newDiffEntries = blockingCompareTreesUncached(treeA, treeB, TreeFilter.ALL);
+            cache.put(key, newDiffEntries);
+        } finally {
+            lock.unlock();
+        }
+
+        logger.debug("Cache miss: {}", key);
+        return newDiffEntries;
+    }
+
+    private List<DiffEntry> blockingCompareTreesUncached(@Nullable RevTree treeA,
+                                                         @Nullable RevTree treeB,
+                                                         TreeFilter filter) {
+        readLock();
+        try (DiffFormatter diffFormatter = new DiffFormatter(null)) {
+            diffFormatter.setRepository(jGitRepository);
+            diffFormatter.setPathFilter(filter);
+            return ImmutableList.copyOf(diffFormatter.scan(treeA, treeB));
+        } catch (IOException e) {
+            throw new StorageException("failed to compare two trees: " + treeA + " vs. " + treeB, e);
+        } finally {
+            readUnlock();
+        }
     }
 
     @Override
@@ -1346,49 +1393,28 @@ class GitRepository implements Repository {
 
         final ServiceRequestContext ctx = context();
         final Revision normLastKnownRevision = normalizeNow(lastKnownRevision);
-        final AtomicReference<ReadLockStamp> readLockStamp = new AtomicReference<>();
-        final AtomicReference<CompletableFuture<Revision>> watchFuture = new AtomicReference<>();
-        final CompletableFuture<Revision> f = CompletableFuture.runAsync(() -> {
-            readLockStamp.set(readLock(null));
-        }, repositoryWorker).thenCompose(unused -> {
-            return findLatestRevision(ctx, readLockStamp.get(), "watch", normLastKnownRevision, pathPattern);
-        }).thenCompose(latestRevision -> {
-            if (latestRevision != null) {
-                return CompletableFuture.completedFuture(latestRevision);
-            }
-
+        final CompletableFuture<Revision> future = new CompletableFuture<>();
+        CompletableFuture.runAsync(() -> {
+            failFastIfTimedOut(this, logger, ctx, "watch", lastKnownRevision, pathPattern);
+            readLock();
             try {
-                final CompletableFuture<Revision> future = new CompletableFuture<>();
-                commitWatchers.add(normLastKnownRevision, pathPattern, future);
-                watchFuture.set(future);
-                return future;
-            } finally {
-                readLockStamp.getAndSet(null).unlock();
-            }
-        });
-
-        f.handle((result, cause) -> {
-            final ReadLockStamp stamp = readLockStamp.get();
-            if (stamp != null) {
-                stamp.unlock();
-            }
-
-            final CompletableFuture<Revision> future = watchFuture.get();
-            if (future != null) {
-                if (cause == null) {
-                    // Should never reach here unless a user set the result explicitly,
-                    // but we handle this case anyway just in case.
-                    future.complete(result);
+                // If lastKnownRevision is outdated already and the recent changes match,
+                // there's no need to watch.
+                final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern);
+                if (latestRevision != null) {
+                    future.complete(latestRevision);
                 } else {
-                    // Reaches here when a user failed or cancelled the watch.
-                    future.completeExceptionally(cause);
+                    commitWatchers.add(normLastKnownRevision, pathPattern, future);
                 }
+            } finally {
+                readUnlock();
             }
-
+        }, repositoryWorker).exceptionally(cause -> {
+            future.completeExceptionally(cause);
             return null;
         });
 
-        return f;
+        return future;
     }
 
     private void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {
@@ -1430,33 +1456,6 @@ class GitRepository implements Repository {
         throw new StorageException("failed to determine the HEAD: " + jGitRepository.getDirectory());
     }
 
-    /**
-     * Compares the old tree and the new tree to get the list of the affected files.
-     */
-    CompletableFuture<List<DiffEntry>> compareTreesUncached(@Nullable RevTree treeA,
-                                                            @Nullable RevTree treeB,
-                                                            TreeFilter filter) {
-        return CompletableFuture.supplyAsync(
-                () -> blockingCompareTreeUncached(null, treeA, treeB, filter),
-                repositoryWorker);
-    }
-
-    private List<DiffEntry> blockingCompareTreeUncached(@Nullable ReadLockStamp readLockStamp,
-                                                        @Nullable RevTree treeA,
-                                                        @Nullable RevTree treeB,
-                                                        TreeFilter filter) {
-        final ReadLockStamp newReadLockStamp = readLock(readLockStamp);
-        try (DiffFormatter diffFormatter = new DiffFormatter(null)) {
-            diffFormatter.setRepository(jGitRepository);
-            diffFormatter.setPathFilter(filter);
-            return ImmutableList.copyOf(diffFormatter.scan(treeA, treeB));
-        } catch (IOException e) {
-            throw new StorageException("failed to compare two trees: " + treeA + " vs. " + treeB, e);
-        } finally {
-            newReadLockStamp.unlock();
-        }
-    }
-
     private RevTree toTree(RevWalk revWalk, Revision revision) {
         final ObjectId commitId = commitIdDatabase.get(revision);
         try {
@@ -1466,13 +1465,16 @@ class GitRepository implements Repository {
         }
     }
 
-    private ReadLockStamp readLock(@Nullable ReadLockStamp readLockStamp) {
-        final ReadLockStamp newReadLockStamp = ReadLockStamp.lock(lock, readLockStamp);
+    private void readLock() {
+        rwLock.readLock().lock();
         if (closePending.get() != null) {
-            newReadLockStamp.unlock();
+            rwLock.readLock().unlock();
             throw closePending.get().get();
         }
-        return newReadLockStamp;
+    }
+
+    private void readUnlock() {
+        rwLock.readLock().unlock();
     }
 
     /**

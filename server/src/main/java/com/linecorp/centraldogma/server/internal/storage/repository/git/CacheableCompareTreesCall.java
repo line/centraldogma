@@ -24,7 +24,6 @@ import javax.annotation.Nullable;
 import org.eclipse.jgit.attributes.Attribute;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.revwalk.RevTree;
-import org.eclipse.jgit.treewalk.filter.TreeFilter;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
@@ -78,9 +77,12 @@ final class CacheableCompareTreesCall extends CacheableCall<List<DiffEntry>> {
         return weight;
     }
 
+    /**
+     * Never invoked because {@link GitRepository} produces the value of this call.
+     */
     @Override
     public CompletableFuture<List<DiffEntry>> execute() {
-        return ((GitRepository) repo()).compareTreesUncached(treeA, treeB, TreeFilter.ALL);
+        throw new IllegalStateException();
     }
 
     @Override
