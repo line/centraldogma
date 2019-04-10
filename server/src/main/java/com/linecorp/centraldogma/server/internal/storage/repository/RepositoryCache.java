@@ -32,6 +32,9 @@ import com.github.benmanes.caffeine.cache.Weigher;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.base.MoreObjects;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics;
+
 public class RepositoryCache {
 
     private static final Logger logger = LoggerFactory.getLogger(RepositoryCache.class);
@@ -55,7 +58,7 @@ public class RepositoryCache {
     private final String cacheSpec;
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public RepositoryCache(String cacheSpec) {
+    public RepositoryCache(String cacheSpec, MeterRegistry meterRegistry) {
         this.cacheSpec = requireNonNull(validateCacheSpec(cacheSpec), "cacheSpec");
 
         final Caffeine<Object, Object> builder = Caffeine.from(cacheSpec);
@@ -67,6 +70,8 @@ public class RepositoryCache {
                            logger.debug("Cache miss: {}", key);
                            return key.execute();
                        });
+
+        CaffeineCacheMetrics.monitor(meterRegistry, cache, "repository");
     }
 
     public <T> CompletableFuture<T> get(CacheableCall<T> call) {

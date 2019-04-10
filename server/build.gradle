@@ -21,6 +21,9 @@ dependencies {
     // JSch
     compile 'com.jcraft:jsch'
 
+    // Caffeine
+    compile 'com.github.ben-manes.caffeine:caffeine'
+
     // Curator & ZooKeeper
     compile 'org.apache.curator:curator-recipes'
     compile 'org.apache.zookeeper:zookeeper'
@@ -33,6 +36,10 @@ dependencies {
 
     // jGit
     compile 'org.eclipse.jgit:org.eclipse.jgit'
+
+    // Micrometer
+    compile 'io.micrometer:micrometer-core'
+    compile 'io.micrometer:micrometer-registry-prometheus'
 
     // Quartz
     compile 'org.quartz-scheduler:quartz'

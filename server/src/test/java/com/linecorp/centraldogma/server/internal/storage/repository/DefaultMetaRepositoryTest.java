@@ -40,6 +40,7 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
@@ -87,7 +88,8 @@ public class DefaultMetaRepositoryTest {
 
     @BeforeClass
     public static void init() throws Exception {
-        pm = new DefaultProjectManager(rootDir.getRoot(), ForkJoinPool.commonPool(), null);
+        pm = new DefaultProjectManager(rootDir.getRoot(), ForkJoinPool.commonPool(),
+                                       NoopMeterRegistry.get(), null);
     }
 
     @AfterClass

@@ -82,6 +82,8 @@ import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public final class ZooKeeperCommandExecutor
@@ -120,6 +122,7 @@ public final class ZooKeeperCommandExecutor
     private final File zkDataDir;
     private final File zkLogDir;
     private final CommandExecutor delegate;
+    private final MeterRegistry meterRegistry;
 
     private volatile EmbeddedZooKeeper quorumPeer;
     private volatile CuratorFramework curator;
@@ -235,6 +238,7 @@ public final class ZooKeeperCommandExecutor
 
     public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
                                     File dataDir, CommandExecutor delegate,
+                                    MeterRegistry meterRegistry,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
         super(onTakeLeadership, onReleaseLeadership);
@@ -250,6 +254,7 @@ public final class ZooKeeperCommandExecutor
                             "_zookeeper" + File.separatorChar + "log");
 
         this.delegate = requireNonNull(delegate, "delegate");
+        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
     }
 
     @Override
@@ -286,6 +291,9 @@ public final class ZooKeeperCommandExecutor
             // Start the log replay.
             logWatcherExecutor = Executors.newSingleThreadExecutor(
                     new DefaultThreadFactory("zookeeper-log-watcher", true));
+            ExecutorServiceMetrics.monitor(meterRegistry, logWatcherExecutor,
+                                           "zkLogWatcher");
+
             logWatcher = new PathChildrenCache(curator, absolutePath(LOG_PATH),
                                                true, false, logWatcherExecutor);
             logWatcher.getListenable().addListener(this, MoreExecutors.directExecutor());
@@ -295,6 +303,9 @@ public final class ZooKeeperCommandExecutor
             oldLogRemover = new OldLogRemover();
             leaderSelectorExecutor = Executors.newSingleThreadExecutor(
                     new DefaultThreadFactory("zookeeper-leader-selector", true));
+            ExecutorServiceMetrics.monitor(meterRegistry, leaderSelectorExecutor,
+                                           "zkLeaderSelector");
+
             leaderSelector = new LeaderSelector(curator, absolutePath(LEADER_PATH),
                                                 leaderSelectorExecutor, oldLogRemover);
             leaderSelector.start();
@@ -308,6 +319,8 @@ public final class ZooKeeperCommandExecutor
                     60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
                     new DefaultThreadFactory("zookeeper-command-executor", true));
             executor.allowCoreThreadTimeOut(true);
+            ExecutorServiceMetrics.monitor(meterRegistry, executor,
+                                           "zkCommandExecutor");
             this.executor = executor;
         } catch (InterruptedException | ReplicationException e) {
             throw e;
@@ -392,7 +405,7 @@ public final class ZooKeeperCommandExecutor
             final QuorumPeerConfig zkCfg = new QuorumPeerConfig();
             zkCfg.parse(zkConfFile.getPath());
 
-            peer = new EmbeddedZooKeeper(zkCfg);
+            peer = new EmbeddedZooKeeper(zkCfg, meterRegistry);
             peer.start();
 
             // Wait until the ZooKeeper joins the cluster.

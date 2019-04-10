@@ -62,6 +62,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
+import com.linecorp.armeria.common.metric.MoreMeters;
+import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
@@ -69,6 +71,8 @@ import com.linecorp.centraldogma.server.ZooKeeperAddress;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 public class ZooKeeperCommandExecutorTest {
 
@@ -250,6 +254,35 @@ public class ZooKeeperCommandExecutorTest {
                                .hasMessageContaining("before joining");
     }
 
+    @Test
+    public void metrics() throws Exception {
+        final List<Replica> cluster = buildCluster(1, true /* start */,
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
+        try {
+            final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(0).meterRegistry);
+            assertThat(meters).containsKeys("executor.pool.size#value{name=zkCommandExecutor}",
+                                            "executor.pool.size#value{name=zkLeaderSelector}",
+                                            "executor.pool.size#value{name=zkLogWatcher}",
+                                            "zookeeper.aliveClientConnections#value",
+                                            "zookeeper.dataDirSize#value",
+                                            "zookeeper.state.leader#value",
+                                            "zookeeper.state.follower#value",
+                                            "zookeeper.state.observer#value",
+                                            "zookeeper.state.readOnly#value",
+                                            "zookeeper.state.unknown#value",
+                                            "zookeeper.lastProcessedZxid#value",
+                                            "zookeeper.latency#value{type=avg}",
+                                            "zookeeper.latency#value{type=max}",
+                                            "zookeeper.latency#value{type=min}",
+                                            "zookeeper.logDirSize#value",
+                                            "zookeeper.outstandingRequests#value",
+                                            "zookeeper.packetsReceived#count",
+                                            "zookeeper.packetsSent#count");
+        } finally {
+            cluster.forEach(r -> r.rm.stop());
+        }
+    }
+
     private List<Replica> buildCluster(
             int numReplicas, boolean start,
             Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier) throws Exception {
@@ -310,6 +343,7 @@ public class ZooKeeperCommandExecutorTest {
         private final ZooKeeperCommandExecutor rm;
         private final Function<Command<?>, CompletableFuture<?>> delegate;
         private final File dataDir;
+        private final MeterRegistry meterRegistry;
         private final CompletableFuture<Void> startFuture;
 
         Replica(InstanceSpec spec, Map<Integer, ZooKeeperAddress> servers,
@@ -317,6 +351,7 @@ public class ZooKeeperCommandExecutorTest {
             this.delegate = delegate;
 
             dataDir = spec.getDataDirectory();
+            meterRegistry = PrometheusMeterRegistries.newRegistry();
 
             final int id = spec.getServerId();
             final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(id, servers);
@@ -339,9 +374,13 @@ public class ZooKeeperCommandExecutorTest {
                 protected <T> CompletableFuture<T> doExecute(Command<T> command) {
                     return (CompletableFuture<T>) delegate.apply(command);
                 }
-            }, null, null);
+            }, meterRegistry, null, null);
 
             startFuture = start ? rm.start() : null;
+        }
+
+        MeterRegistry meterRegistry() {
+            return meterRegistry;
         }
 
         void awaitStartup() {

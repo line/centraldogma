@@ -22,6 +22,7 @@ import java.util.concurrent.ForkJoinPool;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
+import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
@@ -99,7 +100,7 @@ public class ProjectManagerRule extends TemporaryFolder {
      */
     protected ProjectManager newProjectManager(Executor worker) {
         try {
-            return new DefaultProjectManager(newFolder(), worker, null);
+            return new DefaultProjectManager(newFolder(), worker, NoopMeterRegistry.get(), null);
         } catch (Exception e) {
             // Should not reach here.
             throw new Error(e);

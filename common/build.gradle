@@ -49,9 +49,12 @@ task testNg(type: Test,
 tasks.shadedTest.finalizedBy tasks.testNg
 tasks.check.dependsOn tasks.testNg
 
-tasks.trimShadedJar.configure {
-    keep "class !com.linecorp.centraldogma.internal.shaded.**,com.linecorp.centraldogma.** { *; }"
-    keep "class com.linecorp.centraldogma.internal.shaded.caffeine.** { *; }" // To make the unsafe field access work.
-    // Prevent ProGuard from removing all enum values from Option because otherwise it becomes a non-enum class.
-    keep "class com.linecorp.centraldogma.internal.shaded.jsonpath.Option { *; }"
+if (tasks.findByName('trimShadedJar')) {
+    tasks.trimShadedJar.configure {
+        keep "class !com.linecorp.centraldogma.internal.shaded.**,com.linecorp.centraldogma.** { *; }"
+        // Do not optimize the dependencies that access some fields via sun.misc.Unsafe or reflection only.
+        keep "class com.linecorp.centraldogma.internal.shaded.caffeine.** { *; }"
+        // Prevent ProGuard from removing all enum values from Option because otherwise it becomes a non-enum class.
+        keep "class com.linecorp.centraldogma.internal.shaded.jsonpath.Option { *; }"
+    }
 }

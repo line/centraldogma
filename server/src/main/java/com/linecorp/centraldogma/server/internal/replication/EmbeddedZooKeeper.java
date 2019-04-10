@@ -15,18 +15,30 @@
  */
 package com.linecorp.centraldogma.server.internal.replication;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nullable;
 
 import org.apache.zookeeper.server.DatadirCleanupManager;
 import org.apache.zookeeper.server.PurgeTxnLog;
 import org.apache.zookeeper.server.ServerCnxnFactory;
+import org.apache.zookeeper.server.ServerStats;
 import org.apache.zookeeper.server.ZKDatabase;
+import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micrometer.core.instrument.FunctionCounter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.TimeGauge;
 
 final class EmbeddedZooKeeper extends QuorumPeer {
 
@@ -35,10 +47,12 @@ final class EmbeddedZooKeeper extends QuorumPeer {
     static final String SASL_SERVER_LOGIN_CONTEXT = "QuorumServer";
     static final String SASL_LEARNER_LOGIN_CONTEXT = "QuorumLearner";
 
+    private static final ServerStats EMPTY_STATS = new EmptyServerStats();
+
     private final ServerCnxnFactory cnxnFactory;
     private final DatadirCleanupManager purgeManager;
 
-    EmbeddedZooKeeper(QuorumPeerConfig zkCfg) throws IOException {
+    EmbeddedZooKeeper(QuorumPeerConfig zkCfg, MeterRegistry meterRegistry) throws IOException {
         cnxnFactory = createCnxnFactory(zkCfg);
 
         setTxnFactory(new FileTxnSnapLog(zkCfg.getDataLogDir(), zkCfg.getDataDir()));
@@ -67,6 +81,98 @@ final class EmbeddedZooKeeper extends QuorumPeer {
 
         purgeManager = new DatadirCleanupManager(zkCfg.getDataDir(), zkCfg.getDataLogDir(),
                                                  zkCfg.getSnapRetainCount(), zkCfg.getPurgeInterval());
+
+        // Bind meters that indicates the ZooKeeper stats.
+        TimeGauge.builder("zookeeper.latency", this, TimeUnit.MILLISECONDS,
+                          peer -> serverStats(peer).getAvgLatency())
+                 .tag("type", "avg")
+                 .register(meterRegistry);
+        TimeGauge.builder("zookeeper.latency", this, TimeUnit.MILLISECONDS,
+                          peer -> serverStats(peer).getMaxLatency())
+                 .tag("type", "max")
+                 .register(meterRegistry);
+        TimeGauge.builder("zookeeper.latency", this, TimeUnit.MILLISECONDS,
+                          peer -> serverStats(peer).getMinLatency())
+                 .tag("type", "min")
+                 .register(meterRegistry);
+
+        Gauge.builder("zookeeper.outstandingRequests", this,
+                      peer -> serverStats(peer).getOutstandingRequests())
+             .register(meterRegistry);
+
+        Gauge.builder("zookeeper.lastProcessedZxid", this,
+                      peer -> serverStats(peer).getLastProcessedZxid())
+             .register(meterRegistry);
+
+        Gauge.builder("zookeeper.dataDirSize", this,
+                      peer -> serverStats(peer).getDataDirSize())
+             .baseUnit("bytes")
+             .register(meterRegistry);
+
+        Gauge.builder("zookeeper.logDirSize", this,
+                      peer -> serverStats(peer).getLogDirSize())
+             .baseUnit("bytes")
+             .register(meterRegistry);
+
+        FunctionCounter.builder("zookeeper.packetsReceived", this,
+                                peer -> serverStats(peer).getPacketsReceived())
+                       .register(meterRegistry);
+
+        FunctionCounter.builder("zookeeper.packetsSent", this,
+                                peer -> serverStats(peer).getPacketsSent())
+                       .register(meterRegistry);
+
+        Gauge.builder("zookeeper.aliveClientConnections", this,
+                      peer -> serverStats(peer).getNumAliveClientConnections())
+             .register(meterRegistry);
+
+        Gauge.builder("zookeeper.state.leader", this,
+                      peer -> "leader".equals(serverStats(peer).getServerState()) ? 1 : 0)
+             .register(meterRegistry);
+
+        Gauge.builder("zookeeper.state.follower", this,
+                      peer -> "follower".equals(serverStats(peer).getServerState()) ? 1 : 0)
+             .register(meterRegistry);
+
+        Gauge.builder("zookeeper.state.observer", this,
+                      peer -> "observer".equals(serverStats(peer).getServerState()) ? 1 : 0)
+             .register(meterRegistry);
+
+        Gauge.builder("zookeeper.state.readOnly", this,
+                      peer -> "read-only".equals(serverStats(peer).getServerState()) ? 1 : 0)
+             .register(meterRegistry);
+
+        Gauge.builder("zookeeper.state.unknown", this,
+                      peer -> {
+                          final String state = serverStats(peer).getServerState();
+                          if (state == null) {
+                              return 1;
+                          }
+                          switch (state) {
+                              case "leader":
+                              case "follower":
+                              case "observer":
+                              case "read-only":
+                                  return 0;
+                              default:
+                                  return 1;
+                          }
+                      })
+             .register(meterRegistry);
+    }
+
+    private static ServerStats serverStats(@Nullable EmbeddedZooKeeper peer) {
+        if (peer == null) {
+            return EMPTY_STATS;
+        }
+
+        final ZooKeeperServer activeServer = peer.getActiveServer();
+        if (activeServer == null) {
+            return EMPTY_STATS;
+        }
+
+        final ServerStats stats = activeServer.serverStats();
+        return firstNonNull(stats, EMPTY_STATS);
     }
 
     private static ServerCnxnFactory createCnxnFactory(QuorumPeerConfig zkCfg) throws IOException {
@@ -109,6 +215,42 @@ final class EmbeddedZooKeeper extends QuorumPeer {
             logger.info("Purged old ZooKeeper snapshots and logs.");
         } catch (IOException e) {
             logger.error("Failed to purge old ZooKeeper snapshots and logs:", e);
+        }
+    }
+
+    private static final class EmptyServerStats extends ServerStats {
+        EmptyServerStats() {
+            super(new Provider() {
+                @Override
+                public long getOutstandingRequests() {
+                    return 0;
+                }
+
+                @Override
+                public long getLastProcessedZxid() {
+                    return 0;
+                }
+
+                @Override
+                public String getState() {
+                    return "unknown";
+                }
+
+                @Override
+                public int getNumAliveConnections() {
+                    return 0;
+                }
+
+                @Override
+                public long getDataDirSize() {
+                    return 0;
+                }
+
+                @Override
+                public long getLogDirSize() {
+                    return 0;
+                }
+            });
         }
     }
 }

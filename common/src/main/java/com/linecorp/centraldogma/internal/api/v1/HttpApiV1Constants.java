@@ -40,5 +40,7 @@ public final class HttpApiV1Constants {
 
     public static final String HEALTH_CHECK_PATH = "/monitor/l7check";
 
+    public static final String METRICS_PATH = "/monitor/metrics";
+
     private HttpApiV1Constants() {}
 }

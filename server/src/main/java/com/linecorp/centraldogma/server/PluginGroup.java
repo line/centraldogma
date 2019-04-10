@@ -42,6 +42,7 @@ import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
@@ -120,18 +121,18 @@ final class PluginGroup {
     /**
      * Starts the {@link Plugin}s managed by this {@link PluginGroup}.
      */
-    CompletableFuture<Void> start(CentralDogmaConfig config,
-                                  ProjectManager projectManager, CommandExecutor commandExecutor) {
-        final PluginContext context = new PluginContext(config, projectManager, commandExecutor);
+    CompletableFuture<Void> start(CentralDogmaConfig config, ProjectManager projectManager,
+                                  CommandExecutor commandExecutor, MeterRegistry meterRegistry) {
+        final PluginContext context = new PluginContext(config, projectManager, commandExecutor, meterRegistry);
         return startStop.start(context, context, true);
     }
 
     /**
      * Stops the {@link Plugin}s managed by this {@link PluginGroup}.
      */
-    CompletableFuture<Void> stop(CentralDogmaConfig config,
-                                 ProjectManager projectManager, CommandExecutor commandExecutor) {
-        return startStop.stop(new PluginContext(config, projectManager, commandExecutor));
+    CompletableFuture<Void> stop(CentralDogmaConfig config, ProjectManager projectManager,
+                                 CommandExecutor commandExecutor, MeterRegistry meterRegistry) {
+        return startStop.stop(new PluginContext(config, projectManager, commandExecutor, meterRegistry));
     }
 
     private class PluginGroupStartStop extends StartStopSupport<PluginContext, PluginContext, Void, Void> {

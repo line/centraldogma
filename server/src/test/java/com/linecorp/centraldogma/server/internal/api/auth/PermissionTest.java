@@ -42,6 +42,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.annotation.Get;
@@ -97,7 +98,7 @@ public class PermissionTest {
         @Override
         protected void configure(ServerBuilder sb) throws Exception {
             final ProjectManager pm = new DefaultProjectManager(
-                    rootDir.newFolder(), ForkJoinPool.commonPool(), null);
+                    rootDir.newFolder(), ForkJoinPool.commonPool(), NoopMeterRegistry.get(), null);
             final CommandExecutor executor = new StandaloneCommandExecutor(
                     pm, ForkJoinPool.commonPool(), null, null, null);
             executor.start().join();

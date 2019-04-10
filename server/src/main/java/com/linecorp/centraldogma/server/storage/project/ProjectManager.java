@@ -16,16 +16,9 @@
 
 package com.linecorp.centraldogma.server.storage.project;
 
-import com.github.benmanes.caffeine.cache.stats.CacheStats;
-
 import com.linecorp.centraldogma.server.storage.StorageManager;
 
 /**
  * A manager which manages {@link Project}s in the Central Dogma.
  */
-public interface ProjectManager extends StorageManager<Project> {
-    /**
-     * Returns the statistics of the cache layer.
-     */
-    CacheStats cacheStats();
-}
+public interface ProjectManager extends StorageManager<Project> {}
