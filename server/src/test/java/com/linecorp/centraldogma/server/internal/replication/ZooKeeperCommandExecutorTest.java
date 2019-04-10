@@ -260,6 +260,7 @@ public class ZooKeeperCommandExecutorTest {
                                                    ZooKeeperCommandExecutorTest::newMockDelegate);
         try {
             final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(0).meterRegistry);
+            meters.forEach((k, v) -> logger.debug("{}={}", k, v));
             assertThat(meters).containsKeys("executor.pool.size#value{name=zkCommandExecutor}",
                                             "executor.pool.size#value{name=zkLeaderSelector}",
                                             "executor.pool.size#value{name=zkLogWatcher}",
@@ -269,16 +270,20 @@ public class ZooKeeperCommandExecutorTest {
                                             "replica.readOnly#value",
                                             "replica.replicating#value",
                                             "replica.zk.aliveClientConnections#value",
+                                            "replica.zk.approximateDataSize#value",
                                             "replica.zk.dataDirSize#value",
+                                            "replica.zk.ephemerals#value",
                                             "replica.zk.state#value",
                                             "replica.zk.lastProcessedZxid#value",
                                             "replica.zk.latency#value{type=avg}",
                                             "replica.zk.latency#value{type=max}",
                                             "replica.zk.latency#value{type=min}",
                                             "replica.zk.logDirSize#value",
+                                            "replica.zk.nodes#value",
                                             "replica.zk.outstandingRequests#value",
                                             "replica.zk.packetsReceived#count",
-                                            "replica.zk.packetsSent#count");
+                                            "replica.zk.packetsSent#count",
+                                            "replica.zk.watches#value");
         } finally {
             cluster.forEach(r -> r.rm.stop());
         }

@@ -20,9 +20,11 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
+import java.util.function.ToDoubleFunction;
 
 import javax.annotation.Nullable;
 
+import org.apache.zookeeper.server.DataTree;
 import org.apache.zookeeper.server.DatadirCleanupManager;
 import org.apache.zookeeper.server.PurgeTxnLog;
 import org.apache.zookeeper.server.ServerCnxnFactory;
@@ -147,6 +149,32 @@ final class EmbeddedZooKeeper extends QuorumPeer {
                       })
              .description("0 = inactive, 1 = leader, 2 = follower, 3 = observer, 4 = read-only, 5 = unknown")
              .register(meterRegistry);
+
+        // Bind the meters pulled in from DataTree.
+        Gauge.builder("replica.zk.approximateDataSize", this, new ApproximateDataSizeFunction())
+             .baseUnit("bytes")
+             .register(meterRegistry);
+
+        Gauge.builder("replica.zk.nodes", this,
+                      self -> {
+                          final DataTree tree = dataTree(self);
+                          return tree != null ? tree.getNodeCount() : 0;
+                      })
+             .register(meterRegistry);
+
+        Gauge.builder("replica.zk.ephemerals", this,
+                      self -> {
+                          final DataTree tree = dataTree(self);
+                          return tree != null ? tree.getEphemeralsCount() : 0;
+                      })
+             .register(meterRegistry);
+
+        Gauge.builder("replica.zk.watches", this,
+                      self -> {
+                          final DataTree tree = dataTree(self);
+                          return tree != null ? tree.getWatchCount() : 0;
+                      })
+             .register(meterRegistry);
     }
 
     private static ServerStats serverStats(@Nullable EmbeddedZooKeeper peer) {
@@ -161,6 +189,25 @@ final class EmbeddedZooKeeper extends QuorumPeer {
 
         final ServerStats stats = activeServer.serverStats();
         return firstNonNull(stats, EMPTY_STATS);
+    }
+
+    @Nullable
+    private static DataTree dataTree(@Nullable EmbeddedZooKeeper peer) {
+        if (peer == null) {
+            return null;
+        }
+
+        final ZooKeeperServer activeServer = peer.getActiveServer();
+        if (activeServer == null) {
+            return null;
+        }
+
+        final ZKDatabase database = activeServer.getZKDatabase();
+        if (database == null) {
+            return null;
+        }
+
+        return database.getDataTree();
     }
 
     private static ServerCnxnFactory createCnxnFactory(QuorumPeerConfig zkCfg) throws IOException {
@@ -240,6 +287,36 @@ final class EmbeddedZooKeeper extends QuorumPeer {
                     return 0;
                 }
             });
+        }
+    }
+
+    /**
+     * Caches {@link DataTree#approximateDataSize()} for 3 seconds, because it's relatively an expensive
+     * operation.
+     */
+    private static class ApproximateDataSizeFunction implements ToDoubleFunction<EmbeddedZooKeeper> {
+
+        private static final long MIN_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(3);
+
+        private volatile long lastCalculationTimeNanos = System.nanoTime() - MIN_INTERVAL_NANOS;
+
+        /**
+         * No need to be volatile because it's guarded by {@link #lastCalculationTimeNanos}.
+         */
+        private long value;
+
+        @Override
+        public double applyAsDouble(EmbeddedZooKeeper self) {
+            final long currentTimeNanos = System.nanoTime();
+            if (currentTimeNanos - lastCalculationTimeNanos < MIN_INTERVAL_NANOS) {
+                return value;
+            }
+
+            final DataTree tree = dataTree(self);
+            final long value = tree != null ? tree.approximateDataSize() : 0;
+            this.value = value;
+            lastCalculationTimeNanos = currentTimeNanos;
+            return value;
         }
     }
 }
