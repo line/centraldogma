@@ -263,17 +263,22 @@ public class ZooKeeperCommandExecutorTest {
             assertThat(meters).containsKeys("executor.pool.size#value{name=zkCommandExecutor}",
                                             "executor.pool.size#value{name=zkLeaderSelector}",
                                             "executor.pool.size#value{name=zkLogWatcher}",
-                                            "zookeeper.aliveClientConnections#value",
-                                            "zookeeper.dataDirSize#value",
-                                            "zookeeper.state#value",
-                                            "zookeeper.lastProcessedZxid#value",
-                                            "zookeeper.latency#value{type=avg}",
-                                            "zookeeper.latency#value{type=max}",
-                                            "zookeeper.latency#value{type=min}",
-                                            "zookeeper.logDirSize#value",
-                                            "zookeeper.outstandingRequests#value",
-                                            "zookeeper.packetsReceived#count",
-                                            "zookeeper.packetsSent#count");
+                                            "replica.hasLeadership#value",
+                                            "replica.id#value",
+                                            "replica.lastReplayedRevision#value",
+                                            "replica.readOnly#value",
+                                            "replica.replicating#value",
+                                            "replica.zk.aliveClientConnections#value",
+                                            "replica.zk.dataDirSize#value",
+                                            "replica.zk.state#value",
+                                            "replica.zk.lastProcessedZxid#value",
+                                            "replica.zk.latency#value{type=avg}",
+                                            "replica.zk.latency#value{type=max}",
+                                            "replica.zk.latency#value{type=min}",
+                                            "replica.zk.logDirSize#value",
+                                            "replica.zk.outstandingRequests#value",
+                                            "replica.zk.packetsReceived#count",
+                                            "replica.zk.packetsSent#count");
         } finally {
             cluster.forEach(r -> r.rm.stop());
         }

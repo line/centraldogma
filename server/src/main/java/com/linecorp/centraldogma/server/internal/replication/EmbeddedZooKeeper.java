@@ -83,50 +83,50 @@ final class EmbeddedZooKeeper extends QuorumPeer {
                                                  zkCfg.getSnapRetainCount(), zkCfg.getPurgeInterval());
 
         // Bind meters that indicates the ZooKeeper stats.
-        TimeGauge.builder("zookeeper.latency", this, TimeUnit.MILLISECONDS,
+        TimeGauge.builder("replica.zk.latency", this, TimeUnit.MILLISECONDS,
                           self -> serverStats(self).getAvgLatency())
                  .tag("type", "avg")
                  .register(meterRegistry);
-        TimeGauge.builder("zookeeper.latency", this, TimeUnit.MILLISECONDS,
+        TimeGauge.builder("replica.zk.latency", this, TimeUnit.MILLISECONDS,
                           self -> serverStats(self).getMaxLatency())
                  .tag("type", "max")
                  .register(meterRegistry);
-        TimeGauge.builder("zookeeper.latency", this, TimeUnit.MILLISECONDS,
+        TimeGauge.builder("replica.zk.latency", this, TimeUnit.MILLISECONDS,
                           self -> serverStats(self).getMinLatency())
                  .tag("type", "min")
                  .register(meterRegistry);
 
-        Gauge.builder("zookeeper.outstandingRequests", this,
+        Gauge.builder("replica.zk.outstandingRequests", this,
                       self -> serverStats(self).getOutstandingRequests())
              .register(meterRegistry);
 
-        Gauge.builder("zookeeper.lastProcessedZxid", this,
+        Gauge.builder("replica.zk.lastProcessedZxid", this,
                       self -> serverStats(self).getLastProcessedZxid())
              .register(meterRegistry);
 
-        Gauge.builder("zookeeper.dataDirSize", this,
+        Gauge.builder("replica.zk.dataDirSize", this,
                       self -> serverStats(self).getDataDirSize())
              .baseUnit("bytes")
              .register(meterRegistry);
 
-        Gauge.builder("zookeeper.logDirSize", this,
+        Gauge.builder("replica.zk.logDirSize", this,
                       self -> serverStats(self).getLogDirSize())
              .baseUnit("bytes")
              .register(meterRegistry);
 
-        FunctionCounter.builder("zookeeper.packetsReceived", this,
+        FunctionCounter.builder("replica.zk.packetsReceived", this,
                                 self -> serverStats(self).getPacketsReceived())
                        .register(meterRegistry);
 
-        FunctionCounter.builder("zookeeper.packetsSent", this,
+        FunctionCounter.builder("replica.zk.packetsSent", this,
                                 self -> serverStats(self).getPacketsSent())
                        .register(meterRegistry);
 
-        Gauge.builder("zookeeper.aliveClientConnections", this,
+        Gauge.builder("replica.zk.aliveClientConnections", this,
                       self -> serverStats(self).getNumAliveClientConnections())
              .register(meterRegistry);
 
-        Gauge.builder("zookeeper.state", this,
+        Gauge.builder("replica.zk.state", this,
                       self -> {
                           final String state = serverStats(self).getServerState();
                           if (state == null) {

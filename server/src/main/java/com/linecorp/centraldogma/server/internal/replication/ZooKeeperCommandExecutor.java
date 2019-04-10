@@ -82,6 +82,7 @@ import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -136,6 +137,8 @@ public final class ZooKeeperCommandExecutor
     private volatile boolean createdParentNodes;
 
     private class OldLogRemover implements LeaderSelectorListener {
+        volatile boolean hasLeadership;
+
         @Override
         public void stateChanged(CuratorFramework client, ConnectionState newState) {
             //ignore
@@ -151,6 +154,7 @@ public final class ZooKeeperCommandExecutor
 
             logger.info("Taking leadership: {}", replicaId());
             try {
+                hasLeadership = true;
                 if (listenerInfo.onTakeLeadership != null) {
                     listenerInfo.onTakeLeadership.run();
                 }
@@ -166,6 +170,7 @@ public final class ZooKeeperCommandExecutor
             } catch (Exception e) {
                 logger.error("Leader stopped due to an unexpected exception:", e);
             } finally {
+                hasLeadership = false;
                 logger.info("Releasing leadership: {}", replicaId());
                 if (listenerInfo.onReleaseLeadership != null) {
                     listenerInfo.onReleaseLeadership.run();
@@ -255,6 +260,26 @@ public final class ZooKeeperCommandExecutor
 
         this.delegate = requireNonNull(delegate, "delegate");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+
+        // Register the metrics which are accessible even before started.
+        Gauge.builder("replica.id", this, self -> replicaId()).register(meterRegistry);
+        Gauge.builder("replica.readOnly", this, self -> self.isWritable() ? 0 : 1).register(meterRegistry);
+        Gauge.builder("replica.replicating", this, self -> self.isStarted() ? 1 : 0).register(meterRegistry);
+        Gauge.builder("replica.hasLeadership", this,
+                      self -> {
+                          final OldLogRemover remover = self.oldLogRemover;
+                          return remover != null && remover.hasLeadership ? 1 : 0;
+                      })
+             .register(meterRegistry);
+        Gauge.builder("replica.lastReplayedRevision", this,
+                      self -> {
+                          final ListenerInfo info = self.listenerInfo;
+                          if (info == null) {
+                              return 0;
+                          }
+                          return info.lastReplayedRevision;
+                      })
+             .register(meterRegistry);
     }
 
     @Override
