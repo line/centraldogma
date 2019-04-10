@@ -757,7 +757,7 @@ public class CentralDogma implements AutoCloseable {
     private void configureMetrics(ServerBuilder sb, PrometheusMeterRegistry registry) {
         sb.meterRegistry(registry);
         sb.service(METRICS_PATH, new PrometheusExpositionService(registry.getPrometheusRegistry()));
-        sb.decorator(MetricCollectingService.newDecorator(MeterIdPrefixFunction.ofDefault("dogma")));
+        sb.decorator(MetricCollectingService.newDecorator(MeterIdPrefixFunction.ofDefault("api")));
 
         // Bind system metrics.
         new FileDescriptorMetrics().bindTo(registry);
