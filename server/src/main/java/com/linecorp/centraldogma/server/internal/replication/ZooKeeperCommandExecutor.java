@@ -82,6 +82,9 @@ import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public final class ZooKeeperCommandExecutor
@@ -120,6 +123,7 @@ public final class ZooKeeperCommandExecutor
     private final File zkDataDir;
     private final File zkLogDir;
     private final CommandExecutor delegate;
+    private final MeterRegistry meterRegistry;
 
     private volatile EmbeddedZooKeeper quorumPeer;
     private volatile CuratorFramework curator;
@@ -133,6 +137,8 @@ public final class ZooKeeperCommandExecutor
     private volatile boolean createdParentNodes;
 
     private class OldLogRemover implements LeaderSelectorListener {
+        volatile boolean hasLeadership;
+
         @Override
         public void stateChanged(CuratorFramework client, ConnectionState newState) {
             //ignore
@@ -148,6 +154,7 @@ public final class ZooKeeperCommandExecutor
 
             logger.info("Taking leadership: {}", replicaId());
             try {
+                hasLeadership = true;
                 if (listenerInfo.onTakeLeadership != null) {
                     listenerInfo.onTakeLeadership.run();
                 }
@@ -163,6 +170,7 @@ public final class ZooKeeperCommandExecutor
             } catch (Exception e) {
                 logger.error("Leader stopped due to an unexpected exception:", e);
             } finally {
+                hasLeadership = false;
                 logger.info("Releasing leadership: {}", replicaId());
                 if (listenerInfo.onReleaseLeadership != null) {
                     listenerInfo.onReleaseLeadership.run();
@@ -235,6 +243,7 @@ public final class ZooKeeperCommandExecutor
 
     public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
                                     File dataDir, CommandExecutor delegate,
+                                    MeterRegistry meterRegistry,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
         super(onTakeLeadership, onReleaseLeadership);
@@ -250,6 +259,27 @@ public final class ZooKeeperCommandExecutor
                             "_zookeeper" + File.separatorChar + "log");
 
         this.delegate = requireNonNull(delegate, "delegate");
+        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+
+        // Register the metrics which are accessible even before started.
+        Gauge.builder("replica.id", this, self -> replicaId()).register(meterRegistry);
+        Gauge.builder("replica.readOnly", this, self -> self.isWritable() ? 0 : 1).register(meterRegistry);
+        Gauge.builder("replica.replicating", this, self -> self.isStarted() ? 1 : 0).register(meterRegistry);
+        Gauge.builder("replica.hasLeadership", this,
+                      self -> {
+                          final OldLogRemover remover = self.oldLogRemover;
+                          return remover != null && remover.hasLeadership ? 1 : 0;
+                      })
+             .register(meterRegistry);
+        Gauge.builder("replica.lastReplayedRevision", this,
+                      self -> {
+                          final ListenerInfo info = self.listenerInfo;
+                          if (info == null) {
+                              return 0;
+                          }
+                          return info.lastReplayedRevision;
+                      })
+             .register(meterRegistry);
     }
 
     @Override
@@ -284,8 +314,12 @@ public final class ZooKeeperCommandExecutor
             curator.start();
 
             // Start the log replay.
-            logWatcherExecutor = Executors.newSingleThreadExecutor(
-                    new DefaultThreadFactory("zookeeper-log-watcher", true));
+            logWatcherExecutor = ExecutorServiceMetrics.monitor(
+                    meterRegistry,
+                    Executors.newSingleThreadExecutor(
+                            new DefaultThreadFactory("zookeeper-log-watcher", true)),
+                    "zkLogWatcher");
+
             logWatcher = new PathChildrenCache(curator, absolutePath(LOG_PATH),
                                                true, false, logWatcherExecutor);
             logWatcher.getListenable().addListener(this, MoreExecutors.directExecutor());
@@ -293,8 +327,12 @@ public final class ZooKeeperCommandExecutor
 
             // Start the leader selection.
             oldLogRemover = new OldLogRemover();
-            leaderSelectorExecutor = Executors.newSingleThreadExecutor(
-                    new DefaultThreadFactory("zookeeper-leader-selector", true));
+            leaderSelectorExecutor = ExecutorServiceMetrics.monitor(
+                    meterRegistry,
+                    Executors.newSingleThreadExecutor(
+                            new DefaultThreadFactory("zookeeper-leader-selector", true)),
+                    "zkLeaderSelector");
+
             leaderSelector = new LeaderSelector(curator, absolutePath(LEADER_PATH),
                                                 leaderSelectorExecutor, oldLogRemover);
             leaderSelector.start();
@@ -308,7 +346,8 @@ public final class ZooKeeperCommandExecutor
                     60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
                     new DefaultThreadFactory("zookeeper-command-executor", true));
             executor.allowCoreThreadTimeOut(true);
-            this.executor = executor;
+
+            this.executor = ExecutorServiceMetrics.monitor(meterRegistry, executor, "zkCommandExecutor");
         } catch (InterruptedException | ReplicationException e) {
             throw e;
         } catch (Exception e) {
@@ -392,7 +431,7 @@ public final class ZooKeeperCommandExecutor
             final QuorumPeerConfig zkCfg = new QuorumPeerConfig();
             zkCfg.parse(zkConfFile.getPath());
 
-            peer = new EmbeddedZooKeeper(zkCfg);
+            peer = new EmbeddedZooKeeper(zkCfg, meterRegistry);
             peer.start();
 
             // Wait until the ZooKeeper joins the cluster.

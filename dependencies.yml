@@ -48,7 +48,6 @@ com.fasterxml.jackson.datatype:
   jackson-datatype-jsr310:
     version: *JACKSON_VERSION
 
-# TODO(trustin): Relocate Caffeine after hiding CacheStats from the public API.
 com.github.ben-manes.caffeine:
   caffeine:
     version: '2.7.0'
@@ -125,6 +124,16 @@ gradle.plugin.com.github.blindpirate:
 
 gradle.plugin.net.davidecavestro:
   gradle-jxr-plugin: { version: '0.2.1' }
+
+io.micrometer:
+  micrometer-core:
+    version: &MICROMETER_VERSION '1.1.4'
+    javadocs:
+    - https://static.javadoc.io/io.micrometer/micrometer-core/1.1.4/
+  micrometer-registry-prometheus:
+    version: *MICROMETER_VERSION
+    javadocs:
+    - https://static.javadoc.io/io.micrometer/micrometer-registry-prometheus/1.1.4/
 
 javax.inject:
   javax.inject: { version: '1' }

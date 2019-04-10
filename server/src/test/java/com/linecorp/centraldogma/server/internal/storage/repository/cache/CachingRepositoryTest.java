@@ -49,6 +49,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.metric.MoreMeters;
+import com.linecorp.armeria.common.metric.NoopMeterRegistry;
+import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
@@ -63,6 +66,8 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 public class CachingRepositoryTest {
 
@@ -396,12 +401,27 @@ public class CachingRepositoryTest {
         verifyNoMoreInteractions(delegateRepo);
     }
 
+    @Test
+    public void metrics() {
+        final MeterRegistry meterRegistry = PrometheusMeterRegistries.newRegistry();
+        final Repository repo = newCachingRepo(meterRegistry);
+        final Map<String, Double> meters = MoreMeters.measureAll(meterRegistry);
+        assertThat(meters).containsKeys("cache.load#count{cache=repository,result=success}");
+
+        // Do something with 'repo' so that it is not garbage-collected even before the meters are measured.
+        assertThat(repo.normalizeNow(HEAD)).isNotEqualTo("");
+    }
+
     private Repository newCachingRepo() {
+        return newCachingRepo(NoopMeterRegistry.get());
+    }
+
+    private Repository newCachingRepo(MeterRegistry meterRegistry) {
         when(delegateRepo.history(INIT, INIT, Repository.ALL_PATH, 1)).thenReturn(completedFuture(
                 ImmutableList.of(new Commit(INIT, SYSTEM, "", "", Markup.PLAINTEXT))));
 
-        final Repository cachingRepo = new CachingRepository(delegateRepo,
-                                                             new RepositoryCache("maximumSize=1000"));
+        final Repository cachingRepo = new CachingRepository(
+                delegateRepo, new RepositoryCache("maximumSize=1000", meterRegistry));
 
         // Verify that CachingRepository calls delegateRepo.history() once to retrieve the initial commit.
         verify(delegateRepo, times(1)).history(INIT, INIT, Repository.ALL_PATH, 1);

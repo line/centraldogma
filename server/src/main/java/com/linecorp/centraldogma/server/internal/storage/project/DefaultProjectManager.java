@@ -24,8 +24,6 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-import com.github.benmanes.caffeine.cache.stats.CacheStats;
-
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
@@ -35,22 +33,25 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCa
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 public class DefaultProjectManager extends DirectoryBasedStorageManager<Project> implements ProjectManager {
 
     private final Executor repositoryWorker;
     @Nullable
     private final RepositoryCache cache;
 
-    public DefaultProjectManager(File rootDir, Executor repositoryWorker, @Nullable String cacheSpec) {
+    public DefaultProjectManager(File rootDir, Executor repositoryWorker, MeterRegistry meterRegistry,
+                                 @Nullable String cacheSpec) {
         super(rootDir, Project.class);
-        this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
-        cache = cacheSpec != null ? new RepositoryCache(cacheSpec) : null;
-        init();
-    }
 
-    @Override
-    public CacheStats cacheStats() {
-        return cache != null ? cache.stats() : CacheStats.empty();
+        requireNonNull(meterRegistry, "meterRegistry");
+        requireNonNull(repositoryWorker, "repositoryWorker");
+
+        this.repositoryWorker = repositoryWorker;
+        cache = cacheSpec != null ? new RepositoryCache(cacheSpec, meterRegistry) : null;
+
+        init();
     }
 
     @Override

@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.common.Revision.INIT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.junit.ClassRule;
@@ -27,8 +28,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-import com.github.benmanes.caffeine.cache.stats.CacheStats;
-
+import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -45,7 +45,8 @@ public class CacheTest extends AbstractMultiClientTest {
     @ClassRule
     public static final CentralDogmaRule rule = new CentralDogmaRule();
 
-    private static final Supplier<CacheStats> cacheStatsSupplier = () -> rule.dogma().cacheStats().get();
+    private static final Supplier<Map<String, Double>> metersSupplier =
+            () -> MoreMeters.measureAll(rule.dogma().meterRegistry().get());
 
     @Rule
     public final TestName testName = new TestName();
@@ -61,29 +62,29 @@ public class CacheTest extends AbstractMultiClientTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
-        final CacheStats stats1 = cacheStatsSupplier.get();
+        final Map<String, Double> meters1 = metersSupplier.get();
         final PushResult res = client.push(project, REPO_FOO, HEAD, "Add a file",
                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
 
-        final CacheStats stats2 = cacheStatsSupplier.get();
+        final Map<String, Double> meters2 = metersSupplier.get();
         if (clientType() == ClientType.LEGACY) {
             // NB: A push operation involves a history() operation to retrieve the last commit.
             //     Therefore we should observe one cache miss. (Thrift only)
-            assertThat(stats2.missCount()).isEqualTo(stats1.missCount() + 1);
+            assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
         } else {
-            assertThat(stats2.missCount()).isEqualTo(stats1.missCount());
+            assertThat(missCount(meters2)).isEqualTo(missCount(meters1));
         }
 
         // First getFile() should miss.
         final Query<String> query = Query.ofText("/foo.txt");
         final Entry<?> entry = client.getFile(project, REPO_FOO, HEAD, query).join();
-        final CacheStats stats3 = cacheStatsSupplier.get();
+        final Map<String, Double> meters3 = metersSupplier.get();
 
-        assertThat(stats3.missCount()).isEqualTo(stats2.missCount() + 1);
+        assertThat(missCount(meters3)).isEqualTo(missCount(meters2) + 1);
 
         // Subsequent getFile() should never miss.
         for (int i = 0; i < 3; i++) {
-            final CacheStats stats4 = cacheStatsSupplier.get();
+            final Map<String, Double> meters4 = metersSupplier.get();
 
             // Use the relative revision as well as the absolute revision.
             final Entry<?> cachedEntry1 = client.getFile(project, REPO_FOO, res.revision(), query).join();
@@ -94,9 +95,9 @@ public class CacheTest extends AbstractMultiClientTest {
             assertThat(cachedEntry1).isEqualTo(cachedEntry2);
 
             // .. and should hit the cache.
-            final CacheStats stats5 = cacheStatsSupplier.get();
-            assertThat(stats5.hitCount()).isEqualTo(stats4.hitCount() + 2);
-            assertThat(stats5.missCount()).isEqualTo(stats4.missCount());
+            final Map<String, Double> meters5 = metersSupplier.get();
+            assertThat(hitCount(meters5)).isEqualTo(hitCount(meters4) + 2);
+            assertThat(missCount(meters5)).isEqualTo(missCount(meters4));
         }
     }
 
@@ -110,7 +111,7 @@ public class CacheTest extends AbstractMultiClientTest {
         final PushResult res1 = client.push(project, REPO_FOO, HEAD, "Add a file",
                                             Change.ofTextUpsert("/foo.txt", "bar")).join();
 
-        final CacheStats stats1 = cacheStatsSupplier.get();
+        final Map<String, Double> meters1 = metersSupplier.get();
 
         // Get the history in various combination of from/to revisions.
         final List<Commit> history1 =
@@ -127,11 +128,11 @@ public class CacheTest extends AbstractMultiClientTest {
         assertThat(history1).isEqualTo(history3);
         assertThat(history1).isEqualTo(history4);
 
-        final CacheStats stats2 = cacheStatsSupplier.get();
+        final Map<String, Double> meters2 = metersSupplier.get();
 
         // Should miss once and hit 3 times.
-        assertThat(stats2.missCount()).isEqualTo(stats1.missCount() + 1);
-        assertThat(stats2.hitCount()).isEqualTo(stats1.hitCount() + 3);
+        assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
+        assertThat(hitCount(meters2)).isEqualTo(hitCount(meters1) + 3);
     }
 
     @Test
@@ -144,7 +145,7 @@ public class CacheTest extends AbstractMultiClientTest {
         final PushResult res1 = client.push(project, REPO_FOO, HEAD, "Add a file",
                                             Change.ofTextUpsert("/foo.txt", "bar")).join();
 
-        final CacheStats stats1 = cacheStatsSupplier.get();
+        final Map<String, Double> meters1 = metersSupplier.get();
 
         // Get the diffs in various combination of from/to revisions.
         final List<Change<?>> diff1 =
@@ -161,14 +162,22 @@ public class CacheTest extends AbstractMultiClientTest {
         assertThat(diff1).isEqualTo(diff3);
         assertThat(diff1).isEqualTo(diff4);
 
-        final CacheStats stats2 = cacheStatsSupplier.get();
+        final Map<String, Double> meters2 = metersSupplier.get();
 
         // Should miss once and hit 3 times.
-        assertThat(stats2.missCount()).isEqualTo(stats1.missCount() + 1);
-        assertThat(stats2.hitCount()).isEqualTo(stats1.hitCount() + 3);
+        assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
+        assertThat(hitCount(meters2)).isEqualTo(hitCount(meters1) + 3);
     }
 
     private String projectName() {
         return testName.getMethodName().replaceAll("[^a-zA-Z0-9]", "");
+    }
+
+    private static Double hitCount(Map<String, Double> meters) {
+        return meters.get("cache.gets#count{cache=repository,result=hit}");
+    }
+
+    private static Double missCount(Map<String, Double> meters) {
+        return meters.get("cache.gets#count{cache=repository,result=miss}");
     }
 }

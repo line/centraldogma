@@ -23,6 +23,8 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * A class which is used to pass internally-created instances into the {@link Plugin}.
  */
@@ -31,6 +33,7 @@ public final class PluginContext {
     private final CentralDogmaConfig config;
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
+    private final MeterRegistry meterRegistry;
 
     /**
      * Creates a new instance.
@@ -38,13 +41,16 @@ public final class PluginContext {
      * @param config the Central Dogma configuration
      * @param projectManager the instance which has the operations for the {@link Project}s
      * @param commandExecutor the executor which executes the {@link Command}s
+     * @param meterRegistry the {@link MeterRegistry} of the Central Dogma server
      */
     public PluginContext(CentralDogmaConfig config,
                          ProjectManager projectManager,
-                         CommandExecutor commandExecutor) {
+                         CommandExecutor commandExecutor,
+                         MeterRegistry meterRegistry) {
         this.config = requireNonNull(config, "config");
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
+        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
     }
 
     /**
@@ -66,5 +72,12 @@ public final class PluginContext {
      */
     public CommandExecutor commandExecutor() {
         return commandExecutor;
+    }
+
+    /**
+     * Returns the {@link MeterRegistry}.
+     */
+    public MeterRegistry meterRegistry() {
+        return meterRegistry;
     }
 }

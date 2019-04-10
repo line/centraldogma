@@ -25,8 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import com.github.benmanes.caffeine.cache.stats.CacheStats;
-
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -42,11 +40,6 @@ public class SafeProjectManager implements ProjectManager {
 
     public SafeProjectManager(ProjectManager delegate) {
         this.delegate = requireNonNull(delegate, "delegate");
-    }
-
-    @Override
-    public CacheStats cacheStats() {
-        return delegate().cacheStats();
     }
 
     @Override

@@ -51,9 +51,6 @@ configure(projectsWithFlags('java')) {
         // Testing utilities
         testCompile project(':testing-internal')
 
-        // Caffeine
-        compile 'com.github.ben-manes.caffeine:caffeine'
-
         // completable-futures
         compile 'com.spotify:completable-futures'
 
