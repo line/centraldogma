@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -33,6 +35,9 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.netty.channel.EventLoop;
 
 /**
@@ -47,6 +52,25 @@ public final class WatchService {
 
     private final Set<CompletableFuture<?>> pendingFutures =
             Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Counter wakeupCounter;
+    private final Counter timeoutCounter;
+    private final Counter failureCounter;
+
+    public WatchService(MeterRegistry meterRegistry) {
+        requireNonNull(meterRegistry, "meterRegistry");
+
+        Gauge.builder("watches.active", this, self -> self.pendingFutures.size()).register(meterRegistry);
+
+        wakeupCounter = Counter.builder("watches.processed")
+                               .tag("result", "wakeup")
+                               .register(meterRegistry);
+        timeoutCounter = Counter.builder("watches.processed")
+                                .tag("result", "timeout")
+                                .register(meterRegistry);
+        failureCounter = Counter.builder("watches.processed")
+                                .tag("result", "failure")
+                                .register(meterRegistry);
+    }
 
     /**
      * Awaits and retrieves the latest revision of the commit that changed the file that matches the specified
@@ -98,7 +122,17 @@ public final class WatchService {
 
         result.whenComplete((revision, cause) -> {
             if (timeoutFuture != null) {
-                timeoutFuture.cancel(true);
+                if (timeoutFuture.cancel(true)) {
+                    wakeupCounter.increment();
+                } else {
+                    timeoutCounter.increment();
+                }
+            } else {
+                if (cause == null) {
+                    wakeupCounter.increment();
+                } else {
+                    failureCounter.increment();
+                }
             }
             pendingFutures.remove(result);
         });

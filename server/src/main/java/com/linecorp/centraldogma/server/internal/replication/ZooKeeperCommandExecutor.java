@@ -347,7 +347,7 @@ public final class ZooKeeperCommandExecutor
                     new DefaultThreadFactory("zookeeper-command-executor", true));
             executor.allowCoreThreadTimeOut(true);
 
-            this.executor = ExecutorServiceMetrics.monitor(meterRegistry, executor, "zkCommandExecutor");;
+            this.executor = ExecutorServiceMetrics.monitor(meterRegistry, executor, "zkCommandExecutor");
         } catch (InterruptedException | ReplicationException e) {
             throw e;
         } catch (Exception e) {

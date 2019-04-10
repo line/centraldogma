@@ -500,7 +500,7 @@ public class CentralDogma implements AutoCloseable {
                 t -> sb.gracefulShutdownTimeout(t.quietPeriodMillis(), t.timeoutMillis()));
 
         final MetadataService mds = new MetadataService(pm, executor);
-        final WatchService watchService = new WatchService();
+        final WatchService watchService = new WatchService(meterRegistry);
         final AuthProvider authProvider = createAuthProvider(executor, sessionManager, mds);
 
         configureThriftService(sb, pm, executor, watchService, mds);
