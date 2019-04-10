@@ -44,8 +44,13 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
     public DefaultProjectManager(File rootDir, Executor repositoryWorker, MeterRegistry meterRegistry,
                                  @Nullable String cacheSpec) {
         super(rootDir, Project.class);
-        this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
+
+        requireNonNull(meterRegistry, "meterRegistry");
+        requireNonNull(repositoryWorker, "repositoryWorker");
+
+        this.repositoryWorker = repositoryWorker;
         cache = cacheSpec != null ? new RepositoryCache(cacheSpec, meterRegistry) : null;
+
         init();
     }
 

@@ -309,7 +309,7 @@ public class CentralDogma implements AutoCloseable {
 
     private void doStart() throws Exception {
         boolean success = false;
-        ThreadPoolExecutor repositoryWorker = null;
+        ExecutorService repositoryWorker = null;
         ProjectManager pm = null;
         CommandExecutor executor = null;
         PrometheusMeterRegistry meterRegistry = null;
@@ -319,12 +319,13 @@ public class CentralDogma implements AutoCloseable {
             meterRegistry = PrometheusMeterRegistries.newRegistry();
 
             logger.info("Starting the Central Dogma ..");
-            repositoryWorker = new ThreadPoolExecutor(
+            final ThreadPoolExecutor repositoryWorkerImpl = new ThreadPoolExecutor(
                     cfg.numRepositoryWorkers(), cfg.numRepositoryWorkers(),
                     60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
                     new DefaultThreadFactory("repository-worker", true));
-            repositoryWorker.allowCoreThreadTimeOut(true);
-            ExecutorServiceMetrics.monitor(meterRegistry, repositoryWorker, "repositoryWorker");
+            repositoryWorkerImpl.allowCoreThreadTimeOut(true);
+            repositoryWorker = ExecutorServiceMetrics.monitor(meterRegistry, repositoryWorkerImpl,
+                                                              "repositoryWorker");
 
             logger.info("Starting the project manager: {}", cfg.dataDir());
 
@@ -770,7 +771,8 @@ public class CentralDogma implements AutoCloseable {
 
         // Bind global thread pool metrics.
         ExecutorServiceMetrics.monitor(registry, ForkJoinPool.commonPool(), "commonPool");
-        ExecutorServiceMetrics.monitor(registry, CommonPools.blockingTaskExecutor(), "blockingTaskExecutor");
+        sb.blockingTaskExecutor(ExecutorServiceMetrics.monitor(
+                registry, CommonPools.blockingTaskExecutor(), "blockingTaskExecutor"));
     }
 
     private void doStop() {

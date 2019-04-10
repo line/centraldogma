@@ -289,10 +289,11 @@ public final class ZooKeeperCommandExecutor
             curator.start();
 
             // Start the log replay.
-            logWatcherExecutor = Executors.newSingleThreadExecutor(
-                    new DefaultThreadFactory("zookeeper-log-watcher", true));
-            ExecutorServiceMetrics.monitor(meterRegistry, logWatcherExecutor,
-                                           "zkLogWatcher");
+            logWatcherExecutor = ExecutorServiceMetrics.monitor(
+                    meterRegistry,
+                    Executors.newSingleThreadExecutor(
+                            new DefaultThreadFactory("zookeeper-log-watcher", true)),
+                    "zkLogWatcher");
 
             logWatcher = new PathChildrenCache(curator, absolutePath(LOG_PATH),
                                                true, false, logWatcherExecutor);
@@ -301,10 +302,11 @@ public final class ZooKeeperCommandExecutor
 
             // Start the leader selection.
             oldLogRemover = new OldLogRemover();
-            leaderSelectorExecutor = Executors.newSingleThreadExecutor(
-                    new DefaultThreadFactory("zookeeper-leader-selector", true));
-            ExecutorServiceMetrics.monitor(meterRegistry, leaderSelectorExecutor,
-                                           "zkLeaderSelector");
+            leaderSelectorExecutor = ExecutorServiceMetrics.monitor(
+                    meterRegistry,
+                    Executors.newSingleThreadExecutor(
+                            new DefaultThreadFactory("zookeeper-leader-selector", true)),
+                    "zkLeaderSelector");
 
             leaderSelector = new LeaderSelector(curator, absolutePath(LEADER_PATH),
                                                 leaderSelectorExecutor, oldLogRemover);
@@ -319,9 +321,8 @@ public final class ZooKeeperCommandExecutor
                     60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
                     new DefaultThreadFactory("zookeeper-command-executor", true));
             executor.allowCoreThreadTimeOut(true);
-            ExecutorServiceMetrics.monitor(meterRegistry, executor,
-                                           "zkCommandExecutor");
-            this.executor = executor;
+
+            this.executor = ExecutorServiceMetrics.monitor(meterRegistry, executor, "zkCommandExecutor");;
         } catch (InterruptedException | ReplicationException e) {
             throw e;
         } catch (Exception e) {

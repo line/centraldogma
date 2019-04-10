@@ -60,6 +60,7 @@ public class RepositoryCache {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public RepositoryCache(String cacheSpec, MeterRegistry meterRegistry) {
         this.cacheSpec = requireNonNull(validateCacheSpec(cacheSpec), "cacheSpec");
+        requireNonNull(meterRegistry, "meterRegistry");
 
         final Caffeine<Object, Object> builder = Caffeine.from(cacheSpec);
         if (cacheSpec.contains("maximumWeight=")) {
