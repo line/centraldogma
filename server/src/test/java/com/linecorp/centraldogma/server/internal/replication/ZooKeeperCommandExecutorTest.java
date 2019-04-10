@@ -261,7 +261,10 @@ public class ZooKeeperCommandExecutorTest {
         try {
             final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(0).meterRegistry);
             meters.forEach((k, v) -> logger.debug("{}={}", k, v));
-            assertThat(meters).containsKeys("executor.pool.size#value{name=zkCommandExecutor}",
+            assertThat(meters).containsKeys("executor#total{name=zkCommandExecutor}",
+                                            "executor#total{name=zkLeaderSelector}",
+                                            "executor#total{name=zkLogWatcher}",
+                                            "executor.pool.size#value{name=zkCommandExecutor}",
                                             "executor.pool.size#value{name=zkLeaderSelector}",
                                             "executor.pool.size#value{name=zkLogWatcher}",
                                             "replica.hasLeadership#value",
