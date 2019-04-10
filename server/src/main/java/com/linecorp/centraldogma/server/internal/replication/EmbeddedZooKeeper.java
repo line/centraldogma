@@ -47,7 +47,7 @@ final class EmbeddedZooKeeper extends QuorumPeer {
     static final String SASL_SERVER_LOGIN_CONTEXT = "QuorumServer";
     static final String SASL_LEARNER_LOGIN_CONTEXT = "QuorumLearner";
 
-    private static final ServerStats EMPTY_STATS = new EmptyServerStats();
+    private static final ServerStats EMPTY_STATS = new InactiveServerStats();
 
     private final ServerCnxnFactory cnxnFactory;
     private final DatadirCleanupManager purgeManager;
@@ -84,80 +84,68 @@ final class EmbeddedZooKeeper extends QuorumPeer {
 
         // Bind meters that indicates the ZooKeeper stats.
         TimeGauge.builder("zookeeper.latency", this, TimeUnit.MILLISECONDS,
-                          peer -> serverStats(peer).getAvgLatency())
+                          self -> serverStats(self).getAvgLatency())
                  .tag("type", "avg")
                  .register(meterRegistry);
         TimeGauge.builder("zookeeper.latency", this, TimeUnit.MILLISECONDS,
-                          peer -> serverStats(peer).getMaxLatency())
+                          self -> serverStats(self).getMaxLatency())
                  .tag("type", "max")
                  .register(meterRegistry);
         TimeGauge.builder("zookeeper.latency", this, TimeUnit.MILLISECONDS,
-                          peer -> serverStats(peer).getMinLatency())
+                          self -> serverStats(self).getMinLatency())
                  .tag("type", "min")
                  .register(meterRegistry);
 
         Gauge.builder("zookeeper.outstandingRequests", this,
-                      peer -> serverStats(peer).getOutstandingRequests())
+                      self -> serverStats(self).getOutstandingRequests())
              .register(meterRegistry);
 
         Gauge.builder("zookeeper.lastProcessedZxid", this,
-                      peer -> serverStats(peer).getLastProcessedZxid())
+                      self -> serverStats(self).getLastProcessedZxid())
              .register(meterRegistry);
 
         Gauge.builder("zookeeper.dataDirSize", this,
-                      peer -> serverStats(peer).getDataDirSize())
+                      self -> serverStats(self).getDataDirSize())
              .baseUnit("bytes")
              .register(meterRegistry);
 
         Gauge.builder("zookeeper.logDirSize", this,
-                      peer -> serverStats(peer).getLogDirSize())
+                      self -> serverStats(self).getLogDirSize())
              .baseUnit("bytes")
              .register(meterRegistry);
 
         FunctionCounter.builder("zookeeper.packetsReceived", this,
-                                peer -> serverStats(peer).getPacketsReceived())
+                                self -> serverStats(self).getPacketsReceived())
                        .register(meterRegistry);
 
         FunctionCounter.builder("zookeeper.packetsSent", this,
-                                peer -> serverStats(peer).getPacketsSent())
+                                self -> serverStats(self).getPacketsSent())
                        .register(meterRegistry);
 
         Gauge.builder("zookeeper.aliveClientConnections", this,
-                      peer -> serverStats(peer).getNumAliveClientConnections())
+                      self -> serverStats(self).getNumAliveClientConnections())
              .register(meterRegistry);
 
-        Gauge.builder("zookeeper.state.leader", this,
-                      peer -> "leader".equals(serverStats(peer).getServerState()) ? 1 : 0)
-             .register(meterRegistry);
-
-        Gauge.builder("zookeeper.state.follower", this,
-                      peer -> "follower".equals(serverStats(peer).getServerState()) ? 1 : 0)
-             .register(meterRegistry);
-
-        Gauge.builder("zookeeper.state.observer", this,
-                      peer -> "observer".equals(serverStats(peer).getServerState()) ? 1 : 0)
-             .register(meterRegistry);
-
-        Gauge.builder("zookeeper.state.readOnly", this,
-                      peer -> "read-only".equals(serverStats(peer).getServerState()) ? 1 : 0)
-             .register(meterRegistry);
-
-        Gauge.builder("zookeeper.state.unknown", this,
-                      peer -> {
-                          final String state = serverStats(peer).getServerState();
+        Gauge.builder("zookeeper.state", this,
+                      self -> {
+                          final String state = serverStats(self).getServerState();
                           if (state == null) {
-                              return 1;
+                              return 0;
                           }
                           switch (state) {
                               case "leader":
-                              case "follower":
-                              case "observer":
-                              case "read-only":
-                                  return 0;
-                              default:
                                   return 1;
+                              case "follower":
+                                  return 2;
+                              case "observer":
+                                  return 3;
+                              case "read-only":
+                                  return 4;
+                              default:
+                                  return 5; // Unknown
                           }
                       })
+             .description("0 = inactive, 1 = leader, 2 = follower, 3 = observer, 4 = read-only, 5 = unknown")
              .register(meterRegistry);
     }
 
@@ -218,8 +206,8 @@ final class EmbeddedZooKeeper extends QuorumPeer {
         }
     }
 
-    private static final class EmptyServerStats extends ServerStats {
-        EmptyServerStats() {
+    private static final class InactiveServerStats extends ServerStats {
+        InactiveServerStats() {
             super(new Provider() {
                 @Override
                 public long getOutstandingRequests() {
@@ -231,9 +219,10 @@ final class EmbeddedZooKeeper extends QuorumPeer {
                     return 0;
                 }
 
+                @Nullable
                 @Override
                 public String getState() {
-                    return "unknown";
+                    return null;
                 }
 
                 @Override
