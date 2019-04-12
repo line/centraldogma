@@ -345,16 +345,16 @@ the ``awaitInitialValue()`` method:
 
 .. code-block:: java
 
-    import static java.util.concurrent.TimeUnit.MINUTES;
+    import static java.util.concurrent.TimeUnit.SECONDS;
 
     CentralDogma dogma = ...;
     Watcher<JsonNode> watcher = dogma.fileWatcher(..., Query.ofJsonPath(...));
-    JsonNode initialValue = watcher.awaitInitialValue(1, MINUTES, someDefaultValue);
+    JsonNode initialValue = watcher.awaitInitialValue(20, SECONDS, someDefaultValue);
 
     // If you are interested in the Revision of the initial value, you can:
     JsonNode initialValue;
     try {
-        Latest<JsonNode> latest = watcher.awaitInitialValue(1, MINUTES);
+        Latest<JsonNode> latest = watcher.awaitInitialValue(20, SECONDS);
         System.err.printf("Initial: %s at %s%n", latest.value(), latest.revision());
         initialValue = latest.value();
     } catch (TimeoutException e) {
@@ -362,6 +362,14 @@ the ``awaitInitialValue()`` method:
         initialValue = someDefaultValue;
     }
 
+.. note::
+
+    A timeout is basically a trade-off. If you specify a smaller timeout, ``awaitInitialValue()`` will
+    take less time even if the server is not responsive, at the risk of getting a ``TimeoutException`` or
+    falling back to the default value. If you specify a larger timeout, you'll will have a better chance of
+    successful retrieval. It is generally recommended to use a value not less than 20 seconds so that
+    the client can retry at least a few times before timing out. Consider specifying a sensible default value
+    if you cannot tolerate a timeout or need to use a small timeout.
 
 Specifying multiple hosts
 -------------------------

@@ -66,9 +66,15 @@ public interface Watcher<T> extends AutoCloseable {
      * a {@link TimeoutException} properly if the initial value must be available
      * even when the server is unavailable.
      *
-     * @param timeout the maximum amount of time to wait for the initial value. It is recommended to use a
-     *                value larger than 30 seconds at least so that the client can retry at least a few times
-     *                before timing out.
+     * @param timeout the maximum amount of time to wait for the initial value. Note that timeout is basically
+     *                a trade-off. If you specify a smaller timeout, this method will take less time even if
+     *                the server is note responsive, at the risk of {@link TimeoutException}. If you specify
+     *                a larger timeout, you'll have a better chance of successful retrieval. It is generally
+     *                recommended to use a value not less than
+     *                {@value WatchConstants#RECOMMENDED_AWAIT_TIMEOUT_SECONDS} seconds so that
+     *                the client can retry at least a few times before timing out.
+     *                Consider using {@link #awaitInitialValue(long, TimeUnit, Object)} with a sensible default
+     *                value if you cannot tolerate a timeout or need to use a small timeout.
      * @param unit the {@link TimeUnit} of {@code timeout}.
      *
      * @return the {@link Latest} object that contains the initial value and the {@link Revision} where
@@ -92,9 +98,13 @@ public interface Watcher<T> extends AutoCloseable {
      * Waits for the initial value to be available and returns the specified default value if failed
      * to retrieve the initial value from the server.
      *
-     * @param timeout the maximum amount of time to wait for the initial value. It is recommended to use a
-     *                value larger than 30 seconds at least so that the client can retry at least a few times
-     *                before timing out.
+     * @param timeout the maximum amount of time to wait for the initial value. Note that timeout is basically
+     *                a trade-off. If you specify a smaller timeout, this method will take less time even if
+     *                the server is not responsive, at the risk of falling back to the {@code defaultValue}.
+     *                If you specify a larger timeout, you'll have a better chance of retrieving an up-to-date
+     *                initial value. It is generally recommended to use a value not less than
+     *                {@value WatchConstants#RECOMMENDED_AWAIT_TIMEOUT_SECONDS} seconds
+     *                so that the client can retry at least a few times before timing out.
      * @param unit the {@link TimeUnit} of {@code timeout}.
      * @param defaultValue the default value to use when timed out.
      *

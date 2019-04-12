@@ -427,7 +427,8 @@ public interface CentralDogma {
      */
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                         Revision lastKnownRevision, String pathPattern) {
-        return watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern, 60000);
+        return watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern,
+                               WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS);
     }
 
     /**
@@ -455,7 +456,8 @@ public interface CentralDogma {
      */
     default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                       Revision lastKnownRevision, Query<T> query) {
-        return watchFile(projectName, repositoryName, lastKnownRevision, query, 60000);
+        return watchFile(projectName, repositoryName, lastKnownRevision, query,
+                         WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS);
     }
 
     /**
