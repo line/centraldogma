@@ -54,7 +54,6 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private static final long MIN_INTERVAL_MILLIS = DELAY_ON_SUCCESS_MILLIS * 2;
     private static final long MAX_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(1);
     private static final double JITTER_RATE = 0.2;
-    private static final long WATCH_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
     private static long nextDelayMillis(int numAttemptsSoFar) {
         final long nextDelayMillis;
@@ -222,8 +221,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         final Revision lastKnownRevision = latest != null ? latest.revision() : Revision.INIT;
-        final CompletableFuture<Latest<T>> f = doWatch(client, projectName, repositoryName, lastKnownRevision,
-                                                       WATCH_TIMEOUT_MILLIS);
+        final CompletableFuture<Latest<T>> f = doWatch(client, projectName, repositoryName, lastKnownRevision
+        );
 
         currentWatchFuture = f;
         f.whenComplete((result, cause) -> currentWatchFuture = null)
@@ -280,8 +279,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     }
 
     protected abstract CompletableFuture<Latest<T>> doWatch(
-            CentralDogma client, String projectName, String repositoryName,
-            Revision lastKnownRevision, long timeoutMillis);
+            CentralDogma client, String projectName, String repositoryName, Revision lastKnownRevision);
 
     private void notifyListeners() {
         if (isStopped()) {

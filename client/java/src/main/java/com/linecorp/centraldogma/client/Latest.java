@@ -16,7 +16,11 @@
 
 package com.linecorp.centraldogma.client;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Objects;
+
+import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 
@@ -30,13 +34,14 @@ import com.linecorp.centraldogma.common.Revision;
 public final class Latest<U> {
 
     private final Revision revision;
+    @Nullable
     private final U value;
 
     /**
      * Creates a new instance with the specified {@link Revision} and value.
      */
-    public Latest(Revision revision, U value) {
-        this.revision = revision;
+    public Latest(Revision revision, @Nullable U value) {
+        this.revision = requireNonNull(revision, "revision");
         this.value = value;
     }
 
@@ -50,6 +55,7 @@ public final class Latest<U> {
     /**
      * Returns the latest known value.
      */
+    @Nullable
     public U value() {
         return value;
     }
@@ -63,12 +69,12 @@ public final class Latest<U> {
             return false;
         }
         final Latest<?> that = (Latest<?>) o;
-        return Objects.equals(revision, that.revision) && Objects.equals(value, that.value);
+        return revision.equals(that.revision) && Objects.equals(value, that.value);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(revision) * 31 + Objects.hashCode(value);
+        return revision.hashCode() * 31 + Objects.hashCode(value);
     }
 
     @Override

@@ -45,9 +45,8 @@ public final class FileWatcher<T> extends AbstractWatcher<T> {
 
     @Override
     protected CompletableFuture<Latest<T>> doWatch(CentralDogma client, String projectName,
-                                                   String repositoryName, Revision lastKnownRevision,
-                                                   long timeoutMillis) {
-        return client.watchFile(projectName, repositoryName, lastKnownRevision, query, timeoutMillis)
+                                                   String repositoryName, Revision lastKnownRevision) {
+        return client.watchFile(projectName, repositoryName, lastKnownRevision, query)
                      .thenApply(result -> {
                          if (result == null) {
                              return null;

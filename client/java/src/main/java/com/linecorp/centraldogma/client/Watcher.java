@@ -46,6 +46,9 @@ public interface Watcher<T> extends AutoCloseable {
     /**
      * Waits for the initial value to be available.
      *
+     * @return the {@link Latest} object that contains the initial value and the {@link Revision} where
+     *         the initial value came from.
+     *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
      */
     default Latest<T> awaitInitialValue() throws InterruptedException {
@@ -58,9 +61,21 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Waits for the initial value to be available.
+     * Waits for the initial value to be available. Specify the default value with
+     * {@link #awaitInitialValue(long, TimeUnit, Object)} or make sure to handle
+     * a {@link TimeoutException} properly if the initial value must be available
+     * even when the server is unavailable.
+     *
+     * @param timeout the maximum amount of time to wait for the initial value. It is recommended to use a
+     *                value larger than 30 seconds at least so that the client can retry at least a few times
+     *                before timing out.
+     * @param unit the {@link TimeUnit} of {@code timeout}.
+     *
+     * @return the {@link Latest} object that contains the initial value and the {@link Revision} where
+     *         the initial value came from.
      *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
+     * @throws TimeoutException if failed to retrieve the initial value within the specified timeout
      */
     default Latest<T> awaitInitialValue(long timeout, TimeUnit unit) throws InterruptedException,
                                                                             TimeoutException {
@@ -70,6 +85,30 @@ public interface Watcher<T> extends AutoCloseable {
         } catch (ExecutionException e) {
             // Should never occur because we never complete this future exceptionally.
             throw new Error(e);
+        }
+    }
+
+    /**
+     * Waits for the initial value to be available and returns the specified default value if failed
+     * to retrieve the initial value from the server.
+     *
+     * @param timeout the maximum amount of time to wait for the initial value. It is recommended to use a
+     *                value larger than 30 seconds at least so that the client can retry at least a few times
+     *                before timing out.
+     * @param unit the {@link TimeUnit} of {@code timeout}.
+     * @param defaultValue the default value to use when timed out.
+     *
+     * @return the initial value, or the default value if timed out.
+     *
+     * @throws CancellationException if this watcher has been closed by {@link #close()}
+     */
+    @Nullable
+    default T awaitInitialValue(long timeout, TimeUnit unit, @Nullable T defaultValue)
+            throws InterruptedException {
+        try {
+            return awaitInitialValue(timeout, unit).value();
+        } catch (TimeoutException e) {
+            return defaultValue;
         }
     }
 
@@ -89,6 +128,7 @@ public interface Watcher<T> extends AutoCloseable {
      *                               Use {@link #awaitInitialValue(long, TimeUnit)} first or
      *                               add a listener using {@link #watch(BiConsumer)} instead.
      */
+    @Nullable
     default T latestValue() {
         return latest().value();
     }
