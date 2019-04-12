@@ -366,7 +366,7 @@ the ``awaitInitialValue()`` method:
 
     A timeout is basically a trade-off. If you specify a smaller timeout, ``awaitInitialValue()`` will
     take less time even if the server is not responsive, at the risk of getting a ``TimeoutException`` or
-    falling back to the default value. If you specify a larger timeout, you'll will have a better chance of
+    falling back to the default value. If you specify a larger timeout, you will have a better chance of
     successful retrieval. It is generally recommended to use a value not less than 20 seconds so that
     the client can retry at least a few times before timing out. Consider specifying a sensible default value
     if you cannot tolerate a timeout or need to use a small timeout.
