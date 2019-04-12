@@ -362,14 +362,29 @@ the ``awaitInitialValue()`` method:
         initialValue = someDefaultValue;
     }
 
-.. note::
+Note that a timeout is basically a trade-off. If you specify a smaller timeout, ``awaitInitialValue()`` will
+take less time even if the server is not responsive, at the risk of getting a ``TimeoutException`` or
+falling back to the default value. If you specify a larger timeout, you will have a better chance of
+successful retrieval. It is generally recommended to use a value not less than 20 seconds so that
+the client can retry at least a few times before timing out. Consider specifying a sensible default value
+if you cannot tolerate a timeout or need to use a small timeout.
 
-    A timeout is basically a trade-off. If you specify a smaller timeout, ``awaitInitialValue()`` will
-    take less time even if the server is not responsive, at the risk of getting a ``TimeoutException`` or
-    falling back to the default value. If you specify a larger timeout, you will have a better chance of
-    successful retrieval. It is generally recommended to use a value not less than 20 seconds so that
-    the client can retry at least a few times before timing out. Consider specifying a sensible default value
-    if you cannot tolerate a timeout or need to use a small timeout.
+Alternatively, you can choose not to use ``awaitInitialValue()`` at all if the value being retrieved is not
+part of a critical path, e.g. span collection rate in distributed tracing. In such a case, you can simply
+add a callback to :api:`Watcher` or poll the most recently retrieved value using the ``latestValue()`` method:
+
+.. code-block:: java
+
+    CentralDogma dogma = ...;
+    Watcher<JsonNode> watcher = dogma.fileWatcher(..., Query.ofJsonPath(...));
+
+    // Using a callback:
+    watcher.watch((revision, value) -> {
+        System.err.printf("Updated to %s at %s%n", value, revision);
+    });
+
+    // Polling the latest value. The client will keep updating in the background.
+    JsonNode maybeLatestValue = watcher.latestValue(someDefaultValue);
 
 Specifying multiple hosts
 -------------------------
