@@ -42,10 +42,8 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
 
     @Override
     protected CompletableFuture<Latest<T>> doWatch(CentralDogma client, String projectName,
-                                                   String repositoryName, Revision lastKnownRevision,
-                                                   long timeoutMillis) {
-        return client.watchRepository(projectName, repositoryName, lastKnownRevision,
-                                      pathPattern, timeoutMillis)
+                                                   String repositoryName, Revision lastKnownRevision) {
+        return client.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern)
                      .thenApply(revision -> {
                          if (revision == null) {
                              return null;

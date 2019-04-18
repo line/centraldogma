@@ -419,7 +419,24 @@ public interface CentralDogma {
 
     /**
      * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified
-     * {@code lastKnownRevision}.
+     * {@code lastKnownRevision}. If no changes were made within 1 minute, the returned
+     * {@link CompletableFuture} will be completed with {@code null}.
+     *
+     * @return the latest known {@link Revision} which contains the changes for the matched files.
+     *         {@code null} if the files were not changed for 1 minute since the invocation of this method.
+     */
+    default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
+                                                        Revision lastKnownRevision, String pathPattern) {
+        return watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern,
+                               WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS);
+    }
+
+    /**
+     * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified
+     * {@code lastKnownRevision}.  If no changes were made within the specified {@code timeoutMillis}, the
+     * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify
+     * the largest {@code timeoutMillis} allowed by the server. If unsure, use
+     * {@link #watchRepository(String, String, Revision, String)}.
      *
      * @return the latest known {@link Revision} which contains the changes for the matched files.
      *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
@@ -431,7 +448,24 @@ public interface CentralDogma {
 
     /**
      * Waits for the file matched by the specified {@link Query} to be changed since the specified
-     * {@code lastKnownRevision}.
+     * {@code lastKnownRevision}. If no changes were made within 1 minute, the returned
+     * {@link CompletableFuture} will be completed with {@code null}.
+     *
+     * @return the {@link Entry} which contains the latest known {@link Query} result.
+     *         {@code null} if the file was not changed for 1 minute since the invocation of this method.
+     */
+    default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
+                                                      Revision lastKnownRevision, Query<T> query) {
+        return watchFile(projectName, repositoryName, lastKnownRevision, query,
+                         WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS);
+    }
+
+    /**
+     * Waits for the file matched by the specified {@link Query} to be changed since the specified
+     * {@code lastKnownRevision}. If no changes were made within the specified {@code timeoutMillis}, the
+     * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify
+     * the largest {@code timeoutMillis} allowed by the server. If unsure, use
+     * {@link #watchFile(String, String, Revision, Query)}.
      *
      * @return the {@link Entry} which contains the latest known {@link Query} result.
      *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds

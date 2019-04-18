@@ -165,7 +165,8 @@ You can get a merged file from a repository:
                                                    MergeSource.ofRequired("/b.json"),
                                                    MergeSource.ofRequired("/c.json"));
     CompletableFuture<MergedEntry<JsonNode>> future =
-            dogma.mergeFiles("myProj", "myRepo", Revision.HEAD, MergeQuery.ofJson(mergeSources));
+            dogma.mergeFiles("myProj", "myRepo", Revision.HEAD,
+                             MergeQuery.ofJson(mergeSources));
 
     MergedEntry<JsonNode> mergedEntry = future.join();
     assert mergedEntry.type() == EntryType.JSON
@@ -210,7 +211,8 @@ Let's consider that the contents of the ``/a.json``, ``/b.json`` and ``/c.json``
 
     {
       "someObject": {
-        "nullInSomeObject": 100 // Replace the null with 100. null can be converted to any type.
+        // Replace the null with 100. null can be converted to any type.
+        "nullInSomeObject": 100
       }
     }
 
@@ -240,7 +242,8 @@ You can mark some files involved in the merge process as optional.
                                                    MergeSource.ofOptional("/b.json"), // <-- It's optional!
                                                    MergeSource.ofRequired("/c.json"));
     CompletableFuture<MergedEntry<JsonNode>> future =
-            dogma.mergeFiles("myProj", "myRepo", Revision.HEAD, MergeQuery.ofJson(mergeSources));
+            dogma.mergeFiles("myProj", "myRepo", Revision.HEAD,
+                             MergeQuery.ofJson(mergeSources));
 
 Note that we used ``MergeSource.ofOptional("/b.json")``, which tells to include the ``/b.json`` file only if it
 exists in the repository. If it does not exist, ``/a.json`` and ``/c.json`` will be merged sequentially.
@@ -282,7 +285,8 @@ You can also push a commit into a repository programmatically:
                        Change.ofRemoval("/b.json"));
 
     Commit commit = future.join();
-    System.err.println("Pushed a commit " + commit.revision() + " at " + commit.whenAsText());
+    System.err.printf("Pushed a commit %s at %s%n",
+                      commit.revision(), commit.whenAsText());
 
 In this example, we pushed a commit that contains two changes: one that adds ``/c.json`` and the other that
 removes ``/b.json``.
@@ -318,20 +322,69 @@ the process. The client library provides an easy way to watch a file:
     import com.linecorp.centraldogma.client.Watcher;
 
     CentralDogma dogma = ...;
-    Watcher<JsonNode> watcher = dogma.fileWatcher("myProj", "myRepo",
-                                                  Query.ofJsonPath("/some_file.json", "$.foo"));
+    Watcher<JsonNode> watcher =
+            dogma.fileWatcher("myProj", "myRepo",
+                              Query.ofJsonPath("/some_file.json", "$.foo"));
     // Register a callback for changes.
     watcher.watch((revision, value) -> {
-        System.err.println("Foo has been updated to " + value + " (revision: " + revision + ')');
+        System.err.printf("Updated to %s at %s%n", value, revision);
     });
 
     // Alternatively, without using a callback:
-    watcher.awaitInitialValue();                // Wait until the initial value is available.
-    Latest<JsonNode> latest = watcher.latest(); // Get the latest value.
-    System.err.println("Current foo: " + latest.value() + " (revision: " + latest.revision() + ')');
+    Latest<JsonNode> latest = watcher.awaitInitialValue(); // Wait for the initial value.
+    System.err.printf("Initial: %s at %s%n", latest.value(), latest.revision());
 
 You would want to register a callback to the ``Watcher`` or check the return value of ``Watcher.latest()``
 periodically to apply the new settings to your application.
+
+Preparing for unavailability
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+It is possible that the servers are not available when you are waiting for the initial value. To prevent from
+your application from awaiting indefinitely, you can specify a timeout and a default value when calling
+the ``awaitInitialValue()`` method:
+
+.. code-block:: java
+
+    import static java.util.concurrent.TimeUnit.SECONDS;
+
+    CentralDogma dogma = ...;
+    Watcher<JsonNode> watcher = dogma.fileWatcher(..., Query.ofJsonPath(...));
+    JsonNode initialValue = watcher.awaitInitialValue(20, SECONDS, someDefaultValue);
+
+    // If you are interested in the Revision of the initial value, you can:
+    JsonNode initialValue;
+    try {
+        Latest<JsonNode> latest = watcher.awaitInitialValue(20, SECONDS);
+        System.err.printf("Initial: %s at %s%n", latest.value(), latest.revision());
+        initialValue = latest.value();
+    } catch (TimeoutException e) {
+        System.err.printf("Default: %s%n", someDefaultValue);
+        initialValue = someDefaultValue;
+    }
+
+Note that a timeout is basically a trade-off. If you specify a smaller timeout, you will have a higher chance
+of getting a ``TimeoutException`` or falling back to the default value when the server does not respond in time.
+If you specify a larger timeout, you will have a better chance of successful retrieval. It is generally
+recommended to use a value not less than 20 seconds so that the client can retry at least a few times before
+timing out. Consider specifying a sensible default value if you need to use a small timeout or want to make
+sure your application is not affected when the servers have an issue.
+
+Alternatively, you can choose not to use ``awaitInitialValue()`` at all if the value being retrieved is not
+part of a critical path, e.g. span collection rate in distributed tracing. In such a case, you can simply
+add a callback to :api:`Watcher` or poll the most recently retrieved value using the ``latestValue()`` method:
+
+.. code-block:: java
+
+    CentralDogma dogma = ...;
+    Watcher<JsonNode> watcher = dogma.fileWatcher(..., Query.ofJsonPath(...));
+
+    // Using a callback:
+    watcher.watch((revision, value) -> {
+        System.err.printf("Updated to %s at %s%n", value, revision);
+    });
+
+    // Polling the latest value. The client will keep updating in the background.
+    JsonNode maybeLatestValue = watcher.latestValue(someDefaultValue);
 
 Specifying multiple hosts
 -------------------------
@@ -361,7 +414,9 @@ You can load the list of the Central Dogma servers from one of the following JSO
 .. code-block:: java
 
     ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
-    // Loads the profile 'beta' from /centraldogma-profiles-test.json or /centraldogma-profiles.json
+    // Loads the profile 'beta' from:
+    // - /centraldogma-profiles-test.json or
+    // - /centraldogma-profiles.json
     builder.profile("beta");
     CentralDogma dogma = builder.build();
 
