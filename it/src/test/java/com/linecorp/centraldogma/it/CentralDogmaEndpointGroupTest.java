@@ -17,11 +17,13 @@
 package com.linecorp.centraldogma.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -105,6 +107,34 @@ public class CentralDogmaEndpointGroupTest {
                                 Revision.HEAD, "commit",
                                 Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
                  .join();
+
+            await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
+            assertThat(endpointGroup.endpoints()).containsExactly(Endpoint.of("foo.bar", 1234));
+        }
+    }
+
+    @Test
+    public void recoverFromNotFound() throws Exception {
+        try (Watcher<String> watcher = dogma.client().fileWatcher("directory",
+                                                                  "new-service",
+                                                                  Query.ofText("/endpoints.txt"))) {
+            final CountDownLatch latch = new CountDownLatch(1);
+            watcher.watch(unused -> latch.countDown());
+
+            final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
+                    watcher, EndpointListDecoder.TEXT);
+            // Timeout because the initial watcher is still trying to fetch missing repository.
+            assertThatThrownBy(() -> endpointGroup.awaitInitialEndpoints(1, TimeUnit.SECONDS))
+                    .isInstanceOf(TimeoutException.class);
+            assertThat(endpointGroup.endpoints()).isEmpty();
+            assertThat(latch.getCount()).isEqualTo(1);
+
+            dogma.client().createRepository("directory", "new-service").join();
+            dogma.client().push("directory", "new-service",
+                                Revision.HEAD, "commit",
+                                Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
+                 .join();
+            endpointGroup.awaitInitialEndpoints(20, TimeUnit.SECONDS);
 
             await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
             assertThat(endpointGroup.endpoints()).containsExactly(Endpoint.of("foo.bar", 1234));

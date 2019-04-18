@@ -19,8 +19,6 @@ package com.linecorp.centraldogma.client.armeria;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +57,6 @@ import com.linecorp.centraldogma.common.Query;
  */
 public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaEndpointGroup.class);
-    private static final long WATCH_INITIALIZATION_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10);
 
     private final Watcher<T> instanceListWatcher;
     private final EndpointListDecoder<T> endpointListDecoder;
@@ -112,12 +109,10 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
                 logger.warn("Failed to refresh the endpoint list.", e);
             }
         });
-        try {
-            instanceListWatcher.awaitInitialValue(WATCH_INITIALIZATION_TIMEOUT_MILLIS,
-                                                  TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | TimeoutException e) {
-            logger.warn("Failed to initialize instance list on time.", e);
-        }
+        instanceListWatcher.initialValueFuture().exceptionally(e -> {
+            logger.warn("Failed to initialize instance list.", e);
+            return null;
+        });
     }
 
     @Override
