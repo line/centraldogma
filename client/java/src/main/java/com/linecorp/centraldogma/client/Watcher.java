@@ -67,10 +67,10 @@ public interface Watcher<T> extends AutoCloseable {
      * even when the server is unavailable.
      *
      * @param timeout the maximum amount of time to wait for the initial value. Note that timeout is basically
-     *                a trade-off. If you specify a smaller timeout, this method will take less time even if
-     *                the server is not responsive, at the risk of {@link TimeoutException}. If you specify
-     *                a larger timeout, you will have a better chance of successful retrieval. It is generally
-     *                recommended to use a value not less than
+     *                a trade-off. If you specify a smaller timeout, this method will have a higher chance of
+     *                throwing a {@link TimeoutException} when the server does not respond in time.
+     *                If you specify a larger timeout, you will have a better chance of successful retrieval.
+     *                It is generally recommended to use a value not less than
      *                {@value WatchConstants#RECOMMENDED_AWAIT_TIMEOUT_SECONDS} seconds so that
      *                the client can retry at least a few times before timing out.
      *                Consider using {@link #awaitInitialValue(long, TimeUnit, Object)} with a sensible default
@@ -99,8 +99,8 @@ public interface Watcher<T> extends AutoCloseable {
      * to retrieve the initial value from the server.
      *
      * @param timeout the maximum amount of time to wait for the initial value. Note that timeout is basically
-     *                a trade-off. If you specify a smaller timeout, this method will take less time even if
-     *                the server is not responsive, at the risk of falling back to the {@code defaultValue}.
+     *                a trade-off. If you specify a smaller timeout, this method will have a higher chance of
+     *                falling back to the {@code defaultValue} when the server does not respond in time.
      *                If you specify a larger timeout, you will have a better chance of retrieving
      *                an up-to-date initial value. It is generally recommended to use a value not less than
      *                {@value WatchConstants#RECOMMENDED_AWAIT_TIMEOUT_SECONDS} seconds
