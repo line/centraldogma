@@ -68,7 +68,7 @@ public interface Watcher<T> extends AutoCloseable {
      *
      * @param timeout the maximum amount of time to wait for the initial value. Note that timeout is basically
      *                a trade-off. If you specify a smaller timeout, this method will take less time even if
-     *                the server is note responsive, at the risk of {@link TimeoutException}. If you specify
+     *                the server is not responsive, at the risk of {@link TimeoutException}. If you specify
      *                a larger timeout, you will have a better chance of successful retrieval. It is generally
      *                recommended to use a value not less than
      *                {@value WatchConstants#RECOMMENDED_AWAIT_TIMEOUT_SECONDS} seconds so that

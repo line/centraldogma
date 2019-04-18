@@ -221,8 +221,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         final Revision lastKnownRevision = latest != null ? latest.revision() : Revision.INIT;
-        final CompletableFuture<Latest<T>> f = doWatch(client, projectName, repositoryName, lastKnownRevision
-        );
+        final CompletableFuture<Latest<T>> f = doWatch(client, projectName, repositoryName, lastKnownRevision);
 
         currentWatchFuture = f;
         f.whenComplete((result, cause) -> currentWatchFuture = null)
