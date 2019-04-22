@@ -53,6 +53,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 import com.google.common.math.IntMath;
@@ -150,8 +151,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Void createProject(AggregatedHttpMessage res) {
-        if (res.status().code() == 201) { // Created
-            return null;
+        switch (res.status().code()) {
+            case 200:
+            case 201:
+                return null;
         }
         return handleErrorResponse(res);
     }
@@ -169,8 +172,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Void removeProject(AggregatedHttpMessage res) {
-        if (res.status().code() == 204) { // No Content
-            return null;
+        switch (res.status().code()) {
+            case 200:
+            case 204:
+                return null;
         }
         return handleErrorResponse(res);
     }
@@ -227,8 +232,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Void createRepository(AggregatedHttpMessage res) {
-        if (res.status().code() == 201) { // Created
-            return null;
+        switch (res.status().code()) {
+            case 200:
+            case 201:
+                return null;
         }
         return handleErrorResponse(res);
     }
@@ -247,8 +254,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Void removeRepository(AggregatedHttpMessage res) {
-        if (res.status().code() == 204) { // No Content
-            return null;
+        switch (res.status().code()) {
+            case 200:
+            case 204:
+                return null;
         }
         return handleErrorResponse(res);
     }
@@ -261,10 +270,17 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                                           pathBuilder(projectName, repositoryName).toString()),
                                   UNREMOVE_PATCH)
                          .aggregate()
-                         .thenApply(ArmeriaCentralDogma::handleSimpleResponse);
+                         .thenApply(ArmeriaCentralDogma::unremoveRepository);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
+    }
+
+    private static Void unremoveRepository(AggregatedHttpMessage res) {
+        if (res.status().code() == 200) {
+            return null;
+        }
+        return handleErrorResponse(res);
     }
 
     @Override
@@ -280,18 +296,19 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Map<String, RepositoryInfo> listRepositories(AggregatedHttpMessage res) {
-        final int code = res.status().code();
-        if (code == 200) { // OK
-            return Streams.stream(toJson(res, JsonNodeType.ARRAY))
-                          .map(node -> {
-                              final String name = getField(node, "name").asText();
-                              final Revision headRevision =
-                                      new Revision(getField(node, "headRevision").asInt());
-                              return new RepositoryInfo(name, headRevision);
-                          })
-                          .collect(toImmutableMap(RepositoryInfo::name, Function.identity()));
+        switch (res.status().code()) {
+            case 200:
+                return Streams.stream(toJson(res, JsonNodeType.ARRAY))
+                              .map(node -> {
+                                  final String name = getField(node, "name").asText();
+                                  final Revision headRevision =
+                                          new Revision(getField(node, "headRevision").asInt());
+                                  return new RepositoryInfo(name, headRevision);
+                              })
+                              .collect(toImmutableMap(RepositoryInfo::name, Function.identity()));
+            case 204:
+                return ImmutableMap.of();
         }
-
         return handleErrorResponse(res);
     }
 
@@ -361,13 +378,16 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Map<String, EntryType> listFiles(AggregatedHttpMessage res) {
-        if (res.status().code() == 200) {
-            final ImmutableMap.Builder<String, EntryType> builder = ImmutableMap.builder();
-            final JsonNode node = toJson(res, JsonNodeType.ARRAY);
-            node.forEach(e -> builder.put(
-                    getField(e, "path").asText(),
-                    EntryType.valueOf(getField(e, "type").asText())));
-            return builder.build();
+        switch (res.status().code()) {
+            case 200:
+                final ImmutableMap.Builder<String, EntryType> builder = ImmutableMap.builder();
+                final JsonNode node = toJson(res, JsonNodeType.ARRAY);
+                node.forEach(e -> builder.put(
+                        getField(e, "path").asText(),
+                        EntryType.valueOf(getField(e, "type").asText())));
+                return builder.build();
+            case 204:
+                return ImmutableMap.of();
         }
 
         return handleErrorResponse(res);
@@ -434,21 +454,24 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Map<String, Entry<?>> getFiles(Revision normRev, AggregatedHttpMessage res) {
-        if (res.status().code() == 200) {
-            final JsonNode node = toJson(res, null);
-            final ImmutableMap.Builder<String, Entry<?>> builder = ImmutableMap.builder();
-            if (node.isObject()) { // Single entry
-                final Entry<?> entry = toEntry(normRev, node);
-                builder.put(entry.path(), entry);
-            } else if (node.isArray()) { // Multiple entries
-                node.forEach(e -> {
-                    final Entry<?> entry = toEntry(normRev, e);
+        switch (res.status().code()) {
+            case 200:
+                final JsonNode node = toJson(res, null);
+                final ImmutableMap.Builder<String, Entry<?>> builder = ImmutableMap.builder();
+                if (node.isObject()) { // Single entry
+                    final Entry<?> entry = toEntry(normRev, node);
                     builder.put(entry.path(), entry);
-                });
-            } else {
-                return rejectNeitherArrayNorObject(res);
-            }
-            return builder.build();
+                } else if (node.isArray()) { // Multiple entries
+                    node.forEach(e -> {
+                        final Entry<?> entry = toEntry(normRev, e);
+                        builder.put(entry.path(), entry);
+                    });
+                } else {
+                    return rejectNeitherArrayNorObject(res);
+                }
+                return builder.build();
+            case 204:
+                return ImmutableMap.of();
         }
 
         return handleErrorResponse(res);
@@ -547,17 +570,20 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static List<Commit> getHistory(AggregatedHttpMessage res) {
-        if (res.status().code() == 200) {
-            final JsonNode node = toJson(res, null);
-            if (node.isObject()) {
-                return ImmutableList.of(toCommit(node));
-            } else if (node.isArray()) {
-                return Streams.stream(node)
-                              .map(ArmeriaCentralDogma::toCommit)
-                              .collect(toImmutableList());
-            } else {
-                return rejectNeitherArrayNorObject(res);
-            }
+        switch (res.status().code()) {
+            case 200:
+                final JsonNode node = toJson(res, null);
+                if (node.isObject()) {
+                    return ImmutableList.of(toCommit(node));
+                } else if (node.isArray()) {
+                    return Streams.stream(node)
+                                  .map(ArmeriaCentralDogma::toCommit)
+                                  .collect(toImmutableList());
+                } else {
+                    return rejectNeitherArrayNorObject(res);
+                }
+            case 204:
+                return ImmutableList.of();
         }
 
         return handleErrorResponse(res);
@@ -587,9 +613,13 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
+    @Nullable
     private static <T> Change<T> getDiff(AggregatedHttpMessage res) {
-        if (res.status().code() == 200) {
-            return toChange(toJson(res, JsonNodeType.OBJECT));
+        switch (res.status().code()) {
+            case 200:
+                return toChange(toJson(res, JsonNodeType.OBJECT));
+            case 204:
+                return null;
         }
         return handleErrorResponse(res);
     }
@@ -1009,11 +1039,13 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Set<String> handleNameList(AggregatedHttpMessage res) {
-        final int code = res.status().code();
-        if (code == 200) { // OK
-            return Streams.stream(toJson(res, JsonNodeType.ARRAY))
-                          .map(node -> getField(node, "name").asText())
-                          .collect(toImmutableSet());
+        switch (res.status().code()) {
+            case 200:
+                return Streams.stream(toJson(res, JsonNodeType.ARRAY))
+                              .map(node -> getField(node, "name").asText())
+                              .collect(toImmutableSet());
+            case 204:
+                return ImmutableSet.of();
         }
         return handleErrorResponse(res);
     }
@@ -1025,17 +1057,6 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     "invalid server response; field '" + fieldName + "' does not exist: " + node);
         }
         return field;
-    }
-
-    @Nullable
-    private static <T> T handleSimpleResponse(AggregatedHttpMessage res) {
-        final HttpStatus status = res.status();
-        assert status != null : res;
-        if (status.code() == 200) {
-            return null;
-        }
-
-        return handleErrorResponse(res);
     }
 
     private static <T> T handleErrorResponse(AggregatedHttpMessage res) {
