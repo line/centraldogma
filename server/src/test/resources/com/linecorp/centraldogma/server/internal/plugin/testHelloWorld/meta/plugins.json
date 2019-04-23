@@ -1,6 +1,0 @@
-{
-  "version": 1,
-  "plugins": [
-    "hello_world.js"
-  ]
-}
