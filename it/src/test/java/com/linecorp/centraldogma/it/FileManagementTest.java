@@ -96,4 +96,20 @@ public class FileManagementTest extends AbstractMultiClientTest {
         assertThat(files).hasSize(NUM_FILES);
         files.values().forEach(t -> assertThat(t).isEqualTo(EntryType.JSON));
     }
+
+    @Test
+    public void testListFilesEmpty() throws Exception {
+        final Map<String, EntryType> files = client().listFiles(
+                rule.project(), rule.repo1(), Revision.HEAD, TEST_ROOT + "*.none").join();
+        assertThat(files).isEmpty();
+    }
+
+    @Test
+    public void testListFilesSingle() throws Exception {
+        final String path = TEST_ROOT + "0.json";
+        final Map<String, EntryType> files = client().listFiles(
+                rule.project(), rule.repo1(), Revision.HEAD, path).join();
+        assertThat(files).hasSize(1);
+        assertThat(files.get(path)).isEqualTo(EntryType.JSON);
+    }
 }
