@@ -27,10 +27,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
+import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
@@ -75,14 +77,6 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     public final B clientFactory(ClientFactory clientFactory) {
         this.clientFactory = requireNonNull(clientFactory, "clientFactory");
         return self();
-    }
-
-    /**
-     * Returns the {@link ArmeriaClientConfigurator} that will configure an underlying
-     * <a href="https://line.github.io/armeria/">Armeria</a> client which performs the actual socket I/O.
-     */
-    protected final ArmeriaClientConfigurator clientConfigurator() {
-        return clientConfigurator;
     }
 
     /**
@@ -199,5 +193,18 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     private static Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {
         return Endpoint.of(addr.getHostString(), addr.getPort())
                        .withIpAddr(addr.getAddress().getHostAddress());
+    }
+
+    /**
+     * Returns a newly created {@link ClientBuilder} configured with the specified {@code customizer}
+     * and then with the {@link ArmeriaClientConfigurator} specified with
+     * {@link #clientConfigurator(ArmeriaClientConfigurator)}.
+     */
+    protected final ClientBuilder newClientBuilder(String uri, Consumer<ClientBuilder> customizer) {
+        final ClientBuilder builder = new ClientBuilder(uri);
+        customizer.accept(builder);
+        clientConfigurator.configure(builder);
+        builder.factory(clientFactory());
+        return builder;
     }
 }

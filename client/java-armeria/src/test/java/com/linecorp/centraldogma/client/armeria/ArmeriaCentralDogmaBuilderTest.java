@@ -18,12 +18,24 @@ package com.linecorp.centraldogma.client.armeria;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import java.net.URI;
 import java.util.List;
+import java.util.function.Consumer;
 
 import org.junit.Test;
 
+import com.linecorp.armeria.client.ClientBuilder;
+import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.client.ClientOptions;
 import com.linecorp.armeria.client.Endpoint;
+import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroupRegistry;
 import com.linecorp.armeria.client.endpoint.StaticEndpointGroup;
@@ -138,6 +150,41 @@ public class ArmeriaCentralDogmaBuilderTest {
         } finally {
             EndpointGroupRegistry.unregister(groupName);
         }
+    }
+
+    /**
+     * Ensure the customization order of {@link ClientBuilder}.
+     * <ol>
+     *   <li>Builder-specified {@link Consumer}</li>
+     *   <li>User-specified {@link ArmeriaClientConfigurator}</li>
+     *   <li>User-specified {@link ClientFactory}</li>
+     * </ol>
+     */
+    @Test
+    public void newClientBuilderCustomizationOrder() {
+        final ClientFactory cf1 = mock(ClientFactory.class);
+        final ClientFactory cf2 = mock(ClientFactory.class);
+        final ClientFactory cf3 = mock(ClientFactory.class);
+        final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        final StringBuilder buf = new StringBuilder();
+        b.clientFactory(cf1);
+        b.clientConfigurator(cb -> {
+            buf.append('2');
+            cb.factory(cf2);
+        });
+
+        final ClientBuilder cb = b.newClientBuilder("none+http://127.0.0.1/",
+                                                    cb2 -> {
+                                                        cb2.factory(cf3);
+                                                        buf.append('1');
+                                                    });
+        assertThat(buf.toString()).isEqualTo("12");
+
+        cb.build(HttpClient.class);
+        verify(cf1, times(1)).newClient((URI) any(), any(), (ClientOptions) any());
+        verify(cf2, never()).newClient((URI) any(), any(), (ClientOptions) any());
+        verify(cf3, never()).newClient((URI) any(), any(), (ClientOptions) any());
+        verifyNoMoreInteractions(cf1, cf2, cf3);
     }
 
     private static final class ArmeriaCentralDogmaBuilder
