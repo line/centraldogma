@@ -42,11 +42,9 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         final Endpoint endpoint = endpoint();
         final String scheme = "tbinary+" + (isUseTls() ? "https" : "http") + "://";
         final String uri = scheme + endpoint.authority() + "/cd/thrift/v1";
-        final ClientBuilder builder = new ClientBuilder(uri);
-        clientConfigurator().configure(builder);
-        builder.factory(clientFactory())
-               .decorator(HttpDecodingClient.newDecorator())
-               .rpcDecorator(LegacyCentralDogmaTimeoutScheduler::new);
+        final ClientBuilder builder =
+                newClientBuilder(uri, cb -> cb.decorator(HttpDecodingClient.newDecorator())
+                                              .rpcDecorator(LegacyCentralDogmaTimeoutScheduler::new));
 
         final String authorization = "Bearer " + accessToken();
         builder.decorator((delegate, ctx, req) -> {

@@ -34,10 +34,8 @@ public final class ArmeriaCentralDogmaBuilder
         final Endpoint endpoint = endpoint();
         final String scheme = "none+" + (isUseTls() ? "https" : "http") + "://";
         final String uri = scheme + endpoint.authority();
-        final ClientBuilder builder = new ClientBuilder(uri);
-        clientConfigurator().configure(builder);
-        builder.factory(clientFactory());
-        builder.decorator(HttpDecodingClient.newDecorator());
+        final ClientBuilder builder =
+                newClientBuilder(uri, cb -> cb.decorator(HttpDecodingClient.newDecorator()));
         return new ArmeriaCentralDogma(clientFactory().eventLoopGroup(),
                                        builder.build(HttpClient.class), accessToken());
     }
