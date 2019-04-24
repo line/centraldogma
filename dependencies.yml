@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.83.0
+- com.linecorp.armeria:armeria-bom:0.84.0
 
 ch.qos.logback:
   logback-classic:
@@ -18,7 +18,7 @@ com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
 com.bmuschko:
-  gradle-docker-plugin: { version: '4.6.2' }
+  gradle-docker-plugin: { version: '4.8.0' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
@@ -204,10 +204,10 @@ org.hibernate.validator:
   hibernate-validator: { version: '6.0.16.Final' }
 
 org.javassist:
-  javassist: { version: '3.24.1-GA' }
+  javassist: { version: '3.25.0-GA' }
 
 org.mockito:
-  mockito-core: { version: '2.25.1' }
+  mockito-core: { version: '2.27.0' }
 
 org.mortbay.jetty.alpn:
   jetty-alpn-agent: { version: '2.0.9' }
@@ -227,7 +227,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.1.3.RELEASE'
+    version: &SPRING_BOOT_VERSION '2.1.4.RELEASE'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
