@@ -1,10 +1,10 @@
 dependencies {
     compile project(':client:java-armeria-legacy')
     compile 'javax.validation:validation-api'
-    compile 'org.springframework.boot:spring-boot-starter:1.5.19.RELEASE'
+    compile 'org.springframework.boot:spring-boot-starter:1.5.20.RELEASE'
 
     testCompile project(':client:java-armeria')
-    testCompile 'org.springframework.boot:spring-boot-starter-test:1.5.19.RELEASE'
+    testCompile 'org.springframework.boot:spring-boot-starter-test:1.5.20.RELEASE'
     testRuntime 'org.hibernate.validator:hibernate-validator'
 }
 
