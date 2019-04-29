@@ -110,5 +110,5 @@ Read more
     API documentation <apidocs/index.html#://>
     Source cross-reference <xref/index.html#://>
     Questions and answers <https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered>
-    Fork me at GitHub <https://github.com/line/centraldogma>
+    Fork me on GitHub <https://github.com/line/centraldogma>
     Contributing <https://github.com/line/centraldogma/blob/master/CONTRIBUTING.md>
