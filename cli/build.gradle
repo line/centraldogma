@@ -25,7 +25,7 @@ apply plugin: 'base'
 
 ext {
     def defaultClientRepoUrl = 'https://github.com/line/centraldogma-go.git'
-    def defaultClientTag = 'f91802ac4548da20a85de8e0786fa0a7c2770f3d'
+    def defaultClientTag = 'c07c29ad5b8093c85a68f23e6c8272443bc2cc1a'
 
     goVersion = '1.11.2'
 
