@@ -148,7 +148,7 @@ junit:
     - https://junit.org/junit4/javadoc/4.12/
 
 kr.motd.gradle:
-  sphinx-gradle-plugin: { version: '2.3.1' }
+  sphinx-gradle-plugin: { version: '2.4.0' }
 
 me.champeau.gradle:
   jmh-gradle-plugin: { version: '0.4.8' }
