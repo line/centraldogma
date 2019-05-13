@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
@@ -39,7 +40,7 @@ public class DefaultLogoutService extends AbstractHttpService {
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         return HttpResponse.from(
                 req.aggregate()
-                   .thenApply(msg -> AuthTokenExtractors.OAUTH2.apply(msg.headers()))
+                   .thenApply(msg -> AuthTokenExtractors.OAUTH2.apply(RequestHeaders.of(msg.headers())))
                    .thenCompose(token -> {
                        final String sessionId = token.accessToken();
                        return executor.execute(Command.removeSession(sessionId));

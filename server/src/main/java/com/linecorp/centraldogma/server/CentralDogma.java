@@ -71,6 +71,7 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.metric.MeterIdPrefixFunction;
 import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
 import com.linecorp.armeria.common.util.EventLoopGroups;
@@ -515,8 +516,8 @@ public class CentralDogma implements AutoCloseable {
             @Override
             protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req)
                     throws Exception {
-                return HttpResponse.of(HttpHeaders.of(HttpStatus.TEMPORARY_REDIRECT)
-                                                  .set(HttpHeaderNames.LOCATION, "/docs/"));
+                return HttpResponse.of(
+                        ResponseHeaders.of(HttpStatus.TEMPORARY_REDIRECT, HttpHeaderNames.LOCATION, "/docs/"));
             }
         });
         sb.serviceUnder("/docs/",

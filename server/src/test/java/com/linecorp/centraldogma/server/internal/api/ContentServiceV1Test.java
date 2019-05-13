@@ -32,10 +32,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -72,8 +73,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpMessage aRes = httpClient().execute(headers, body).aggregate().join();
         final String expectedJson =
                 '{' +
@@ -98,8 +99,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpMessage aRes = httpClient().execute(headers, body).aggregate().join();
         final String expectedJson =
                 '{' +
@@ -132,8 +133,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       }" +
                 "   ]" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpMessage aRes = httpClient().execute(headers, body).aggregate().join();
         final String expectedJson =
                 '{' +
@@ -158,8 +159,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         httpClient().execute(headers, editJsonBody).aggregate().join();
 
         // check whether the change is right
@@ -182,7 +183,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        httpClient().execute(HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX).contentType(MediaType.JSON),
+        httpClient().execute(RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                               HttpHeaderNames.CONTENT_TYPE, MediaType.JSON),
                              editTextBody).aggregate().join();
 
         // check whether the change is right
@@ -220,8 +222,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       }" +
                 "   ]" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         httpClient().execute(headers, body).aggregate().join();
         final AggregatedHttpMessage aRes = httpClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=3&to=4").aggregate().join();
@@ -428,10 +430,10 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"summary\" : \"Delete foo.json\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpMessage res1 = httpClient().execute(headers, body).aggregate().join();
-        assertThat(res1.headers().status()).isEqualTo(HttpStatus.OK);
+        assertThat(ResponseHeaders.of(res1.headers()).status()).isEqualTo(HttpStatus.OK);
 
         final AggregatedHttpMessage res2 = httpClient().get(CONTENTS_PREFIX + "/**").aggregate().join();
         // /a directory and /a/bar.txt file are left
@@ -450,10 +452,10 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"summary\" : \"Delete foo.json\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX + "?revision=2")
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX + "?revision=2",
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpMessage res = httpClient().execute(headers, body).aggregate().join();
-        assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(ResponseHeaders.of(res.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
         assertThatJson(res.contentUtf8()).isEqualTo(
                 '{' +
                 "  \"exception\": \"" + ChangeConflictException.class.getName() + "\"," +
@@ -482,10 +484,10 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                             "    }" +
                             "  ]" +
                             '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpMessage res = httpClient().execute(headers, body).aggregate().join();
-        assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(ResponseHeaders.of(res.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
         assertThatJson(res.contentUtf8()).isEqualTo(
                 '{' +
                 "  \"exception\": \"" + RedundantChangeException.class.getName() + "\"," +
@@ -529,9 +531,9 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   }" +
                 '}';
 
-        final HttpHeaders reqHeaders = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                                  .contentType(MediaType.JSON);
-        final AggregatedHttpMessage res1 = httpClient().execute(reqHeaders, patch).aggregate().join();
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpMessage res1 = httpClient().execute(headers, patch).aggregate().join();
         final String expectedJson =
                 '{' +
                 "   \"revision\": 3," +
@@ -548,8 +550,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     @Test
     public void watchRepository() {
         addFooJson();
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX).add(
-                HttpHeaderNames.IF_NONE_MATCH, "-1");
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.IF_NONE_MATCH, "-1");
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
@@ -570,29 +572,29 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
 
     @Test
     public void watchRepositoryTimeout() {
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX)
-                                               .add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                               .add(HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.IF_NONE_MATCH, "-1",
+                                                         HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
         await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
-        assertThat(future.join().headers().status()).isSameAs(HttpStatus.NOT_MODIFIED);
+        assertThat(ResponseHeaders.of(future.join().headers()).status()).isSameAs(HttpStatus.NOT_MODIFIED);
     }
 
     @Test
     public void watchFileTimeout() {
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json")
-                                               .add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                               .add(HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json",
+                                                         HttpHeaderNames.IF_NONE_MATCH, "-1",
+                                                         HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
         await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
-        assertThat(future.join().headers().status()).isSameAs(HttpStatus.NOT_MODIFIED);
+        assertThat(ResponseHeaders.of(future.join().headers()).status()).isSameAs(HttpStatus.NOT_MODIFIED);
     }
 
     @Test
     public void watchFileWithIdentityQuery() throws Exception {
         addFooJson();
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json").add(
-                HttpHeaderNames.IF_NONE_MATCH, "-1");
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json",
+                                                         HttpHeaderNames.IF_NONE_MATCH, "-1");
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
@@ -624,9 +626,9 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     @Test
     public void watchFileWithJsonPathQuery() throws Exception {
         addFooJson();
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.GET,
-                                                   CONTENTS_PREFIX + "/foo.json?jsonpath=%24.a")
-                                               .add(HttpHeaderNames.IF_NONE_MATCH, "-1");
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET,
+                                                         CONTENTS_PREFIX + "/foo.json?jsonpath=%24.a",
+                                                         HttpHeaderNames.IF_NONE_MATCH, "-1");
         final CompletableFuture<AggregatedHttpMessage> future = httpClient().execute(headers).aggregate();
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
@@ -666,8 +668,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"summary\" : \"Add d.json in weird directory structure\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         httpClient().execute(headers, body).aggregate().join();
         final String expectedJson =
                 '[' +
@@ -701,8 +703,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         return httpClient().execute(headers, body).aggregate().join();
     }
 
@@ -724,9 +726,9 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   }" +
                 '}';
 
-        final HttpHeaders reqHeaders = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                                  .contentType(MediaType.JSON);
-        return httpClient().execute(reqHeaders, body).aggregate().join();
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        return httpClient().execute(headers, body).aggregate().join();
     }
 
     private AggregatedHttpMessage addBarTxt() {
@@ -741,8 +743,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         return httpClient().execute(headers, body).aggregate().join();
     }
 }

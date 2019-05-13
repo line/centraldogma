@@ -33,10 +33,11 @@ import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
@@ -62,7 +63,7 @@ public class ProjectServiceV1Test {
     @Test
     public void createProject() throws IOException {
         final AggregatedHttpMessage aRes = createProject("myPro");
-        final HttpHeaders headers = aRes.headers();
+        final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
         assertThat(headers.status()).isEqualTo(HttpStatus.CREATED);
 
         final String location = headers.get(HttpHeaderNames.LOCATION);
@@ -74,8 +75,8 @@ public class ProjectServiceV1Test {
     }
 
     private static AggregatedHttpMessage createProject(String name) {
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, PROJECTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
 
         final String body = "{\"name\": \"" + name + "\"}";
         return httpClient.execute(headers, body).aggregate().join();
@@ -85,7 +86,7 @@ public class ProjectServiceV1Test {
     public void createProjectWithSameName() {
         createProject("myPro");
         final AggregatedHttpMessage res = createProject("myPro");
-        assertThat(res.headers().status()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(ResponseHeaders.of(res.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
                 "   \"exception\": \"" + ProjectExistsException.class.getName() + "\"," +
@@ -100,7 +101,7 @@ public class ProjectServiceV1Test {
         createProject("hyangtack");
         createProject("minwoox");
         final AggregatedHttpMessage aRes = httpClient.get(PROJECTS_PREFIX).aggregate().join();
-        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.OK);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -139,15 +140,15 @@ public class ProjectServiceV1Test {
         createProject("foo");
         final AggregatedHttpMessage aRes = httpClient.delete(PROJECTS_PREFIX + "/foo")
                                                      .aggregate().join();
-        final HttpHeaders headers = aRes.headers();
-        assertThat(headers.status()).isEqualTo(HttpStatus.NO_CONTENT);
+        final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
+        assertThat(ResponseHeaders.of(headers).status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test
     public void removeAbsentProject() {
         final AggregatedHttpMessage aRes = httpClient.delete(PROJECTS_PREFIX + "/foo")
                                                      .aggregate().join();
-        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
@@ -160,7 +161,7 @@ public class ProjectServiceV1Test {
 
         final AggregatedHttpMessage removedRes = httpClient.get(PROJECTS_PREFIX + "?status=removed")
                                                            .aggregate().join();
-        assertThat(removedRes.headers().status()).isEqualTo(HttpStatus.OK);
+        assertThat(ResponseHeaders.of(removedRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -186,12 +187,12 @@ public class ProjectServiceV1Test {
         final String projectPath = PROJECTS_PREFIX + "/bar";
         httpClient.delete(projectPath).aggregate().join();
 
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.PATCH, projectPath)
-                                               .contentType(MediaType.JSON_PATCH);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, projectPath,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH);
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
         final AggregatedHttpMessage aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
-        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.OK);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '{' +
                 "   \"name\": \"bar\"," +
@@ -208,12 +209,12 @@ public class ProjectServiceV1Test {
     @Test
     public void unremoveAbsentProject() {
         final String projectPath = PROJECTS_PREFIX + "/bar";
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.PATCH, projectPath)
-                                               .add(HttpHeaderNames.CONTENT_TYPE,
-                                                    "application/json-patch+json");
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, projectPath,
+                                                         HttpHeaderNames.CONTENT_TYPE,
+                                                         "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
         final AggregatedHttpMessage aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
-        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

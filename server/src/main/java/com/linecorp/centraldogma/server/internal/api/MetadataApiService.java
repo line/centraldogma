@@ -39,6 +39,7 @@ import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -56,6 +57,7 @@ import com.linecorp.centraldogma.server.internal.metadata.Token;
 /**
  * Annotated service object for managing metadata of projects.
  */
+@ProducesJson
 @RequiresRole(roles = ProjectRole.OWNER)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class MetadataApiService {

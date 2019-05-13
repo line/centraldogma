@@ -30,6 +30,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Patch;
+import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchException;
@@ -37,6 +38,7 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
+@ProducesJson
 public final class AdministrativeService extends AbstractService {
 
     private static final Logger logger = LoggerFactory.getLogger(AdministrativeService.class);

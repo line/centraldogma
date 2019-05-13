@@ -34,10 +34,11 @@ import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -65,8 +66,8 @@ public class RepositoryServiceV1Test {
 
         // the default project used for unit tests
         final String body = "{\"name\": \"myPro\"}";
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, PROJECTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
 
         httpClient.execute(headers, body).aggregate().join();
     }
@@ -74,7 +75,7 @@ public class RepositoryServiceV1Test {
     @Test
     public void createRepository() throws IOException {
         final AggregatedHttpMessage aRes = createRepository("myRepo");
-        final HttpHeaders headers = aRes.headers();
+        final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
         assertThat(headers.status()).isEqualTo(HttpStatus.CREATED);
 
         final String location = headers.get(HttpHeaderNames.LOCATION);
@@ -87,8 +88,8 @@ public class RepositoryServiceV1Test {
     }
 
     private static AggregatedHttpMessage createRepository(String repoName) {
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, REPOS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, REPOS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final String body = "{\"name\": \"" + repoName + "\"}";
 
         return httpClient.execute(headers, body).aggregate().join();
@@ -100,7 +101,7 @@ public class RepositoryServiceV1Test {
 
         // create again with the same name
         final AggregatedHttpMessage aRes = createRepository("myRepo");
-        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
                 "  \"exception\": \"" + RepositoryExistsException.class.getName() + "\"," +
@@ -111,11 +112,12 @@ public class RepositoryServiceV1Test {
 
     @Test
     public void createRepositoryInAbsentProject() {
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, PROJECTS_PREFIX + "/absentProject" + REPOS)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST,
+                                                         PROJECTS_PREFIX + "/absentProject" + REPOS,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final String body = "{\"name\": \"myRepo\"}";
         final AggregatedHttpMessage aRes = httpClient.execute(headers, body).aggregate().join();
-        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
         final String expectedJson =
                 '{' +
                 "  \"exception\": \"" + ProjectNotFoundException.class.getName() + "\"," +
@@ -129,7 +131,7 @@ public class RepositoryServiceV1Test {
         createRepository("myRepo");
         final AggregatedHttpMessage aRes = httpClient.get(REPOS_PREFIX).aggregate().join();
 
-        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.OK);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -170,23 +172,20 @@ public class RepositoryServiceV1Test {
     public void removeRepository() {
         createRepository("foo");
         final AggregatedHttpMessage aRes = httpClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
-        final HttpHeaders headers = aRes.headers();
-        assertThat(headers.status()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test
     public void removeAbsentRepository() {
         final AggregatedHttpMessage aRes = httpClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
-        final HttpHeaders headers = aRes.headers();
-        assertThat(headers.status()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
     public void removeMetaRepository() {
         final AggregatedHttpMessage aRes = httpClient.delete(REPOS_PREFIX + '/' + Project.REPO_META)
                                                      .aggregate().join();
-        final HttpHeaders headers = aRes.headers();
-        assertThat(headers.status()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
@@ -199,7 +198,7 @@ public class RepositoryServiceV1Test {
 
         final AggregatedHttpMessage removedRes = httpClient.get(REPOS_PREFIX + "?status=removed")
                                                            .aggregate().join();
-        assertThat(removedRes.headers().status()).isEqualTo(HttpStatus.OK);
+        assertThat(ResponseHeaders.of(removedRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -223,14 +222,13 @@ public class RepositoryServiceV1Test {
     public void unremoveRepository() {
         createRepository("foo");
         httpClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
-        final HttpHeaders reqHeaders = HttpHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/foo")
-                                                  .add(HttpHeaderNames.CONTENT_TYPE,
-                                                       "application/json-patch+json");
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/foo",
+                                                         HttpHeaderNames.CONTENT_TYPE,
+                                                         "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpMessage aRes = httpClient.execute(reqHeaders, unremovePatch).aggregate().join();
-        final HttpHeaders headers = aRes.headers();
-        assertThat(headers.status()).isEqualTo(HttpStatus.OK);
+        final AggregatedHttpMessage aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '{' +
                 "   \"name\": \"foo\"," +
@@ -247,14 +245,13 @@ public class RepositoryServiceV1Test {
 
     @Test
     public void unremoveAbsentRepository() {
-        final String repoPath = REPOS_PREFIX + "/baz";
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.PATCH, repoPath)
-                                               .add(HttpHeaderNames.CONTENT_TYPE,
-                                                    "application/json-patch+json");
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/baz",
+                                                         HttpHeaderNames.CONTENT_TYPE,
+                                                         "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
         final AggregatedHttpMessage aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
-        assertThat(aRes.headers().status()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test

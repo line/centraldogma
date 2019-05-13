@@ -44,6 +44,7 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -154,7 +155,7 @@ final class LoginService extends AbstractHttpService {
      */
     private UsernamePasswordToken usernamePassword(ServiceRequestContext ctx, AggregatedHttpMessage req) {
         // check the Basic HTTP authentication first (https://tools.ietf.org/html/rfc7617)
-        final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(req.headers());
+        final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(RequestHeaders.of(req.headers()));
         if (basicToken != null) {
             return new UsernamePasswordToken(basicToken.username(), basicToken.password());
         }

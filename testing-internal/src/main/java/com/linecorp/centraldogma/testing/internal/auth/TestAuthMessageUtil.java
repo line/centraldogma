@@ -22,8 +22,9 @@ import java.util.Base64.Encoder;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
+import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
 
 /**
  * A utility class which helps to create messages for authentication.
@@ -40,9 +41,8 @@ public final class TestAuthMessageUtil {
 
     public static AggregatedHttpMessage login(HttpClient client, String username, String password) {
         return client.execute(
-                HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v1/login",
-                               HttpHeaderNames.CONTENT_TYPE, MediaType.FORM_DATA.toString()),
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/login",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.FORM_DATA),
                 "grant_type=password&username=" + username + "&password=" + password,
                 StandardCharsets.US_ASCII).aggregate().join();
     }
@@ -50,27 +50,23 @@ public final class TestAuthMessageUtil {
     public static AggregatedHttpMessage loginWithBasicAuth(HttpClient client, String username,
                                                            String password) {
         return client.execute(
-                HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v1/login",
-                               HttpHeaderNames.AUTHORIZATION, "basic " + encoder.encodeToString(
-                                (username + ':' + password).getBytes(StandardCharsets.US_ASCII))))
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/login",
+                                  HttpHeaderNames.AUTHORIZATION,
+                                  "basic " + encoder.encodeToString(
+                                          (username + ':' + password).getBytes(StandardCharsets.US_ASCII))))
                      .aggregate().join();
     }
 
     public static AggregatedHttpMessage logout(HttpClient client, String sessionId) {
         return client.execute(
-                HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v1/logout",
-                               HttpHeaderNames.AUTHORIZATION,
-                               "Bearer " + sessionId)).aggregate().join();
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/logout",
+                                  HttpHeaderNames.AUTHORIZATION, "Bearer " + sessionId)).aggregate().join();
     }
 
     public static AggregatedHttpMessage usersMe(HttpClient client, String sessionId) {
         return client.execute(
-                HttpHeaders.of(HttpHeaderNames.METHOD, "GET",
-                               HttpHeaderNames.PATH, "/api/v0/users/me",
-                               HttpHeaderNames.AUTHORIZATION,
-                               "Bearer " + sessionId)).aggregate().join();
+                RequestHeaders.of(HttpMethod.GET, "/api/v0/users/me",
+                                  HttpHeaderNames.AUTHORIZATION, "Bearer " + sessionId)).aggregate().join();
     }
 
     private TestAuthMessageUtil() {}

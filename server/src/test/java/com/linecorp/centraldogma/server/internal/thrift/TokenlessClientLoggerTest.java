@@ -38,10 +38,10 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 
@@ -142,8 +142,8 @@ public class TokenlessClientLoggerTest {
     }
 
     private static HttpRequest newRequestWithToken() {
-        return HttpRequest.of(HttpHeaders.of(HttpMethod.GET, "/")
-                                         .set(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous"));
+        return HttpRequest.of(RequestHeaders.of(HttpMethod.GET, "/",
+                                                HttpHeaderNames.AUTHORIZATION, "Bearer anonymous"));
     }
 
     private static HttpRequest newRequestWithoutToken() {

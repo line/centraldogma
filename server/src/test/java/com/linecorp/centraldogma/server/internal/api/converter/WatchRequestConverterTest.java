@@ -25,7 +25,6 @@ import java.util.Optional;
 import org.junit.Test;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
-import com.linecorp.armeria.common.DefaultHttpHeaders;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -40,8 +39,8 @@ public class WatchRequestConverterTest {
     public void convertWatchRequest() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final AggregatedHttpMessage request = mock(AggregatedHttpMessage.class);
-        final HttpHeaders headers = new DefaultHttpHeaders().add(HttpHeaderNames.IF_NONE_MATCH, "-1")
-                                                            .add(HttpHeaderNames.PREFER, "wait=10");
+        final HttpHeaders headers = HttpHeaders.of(HttpHeaderNames.IF_NONE_MATCH, "-1",
+                                                   HttpHeaderNames.PREFER, "wait=10");
 
         when(request.headers()).thenReturn(headers);
 
@@ -55,7 +54,7 @@ public class WatchRequestConverterTest {
     public void emptyHeader() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final AggregatedHttpMessage request = mock(AggregatedHttpMessage.class);
-        final HttpHeaders headers = HttpHeaders.EMPTY_HEADERS;
+        final HttpHeaders headers = HttpHeaders.of();
 
         when(request.headers()).thenReturn(headers);
 
