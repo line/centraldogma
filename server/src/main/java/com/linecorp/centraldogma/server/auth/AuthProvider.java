@@ -26,10 +26,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.PathMapping;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceWithPathMappings;
@@ -88,8 +88,8 @@ public interface AuthProvider {
     default Service<HttpRequest, HttpResponse> webLoginService() {
         // Redirect to the default page: /link/auth/login -> /web/auth/login
         return (ctx, req) -> HttpResponse.of(
-                HttpHeaders.of(HttpStatus.MOVED_PERMANENTLY)
-                           .set(HttpHeaderNames.LOCATION, BUILTIN_WEB_LOGIN_PATH));
+                ResponseHeaders.of(HttpStatus.MOVED_PERMANENTLY, HttpHeaderNames.LOCATION,
+                                   BUILTIN_WEB_LOGIN_PATH));
     }
 
     /**
@@ -100,8 +100,8 @@ public interface AuthProvider {
     default Service<HttpRequest, HttpResponse> webLogoutService() {
         // Redirect to the default page: /link/auth/logout -> /web/auth/logout
         return (ctx, req) -> HttpResponse.of(
-                HttpHeaders.of(HttpStatus.MOVED_PERMANENTLY)
-                           .set(HttpHeaderNames.LOCATION, BUILTIN_WEB_LOGOUT_PATH));
+                ResponseHeaders.of(HttpStatus.MOVED_PERMANENTLY, HttpHeaderNames.LOCATION,
+                                   BUILTIN_WEB_LOGOUT_PATH));
     }
 
     /**

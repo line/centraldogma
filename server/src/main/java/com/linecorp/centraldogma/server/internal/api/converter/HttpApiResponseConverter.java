@@ -32,6 +32,8 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestContext;
+import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -45,7 +47,7 @@ public final class HttpApiResponseConverter implements ResponseConverterFunction
     private static final Logger logger = LoggerFactory.getLogger(HttpApiResponseConverter.class);
 
     @Override
-    public HttpResponse convertResponse(ServiceRequestContext ctx, HttpHeaders headers,
+    public HttpResponse convertResponse(ServiceRequestContext ctx, ResponseHeaders headers,
                                         @Nullable Object resObj,
                                         HttpHeaders trailingHeaders) throws Exception {
         try {
@@ -55,10 +57,11 @@ public final class HttpApiResponseConverter implements ResponseConverterFunction
                 return HttpResponse.of(HttpStatus.NO_CONTENT);
             }
 
-            final HttpHeaders resHeaders;
+            final ResponseHeaders resHeaders;
             if (headers.contentType() == null) {
-                resHeaders = headers.toMutable();
-                resHeaders.contentType(MediaType.JSON_UTF_8);
+                final ResponseHeadersBuilder builder = headers.toBuilder();
+                builder.contentType(MediaType.JSON_UTF_8);
+                resHeaders = builder.build();
             } else {
                 resHeaders = headers;
             }

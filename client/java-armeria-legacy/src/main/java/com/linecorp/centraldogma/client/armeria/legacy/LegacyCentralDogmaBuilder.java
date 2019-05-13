@@ -21,6 +21,7 @@ import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.encoding.HttpDecodingClient;
 import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.AbstractArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
@@ -50,7 +51,12 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         builder.decorator((delegate, ctx, req) -> {
             if (!req.headers().contains(HttpHeaderNames.AUTHORIZATION)) {
                 // To prevent CSRF attack, we add 'Authorization' header to every request.
-                req.headers().set(HttpHeaderNames.AUTHORIZATION, authorization);
+                final HttpRequest newReq =
+                        HttpRequest.of(req, req.headers()
+                                               .toBuilder()
+                                               .set(HttpHeaderNames.AUTHORIZATION, authorization)
+                                               .build());
+                return delegate.execute(ctx, newReq);
             }
             return delegate.execute(ctx, req);
         });

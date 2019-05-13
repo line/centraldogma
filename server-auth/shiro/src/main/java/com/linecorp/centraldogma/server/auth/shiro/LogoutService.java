@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
@@ -56,7 +57,8 @@ final class LogoutService extends AbstractHttpService {
     @Override
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         return HttpResponse.from(
-                req.aggregate().thenApply(msg -> AuthTokenExtractors.OAUTH2.apply(msg.headers()))
+                req.aggregate().thenApply(msg -> AuthTokenExtractors.OAUTH2.apply(
+                        RequestHeaders.of(msg.headers())))
                    .thenApplyAsync(token -> {
                        if (token == null) {
                            return HttpResponse.of(HttpStatus.OK);

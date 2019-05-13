@@ -63,11 +63,12 @@ import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.HttpStatusClass;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.RequestHeadersBuilder;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
@@ -837,15 +838,15 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private <T> CompletableFuture<T> watch(Revision lastKnownRevision, long timeoutMillis,
                                            String path, Function<AggregatedHttpMessage, T> func) {
-        final HttpHeaders headers = headers(HttpMethod.GET, path)
-                .set(HttpHeaderNames.IF_NONE_MATCH, lastKnownRevision.text())
-                .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
+        final RequestHeadersBuilder builder = headersBuilder(HttpMethod.GET, path);
+        builder.set(HttpHeaderNames.IF_NONE_MATCH, lastKnownRevision.text())
+               .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
 
         try (SafeCloseable ignored = Clients.withContextCustomizer(ctx -> {
             ctx.setResponseTimeoutMillis(
                     WatchTimeout.makeReasonable(timeoutMillis, ctx.responseTimeoutMillis()));
         })) {
-            return client.execute(headers).aggregate().thenApply(func);
+            return client.execute(builder.build()).aggregate().thenApply(func);
         }
     }
 
@@ -858,22 +859,28 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         Util.validateRepositoryName(repositoryName, "repositoryName");
     }
 
-    private HttpHeaders headers(HttpMethod method, String path) {
-        final HttpHeaders headers = HttpHeaders.of(method, path);
-        headers.set(HttpHeaderNames.AUTHORIZATION, authorization);
-        headers.setObject(HttpHeaderNames.ACCEPT, MediaType.JSON);
+    private RequestHeaders headers(HttpMethod method, String path) {
+        return headersBuilder(method, path).build();
+    }
+
+    private RequestHeadersBuilder headersBuilder(HttpMethod method, String path) {
+        final RequestHeadersBuilder builder = RequestHeaders.builder();
+        builder.method(method)
+               .path(path)
+               .set(HttpHeaderNames.AUTHORIZATION, authorization)
+               .setObject(HttpHeaderNames.ACCEPT, MediaType.JSON);
 
         switch (method) {
             case POST:
             case PUT:
-                headers.contentType(MediaType.JSON_UTF_8);
+                builder.contentType(MediaType.JSON_UTF_8);
                 break;
             case PATCH:
-                headers.contentType(JSON_PATCH_UTF8);
+                builder.contentType(JSON_PATCH_UTF8);
                 break;
         }
 
-        return headers;
+        return builder;
     }
 
     private static StringBuilder pathBuilder(String projectName) {

@@ -34,6 +34,7 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -85,7 +86,7 @@ public class TestAuthProvider implements AuthProvider {
                 final AggregatedHttpMessage msg = req.aggregate().join();
                 final String username;
                 final String password;
-                final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(msg.headers());
+                final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(RequestHeaders.of(msg.headers()));
                 if (basicToken != null) {
                     username = basicToken.username();
                     password = basicToken.password();
@@ -119,7 +120,7 @@ public class TestAuthProvider implements AuthProvider {
             return HttpResponse.from(CompletableFuture.supplyAsync(() -> {
                 final AggregatedHttpMessage msg = req.aggregate().join();
                 final String sessionId =
-                        AuthTokenExtractors.OAUTH2.apply(msg.headers()).accessToken();
+                        AuthTokenExtractors.OAUTH2.apply(RequestHeaders.of(msg.headers())).accessToken();
                 if (!WRONG_SESSION_ID.equals(sessionId)) {
                     logoutSessionPropagator.apply(sessionId).join();
                 }

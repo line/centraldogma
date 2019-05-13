@@ -35,6 +35,7 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
@@ -54,6 +55,7 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 /**
  * Annotated service object for managing projects.
  */
+@ProducesJson
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class ProjectServiceV1 extends AbstractService {
 

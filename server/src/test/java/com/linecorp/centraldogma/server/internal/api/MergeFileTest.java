@@ -21,10 +21,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
-import com.linecorp.armeria.common.HttpHeaders;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
 
 public class MergeFileTest extends ContentServiceV1TestBase {
 
@@ -88,8 +89,8 @@ public class MergeFileTest extends ContentServiceV1TestBase {
     @Test
     public void mismatchedValueWhileMerging() {
         addFilesForMergeJson();
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final String body =
                 '{' +
                 "   \"path\" : \"/foo10.json\"," +
@@ -152,8 +153,8 @@ public class MergeFileTest extends ContentServiceV1TestBase {
     }
 
     private void addFilesForMergeJson() {
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, CONTENTS_PREFIX)
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         String body =
                 '{' +
                 "   \"path\" : \"/foo.json\"," +

@@ -46,6 +46,7 @@ import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -78,6 +79,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 /**
  * Annotated service object for managing and watching contents.
  */
+@ProducesJson
 @RequiresReadPermission
 @RequestConverter(CommitMessageRequestConverter.class)
 @ExceptionHandler(HttpApiExceptionHandler.class)

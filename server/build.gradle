@@ -16,7 +16,7 @@ dependencies {
     ['armeria', 'armeria-thrift0.9'].each {
         compile "com.linecorp.armeria:$it"
     }
-    testCompile 'com.linecorp.armeria:armeria-testing'
+    testCompile 'com.linecorp.armeria:armeria-testing-junit4'
 
     // JSch
     compile 'com.jcraft:jsch'

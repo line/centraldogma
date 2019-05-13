@@ -28,6 +28,8 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestContext;
+import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -41,7 +43,7 @@ public class RestfulJsonResponseConverter implements ResponseConverterFunction {
     private static final HttpData EMPTY_RESULT = HttpData.ofUtf8("{}");
 
     @Override
-    public HttpResponse convertResponse(ServiceRequestContext ctx, HttpHeaders headers,
+    public HttpResponse convertResponse(ServiceRequestContext ctx, ResponseHeaders headers,
                                         @Nullable Object resObj,
                                         HttpHeaders trailingHeaders) throws Exception {
         try {
@@ -51,14 +53,14 @@ public class RestfulJsonResponseConverter implements ResponseConverterFunction {
                     resObj.getClass() == Object.class ? EMPTY_RESULT
                                                       : HttpData.of(Jackson.writeValueAsBytes(resObj));
 
-            final HttpHeaders httpHeaders = headers.toMutable();
+            final ResponseHeadersBuilder builder = headers.toBuilder();
             if (HttpMethod.POST == request.method()) {
-                httpHeaders.status(HttpStatus.CREATED);
+                builder.status(HttpStatus.CREATED);
             }
-            if (httpHeaders.contentType() == null) {
-                httpHeaders.contentType(MediaType.JSON_UTF_8);
+            if (builder.contentType() == null) {
+                builder.contentType(MediaType.JSON_UTF_8);
             }
-            return HttpResponse.of(httpHeaders, httpData, trailingHeaders);
+            return HttpResponse.of(builder.build(), httpData, trailingHeaders);
         } catch (JsonProcessingException e) {
             return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
         }

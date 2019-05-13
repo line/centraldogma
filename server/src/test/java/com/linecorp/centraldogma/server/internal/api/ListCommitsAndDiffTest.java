@@ -28,9 +28,9 @@ import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class ListCommitsAndDiffTest {
@@ -50,12 +50,14 @@ public class ListCommitsAndDiffTest {
                 .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").build();
 
         // the default project used for unit tests
-        HttpHeaders headers = HttpHeaders.of(HttpMethod.POST, "/api/v1/projects").contentType(MediaType.JSON);
+        RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, "/api/v1/projects",
+                                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         String body = "{\"name\": \"myPro\"}";
         httpClient.execute(headers, body).aggregate().join();
 
         // the default repository used for unit tests
-        headers = HttpHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos").contentType(MediaType.JSON);
+        headers = RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos",
+                                    HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         body = "{\"name\": \"myRepo\"}";
         httpClient.execute(headers, body).aggregate().join();
         // default files used for unit tests
@@ -63,9 +65,9 @@ public class ListCommitsAndDiffTest {
     }
 
     private static void addFooFile() {
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST,
-                                                   "/api/v1/projects/myPro/repos/myRepo/contents")
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST,
+                                                         "/api/v1/projects/myPro/repos/myRepo/contents",
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         for (int i = 0; i < 2; i++) {
             final String body =
                     '{' +
@@ -304,9 +306,9 @@ public class ListCommitsAndDiffTest {
     }
 
     private static void editFooFile() {
-        final HttpHeaders headers = HttpHeaders.of(HttpMethod.POST,
-                                                   "/api/v1/projects/myPro/repos/myRepo/contents")
-                                               .contentType(MediaType.JSON);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST,
+                                                         "/api/v1/projects/myPro/repos/myRepo/contents",
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         for (int i = 0; i < 2; i++) {
             final String body =
                     '{' +

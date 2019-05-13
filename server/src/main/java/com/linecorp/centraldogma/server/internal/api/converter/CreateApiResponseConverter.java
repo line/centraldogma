@@ -31,6 +31,8 @@ import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -45,25 +47,25 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
     private static final Logger logger = LoggerFactory.getLogger(CreateApiResponseConverter.class);
 
     @Override
-    public HttpResponse convertResponse(ServiceRequestContext ctx, HttpHeaders headers,
+    public HttpResponse convertResponse(ServiceRequestContext ctx, ResponseHeaders headers,
                                         @Nullable Object resObj,
                                         HttpHeaders trailingHeaders) throws Exception {
         try {
-            final HttpHeaders httpHeaders = headers.toMutable();
-            if (httpHeaders.contentType() == null) {
-                httpHeaders.contentType(MediaType.JSON_UTF_8);
+            final ResponseHeadersBuilder builder = headers.toBuilder();
+            if (builder.contentType() == null) {
+                builder.contentType(MediaType.JSON_UTF_8);
             }
 
             final JsonNode jsonNode = Jackson.valueToTree(resObj);
-            if (httpHeaders.get(HttpHeaderNames.LOCATION) == null) {
+            if (builder.get(HttpHeaderNames.LOCATION) == null) {
                 final String url = jsonNode.get("url").asText();
 
                 // Remove the url field and send it with the LOCATION header.
                 ((ObjectNode) jsonNode).remove("url");
-                httpHeaders.add(HttpHeaderNames.LOCATION, url);
+                builder.add(HttpHeaderNames.LOCATION, url);
             }
 
-            return HttpResponse.of(httpHeaders, HttpData.of(Jackson.writeValueAsBytes(jsonNode)),
+            return HttpResponse.of(builder.build(), HttpData.of(Jackson.writeValueAsBytes(jsonNode)),
                                    trailingHeaders);
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);
