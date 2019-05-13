@@ -838,8 +838,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private <T> CompletableFuture<T> watch(Revision lastKnownRevision, long timeoutMillis,
                                            String path, Function<AggregatedHttpMessage, T> func) {
-        final RequestHeaders headers = headers(HttpMethod.GET, path);
-        final RequestHeadersBuilder builder = headers.toBuilder();
+        final RequestHeadersBuilder builder = headersBuilder(HttpMethod.GET, path);
         builder.set(HttpHeaderNames.IF_NONE_MATCH, lastKnownRevision.text())
                .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
 
@@ -861,6 +860,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private RequestHeaders headers(HttpMethod method, String path) {
+        return headersBuilder(method, path).build();
+    }
+
+    private RequestHeadersBuilder headersBuilder(HttpMethod method, String path) {
         final RequestHeadersBuilder builder = RequestHeaders.builder();
         builder.method(method)
                .path(path)
@@ -877,7 +880,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 break;
         }
 
-        return builder.build();
+        return builder;
     }
 
     private static StringBuilder pathBuilder(String projectName) {

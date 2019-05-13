@@ -56,13 +56,13 @@ public class ContentServiceV1TestBase {
 
         // the default project used for unit tests
         RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, "/api/v1/projects",
-                                                HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+                                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         String body = "{\"name\": \"myPro\"}";
         httpClient.execute(headers, body).aggregate().join();
 
         // the default repository used for unit tests
-        headers =  RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos",
-                                     HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        headers = RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos",
+                                    HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         body = "{\"name\": \"myRepo\"}";
         httpClient.execute(headers, body).aggregate().join();
     }
