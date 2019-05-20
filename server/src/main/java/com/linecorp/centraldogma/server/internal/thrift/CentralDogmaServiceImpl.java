@@ -58,6 +58,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
+import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -340,7 +341,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 final WatchRepositoryResult wrr = new WatchRepositoryResult();
                 wrr.setRevision(convert(res));
                 resultHandler.onComplete(wrr);
-            } else if (cause instanceof CancellationException) {
+            } else if (cause instanceof CancellationException ||
+                       cause instanceof RequestAlreadyTimedOutException) {
                 resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_REPOSITORY_RESULT);
             } else {
                 logAndInvokeOnError("watchRepository", resultHandler, cause);
@@ -382,7 +384,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 wfr.setType(convert(res.type()));
                 wfr.setContent(res.contentAsText());
                 resultHandler.onComplete(wfr);
-            } else if (cause instanceof CancellationException) {
+            } else if (cause instanceof CancellationException ||
+                       cause instanceof RequestAlreadyTimedOutException) {
                 resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_FILE_RESULT);
             } else {
                 logAndInvokeOnError("watchFile", resultHandler, cause);

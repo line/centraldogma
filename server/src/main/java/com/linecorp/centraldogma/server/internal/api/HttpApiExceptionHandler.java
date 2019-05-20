@@ -39,6 +39,7 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
+import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
 
 /**
@@ -108,7 +109,7 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
             return newResponse(ctx, HttpStatus.BAD_REQUEST, cause);
         }
 
-        if (cause instanceof IllegalStateException) {
+        if (cause instanceof RequestAlreadyTimedOutException) {
             return newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause);
         }
 
