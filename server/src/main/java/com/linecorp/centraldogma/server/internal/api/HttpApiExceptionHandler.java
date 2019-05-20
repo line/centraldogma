@@ -108,6 +108,10 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
             return newResponse(ctx, HttpStatus.BAD_REQUEST, cause);
         }
 
+        if (cause instanceof IllegalStateException) {
+            return newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause);
+        }
+
         return newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause);
     }
 }
