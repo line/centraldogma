@@ -27,23 +27,28 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
+import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.netty.channel.EventLoop;
 
 /**
  * A service class for watching repository or a file.
  */
 public final class WatchService {
+
+    private static final Logger logger = LoggerFactory.getLogger(WatchService.class);
 
     private static final CancellationException CANCELLATION_EXCEPTION =
             Exceptions.clearTrace(new CancellationException("watch timed out"));
@@ -109,14 +114,17 @@ public final class WatchService {
     private <T> void scheduleTimeout(CompletableFuture<T> result, long timeoutMillis) {
         pendingFutures.add(result);
 
+        final RequestContext ctx;
         final ScheduledFuture<?> timeoutFuture;
+        final long watchTimeoutMillis;
         if (timeoutMillis > 0) {
-            timeoutMillis = WatchTimeout.makeReasonable(timeoutMillis);
-            timeoutMillis = applyJitter(timeoutMillis);
-            final EventLoop eventLoop = RequestContext.current().eventLoop();
-            timeoutFuture = eventLoop.schedule(() -> result.completeExceptionally(CANCELLATION_EXCEPTION),
-                                               timeoutMillis, TimeUnit.MILLISECONDS);
+            watchTimeoutMillis = applyJitter(WatchTimeout.makeReasonable(timeoutMillis));
+            ctx = RequestContext.current();
+            timeoutFuture = ctx.eventLoop().schedule(() -> result.completeExceptionally(CANCELLATION_EXCEPTION),
+                                                     watchTimeoutMillis, TimeUnit.MILLISECONDS);
         } else {
+            watchTimeoutMillis = 0;
+            ctx = null;
             timeoutFuture = null;
         }
 
@@ -124,6 +132,13 @@ public final class WatchService {
             if (timeoutFuture != null) {
                 if (timeoutFuture.cancel(true)) {
                     wakeupCounter.increment();
+
+                    // TODO(hyangtack) Need to investigate why this exception comes before
+                    //                 CancellationException.
+                    if (cause instanceof RequestAlreadyTimedOutException) {
+                        logger.warn("Request has timed out before watch timeout: watchTimeoutMillis={}, log={}",
+                                    watchTimeoutMillis, ctx.log());
+                    }
                 } else {
                     timeoutCounter.increment();
                 }

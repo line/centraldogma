@@ -32,6 +32,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.thrift.async.AsyncMethodCallback;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.internal.thrift.Author;
@@ -63,6 +65,8 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
+
+    private static final Logger logger = LoggerFactory.getLogger(CentralDogmaServiceImpl.class);
 
     private static final IllegalArgumentException RESERVED_REPOSITORY_EXCEPTION =
             Exceptions.clearTrace(new IllegalArgumentException(
@@ -341,9 +345,10 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 final WatchRepositoryResult wrr = new WatchRepositoryResult();
                 wrr.setRevision(convert(res));
                 resultHandler.onComplete(wrr);
-            } else if (cause instanceof CancellationException ||
-                       cause instanceof RequestAlreadyTimedOutException) {
+            } else if (cause instanceof CancellationException) {
                 resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_REPOSITORY_RESULT);
+            } else if (cause instanceof RequestAlreadyTimedOutException) {
+                logger.warn("Ignoring the exception raised when a request has already timed out.");
             } else {
                 logAndInvokeOnError("watchRepository", resultHandler, cause);
             }
@@ -384,9 +389,10 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 wfr.setType(convert(res.type()));
                 wfr.setContent(res.contentAsText());
                 resultHandler.onComplete(wfr);
-            } else if (cause instanceof CancellationException ||
-                       cause instanceof RequestAlreadyTimedOutException) {
+            } else if (cause instanceof CancellationException) {
                 resultHandler.onComplete(CentralDogmaConstants.EMPTY_WATCH_FILE_RESULT);
+            } else if (cause instanceof RequestAlreadyTimedOutException) {
+                logger.warn("Ignoring the exception raised when a request has already timed out.");
             } else {
                 logAndInvokeOnError("watchFile", resultHandler, cause);
             }
