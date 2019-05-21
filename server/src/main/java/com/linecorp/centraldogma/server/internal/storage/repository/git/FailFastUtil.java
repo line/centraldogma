@@ -22,11 +22,12 @@ import org.slf4j.Logger;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 
 final class FailFastUtil {
 
-    private static final IllegalStateException REQUEST_ALREADY_TIMED_OUT =
-            Exceptions.clearTrace(new IllegalStateException("Request already timed out."));
+    private static final RequestAlreadyTimedOutException REQUEST_ALREADY_TIMED_OUT =
+            Exceptions.clearTrace(new RequestAlreadyTimedOutException("Request already timed out."));
 
     static {
         REQUEST_ALREADY_TIMED_OUT.initCause(null);

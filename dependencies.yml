@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.85.0
+- com.linecorp.armeria:armeria-bom:0.86.0
 
 ch.qos.logback:
   logback-classic:
@@ -32,7 +32,7 @@ com.cronutils:
 
 com.fasterxml.jackson.core:
   jackson-annotations:
-    version: &JACKSON_VERSION '2.9.8'
+    version: &JACKSON_VERSION '2.9.9'
     javadocs:
     - https://fasterxml.github.io/jackson-annotations/javadoc/2.9/
   jackson-core:
@@ -227,7 +227,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.1.4.RELEASE'
+    version: &SPRING_BOOT_VERSION '2.1.5.RELEASE'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
