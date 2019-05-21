@@ -19,7 +19,8 @@
 
    ./gradlew :dist:docker
    docker login
-   docker push line/centraldogma
+   docker push line/centraldogma:${releaseVersion}
+   docker push line/centraldogma:latest
 
 6. Copy the web site generated to the 'gh-pages' branch. e.g.
 

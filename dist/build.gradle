@@ -18,6 +18,8 @@ apply plugin: 'com.bmuschko.docker-remote-api'
 
 evaluationDependsOn(':cli')
 evaluationDependsOn(':server')
+evaluationDependsOn(':server-auth:saml')
+evaluationDependsOn(':server-auth:shiro')
 
 ext {
     distDir = "${project.buildDir}/dist"
