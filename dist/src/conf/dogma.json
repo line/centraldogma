@@ -12,6 +12,8 @@
     }
   ],
   "tls": null,
+  "trustedProxyAddresses": null,
+  "clientAddressSources": null,
   "numWorkers": null,
   "maxNumConnections": null,
   "requestTimeoutMillis": null,
@@ -19,14 +21,20 @@
   "maxFrameLength": null,
   "numRepositoryWorkers": 16,
   "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
-  "webAppEnabled": true,
   "gracefulShutdownTimeout": {
     "quietPeriodMillis": 1000,
     "timeoutMillis": 10000
   },
+  "webAppEnabled": true,
+  "webAppTitle": null,
+  "mirroringEnabled": null,
+  "numMirroringThreads": null,
+  "maxNumFilesPerMirror": null,
+  "maxNumBytesPerMirror": null,
   "replication": {
     "method": "NONE"
   },
+  "csrfTokenRequiredForThrift": null,
   "accessLogFormat": "common",
   "authentication": null
 }
