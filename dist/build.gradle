@@ -16,10 +16,7 @@ buildscript {
 apply plugin: 'com.boazj.log'
 apply plugin: 'com.bmuschko.docker-remote-api'
 
-evaluationDependsOn(':cli')
-evaluationDependsOn(':server')
-evaluationDependsOn(':server-auth:saml')
-evaluationDependsOn(':server-auth:shiro')
+evaluationDependsOn(':cli') // Need to evaluate first because otherwise its tasks are not available.
 
 ext {
     distDir = "${project.buildDir}/dist"
@@ -50,18 +47,17 @@ task copyLicenses(group: 'Build',
     include "/licenses/**"
 }
 
+def serverProjects = [project(':server'), project(':server-auth:saml'), project(':server-auth:shiro')]
+
 task copyLib(group: 'Build',
              description: "Copies JARs into ${project.ext.relativeDistDir}/lib",
-             dependsOn: project(':server').tasks.jar,
              type: Copy) {
-
-    from project(':server').configurations.runtime
-    from project(':server').tasks.jar
     from project.configurations.runtime
-    from project(':server-auth:saml').configurations.runtime
-    from project(':server-auth:saml').tasks.jar
-    from project(':server-auth:shiro').configurations.runtime
-    from project(':server-auth:shiro').tasks.jar
+    serverProjects.each { p ->
+        dependsOn p.tasks.jar.path
+        from p.configurations.runtime
+        from p.tasks.jar
+    }
     into "${project.ext.distDir}/lib"
 
     doLast {

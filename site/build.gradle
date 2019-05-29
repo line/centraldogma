@@ -31,7 +31,10 @@ task javadoc(type: Javadoc,
     destinationDir = project.file("${project.buildDir}/site/apidocs")
 
     def javadocProjects = projectsWithFlags('java', 'publish')
-    javadocProjects.each { source it.sourceSets.main.java.srcDirs }
+    javadocProjects.each {
+        source it.sourceSets.main.java.srcDirs
+        dependsOn it.tasks.compileJava.path
+    }
     classpath = javadocProjects.inject(project.files()) { result, project ->
         result.from(project.sourceSets.main.compileClasspath)
         result.from(project.sourceSets.main.runtimeClasspath)
