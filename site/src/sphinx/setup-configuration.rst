@@ -92,7 +92,7 @@ Core properties
   - the HTTP header names to be used for retrieving a client address. ``PROXY_PROTOCOL`` is a reserved keyword
     for getting the source address specified in a
     `PROXY protocol <https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt>`_ message.
-    By default, ``forwarded``, ``x-forwarded-for`` and ``PROXY_PROTOCOL`` are used only if
+    By default, ``forwarded``, ``x-forwarded-for`` and ``PROXY_PROTOCOL`` are used when
     ``trustedProxyAddresses`` is configured. Otherwise, the remote address of the connection is used
     as a client address.
 
