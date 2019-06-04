@@ -18,6 +18,11 @@ package com.linecorp.centraldogma.server;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.armeria.common.util.InetAddressPredicates.ofCidr;
+import static com.linecorp.armeria.common.util.InetAddressPredicates.ofExact;
+import static com.linecorp.armeria.server.ClientAddressSource.ofHeader;
+import static com.linecorp.armeria.server.ClientAddressSource.ofProxyProtocol;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_FILES_PER_MIRROR;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
@@ -28,9 +33,11 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -49,9 +56,12 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableSet;
 
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.armeria.server.ClientAddressSource;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
@@ -76,6 +86,13 @@ public final class CentralDogmaConfig {
     private final Integer maxFrameLength;
     @Nullable
     private final TlsConfig tls;
+    @Nullable
+    private final List<String> trustedProxyAddresses;
+    @Nullable
+    private final List<String> clientAddressSources;
+
+    private final Predicate<InetAddress> trustedProxyAddressPredicate;
+    private final List<ClientAddressSource> clientAddressSourceList;
 
     // Repository
     private final Integer numRepositoryWorkers;
@@ -118,6 +135,8 @@ public final class CentralDogmaConfig {
             @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
                     List<ServerPort> ports,
             @JsonProperty("tls") @Nullable TlsConfig tls,
+            @JsonProperty("trustedProxyAddresses") @Nullable List<String> trustedProxyAddresses,
+            @JsonProperty("clientAddressSources") @Nullable List<String> clientAddressSources,
             @JsonProperty("numWorkers") @Nullable Integer numWorkers,
             @JsonProperty("maxNumConnections") @Nullable Integer maxNumConnections,
             @JsonProperty("requestTimeoutMillis") @Nullable Long requestTimeoutMillis,
@@ -142,6 +161,9 @@ public final class CentralDogmaConfig {
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
         this.tls = tls;
+        this.trustedProxyAddresses = trustedProxyAddresses;
+        this.clientAddressSources = clientAddressSources;
+
         this.numWorkers = numWorkers;
 
         this.maxNumConnections = maxNumConnections;
@@ -171,6 +193,15 @@ public final class CentralDogmaConfig {
         this.accessLogFormat = accessLogFormat;
 
         this.authConfig = authConfig;
+
+        final boolean hasTrustedProxyAddrCfg =
+                trustedProxyAddresses != null && !trustedProxyAddresses.isEmpty();
+        trustedProxyAddressPredicate =
+                hasTrustedProxyAddrCfg ? toTrustedProxyAddressPredicate(trustedProxyAddresses)
+                                       : addr -> false;
+        clientAddressSourceList =
+                toClientAddressSourceList(clientAddressSources, hasTrustedProxyAddrCfg,
+                                          ports.stream().anyMatch(ServerPort::hasProxyProtocol));
     }
 
     @JsonProperty
@@ -188,6 +219,18 @@ public final class CentralDogmaConfig {
     @JsonProperty
     public TlsConfig tls() {
         return tls;
+    }
+
+    @Nullable
+    @JsonProperty
+    public List<String> trustedProxyAddresses() {
+        return trustedProxyAddresses;
+    }
+
+    @Nullable
+    @JsonProperty
+    public List<String> clientAddressSources() {
+        return clientAddressSources;
     }
 
     @JsonProperty
@@ -307,6 +350,46 @@ public final class CentralDogmaConfig {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    Predicate<InetAddress> trustedProxyAddressPredicate() {
+        return trustedProxyAddressPredicate;
+    }
+
+    List<ClientAddressSource> clientAddressSourceList() {
+        return clientAddressSourceList;
+    }
+
+    private static Predicate<InetAddress> toTrustedProxyAddressPredicate(List<String> trustedProxyAddresses) {
+        final String first = trustedProxyAddresses.get(0);
+        Predicate<InetAddress> predicate = first.indexOf('/') < 0 ? ofExact(first) : ofCidr(first);
+        for (int i = 1; i < trustedProxyAddresses.size(); i++) {
+            final String next = trustedProxyAddresses.get(i);
+            predicate = predicate.or(next.indexOf('/') < 0 ? ofExact(next) : ofCidr(next));
+        }
+        return predicate;
+    }
+
+    private static List<ClientAddressSource> toClientAddressSourceList(
+            @Nullable List<String> clientAddressSources,
+            boolean useDefaultSources, boolean specifiedProxyProtocol) {
+        if (clientAddressSources != null && !clientAddressSources.isEmpty()) {
+            return clientAddressSources.stream().map(
+                    name -> "PROXY_PROTOCOL".equals(name) ? ofProxyProtocol() : ofHeader(name))
+                                       .collect(toImmutableList());
+        }
+
+        if (useDefaultSources) {
+            final Builder<ClientAddressSource> builder = new Builder<>();
+            builder.add(ofHeader(HttpHeaderNames.FORWARDED));
+            builder.add(ofHeader(HttpHeaderNames.X_FORWARDED_FOR));
+            if (specifiedProxyProtocol) {
+                builder.add(ofProxyProtocol());
+            }
+            return builder.build();
+        }
+
+        return ImmutableList.of();
     }
 
     static final class ServerPortSerializer extends JsonSerializer<ServerPort> {

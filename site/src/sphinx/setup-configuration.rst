@@ -24,6 +24,8 @@ defaults:
         }
       ],
       "tls": null,
+      "trustedProxyAddresses": null,
+      "clientAddressSources": null,
       "numWorkers": null,
       "maxNumConnections": null,
       "requestTimeoutMillis": null,
@@ -76,6 +78,23 @@ Core properties
 
   - the configuration for Transport Layer Security(TLS) support. Specify ``null`` to disable TLS.
     See :ref:`tls` for more information.
+
+- ``trustedProxyAddresses`` (string array)
+
+  - the addresses or ranges of `Classless Inter-domain Routing (CIDR) <https://tools.ietf.org/html/rfc4632>`_
+    blocks of trusted proxy servers. e.g. ``10.0.0.1`` for a single address or ``10.0.0.0/8`` for a CIDR block.
+    With ``trustedProxyAddresses`` and ``clientAddressSources`` properties, you can get a client address
+    who initiated a request from the access log. If ``null`` or an empty array, the remote address of
+    the connection is used as a client address.
+
+- ``clientAddressSources`` (string array)
+
+  - the HTTP header names to be used for retrieving a client address. ``PROXY_PROTOCOL`` is a reserved keyword
+    for getting the source address specified in a
+    `PROXY protocol <https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt>`_ message.
+    By default, ``forwarded``, ``x-forwarded-for`` and ``PROXY_PROTOCOL`` are used when
+    ``trustedProxyAddresses`` is configured. Otherwise, the remote address of the connection is used
+    as a client address.
 
 - ``numWorkers`` (integer)
 
@@ -336,6 +355,8 @@ in ``dogma.json`` as follows.
         "keyFile": "./cert/centraldogma.key",
         "keyPassword": null
       },
+      "trustedProxyAddresses": null,
+      "clientAddressSources": null,
       "numWorkers": null,
       "maxNumConnections": null,
       "requestTimeoutMillis": null,

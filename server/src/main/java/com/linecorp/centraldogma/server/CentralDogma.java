@@ -491,12 +491,15 @@ public class CentralDogma implements AutoCloseable {
             }
         }
 
+        sb.clientAddressSources(cfg.clientAddressSourceList());
+        sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
+
         cfg.numWorkers().ifPresent(
                 numWorkers -> sb.workerGroup(EventLoopGroups.newEventLoopGroup(numWorkers), true));
         cfg.maxNumConnections().ifPresent(sb::maxNumConnections);
         cfg.idleTimeoutMillis().ifPresent(sb::idleTimeoutMillis);
-        cfg.requestTimeoutMillis().ifPresent(sb::defaultRequestTimeoutMillis);
-        cfg.maxFrameLength().ifPresent(sb::defaultMaxRequestLength);
+        cfg.requestTimeoutMillis().ifPresent(sb::requestTimeoutMillis);
+        cfg.maxFrameLength().ifPresent(sb::maxRequestLength);
         cfg.gracefulShutdownTimeout().ifPresent(
                 t -> sb.gracefulShutdownTimeout(t.quietPeriodMillis(), t.timeoutMillis()));
 

@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 
@@ -79,6 +80,8 @@ public final class CentralDogmaBuilder {
     // When a property is null, the default value will be used implicitly.
     private final List<ServerPort> ports = new ArrayList<>(2);
     private TlsConfig tls;
+    private List<String> trustedProxyAddresses = new ArrayList<>();
+    private List<String> clientAddressSources = new ArrayList<>();
     private Integer numWorkers;
     private Integer maxNumConnections;
     private Long requestTimeoutMillis;
@@ -156,6 +159,68 @@ public final class CentralDogmaBuilder {
      */
     public CentralDogmaBuilder tls(TlsConfig tls) {
         this.tls = requireNonNull(tls, "tls");
+        return this;
+    }
+
+    /**
+     * Adds addresses or ranges of <a href="https://tools.ietf.org/html/rfc4632">
+     * Classless Inter-domain Routing (CIDR)</a> blocks of trusted proxy servers.
+     *
+     * @param exactOrCidrAddresses a list of addresses and CIDR blocks, e.g. {@code 10.0.0.1} for a single
+     *                             address or {@code 10.0.0.0/8} for a CIDR block
+     */
+    public CentralDogmaBuilder trustedProxyAddresses(String... exactOrCidrAddresses) {
+        requireNonNull(exactOrCidrAddresses, "exactOrCidrAddresses");
+        trustedProxyAddresses.addAll(ImmutableList.copyOf(exactOrCidrAddresses));
+        return this;
+    }
+
+    /**
+     * Adds addresses or ranges of <a href="https://tools.ietf.org/html/rfc4632">
+     * Classless Inter-domain Routing (CIDR)</a> blocks of trusted proxy servers.
+     *
+     * @param exactOrCidrAddresses a list of addresses and CIDR blocks, e.g. {@code 10.0.0.1} for a single
+     *                             address or {@code 10.0.0.0/8} for a CIDR block
+     */
+    public CentralDogmaBuilder trustedProxyAddresses(Iterable<String> exactOrCidrAddresses) {
+        requireNonNull(exactOrCidrAddresses, "exactOrCidrAddresses");
+        trustedProxyAddresses.addAll(ImmutableList.copyOf(exactOrCidrAddresses));
+        return this;
+    }
+
+    /**
+     * Adds the HTTP header names to be used for retrieving a client address.
+     *
+     * <p>Note that {@code "PROXY_PROTOCOL"} indicates the source address specified in a
+     * <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt">PROXY protocol</a> message.
+     *
+     * <p>Also note that if you configured trusted proxy addresses, {@code "forwarded"},
+     * {@code "x-forwarded-for"} and {@code "PROXY_PROTOCOL"} will be used as client address sources by default.
+     *
+     * @param clientAddressSources the HTTP header names or {@code "PROXY_PROTOCOL"} to be used for
+     *                             retrieving a client address
+     */
+    public CentralDogmaBuilder clientAddressSources(String... clientAddressSources) {
+        requireNonNull(clientAddressSources, "clientAddressSources");
+        this.clientAddressSources.addAll(ImmutableList.copyOf(clientAddressSources));
+        return this;
+    }
+
+    /**
+     * Adds the HTTP header names to be used for retrieving a client address.
+     *
+     * <p>Note that {@code "PROXY_PROTOCOL"} indicates the source address specified in a
+     * <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt">PROXY protocol</a> message.
+     *
+     * <p>Also note that if you configured trusted proxy addresses, {@code "forwarded"},
+     * {@code "x-forwarded-for"} and {@code "PROXY_PROTOCOL"} will be used as client address sources by default.
+     *
+     * @param clientAddressSources the HTTP header names or {@code "PROXY_PROTOCOL"} to be used for
+     *                             retrieving a client address
+     */
+    public CentralDogmaBuilder clientAddressSources(Iterable<String> clientAddressSources) {
+        requireNonNull(clientAddressSources, "clientAddressSources");
+        this.clientAddressSources.addAll(ImmutableList.copyOf(clientAddressSources));
         return this;
     }
 
@@ -440,7 +505,8 @@ public final class CentralDogmaBuilder {
                         AuthConfig.class.getSimpleName());
         }
 
-        return new CentralDogmaConfig(dataDir, ports, tls, numWorkers, maxNumConnections,
+        return new CentralDogmaConfig(dataDir, ports, tls, trustedProxyAddresses, clientAddressSources,
+                                      numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, repositoryCacheSpec, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
