@@ -12,7 +12,7 @@ class App extends React.Component {
     return (
       <div>
         <div className="App-header">
-          <img src={logo} className="App-logo" />
+          <img src={logo} className="App-logo" alt="" />
         </div>
         <div className="App-body">
           <Route exact={true} path="/login" component={LoginForm} />
