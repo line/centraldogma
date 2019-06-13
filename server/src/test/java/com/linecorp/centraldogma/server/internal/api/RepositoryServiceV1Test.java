@@ -32,7 +32,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
@@ -74,7 +74,7 @@ public class RepositoryServiceV1Test {
 
     @Test
     public void createRepository() throws IOException {
-        final AggregatedHttpMessage aRes = createRepository("myRepo");
+        final AggregatedHttpResponse aRes = createRepository("myRepo");
         final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
         assertThat(headers.status()).isEqualTo(HttpStatus.CREATED);
 
@@ -87,7 +87,7 @@ public class RepositoryServiceV1Test {
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
     }
 
-    private static AggregatedHttpMessage createRepository(String repoName) {
+    private static AggregatedHttpResponse createRepository(String repoName) {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, REPOS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final String body = "{\"name\": \"" + repoName + "\"}";
@@ -100,7 +100,7 @@ public class RepositoryServiceV1Test {
         createRepository("myRepo");
 
         // create again with the same name
-        final AggregatedHttpMessage aRes = createRepository("myRepo");
+        final AggregatedHttpResponse aRes = createRepository("myRepo");
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
@@ -116,7 +116,7 @@ public class RepositoryServiceV1Test {
                                                          PROJECTS_PREFIX + "/absentProject" + REPOS,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final String body = "{\"name\": \"myRepo\"}";
-        final AggregatedHttpMessage aRes = httpClient.execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse aRes = httpClient.execute(headers, body).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
         final String expectedJson =
                 '{' +
@@ -129,7 +129,7 @@ public class RepositoryServiceV1Test {
     @Test
     public void listRepositories() {
         createRepository("myRepo");
-        final AggregatedHttpMessage aRes = httpClient.get(REPOS_PREFIX).aggregate().join();
+        final AggregatedHttpResponse aRes = httpClient.get(REPOS_PREFIX).aggregate().join();
 
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
@@ -171,20 +171,20 @@ public class RepositoryServiceV1Test {
     @Test
     public void removeRepository() {
         createRepository("foo");
-        final AggregatedHttpMessage aRes = httpClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
+        final AggregatedHttpResponse aRes = httpClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test
     public void removeAbsentRepository() {
-        final AggregatedHttpMessage aRes = httpClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
+        final AggregatedHttpResponse aRes = httpClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
     public void removeMetaRepository() {
-        final AggregatedHttpMessage aRes = httpClient.delete(REPOS_PREFIX + '/' + Project.REPO_META)
-                                                     .aggregate().join();
+        final AggregatedHttpResponse aRes = httpClient.delete(REPOS_PREFIX + '/' + Project.REPO_META)
+                                                      .aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
@@ -196,8 +196,8 @@ public class RepositoryServiceV1Test {
         httpClient.delete(REPOS_PREFIX + "/hyangtack").aggregate().join();
         httpClient.delete(REPOS_PREFIX + "/minwoox").aggregate().join();
 
-        final AggregatedHttpMessage removedRes = httpClient.get(REPOS_PREFIX + "?status=removed")
-                                                           .aggregate().join();
+        final AggregatedHttpResponse removedRes = httpClient.get(REPOS_PREFIX + "?status=removed")
+                                                            .aggregate().join();
         assertThat(ResponseHeaders.of(removedRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '[' +
@@ -210,7 +210,7 @@ public class RepositoryServiceV1Test {
                 ']';
         assertThatJson(removedRes.contentUtf8()).isEqualTo(expectedJson);
 
-        final AggregatedHttpMessage remainedRes = httpClient.get(REPOS_PREFIX).aggregate().join();
+        final AggregatedHttpResponse remainedRes = httpClient.get(REPOS_PREFIX).aggregate().join();
         final String remains = remainedRes.contentUtf8();
         final JsonNode jsonNode = Jackson.readTree(remains);
 
@@ -227,7 +227,7 @@ public class RepositoryServiceV1Test {
                                                          "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpMessage aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
+        final AggregatedHttpResponse aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '{' +
@@ -250,15 +250,15 @@ public class RepositoryServiceV1Test {
                                                          "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpMessage aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
+        final AggregatedHttpResponse aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
     public void normalizeRevision() {
         createRepository("foo");
-        final AggregatedHttpMessage res = httpClient.get(REPOS_PREFIX + "/foo/revision/-1")
-                                                    .aggregate().join();
+        final AggregatedHttpResponse res = httpClient.get(REPOS_PREFIX + "/foo/revision/-1")
+                                                     .aggregate().join();
         assertThatJson(res.contentUtf8()).isEqualTo("{\"revision\":1}");
     }
 }

@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
@@ -72,7 +72,7 @@ public class SamlAuthTest {
 
     @Test
     public void shouldUseBuiltinWebPageOnlyForLogout() throws Exception {
-        AggregatedHttpMessage resp;
+        AggregatedHttpResponse resp;
 
         // Receive HTML which submits SAMLRequest to IdP.
         resp = rule.httpClient().get(AuthProvider.LOGIN_PATH).aggregate().join();
@@ -89,7 +89,7 @@ public class SamlAuthTest {
 
     @Test
     public void shouldReturnMetadata() {
-        final AggregatedHttpMessage resp = rule.httpClient().get("/saml/metadata").aggregate().join();
+        final AggregatedHttpResponse resp = rule.httpClient().get("/saml/metadata").aggregate().join();
         assertThat(resp.status()).isEqualTo(HttpStatus.OK);
         assertThat(resp.headers().contentType()).isEqualTo(MediaType.parse("application/samlmetadata+xml"));
         assertThat(resp.headers().get(HttpHeaderNames.CONTENT_DISPOSITION))

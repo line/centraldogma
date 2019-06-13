@@ -39,12 +39,13 @@ import org.opensaml.saml.saml2.core.Response;
 
 import com.google.common.base.Strings;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.saml.InvalidSamlRequestException;
 import com.linecorp.armeria.server.saml.SamlBindingProtocol;
 import com.linecorp.armeria.server.saml.SamlIdentityProviderConfig;
 import com.linecorp.armeria.server.saml.SamlSingleSignOnHandler;
@@ -107,7 +108,7 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     }
 
     @Override
-    public HttpResponse loginSucceeded(ServiceRequestContext ctx, AggregatedHttpMessage req,
+    public HttpResponse loginSucceeded(ServiceRequestContext ctx, AggregatedHttpRequest req,
                                        MessageContext<Response> message, @Nullable String sessionIndex,
                                        @Nullable String relayState) {
         final Response response = requireNonNull(message, "message").getMessage();
@@ -171,9 +172,11 @@ final class SamlAuthSsoHandler implements SamlSingleSignOnHandler {
     }
 
     @Override
-    public HttpResponse loginFailed(ServiceRequestContext ctx, AggregatedHttpMessage req,
+    public HttpResponse loginFailed(ServiceRequestContext ctx, AggregatedHttpRequest req,
                                     @Nullable MessageContext<Response> message, Throwable cause) {
-        // TODO(hyangtack) Fix here once https://github.com/line/armeria/issues/1780 is resolved.
-        return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause);
+        final HttpStatus status =
+                cause instanceof InvalidSamlRequestException ? HttpStatus.BAD_REQUEST
+                                                             : HttpStatus.INTERNAL_SERVER_ERROR;
+        return HttpApiUtil.newResponse(ctx, status, cause);
     }
 }

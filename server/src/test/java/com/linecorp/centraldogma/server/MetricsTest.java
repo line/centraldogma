@@ -22,7 +22,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
@@ -41,7 +41,7 @@ public class MetricsTest {
     public void metrics() {
         assertThat(rule.dogma().meterRegistry()).containsInstanceOf(PrometheusMeterRegistry.class);
 
-        final AggregatedHttpMessage res = rule.httpClient().get("/monitor/metrics").aggregate().join();
+        final AggregatedHttpResponse res = rule.httpClient().get("/monitor/metrics").aggregate().join();
         logger.debug("Prometheus metrics:\n{}", res.contentUtf8());
 
         assertThat(res.status()).isEqualTo(HttpStatus.OK);

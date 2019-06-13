@@ -21,7 +21,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
@@ -34,7 +34,7 @@ import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 public final class CommitMessageRequestConverter extends JacksonRequestConverterFunction {
 
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
+    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
                                  Class<?> expectedResultType) throws Exception {
         if (expectedResultType == CommitMessageDto.class) {
             final JsonNode node = (JsonNode) super.convertRequest(ctx, request, JsonNode.class);

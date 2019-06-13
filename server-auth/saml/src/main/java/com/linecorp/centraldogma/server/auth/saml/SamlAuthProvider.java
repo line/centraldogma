@@ -23,7 +23,7 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.Service;
-import com.linecorp.armeria.server.ServiceWithPathMappings;
+import com.linecorp.armeria.server.ServiceWithRoutes;
 import com.linecorp.armeria.server.saml.SamlServiceProvider;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 
@@ -45,7 +45,7 @@ public class SamlAuthProvider implements AuthProvider {
     }
 
     @Override
-    public Iterable<ServiceWithPathMappings<HttpRequest, HttpResponse>> moreServices() {
+    public Iterable<ServiceWithRoutes<HttpRequest, HttpResponse>> moreServices() {
         return ImmutableList.of(sp.newSamlService());
     }
 }

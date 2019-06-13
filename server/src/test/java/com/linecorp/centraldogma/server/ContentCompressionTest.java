@@ -39,7 +39,7 @@ import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
 import com.linecorp.armeria.client.encoding.HttpDecodingClient;
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
@@ -115,7 +115,7 @@ public class ContentCompressionTest {
                                    HttpApiV1Constants.REPOS + '/' + REPO +
                                    "/contents" + PATH;
 
-        final AggregatedHttpMessage compressedResponse = client.get(contentPath).aggregate().join();
+        final AggregatedHttpResponse compressedResponse = client.get(contentPath).aggregate().join();
         assertThat(compressedResponse.status()).isEqualTo(HttpStatus.OK);
 
         final HttpData content = compressedResponse.content();

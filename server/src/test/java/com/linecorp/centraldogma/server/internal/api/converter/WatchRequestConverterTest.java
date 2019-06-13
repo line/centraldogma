@@ -24,9 +24,10 @@ import java.util.Optional;
 
 import org.junit.Test;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
+import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
@@ -38,10 +39,10 @@ public class WatchRequestConverterTest {
     @Test
     public void convertWatchRequest() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
-        final AggregatedHttpMessage request = mock(AggregatedHttpMessage.class);
-        final HttpHeaders headers = HttpHeaders.of(HttpHeaderNames.IF_NONE_MATCH, "-1",
-                                                   HttpHeaderNames.PREFER, "wait=10");
-
+        final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/",
+                                                         HttpHeaderNames.IF_NONE_MATCH, "-1",
+                                                         HttpHeaderNames.PREFER, "wait=10");
         when(request.headers()).thenReturn(headers);
 
         final Optional<WatchRequest> watchRequest = convert(ctx, request);
@@ -53,8 +54,8 @@ public class WatchRequestConverterTest {
     @Test
     public void emptyHeader() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
-        final AggregatedHttpMessage request = mock(AggregatedHttpMessage.class);
-        final HttpHeaders headers = HttpHeaders.of();
+        final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/");
 
         when(request.headers()).thenReturn(headers);
 
@@ -64,7 +65,7 @@ public class WatchRequestConverterTest {
 
     @SuppressWarnings("unchecked")
     private static Optional<WatchRequest> convert(
-            ServiceRequestContext ctx, AggregatedHttpMessage request) throws Exception {
+            ServiceRequestContext ctx, AggregatedHttpRequest request) throws Exception {
         return (Optional<WatchRequest>) converter.convertRequest(ctx, request, null);
     }
 }

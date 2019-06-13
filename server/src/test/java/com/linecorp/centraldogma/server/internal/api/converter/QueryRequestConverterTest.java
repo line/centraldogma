@@ -24,7 +24,7 @@ import java.util.Optional;
 
 import org.junit.Test;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
@@ -90,6 +90,6 @@ public class QueryRequestConverterTest {
 
     @SuppressWarnings("unchecked")
     private static Optional<Query<?>> convert(ServiceRequestContext ctx) throws Exception {
-        return (Optional<Query<?>>) converter.convertRequest(ctx, mock(AggregatedHttpMessage.class), null);
+        return (Optional<Query<?>>) converter.convertRequest(ctx, mock(AggregatedHttpRequest.class), null);
     }
 }

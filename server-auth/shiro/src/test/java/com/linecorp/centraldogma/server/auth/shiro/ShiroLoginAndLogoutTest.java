@@ -33,7 +33,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -69,7 +69,7 @@ public class ShiroLoginAndLogoutTest {
         loginAndLogout(login(client, USERNAME, PASSWORD));
     }
 
-    private void loginAndLogout(AggregatedHttpMessage loginRes) throws Exception {
+    private void loginAndLogout(AggregatedHttpResponse loginRes) throws Exception {
         assertThat(loginRes.status()).isEqualTo(HttpStatus.OK);
 
         // Ensure authorization works.
@@ -101,7 +101,7 @@ public class ShiroLoginAndLogoutTest {
 
     @Test
     public void shouldUseBuiltinWebPages() throws Exception {
-        AggregatedHttpMessage resp;
+        AggregatedHttpResponse resp;
         resp = client.get(AuthProvider.LOGIN_PATH).aggregate().join();
         assertThat(resp.status()).isEqualTo(HttpStatus.MOVED_PERMANENTLY);
         assertThat(resp.headers().get(HttpHeaderNames.LOCATION))

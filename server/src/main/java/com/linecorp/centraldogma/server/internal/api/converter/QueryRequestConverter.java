@@ -24,7 +24,7 @@ import java.util.Optional;
 
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Query;
@@ -39,10 +39,10 @@ public final class QueryRequestConverter implements RequestConverterFunction {
 
     /**
      * Converts the specified {@code request} to {@link Optional} which contains {@link Query} when
-     * the request has a valid file path. {@link Optional#EMPTY} otherwise.
+     * the request has a valid file path. {@link Optional#empty()} otherwise.
      */
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
+    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
                                  Class<?> expectedResultType) throws Exception {
         final String path = getPath(ctx);
         final Optional<Iterable<String>> jsonPaths = getJsonPaths(ctx);

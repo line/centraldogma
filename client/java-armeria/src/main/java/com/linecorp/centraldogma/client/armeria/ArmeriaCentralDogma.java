@@ -61,7 +61,7 @@ import com.google.common.math.LongMath;
 
 import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
@@ -151,7 +151,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Void createProject(AggregatedHttpMessage res) {
+    private static Void createProject(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
             case 201:
@@ -172,7 +172,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Void removeProject(AggregatedHttpMessage res) {
+    private static Void removeProject(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
             case 204:
@@ -194,7 +194,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Void unremoveProject(AggregatedHttpMessage res) {
+    private static Void unremoveProject(AggregatedHttpResponse res) {
         if (res.status().code() == 200) { // OK
             return null;
         }
@@ -232,7 +232,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Void createRepository(AggregatedHttpMessage res) {
+    private static Void createRepository(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
             case 201:
@@ -254,7 +254,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Void removeRepository(AggregatedHttpMessage res) {
+    private static Void removeRepository(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
             case 204:
@@ -277,7 +277,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Void unremoveRepository(AggregatedHttpMessage res) {
+    private static Void unremoveRepository(AggregatedHttpResponse res) {
         if (res.status().code() == 200) {
             return null;
         }
@@ -296,7 +296,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Map<String, RepositoryInfo> listRepositories(AggregatedHttpMessage res) {
+    private static Map<String, RepositoryInfo> listRepositories(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 return Streams.stream(toJson(res, JsonNodeType.ARRAY))
@@ -347,7 +347,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Revision normalizeRevision(AggregatedHttpMessage res) {
+    private static Revision normalizeRevision(AggregatedHttpResponse res) {
         if (res.status().code() == 200) {
             return new Revision(getField(toJson(res, JsonNodeType.OBJECT), "revision").asInt());
         }
@@ -378,7 +378,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Map<String, EntryType> listFiles(AggregatedHttpMessage res) {
+    private static Map<String, EntryType> listFiles(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 final ImmutableMap.Builder<String, EntryType> builder = ImmutableMap.builder();
@@ -418,7 +418,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static <T> Entry<T> getFile(Revision normRev, AggregatedHttpMessage res) {
+    private static <T> Entry<T> getFile(Revision normRev, AggregatedHttpResponse res) {
         if (res.status().code() == 200) {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
             return toEntry(normRev, node);
@@ -454,7 +454,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static Map<String, Entry<?>> getFiles(Revision normRev, AggregatedHttpMessage res) {
+    private static Map<String, Entry<?>> getFiles(Revision normRev, AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 final JsonNode node = toJson(res, null);
@@ -500,7 +500,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static <T> MergedEntry<T> mergeFiles(AggregatedHttpMessage res) {
+    private static <T> MergedEntry<T> mergeFiles(AggregatedHttpResponse res) {
         if (res.status().code() == 200) {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
 
@@ -570,7 +570,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static List<Commit> getHistory(AggregatedHttpMessage res) {
+    private static List<Commit> getHistory(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 final JsonNode node = toJson(res, null);
@@ -615,7 +615,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Nullable
-    private static <T> Change<T> getDiff(AggregatedHttpMessage res) {
+    private static <T> Change<T> getDiff(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 return toChange(toJson(res, JsonNodeType.OBJECT));
@@ -690,7 +690,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static List<Change<?>> getPreviewDiffs(AggregatedHttpMessage res) {
+    private static List<Change<?>> getPreviewDiffs(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 final JsonNode node = toJson(res, JsonNodeType.ARRAY);
@@ -738,7 +738,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
-    private static PushResult push(AggregatedHttpMessage res) {
+    private static PushResult push(AggregatedHttpResponse res) {
         if (res.status().code() == 200) {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
             return new PushResult(
@@ -783,7 +783,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Nullable
-    private static Revision watchRepository(AggregatedHttpMessage res) {
+    private static Revision watchRepository(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
@@ -823,7 +823,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Nullable
-    private static <T> Entry<T> watchFile(AggregatedHttpMessage res) {
+    private static <T> Entry<T> watchFile(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
@@ -837,7 +837,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private <T> CompletableFuture<T> watch(Revision lastKnownRevision, long timeoutMillis,
-                                           String path, Function<AggregatedHttpMessage, T> func) {
+                                           String path, Function<AggregatedHttpResponse, T> func) {
         final RequestHeadersBuilder builder = headersBuilder(HttpMethod.GET, path);
         builder.set(HttpHeaderNames.IF_NONE_MATCH, lastKnownRevision.text())
                .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
@@ -964,9 +964,9 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     /**
-     * Parses the content of the specified {@link AggregatedHttpMessage} into a {@link JsonNode}.
+     * Parses the content of the specified {@link AggregatedHttpResponse} into a {@link JsonNode}.
      */
-    private static JsonNode toJson(AggregatedHttpMessage res, @Nullable JsonNodeType expectedNodeType) {
+    private static JsonNode toJson(AggregatedHttpResponse res, @Nullable JsonNodeType expectedNodeType) {
         final String content = toString(res);
         final JsonNode node;
         try {
@@ -983,13 +983,13 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return node;
     }
 
-    private static <T> T rejectNeitherArrayNorObject(AggregatedHttpMessage res) {
+    private static <T> T rejectNeitherArrayNorObject(AggregatedHttpResponse res) {
         throw new CentralDogmaException(
                 "invalid server response; expected: " + JsonNodeType.OBJECT + " or " + JsonNodeType.ARRAY +
                 ", content: " + toString(res));
     }
 
-    private static String toString(AggregatedHttpMessage res) {
+    private static String toString(AggregatedHttpResponse res) {
         final MediaType contentType = firstNonNull(res.headers().contentType(), MediaType.JSON_UTF_8);
         final Charset charset = contentType.charset().orElse(StandardCharsets.UTF_8);
         return res.content(charset);
@@ -1045,7 +1045,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         throw new Error(); // Never reaches here.
     }
 
-    private static Set<String> handleNameList(AggregatedHttpMessage res) {
+    private static Set<String> handleNameList(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
                 return Streams.stream(toJson(res, JsonNodeType.ARRAY))
@@ -1066,7 +1066,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return field;
     }
 
-    private static <T> T handleErrorResponse(AggregatedHttpMessage res) {
+    private static <T> T handleErrorResponse(AggregatedHttpResponse res) {
         final HttpStatus status = res.status();
         assert status != null : res;
         if (status.codeClass() != HttpStatusClass.SUCCESS) {

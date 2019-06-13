@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -83,7 +83,7 @@ public class TestAuthProvider implements AuthProvider {
         @Override
         public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
             return HttpResponse.from(CompletableFuture.supplyAsync(() -> {
-                final AggregatedHttpMessage msg = req.aggregate().join();
+                final AggregatedHttpRequest msg = req.aggregate().join();
                 final String username;
                 final String password;
                 final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(RequestHeaders.of(msg.headers()));
@@ -118,7 +118,7 @@ public class TestAuthProvider implements AuthProvider {
         @Override
         public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
             return HttpResponse.from(CompletableFuture.supplyAsync(() -> {
-                final AggregatedHttpMessage msg = req.aggregate().join();
+                final AggregatedHttpRequest msg = req.aggregate().join();
                 final String sessionId =
                         AuthTokenExtractors.OAUTH2.apply(RequestHeaders.of(msg.headers())).accessToken();
                 if (!WRONG_SESSION_ID.equals(sessionId)) {
