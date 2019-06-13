@@ -24,9 +24,9 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.BUILTIN_WEB_BASE_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_PATH_MAPPINGS;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTES;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_PATH_MAPPINGS;
+import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_PATH;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.initializeInternalProject;
 import static java.util.Objects.requireNonNull;
@@ -698,14 +698,14 @@ public class CentralDogma implements AutoCloseable {
 
             // authentication services:
             Optional.ofNullable(authProvider.loginApiService())
-                    .ifPresent(login -> LOGIN_API_PATH_MAPPINGS.forEach(mapping -> sb.service(mapping, login)));
+                    .ifPresent(login -> LOGIN_API_ROUTES.forEach(mapping -> sb.service(mapping, login)));
 
             // Provide logout API by default.
             final Service<HttpRequest, HttpResponse> logout =
                     Optional.ofNullable(authProvider.logoutApiService())
                             .orElseGet(() -> new DefaultLogoutService(executor));
-            for (Route mapping : LOGOUT_API_PATH_MAPPINGS) {
-                sb.service(mapping, decorator.apply(logout));
+            for (Route route : LOGOUT_API_ROUTES) {
+                sb.service(route, decorator.apply(logout));
             }
 
             authProvider.moreServices().forEach(sb::service);

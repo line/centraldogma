@@ -69,7 +69,7 @@ public interface AuthProvider {
      * A set of {@link Route}s which handles a login request. It is necessary only if
      * an authentication protocol requires a login feature provided by the server.
      */
-    Set<Route> LOGIN_API_PATH_MAPPINGS =
+    Set<Route> LOGIN_API_ROUTES =
             ImmutableSet.of(Route.builder().exact(API_V0_PATH_PREFIX + "authenticate").build(),
                             Route.builder().exact(API_V1_PATH_PREFIX + "login").build());
 
@@ -77,7 +77,7 @@ public interface AuthProvider {
      * A set of {@link Route}s which handles a logout request. It is necessary only if
      * an authentication protocol requires a logout feature provided by the server.
      */
-    Set<Route> LOGOUT_API_PATH_MAPPINGS =
+    Set<Route> LOGOUT_API_ROUTES =
             ImmutableSet.of(Route.builder().exact(API_V0_PATH_PREFIX + "logout").build(),
                             Route.builder().exact(API_V1_PATH_PREFIX + "logout").build());
 
@@ -107,7 +107,7 @@ public interface AuthProvider {
     /**
      * Returns a {@link Service} which handles a login request sent from the built-in web login page or
      * somewhere implemented by an {@link AuthProvider}. This service would be added to the server
-     * with {@link #LOGIN_API_PATH_MAPPINGS} only if it is provided.
+     * with {@link #LOGIN_API_ROUTES} only if it is provided.
      */
     @Nullable
     default Service<HttpRequest, HttpResponse> loginApiService() {
@@ -117,7 +117,7 @@ public interface AuthProvider {
     /**
      * Returns a {@link Service} which handles a logout request sent from the built-in web logout page or
      * somewhere implemented by an {@link AuthProvider}. This service would be added to the server
-     * with {@link #LOGOUT_API_PATH_MAPPINGS}. If it is not provided, a default service would be added
+     * with {@link #LOGOUT_API_ROUTES}. If it is not provided, a default service would be added
      * because the web console provides a logout button on the navigation bar by default.
      */
     @Nullable
