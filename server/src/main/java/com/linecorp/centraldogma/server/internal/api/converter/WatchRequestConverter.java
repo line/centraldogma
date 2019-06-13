@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
@@ -44,7 +44,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
      * the request has {@link HttpHeaderNames#IF_NONE_MATCH}. {@link Optional#empty()} otherwise.
      */
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
+    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
                                  Class<?> expectedResultType) throws Exception {
         final String ifNoneMatch = request.headers().get(HttpHeaderNames.IF_NONE_MATCH);
         if (!isNullOrEmpty(ifNoneMatch)) {

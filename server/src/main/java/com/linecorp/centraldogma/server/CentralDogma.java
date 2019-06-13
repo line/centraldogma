@@ -72,6 +72,7 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.metric.MeterIdPrefixFunction;
 import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
 import com.linecorp.armeria.common.util.EventLoopGroups;
@@ -79,10 +80,9 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.armeria.common.util.SystemInfo;
 import com.linecorp.armeria.server.AbstractHttpService;
-import com.linecorp.armeria.server.PathMapping;
+import com.linecorp.armeria.server.Route;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
-import com.linecorp.armeria.server.ServerCacheControl;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -704,7 +704,7 @@ public class CentralDogma implements AutoCloseable {
             final Service<HttpRequest, HttpResponse> logout =
                     Optional.ofNullable(authProvider.logoutApiService())
                             .orElseGet(() -> new DefaultLogoutService(executor));
-            for (PathMapping mapping : LOGOUT_API_PATH_MAPPINGS) {
+            for (Route mapping : LOGOUT_API_PATH_MAPPINGS) {
                 sb.service(mapping, decorator.apply(logout));
             }
 

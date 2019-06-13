@@ -36,7 +36,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
@@ -212,7 +212,7 @@ public class PermissionTest {
         final HttpClient client = new HttpClientBuilder(rule.uri("/"))
                 .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret).build();
 
-        AggregatedHttpMessage response;
+        AggregatedHttpResponse response;
 
         response = client.get("/projects/" + projectName).aggregate().join();
         assertThat(response.status())

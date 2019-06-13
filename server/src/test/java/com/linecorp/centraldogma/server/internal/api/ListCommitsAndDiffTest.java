@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.MediaType;
@@ -86,8 +86,8 @@ public class ListCommitsAndDiffTest {
 
     @Test
     public void listCommits() {
-        final AggregatedHttpMessage aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits")
-                                                     .aggregate().join();
+        final AggregatedHttpResponse aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits")
+                                                      .aggregate().join();
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -135,7 +135,7 @@ public class ListCommitsAndDiffTest {
 
     @Test
     public void listCommitsWithmaxCommits() {
-        final AggregatedHttpMessage aRes =
+        final AggregatedHttpResponse aRes =
                 httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/-1?to=1&maxCommits=2")
                           .aggregate().join();
         final String expectedJson =
@@ -172,8 +172,8 @@ public class ListCommitsAndDiffTest {
 
     @Test
     public void getOneCommit() {
-        final AggregatedHttpMessage aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/2")
-                                                     .aggregate().join();
+        final AggregatedHttpResponse aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/2")
+                                                      .aggregate().join();
         final String expectedJson =
                 '{' +
                 "   \"revision\": 2," +
@@ -193,7 +193,7 @@ public class ListCommitsAndDiffTest {
 
     @Test
     public void getCommitWithPath() {
-        final AggregatedHttpMessage aRes = httpClient
+        final AggregatedHttpResponse aRes = httpClient
                 .get("/api/v1/projects/myPro/repos/myRepo/commits?path=/foo0.json").aggregate().join();
         final String expectedJson =
                 '[' +
@@ -216,8 +216,8 @@ public class ListCommitsAndDiffTest {
 
     @Test
     public void listCommitsWithRevision() {
-        final AggregatedHttpMessage res1 = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits?to=2")
-                                                     .aggregate().join();
+        final AggregatedHttpResponse res1 = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits?to=2")
+                                                      .aggregate().join();
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -248,15 +248,15 @@ public class ListCommitsAndDiffTest {
                 "   }" +
                 ']';
         assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson);
-        final AggregatedHttpMessage res2 = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/3?to=2")
-                                                     .aggregate().join();
+        final AggregatedHttpResponse res2 = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/3?to=2")
+                                                      .aggregate().join();
         assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
     public void getDiff() {
         editFooFile();
-        final AggregatedHttpMessage aRes = httpClient
+        final AggregatedHttpResponse aRes = httpClient
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=3&to=5").aggregate().join();
         final String expectedJson =
                 '[' +
@@ -287,7 +287,7 @@ public class ListCommitsAndDiffTest {
     @Test
     public void getJsonDiff() {
         editFooFile();
-        final AggregatedHttpMessage aRes = httpClient
+        final AggregatedHttpResponse aRes = httpClient
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?path=/foo0.json&jsonpath=$.a&from=3&to=4")
                 .aggregate().join();
 

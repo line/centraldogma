@@ -49,7 +49,7 @@ import org.junit.rules.Timeout;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -146,7 +146,7 @@ public class ReplicatedLoginAndLogoutTest {
         final int baselineReplicationLogCount = replicationLogCount();
 
         // Log in from the 1st replica.
-        final AggregatedHttpMessage loginRes = login(client1, USERNAME, PASSWORD);
+        final AggregatedHttpResponse loginRes = login(client1, USERNAME, PASSWORD);
         assertThat(loginRes.status()).isEqualTo(HttpStatus.OK);
 
         // Ensure that only one replication log is produced.

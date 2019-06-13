@@ -33,7 +33,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -123,9 +123,9 @@ public class RepositoryService extends AbstractService {
     public CompletionStage<Object> addOrEditFile(@Param("projectName") String projectName,
                                                  @Param("repoName") String repoName,
                                                  @Param("revision") String revision,
-                                                 AggregatedHttpMessage message,
+                                                 AggregatedHttpRequest request,
                                                  ServiceRequestContext ctx) {
-        final Entry<CommitMessageDto, Change<?>> p = commitMessageAndChange(message);
+        final Entry<CommitMessageDto, Change<?>> p = commitMessageAndChange(request);
         final CommitMessageDto commitMessage = p.getKey();
         final Change<?> change = p.getValue();
         return push(projectName, repoName, new Revision(revision), AuthUtil.currentAuthor(ctx),
@@ -147,11 +147,11 @@ public class RepositoryService extends AbstractService {
                                    @Param("repoName") String repoName,
                                    @Param("revision") String revision,
                                    @Param("path") String path,
-                                   AggregatedHttpMessage message,
+                                   AggregatedHttpRequest request,
                                    ServiceRequestContext ctx) {
         final CommitMessageDto commitMessage;
         try {
-            final JsonNode node = Jackson.readTree(message.contentUtf8());
+            final JsonNode node = Jackson.readTree(request.contentUtf8());
             commitMessage = Jackson.convertValue(node.get("commitMessage"), CommitMessageDto.class);
         } catch (IOException e) {
             throw new IllegalArgumentException("invalid data to be parsed", e);
@@ -240,9 +240,9 @@ public class RepositoryService extends AbstractService {
                                                 commitSummary, commitDetail, commitMarkup, changes.values())));
     }
 
-    private static Entry<CommitMessageDto, Change<?>> commitMessageAndChange(AggregatedHttpMessage message) {
+    private static Entry<CommitMessageDto, Change<?>> commitMessageAndChange(AggregatedHttpRequest request) {
         try {
-            final JsonNode node = Jackson.readTree(message.contentUtf8());
+            final JsonNode node = Jackson.readTree(request.contentUtf8());
             final CommitMessageDto commitMessage =
                     Jackson.convertValue(node.get("commitMessage"), CommitMessageDto.class);
             final EntryDto file = Jackson.convertValue(node.get("file"), EntryDto.class);

@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -153,7 +153,7 @@ final class LoginService extends AbstractHttpService {
     /**
      * Returns {@link UsernamePasswordToken} which holds a username and a password.
      */
-    private UsernamePasswordToken usernamePassword(ServiceRequestContext ctx, AggregatedHttpMessage req) {
+    private UsernamePasswordToken usernamePassword(ServiceRequestContext ctx, AggregatedHttpRequest req) {
         // check the Basic HTTP authentication first (https://tools.ietf.org/html/rfc7617)
         final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(RequestHeaders.of(req.headers()));
         if (basicToken != null) {

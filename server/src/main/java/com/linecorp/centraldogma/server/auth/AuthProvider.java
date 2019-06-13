@@ -30,9 +30,9 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseHeaders;
-import com.linecorp.armeria.server.PathMapping;
+import com.linecorp.armeria.server.Route;
 import com.linecorp.armeria.server.Service;
-import com.linecorp.armeria.server.ServiceWithPathMappings;
+import com.linecorp.armeria.server.ServiceWithRoutes;
 
 /**
  * An interface which configures the authentication layer for the Central Dogma server.
@@ -66,20 +66,20 @@ public interface AuthProvider {
     String BUILTIN_WEB_LOGOUT_PATH = BUILTIN_WEB_BASE_PATH + "/logout";
 
     /**
-     * A set of {@link PathMapping}s which handles a login request. It is necessary only if
+     * A set of {@link Route}s which handles a login request. It is necessary only if
      * an authentication protocol requires a login feature provided by the server.
      */
-    Set<PathMapping> LOGIN_API_PATH_MAPPINGS =
-            ImmutableSet.of(PathMapping.ofExact(API_V0_PATH_PREFIX + "authenticate"),
-                            PathMapping.ofExact(API_V1_PATH_PREFIX + "login"));
+    Set<Route> LOGIN_API_PATH_MAPPINGS =
+            ImmutableSet.of(Route.builder().exact(API_V0_PATH_PREFIX + "authenticate").build(),
+                            Route.builder().exact(API_V1_PATH_PREFIX + "login").build());
 
     /**
-     * A set of {@link PathMapping}s which handles a logout request. It is necessary only if
+     * A set of {@link Route}s which handles a logout request. It is necessary only if
      * an authentication protocol requires a logout feature provided by the server.
      */
-    Set<PathMapping> LOGOUT_API_PATH_MAPPINGS =
-            ImmutableSet.of(PathMapping.ofExact(API_V0_PATH_PREFIX + "logout"),
-                            PathMapping.ofExact(API_V1_PATH_PREFIX + "logout"));
+    Set<Route> LOGOUT_API_PATH_MAPPINGS =
+            ImmutableSet.of(Route.builder().exact(API_V0_PATH_PREFIX + "logout").build(),
+                            Route.builder().exact(API_V1_PATH_PREFIX + "logout").build());
 
     /**
      * Returns a {@link Service} which handles a login request from a web browser. By default,
@@ -129,7 +129,7 @@ public interface AuthProvider {
      * Returns additional {@link Service}s which are required for working this {@link AuthProvider}
      * well.
      */
-    default Iterable<ServiceWithPathMappings<HttpRequest, HttpResponse>> moreServices() {
+    default Iterable<ServiceWithRoutes<HttpRequest, HttpResponse>> moreServices() {
         return ImmutableList.of();
     }
 }

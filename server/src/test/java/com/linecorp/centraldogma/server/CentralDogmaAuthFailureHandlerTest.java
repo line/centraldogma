@@ -22,7 +22,7 @@ import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
@@ -42,8 +42,8 @@ public class CentralDogmaAuthFailureHandlerTest {
 
     @Test
     public void shuttingDown() throws Exception {
-        final AggregatedHttpMessage res = handler.authFailed(delegate, ctx, req, new ShuttingDownException())
-                                                 .aggregate().join();
+        final AggregatedHttpResponse res = handler.authFailed(delegate, ctx, req, new ShuttingDownException())
+                                                  .aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(res.contentType()).isEqualTo(MediaType.JSON_UTF_8);
         assertThatJson(res.contentUtf8()).isEqualTo(
@@ -55,8 +55,8 @@ public class CentralDogmaAuthFailureHandlerTest {
 
     @Test
     public void failure() throws Exception {
-        final AggregatedHttpMessage res = handler.authFailed(delegate, ctx, req, new Exception("oops"))
-                                                 .aggregate().join();
+        final AggregatedHttpResponse res = handler.authFailed(delegate, ctx, req, new Exception("oops"))
+                                                  .aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(res.contentType()).isEqualTo(MediaType.JSON_UTF_8);
         assertThatJson(res.contentUtf8()).isEqualTo(
@@ -68,8 +68,8 @@ public class CentralDogmaAuthFailureHandlerTest {
 
     @Test
     public void incorrectToken() throws Exception {
-        final AggregatedHttpMessage res = handler.authFailed(delegate, ctx, req, null)
-                                                 .aggregate().join();
+        final AggregatedHttpResponse res = handler.authFailed(delegate, ctx, req, null)
+                                                  .aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(res.contentType()).isEqualTo(MediaType.JSON_UTF_8);
         assertThatJson(res.contentUtf8()).isEqualTo(

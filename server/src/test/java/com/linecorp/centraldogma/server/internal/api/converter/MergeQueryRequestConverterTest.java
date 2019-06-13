@@ -25,7 +25,7 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
@@ -47,7 +47,7 @@ public class MergeQueryRequestConverterTest {
         @SuppressWarnings("unchecked")
         final MergeQuery<JsonNode> mergeQuery =
                 (MergeQuery<JsonNode>) converter.convertRequest(
-                        ctx, mock(AggregatedHttpMessage.class), null);
+                        ctx, mock(AggregatedHttpRequest.class), null);
         assertThat(mergeQuery).isEqualTo(
                 MergeQuery.ofJsonPath(
                         ImmutableList.of(MergeSource.ofRequired("/foo.json"),

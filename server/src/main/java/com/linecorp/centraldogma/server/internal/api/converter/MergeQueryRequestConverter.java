@@ -22,7 +22,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.MergeQuery;
@@ -36,7 +36,7 @@ public class MergeQueryRequestConverter implements RequestConverterFunction {
 
     @Nullable
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpMessage request,
+    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
                                  Class<?> expectedResultType) throws Exception {
         final String queryString = ctx.query();
         if (queryString != null) {

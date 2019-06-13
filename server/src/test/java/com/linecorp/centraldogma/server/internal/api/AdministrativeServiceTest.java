@@ -28,7 +28,7 @@ import org.junit.Test;
 
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
@@ -53,7 +53,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void status() {
-        final AggregatedHttpMessage res = httpClient.get(API_V1_PATH_PREFIX + "status").aggregate().join();
+        final AggregatedHttpResponse res = httpClient.get(API_V1_PATH_PREFIX + "status").aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo(
                 "{ \"writable\": true, \"replicating\": true }");
@@ -61,7 +61,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void updateStatus_setUnwritable() {
-        final AggregatedHttpMessage res = httpClient.execute(
+        final AggregatedHttpResponse res = httpClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }]").aggregate().join();
@@ -73,7 +73,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void updateStatus_setUnwritableAndNonReplicating() {
-        final AggregatedHttpMessage res = httpClient.execute(
+        final AggregatedHttpResponse res = httpClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }," +
@@ -86,7 +86,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void updateStatus_setWritableAndNonReplicating() {
-        final AggregatedHttpMessage res = httpClient.execute(
+        final AggregatedHttpResponse res = httpClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }," +
@@ -97,7 +97,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void redundantUpdateStatus_Writable() {
-        final AggregatedHttpMessage res = httpClient.execute(
+        final AggregatedHttpResponse res = httpClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();
@@ -107,7 +107,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void redundantUpdateStatus_Replicating() {
-        final AggregatedHttpMessage res = httpClient.execute(
+        final AggregatedHttpResponse res = httpClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/replicating\", \"value\": true }]").aggregate().join();
@@ -120,7 +120,7 @@ public class AdministrativeServiceTest {
         // Enter read-only mode.
         updateStatus_setUnwritable();
         // Try to enter writable mode.
-        final AggregatedHttpMessage res = httpClient.execute(
+        final AggregatedHttpResponse res = httpClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();

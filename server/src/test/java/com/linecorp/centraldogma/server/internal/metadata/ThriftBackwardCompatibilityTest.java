@@ -38,7 +38,7 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
-import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -84,7 +84,7 @@ public class ThriftBackwardCompatibilityTest {
         client.push(projectName, repo1, head, author, "", new Comment("comment"),
                     ImmutableList.of(new Change("/sample.txt", ChangeType.UPSERT_TEXT).setContent("test")));
 
-        AggregatedHttpMessage res;
+        AggregatedHttpResponse res;
         res = httpClient.get(PROJECTS_PREFIX + '/' + projectName + REPOS).aggregate().join();
         final List<JsonNode> nodes = new ArrayList<>();
         Jackson.readTree(res.contentUtf8()).elements().forEachRemaining(nodes::add);
