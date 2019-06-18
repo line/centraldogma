@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,13 +14,11 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.admin.auth;
+package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.base.MoreObjects;
-
-import com.linecorp.centraldogma.server.internal.metadata.Token;
 
 /**
  * A {@link User} which accesses the API with a secret.
@@ -31,11 +29,17 @@ public class UserWithToken extends User {
 
     private final Token token;
 
+    /**
+     * Creates a new instance.
+     */
     public UserWithToken(String login, Token token) {
         super(login);
         this.token = requireNonNull(token, "token");
     }
 
+    /**
+     * Returns the {@link Token} of the user.
+     */
     public Token token() {
         return token;
     }

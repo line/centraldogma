@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -54,10 +54,16 @@ public final class Tokens {
      */
     private final Map<String, String> secrets;
 
+    /**
+     * Creates a new empty instance.
+     */
     public Tokens() {
         this(ImmutableMap.of(), ImmutableMap.of());
     }
 
+    /**
+     * Creates a new instance with the given application IDs and secrets.
+     */
     @JsonCreator
     public Tokens(@JsonProperty("appIds") Map<String, Token> appIds,
                   @JsonProperty("secrets") Map<String, String> secrets) {
@@ -65,16 +71,25 @@ public final class Tokens {
         this.secrets = requireNonNull(secrets, "secrets");
     }
 
+    /**
+     * Returns the application {@link Token}s.
+     */
     @JsonProperty
     public Map<String, Token> appIds() {
         return appIds;
     }
 
+    /**
+     * Returns the secrets.
+     */
     @JsonProperty
     public Map<String, String> secrets() {
         return secrets;
     }
 
+    /**
+     * Returns the {@link Token} that corresponds to the specified application ID.
+     */
     public Token get(String appId) {
         final Token token = getOrDefault(appId, null);
         if (token != null) {
@@ -83,6 +98,10 @@ public final class Tokens {
         throw new TokenNotFoundException("Application ID not found: " + appId);
     }
 
+    /**
+     * Returns the {@link Token} that corresponds to the specified application ID. {@code defaultValue} is
+     * returned if there's no such application.
+     */
     @Nullable
     public Token getOrDefault(String appId, @Nullable Token defaultValue) {
         requireNonNull(appId, "appId");
@@ -93,6 +112,9 @@ public final class Tokens {
         return defaultValue;
     }
 
+    /**
+     * Returns the {@link Token} that corresponds to the specified secret.
+     */
     public Token findBySecret(String secret) {
         final Token token = findBySecretOrDefault(secret, null);
         if (token != null) {
@@ -101,6 +123,10 @@ public final class Tokens {
         throw new TokenNotFoundException("Secret not found: " + secret);
     }
 
+    /**
+     * Returns the {@link Token} that corresponds to the specified secret. {@code defaultValue} is returned
+     * if there's no such secret.
+     */
     @Nullable
     public Token findBySecretOrDefault(String secret, @Nullable Token defaultValue) {
         requireNonNull(secret, "secret");
@@ -114,6 +140,9 @@ public final class Tokens {
         return defaultValue;
     }
 
+    /**
+     * Returns a new {@link Tokens} which does not contain any secrets.
+     */
     public Tokens withoutSecret() {
         final Map<String, Token> appIds =
                 appIds().values().stream()
@@ -130,10 +159,16 @@ public final class Tokens {
                           .toString();
     }
 
+    /**
+     * Returns {@code true} if the specified secret is valid.
+     */
     public static boolean isValidSecret(@Nullable String secret) {
         return secret != null && secret.startsWith(SECRET_PREFIX);
     }
 
+    /**
+     * Throws an {@link IllegalArgumentException} if the specified secret is not valid.
+     */
     public static void validateSecret(String secret) {
         checkArgument(isValidSecret(secret),
                       "invalid secret: " + secret +

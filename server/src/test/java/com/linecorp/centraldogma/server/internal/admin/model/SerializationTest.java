@@ -29,14 +29,14 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.server.internal.metadata.Member;
-import com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions;
-import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
-import com.linecorp.centraldogma.server.internal.metadata.RepositoryMetadata;
-import com.linecorp.centraldogma.server.internal.metadata.Token;
-import com.linecorp.centraldogma.server.internal.metadata.TokenRegistration;
-import com.linecorp.centraldogma.server.internal.metadata.UserAndTimestamp;
+import com.linecorp.centraldogma.server.metadata.Member;
+import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.TokenRegistration;
+import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 
 public class SerializationTest {
 

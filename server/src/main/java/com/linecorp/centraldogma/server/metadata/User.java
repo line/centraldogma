@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.admin.auth;
+package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -31,8 +31,10 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.server.internal.metadata.Identifiable;
 
+/**
+ * A user.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
 public class User implements Identifiable, Serializable {
@@ -56,6 +58,9 @@ public class User implements Identifiable, Serializable {
 
     private final boolean isAdmin;
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
     public User(@JsonProperty("login") String login,
                 @JsonProperty("name") String name,
@@ -68,10 +73,16 @@ public class User implements Identifiable, Serializable {
         isAdmin = roles.stream().anyMatch(LEVEL_ADMIN_STR::equals);
     }
 
+    /**
+     * Creates a new instance.
+     */
     public User(String login) {
         this(login, LEVEL_USER);
     }
 
+    /**
+     * Creates a new instance.
+     */
     public User(String login, List<String> roles) {
         if (Strings.isNullOrEmpty(login)) {
             throw new IllegalArgumentException("login");
@@ -86,21 +97,33 @@ public class User implements Identifiable, Serializable {
         isAdmin = roles.stream().anyMatch(LEVEL_ADMIN_STR::equals);
     }
 
+    /**
+     * Returns the login ID of the user.
+     */
     @JsonProperty
     public String login() {
         return login;
     }
 
+    /**
+     * Returns the human friendly name of the user.
+     */
     @JsonProperty
     public String name() {
         return name;
     }
 
+    /**
+     * Returns the e-mail address of the user.
+     */
     @JsonProperty
     public String email() {
         return email;
     }
 
+    /**
+     * Returns the roles of the user.
+     */
     @JsonProperty
     public List<String> roles() {
         return roles;
@@ -111,6 +134,9 @@ public class User implements Identifiable, Serializable {
         return email();
     }
 
+    /**
+     * Returns {@code true} if this user has administrative privileges.
+     */
     public boolean isAdmin() {
         return isAdmin;
     }

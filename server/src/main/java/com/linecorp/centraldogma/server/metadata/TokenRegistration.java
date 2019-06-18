@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -45,6 +45,9 @@ public class TokenRegistration implements Identifiable {
      */
     private final UserAndTimestamp creation;
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
     public TokenRegistration(@JsonProperty("appId") String appId,
                              @JsonProperty("role") ProjectRole role,
@@ -59,16 +62,25 @@ public class TokenRegistration implements Identifiable {
         return appId;
     }
 
+    /**
+     * Returns the ID of the application.
+     */
     @JsonProperty
     public String appId() {
         return appId;
     }
 
+    /**
+     * Returns the role of the token in a project.
+     */
     @JsonProperty
     public ProjectRole role() {
         return role;
     }
 
+    /**
+     * Returns who creates the token when.
+     */
     @JsonProperty
     public UserAndTimestamp creation() {
         return creation;

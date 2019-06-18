@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -33,6 +33,9 @@ import io.netty.util.AttributeKey;
  */
 public final class MetadataServiceInjector extends SimpleDecoratingService<HttpRequest, HttpResponse> {
 
+    /**
+     * Returns a newly created {@link Service} decorator from the specified {@link MetadataService}.
+     */
     public static Function<Service<HttpRequest, HttpResponse>,
             MetadataServiceInjector> newDecorator(MetadataService mds) {
         requireNonNull(mds, "mds");
@@ -44,7 +47,7 @@ public final class MetadataServiceInjector extends SimpleDecoratingService<HttpR
 
     private final MetadataService mds;
 
-    public MetadataServiceInjector(Service<HttpRequest, HttpResponse> delegate, MetadataService mds) {
+    private MetadataServiceInjector(Service<HttpRequest, HttpResponse> delegate, MetadataService mds) {
         super(delegate);
         this.mds = requireNonNull(mds, "mds");
     }

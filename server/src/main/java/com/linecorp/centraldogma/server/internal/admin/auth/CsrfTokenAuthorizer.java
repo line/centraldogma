@@ -26,6 +26,7 @@ import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.auth.OAuth2Token;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.centraldogma.internal.CsrfToken;
+import com.linecorp.centraldogma.server.metadata.User;
 
 /**
  * A decorator which checks whether CSRF token exists.

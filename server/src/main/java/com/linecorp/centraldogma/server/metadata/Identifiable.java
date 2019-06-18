@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,18 +14,15 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 /**
- * Permission for accessing a repository.
+ * An interface which provides an identifier of an object.
  */
-public enum Permission {
+public interface Identifiable {
+
     /**
-     * Able to read a file from a repository.
+     * Returns the {@link String}-formatted identifier.
      */
-    READ,
-    /**
-     * Able to write a file to a repository.
-     */
-    WRITE
+    String id();
 }

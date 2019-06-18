@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -24,7 +24,6 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**
@@ -47,14 +46,23 @@ public class Member implements Identifiable {
      */
     private final UserAndTimestamp creation;
 
+    /**
+     * Creates a new instance.
+     */
     public Member(User user, ProjectRole role, UserAndTimestamp creation) {
         this(requireNonNull(user, "user").id(), role, creation);
     }
 
+    /**
+     * Creates a new instance.
+     */
     public Member(Author author, ProjectRole role, UserAndTimestamp creation) {
         this(requireNonNull(author, "author").email(), role, creation);
     }
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
     public Member(@JsonProperty("login") String login,
                   @JsonProperty("role") ProjectRole role,
@@ -69,16 +77,25 @@ public class Member implements Identifiable {
         return login;
     }
 
+    /**
+     * Returns the login name.
+     */
     @JsonProperty
     public String login() {
         return login;
     }
 
+    /**
+     * Returns the role in a certain project.
+     */
     @JsonProperty
     public ProjectRole role() {
         return role;
     }
 
+    /**
+     * Returns who added this member to a project when.
+     */
     @JsonProperty
     public UserAndTimestamp creation() {
         return creation;

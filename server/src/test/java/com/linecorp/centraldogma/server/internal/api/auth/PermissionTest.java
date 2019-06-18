@@ -16,9 +16,9 @@
 
 package com.linecorp.centraldogma.server.internal.api.auth;
 
-import static com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions.NO_PERMISSION;
-import static com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions.READ_ONLY;
-import static com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions.READ_WRITE;
+import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.NO_PERMISSION;
+import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_ONLY;
+import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.EnumSet;
@@ -55,14 +55,14 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.HttpApiExceptionHandler;
-import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
-import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
-import com.linecorp.centraldogma.server.internal.metadata.MigrationUtil;
-import com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions;
-import com.linecorp.centraldogma.server.internal.metadata.Permission;
-import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
+import com.linecorp.centraldogma.server.metadata.MigrationUtil;
+import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
+import com.linecorp.centraldogma.server.metadata.Permission;
+import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 @RunWith(Parameterized.class)

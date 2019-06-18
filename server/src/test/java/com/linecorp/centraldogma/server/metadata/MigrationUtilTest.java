@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,14 +14,14 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
-import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
-import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.TOKEN_JSON;
-import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_JSON;
-import static com.linecorp.centraldogma.server.internal.metadata.MigrationUtil.LEGACY_TOKEN_REPO;
-import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
+import static com.linecorp.centraldogma.server.metadata.MetadataService.TOKEN_JSON;
+import static com.linecorp.centraldogma.server.metadata.MigrationUtil.LEGACY_TOKEN_JSON;
+import static com.linecorp.centraldogma.server.metadata.MigrationUtil.LEGACY_TOKEN_REPO;
+import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.storage.project.Project.REPO_DOGMA;
 import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,7 +49,6 @@ import com.linecorp.centraldogma.server.command.CreateProjectCommand;
 import com.linecorp.centraldogma.server.command.ForwardingCommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.LegacyToken;
-import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;

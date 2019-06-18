@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.metadata.User;
 
 import io.netty.util.AttributeKey;
 

@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
-import static com.linecorp.centraldogma.server.internal.admin.auth.User.LEVEL_ADMIN;
-import static com.linecorp.centraldogma.server.internal.admin.auth.User.LEVEL_USER;
+import static com.linecorp.centraldogma.server.metadata.User.LEVEL_ADMIN;
+import static com.linecorp.centraldogma.server.metadata.User.LEVEL_USER;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
@@ -34,6 +34,7 @@ import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.auth.OAuth2Token;
 import com.linecorp.centraldogma.server.auth.SessionManager;
+import com.linecorp.centraldogma.server.metadata.User;
 
 /**
  * A decorator to check whether the request holds a valid token. If it holds a valid token, this
