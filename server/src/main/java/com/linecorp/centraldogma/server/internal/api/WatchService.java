@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -85,13 +86,19 @@ public final class WatchService {
      */
     public CompletableFuture<Revision> watchRepository(Repository repo, Revision lastKnownRevision,
                                                        String pathPattern, long timeoutMillis) {
+        final ServiceRequestContext ctx = RequestContext.current();
+        updateRequestTimeout(ctx, timeoutMillis);
         final CompletableFuture<Revision> result = repo.watch(lastKnownRevision, pathPattern);
         if (result.isDone()) {
             return result;
         }
 
-        scheduleTimeout(result, timeoutMillis);
+        scheduleTimeout(ctx, result, timeoutMillis);
         return result;
+    }
+
+    private static void updateRequestTimeout(ServiceRequestContext ctx, long timeoutMillis) {
+        ctx.setRequestTimeoutMillis(WatchTimeout.makeReasonable(timeoutMillis, ctx.requestTimeoutMillis()));
     }
 
     /**
@@ -102,29 +109,29 @@ public final class WatchService {
      */
     public <T> CompletableFuture<Entry<T>> watchFile(Repository repo, Revision lastKnownRevision,
                                                      Query<T> query, long timeoutMillis) {
+        final ServiceRequestContext ctx = RequestContext.current();
+        updateRequestTimeout(ctx, timeoutMillis);
         final CompletableFuture<Entry<T>> result = repo.watch(lastKnownRevision, query);
         if (result.isDone()) {
             return result;
         }
 
-        scheduleTimeout(result, timeoutMillis);
+        scheduleTimeout(ctx, result, timeoutMillis);
         return result;
     }
 
-    private <T> void scheduleTimeout(CompletableFuture<T> result, long timeoutMillis) {
+    private <T> void scheduleTimeout(ServiceRequestContext ctx, CompletableFuture<T> result,
+                                     long timeoutMillis) {
         pendingFutures.add(result);
 
-        final RequestContext ctx;
         final ScheduledFuture<?> timeoutFuture;
         final long watchTimeoutMillis;
         if (timeoutMillis > 0) {
             watchTimeoutMillis = applyJitter(WatchTimeout.makeReasonable(timeoutMillis));
-            ctx = RequestContext.current();
             timeoutFuture = ctx.eventLoop().schedule(() -> result.completeExceptionally(CANCELLATION_EXCEPTION),
                                                      watchTimeoutMillis, TimeUnit.MILLISECONDS);
         } else {
             watchTimeoutMillis = 0;
-            ctx = null;
             timeoutFuture = null;
         }
 
