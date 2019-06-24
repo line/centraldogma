@@ -20,10 +20,13 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.Objects;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.Sets;
 
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -60,51 +63,63 @@ public class PerRolePermissions {
     /**
      * {@link Permission}s for a {@link ProjectRole#OWNER}.
      */
-    private final Collection<Permission> owner;
+    private final Set<Permission> owner;
 
     /**
      * {@link Permission}s for a {@link ProjectRole#MEMBER}.
      */
-    private final Collection<Permission> member;
+    private final Set<Permission> member;
 
     /**
      * {@link Permission}s for a {@link ProjectRole#GUEST}.
      */
-    private final Collection<Permission> guest;
+    private final Set<Permission> guest;
 
     /**
      * Creates an instance.
      */
     @JsonCreator
-    public PerRolePermissions(@JsonProperty("owner") Collection<Permission> owner,
-                              @JsonProperty("member") Collection<Permission> member,
-                              @JsonProperty("guest") Collection<Permission> guest) {
-        this.owner = copyOf(requireNonNull(owner, "owner"));
-        this.member = copyOf(requireNonNull(member, "member"));
-        this.guest = copyOf(requireNonNull(guest, "guest"));
-    }
-
-    private static EnumSet<Permission> copyOf(Collection<Permission> input) {
-        // Avoid IllegalArgumentException raised from EnumSet.copyOf() when the input is empty.
-        if (input.isEmpty()) {
-            return EnumSet.noneOf(Permission.class);
-        }
-        return EnumSet.copyOf(input);
+    public PerRolePermissions(@JsonProperty("owner") Iterable<Permission> owner,
+                              @JsonProperty("member") Iterable<Permission> member,
+                              @JsonProperty("guest") Iterable<Permission> guest) {
+        this.owner = Sets.immutableEnumSet(requireNonNull(owner, "owner"));
+        this.member = Sets.immutableEnumSet(requireNonNull(member, "member"));
+        this.guest = Sets.immutableEnumSet(requireNonNull(guest, "guest"));
     }
 
     @JsonProperty
-    public Collection<Permission> owner() {
+    public Set<Permission> owner() {
         return owner;
     }
 
     @JsonProperty
-    public Collection<Permission> member() {
+    public Set<Permission> member() {
         return member;
     }
 
     @JsonProperty
-    public Collection<Permission> guest() {
+    public Set<Permission> guest() {
         return guest;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(owner, member, guest);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        final PerRolePermissions that = (PerRolePermissions) o;
+        return owner.equals(that.owner) &&
+               member.equals(that.member) &&
+               guest.equals(that.guest);
     }
 
     @Override

@@ -26,12 +26,17 @@ import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
@@ -55,6 +60,8 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
  * A service class for metadata management.
  */
 public class MetadataService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MetadataService.class);
 
     /**
      * A path of metadata file.
@@ -95,6 +102,40 @@ public class MetadataService {
     }
 
     private CompletableFuture<HolderWithRevision<ProjectMetadata>> fetchMetadata(String projectName) {
+        return fetchMetadata0(projectName).thenCompose(holder -> {
+            final Set<String> repos = projectManager.get(projectName).repos().list().keySet();
+            final Set<String> reposWithMetadata = holder.object().repos().keySet();
+
+            // Make sure all repositories have metadata. If not, create missing metadata.
+            // A repository can have missing metadata when a dev forgot to call `addRepo()`
+            // after creating a new repository.
+            final ImmutableList.Builder<CompletableFuture<Revision>> builder = ImmutableList.builder();
+            for (String repo : repos) {
+                if (reposWithMetadata.contains(repo) ||
+                    repo.equals(Project.REPO_DOGMA)) {
+                    continue;
+                }
+
+                logger.warn("Adding missing repository metadata: {}/{}", projectName, repo);
+                builder.add(addRepo(Author.SYSTEM, projectName, repo));
+            }
+
+            final ImmutableList<CompletableFuture<Revision>> futures = builder.build();
+            if (futures.isEmpty()) {
+                // All repositories have metadata.
+                return CompletableFuture.completedFuture(holder);
+            }
+
+            // Some repository did not have metadata and thus will add the missing ones.
+            return CompletableFutures.allAsList(futures).thenCompose(unused -> {
+                logger.info("Fetching {}/{}{} again",
+                            projectName, Project.REPO_DOGMA, METADATA_JSON);
+                return fetchMetadata0(projectName);
+            });
+        });
+    }
+
+    private CompletableFuture<HolderWithRevision<ProjectMetadata>> fetchMetadata0(String projectName) {
         return metadataRepo.fetch(projectName, Project.REPO_DOGMA, METADATA_JSON);
     }
 
