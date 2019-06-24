@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -72,12 +72,15 @@ public class RepositoryMetadata implements Identifiable {
     private final UserAndTimestamp removal;
 
     /**
-     * Creates a new repository with default properties.
+     * Creates a new instance with default properties.
      */
     public RepositoryMetadata(String name, UserAndTimestamp creation, PerRolePermissions perRolePermissions) {
         this(name, perRolePermissions, ImmutableMap.of(), ImmutableMap.of(), creation, null);
     }
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
     public RepositoryMetadata(@JsonProperty("name") String name,
                               @JsonProperty("perRolePermissions") PerRolePermissions perRolePermissions,
@@ -102,31 +105,49 @@ public class RepositoryMetadata implements Identifiable {
         return name;
     }
 
+    /**
+     * Returns the repository name.
+     */
     @JsonProperty
     public String name() {
         return name;
     }
 
+    /**
+     * Returns the {@link PerRolePermissions} of this repository.
+     */
     @JsonProperty
     public PerRolePermissions perRolePermissions() {
         return perRolePermissions;
     }
 
+    /**
+     * Returns the per-user {@link Permission}s of this repository.
+     */
     @JsonProperty
     public Map<String, Collection<Permission>> perUserPermissions() {
         return perUserPermissions;
     }
 
+    /**
+     * Returns the per-token {@link Permission}s of this repository.
+     */
     @JsonProperty
     public Map<String, Collection<Permission>> perTokenPermissions() {
         return perTokenPermissions;
     }
 
+    /**
+     * Returns who created this repository when.
+     */
     @JsonProperty
     public UserAndTimestamp creation() {
         return creation;
     }
 
+    /**
+     * Returns who removed this repository when.
+     */
     @Nullable
     @JsonProperty
     public UserAndTimestamp removal() {

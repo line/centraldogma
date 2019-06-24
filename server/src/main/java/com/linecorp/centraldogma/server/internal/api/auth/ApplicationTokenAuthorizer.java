@@ -36,9 +36,9 @@ import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.auth.OAuth2Token;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
-import com.linecorp.centraldogma.server.internal.admin.auth.UserWithToken;
-import com.linecorp.centraldogma.server.internal.metadata.Token;
-import com.linecorp.centraldogma.server.internal.metadata.Tokens;
+import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.Tokens;
+import com.linecorp.centraldogma.server.metadata.UserWithToken;
 
 /**
  * A decorator which finds an application token from a request and validates it.

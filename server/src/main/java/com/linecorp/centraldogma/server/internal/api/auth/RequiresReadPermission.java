@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresPermissionDecorator.RequiresReadPermissionDecoratorFactory;
-import com.linecorp.centraldogma.server.internal.metadata.Permission;
+import com.linecorp.centraldogma.server.metadata.Permission;
 
 /**
  * A {@link Decorator} to allow a request from a user who has a read {@link Permission}.

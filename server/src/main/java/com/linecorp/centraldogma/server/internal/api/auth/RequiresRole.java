@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactory;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRoleDecorator.RequiresRoleDecoratorFactory;
-import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.metadata.ProjectRole;
 
 /**
  * A {@link Decorator} which allows a request from a user granted the specified roles.

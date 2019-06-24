@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -68,6 +68,9 @@ public final class Token implements Identifiable {
         this(appId, secret, isAdmin, creation, null);
     }
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
     public Token(@JsonProperty("appId") String appId,
                  @JsonProperty("secret") String secret,
@@ -95,33 +98,51 @@ public final class Token implements Identifiable {
         return appId;
     }
 
+    /**
+     * Returns the ID of the application.
+     */
     @JsonProperty
     public String appId() {
         return appId;
     }
 
+    /**
+     * Returns the secret.
+     */
     @Nullable
     @JsonProperty
     public String secret() {
         return secret;
     }
 
+    /**
+     * Returns whether this token has administrative privileges.
+     */
     @JsonProperty
     public boolean isAdmin() {
         return isAdmin;
     }
 
+    /**
+     * Returns who created this token when.
+     */
     @JsonProperty
     public UserAndTimestamp creation() {
         return creation;
     }
 
+    /**
+     * Returns who deactivated this token when.
+     */
     @Nullable
     @JsonProperty
     public UserAndTimestamp deactivation() {
         return deactivation;
     }
 
+    /**
+     * Returns whether this token is activated.
+     */
     @JsonIgnore
     public boolean isActive() {
         return deactivation == null;

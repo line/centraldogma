@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -34,15 +34,29 @@ import com.linecorp.centraldogma.common.Author;
  */
 public final class UserAndTimestamp {
 
+    /**
+     * Creates a new instance using the specified {@link Author}'s e-mail address as a user name and
+     * the current time as a timestamp.
+     */
+    public static UserAndTimestamp of(Author author) {
+        return new UserAndTimestamp(requireNonNull(author, "author").email());
+    }
+
     private final String user;
     private final Instant timestamp;
     @Nullable
     private String timestampAsText;
 
+    /**
+     * Creates a new instance using the current time as a timestamp.
+     */
     public UserAndTimestamp(String user) {
         this(user, Instant.now());
     }
 
+    /**
+     * Creates a new instance.
+     */
     public UserAndTimestamp(String user, Instant timestamp) {
         this.user = requireNonNull(user, "user");
         this.timestamp = requireNonNull(timestamp, "timestamp");
@@ -98,9 +112,5 @@ public final class UserAndTimestamp {
                           .add("user", user())
                           .add("timestamp", timestamp())
                           .toString();
-    }
-
-    public static UserAndTimestamp of(Author author) {
-        return new UserAndTimestamp(requireNonNull(author, "author").email());
     }
 }

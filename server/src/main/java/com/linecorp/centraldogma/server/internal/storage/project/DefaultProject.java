@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.storage.project;
 
-import static com.linecorp.centraldogma.server.internal.metadata.MetadataService.METADATA_JSON;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -41,16 +41,16 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.server.internal.metadata.Member;
-import com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions;
-import com.linecorp.centraldogma.server.internal.metadata.ProjectMetadata;
-import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
-import com.linecorp.centraldogma.server.internal.metadata.RepositoryMetadata;
-import com.linecorp.centraldogma.server.internal.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
+import com.linecorp.centraldogma.server.metadata.Member;
+import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
+import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
+import com.linecorp.centraldogma.server.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;

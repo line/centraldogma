@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,15 +14,15 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
-import static com.linecorp.centraldogma.server.internal.metadata.RepositorySupport.convertWithJackson;
-import static com.linecorp.centraldogma.server.internal.metadata.Tokens.SECRET_PREFIX;
-import static com.linecorp.centraldogma.server.internal.metadata.Tokens.validateSecret;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
+import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
+import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -47,9 +47,6 @@ import com.linecorp.centraldogma.internal.jsonpatch.RemoveOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.admin.auth.User;
-import com.linecorp.centraldogma.server.internal.admin.auth.UserWithToken;
-import com.linecorp.centraldogma.server.internal.api.AbstractService;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -57,7 +54,7 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 /**
  * A service class for metadata management.
  */
-public class MetadataService extends AbstractService {
+public class MetadataService {
 
     /**
      * A path of metadata file.
@@ -74,11 +71,15 @@ public class MetadataService extends AbstractService {
      */
     private static final JsonPointer PROJECT_REMOVAL = JsonPointer.compile("/removal");
 
+    private final ProjectManager projectManager;
     private final RepositorySupport<ProjectMetadata> metadataRepo;
     private final RepositorySupport<Tokens> tokenRepo;
 
+    /**
+     * Creates a new instance.
+     */
     public MetadataService(ProjectManager projectManager, CommandExecutor executor) {
-        super(projectManager, executor);
+        this.projectManager = requireNonNull(projectManager, "projectManager");
         metadataRepo = new RepositorySupport<>(projectManager, executor,
                                                entry -> convertWithJackson(entry, ProjectMetadata.class));
         tokenRepo = new RepositorySupport<>(projectManager, executor,
@@ -747,7 +748,7 @@ public class MetadataService extends AbstractService {
         requireNonNull(appId, "appId");
 
         // Remove the token from every project.
-        final Collection<Project> projects = new SafeProjectManager(projectManager()).list().values();
+        final Collection<Project> projects = new SafeProjectManager(projectManager).list().values();
         final CompletableFuture<?>[] futures = new CompletableFuture<?>[projects.size()];
         int i = 0;
         for (final Project p : projects) {

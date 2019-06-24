@@ -28,10 +28,10 @@ import org.junit.Test;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.internal.admin.auth.User;
-import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
-import com.linecorp.centraldogma.server.internal.metadata.MigrationUtil;
-import com.linecorp.centraldogma.server.internal.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.MigrationUtil;
+import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
 
 import io.netty.util.internal.StringUtil;

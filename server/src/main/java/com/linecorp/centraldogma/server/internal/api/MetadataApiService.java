@@ -46,13 +46,13 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
-import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
-import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
-import com.linecorp.centraldogma.server.internal.metadata.PerRolePermissions;
-import com.linecorp.centraldogma.server.internal.metadata.Permission;
-import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
-import com.linecorp.centraldogma.server.internal.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
+import com.linecorp.centraldogma.server.metadata.Permission;
+import com.linecorp.centraldogma.server.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.User;
 
 /**
  * Annotated service object for managing metadata of projects.

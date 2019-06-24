@@ -59,8 +59,8 @@ import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.WatchService;
-import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.metadata;
+package com.linecorp.centraldogma.server.metadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -71,6 +71,9 @@ public class ProjectMetadata implements Identifiable {
     @Nullable
     private final UserAndTimestamp removal;
 
+    /**
+     * Creates a new instance.
+     */
     @JsonCreator
     public ProjectMetadata(@JsonProperty("name") String name,
                            @JsonProperty("repos") Map<String, RepositoryMetadata> repos,
@@ -91,37 +94,58 @@ public class ProjectMetadata implements Identifiable {
         return name;
     }
 
+    /**
+     * Returns the project name.
+     */
     @JsonProperty
     public String name() {
         return name;
     }
 
+    /**
+     * Returns the metadata of the repositories in this project.
+     */
     @JsonProperty
     public Map<String, RepositoryMetadata> repos() {
         return repos;
     }
 
+    /**
+     * Returns the {@link Member}s of this project.
+     */
     @JsonProperty
     public Map<String, Member> members() {
         return members;
     }
 
+    /**
+     * Returns the {@link TokenRegistration}s of this project.
+     */
     @JsonProperty
     public Map<String, TokenRegistration> tokens() {
         return tokens;
     }
 
+    /**
+     * Returns who created this project when.
+     */
     @JsonProperty
     public UserAndTimestamp creation() {
         return creation;
     }
 
+    /**
+     * Returns who removed this project when.
+     */
     @Nullable
     @JsonProperty
     public UserAndTimestamp removal() {
         return removal;
     }
 
+    /**
+     * Returns the {@link RepositoryMetadata} of the specified repository in this project.
+     */
     public RepositoryMetadata repo(String repoName) {
         final RepositoryMetadata repositoryMetadata =
                 repos.get(requireNonNull(repoName, "repoName"));
@@ -131,6 +155,9 @@ public class ProjectMetadata implements Identifiable {
         throw new RepositoryNotFoundException(repoName);
     }
 
+    /**
+     * Returns the {@link Member} of the specified ID in this project.
+     */
     public Member member(String memberId) {
         final Member member = memberOrDefault(memberId, null);
         if (member != null) {
@@ -139,6 +166,10 @@ public class ProjectMetadata implements Identifiable {
         throw new EntryNotFoundException(memberId);
     }
 
+    /**
+     * Returns the {@link Member} of the specified ID in this project.
+     * {@code defaultMember} is returned if there is no such member.
+     */
     @Nullable
     public Member memberOrDefault(String memberId, @Nullable Member defaultMember) {
         final Member member = members.get(requireNonNull(memberId, "memberId"));

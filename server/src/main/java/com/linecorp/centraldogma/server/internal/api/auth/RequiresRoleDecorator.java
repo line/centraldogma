@@ -37,11 +37,11 @@ import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
-import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
-import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
-import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
-import com.linecorp.centraldogma.server.internal.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
+import com.linecorp.centraldogma.server.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.metadata.User;
 
 /**
  * A decorator for checking the project role of the user sent a request.

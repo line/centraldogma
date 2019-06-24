@@ -35,11 +35,11 @@ import com.linecorp.armeria.server.SimpleDecoratingService;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
-import com.linecorp.centraldogma.server.internal.admin.auth.User;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
-import com.linecorp.centraldogma.server.internal.metadata.MetadataService;
-import com.linecorp.centraldogma.server.internal.metadata.MetadataServiceInjector;
-import com.linecorp.centraldogma.server.internal.metadata.Permission;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
+import com.linecorp.centraldogma.server.metadata.Permission;
+import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
 /**

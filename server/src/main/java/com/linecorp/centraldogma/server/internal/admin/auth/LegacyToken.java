@@ -30,7 +30,8 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.server.internal.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.User;
 
 /**
  * Specifies details of an application token.
