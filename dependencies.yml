@@ -135,6 +135,9 @@ io.micrometer:
     javadocs:
     - https://static.javadoc.io/io.micrometer/micrometer-registry-prometheus/1.1.4/
 
+javax.annotation:
+  javax.annotation-api: { version: '1.3.2' }
+
 javax.inject:
   javax.inject: { version: '1' }
 
