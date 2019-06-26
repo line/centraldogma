@@ -18,12 +18,12 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -101,7 +101,7 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     }
 
     @Override
-    public Set<String> listRemoved() {
+    public Map<String, Instant> listRemoved() {
         return delegate.listRemoved();
     }
 
@@ -117,6 +117,19 @@ public class RepositoryManagerWrapper implements RepositoryManager {
     public Repository unremove(String name) {
         ensureOpen();
         return repos.computeIfAbsent(name, n -> repoWrapper.apply(delegate.unremove(n)));
+    }
+
+    @Override
+    public void purgeMarked() {
+        delegate.purgeMarked();
+    }
+
+    @Override
+    public void markForPurge(String name) {
+        repos.compute(name, (n, v) -> {
+            delegate.markForPurge(name);
+            return null;
+        });
     }
 
     @Override

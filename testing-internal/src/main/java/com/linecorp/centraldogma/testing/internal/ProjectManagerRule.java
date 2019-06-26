@@ -17,7 +17,9 @@
 package com.linecorp.centraldogma.testing.internal;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
@@ -29,6 +31,8 @@ import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * JUnit {@link Rule} that starts a {@link ProjectManager}.
@@ -50,6 +54,7 @@ public class ProjectManagerRule extends TemporaryFolder {
 
     private ProjectManager projectManager;
     private CommandExecutor executor;
+    private ScheduledExecutorService purgeWorker;
 
     /**
      * Returns a {@link ProjectManager}.
@@ -66,6 +71,13 @@ public class ProjectManagerRule extends TemporaryFolder {
     }
 
     /**
+     * Returns a {@link ScheduledExecutorService} to purge a project.
+     */
+    public ScheduledExecutorService purgeWorker() {
+        return purgeWorker;
+    }
+
+    /**
      * Configures an {@link Executor}, {@link ProjectManager} and {@link CommandExecutor}, then starts the
      * {@link CommandExecutor} and initializes internal projects.
      */
@@ -73,9 +85,11 @@ public class ProjectManagerRule extends TemporaryFolder {
     protected final void before() throws Throwable {
         super.before();
 
-        final Executor worker = newWorker();
-        projectManager = newProjectManager(worker);
-        executor = newCommandExecutor(projectManager, worker);
+        final Executor repositoryWorker = newWorker();
+        purgeWorker = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("purge-worker", true));
+        projectManager = newProjectManager(repositoryWorker, purgeWorker);
+        executor = newCommandExecutor(projectManager, repositoryWorker);
 
         executor.start().get();
         ProjectInitializer.initializeInternalProject(executor);
@@ -98,9 +112,11 @@ public class ProjectManagerRule extends TemporaryFolder {
     /**
      * Override this method to customize a {@link ProjectManager}.
      */
-    protected ProjectManager newProjectManager(Executor worker) {
+    protected ProjectManager newProjectManager(Executor repositoryWorker,
+                                               Executor purgeWorker) {
         try {
-            return new DefaultProjectManager(newFolder(), worker, NoopMeterRegistry.get(), null);
+            return new DefaultProjectManager(newFolder(), repositoryWorker, purgeWorker,
+                                             NoopMeterRegistry.get(), null);
         } catch (Exception e) {
             // Should not reach here.
             throw new Error(e);
@@ -121,6 +137,7 @@ public class ProjectManagerRule extends TemporaryFolder {
     protected void after() {
         super.after();
         executor.stop();
+        purgeWorker.shutdownNow();
         projectManager.close(ShuttingDownException::new);
     }
 }

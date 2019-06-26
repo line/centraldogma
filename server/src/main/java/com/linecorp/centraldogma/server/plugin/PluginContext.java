@@ -17,6 +17,8 @@ package com.linecorp.centraldogma.server.plugin;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -34,6 +36,7 @@ public final class PluginContext {
     private final ProjectManager projectManager;
     private final CommandExecutor commandExecutor;
     private final MeterRegistry meterRegistry;
+    private final ScheduledExecutorService purgeWorker;
 
     /**
      * Creates a new instance.
@@ -42,15 +45,18 @@ public final class PluginContext {
      * @param projectManager the instance which has the operations for the {@link Project}s
      * @param commandExecutor the executor which executes the {@link Command}s
      * @param meterRegistry the {@link MeterRegistry} of the Central Dogma server
+     * @param purgeWorker the {@link ScheduledExecutorService} for the purging service
      */
     public PluginContext(CentralDogmaConfig config,
                          ProjectManager projectManager,
                          CommandExecutor commandExecutor,
-                         MeterRegistry meterRegistry) {
+                         MeterRegistry meterRegistry,
+                         ScheduledExecutorService purgeWorker) {
         this.config = requireNonNull(config, "config");
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+        this.purgeWorker = purgeWorker;
     }
 
     /**
@@ -79,5 +85,12 @@ public final class PluginContext {
      */
     public MeterRegistry meterRegistry() {
         return meterRegistry;
+    }
+
+    /**
+     * Returns the {@link ScheduledExecutorService} of {@code purgeWorker}.
+     */
+    public ScheduledExecutorService purgeWorker() {
+        return purgeWorker;
     }
 }

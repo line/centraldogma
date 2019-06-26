@@ -130,6 +130,11 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     }
 
     @Override
+    public void purgeProject(String name, AsyncMethodCallback resultHandler) {
+        handleAsVoidResult(executor.execute(Command.purgeProject(SYSTEM, name)), resultHandler);
+    }
+
+    @Override
     public void unremoveProject(String name, AsyncMethodCallback resultHandler) {
         // Restore the project first then update its metadata as 'active'.
         handleAsVoidResult(executor.execute(Command.unremoveProject(SYSTEM, name))
@@ -150,7 +155,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void listRemovedProjects(AsyncMethodCallback resultHandler) {
-        handle(projectManager::listRemoved, resultHandler);
+        handle(() -> projectManager.listRemoved().keySet(), resultHandler);
     }
 
     @Override
@@ -180,6 +185,13 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     }
 
     @Override
+    public void purgeRepository(String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
+        handleAsVoidResult(executor.execute(Command.purgeRepository(SYSTEM, projectName, repositoryName))
+                                   .thenCompose(unused -> mds.purgeRepo(SYSTEM, projectName, repositoryName)),
+                           resultHandler);
+    }
+
+    @Override
     public void unremoveRepository(String projectName, String repositoryName,
                                    AsyncMethodCallback resultHandler) {
         handleAsVoidResult(executor.execute(Command.unremoveRepository(SYSTEM, projectName, repositoryName))
@@ -197,7 +209,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
     @Override
     public void listRemovedRepositories(String projectName, AsyncMethodCallback resultHandler) {
-        handle(() -> projectManager.get(projectName).repos().listRemoved(), resultHandler);
+        handle(() -> projectManager.get(projectName).repos().listRemoved().keySet(), resultHandler);
     }
 
     @Override

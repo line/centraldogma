@@ -19,10 +19,10 @@ package com.linecorp.centraldogma.server.internal.storage.project;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Supplier;
 
 import com.linecorp.centraldogma.common.Author;
@@ -78,7 +78,7 @@ public class SafeProjectManager implements ProjectManager {
     }
 
     @Override
-    public Set<String> listRemoved() {
+    public Map<String, Instant> listRemoved() {
         return delegate().listRemoved();
     }
 
@@ -92,6 +92,17 @@ public class SafeProjectManager implements ProjectManager {
     public Project unremove(String name) {
         validateProjectName(name);
         return delegate().unremove(name);
+    }
+
+    @Override
+    public void purgeMarked() {
+        delegate().purgeMarked();
+    }
+
+    @Override
+    public void markForPurge(String name) {
+        validateProjectName(name);
+        delegate().markForPurge(name);
     }
 
     @Override

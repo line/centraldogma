@@ -196,7 +196,8 @@ public class MetadataService {
                 Change.ofJsonPatch(METADATA_JSON,
                                    asJsonArray(new TestAbsenceOperation(path),
                                                new AddOperation(path, Jackson.valueToTree(newMember))));
-        final String commitSummary = "Add a member '" + newMember.id() + "' to the project " + projectName;
+        final String commitSummary =
+                "Add a member '" + newMember.id() + "' to the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
@@ -210,7 +211,8 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(member, "member");
 
-        final String commitSummary = "Remove the member '" + member.id() + "' from the project " + projectName;
+        final String commitSummary =
+                "Remove the member '" + member.id() + "' from the project '" + projectName + '\'';
         return metadataRepo.push(
                 projectName, Project.REPO_DOGMA, author, commitSummary,
                 () -> fetchMetadata(projectName).thenApply(
@@ -245,7 +247,7 @@ public class MetadataService {
                 new ReplaceOperation(JsonPointer.compile("/members" + encodeSegment(member.id()) + "/role"),
                                      Jackson.valueToTree(projectRole)).toJsonNode());
         final String commitSummary = "Updates the role of the member '" + member.id() +
-                                     "' as '" + projectRole + "' for the project " + projectName;
+                                     "' as '" + projectRole + "' for the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
@@ -289,7 +291,7 @@ public class MetadataService {
                                                new AddOperation(path,
                                                                 Jackson.valueToTree(newRepositoryMetadata))));
         final String commitSummary =
-                "Add a repo '" + newRepositoryMetadata.id() + "' to the project " + projectName;
+                "Add a repo '" + newRepositoryMetadata.id() + "' to the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change)
                            .handle((revision, cause) -> {
                                if (cause != null) {
@@ -318,7 +320,25 @@ public class MetadataService {
                                    asJsonArray(new TestAbsenceOperation(path),
                                                new AddOperation(path, Jackson.valueToTree(
                                                        UserAndTimestamp.of(author)))));
-        final String commitSummary = "Remove the repo '" + repoName + "' from the project " + projectName;
+        final String commitSummary =
+                "Remove the repo '" + repoName + "' from the project '" + projectName + '\'';
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
+    }
+
+    /**
+     * Purge a {@link RepositoryMetadata} of the specified {@code repoName} from the specified
+     * {@code projectName}.
+     */
+    public CompletableFuture<Revision> purgeRepo(Author author, String projectName, String repoName) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+
+        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName));
+        final Change<JsonNode> change = Change.ofJsonPatch(METADATA_JSON,
+                                                           new RemoveOperation(path).toJsonNode());
+        final String commitSummary =
+                "Purge the repo '" + repoName + "' from the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
@@ -335,7 +355,8 @@ public class MetadataService {
                 Change.ofJsonPatch(METADATA_JSON,
                                    new RemoveOperation(JsonPointer.compile(
                                            "/repos" + encodeSegment(repoName) + "/removal")).toJsonNode());
-        final String commitSummary = "Restore the repo '" + repoName + "' from the project " + projectName;
+        final String commitSummary =
+                "Restore the repo '" + repoName + "' from the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
@@ -357,8 +378,8 @@ public class MetadataService {
                 Change.ofJsonPatch(METADATA_JSON,
                                    new ReplaceOperation(path, Jackson.valueToTree(perRolePermissions))
                                            .toJsonNode());
-        final String commitSummary = "Update the role permission of the '" + repoName +
-                                     "' in the project " + projectName;
+        final String commitSummary =
+                "Update the role permission of the '" + repoName + "' in the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
@@ -392,7 +413,7 @@ public class MetadataService {
                                        asJsonArray(new TestAbsenceOperation(path),
                                                    new AddOperation(path, Jackson.valueToTree(registration))));
             final String commitSummary = "Add a token '" + registration.id() +
-                                         "' to the project " + projectName + " with a role '" + role + '\'';
+                                         "' to the project '" + projectName + "' with a role '" + role + '\'';
             return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
         });
     }
@@ -419,7 +440,7 @@ public class MetadataService {
 
     private CompletableFuture<Revision> removeToken(String projectName, Author author, String appId,
                                                     boolean quiet) {
-        final String commitSummary = "Remove the token '" + appId + "' from the project " + projectName;
+        final String commitSummary = "Remove the token '" + appId + "' from the project '" + projectName + '\'';
         return metadataRepo.push(
                 projectName, Project.REPO_DOGMA, author, commitSummary,
                 () -> fetchMetadata(projectName).thenApply(metadataWithRevision -> {
@@ -461,7 +482,7 @@ public class MetadataService {
                                    new ReplaceOperation(path, Jackson.valueToTree(registration))
                                            .toJsonNode());
         final String commitSummary = "Update the role of a token '" + token.appId() +
-                                     "' as '" + role + "' for the project " + projectName;
+                                     "' as '" + role + "' for the project '" + projectName + '\'';
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
@@ -480,10 +501,10 @@ public class MetadataService {
 
         return getProject(projectName).thenCompose(project -> {
             ensureProjectMember(project, member);
-            return addPermissionAtPointer(author, projectName,
-                                          perUserPermissionPointer(repoName, member.id()), permission,
-                                          "Add permission of '" + member.id() +
-                                          "' as '" + permission + "' to the project " + projectName);
+            final String commitSummary = "Add permission of '" + member.id() +
+                                         "' as '" + permission + "' to the project '" + projectName + '\n';
+            return addPermissionAtPointer(author, projectName, perUserPermissionPointer(repoName, member.id()),
+                                          permission, commitSummary);
         });
     }
 
@@ -502,7 +523,7 @@ public class MetadataService {
         return removePermissionAtPointer(author, projectName,
                                          perUserPermissionPointer(repoName, memberId),
                                          "Remove permission of the '" + memberId +
-                                         "' from the project " + projectName);
+                                         "' from the project '" + projectName + '\'');
     }
 
     /**
@@ -522,7 +543,7 @@ public class MetadataService {
         return replacePermissionAtPointer(author, projectName,
                                           perUserPermissionPointer(repoName, memberId), permission,
                                           "Update permission of the '" + memberId +
-                                          "' as '" + permission + "' for the project " + projectName);
+                                          "' as '" + permission + "' for the project '" + projectName + '\'');
     }
 
     /**
@@ -543,7 +564,7 @@ public class MetadataService {
             return addPermissionAtPointer(author, projectName,
                                           perTokenPermissionPointer(repoName, appId), permission,
                                           "Add permission of the token '" + appId +
-                                          "' as '" + permission + "' to the project " + projectName);
+                                          "' as '" + permission + "' to the project '" + projectName + '\'');
         });
     }
 
@@ -561,7 +582,7 @@ public class MetadataService {
         return removePermissionAtPointer(author, projectName,
                                          perTokenPermissionPointer(repoName, appId),
                                          "Remove permission of the token '" + appId +
-                                         "' from the project " + projectName);
+                                         "' from the project '" + projectName + '\'');
     }
 
     /**
@@ -580,7 +601,7 @@ public class MetadataService {
         return replacePermissionAtPointer(author, projectName,
                                           perTokenPermissionPointer(repoName, appId), permission,
                                           "Update permission of the token '" + appId +
-                                          "' as '" + permission + "' for the project " + projectName);
+                                          "' as '" + permission + "' for the project '" + projectName + '\'');
     }
 
     /**
@@ -778,7 +799,7 @@ public class MetadataService {
                                                new AddOperation(secretPath,
                                                                 Jackson.valueToTree(newToken.id()))));
         return tokenRepo.push(INTERNAL_PROJ, Project.REPO_DOGMA, author,
-                              "Add a token: '" + newToken.id(), change);
+                              "Add a token: " + newToken.id(), change);
     }
 
     /**
@@ -796,7 +817,7 @@ public class MetadataService {
             futures[i++] = removeToken(p.name(), author, appId, true).toCompletableFuture();
         }
         return CompletableFuture.allOf(futures).thenCompose(unused -> tokenRepo.push(
-                INTERNAL_PROJ, Project.REPO_DOGMA, author, "Remove the token: '" + appId,
+                INTERNAL_PROJ, Project.REPO_DOGMA, author, "Remove the token: " + appId,
                 () -> tokenRepo.fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
                                .thenApply(tokens -> {
                                    final Token token = tokens.object().get(appId);
@@ -823,7 +844,7 @@ public class MetadataService {
         requireNonNull(appId, "appId");
 
         return tokenRepo.push(INTERNAL_PROJ, Project.REPO_DOGMA, author,
-                              "Enable the token: '" + appId,
+                              "Enable the token: " + appId,
                               () -> tokenRepo
                                       .fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
                                       .thenApply(tokens -> {
@@ -854,7 +875,7 @@ public class MetadataService {
         requireNonNull(appId, "appId");
 
         return tokenRepo.push(INTERNAL_PROJ, Project.REPO_DOGMA, author,
-                              "Disable the token: '" + appId,
+                              "Disable the token: " + appId,
                               () -> tokenRepo
                                       .fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
                                       .thenApply(tokens -> {
@@ -904,7 +925,7 @@ public class MetadataService {
         requireNonNull(user, "user");
 
         checkArgument(project.members().values().stream().anyMatch(member -> member.login().equals(user.id())),
-                      user.id() + " is not a member of the project " + project.name());
+                      user.id() + " is not a member of the project '" + project.name() + '\'');
     }
 
     /**
@@ -915,7 +936,7 @@ public class MetadataService {
         requireNonNull(appId, "appId");
 
         checkArgument(project.tokens().containsKey(appId),
-                      appId + " is not a token of the project " + project.name());
+                      appId + " is not a token of the project '" + project.name() + '\'');
     }
 
     /**

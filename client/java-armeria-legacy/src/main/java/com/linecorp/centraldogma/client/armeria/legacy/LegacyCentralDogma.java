@@ -117,6 +117,14 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     }
 
     @Override
+    public CompletableFuture<Void> purgeProject(String projectName) {
+        return run(callback -> {
+            validateProjectName(projectName);
+            client.purgeProject(projectName, callback);
+        });
+    }
+
+    @Override
     public CompletableFuture<Void> unremoveProject(String projectName) {
         return run(callback -> {
             validateProjectName(projectName);
@@ -148,6 +156,14 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
         return run(callback -> {
             validateProjectAndRepositoryName(projectName, repositoryName);
             client.removeRepository(projectName, repositoryName, callback);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> purgeRepository(String projectName, String repositoryName) {
+        return run(callback -> {
+            validateProjectAndRepositoryName(projectName, repositoryName);
+            client.purgeRepository(projectName, repositoryName, callback);
         });
     }
 

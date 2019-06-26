@@ -16,8 +16,8 @@
 
 package com.linecorp.centraldogma.server.storage;
 
+import java.time.Instant;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Supplier;
 
 import com.linecorp.centraldogma.common.Author;
@@ -77,9 +77,9 @@ public interface StorageManager<T> {
     Map<String, T> list();
 
     /**
-     * Returns a set of names for the elements which have been removed.
+     * Returns all removed elements as a {@link Map} of the name and the removal timestamp.
      */
-    Set<String> listRemoved();
+    Map<String, Instant> listRemoved();
 
     /**
      * Removes an element with the specified {@code name}.
@@ -94,6 +94,18 @@ public interface StorageManager<T> {
      * @param name the name of an element which is supposed to be restored
      */
     T unremove(String name);
+
+    /**
+     * Purges a set of names for the elements which have been marked for purging.
+     */
+    void purgeMarked();
+
+    /**
+     * Marks an element with the specified {@code name} for purge.
+     *
+     * @param name the name of an element which is supposed to be purged
+     */
+    void markForPurge(String name);
 
     /**
      * Ensures that this manager is open.

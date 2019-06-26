@@ -111,6 +111,17 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
+    public void purgeProject() throws Exception {
+        doAnswer(invocation -> {
+            final AsyncMethodCallback<Void> callback = invocation.getArgument(1);
+            callback.onComplete(null);
+            return null;
+        }).when(iface).purgeProject(any(), any());
+        assertThat(client.purgeProject("project").get()).isNull();
+        verify(iface).purgeProject(eq("project"), any());
+    }
+
+    @Test
     public void unremoveProject() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Void> callback = invocation.getArgument(1);
@@ -163,6 +174,17 @@ public class LegacyCentralDogmaTest {
         }).when(iface).removeRepository(anyString(), anyString(), any());
         assertThat(client.removeRepository("project", "repo").get()).isNull();
         verify(iface).removeRepository(eq("project"), eq("repo"), any());
+    }
+
+    @Test
+    public void purgeRepository() throws Exception {
+        doAnswer(invocation -> {
+            final AsyncMethodCallback<Void> callback = invocation.getArgument(2);
+            callback.onComplete(null);
+            return null;
+        }).when(iface).purgeRepository(anyString(), anyString(), any());
+        assertThat(client.purgeRepository("project", "repo").get()).isNull();
+        verify(iface).purgeRepository(eq("project"), eq("repo"), any());
     }
 
     @Test

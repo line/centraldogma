@@ -259,6 +259,11 @@ service CentralDogmaService {
     void removeProject(1: string name) throws (1: CentralDogmaException e),
 
     /**
+     * Purges a project.
+     */
+    void purgeProject(1: string name) throws (1: CentralDogmaException e),
+
+    /**
      * Unremoves a project.
      */
     void unremoveProject(1: string name) throws (1: CentralDogmaException e),
@@ -282,6 +287,11 @@ service CentralDogmaService {
      * Removes a repository.
      */
     void removeRepository(1: string projectName, 2: string repositoryName) throws (1: CentralDogmaException e),
+
+    /**
+     * Purges a repository.
+     */
+    void purgeRepository(1: string projectName, 2: string repositoryName) throws (1: CentralDogmaException e),
 
     /**
      * Unremoves a repository.

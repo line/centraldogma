@@ -21,14 +21,19 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -38,6 +43,8 @@ import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -57,15 +64,20 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     private static final Pattern CHILD_NAME =
             Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
     private static final String SUFFIX_REMOVED = ".removed";
+    private static final String SUFFIX_PURGED = ".purged";
 
     private final String childTypeName;
     private final File rootDir;
+    private final StorageRemovalManager storageRemovalManager = new StorageRemovalManager();
     private final ConcurrentMap<String, T> children = new ConcurrentHashMap<>();
     private final AtomicReference<Supplier<CentralDogmaException>> closed = new AtomicReference<>();
+    private final Executor purgeWorker;
     private boolean initialized;
 
-    protected DirectoryBasedStorageManager(File rootDir, Class<? extends T> childType) {
+    protected DirectoryBasedStorageManager(File rootDir, Class<? extends T> childType,
+                                           Executor purgeWorker) {
         requireNonNull(rootDir, "rootDir");
+        this.purgeWorker = requireNonNull(purgeWorker, "purgeWorker");
 
         if (!rootDir.exists()) {
             if (!rootDir.mkdirs()) {
@@ -85,6 +97,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
         this.rootDir = rootDir;
         childTypeName = Util.simpleTypeName(requireNonNull(childType, "childTypeName"), true);
+    }
+
+    protected Executor purgeWorker() {
+        return purgeWorker;
     }
 
     /**
@@ -228,7 +244,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
                 try {
                     Util.deleteFileTree(f);
                 } catch (IOException e) {
-                    logger.warn("Failed to delete a partially created project: {}", f);
+                    logger.warn("Failed to delete a partially created project: {}", f, e);
                 }
             }
         }
@@ -254,15 +270,15 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
     }
 
     @Override
-    public Set<String> listRemoved() {
+    public Map<String, Instant> listRemoved() {
         ensureOpen();
-        final Set<String> removed = new LinkedHashSet<>();
         final File[] files = rootDir.listFiles();
         if (files == null) {
-            return Collections.emptySet();
+            return ImmutableMap.of();
         }
 
         Arrays.sort(files);
+        final ImmutableMap.Builder<String, Instant> builder = ImmutableMap.builder();
 
         for (File f : files) {
             if (!f.isDirectory()) {
@@ -279,10 +295,10 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
                 continue;
             }
 
-            removed.add(name);
+            builder.put(name, storageRemovalManager.readRemoval(f));
         }
 
-        return Collections.unmodifiableSet(removed);
+        return builder.build();
     }
 
     @Override
@@ -295,7 +311,9 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
         closeChild(name, child, () -> newStorageNotFoundException(name));
 
-        if (!new File(rootDir, name).renameTo(new File(rootDir, name + SUFFIX_REMOVED))) {
+        final File file = new File(rootDir, name);
+        storageRemovalManager.mark(file);
+        if (!file.renameTo(new File(rootDir, name + SUFFIX_REMOVED))) {
             throw new StorageException("failed to mark " + childTypeName + " as removed: " + name);
         }
     }
@@ -315,12 +333,75 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         if (!removed.renameTo(unremoved)) {
             throw new StorageException("failed to mark " + childTypeName + " as unremoved: " + name);
         }
+        storageRemovalManager.unmark(unremoved);
 
         final T unremovedChild = loadChild(unremoved);
         if (unremovedChild == null) {
             throw newStorageNotFoundException(name);
         }
         return unremovedChild;
+    }
+
+    @Override
+    public void markForPurge(String name) {
+        ensureOpen();
+        validateChildName(name);
+        File marked;
+        final File removed = new File(rootDir, name + SUFFIX_REMOVED);
+
+        final Supplier<File> newMarkedFile = () -> {
+            final String interfix = '.' + Long.toHexString(ThreadLocalRandom.current().nextLong());
+            return new File(rootDir, name + interfix + SUFFIX_PURGED);
+        };
+
+        synchronized (this) {
+            if (!removed.exists() || !removed.isDirectory()) {
+                throw newStorageNotFoundException(name + SUFFIX_REMOVED);
+            }
+
+            marked = newMarkedFile.get();
+            boolean moved = false;
+            while (!moved) {
+                try {
+                    Files.move(removed.toPath(), marked.toPath());
+                    moved = true;
+                } catch (FileAlreadyExistsException e) {
+                    marked = newMarkedFile.get();
+                } catch (IOException e) {
+                    throw new StorageException("failed to mark " + childTypeName + " for purge: " + removed, e);
+                }
+            }
+        }
+        final File purged = marked;
+        purgeWorker.execute(() -> deletePurgedFile(purged));
+    }
+
+    @Override
+    public void purgeMarked() {
+        ensureOpen();
+        final File[] files = rootDir.listFiles();
+        if (files == null) {
+            return;
+        }
+        for (File f : files) {
+            if (!f.isDirectory()) {
+                continue;
+            }
+            final String name = f.getName();
+            if (name.endsWith(SUFFIX_PURGED)) {
+                deletePurgedFile(f);
+            }
+        }
+    }
+
+    private void deletePurgedFile(File file) {
+        try {
+            logger.info("Deleting a purged {}: {} ..", childTypeName, file);
+            Util.deleteFileTree(file);
+            logger.info("Deleted a purged {}: {}.", childTypeName, file);
+        } catch (IOException e) {
+            logger.warn("Failed to delete a purged {}: {}", childTypeName, file, e);
+        }
     }
 
     @Override
@@ -347,11 +428,51 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             return false;
         }
 
-        return !name.endsWith(SUFFIX_REMOVED);
+        return !name.endsWith(SUFFIX_REMOVED) && !name.endsWith(SUFFIX_PURGED);
     }
 
     @Override
     public String toString() {
         return Util.simpleTypeName(getClass()) + '(' + rootDir + ')';
+    }
+
+    private final class StorageRemovalManager {
+
+        private static final String REMOVAL_TIMESTAMP_NAME = "removal.timestamp";
+
+        void mark(File file) {
+            final File removal = new File(file, REMOVAL_TIMESTAMP_NAME);
+            final String timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
+            try {
+                Files.write(removal.toPath(), timestamp.getBytes(StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                throw new StorageException(
+                        "failed to write a removal timestamp for " + childTypeName + ": " + removal);
+            }
+        }
+
+        void unmark(File file) {
+            final File removal = new File(file, REMOVAL_TIMESTAMP_NAME);
+            if (removal.exists()) {
+                if (!removal.delete()) {
+                    logger.warn("Failed to delete a removal timestamp for {}: {}", childTypeName, removal);
+                }
+            }
+        }
+
+        Instant readRemoval(File file) {
+            final File removal = new File(file, REMOVAL_TIMESTAMP_NAME);
+            if (!removal.exists()) {
+                return Instant.ofEpochMilli(file.lastModified());
+            }
+            try {
+                final String timestamp = new String(Files.readAllBytes(removal.toPath()),
+                                                    StandardCharsets.UTF_8);
+                return Instant.from(DateTimeFormatter.ISO_INSTANT.parse(timestamp));
+            } catch (Exception e) {
+                logger.warn("Failed to read a removal timestamp for {}: {}", childTypeName, removal, e);
+                return Instant.ofEpochMilli(file.lastModified());
+            }
+        }
     }
 }

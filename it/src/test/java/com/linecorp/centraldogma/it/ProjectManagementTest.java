@@ -89,4 +89,14 @@ public class ProjectManagementTest extends AbstractMultiClientTest {
         final Set<String> names = client().listRemovedProjects().join();
         assertThat(names).containsExactly(rule.removedProject());
     }
+
+    @Test
+    public void testPurgeProject() throws Exception {
+        client().purgeProject(rule.removedProject()).join();
+        final Set<String> names = client().listRemovedProjects().join();
+        assertThat(names).doesNotContain(rule.removedProject());
+        // revert the purged project
+        client().createProject(rule.removedProject()).join();
+        client().removeProject(rule.removedProject()).join();
+    }
 }

@@ -30,6 +30,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
 
@@ -123,6 +124,14 @@ public class MetadataServiceTest {
         assertThat(repositoryMetadata.name()).isEqualTo(repo1);
         assertThat(repositoryMetadata.creation().user()).isEqualTo(author.email());
         assertThat(repositoryMetadata.removal()).isNull();
+
+        // Purge a repository.
+        mds.removeRepo(author, project1, repo1).join();
+        mds.purgeRepo(author, project1, repo1).join();
+        assertThatThrownBy(() -> getRepo1(mds)).isInstanceOf(RepositoryNotFoundException.class);
+        // Recreate the purged repository.
+        mds.addRepo(author, project1, repo1, PerRolePermissions.ofPublic()).join();
+        assertThat(getProject(mds, project1).repos().get(repo1).name()).isEqualTo(repo1);
     }
 
     @Test

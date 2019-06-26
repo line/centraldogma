@@ -75,7 +75,8 @@ public class ProjectServiceV1 extends AbstractService {
     public CompletableFuture<List<ProjectDto>> listProjects(@Param("status") Optional<String> status) {
         if (status.isPresent()) {
             checkStatusArgument(status.get());
-            return CompletableFuture.supplyAsync(() -> projectManager().listRemoved().stream()
+            return CompletableFuture.supplyAsync(() -> projectManager().listRemoved().keySet()
+                                                                       .stream()
                                                                        .map(ProjectDto::new)
                                                                        .collect(toImmutableList()));
         }
@@ -127,6 +128,18 @@ public class ProjectServiceV1 extends AbstractService {
         // Metadata must be updated first because it cannot be updated if the project is removed.
         return mds.removeProject(author, project.name())
                   .thenCompose(unused -> execute(Command.removeProject(author, project.name())))
+                  .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+    }
+
+    /**
+     * DELETE /projects/{projectName}/removed
+     *
+     * <p>Purges a project that was removed before.
+     */
+    @Delete("/projects/{projectName}/removed")
+    @RequiresRole(roles = ProjectRole.OWNER)
+    public CompletableFuture<Void> purgeProject(@Param("projectName") String projectName, Author author) {
+        return execute(Command.purgeProject(author, projectName))
                   .handle(HttpApiUtil::throwUnsafelyIfNonNull);
     }
 

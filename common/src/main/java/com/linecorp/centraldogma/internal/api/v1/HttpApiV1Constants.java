@@ -42,5 +42,7 @@ public final class HttpApiV1Constants {
 
     public static final String METRICS_PATH = "/monitor/metrics";
 
+    public static final String REMOVED = "/removed";
+
     private HttpApiV1Constants() {}
 }

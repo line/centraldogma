@@ -70,6 +70,7 @@ public final class CentralDogmaBuilder {
     static final int DEFAULT_NUM_MIRRORING_THREADS = 16;
     static final int DEFAULT_MAX_NUM_FILES_PER_MIRROR = 8192;
     static final long DEFAULT_MAX_NUM_BYTES_PER_MIRROR = 32 * 1048576; // 32 MiB
+    static final long DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS = 604_800_000;  // 7 days
 
     static final String DEFAULT_REPOSITORY_CACHE_SPEC =
             "maximumWeight=134217728," + // Cache up to apx. 128-megachars.
@@ -91,6 +92,8 @@ public final class CentralDogmaBuilder {
     // Central Dogma properties
     private final File dataDir;
     private int numRepositoryWorkers = DEFAULT_NUM_REPOSITORY_WORKERS;
+    private long maxRemovedRepositoryAgeMillis = DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS;
+
     @Nullable
     private String repositoryCacheSpec = DEFAULT_REPOSITORY_CACHE_SPEC;
     private boolean webAppEnabled = true;
@@ -292,6 +295,28 @@ public final class CentralDogmaBuilder {
      */
     public CentralDogmaBuilder numRepositoryWorkers(int numRepositoryWorkers) {
         this.numRepositoryWorkers = numRepositoryWorkers;
+        return this;
+    }
+
+    /**
+     * Sets the maximum allowed age of removed projects and repositories before they are purged.
+     * Set 0 to disable automatic purge.
+     * If unspecified, the default of {@value #DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS} milliseconds is used.
+     */
+    public CentralDogmaBuilder maxRemovedRepositoryAge(Duration maxRemovedRepositoryAge) {
+        maxRemovedRepositoryAgeMillis(
+                requireNonNull(maxRemovedRepositoryAge, "maxRemovedRepositoryAge").toMillis());
+        return this;
+    }
+
+    /**
+     * Sets the maximum allowed age, in milliseconds of removed projects and repositories
+     * before they are purged.
+     * Set 0 to disable automatic purge.
+     * If unspecified, the default of {@value #DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS} milliseconds is used.
+     */
+    public CentralDogmaBuilder maxRemovedRepositoryAgeMillis(long maxRemovedRepositoryAgeMillis) {
+        this.maxRemovedRepositoryAgeMillis = maxRemovedRepositoryAgeMillis;
         return this;
     }
 
@@ -508,7 +533,8 @@ public final class CentralDogmaBuilder {
         return new CentralDogmaConfig(dataDir, ports, tls, trustedProxyAddresses, clientAddressSources,
                                       numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
-                                      numRepositoryWorkers, repositoryCacheSpec, gracefulShutdownTimeout,
+                                      numRepositoryWorkers, repositoryCacheSpec,
+                                      maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
                                       null, accessLogFormat, authCfg);

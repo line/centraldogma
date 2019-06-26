@@ -41,9 +41,9 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
     @Nullable
     private final RepositoryCache cache;
 
-    public DefaultProjectManager(File rootDir, Executor repositoryWorker, MeterRegistry meterRegistry,
-                                 @Nullable String cacheSpec) {
-        super(rootDir, Project.class);
+    public DefaultProjectManager(File rootDir, Executor repositoryWorker, Executor purgeWorker,
+                                 MeterRegistry meterRegistry, @Nullable String cacheSpec) {
+        super(rootDir, Project.class, purgeWorker);
 
         requireNonNull(meterRegistry, "meterRegistry");
         requireNonNull(repositoryWorker, "repositoryWorker");
@@ -64,12 +64,12 @@ public class DefaultProjectManager extends DirectoryBasedStorageManager<Project>
 
     @Override
     protected Project openChild(File childDir) throws Exception {
-        return new DefaultProject(childDir, repositoryWorker, cache);
+        return new DefaultProject(childDir, repositoryWorker, purgeWorker(), cache);
     }
 
     @Override
     protected Project createChild(File childDir, Author author, long creationTimeMillis) throws Exception {
-        return new DefaultProject(childDir, repositoryWorker, cache, creationTimeMillis, author);
+        return new DefaultProject(childDir, repositoryWorker, purgeWorker(), creationTimeMillis, author, cache);
     }
 
     @Override

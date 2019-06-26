@@ -99,6 +99,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) unremoveProject((UnremoveProjectCommand) command);
         }
 
+        if (command instanceof PurgeProjectCommand) {
+            return (CompletableFuture<T>) purgeProject((PurgeProjectCommand) command);
+        }
+
         if (command instanceof CreateRepositoryCommand) {
             return (CompletableFuture<T>) createRepository((CreateRepositoryCommand) command);
         }
@@ -109,6 +113,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
         if (command instanceof UnremoveRepositoryCommand) {
             return (CompletableFuture<T>) unremoveRepository((UnremoveRepositoryCommand) command);
+        }
+
+        if (command instanceof PurgeRepositoryCommand) {
+            return (CompletableFuture<T>) purgeRepository((PurgeRepositoryCommand) command);
         }
 
         if (command instanceof PushCommand) {
@@ -149,6 +157,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }, repositoryWorker);
     }
 
+    private CompletableFuture<Void> purgeProject(PurgeProjectCommand c) {
+        return CompletableFuture.supplyAsync(() -> {
+            projectManager.markForPurge(c.projectName());
+            return null;
+        }, repositoryWorker);
+    }
+
     // Repository operations
 
     private CompletableFuture<Void> createRepository(CreateRepositoryCommand c) {
@@ -168,6 +183,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<Void> unremoveRepository(UnremoveRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().unremove(c.repositoryName());
+            return null;
+        }, repositoryWorker);
+    }
+
+    private CompletableFuture<Void> purgeRepository(PurgeRepositoryCommand c) {
+        return CompletableFuture.supplyAsync(() -> {
+            projectManager.get(c.projectName()).repos().markForPurge(c.repositoryName());
             return null;
         }, repositoryWorker);
     }

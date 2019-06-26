@@ -20,6 +20,7 @@
   "idleTimeoutMillis": null,
   "maxFrameLength": null,
   "numRepositoryWorkers": 16,
+  "maxRemovedRepositoryAgeMillis": null,
   "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
   "gracefulShutdownTimeout": {
     "quietPeriodMillis": 1000,

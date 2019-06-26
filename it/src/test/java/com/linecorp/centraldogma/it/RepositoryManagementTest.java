@@ -81,6 +81,21 @@ public class RepositoryManagementTest extends AbstractMultiClientTest {
     }
 
     @Test
+    public void testPurgeRepository() {
+        try {
+            client().purgeRepository(rule.project(), rule.removedRepo()).join();
+            final Map<String, RepositoryInfo> repos = client().listRepositories(rule.project()).join();
+            assertThat(repos).doesNotContainKeys(rule.removedRepo());
+            final Set<String> removedRepos = client().listRemovedRepositories(rule.project()).join();
+            assertThat(removedRepos).doesNotContain(rule.removedRepo());
+        } finally {
+            // Revert a removed project.
+            client().createRepository(rule.project(), rule.removedRepo()).join();
+            client().removeRepository(rule.project(), rule.removedRepo()).join();
+        }
+    }
+
+    @Test
     public void testListRepositories() throws Exception {
         final Map<String, RepositoryInfo> repos = client().listRepositories(rule.project()).join();
 
