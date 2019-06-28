@@ -1,7 +1,7 @@
 dependencies {
     // Thrift
     compile 'org.apache.thrift:libthrift'
-    compileOnly 'javax.annotation:javax.annotation-api'
+    compileOnly 'jakarta.annotation:jakarta.annotation-api'
 }
 
 tasks.compileThrift.doLast {
