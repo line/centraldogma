@@ -32,12 +32,15 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableSet;
 import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.KeyPair;
 
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -51,6 +54,8 @@ import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 @RunWith(Parameterized.class)
 public class GitMirrorAuthTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(GitMirrorAuthTest.class);
 
     @ClassRule
     public static final CentralDogmaRule rule = new CentralDogmaRule() {
@@ -161,9 +166,7 @@ public class GitMirrorAuthTest {
             // Test Git-over-SSH only when:
             // - the private key passphrase is specified or
             // - the private key is unencrypted.
-            if (GIT_PASSPHRASE != null ||
-                !KeyPair.load(new JSch(), privateKeyBytes, publicKeyBytes).isEncrypted()) {
-
+            if (GIT_PASSPHRASE != null || !isEncrypted(privateKeyBytes, publicKeyBytes)) {
                 final String passphraseProperty;
                 if (GIT_PASSPHRASE != null) {
                     passphraseProperty = "\"passphrase\": \"" + Jackson.escapeText(GIT_PASSPHRASE) + '"';
@@ -190,6 +193,15 @@ public class GitMirrorAuthTest {
         return builder.build();
     }
 
+    private static boolean isEncrypted(byte[] privateKeyBytes, byte[] publicKeyBytes) {
+        try {
+            return KeyPair.load(new JSch(), privateKeyBytes, publicKeyBytes).isEncrypted();
+        } catch (JSchException e) {
+            logger.warn("Failed to load the SSH key: {}", GIT_PRIVATE_KEY, e);
+            return true;
+        }
+    }
+
     @BeforeClass
     public static void init() {
         client = rule.client();
@@ -212,6 +224,7 @@ public class GitMirrorAuthTest {
     @Before
     public void initDogmaRepo() throws Exception {
         client.createProject(projName).join();
+        client.createRepository(projName, "main").join();
     }
 
     @After
