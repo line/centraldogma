@@ -1,5 +1,6 @@
 #!/bin/bash -e
 
+# shellcheck source=common.sh
 source "$(dirname "$0")/common.sh"
 cd "$APP_HOME"
 
@@ -35,8 +36,8 @@ fi
 
 rm -f "$APP_PID_FILE" >/dev/null 2>&1
 
-mkdir -p `dirname $APP_STDOUT_FILE`
-mkdir -p `dirname $APP_STDERR_FILE`
+mkdir -p "$(dirname "$APP_STDOUT_FILE")"
+mkdir -p "$(dirname "$APP_STDERR_FILE")"
 
 # Start the application up
 set +e
@@ -62,7 +63,7 @@ while true; do
       eecho ' done'
       eecho "Started up $APP_NAME successfully: $PID"
       if [[ $NODETACH -eq 1 ]]; then
-        trap "$APP_BIN_DIR/shutdown" SIGINT SIGTERM SIGKILL SIGHUP
+        trap "$APP_BIN_DIR/shutdown" SIGINT SIGTERM SIGHUP
         wait $PID
       fi
       exit 0
