@@ -1,10 +1,11 @@
 #!/bin/bash -e
 
+# shellcheck source=common.sh
 source "$(dirname "$0")/common.sh"
 cd "$APP_HOME"
 
 if [[ -f "$APP_PID_FILE" ]]; then
-  PID="`cat "$APP_PID_FILE"`"
+  PID="$(cat "$APP_PID_FILE")"
   if [[ "$PID" =~ (^[0-9]+$) ]]; then
     kill -0 "$PID" >/dev/null 2>&1
     if [[ $? -gt 0 ]]; then
@@ -25,7 +26,7 @@ fi
 set +e
 eecho "Shutting down $APP_NAME ($(cat "$APP_PID_FILE")) .."
 
-kill -TERM $PID
+kill -TERM "$PID"
 
 # Wait until the PID file is removed by the application.
 WAITING=1
@@ -52,7 +53,7 @@ if [[ "$WAITING" -eq 1 ]]; then
   # Wait until the process is actually gone.
   eecho -n "Waiting for process $PID to terminate up to $APP_WAIT_TIME second(s) .."
   while true; do
-    if kill -0 $PID >/dev/null 2>&1; then
+    if kill -0 "$PID" >/dev/null 2>&1; then
       # Process still exists.
       ((COUNT++))
       sleep 1

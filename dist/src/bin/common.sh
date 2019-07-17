@@ -44,6 +44,7 @@ function eecho() {
 }
 
 if [[ -f "$(dirname "$0")/common.pre.sh" ]]; then
+  # shellcheck source=common.pre.sh
   source "$(dirname "$0")/common.pre.sh"
 fi
 
@@ -107,6 +108,7 @@ if [[ -z "$APP_PID_FILE" ]]; then
 fi
 
 if [[ -f "$(dirname "$0")/common.post.sh" ]]; then
+  # shellcheck source=common.post.sh
   source "$(dirname "$0")/common.post.sh"
 fi
 
