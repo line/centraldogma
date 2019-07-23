@@ -941,9 +941,9 @@ public class GitRepositoryTest {
     @Test
     public void testFind_invalidPathPattern() {
         final String pattern = "a'\"><img src=1 onerror=alert(document.domain)>";
-        assertThat(repo.find(HEAD, pattern))
-                .hasFailedWithThrowableThat()
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> repo.find(HEAD, pattern).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 
     /**

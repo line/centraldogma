@@ -535,7 +535,7 @@ class GitRepository implements Repository {
             throw e;
         } catch (Exception e) {
             throw new StorageException(
-                    "failed to get data from " + parent.name() + '/' + name + " at " + pathPattern +
+                    "failed to get data from '" + parent.name() + '/' + name + "' at " + pathPattern +
                     " for " + revision, e);
         } finally {
             readUnlock();
@@ -950,7 +950,7 @@ class GitRepository implements Repository {
         } catch (CentralDogmaException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
-            throw new StorageException("failed to push at " + parent.name() + '/' + name, e);
+            throw new StorageException("failed to push at '" + parent.name() + '/' + name + '\'', e);
         }
     }
 

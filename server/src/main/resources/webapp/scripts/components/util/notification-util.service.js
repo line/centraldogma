@@ -2,7 +2,7 @@
 
 angular.module('CentralDogmaAdmin')
     .factory('NotificationUtil',
-             function ($translate, $sanitize, StringUtil, Notification) {
+             function ($translate, StringUtil, Notification) {
                return {
                  success: function () {
                    if (arguments.length <= 0 || arguments.length > 2) {
@@ -28,7 +28,7 @@ angular.module('CentralDogmaAdmin')
                    if (typeof arg === 'object' &&
                        typeof arg.status === 'number' && typeof arg.statusText === 'string') {
                      if (StringUtil.isNotEmpty(arg.message)) {
-                       Notification.error($sanitize(arg.message));
+                       Notification.error(StringUtil.escapeHtml(arg.message));
                      } else {
                        var message = arg.status + ' ' + arg.statusText;
                        if (arg.status === 401) {

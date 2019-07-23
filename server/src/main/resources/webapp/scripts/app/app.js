@@ -6,7 +6,6 @@ angular.module(
      'ngCacheBuster',
      'ngCookies',
      'ngResource',
-     'ngSanitize',
      'pascalprecht.translate',
      'tmh.dynamicLocale',
      'ui.ace',
