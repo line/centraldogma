@@ -93,7 +93,7 @@ public class PurgeSchedulingServiceTest {
     @Test
     public void testSchedule() throws InterruptedException {
         Thread.sleep(10); // let removed files be purged
-        service.schedulePurgeData(rule.executor(), metadataService);
+        service.purgeProjectAndRepository(rule.executor(), metadataService);
         verify(rule.executor()).execute(isA(PurgeProjectCommand.class));
         verify(rule.executor()).execute(isA(PurgeRepositoryCommand.class));
     }

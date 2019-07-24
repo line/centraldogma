@@ -96,12 +96,12 @@ public interface StorageManager<T> {
     T unremove(String name);
 
     /**
-     * Purges a set of names for the elements which have been marked for purging.
+     * Purges a set of names for the elements which have been marked for purge.
      */
     void purgeMarked();
 
     /**
-     * Marks an element with the specified {@code name} for purge.
+     * Marks the specified {@code name} element for purge.
      *
      * @param name the name of an element which is supposed to be purged
      */

@@ -300,7 +300,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Sets the maximum allowed age of removed projects and repositories before they are purged.
-     * Set 0 to disable automatic purge.
+     * Set {@code 0} to disable automatic purge.
      * If unspecified, the default of {@value #DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS} milliseconds is used.
      */
     public CentralDogmaBuilder maxRemovedRepositoryAge(Duration maxRemovedRepositoryAge) {
@@ -312,7 +312,7 @@ public final class CentralDogmaBuilder {
     /**
      * Sets the maximum allowed age, in milliseconds of removed projects and repositories
      * before they are purged.
-     * Set 0 to disable automatic purge.
+     * Set {@code 0} to disable automatic purge.
      * If unspecified, the default of {@value #DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS} milliseconds is used.
      */
     public CentralDogmaBuilder maxRemovedRepositoryAgeMillis(long maxRemovedRepositoryAgeMillis) {

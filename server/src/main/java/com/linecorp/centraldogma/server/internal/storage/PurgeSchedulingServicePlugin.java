@@ -80,7 +80,9 @@ public final class PurgeSchedulingServicePlugin implements Plugin {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .omitNullValues()
                           .add("target", target())
+                          .add("purgeSchedulingService", purgeSchedulingService)
                           .toString();
     }
 }

@@ -79,7 +79,7 @@ public class PurgeSchedulingService {
         cleanPurgedFiles();
         storagePurgingScheduler.start(() -> {
             try {
-                schedulePurgeData(commandExecutor, metadataService);
+                purgeProjectAndRepository(commandExecutor, metadataService);
             } catch (Exception e) {
                 logger.warn("Unexpected purging service failure", e);
             }
@@ -102,8 +102,8 @@ public class PurgeSchedulingService {
     }
 
     @VisibleForTesting
-    void schedulePurgeData(CommandExecutor commandExecutor,
-                           MetadataService metadataService) {
+    void purgeProjectAndRepository(CommandExecutor commandExecutor,
+                                   MetadataService metadataService) {
         final long minAllowedTimestamp = System.currentTimeMillis() - maxRemovedRepositoryAgeMillis;
         final Predicate<Instant> olderThanMinAllowed =
                 removedAt -> removedAt.toEpochMilli() < minAllowedTimestamp;
@@ -161,7 +161,9 @@ public class PurgeSchedulingService {
                 return;
             }
             requireNonNull(task, "task");
-            scheduler = MoreExecutors.listeningDecorator(purgeWorker);
+            final ListeningScheduledExecutorService scheduler = MoreExecutors.listeningDecorator(purgeWorker);
+            this.scheduler = scheduler;
+            @SuppressWarnings("UnstableApiUsage")
             final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
                     task,
                     TICK.getSeconds(), TICK.getSeconds(), TimeUnit.SECONDS);
@@ -190,7 +192,7 @@ public class PurgeSchedulingService {
             }
         }
 
-        private boolean terminate(ExecutorService executor) {
+        private boolean terminate(@Nullable ExecutorService executor) {
             if (executor == null) {
                 return false;
             }

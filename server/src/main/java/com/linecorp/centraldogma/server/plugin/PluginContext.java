@@ -56,7 +56,7 @@ public final class PluginContext {
         this.projectManager = requireNonNull(projectManager, "projectManager");
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
-        this.purgeWorker = purgeWorker;
+        this.purgeWorker = requireNonNull(purgeWorker, "purgeWorker");
     }
 
     /**

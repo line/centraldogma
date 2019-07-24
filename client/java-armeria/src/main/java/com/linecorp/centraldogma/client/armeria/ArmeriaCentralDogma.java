@@ -189,19 +189,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             return client.execute(
                     headers(HttpMethod.DELETE, pathBuilder(projectName).append(REMOVED).toString()))
                          .aggregate()
-                         .thenApply(ArmeriaCentralDogma::purgeProject);
+                         .thenApply(ArmeriaCentralDogma::handlePurgeResult);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
-    }
-
-    private static Void purgeProject(AggregatedHttpResponse res) {
-        switch (res.status().code()) {
-            case 200:
-            case 204:
-                return null;
-        }
-        return handleErrorResponse(res);
     }
 
     @Override
@@ -293,13 +284,13 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             return client.execute(headers(HttpMethod.DELETE,
                                           pathBuilder(projectName, repositoryName).append(REMOVED).toString()))
                          .aggregate()
-                         .thenApply(ArmeriaCentralDogma::purgeRepository);
+                         .thenApply(ArmeriaCentralDogma::handlePurgeResult);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
     }
 
-    private static Void purgeRepository(AggregatedHttpResponse res) {
+    private static Void handlePurgeResult(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
             case 204:

@@ -223,7 +223,7 @@ public interface Command<T> {
      *
      * @param author the author who is removing the repository
      * @param projectName the name of the project
-     * @param repositoryName the name of the repository which is supposed to be purge
+     * @param repositoryName the name of the repository which is supposed to be purged
      */
     static Command<Void> purgeRepository(Author author,
                                          String projectName, String repositoryName) {
@@ -237,7 +237,7 @@ public interface Command<T> {
      * @param timestamp the purging time of the repository, in milliseconds
      * @param author the author who is removing the repository
      * @param projectName the name of the project
-     * @param repositoryName the name of the repository which is supposed to be purge
+     * @param repositoryName the name of the repository which is supposed to be purged
      */
     static Command<Void> purgeRepository(@Nullable Long timestamp, Author author,
                                           String projectName, String repositoryName) {

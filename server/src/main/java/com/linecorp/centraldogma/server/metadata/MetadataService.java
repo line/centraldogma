@@ -326,7 +326,7 @@ public class MetadataService {
     }
 
     /**
-     * Purge a {@link RepositoryMetadata} of the specified {@code repoName} from the specified
+     * Purges a {@link RepositoryMetadata} of the specified {@code repoName} from the specified
      * {@code projectName}.
      */
     public CompletableFuture<Revision> purgeRepo(Author author, String projectName, String repoName) {
