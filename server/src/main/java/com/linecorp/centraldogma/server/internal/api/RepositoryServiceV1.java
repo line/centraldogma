@@ -86,7 +86,7 @@ public class RepositoryServiceV1 extends AbstractService {
             final boolean hasOwnerRole = role == ProjectRole.OWNER;
             if (status.isPresent()) {
                 if (hasOwnerRole) {
-                    return project.repos().listRemoved().stream().map(RepositoryDto::new)
+                    return project.repos().listRemoved().keySet().stream().map(RepositoryDto::new)
                                   .collect(toImmutableList());
                 }
                 return HttpApiUtil.throwResponse(
@@ -141,6 +141,20 @@ public class RepositoryServiceV1 extends AbstractService {
         return execute(Command.removeRepository(author, repository.parent().name(), repository.name()))
                 .thenCompose(unused -> mds.removeRepo(author, repository.parent().name(), repository.name()))
                 .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+    }
+
+    /**
+     * DELETE /projects/{projectName}/repos/{repoName}/removed
+     *
+     * <p>Purges a repository that was removed before.
+     */
+    @Delete("/projects/{projectName}/repos/{repoName}/removed")
+    @RequiresRole(roles = ProjectRole.OWNER)
+    public CompletableFuture<Void> purgeRepository(@Param("repoName") String repoName,
+                                                   Project project, Author author) {
+        return execute(Command.purgeRepository(author, project.name(), repoName))
+                .thenCompose(unused -> mds.purgeRepo(author, project.name(), repoName)
+                                          .handle(HttpApiUtil::throwUnsafelyIfNonNull));
     }
 
     /**

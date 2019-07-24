@@ -34,6 +34,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import com.google.common.util.concurrent.MoreExecutors;
+
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.HttpClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -98,7 +100,9 @@ public class PermissionTest {
         @Override
         protected void configure(ServerBuilder sb) throws Exception {
             final ProjectManager pm = new DefaultProjectManager(
-                    rootDir.newFolder(), ForkJoinPool.commonPool(), NoopMeterRegistry.get(), null);
+                    rootDir.newFolder(), ForkJoinPool.commonPool(), MoreExecutors.directExecutor(),
+                    NoopMeterRegistry.get(), null
+            );
             final CommandExecutor executor = new StandaloneCommandExecutor(
                     pm, ForkJoinPool.commonPool(), null, null, null);
             executor.start().join();

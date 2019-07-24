@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import javax.annotation.Nullable;
 
@@ -122,8 +123,10 @@ final class PluginGroup {
      * Starts the {@link Plugin}s managed by this {@link PluginGroup}.
      */
     CompletableFuture<Void> start(CentralDogmaConfig config, ProjectManager projectManager,
-                                  CommandExecutor commandExecutor, MeterRegistry meterRegistry) {
-        final PluginContext context = new PluginContext(config, projectManager, commandExecutor, meterRegistry);
+                                  CommandExecutor commandExecutor, MeterRegistry meterRegistry,
+                                  ScheduledExecutorService purgeWorker) {
+        final PluginContext context = new PluginContext(config, projectManager, commandExecutor, meterRegistry,
+                                                        purgeWorker);
         return startStop.start(context, context, true);
     }
 
@@ -131,8 +134,10 @@ final class PluginGroup {
      * Stops the {@link Plugin}s managed by this {@link PluginGroup}.
      */
     CompletableFuture<Void> stop(CentralDogmaConfig config, ProjectManager projectManager,
-                                 CommandExecutor commandExecutor, MeterRegistry meterRegistry) {
-        return startStop.stop(new PluginContext(config, projectManager, commandExecutor, meterRegistry));
+                                 CommandExecutor commandExecutor, MeterRegistry meterRegistry,
+                                 ScheduledExecutorService purgeWorker) {
+        return startStop.stop(
+                new PluginContext(config, projectManager, commandExecutor, meterRegistry, purgeWorker));
     }
 
     private class PluginGroupStartStop extends StartStopSupport<PluginContext, PluginContext, Void, Void> {

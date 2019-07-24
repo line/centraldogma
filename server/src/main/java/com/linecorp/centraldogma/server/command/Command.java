@@ -42,9 +42,11 @@ import com.linecorp.centraldogma.server.auth.Session;
 @JsonSubTypes({
         @Type(value = CreateProjectCommand.class, name = "CREATE_PROJECT"),
         @Type(value = RemoveProjectCommand.class, name = "REMOVE_PROJECT"),
+        @Type(value = PurgeProjectCommand.class, name = "PURGE_PROJECT"),
         @Type(value = UnremoveProjectCommand.class, name = "UNREMOVE_PROJECT"),
         @Type(value = CreateRepositoryCommand.class, name = "CREATE_REPOSITORY"),
         @Type(value = RemoveRepositoryCommand.class, name = "REMOVE_REPOSITORY"),
+        @Type(value = PurgeRepositoryCommand.class, name = "PURGE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
         @Type(value = PushCommand.class, name = "PUSH"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
@@ -116,6 +118,29 @@ public interface Command<T> {
     static Command<Void> unremoveProject(@Nullable Long timestamp, Author author, String name) {
         requireNonNull(author, "author");
         return new UnremoveProjectCommand(timestamp, author, name);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to purge a project that was removed before.
+     *
+     * @param author the author who is restoring the project
+     * @param name the name of the project which is supposed to be restored
+     */
+    static Command<Void> purgeProject(Author author, String name) {
+        requireNonNull(author, "author");
+        return new PurgeProjectCommand(null, author, name);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to purge a project that was removed before.
+     *
+     * @param timestamp the purging time of the project, in milliseconds
+     * @param author the author who is restoring the project
+     * @param name the name of the project which is supposed to be restored
+     */
+    static Command<Void> purgeProject(@Nullable Long timestamp, Author author, String name) {
+        requireNonNull(author, "author");
+        return new PurgeProjectCommand(timestamp, author, name);
     }
 
     /**
@@ -191,6 +216,33 @@ public interface Command<T> {
                                             String projectName, String repositoryName) {
         requireNonNull(author, "author");
         return new UnremoveRepositoryCommand(timestamp, author, projectName, repositoryName);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to purge a repository.
+     *
+     * @param author the author who is removing the repository
+     * @param projectName the name of the project
+     * @param repositoryName the name of the repository which is supposed to be purged
+     */
+    static Command<Void> purgeRepository(Author author,
+                                         String projectName, String repositoryName) {
+        requireNonNull(author, "author");
+        return new PurgeRepositoryCommand(null, author, projectName, repositoryName);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to purge a repository.
+     *
+     * @param timestamp the purging time of the repository, in milliseconds
+     * @param author the author who is removing the repository
+     * @param projectName the name of the project
+     * @param repositoryName the name of the repository which is supposed to be purged
+     */
+    static Command<Void> purgeRepository(@Nullable Long timestamp, Author author,
+                                          String projectName, String repositoryName) {
+        requireNonNull(author, "author");
+        return new PurgeRepositoryCommand(timestamp, author, projectName, repositoryName);
     }
 
     /**

@@ -67,7 +67,8 @@ public class DefaultProject implements Project {
     /**
      * Opens an existing project.
      */
-    DefaultProject(File rootDir, Executor repositoryWorker, @Nullable RepositoryCache cache) {
+    DefaultProject(File rootDir, Executor repositoryWorker, Executor purgeWorker,
+                   @Nullable RepositoryCache cache) {
         requireNonNull(rootDir, "rootDir");
         requireNonNull(repositoryWorker, "repositoryWorker");
 
@@ -76,7 +77,7 @@ public class DefaultProject implements Project {
         }
 
         name = rootDir.getName();
-        repos = newRepoManager(rootDir, repositoryWorker, cache);
+        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache);
 
         boolean success = false;
         try {
@@ -92,8 +93,8 @@ public class DefaultProject implements Project {
     /**
      * Creates a new project.
      */
-    DefaultProject(File rootDir, Executor repositoryWorker, @Nullable RepositoryCache cache,
-                   long creationTimeMillis, Author author) {
+    DefaultProject(File rootDir, Executor repositoryWorker, Executor purgeWorker,
+                   long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
         requireNonNull(rootDir, "rootDir");
         requireNonNull(repositoryWorker, "repositoryWorker");
 
@@ -102,7 +103,7 @@ public class DefaultProject implements Project {
         }
 
         name = rootDir.getName();
-        repos = newRepoManager(rootDir, repositoryWorker, cache);
+        repos = newRepoManager(rootDir, repositoryWorker, purgeWorker, cache);
 
         boolean success = false;
         try {
@@ -116,10 +117,11 @@ public class DefaultProject implements Project {
         }
     }
 
-    private RepositoryManager newRepoManager(File rootDir, Executor repositoryWorker,
+    private RepositoryManager newRepoManager(File rootDir, Executor repositoryWorker, Executor purgeWorker,
                                              @Nullable RepositoryCache cache) {
         // Enable caching if 'cache' is not null.
-        final GitRepositoryManager gitRepos = new GitRepositoryManager(this, rootDir, repositoryWorker, cache);
+        final GitRepositoryManager gitRepos =
+                new GitRepositoryManager(this, rootDir, repositoryWorker, purgeWorker, cache);
         return cache == null ? gitRepos : new CachingRepositoryManager(gitRepos, cache);
     }
 

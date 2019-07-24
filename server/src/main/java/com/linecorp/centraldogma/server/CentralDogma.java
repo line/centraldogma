@@ -42,12 +42,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -199,6 +202,8 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private ExecutorService repositoryWorker;
     @Nullable
+    private ScheduledExecutorService purgeWorker;
+    @Nullable
     private CommandExecutor executor;
     @Nullable
     private PrometheusMeterRegistry meterRegistry;
@@ -311,6 +316,7 @@ public class CentralDogma implements AutoCloseable {
     private void doStart() throws Exception {
         boolean success = false;
         ExecutorService repositoryWorker = null;
+        ScheduledExecutorService purgeWorker = null;
         ProjectManager pm = null;
         CommandExecutor executor = null;
         PrometheusMeterRegistry meterRegistry = null;
@@ -330,8 +336,12 @@ public class CentralDogma implements AutoCloseable {
 
             logger.info("Starting the project manager: {}", cfg.dataDir());
 
-            pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, meterRegistry,
-                                           cfg.repositoryCacheSpec());
+            purgeWorker = Executors.newSingleThreadScheduledExecutor(
+                    new DefaultThreadFactory("purge-worker", true));
+
+            pm = new DefaultProjectManager(cfg.dataDir(), repositoryWorker, purgeWorker,
+                                           meterRegistry, cfg.repositoryCacheSpec());
+
             logger.info("Started the project manager: {}", pm);
 
             logger.info("Current settings:\n{}", cfg);
@@ -339,8 +349,8 @@ public class CentralDogma implements AutoCloseable {
             sessionManager = initializeSessionManager();
 
             logger.info("Starting the command executor ..");
-
-            executor = startCommandExecutor(pm, repositoryWorker, meterRegistry, sessionManager);
+            executor = startCommandExecutor(pm, repositoryWorker, purgeWorker,
+                                            meterRegistry, sessionManager);
             if (executor.isWritable()) {
                 logger.info("Started the command executor.");
 
@@ -358,24 +368,28 @@ public class CentralDogma implements AutoCloseable {
         } finally {
             if (success) {
                 this.repositoryWorker = repositoryWorker;
+                this.purgeWorker = purgeWorker;
                 this.pm = pm;
                 this.executor = executor;
                 this.meterRegistry = meterRegistry;
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
-                doStop(server, executor, pm, repositoryWorker, sessionManager);
+                doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager);
             }
         }
     }
 
     private CommandExecutor startCommandExecutor(
-            ProjectManager pm, Executor repositoryWorker, MeterRegistry meterRegistry,
+            ProjectManager pm, Executor repositoryWorker,
+            ScheduledExecutorService purgeWorker, MeterRegistry meterRegistry,
             @Nullable SessionManager sessionManager) {
+
         final Consumer<CommandExecutor> onTakeLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
                 logger.info("Starting plugins on the leader replica ..");
-                pluginsForLeaderOnly.start(cfg, pm, exec, meterRegistry).handle((unused, cause) -> {
+                pluginsForLeaderOnly
+                        .start(cfg, pm, exec, meterRegistry, purgeWorker).handle((unused, cause) -> {
                     if (cause == null) {
                         logger.info("Started plugins on the leader replica.");
                     } else {
@@ -389,7 +403,7 @@ public class CentralDogma implements AutoCloseable {
         final Consumer<CommandExecutor> onReleaseLeadership = exec -> {
             if (pluginsForLeaderOnly != null) {
                 logger.info("Stopping plugins on the leader replica ..");
-                pluginsForLeaderOnly.stop(cfg, pm, exec, meterRegistry).handle((unused, cause) -> {
+                pluginsForLeaderOnly.stop(cfg, pm, exec, meterRegistry, purgeWorker).handle((unused, cause) -> {
                     if (cause == null) {
                         logger.info("Stopped plugins on the leader replica.");
                     } else {
@@ -788,6 +802,7 @@ public class CentralDogma implements AutoCloseable {
         final CommandExecutor executor = this.executor;
         final ProjectManager pm = this.pm;
         final ExecutorService repositoryWorker = this.repositoryWorker;
+        final ExecutorService purgeWorker = this.purgeWorker;
         final SessionManager sessionManager = this.sessionManager;
 
         this.server = null;
@@ -801,7 +816,7 @@ public class CentralDogma implements AutoCloseable {
         }
 
         logger.info("Stopping the Central Dogma ..");
-        if (!doStop(server, executor, pm, repositoryWorker, sessionManager)) {
+        if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager)) {
             logger.warn("Stopped the Central Dogma with failure.");
         } else {
             logger.info("Stopped the Central Dogma successfully.");
@@ -810,7 +825,8 @@ public class CentralDogma implements AutoCloseable {
 
     private static boolean doStop(
             @Nullable Server server, @Nullable CommandExecutor executor,
-            @Nullable ProjectManager pm, @Nullable ExecutorService repositoryWorker,
+            @Nullable ProjectManager pm,
+            @Nullable ExecutorService repositoryWorker, @Nullable ExecutorService purgeWorker,
             @Nullable SessionManager sessionManager) {
 
         boolean success = true;
@@ -847,28 +863,37 @@ public class CentralDogma implements AutoCloseable {
             logger.warn("Failed to stop the command executor:", t);
         }
 
-        try {
-            if (repositoryWorker != null && !repositoryWorker.isTerminated()) {
-                logger.info("Stopping the repository worker ..");
-                boolean interruptLater = false;
-                while (!repositoryWorker.isTerminated()) {
-                    repositoryWorker.shutdownNow();
-                    try {
-                        repositoryWorker.awaitTermination(1, TimeUnit.SECONDS);
-                    } catch (InterruptedException e) {
-                        // Interrupt later.
-                        interruptLater = true;
+        final BiFunction<ExecutorService, String, Boolean> stopWorker = (worker, name) -> {
+            try {
+                if (worker != null && !worker.isTerminated()) {
+                    logger.info("Stopping the {} worker ..", name);
+                    boolean interruptLater = false;
+                    while (!worker.isTerminated()) {
+                        worker.shutdownNow();
+                        try {
+                            worker.awaitTermination(1, TimeUnit.SECONDS);
+                        } catch (InterruptedException e) {
+                            // Interrupt later.
+                            interruptLater = true;
+                        }
+                    }
+                    logger.info("Stopped the {} worker.", name);
+
+                    if (interruptLater) {
+                        Thread.currentThread().interrupt();
                     }
                 }
-                logger.info("Stopped the repository worker.");
-
-                if (interruptLater) {
-                    Thread.currentThread().interrupt();
-                }
+                return true;
+            } catch (Throwable t) {
+                logger.warn("Failed to stop the " + name + " worker:", t);
+                return false;
             }
-        } catch (Throwable t) {
+        };
+        if (!stopWorker.apply(repositoryWorker, "repository")) {
             success = false;
-            logger.warn("Failed to stop the repository worker:", t);
+        }
+        if (!stopWorker.apply(purgeWorker, "purge")) {
+            success = false;
         }
 
         try {
@@ -905,7 +930,7 @@ public class CentralDogma implements AutoCloseable {
                         final CommandExecutor executor = CentralDogma.this.executor;
                         final MeterRegistry meterRegistry = CentralDogma.this.meterRegistry;
                         if (pm != null && executor != null && meterRegistry != null) {
-                            pluginsForAllReplicas.start(cfg, pm, executor, meterRegistry).join();
+                            pluginsForAllReplicas.start(cfg, pm, executor, meterRegistry, purgeWorker).join();
                         }
                     }
                 } catch (Exception e) {
@@ -922,7 +947,7 @@ public class CentralDogma implements AutoCloseable {
                     final CommandExecutor executor = CentralDogma.this.executor;
                     final MeterRegistry meterRegistry = CentralDogma.this.meterRegistry;
                     if (pm != null && executor != null && meterRegistry != null) {
-                        pluginsForAllReplicas.stop(cfg, pm, executor, meterRegistry).join();
+                        pluginsForAllReplicas.stop(cfg, pm, executor, meterRegistry, purgeWorker).join();
                     }
                 }
                 CentralDogma.this.doStop();

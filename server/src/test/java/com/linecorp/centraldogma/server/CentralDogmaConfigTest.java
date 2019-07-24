@@ -15,7 +15,9 @@
  */
 package com.linecorp.centraldogma.server;
 
+import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.InetAddress;
 import java.util.List;
@@ -169,5 +171,76 @@ public class CentralDogmaConfigTest {
         assertThat(cfg.trustedProxyAddresses()).isNull();
         assertThat(cfg.clientAddressSources()).isNull();
         assertThat(cfg.clientAddressSourceList()).isEmpty();
+    }
+
+    @Test
+    public void maxRemovedRepositoryAgeMillis() throws Exception {
+        final CentralDogmaConfig cfg =
+                Jackson.readValue("{\n" +
+                                  "  \"dataDir\": \"./data\",\n" +
+                                  "  \"ports\": [\n" +
+                                  "    {\n" +
+                                  "      \"localAddress\": {\n" +
+                                  "        \"host\": \"*\",\n" +
+                                  "        \"port\": 36462\n" +
+                                  "      },\n" +
+                                  "      \"protocols\": [\n" +
+                                  "        \"https\",\n" +
+                                  "        \"http\",\n" +
+                                  "        \"proxy\"\n" +
+                                  "      ]\n" +
+                                  "    }\n" +
+                                  "  ],\n" +
+                                  "  \"maxRemovedRepositoryAgeMillis\": 50000 \n" +
+                                  '}',
+                                  CentralDogmaConfig.class);
+        assertThat(cfg.maxRemovedRepositoryAgeMillis()).isEqualTo(50000);
+    }
+
+    @Test
+    public void maxRemovedRepositoryAgeMillis_withDefault() throws Exception {
+        final CentralDogmaConfig cfg =
+                Jackson.readValue("{\n" +
+                                  "  \"dataDir\": \"./data\",\n" +
+                                  "  \"ports\": [\n" +
+                                  "    {\n" +
+                                  "      \"localAddress\": {\n" +
+                                  "        \"host\": \"*\",\n" +
+                                  "        \"port\": 36462\n" +
+                                  "      },\n" +
+                                  "      \"protocols\": [\n" +
+                                  "        \"https\",\n" +
+                                  "        \"http\",\n" +
+                                  "        \"proxy\"\n" +
+                                  "      ]\n" +
+                                  "    }\n" +
+                                  "  ]\n" +
+                                  '}',
+                                  CentralDogmaConfig.class);
+        assertThat(cfg.maxRemovedRepositoryAgeMillis()).isEqualTo(DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS);
+    }
+
+    @Test
+    public void maxRemovedRepositoryAgeMillis_withNegativeValue() throws Exception {
+        assertThatThrownBy(() ->
+                Jackson.readValue("{\n" +
+                                  "  \"dataDir\": \"./data\",\n" +
+                                  "  \"ports\": [\n" +
+                                  "    {\n" +
+                                  "      \"localAddress\": {\n" +
+                                  "        \"host\": \"*\",\n" +
+                                  "        \"port\": 36462\n" +
+                                  "      },\n" +
+                                  "      \"protocols\": [\n" +
+                                  "        \"https\",\n" +
+                                  "        \"http\",\n" +
+                                  "        \"proxy\"\n" +
+                                  "      ]\n" +
+                                  "    }\n" +
+                                  "  ],\n" +
+                                  "  \"maxRemovedRepositoryAgeMillis\": -50000 \n" +
+                                  '}',
+                                  CentralDogmaConfig.class)
+        ).hasCauseInstanceOf(IllegalArgumentException.class);
     }
 }

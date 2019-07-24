@@ -53,14 +53,15 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
     private final RepositoryCache cache;
 
     public GitRepositoryManager(Project parent, File rootDir, Executor repositoryWorker,
-                                @Nullable RepositoryCache cache) {
-        this(parent, rootDir, GitRepositoryFormat.V1, repositoryWorker, cache);
+                                Executor purgeWorker, @Nullable RepositoryCache cache) {
+        this(parent, rootDir, GitRepositoryFormat.V1, repositoryWorker, purgeWorker, cache);
     }
 
     public GitRepositoryManager(Project parent, File rootDir, GitRepositoryFormat preferredFormat,
-                                Executor repositoryWorker, @Nullable RepositoryCache cache) {
+                                Executor repositoryWorker, Executor purgeWorker,
+                                @Nullable RepositoryCache cache) {
 
-        super(rootDir, Repository.class);
+        super(rootDir, Repository.class, purgeWorker);
         this.parent = requireNonNull(parent, "parent");
         this.preferredFormat = requireNonNull(preferredFormat, "preferredFormat");
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");

@@ -26,6 +26,7 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.Rule;
@@ -33,6 +34,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -163,8 +166,10 @@ public class GitRepositoryMigrationTest {
     @Test
     public void multipleRepositoryMigration() {
         final File tempDir = this.tempDir.getRoot();
+        final Executor purgeWorker = MoreExecutors.directExecutor();
         // Create repositories of older format.
-        final GitRepositoryManager managerA = new GitRepositoryManager(proj, tempDir, V0, commonPool(), null);
+        final GitRepositoryManager managerA = new GitRepositoryManager(proj, tempDir, V0, commonPool(),
+                                                                       purgeWorker, null);
         try {
             assertThat(((GitRepository) managerA.create("foo", Author.SYSTEM)).format()).isSameAs(V0);
             assertThat(((GitRepository) managerA.create("bar", Author.SYSTEM)).format()).isSameAs(V0);
@@ -173,7 +178,8 @@ public class GitRepositoryMigrationTest {
         }
 
         // Load the repositories with newer format to trigger automatic migration.
-        final GitRepositoryManager managerB = new GitRepositoryManager(proj, tempDir, commonPool(), null);
+        final GitRepositoryManager managerB = new GitRepositoryManager(proj, tempDir, commonPool(),
+                                                                       purgeWorker, null);
         try {
             assertThat(((GitRepository) managerB.get("foo")).format()).isSameAs(V1);
             assertThat(((GitRepository) managerB.get("bar")).format()).isSameAs(V1);

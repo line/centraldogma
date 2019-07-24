@@ -39,6 +39,7 @@ import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.Author;
@@ -89,7 +90,7 @@ public class DefaultMetaRepositoryTest {
     @BeforeClass
     public static void init() throws Exception {
         pm = new DefaultProjectManager(rootDir.getRoot(), ForkJoinPool.commonPool(),
-                                       NoopMeterRegistry.get(), null);
+                                       MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null);
     }
 
     @AfterClass

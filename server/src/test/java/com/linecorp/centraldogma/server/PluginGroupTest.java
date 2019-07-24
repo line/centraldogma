@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import org.junit.Test;
 
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
+import com.linecorp.centraldogma.server.internal.storage.PurgeSchedulingServicePlugin;
 import com.linecorp.centraldogma.server.plugin.AbstractNoopPlugin;
 import com.linecorp.centraldogma.server.plugin.NoopPluginForAllReplicas;
 import com.linecorp.centraldogma.server.plugin.NoopPluginForLeader;
@@ -64,6 +65,24 @@ public class PluginGroupTest {
         final PluginGroup group2 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group2).isNotNull();
         assertThat(group2.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotPresent();
+    }
+
+    /**
+     * The {@link PurgeSchedulingServicePlugin} must be loaded only if the
+     * {@link CentralDogmaConfig#maxRemovedRepositoryAgeMillis()} property is greater then 0.
+     */
+    @Test
+    public void confirmScheduledPurgingServiceLoadedDependingOnConfig() {
+        final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
+        when(cfg.maxRemovedRepositoryAgeMillis()).thenReturn(1L);
+        final PluginGroup group1 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
+        assertThat(group1).isNotNull();
+        assertThat(group1.findFirstPlugin(PurgeSchedulingServicePlugin.class)).isPresent();
+
+        when(cfg.maxRemovedRepositoryAgeMillis()).thenReturn(0L);
+        final PluginGroup group2 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
+        assertThat(group2).isNotNull();
+        assertThat(group2.findFirstPlugin(PurgeSchedulingServicePlugin.class)).isNotPresent();
     }
 
     private static void confirmPluginStartStop(@Nullable AbstractNoopPlugin plugin) {

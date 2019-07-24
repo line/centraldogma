@@ -31,6 +31,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.google.common.util.concurrent.MoreExecutors;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -138,6 +140,6 @@ public class GitRepositoryManagerTest {
 
     private GitRepositoryManager newRepositoryManager() {
         return new GitRepositoryManager(mock(Project.class), rootDir(), ForkJoinPool.commonPool(),
-                                        mock(RepositoryCache.class));
+                                        MoreExecutors.directExecutor(), mock(RepositoryCache.class));
     }
 }

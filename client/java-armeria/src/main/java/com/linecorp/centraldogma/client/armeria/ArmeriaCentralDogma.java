@@ -24,6 +24,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.internal.Util.validatePathPattern;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REMOVED;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
 import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
 import static java.util.Objects.requireNonNull;
@@ -182,6 +183,19 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Override
+    public CompletableFuture<Void> purgeProject(String projectName) {
+        try {
+            validateProjectName(projectName);
+            return client.execute(
+                    headers(HttpMethod.DELETE, pathBuilder(projectName).append(REMOVED).toString()))
+                         .aggregate()
+                         .thenApply(ArmeriaCentralDogma::handlePurgeResult);
+        } catch (Exception e) {
+            return exceptionallyCompletedFuture(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> unremoveProject(String projectName) {
         try {
             validateProjectName(projectName);
@@ -255,6 +269,28 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static Void removeRepository(AggregatedHttpResponse res) {
+        switch (res.status().code()) {
+            case 200:
+            case 204:
+                return null;
+        }
+        return handleErrorResponse(res);
+    }
+
+    @Override
+    public CompletableFuture<Void> purgeRepository(String projectName, String repositoryName) {
+        try {
+            validateProjectAndRepositoryName(projectName, repositoryName);
+            return client.execute(headers(HttpMethod.DELETE,
+                                          pathBuilder(projectName, repositoryName).append(REMOVED).toString()))
+                         .aggregate()
+                         .thenApply(ArmeriaCentralDogma::handlePurgeResult);
+        } catch (Exception e) {
+            return exceptionallyCompletedFuture(e);
+        }
+    }
+
+    private static Void handlePurgeResult(AggregatedHttpResponse res) {
         switch (res.status().code()) {
             case 200:
             case 204:

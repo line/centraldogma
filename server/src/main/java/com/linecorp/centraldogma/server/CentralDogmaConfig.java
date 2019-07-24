@@ -25,6 +25,7 @@ import static com.linecorp.armeria.server.ClientAddressSource.ofHeader;
 import static com.linecorp.armeria.server.ClientAddressSource.ofProxyProtocol;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_BYTES_PER_MIRROR;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_NUM_FILES_PER_MIRROR;
+import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
@@ -96,6 +97,7 @@ public final class CentralDogmaConfig {
 
     // Repository
     private final Integer numRepositoryWorkers;
+    private final long maxRemovedRepositoryAgeMillis;
 
     // Cache
     private final String repositoryCacheSpec;
@@ -144,8 +146,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("maxFrameLength") @Nullable Integer maxFrameLength,
             @JsonProperty("numRepositoryWorkers") @Nullable Integer numRepositoryWorkers,
             @JsonProperty("repositoryCacheSpec") @Nullable String repositoryCacheSpec,
-            @JsonProperty("gracefulShutdownTimeout") @Nullable
-                    GracefulShutdownTimeout gracefulShutdownTimeout,
+            @JsonProperty("maxRemovedRepositoryAgeMillis") @Nullable Long maxRemovedRepositoryAgeMillis,
+            @JsonProperty("gracefulShutdownTimeout") @Nullable GracefulShutdownTimeout gracefulShutdownTimeout,
             @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
             @JsonProperty("webAppTitle") @Nullable String webAppTitle,
             @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
@@ -173,8 +175,13 @@ public final class CentralDogmaConfig {
         this.numRepositoryWorkers = firstNonNull(numRepositoryWorkers, DEFAULT_NUM_REPOSITORY_WORKERS);
         checkArgument(this.numRepositoryWorkers > 0,
                       "numRepositoryWorkers: %s (expected: > 0)", this.numRepositoryWorkers);
+        this.maxRemovedRepositoryAgeMillis = firstNonNull(maxRemovedRepositoryAgeMillis,
+                                                          DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS);
+        checkArgument(this.maxRemovedRepositoryAgeMillis >= 0,
+                      "maxRemovedRepositoryAgeMillis: %s (expected: >= 0)", this.maxRemovedRepositoryAgeMillis);
         this.repositoryCacheSpec = validateCacheSpec(
                 firstNonNull(repositoryCacheSpec, DEFAULT_REPOSITORY_CACHE_SPEC));
+
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
         this.webAppTitle = webAppTitle;
         this.mirroringEnabled = firstNonNull(mirroringEnabled, true);
@@ -266,6 +273,11 @@ public final class CentralDogmaConfig {
     @JsonProperty
     int numRepositoryWorkers() {
         return numRepositoryWorkers;
+    }
+
+    @JsonProperty
+    public long maxRemovedRepositoryAgeMillis() {
+        return maxRemovedRepositoryAgeMillis;
     }
 
     /**

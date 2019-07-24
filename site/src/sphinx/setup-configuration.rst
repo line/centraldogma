@@ -32,6 +32,7 @@ defaults:
       "idleTimeoutMillis": null,
       "maxFrameLength": null,
       "numRepositoryWorkers": 16,
+      "maxRemovedRepositoryAgeMillis": null,
       "repositoryCacheSpec": "maximumWeight=134217728,expireAfterAccess=5m",
       "webAppEnabled": true,
       "webAppTitle": null,
@@ -129,6 +130,12 @@ Core properties
 
   - the number of worker threads dedicated to handling repository reads and writes.
     If ``null``, the default value of '16 threads' is used.
+
+- ``maxRemovedRepositoryAgeMillis`` (integer)
+
+ - the maximum allowed age of removed projects and repositories before they are purged.
+   Set 0 to disable automatic purge.
+   If ``null``, the default value of '604800000 milliseconds' (7 days) is used.
 
 - ``repositoryCacheSpec`` (string)
 

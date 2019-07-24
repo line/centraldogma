@@ -152,6 +152,15 @@ public class ProjectServiceV1Test {
     }
 
     @Test
+    public void purgeProject() {
+        removeProject();
+        final AggregatedHttpResponse aRes = httpClient.delete(PROJECTS_PREFIX + "/foo/removed")
+                                                      .aggregate().join();
+        final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
+        assertThat(ResponseHeaders.of(headers).status()).isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
     public void listRemovedProjects() throws IOException {
         createProject("trustin");
         createProject("hyangtack");

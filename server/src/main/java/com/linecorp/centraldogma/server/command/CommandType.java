@@ -34,7 +34,9 @@ public enum CommandType {
     SAVE_PLUGIN(Void.class),
     REMOVE_PLUGIN(Void.class),
     CREATE_SESSION(Void.class),
-    REMOVE_SESSION(Void.class);
+    REMOVE_SESSION(Void.class),
+    PURGE_PROJECT(Void.class),
+    PURGE_REPOSITORY(Void.class);
 
     /**
      * The type of an object which is returned as a result after executing the command.

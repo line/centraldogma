@@ -56,6 +56,11 @@ public interface CentralDogma {
     CompletableFuture<Void> removeProject(String projectName);
 
     /**
+     * Purges a project that was removed before.
+     */
+    CompletableFuture<Void> purgeProject(String projectName);
+
+    /**
      * Unremoves a project.
      */
     CompletableFuture<Void> unremoveProject(String projectName);
@@ -84,6 +89,11 @@ public interface CentralDogma {
      * {@link #unremoveRepository(String, String)}.
      */
     CompletableFuture<Void> removeRepository(String projectName, String repositoryName);
+
+    /**
+     * Purges a repository that was removed before.
+     */
+    CompletableFuture<Void> purgeRepository(String projectName, String repositoryName);
 
     /**
      * Unremoves a repository.

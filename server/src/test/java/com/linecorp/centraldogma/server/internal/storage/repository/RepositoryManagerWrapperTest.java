@@ -20,11 +20,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
@@ -54,10 +57,14 @@ public class RepositoryManagerWrapperTest {
     @Rule
     public final TestName testName = new TestName();
 
+    private Executor purgeWorker;
+
     @Before
     public void init() throws IOException {
+        purgeWorker = mock(Executor.class);
         m = new RepositoryManagerWrapper(new GitRepositoryManager(mock(Project.class), rootDir.getRoot(),
-                                                                  ForkJoinPool.commonPool(), null),
+                                                                  ForkJoinPool.commonPool(),
+                                                                  purgeWorker, null),
                                          RepositoryWrapper::new);
     }
 
@@ -116,6 +123,33 @@ public class RepositoryManagerWrapperTest {
             if (names.get(i).compareTo(names.get(i + 1)) > 0) {
                 fail("names is not in ascending order");
             }
+        }
+    }
+
+    @Test
+    public void testMarkForPurge() {
+        final String name = testName.getMethodName();
+        m.create(name, Author.SYSTEM);
+        m.remove(name);
+        m.markForPurge(name);
+        verify(purgeWorker).execute(any());
+        assertThat(m.listRemoved().keySet()).doesNotContain(name);
+    }
+
+    @Test
+    public void testPurgeMarked() {
+        final String name = testName.getMethodName();
+        final int numNames = 10;
+        for (int i = 0; i < numNames; i++) {
+            String targetName = name + i;
+            m.create(targetName, Author.SYSTEM);
+            m.remove(targetName);
+            m.markForPurge(targetName);
+        }
+        m.purgeMarked();
+        for (int i = 0; i < numNames; i++) {
+            String targetName = name + i;
+            assertThatThrownBy(() -> m.get(targetName)).isInstanceOf(RepositoryNotFoundException.class);
         }
     }
 
