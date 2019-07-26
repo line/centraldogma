@@ -101,9 +101,10 @@ public class LegacyCentralDogmaTimeoutSchedulerTest {
     }
 
     private static ClientRequestContext newClientContext(RpcRequest req) {
-        return spy(new DefaultClientRequestContext(
+        final DefaultClientRequestContext ctx = new DefaultClientRequestContext(
                 new DefaultEventLoop(), NoopMeterRegistry.get(), SessionProtocol.HTTP,
-                Endpoint.of("localhost", 8080), HttpMethod.POST, "/cd/thrift/v1",
-                null, null, ClientOptions.DEFAULT, req));
+                HttpMethod.POST, "/cd/thrift/v1", null, null, ClientOptions.DEFAULT, req);
+        ctx.init(Endpoint.of("localhost", 8080));
+        return spy(ctx);
     }
 }
