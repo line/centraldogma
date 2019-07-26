@@ -938,6 +938,14 @@ public class GitRepositoryTest {
         assertThat(repo.find(HEAD, "non-existent").join()).isEmpty();
     }
 
+    @Test
+    public void testFind_invalidPathPattern() {
+        final String pattern = "a'\"><img src=1 onerror=alert(document.domain)>";
+        assertThatThrownBy(() -> repo.find(HEAD, pattern).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
     /**
      * when the target path or revision is not valid, return an empty map.
      */

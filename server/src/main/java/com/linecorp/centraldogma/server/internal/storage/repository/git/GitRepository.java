@@ -531,11 +531,12 @@ class GitRepository implements Repository {
             }
 
             return Util.unsafeCast(result);
-        } catch (CentralDogmaException e) {
+        } catch (CentralDogmaException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
             throw new StorageException(
-                    "failed to get data from " + jGitRepository + " at " + pathPattern + " for " + revision, e);
+                    "failed to get data from '" + parent.name() + '/' + name + "' at " + pathPattern +
+                    " for " + revision, e);
         } finally {
             readUnlock();
         }
@@ -617,7 +618,7 @@ class GitRepository implements Repository {
             throw e;
         } catch (Exception e) {
             throw new StorageException(
-                    "failed to retrieve the history: " + jGitRepository +
+                    "failed to retrieve the history: " + parent.name() + '/' + name +
                     " (" + pathPattern + ", " + from + ".." + to + ')', e);
         } finally {
             readUnlock();
@@ -949,7 +950,7 @@ class GitRepository implements Repository {
         } catch (CentralDogmaException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
-            throw new StorageException("failed to push at " + jGitRepository, e);
+            throw new StorageException("failed to push at '" + parent.name() + '/' + name + '\'', e);
         }
     }
 
@@ -1453,7 +1454,7 @@ class GitRepository implements Repository {
             throw new StorageException("failed to get the current revision", e);
         }
 
-        throw new StorageException("failed to determine the HEAD: " + jGitRepository.getDirectory());
+        throw new StorageException("failed to determine the HEAD: " + parent.name() + '/' + name);
     }
 
     private RevTree toTree(RevWalk revWalk, Revision revision) {

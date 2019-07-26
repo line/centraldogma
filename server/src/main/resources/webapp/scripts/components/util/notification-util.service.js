@@ -28,7 +28,7 @@ angular.module('CentralDogmaAdmin')
                    if (typeof arg === 'object' &&
                        typeof arg.status === 'number' && typeof arg.statusText === 'string') {
                      if (StringUtil.isNotEmpty(arg.message)) {
-                       Notification.error(arg.message);
+                       Notification.error(StringUtil.escapeHtml(arg.message));
                      } else {
                        var message = arg.status + ' ' + arg.statusText;
                        if (arg.status === 401) {

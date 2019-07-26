@@ -17,3 +17,18 @@ Known issues
   - Consider enforcing network-level access control over Thrift calls.
   - Note that the Thrift RPC layer is left only for backward compatibility, and will be removed in the future,
     in favor of the REST API.
+
+Previously known issues
+-----------------------
+- DOM based, Cross-site Scripting (XSS) was found in Central Dogma.
+  An attacker could exploit this by convincing an authenticated user to visit a specifically crafted URL on a CentralDogma server,
+  allowing for the execution of arbitrary scripts on the client-side browser, resulting to perform unauthorized actions.
+
+  - This issue affects: Central Dogma artifacts from 0.17.0 to 0.40.1.
+  - The impact: Attacker is able to have victim execute arbitrary JavaScript code in the browser.
+  - The component: Notification feature
+  - The attack vector: Victim must open a specifically crafted URL.
+  - The fixed version: 0.41.0 and later.
+  - Please check `CVE-2019-6002 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-6002>`_ to get more information.
+  - If you found security bugs, please let us know  `dl_oss_dev@linecorp.com <mailto:dl_oss_dev@linecorp.com>`_ or
+    send `Slack DM <https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWRlZTZmZDljNDY3OTBmN2Y1NDAwMGUzMTMzNmFlOTYzNzYyNDNmNmM5YTk3YmExM2M4NGRkOTY2NTE1MDJhODY>`_ to maintainer.
