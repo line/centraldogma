@@ -25,9 +25,9 @@ apply plugin: 'base'
 
 ext {
     def defaultClientRepoUrl = 'https://github.com/line/centraldogma-go.git'
-    def defaultClientTag = '9ea08a6cc33e5cf68c19ee0618c235265478097a'
+    def defaultClientTag = '813a29519b7fd3f3e4806df22ec2bb613d26e4e1'
 
-    goVersion = '1.11.2'
+    goVersion = '1.12.7'
 
     clientRepoUrl = project.findProperty('goClientRepoUrl')?: defaultClientRepoUrl
     clientTag = project.findProperty('goClientTag')?: defaultClientTag
@@ -102,6 +102,7 @@ task clientBinary(group: 'Build',
             env['GOROOT'] = goBinaryManager.goroot.toString()
             env['GOBIN'] = goBinaryManager.binaryPath.parent.toString()
             env['GO111MODULE'] = 'on'
+            env['CGO_ENABLED'] = '0'
 
             def process = pb.start();
             def latch = new CountDownLatch(2)
