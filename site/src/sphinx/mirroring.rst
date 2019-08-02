@@ -162,24 +162,40 @@ repositories defined in ``/mirrors.json``:
 
 - ``publicKey`` (string)
 
-  - the OpenSSH public key which is used for SSH public key authentication.
+  - the OpenSSH RSA public key which is used for SSH public key authentication.
 
 - ``privateKey`` (string)
 
-  - the OpenSSH private key which is used for SSH public key authentication.
+  - the OpenSSH RSA private key in PEM format which is used for SSH public key authentication.
+
+    .. note::
+
+        Note that the private key must be an RSA key formatted in PEM format, which starts with
+        ``-----BEGIN RSA PRIVATE KEY-----``. If your private key starts with
+        ``-----BEGIN OPENSSH PRIVATE KEY-----``, you must convert it into PEM format first:
+
+        .. code-block:: shell
+
+            $ ssh-keygen -p -m PEM -f ~/.ssh/id_rsa
+
+        Alternatively, you can regenerate the key pair with the ``-m PEM`` option:
+
+        .. code-block:: shell
+
+            $ ssh-keygen -m PEM -t rsa -b 4096 -C "your_email@example.com"
+
+    .. tip::
+
+        You can convert your private key into a JSON string using a ``perl`` command:
+
+        .. code-block:: shell
+
+            $ cat ~/.ssh/id_rsa | perl -p -0 -e 's/\r?\n/\\n/g'
 
 - ``passphrase`` (string)
 
   - the passphrase of ``privateKey`` if the private key is encrypted.
     If unspecified or ``null``, the private key should not be encrypted.
-
-.. note::
-
-    You may want to convert your private key into a JSON string using a ``perl`` command:
-
-    .. code-block:: shell
-
-        $ cat ~/.ssh/id_rsa | perl -p -0 -e 's/\r?\n/\\n/g'
 
 If everything was configured correctly, the repository you specified in ``localRepo`` will have a file named
 ``mirror_state.json`` on a successful run, which contains the commit ID of the Git repository:
