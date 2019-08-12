@@ -66,7 +66,6 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
@@ -96,7 +95,7 @@ import com.linecorp.armeria.server.encoding.HttpEncodingService;
 import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.file.HttpFileBuilder;
 import com.linecorp.armeria.server.file.HttpFileServiceBuilder;
-import com.linecorp.armeria.server.healthcheck.HttpHealthCheckService;
+import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.metric.PrometheusExpositionService;
@@ -525,7 +524,7 @@ public class CentralDogma implements AutoCloseable {
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
 
-        sb.service(HEALTH_CHECK_PATH, new HttpHealthCheckService());
+        sb.service(HEALTH_CHECK_PATH, HealthCheckService.of());
 
         // TODO(hyangtack): This service is temporarily added to support redirection from '/docs' to '/docs/'.
         //                  It would be removed if this kind of redirection is handled by Armeria.
@@ -789,8 +788,6 @@ public class CentralDogma implements AutoCloseable {
 
         // Bind global thread pool metrics.
         ExecutorServiceMetrics.monitor(registry, ForkJoinPool.commonPool(), "commonPool");
-        sb.blockingTaskExecutor(ExecutorServiceMetrics.monitor(
-                registry, CommonPools.blockingTaskExecutor(), "blockingTaskExecutor"));
     }
 
     private void doStop() {

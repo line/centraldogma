@@ -95,7 +95,7 @@ public final class AuthConfig {
         this((AuthProviderFactory) AuthConfig.class
                      .getClassLoader()
                      .loadClass(requireNonNull(factoryClassName, "factoryClassName"))
-                     .newInstance(),
+                     .getDeclaredConstructor().newInstance(),
              administrators != null ? ImmutableSet.copyOf(administrators) : ImmutableSet.of(),
              firstNonNull(caseSensitiveLoginNames, false),
              firstNonNull(sessionCacheSpec, DEFAULT_SESSION_CACHE_SPEC),

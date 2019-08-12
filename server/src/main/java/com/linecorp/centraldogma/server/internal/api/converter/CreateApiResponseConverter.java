@@ -65,7 +65,7 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
                 builder.add(HttpHeaderNames.LOCATION, url);
             }
 
-            return HttpResponse.of(builder.build(), HttpData.of(Jackson.writeValueAsBytes(jsonNode)),
+            return HttpResponse.of(builder.build(), HttpData.wrap(Jackson.writeValueAsBytes(jsonNode)),
                                    trailingHeaders);
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);
