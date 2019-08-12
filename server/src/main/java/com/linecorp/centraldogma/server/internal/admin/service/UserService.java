@@ -46,6 +46,6 @@ public class UserService extends AbstractService {
     public HttpResponse usersMe() throws Exception {
         final User user = AuthUtil.currentUser();
         return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
-                               HttpData.of(Jackson.writeValueAsBytes(user)));
+                               HttpData.wrap(Jackson.writeValueAsBytes(user)));
     }
 }

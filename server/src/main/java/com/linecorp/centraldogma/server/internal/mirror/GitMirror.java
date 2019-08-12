@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
+import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
@@ -273,13 +274,13 @@ public final class GitMirror extends AbstractMirror {
             // Set the remote URLs.
             final URIish uri = new URIish(jGitUri);
             final RemoteSetUrlCommand remoteSetUrl = git.remoteSetUrl();
-            remoteSetUrl.setName(Constants.DEFAULT_REMOTE_NAME);
-            remoteSetUrl.setUri(uri);
+            remoteSetUrl.setRemoteName(Constants.DEFAULT_REMOTE_NAME);
+            remoteSetUrl.setRemoteUri(uri);
 
-            remoteSetUrl.setPush(false);
+            remoteSetUrl.setUriType(UriType.FETCH);
             remoteSetUrl.call();
 
-            remoteSetUrl.setPush(true);
+            remoteSetUrl.setUriType(UriType.PUSH);
             remoteSetUrl.call();
 
             // XXX(trustin): Do not garbage-collect a Git repository while the server is serving the clients

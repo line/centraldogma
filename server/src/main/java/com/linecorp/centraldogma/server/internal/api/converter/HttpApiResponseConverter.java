@@ -66,7 +66,7 @@ public final class HttpApiResponseConverter implements ResponseConverterFunction
                 resHeaders = headers;
             }
 
-            final HttpData httpData = HttpData.of(Jackson.writeValueAsBytes(resObj));
+            final HttpData httpData = HttpData.wrap(Jackson.writeValueAsBytes(resObj));
             return HttpResponse.of(resHeaders, httpData, trailingHeaders);
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);

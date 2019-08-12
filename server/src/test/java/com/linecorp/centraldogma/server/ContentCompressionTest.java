@@ -120,7 +120,7 @@ public class ContentCompressionTest {
 
         final HttpData content = compressedResponse.content();
         try (Reader in = new InputStreamReader(new InflaterInputStream(new ByteArrayInputStream(
-                content.array(), content.offset(), content.length())), StandardCharsets.UTF_8)) {
+                content.array(), 0, content.length())), StandardCharsets.UTF_8)) {
 
             assertThat(CharStreams.toString(in)).contains(CONTENT);
         }

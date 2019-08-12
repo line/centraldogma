@@ -51,7 +51,7 @@ public class RestfulJsonResponseConverter implements ResponseConverterFunction {
             final HttpData httpData =
                     resObj != null &&
                     resObj.getClass() == Object.class ? EMPTY_RESULT
-                                                      : HttpData.of(Jackson.writeValueAsBytes(resObj));
+                                                      : HttpData.wrap(Jackson.writeValueAsBytes(resObj));
 
             final ResponseHeadersBuilder builder = headers.toBuilder();
             if (HttpMethod.POST == request.method()) {

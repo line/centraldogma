@@ -41,7 +41,7 @@ import com.linecorp.armeria.client.endpoint.EndpointGroupRegistry;
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 import com.linecorp.armeria.client.endpoint.StaticEndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroupBuilder;
-import com.linecorp.armeria.client.endpoint.healthcheck.HttpHealthCheckedEndpointGroupBuilder;
+import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -167,7 +167,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             if (group instanceof DynamicEndpointGroup) {
                 // Wait until the initial endpoint list is ready.
                 try {
-                    ((DynamicEndpointGroup) group).awaitInitialEndpoints(10, TimeUnit.SECONDS);
+                    group.awaitInitialEndpoints(10, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     final UnknownHostException cause = new UnknownHostException(
                             "failed to resolve any of: " + hosts);
@@ -177,11 +177,12 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             }
 
             if (!healthCheckInterval.isZero()) {
-                group = new HttpHealthCheckedEndpointGroupBuilder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
-                        .clientFactory(clientFactory)
-                        .protocol(isUseTls() ? SessionProtocol.HTTPS : SessionProtocol.HTTP)
-                        .retryInterval(healthCheckInterval)
-                        .build();
+                group = HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
+                                                  .clientFactory(clientFactory)
+                                                  .protocol(isUseTls() ? SessionProtocol.HTTPS
+                                                                       : SessionProtocol.HTTP)
+                                                  .retryInterval(healthCheckInterval)
+                                                  .build();
             }
 
             EndpointGroupRegistry.register(groupName, group, EndpointSelectionStrategy.ROUND_ROBIN);

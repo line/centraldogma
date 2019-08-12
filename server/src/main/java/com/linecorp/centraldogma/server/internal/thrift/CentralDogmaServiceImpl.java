@@ -216,10 +216,10 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     public void normalizeRevision(String projectName, String repositoryName, Revision revision,
                                   AsyncMethodCallback resultHandler) {
 
-        handle(projectManager.get(projectName).repos().get(repositoryName)
-                             .normalize(convert(revision))
-                             .thenApply(Converter::convert),
-               resultHandler);
+        final com.linecorp.centraldogma.common.Revision normalized =
+                projectManager.get(projectName).repos().get(repositoryName)
+                              .normalizeNow(convert(revision));
+        resultHandler.onComplete(convert(normalized));
     }
 
     @Override
