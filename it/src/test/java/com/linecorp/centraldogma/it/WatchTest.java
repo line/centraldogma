@@ -24,13 +24,19 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 
+import com.linecorp.centraldogma.client.FilteredJsonWatcher;
+import com.linecorp.centraldogma.client.Latest;
+import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PushResult;
@@ -216,5 +222,54 @@ public class WatchTest extends AbstractMultiClientTest {
                 Query.ofJsonPath("/test/test1.json", "$"), 1000).join();
 
         assertThat(res).isNull();
+    }
+
+    @Test
+    public void testWatchFiltered() throws InterruptedException {
+        String filePath = "/test/test2.json";
+        Watcher<JsonNode> heavyWatcher = client().fileWatcher(rule.project(), rule.repo1(),
+                                                              Query.ofJsonPath(filePath));
+
+        FilteredJsonWatcher forExisting = new FilteredJsonWatcher(heavyWatcher, "/a");
+        AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
+        AtomicInteger triggeredCount = new AtomicInteger();
+        forExisting.watch((rev, node) -> {
+            watchResult.set(new Latest<>(rev, node));
+            triggeredCount.incrementAndGet();
+        });
+
+        // After the initial value is fetched, `latest` points to the specified JSON path
+        Latest<JsonNode> initialValue = forExisting.awaitInitialValue();
+
+        Revision rev0 = client()
+                .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
+                .join();
+        assertThat(initialValue.revision()).isEqualTo(rev0);
+        assertThat(initialValue.value()).isEqualTo(new TextNode("apple"));
+        assertThat(forExisting.latest()).isEqualTo(initialValue);
+        assertThat(triggeredCount.get()).isEqualTo(1);
+        assertThat(watchResult.get()).isEqualTo(initialValue);
+
+        // An irrelevant change should not trigger a notification.
+        Change<JsonNode> unrelatedChange = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
+        Revision rev1 = client().push(rule.project(), rule.repo1(), rev0, "Add /b", unrelatedChange)
+                                .join()
+                                .revision();
+
+        assertThat(triggeredCount.get()).isEqualTo(1);
+        assertThat(watchResult.get()).isEqualTo(initialValue);
+
+        // An relevant change should trigger a notification.
+        Change<JsonNode> relatedChange = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"artichoke\", \"b\": \"banana\" }");
+        Revision rev2 = client().push(rule.project(), rule.repo1(), rev1, "Change /a", relatedChange)
+                                .join()
+                                .revision();
+
+        Thread.sleep(1100); // DELAY_ON_SUCCESS_MILLIS + epsilon
+        assertThat(forExisting.latest()).isEqualTo(new Latest<>(rev2, new TextNode("artichoke")));
+        assertThat(watchResult.get()).isEqualTo(forExisting.latest());
+        assertThat(triggeredCount.get()).isEqualTo(2);
     }
 }
