@@ -24,8 +24,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.MissingNode;
 
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -177,5 +182,34 @@ public interface Watcher<T> extends AutoCloseable {
     default void watch(Consumer<? super T> listener) {
         requireNonNull(listener, "listener");
         watch((revision, value) -> listener.accept(value));
+    }
+
+    /**
+     * @return A new watcher, that reuses the supplied watcher and applies transformation.
+     * Note: the returned watcher is effectively filtering in a sense that,
+     * its listeners are *not* notified when a change has no effect on the transformed value.
+     */
+    default <U> Watcher<U> newChild(@Nonnull Function<T, U> transformer) {
+        return new TransformingWatcher<>(this, transformer);
+    }
+    /**
+     * @return A new child, which transformation is a JSON path query.
+     */
+    static Watcher<JsonNode> atJsonPath(@Nonnull Watcher<JsonNode> watcher, String jsonPath) {
+        return watcher.newChild(new Function<JsonNode, JsonNode>() {
+            @Override
+            public JsonNode apply(JsonNode node) {
+                if (node == null) {
+                    return MissingNode.getInstance();
+                } else {
+                    return node.at(jsonPath);
+                }
+            }
+
+            @Override
+            public String toString() {
+                return "JSON path " + jsonPath;
+            }
+        });
     }
 }

@@ -34,7 +34,6 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
-import com.linecorp.centraldogma.client.FilteredJsonWatcher;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Change;
@@ -230,7 +229,7 @@ public class WatchTest extends AbstractMultiClientTest {
         Watcher<JsonNode> heavyWatcher = client().fileWatcher(rule.project(), rule.repo1(),
                                                               Query.ofJsonPath(filePath));
 
-        FilteredJsonWatcher forExisting = new FilteredJsonWatcher(heavyWatcher, "/a");
+        Watcher<JsonNode> forExisting = Watcher.atJsonPath(heavyWatcher, "/a");
         AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
         AtomicInteger triggeredCount = new AtomicInteger();
         forExisting.watch((rev, node) -> {
@@ -271,5 +270,21 @@ public class WatchTest extends AbstractMultiClientTest {
         assertThat(forExisting.latest()).isEqualTo(new Latest<>(rev2, new TextNode("artichoke")));
         assertThat(watchResult.get()).isEqualTo(forExisting.latest());
         assertThat(triggeredCount.get()).isEqualTo(2);
+
+        // Once closed, it's deaf
+        forExisting.close();
+
+        Change<JsonNode> nextRelatedChange = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apricot\", \"b\": \"banana\" }");
+        Revision rev3 = client().push(rule.project(), rule.repo1(), rev2, "Change /a again", nextRelatedChange)
+                                .join()
+                                .revision();
+
+        Thread.sleep(1100); // DELAY_ON_SUCCESS_MILLIS + epsilon
+        assertThat(forExisting.latest()).isEqualTo(new Latest<>(rev2, new TextNode("artichoke")));
+        assertThat(watchResult.get()).isEqualTo(forExisting.latest());
+        assertThat(triggeredCount.get()).isEqualTo(2);
+        assertThat(heavyWatcher.latestValue().at("/a")).isEqualTo(new TextNode("apricot"));
+        assertThat(heavyWatcher.latest().revision()).isEqualTo(rev3);
     }
 }
