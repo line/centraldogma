@@ -12,7 +12,7 @@ ch.qos.logback:
     - https://logback.qos.ch/apidocs/
 
 com.beust:
-  jcommander: { version: '1.75' }
+  jcommander: { version: '1.78' }
 
 com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
