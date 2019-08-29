@@ -231,7 +231,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
                                                    Revision revision, Query<T> query) {
 
-        return normalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
+        return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
             final CompletableFuture<GetFileResult> future = run(callback -> {
                 requireNonNull(query, "query");
                 client.getFile(projectName, repositoryName,
@@ -273,7 +273,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     public CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
                                                              Revision revision, String pathPattern) {
 
-        return normalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
+        return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
             final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Entry>> future =
                     run(callback -> {
                         validatePathPattern(pathPattern, "pathPattern");

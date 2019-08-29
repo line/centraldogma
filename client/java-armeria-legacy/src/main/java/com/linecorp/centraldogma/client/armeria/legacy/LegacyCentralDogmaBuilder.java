@@ -25,7 +25,10 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.AbstractArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
+import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
+import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.AsyncIface;
+
+import io.netty.channel.EventLoopGroup;
 
 /**
  * Builds a legacy {@link CentralDogma} client based on Thrift.
@@ -60,7 +63,15 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
             }
             return delegate.execute(ctx, req);
         });
-        return new LegacyCentralDogma(clientFactory().eventLoopGroup(),
-                                      builder.build(CentralDogmaService.AsyncIface.class));
+
+        final EventLoopGroup executor = clientFactory().eventLoopGroup();
+        final int maxRetriesOnReplicationLag = maxRetriesOnReplicationLag();
+        final CentralDogma dogma = new LegacyCentralDogma(executor, builder.build(AsyncIface.class));
+        if (maxRetriesOnReplicationLag <= 0) {
+            return dogma;
+        } else {
+            return new ReplicationLagTolerantCentralDogma(
+                    executor, dogma, maxRetriesOnReplicationLag, retryIntervalOnReplicationLagMillis());
+        }
     }
 }

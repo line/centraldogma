@@ -439,7 +439,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             requireNonNull(query, "query");
 
             // TODO(trustin) No need to normalize a revision once server response contains it.
-            return normalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
+            return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
                 final StringBuilder path = pathBuilder(projectName, repositoryName);
                 path.append("/contents").append(query.path());
                 path.append("?revision=").append(normRev.text());
@@ -472,7 +472,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             validatePathPattern(pathPattern, "pathPattern");
 
             // TODO(trustin) No need to normalize a revision once server response contains it.
-            return normalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
+            return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
                 final StringBuilder path = pathBuilder(projectName, repositoryName);
                 path.append("/contents");
                 if (pathPattern.charAt(0) != '/') {

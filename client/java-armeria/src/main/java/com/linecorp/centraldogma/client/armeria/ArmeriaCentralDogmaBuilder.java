@@ -22,6 +22,9 @@ import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.encoding.HttpDecodingClient;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
+
+import io.netty.channel.EventLoopGroup;
 
 public final class ArmeriaCentralDogmaBuilder
         extends AbstractArmeriaCentralDogmaBuilder<ArmeriaCentralDogmaBuilder> {
@@ -36,7 +39,16 @@ public final class ArmeriaCentralDogmaBuilder
         final String uri = scheme + endpoint.authority();
         final ClientBuilder builder =
                 newClientBuilder(uri, cb -> cb.decorator(HttpDecodingClient.newDecorator()));
-        return new ArmeriaCentralDogma(clientFactory().eventLoopGroup(),
-                                       builder.build(HttpClient.class), accessToken());
+        final EventLoopGroup executor = clientFactory().eventLoopGroup();
+        final int maxRetriesOnReplicationLag = maxRetriesOnReplicationLag();
+        final CentralDogma dogma = new ArmeriaCentralDogma(executor,
+                                                           builder.build(HttpClient.class),
+                                                           accessToken());
+        if (maxRetriesOnReplicationLag <= 0) {
+            return dogma;
+        } else {
+            return new ReplicationLagTolerantCentralDogma(
+                    executor, dogma, maxRetriesOnReplicationLag, retryIntervalOnReplicationLagMillis());
+        }
     }
 }

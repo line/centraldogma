@@ -18,9 +18,19 @@ package com.linecorp.centraldogma.client;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Commit;
+import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.MergeSource;
+import com.linecorp.centraldogma.common.MergedEntry;
+import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.client.FileWatcher;
@@ -36,16 +46,123 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     /**
      * Creates a new instance.
      *
-     * @param executor the {@link ScheduledExecutorService} which will be used for watching a file or
-     *                 a repository
+     * @param executor the {@link ScheduledExecutorService} which will be used for scheduling the tasks
+     *                 related with automatic retries.
      */
     protected AbstractCentralDogma(ScheduledExecutorService executor) {
         this.executor = requireNonNull(executor, "executor");
     }
 
+    /**
+     * Returns the {@link ScheduledExecutorService} which is used for scheduling the tasks related with
+     * automatic retries.
+     */
+    protected final ScheduledExecutorService executor() {
+        return executor;
+    }
+
     @Override
-    public final <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
-                                               Function<? super T, ? extends U> function) {
+    public final CompletableFuture<Entry<?>> getFile(
+            String projectName, String repositoryName, Revision revision, String path) {
+        return CentralDogma.super.getFile(projectName, repositoryName, revision, path);
+    }
+
+    @Override
+    public final CompletableFuture<MergedEntry<?>> mergeFiles(
+            String projectName, String repositoryName, Revision revision, MergeSource... mergeSources) {
+        return CentralDogma.super.mergeFiles(projectName, repositoryName, revision, mergeSources);
+    }
+
+    @Override
+    public final CompletableFuture<MergedEntry<?>> mergeFiles(
+            String projectName, String repositoryName, Revision revision, Iterable<MergeSource> mergeSources) {
+        return CentralDogma.super.mergeFiles(projectName, repositoryName, revision, mergeSources);
+    }
+
+    @Override
+    public final CompletableFuture<List<Commit>> getHistory(
+            String projectName, String repositoryName, Revision from, Revision to) {
+        return CentralDogma.super.getHistory(projectName, repositoryName, from, to);
+    }
+
+    @Override
+    public final CompletableFuture<Change<?>> getDiff(
+            String projectName, String repositoryName, Revision from, Revision to, String path) {
+        return CentralDogma.super.getDiff(projectName, repositoryName, from, to, path);
+    }
+
+    @Override
+    public final CompletableFuture<List<Change<?>>> getPreviewDiffs(
+            String projectName, String repositoryName, Revision baseRevision, Change<?>... changes) {
+        return CentralDogma.super.getPreviewDiffs(projectName, repositoryName, baseRevision, changes);
+    }
+
+    @Override
+    public final CompletableFuture<PushResult> push(
+            String projectName, String repositoryName, Revision baseRevision,
+            String summary, Change<?>... changes) {
+        return CentralDogma.super.push(projectName, repositoryName, baseRevision, summary, changes);
+    }
+
+    @Override
+    public final CompletableFuture<PushResult> push(
+            String projectName, String repositoryName, Revision baseRevision,
+            String summary, Iterable<? extends Change<?>> changes) {
+        return CentralDogma.super.push(projectName, repositoryName, baseRevision, summary, changes);
+    }
+
+    @Override
+    public final CompletableFuture<PushResult> push(
+            String projectName, String repositoryName, Revision baseRevision,
+            String summary, String detail, Markup markup, Change<?>... changes) {
+        return CentralDogma.super.push(projectName, repositoryName, baseRevision,
+                                       summary, detail, markup, changes);
+    }
+
+    @Override
+    public final CompletableFuture<PushResult> push(
+            String projectName, String repositoryName, Revision baseRevision,
+            Author author, String summary, Change<?>... changes) {
+        return CentralDogma.super.push(projectName, repositoryName, baseRevision, author, summary, changes);
+    }
+
+    @Override
+    public final CompletableFuture<PushResult> push(
+            String projectName, String repositoryName, Revision baseRevision,
+            Author author, String summary, Iterable<? extends Change<?>> changes) {
+        return CentralDogma.super.push(projectName, repositoryName, baseRevision, author, summary, changes);
+    }
+
+    @Override
+    public final CompletableFuture<PushResult> push(
+            String projectName, String repositoryName, Revision baseRevision,
+            Author author, String summary, String detail, Markup markup, Change<?>... changes) {
+        return CentralDogma.super.push(projectName, repositoryName, baseRevision,
+                                       author, summary, detail, markup, changes);
+    }
+
+    @Override
+    public final CompletableFuture<Revision> watchRepository(
+            String projectName, String repositoryName, Revision lastKnownRevision, String pathPattern) {
+        return CentralDogma.super.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern);
+    }
+
+    @Override
+    public final <T> CompletableFuture<Entry<T>> watchFile(
+            String projectName, String repositoryName, Revision lastKnownRevision, Query<T> query) {
+        return CentralDogma.super.watchFile(projectName, repositoryName, lastKnownRevision, query);
+    }
+
+    @Override
+    public final <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
+        return CentralDogma.super.fileWatcher(projectName, repositoryName, query);
+    }
+
+    @Override
+    public <T, U> Watcher<U> fileWatcher(
+            String projectName, String repositoryName, Query<T> query,
+            Function<? super T, ? extends U> function) {
+
         final FileWatcher<U> watcher =
                 new FileWatcher<>(this, executor, projectName, repositoryName, query, function);
         watcher.start();
@@ -53,12 +170,35 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     }
 
     @Override
-    public final <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-                                                  Function<Revision, ? extends T> function) {
+    public final Watcher<Revision> repositoryWatcher(
+            String projectName, String repositoryName, String pathPattern) {
+        return CentralDogma.super.repositoryWatcher(projectName, repositoryName, pathPattern);
+    }
+
+    @Override
+    public <T> Watcher<T> repositoryWatcher(
+            String projectName, String repositoryName, String pathPattern,
+            Function<Revision, ? extends T> function) {
+
         final RepositoryWatcher<T> watcher =
                 new RepositoryWatcher<>(this, executor,
                                         projectName, repositoryName, pathPattern, function);
         watcher.start();
         return watcher;
+    }
+
+    /**
+     * Normalizes the specified {@link Revision} only if it is a relative revision.
+     *
+     * @return the absolute {@link Revision}
+     */
+    protected final CompletableFuture<Revision> maybeNormalizeRevision(
+            String projectName, String repositoryName, Revision revision) {
+
+        if (revision.isRelative()) {
+            return normalizeRevision(projectName, repositoryName, revision);
+        } else {
+            return CompletableFuture.completedFuture(revision);
+        }
     }
 }
