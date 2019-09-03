@@ -40,7 +40,7 @@ public final class ArmeriaCentralDogmaBuilder
         final ClientBuilder builder =
                 newClientBuilder(uri, cb -> cb.decorator(HttpDecodingClient.newDecorator()));
         final EventLoopGroup executor = clientFactory().eventLoopGroup();
-        final int maxRetriesOnReplicationLag = maxRetriesOnReplicationLag();
+        final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
         final CentralDogma dogma = new ArmeriaCentralDogma(executor,
                                                            builder.build(HttpClient.class),
                                                            accessToken());

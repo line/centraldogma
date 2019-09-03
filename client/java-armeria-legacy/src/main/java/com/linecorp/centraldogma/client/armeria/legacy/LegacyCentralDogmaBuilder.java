@@ -65,7 +65,7 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         });
 
         final EventLoopGroup executor = clientFactory().eventLoopGroup();
-        final int maxRetriesOnReplicationLag = maxRetriesOnReplicationLag();
+        final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
         final CentralDogma dogma = new LegacyCentralDogma(executor, builder.build(AsyncIface.class));
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;

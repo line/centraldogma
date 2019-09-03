@@ -58,7 +58,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     static final int DEFAULT_PORT = 36462;
 
-    private static final int DEFAULT_MAX_RETRIES_ON_REPLICATION_LAG = 5;
+    private static final int DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG = 5;
     private static final int DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS = 2;
 
     private ImmutableSet<InetSocketAddress> hosts = ImmutableSet.of();
@@ -67,7 +67,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     @Nullable
     private String selectedProfile;
     private String accessToken = CsrfToken.ANONYMOUS;
-    private int maxRetriesOnReplicationLag = 5;
+    private int maxNumRetriesOnReplicationLag = DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG;
     private long retryIntervalOnReplicationLagMillis =
             TimeUnit.SECONDS.toMillis(DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS);
 
@@ -370,20 +370,20 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      *
      * <p>Setting a value greater than {@code 0} to this property will make the client detect such situations
      * and retry automatically. By default, the client will retry up to
-     * {@value #DEFAULT_MAX_RETRIES_ON_REPLICATION_LAG} times.</p>
+     * {@value #DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG} times.</p>
      */
-    public final B maxRetriesOnReplicationLag(int maxRetriesOnReplicationLag) {
+    public final B maxNumRetriesOnReplicationLag(int maxRetriesOnReplicationLag) {
         checkArgument(maxRetriesOnReplicationLag >= 0,
                       "maxRetriesOnReplicationLag: %s (expected: >= 0)", maxRetriesOnReplicationLag);
-        this.maxRetriesOnReplicationLag = maxRetriesOnReplicationLag;
+        this.maxNumRetriesOnReplicationLag = maxRetriesOnReplicationLag;
         return self();
     }
 
     /**
      * Returns the maximum number of retries to perform when replication lag is detected.
      */
-    protected int maxRetriesOnReplicationLag() {
-        return maxRetriesOnReplicationLag;
+    protected int maxNumRetriesOnReplicationLag() {
+        return maxNumRetriesOnReplicationLag;
     }
 
     /**
