@@ -53,6 +53,10 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
+/**
+ * A {@link CentralDogma} client that retries the request automatically when a {@link RevisionNotFoundException}
+ * was raised but it is certain that a given {@link Revision} exists.
+ */
 public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDogma {
 
     private final CentralDogma delegate;
@@ -390,14 +394,14 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     }
 
     /**
-     * Handles a {@link RevisionNotFoundException} and returns whether the request must be retried.
+     * Returns {@code true} to indicate that the request must be retried if {@code cause} is
+     * a {@link RevisionNotFoundException} and the specified {@link Revision} is supposed to exist.
      */
     private boolean handleRevisionNotFound(
             String projectName, String repositoryName, Revision revision, Throwable cause) {
 
         requireNonNull(cause, "cause");
 
-        // Retry if we got `RevisionNotFoundException` for an existent revision.
         if (!(cause instanceof RevisionNotFoundException)) {
             return false;
         }
