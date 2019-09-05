@@ -16,7 +16,9 @@
 package com.linecorp.centraldogma.internal.client;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -347,6 +349,14 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             String projectName, String repositoryName, Revision from, Revision to,
             BiFunction<Revision, Revision, CompletableFuture<T>> taskRunner) {
 
+        if (to == null) {
+            return exceptionallyCompletedFuture(new NullPointerException("to"));
+        }
+
+        if (from == null) {
+            return exceptionallyCompletedFuture(new NullPointerException("from"));
+        }
+
         final int distance = to.major() - from.major();
         final Revision baseRevision = to.compareTo(from) >= 0 ? to : from;
 
@@ -392,9 +402,9 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             final int nextAttemptsSoFar = attemptsSoFar + 1;
             if (!retryPredicate.test(res, cause) || nextAttemptsSoFar > maxRetries) {
                 if (cause == null) {
-                    return CompletableFuture.completedFuture(res);
+                    return completedFuture(res);
                 } else {
-                    return CompletableFutures.exceptionallyCompletedFuture(cause);
+                    return exceptionallyCompletedFuture(cause);
                 }
             }
 
