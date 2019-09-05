@@ -153,7 +153,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void normalizeRevisionsAndExecuteWithRetries() throws Exception {
+    public void normalizeRevisionsAndExecuteWithRetriesFastPath() throws Exception {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
                 new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
@@ -181,6 +181,32 @@ public class ReplicationLagTolerantCentralDogmaTest {
 
         verify(delegate, times(2)).normalizeRevision("foo", "bar", Revision.HEAD);
         verify(delegate, times(1)).getDiff("foo", "bar", new Revision(2), Revision.INIT,
+                                           Query.ofJson("/foo.json"));
+        verifyNoMoreInteractions(delegate);
+    }
+
+    @Test
+    public void normalizeRevisionsAndExecuteWithRetriesSlowPath() throws Exception {
+        final CentralDogma delegate = mock(CentralDogma.class);
+        final ReplicationLagTolerantCentralDogma dogma =
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+
+        when(delegate.normalizeRevision(any(), any(), eq(Revision.INIT)))
+                .thenReturn(completedFuture(Revision.INIT));
+        when(delegate.normalizeRevision(any(), any(), eq(Revision.HEAD)))
+                .thenReturn(completedFuture(new Revision(2)));
+        when(delegate.getDiff(any(), any(), any(), any(), any(Query.class))).thenReturn(
+                exceptionallyCompletedFuture(new RevisionNotFoundException()),
+                exceptionallyCompletedFuture(new RevisionNotFoundException()),
+                completedFuture(Change.ofJsonUpsert("/foo.json", "{ \"a\": \"b\" }")));
+
+        assertThat(dogma.getDiff("foo", "bar", Revision.INIT, Revision.HEAD,
+                                 Query.ofJson("/foo.json")).join())
+                .isEqualTo(Change.ofJsonUpsert("/foo.json", "{ \"a\": \"b\" }"));
+
+        verify(delegate, times(1)).normalizeRevision("foo", "bar", Revision.INIT);
+        verify(delegate, times(1)).normalizeRevision("foo", "bar", Revision.HEAD);
+        verify(delegate, times(3)).getDiff("foo", "bar", Revision.INIT, new Revision(2),
                                            Query.ofJson("/foo.json"));
         verifyNoMoreInteractions(delegate);
     }

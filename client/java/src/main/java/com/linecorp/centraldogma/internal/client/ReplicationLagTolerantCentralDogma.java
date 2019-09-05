@@ -357,29 +357,55 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             return exceptionallyCompletedFuture(new NullPointerException("from"));
         }
 
-        final int distance = to.major() - from.major();
-        final Revision baseRevision = to.compareTo(from) >= 0 ? to : from;
+        if (from.isRelative() && to.isRelative() ||
+            !from.isRelative() && !to.isRelative()) {
 
-        return normalizeRevision(projectName, repositoryName, baseRevision).thenCompose(normBaseRev -> {
-            final Revision normFromRev;
-            final Revision normToRev;
-            if (distance >= 0) {
-                normToRev = normBaseRev;
-                normFromRev = normBaseRev.backward(distance);
-            } else {
-                normFromRev = normBaseRev;
-                normToRev = normBaseRev.backward(-distance);
-            }
+            // When both revisions are absolute or both revisions are relative,
+            // we can call normalizeRevision() only once and guess the other revision from the distance.
+            final int distance = to.major() - from.major();
+            final Revision baseRevision = to.compareTo(from) >= 0 ? to : from;
 
-            return executeWithRetries(
-                    () -> taskRunner.apply(normFromRev, normToRev),
-                    (res, cause) -> {
-                        if (cause == null) {
-                            return false;
-                        }
-                        return handleRevisionNotFound(projectName, repositoryName, baseRevision, cause);
-                    });
-        });
+            return normalizeRevision(projectName, repositoryName, baseRevision).thenCompose(normBaseRev -> {
+                final Revision normFromRev;
+                final Revision normToRev;
+                if (distance >= 0) {
+                    normToRev = normBaseRev;
+                    normFromRev = normBaseRev.backward(distance);
+                } else {
+                    normFromRev = normBaseRev;
+                    normToRev = normBaseRev.backward(-distance);
+                }
+
+                return executeWithRetries(
+                        () -> taskRunner.apply(normFromRev, normToRev),
+                        (res, cause) -> {
+                            if (cause == null) {
+                                return false;
+                            }
+                            return handleRevisionNotFound(projectName, repositoryName, normBaseRev, cause);
+                        });
+            });
+        } else {
+            // When one revision is absolute and the other is relative, we have to normalize both revisions
+            // because it is impossible to know the distance between them and which is a newer revision.
+            return CompletableFutures.allAsList(ImmutableList.of(
+                    normalizeRevision(projectName, repositoryName, from),
+                    normalizeRevision(projectName, repositoryName, to))).thenCompose(normRevs -> {
+                final Revision normFromRev = normRevs.get(0);
+                final Revision normToRev = normRevs.get(1);
+                return executeWithRetries(
+                        () -> taskRunner.apply(normFromRev, normToRev),
+                        (res, cause) -> {
+                            if (cause == null) {
+                                return false;
+                            }
+                            final Revision normBaseRev = normFromRev.compareTo(normToRev) > 0 ? normFromRev
+                                                                                              : normToRev;
+                            return handleRevisionNotFound(projectName, repositoryName, normBaseRev, cause);
+                        });
+            });
+        }
+
     }
 
     /**
