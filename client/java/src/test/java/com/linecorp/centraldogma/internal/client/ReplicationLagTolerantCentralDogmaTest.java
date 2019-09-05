@@ -35,6 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.AfterClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -131,7 +132,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void normalizeRevisionAndExecute() throws Exception {
+    public void normalizeRevisionAndExecuteWithRetries() throws Exception {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
                 new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
@@ -152,13 +153,11 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void normalizeRevisionsAndExecute() throws Exception {
+    public void normalizeRevisionsAndExecuteWithRetries() throws Exception {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
                 new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
 
-        when(delegate.normalizeRevision(any(), any(), eq(new Revision(-2))))
-                .thenReturn(completedFuture(Revision.INIT));
         when(delegate.normalizeRevision(any(), any(), eq(Revision.HEAD)))
                 .thenReturn(completedFuture(new Revision(2)));
         when(delegate.getDiff(any(), any(), any(), any(), any(Query.class))).thenReturn(
@@ -170,9 +169,18 @@ public class ReplicationLagTolerantCentralDogmaTest {
                                  Query.ofJson("/foo.json")).join())
                 .isEqualTo(Change.ofJsonUpsert("/foo.json", "{ \"a\": \"b\" }"));
 
-        verify(delegate, times(1)).normalizeRevision("foo", "bar", new Revision(-2));
         verify(delegate, times(1)).normalizeRevision("foo", "bar", Revision.HEAD);
         verify(delegate, times(3)).getDiff("foo", "bar", Revision.INIT, new Revision(2),
+                                           Query.ofJson("/foo.json"));
+        verifyNoMoreInteractions(delegate);
+
+        // Test again with swapped revisions.
+        assertThat(dogma.getDiff("foo", "bar", new Revision(-1), new Revision(-2),
+                                 Query.ofJson("/foo.json")).join())
+                .isEqualTo(Change.ofJsonUpsert("/foo.json", "{ \"a\": \"b\" }"));
+
+        verify(delegate, times(2)).normalizeRevision("foo", "bar", Revision.HEAD);
+        verify(delegate, times(1)).getDiff("foo", "bar", new Revision(2), Revision.INIT,
                                            Query.ofJson("/foo.json"));
         verifyNoMoreInteractions(delegate);
     }

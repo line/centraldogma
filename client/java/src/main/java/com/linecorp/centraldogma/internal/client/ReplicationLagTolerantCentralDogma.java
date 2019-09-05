@@ -52,6 +52,7 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
+import com.linecorp.centraldogma.common.RevisionRange;
 
 /**
  * A {@link CentralDogma} client that retries the request automatically when a {@link RevisionNotFoundException}
@@ -346,23 +347,29 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             String projectName, String repositoryName, Revision from, Revision to,
             BiFunction<Revision, Revision, CompletableFuture<T>> taskRunner) {
 
-        return CompletableFutures.allAsList(ImmutableList.of(
-                normalizeRevision(projectName, repositoryName, from),
-                normalizeRevision(projectName, repositoryName, to)))
-                .thenCompose(normRevs -> {
-                    final Revision normFromRev = normRevs.get(0);
-                    final Revision normToRev = normRevs.get(1);
-                    return executeWithRetries(
-                            () -> taskRunner.apply(normFromRev, normToRev),
-                            (res, cause) -> {
-                                if (cause == null) {
-                                    return false;
-                                }
-                                final Revision normRev = normFromRev.compareTo(normToRev) > 0 ? normFromRev
-                                                                                              : normToRev;
-                                return handleRevisionNotFound(projectName, repositoryName, normRev, cause);
-                            });
-                });
+        final int distance = to.major() - from.major();
+        final Revision baseRevision = to.compareTo(from) >= 0 ? to : from;
+
+        return normalizeRevision(projectName, repositoryName, baseRevision).thenCompose(normBaseRev -> {
+            final Revision normFromRev;
+            final Revision normToRev;
+            if (distance >= 0) {
+                normToRev = normBaseRev;
+                normFromRev = normBaseRev.backward(distance);
+            } else {
+                normFromRev = normBaseRev;
+                normToRev = normBaseRev.backward(-distance);
+            }
+
+            return executeWithRetries(
+                    () -> taskRunner.apply(normFromRev, normToRev),
+                    (res, cause) -> {
+                        if (cause == null) {
+                            return false;
+                        }
+                        return handleRevisionNotFound(projectName, repositoryName, baseRevision, cause);
+                    });
+        });
     }
 
     /**
