@@ -399,13 +399,13 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                             if (cause == null) {
                                 return false;
                             }
+
                             final Revision normBaseRev = normFromRev.compareTo(normToRev) > 0 ? normFromRev
                                                                                               : normToRev;
                             return handleRevisionNotFound(projectName, repositoryName, normBaseRev, cause);
                         });
             });
         }
-
     }
 
     /**
