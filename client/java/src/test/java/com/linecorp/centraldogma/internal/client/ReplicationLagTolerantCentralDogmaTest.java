@@ -35,7 +35,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.AfterClass;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
