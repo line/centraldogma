@@ -54,7 +54,6 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
-import com.linecorp.centraldogma.common.RevisionRange;
 
 /**
  * A {@link CentralDogma} client that retries the request automatically when a {@link RevisionNotFoundException}
