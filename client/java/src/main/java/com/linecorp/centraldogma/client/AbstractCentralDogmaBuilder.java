@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -31,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -41,6 +43,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.net.InetAddresses;
 
+import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 
 /**
@@ -55,12 +58,18 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
 
     static final int DEFAULT_PORT = 36462;
 
+    private static final int DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG = 5;
+    private static final int DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS = 2;
+
     private ImmutableSet<InetSocketAddress> hosts = ImmutableSet.of();
     private boolean useTls;
     private List<String> profileResourcePaths = DEFAULT_PROFILE_RESOURCE_PATHS;
     @Nullable
     private String selectedProfile;
     private String accessToken = CsrfToken.ANONYMOUS;
+    private int maxNumRetriesOnReplicationLag = DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG;
+    private long retryIntervalOnReplicationLagMillis =
+            TimeUnit.SECONDS.toMillis(DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS);
 
     /**
      * Returns {@code this}.
@@ -344,5 +353,66 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      */
     protected String accessToken() {
         return accessToken;
+    }
+
+    /**
+     * Sets the maximum number of retries to perform when replication lag is detected. For example,
+     * without replication lag detection and retries, the {@code getFile()} in the following example
+     * might fail with a {@link RevisionNotFoundException} when replication is enabled on the server side:
+     * <pre>{@code
+     * CentralDogma dogma = ...;
+     * // getFile() may fail if:
+     * // 1) the replica A serves getFile() while the replica B serves the normalizeRevision() and
+     * // 2) the replica A did not catch up all the commits made in the replica B.
+     * Revision headRevision = dogma.normalizeRevision("proj", "repo", Revision.HEAD).join();
+     * Entry<String> entry = dogma.getFile("proj", "repo", headRevision, Query.ofText("/a.txt")).join();
+     * }</pre>
+     *
+     * <p>Setting a value greater than {@code 0} to this property will make the client detect such situations
+     * and retry automatically. By default, the client will retry up to
+     * {@value #DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG} times.</p>
+     */
+    public final B maxNumRetriesOnReplicationLag(int maxRetriesOnReplicationLag) {
+        checkArgument(maxRetriesOnReplicationLag >= 0,
+                      "maxRetriesOnReplicationLag: %s (expected: >= 0)", maxRetriesOnReplicationLag);
+        this.maxNumRetriesOnReplicationLag = maxRetriesOnReplicationLag;
+        return self();
+    }
+
+    /**
+     * Returns the maximum number of retries to perform when replication lag is detected.
+     */
+    protected int maxNumRetriesOnReplicationLag() {
+        return maxNumRetriesOnReplicationLag;
+    }
+
+    /**
+     * Sets the interval between retries which occurred due to replication lag. By default, the interval
+     * between retries is {@value #DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS} seconds.
+     */
+    public final B retryIntervalOnReplicationLag(Duration retryIntervalOnReplicationLag) {
+        requireNonNull(retryIntervalOnReplicationLag, "retryIntervalOnReplicationLag");
+        checkArgument(!retryIntervalOnReplicationLag.isNegative(),
+                      "retryIntervalOnReplicationLag: %s (expected: >= 0)", retryIntervalOnReplicationLag);
+        return retryIntervalOnReplicationLagMillis(retryIntervalOnReplicationLag.toMillis());
+    }
+
+    /**
+     * Sets the interval between retries which occurred due to replication lag in milliseconds. By default,
+     * the interval between retries is {@value #DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS} seconds.
+     */
+    public final B retryIntervalOnReplicationLagMillis(long retryIntervalOnReplicationLagMillis) {
+        checkArgument(retryIntervalOnReplicationLagMillis >= 0,
+                      "retryIntervalOnReplicationLagMillis: %s (expected: >= 0)",
+                      retryIntervalOnReplicationLagMillis);
+        this.retryIntervalOnReplicationLagMillis = retryIntervalOnReplicationLagMillis;
+        return self();
+    }
+
+    /**
+     * Returns the interval between retries which occurred due to replication lag in milliseconds.
+     */
+    protected long retryIntervalOnReplicationLagMillis() {
+        return retryIntervalOnReplicationLagMillis;
     }
 }
