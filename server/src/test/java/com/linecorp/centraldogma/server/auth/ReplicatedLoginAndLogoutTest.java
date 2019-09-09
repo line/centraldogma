@@ -35,7 +35,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryUntilElapsed;
 import org.apache.curator.test.InstanceSpec;
-import org.awaitility.Duration;
+import org.awaitility.Durations;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -155,8 +155,8 @@ public class ReplicatedLoginAndLogoutTest {
         // Ensure authorization works at the 2nd replica.
         final AccessToken accessToken = Jackson.readValue(loginRes.contentUtf8(), AccessToken.class);
         final String sessionId = accessToken.accessToken();
-        await().pollDelay(Duration.TWO_HUNDRED_MILLISECONDS)
-               .pollInterval(Duration.ONE_SECOND)
+        await().pollDelay(Durations.TWO_HUNDRED_MILLISECONDS)
+               .pollInterval(Durations.ONE_SECOND)
                .untilAsserted(() -> assertThat(usersMe(client2, sessionId).status()).isEqualTo(HttpStatus.OK));
 
         // Ensure that no replication log is produced.
@@ -169,8 +169,8 @@ public class ReplicatedLoginAndLogoutTest {
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount + 2);
 
         // Ensure authorization fails at the 2nd replica.
-        await().pollDelay(Duration.TWO_HUNDRED_MILLISECONDS)
-               .pollInterval(Duration.ONE_SECOND)
+        await().pollDelay(Durations.TWO_HUNDRED_MILLISECONDS)
+               .pollInterval(Durations.ONE_SECOND)
                .untilAsserted(() -> assertThat(usersMe(client2, sessionId).status())
                        .isEqualTo(HttpStatus.UNAUTHORIZED));
     }
