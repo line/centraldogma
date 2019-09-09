@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.linecorp.armeria:armeria-bom:0.90.3
+- com.linecorp.armeria:armeria-bom:0.91.0
 
 ch.qos.logback:
   logback-classic:
@@ -12,6 +12,7 @@ ch.qos.logback:
     - https://logback.qos.ch/apidocs/
 
 com.beust:
+  # Please check `jcommander` version of Maven Central Repository before updating
   jcommander: { version: '1.78' }
 
 com.boazj.gradle:
@@ -24,6 +25,7 @@ com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
 
 com.cronutils:
+  # Don't update `cron-utils` version
   cron-utils:
     version: '5.0.5'
     relocations:
@@ -62,7 +64,7 @@ com.google.code.findbugs:
 
 com.google.guava:
   guava:
-    version: &GUAVA_VERSION '28.0-jre'
+    version: &GUAVA_VERSION '28.1-jre'
     exclusions:
     - com.google.errorprone:error_prone_annotations
     - com.google.j2objc:j2objc-annotations
@@ -95,6 +97,7 @@ com.googlecode.java-diff-utils:
       to:   com.linecorp.centraldogma.internal.shaded.difflib
 
 com.jayway.jsonpath:
+  # Don't update `json-path` version
   json-path: 
     version: '2.2.0'
     relocations:
@@ -110,7 +113,7 @@ com.linecorp.armeria:
     - https://line.github.io/armeria/apidocs/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.23' }
+  checkstyle: { version: '8.24' }
 
 com.spotify:
   completable-futures:
@@ -127,7 +130,7 @@ gradle.plugin.net.davidecavestro:
 
 io.micrometer:
   micrometer-core:
-    version: &MICROMETER_VERSION '1.2.0'
+    version: &MICROMETER_VERSION '1.2.1'
     javadocs:
     - https://static.javadoc.io/io.micrometer/micrometer-core/1.1.4/
   micrometer-registry-prometheus:
@@ -136,7 +139,7 @@ io.micrometer:
     - https://static.javadoc.io/io.micrometer/micrometer-registry-prometheus/1.1.4/
 
 jakarta.annotation:
-  jakarta.annotation-api: { version: '1.3.4' }
+  jakarta.annotation-api: { version: '1.3.5' }
 
 javax.inject:
   javax.inject: { version: '1' }
@@ -151,7 +154,7 @@ junit:
     - https://junit.org/junit4/javadoc/4.12/
 
 kr.motd.gradle:
-  sphinx-gradle-plugin: { version: '2.6.0' }
+  sphinx-gradle-plugin: { version: '2.6.1' }
 
 me.champeau.gradle:
   jmh-gradle-plugin: { version: '0.4.8' }
@@ -174,6 +177,7 @@ org.apache.curator:
     - org.apache.zookeeper:zookeeper
 
 org.apache.shiro:
+  # Don't update `shiro` version
   shiro-core:
     version: '1.3.2'
     javadocs:
@@ -195,13 +199,16 @@ org.assertj:
   assertj-core: { version: '3.13.2' }
 
 org.awaitility:
-  awaitility: { version: '3.1.6' }
+  awaitility: { version: '4.0.1' }
+
+org.hamcrest:
+  hamcrest-library: { version: '2.1' }
 
 org.eclipse.jetty.alpn:
   alpn-api: { version: '1.1.3.v20160715' }
 
 org.eclipse.jgit:
-  org.eclipse.jgit: { version: '5.4.0.201906121030-r' }
+  org.eclipse.jgit: { version: '5.4.3.201909031940-r' }
 
 org.hibernate.validator:
   hibernate-validator: { version: '6.0.17.Final' }
@@ -230,7 +237,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.1.7.RELEASE'
+    version: &SPRING_BOOT_VERSION '2.1.8.RELEASE'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
@@ -241,4 +248,4 @@ org.quartz-scheduler:
   quartz: { version: '2.3.1' }
 
 org.testng:
-  testng: { version: '6.14.3' }
+  testng: { version: '7.0.0' }
