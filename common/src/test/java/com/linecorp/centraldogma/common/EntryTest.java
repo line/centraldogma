@@ -35,11 +35,11 @@ public class EntryTest {
         assertThat(e.revision()).isEqualTo(new Revision(1));
         assertThat(e.hasContent()).isFalse();
         e.ifHasContent(unused -> fail());
-        assertThatThrownBy(e::content).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(e::contentAsJson).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(e::contentAsText).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(e::contentAsPrettyText).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> e.contentAsJson(JsonNode.class)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(e::content).isInstanceOf(EntryNoContentException.class);
+        assertThatThrownBy(e::contentAsJson).isInstanceOf(EntryNoContentException.class);
+        assertThatThrownBy(e::contentAsText).isInstanceOf(EntryNoContentException.class);
+        assertThatThrownBy(e::contentAsPrettyText).isInstanceOf(EntryNoContentException.class);
+        assertThatThrownBy(() -> e.contentAsJson(JsonNode.class)).isInstanceOf(EntryNoContentException.class);
 
         // directory vs. directory
         final Entry<Void> e2 = Entry.ofDirectory(new Revision(1), "/");
