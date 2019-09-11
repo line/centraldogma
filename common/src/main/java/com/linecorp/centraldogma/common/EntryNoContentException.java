@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.common;
 
 /**
- * A {@link CentralDogmaException} that is raised when attempted to access content in no-content entry.
+ * A {@link CentralDogmaException} that is raised when attempted to retrieve the content from a directory entry.
  */
 public class EntryNoContentException extends CentralDogmaException {
 

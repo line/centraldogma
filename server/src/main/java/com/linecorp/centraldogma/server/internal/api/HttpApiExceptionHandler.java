@@ -64,8 +64,7 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                     (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                      "Entry '%s' does not exist.", cause.getMessage()))
                .put(EntryNoContentException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NO_CONTENT, cause,
-                                                     "Entry '%s' does not have content.", cause.getMessage()))
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.NO_CONTENT, cause))
                .put(ProjectExistsException.class,
                     (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
                                                      "Project '%s' exists already.", cause.getMessage()))

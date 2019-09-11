@@ -190,6 +190,8 @@ public final class HttpApiUtil {
 
         // TODO(minwoox) refine the error message
         try {
+            // TODO(trustin): Use HttpStatus.isContentEmpty().
+            //                https://github.com/line/armeria/pull/2058
             if (status == HttpStatus.NO_CONTENT) {
                 return HttpResponse.of(HttpStatus.NO_CONTENT);
             } else {
