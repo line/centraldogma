@@ -190,7 +190,11 @@ public final class HttpApiUtil {
 
         // TODO(minwoox) refine the error message
         try {
-            return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));
+            if (status == HttpStatus.NO_CONTENT) {
+                return HttpResponse.of(HttpStatus.NO_CONTENT);
+            } else {
+                return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));
+            }
         } catch (JsonProcessingException e) {
             // should not reach here
             throw new Error(e);
