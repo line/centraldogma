@@ -26,7 +26,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -189,14 +188,14 @@ public interface Watcher<T> extends AutoCloseable {
      * Note: the returned watcher is effectively filtering in a sense that,
      * its listeners are *not* notified when a change has no effect on the transformed value.
      */
-    default <U> Watcher<U> newChild(@Nonnull Function<T, U> transformer) {
+    default <U> Watcher<U> newChild(Function<T, U> transformer) {
         return new TransformingWatcher<>(this, transformer);
     }
     /**
      * @return A new child, which transformation is a
      * <a href="http://tools.ietf.org/html/draft-ietf-appsawg-json-pointer-03">JSON pointer</a> query.
      */
-    static Watcher<JsonNode> atJsonPointer(@Nonnull Watcher<JsonNode> watcher, String jsonPointer) {
+    static Watcher<JsonNode> atJsonPointer(Watcher<JsonNode> watcher, String jsonPointer) {
         return watcher.newChild(new Function<JsonNode, JsonNode>() {
             @Override
             public JsonNode apply(JsonNode node) {
