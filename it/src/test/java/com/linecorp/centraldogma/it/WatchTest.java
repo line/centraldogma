@@ -229,7 +229,7 @@ public class WatchTest extends AbstractMultiClientTest {
         Watcher<JsonNode> heavyWatcher = client().fileWatcher(rule.project(), rule.repo1(),
                                                               Query.ofJsonPath(filePath));
 
-        Watcher<JsonNode> forExisting = Watcher.atJsonPath(heavyWatcher, "/a");
+        Watcher<JsonNode> forExisting = Watcher.atJsonPointer(heavyWatcher, "/a");
         AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
         AtomicInteger triggeredCount = new AtomicInteger();
         forExisting.watch((rev, node) -> {

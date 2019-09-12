@@ -193,22 +193,23 @@ public interface Watcher<T> extends AutoCloseable {
         return new TransformingWatcher<>(this, transformer);
     }
     /**
-     * @return A new child, which transformation is a JSON path query.
+     * @return A new child, which transformation is a
+     * <a href="http://tools.ietf.org/html/draft-ietf-appsawg-json-pointer-03">JSON pointer</a> query.
      */
-    static Watcher<JsonNode> atJsonPath(@Nonnull Watcher<JsonNode> watcher, String jsonPath) {
+    static Watcher<JsonNode> atJsonPointer(@Nonnull Watcher<JsonNode> watcher, String jsonPointer) {
         return watcher.newChild(new Function<JsonNode, JsonNode>() {
             @Override
             public JsonNode apply(JsonNode node) {
                 if (node == null) {
                     return MissingNode.getInstance();
                 } else {
-                    return node.at(jsonPath);
+                    return node.at(jsonPointer);
                 }
             }
 
             @Override
             public String toString() {
-                return "JSON path " + jsonPath;
+                return "JSON pointer " + jsonPointer;
             }
         });
     }
