@@ -184,15 +184,16 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * @return A new watcher, that reuses the supplied watcher and applies transformation.
+     * @return A new {@link Watcher}, that reuses the supplied watcher and applies transformation.
      * Note: the returned watcher is effectively filtering in a sense that,
      * its listeners are *not* notified when a change has no effect on the transformed value.
+     * The returned watcher does not need to be closed after use.
      */
     default <U> Watcher<U> newChild(Function<T, U> transformer) {
         return new TransformingWatcher<>(this, transformer);
     }
     /**
-     * @return A new child, which transformation is a
+     * @return A new child {@link Watcher}, which transformation is a
      * <a href="http://tools.ietf.org/html/draft-ietf-appsawg-json-pointer-03">JSON pointer</a> query.
      */
     static Watcher<JsonNode> atJsonPointer(Watcher<JsonNode> watcher, String jsonPointer) {
