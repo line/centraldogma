@@ -169,8 +169,7 @@ public final class HttpApiUtil {
             case /* NO_CONTENT */ 204:
             case /* RESET_CONTENT */ 205:
             case /* NOT_MODIFIED */ 304:
-                throw new IllegalArgumentException("no-content status can not create a response. status: " +
-                                                   status.code());
+                throw new IllegalArgumentException("Can't create a response with content for: " + status);
         }
 
         final ObjectNode node = JsonNodeFactory.instance.objectNode();
