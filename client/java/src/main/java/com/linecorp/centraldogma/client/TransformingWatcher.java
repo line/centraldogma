@@ -24,15 +24,15 @@ import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Revision;
 
-public class TransformingWatcher<T, U> implements Watcher<U> {
+class TransformingWatcher<T, U> implements Watcher<U> {
 
-    protected final Watcher<T> parent;
+    private final Watcher<T> parent;
     private final Function<T, U> transformer;
     @Nullable
     private volatile Latest<U> transformedLatest;
-    protected volatile boolean closed;
+    private volatile boolean closed;
 
-    public TransformingWatcher(Watcher<T> parent, Function<T, U> transformer) {
+    TransformingWatcher(Watcher<T> parent, Function<T, U> transformer) {
         this.parent = parent;
         this.transformer = transformer;
     }
