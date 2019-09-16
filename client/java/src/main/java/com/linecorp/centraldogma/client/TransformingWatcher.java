@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Revision;
 
-class TransformingWatcher<T, U> implements Watcher<U> {
+final class TransformingWatcher<T, U> implements Watcher<U> {
 
     private final Watcher<T> parent;
     private final Function<T, U> transformer;
