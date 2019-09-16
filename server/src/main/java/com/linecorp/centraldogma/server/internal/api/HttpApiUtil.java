@@ -40,6 +40,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.HttpStatusClass;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.stream.AbortedStreamException;
@@ -160,6 +161,18 @@ public final class HttpApiUtil {
 
     private static HttpResponse newResponse0(RequestContext ctx, HttpStatus status,
                                              @Nullable Throwable cause, @Nullable String message) {
+        // TODO(trustin): Use HttpStatus.isContentEmpty().
+        //                https://github.com/line/armeria/pull/2058
+        checkArgument(!HttpStatusClass.INFORMATIONAL.contains(status.code()),
+                      "invalid status code. status: %d", status.code());
+        switch (status.code()) {
+            case /* NO_CONTENT */ 204:
+            case /* RESET_CONTENT */ 205:
+            case /* NOT_MODIFIED */ 304:
+                throw new IllegalArgumentException("no-content status can not create a response. status: " +
+                                                   status.code());
+        }
+
         final ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (cause != null) {
             node.put("exception", cause.getClass().getName());
@@ -190,13 +203,7 @@ public final class HttpApiUtil {
 
         // TODO(minwoox) refine the error message
         try {
-            // TODO(trustin): Use HttpStatus.isContentEmpty().
-            //                https://github.com/line/armeria/pull/2058
-            if (status == HttpStatus.NO_CONTENT) {
-                return HttpResponse.of(HttpStatus.NO_CONTENT);
-            } else {
-                return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));
-            }
+            return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));
         } catch (JsonProcessingException e) {
             // should not reach here
             throw new Error(e);
