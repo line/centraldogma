@@ -30,6 +30,7 @@ import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.EntryNoContentException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
@@ -62,6 +63,8 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                .put(EntryNotFoundException.class,
                     (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                      "Entry '%s' does not exist.", cause.getMessage()))
+               .put(EntryNoContentException.class,
+                    (ctx, req, cause) -> HttpResponse.of(HttpStatus.NO_CONTENT))
                .put(ProjectExistsException.class,
                     (ctx, req, cause) -> newResponse(ctx, HttpStatus.CONFLICT, cause,
                                                      "Project '%s' exists already.", cause.getMessage()))

@@ -28,6 +28,7 @@ import org.junit.Test;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNoContentException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Revision;
 
@@ -80,7 +81,7 @@ public class FileManagementTest extends AbstractMultiClientTest {
         assertThat(dir.type()).isEqualTo(EntryType.DIRECTORY);
         assertThat(dir.path()).isEqualTo(testRootWithoutSlash);
         assertThat(dir.hasContent()).isFalse();
-        assertThatThrownBy(dir::content).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(dir::content).isInstanceOf(EntryNoContentException.class);
 
         files.values().forEach(f -> {
             if (f.type() != EntryType.DIRECTORY) {

@@ -171,7 +171,7 @@ public final class Entry<T> implements ContentHolder<T> {
     @Override
     public T content() {
         if (content == null) {
-            throw new IllegalStateException(type() + " does not have content");
+            throw new EntryNoContentException(type, revision, path);
         }
         return content;
     }
