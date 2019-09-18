@@ -22,6 +22,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 
+import javax.annotation.Nullable;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -71,12 +73,12 @@ public class GitMirrorAuthTest {
     // Assuming that:
     // - you have read access to https://github.com/line/centraldogma-authtest
     // - your system username is identical to your GitHub.com username
-    // - your SSH private key and public key are located at:
-    //   - $HOME/.ssh/id_rsa
-    //   - $HOME/.ssh/id_rsa.pub
+    // - you have an SSH key pair
     //
     // The only properties you need to set to run this test are:
     // - git.password: your GitHub.com password or personal token if you are using 2-factor authentication
+    // - git.privateKey: the path to your SSH private key
+    // - git.publicKey: the path to your SSH public key
     // - git.passphrase: the passphrase of your encrypted SSH private key
     //                   (not needed if your private key is unencrypted)
 
@@ -116,19 +118,20 @@ public class GitMirrorAuthTest {
      * If you are using 2-factor authentication in GitHub.com, you'll have to generate a personal token
      * and specify it here. See: https://github.com/settings/tokens
      */
+    @Nullable
     private static final String GIT_PASSWORD = System.getProperty("git.password");
 
     /**
      * The path to the private key file. Required for public key authentication.
      */
-    private static final String GIT_PRIVATE_KEY = System.getProperty(
-            "git.privateKey",
-            System.getProperty("user.home") + File.separator + ".ssh" + File.separator + "id_rsa");
+    @Nullable
+    private static final String GIT_PRIVATE_KEY = System.getProperty("git.privateKey");
 
     /**
      * The path to the public key file. Required for public key authentication.
      */
-    private static final String GIT_PUBLIC_KEY = System.getProperty("git.publicKey", GIT_PRIVATE_KEY + ".pub");
+    @Nullable
+    private static final String GIT_PUBLIC_KEY = System.getProperty("git.publicKey");
 
     /**
      * The passphrase of the private key file.
@@ -155,38 +158,40 @@ public class GitMirrorAuthTest {
             });
         }
 
-        // Test Git-over-SSH only when the public key and private key files are readable.
-        if (new File(GIT_PUBLIC_KEY).canRead() &&
-            new File(GIT_PRIVATE_KEY).canRead()) {
-            final byte[] privateKeyBytes = Files.readAllBytes(Paths.get(GIT_PRIVATE_KEY));
-            final byte[] publicKeyBytes = Files.readAllBytes(Paths.get(GIT_PUBLIC_KEY));
-            final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8);
-            final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8);
+        // Test Git-over-SSH only when the public key and private key files are specified and readable.
+        if (GIT_PRIVATE_KEY != null && new File(GIT_PRIVATE_KEY).canRead()) {
+            final String gitPublicKey = GIT_PUBLIC_KEY != null ? GIT_PUBLIC_KEY : (GIT_PRIVATE_KEY + ".pub");
+            if (new File(gitPublicKey).canRead()) {
+                final byte[] privateKeyBytes = Files.readAllBytes(Paths.get(GIT_PRIVATE_KEY));
+                final byte[] publicKeyBytes = Files.readAllBytes(Paths.get(gitPublicKey));
+                final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8);
+                final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8);
 
-            // Test Git-over-SSH only when:
-            // - the private key passphrase is specified or
-            // - the private key is unencrypted.
-            if (GIT_PASSPHRASE != null || !isEncrypted(privateKeyBytes, publicKeyBytes)) {
-                final String passphraseProperty;
-                if (GIT_PASSPHRASE != null) {
-                    passphraseProperty = "\"passphrase\": \"" + Jackson.escapeText(GIT_PASSPHRASE) + '"';
-                } else {
-                    passphraseProperty = "\"passphrase\": null";
+                // Test Git-over-SSH only when:
+                // - the private key passphrase is specified or
+                // - the private key is unencrypted.
+                if (GIT_PASSPHRASE != null || !isEncrypted(privateKeyBytes, publicKeyBytes)) {
+                    final String passphraseProperty;
+                    if (GIT_PASSPHRASE != null) {
+                        passphraseProperty = "\"passphrase\": \"" + Jackson.escapeText(GIT_PASSPHRASE) + '"';
+                    } else {
+                        passphraseProperty = "\"passphrase\": null";
+                    }
+
+                    builder.add(new Object[] {
+                            "ssh",
+                            "git+ssh://" + GIT_HOST + ':' + GIT_PORT_SSH + GIT_PATH,
+                            Jackson.readTree(
+                                    '{' +
+                                    "  \"type\": \"public_key\"," +
+                                    "  \"hostnamePatterns\": [ \"^.*$\" ]," +
+                                    "  \"username\": \"" + GIT_USERNAME_SSH + "\"," +
+                                    "  \"publicKey\": \"" + Jackson.escapeText(publicKey) + "\"," +
+                                    "  \"privateKey\": \"" + Jackson.escapeText(privateKey) + "\"," +
+                                    passphraseProperty +
+                                    '}')
+                    });
                 }
-
-                builder.add(new Object[] {
-                        "ssh",
-                        "git+ssh://" + GIT_HOST + ':' + GIT_PORT_SSH + GIT_PATH,
-                        Jackson.readTree(
-                                '{' +
-                                "  \"type\": \"public_key\"," +
-                                "  \"hostnamePatterns\": [ \"^.*$\" ]," +
-                                "  \"username\": \"" + GIT_USERNAME_SSH + "\"," +
-                                "  \"publicKey\": \"" + Jackson.escapeText(publicKey) + "\"," +
-                                "  \"privateKey\": \"" + Jackson.escapeText(privateKey) + "\"," +
-                                passphraseProperty +
-                                '}')
-                });
             }
         }
 
