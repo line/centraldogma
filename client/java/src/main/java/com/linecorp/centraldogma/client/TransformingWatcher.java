@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.client;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -78,10 +80,10 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
 
     @Override
     public String toString() {
-        String me = getClass().getSimpleName() + " filtering " + parent + " with " + transformer;
-        if (closed) {
-            return me + " (closed)";
-        }
-        return me;
+        return toStringHelper(this)
+                .add("parent", parent)
+                .add("transformer", transformer)
+                .add("closed", closed)
+                .toString();
     }
 }
