@@ -25,9 +25,9 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.HttpStatusException;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNoContentException;
@@ -95,7 +95,7 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
     }
 
     @Override
-    public HttpResponse handleException(RequestContext ctx, HttpRequest req, Throwable cause) {
+    public HttpResponse handleException(ServiceRequestContext ctx, HttpRequest req, Throwable cause) {
 
         if (cause instanceof HttpStatusException ||
             cause instanceof HttpResponseException) {
