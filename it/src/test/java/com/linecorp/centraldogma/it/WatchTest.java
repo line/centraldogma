@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.util.Arrays;
 import java.util.List;
@@ -266,8 +267,8 @@ public class WatchTest extends AbstractMultiClientTest {
                                       .join()
                                       .revision();
 
-        Thread.sleep(1100); // DELAY_ON_SUCCESS_MILLIS + epsilon
-        assertThat(forExisting.latest()).isEqualTo(new Latest<>(rev2, new TextNode("artichoke")));
+        await().untilAsserted(() -> assertThat(forExisting.latest()).isEqualTo(
+                new Latest<>(rev2, new TextNode("artichoke"))));
         assertThat(watchResult.get()).isEqualTo(forExisting.latest());
         assertThat(triggeredCount.get()).isEqualTo(2);
 
