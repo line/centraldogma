@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.client;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static java.util.Objects.requireNonNull;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -62,6 +63,7 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
 
     @Override
     public void watch(BiConsumer<? super Revision, ? super U> listener) {
+        requireNonNull(listener, "listener");
         parent.watch((rev, parentValue) -> {
             if (closed) {
                 return;
