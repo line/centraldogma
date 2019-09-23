@@ -48,7 +48,7 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
     @Override
     public Latest<U> latest() {
         if (!closed) {
-            Latest<T> latestParent = parent.latest();
+            final Latest<T> latestParent = parent.latest();
             U transformedValue = transformer.apply(latestParent.value());
             transformedLatest = new Latest<>(latestParent.revision(), transformedValue);
         }
@@ -69,7 +69,7 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
                 return;
             }
             final U transformedValue = transformer.apply(parentValue);
-            Optional<U> unchanged = Optional
+            final Optional<U> unchanged = Optional
                     .ofNullable(transformedLatest)
                     .map(Latest::value)
                     .filter(transformedValue::equals);
