@@ -24,8 +24,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import javax.annotation.Nullable;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.MissingNode;
 
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -36,6 +40,34 @@ import com.linecorp.centraldogma.common.Revision;
  * @param <T> the watch result type
  */
 public interface Watcher<T> extends AutoCloseable {
+
+    /**
+     * Creates a forked {@link Watcher} based on an existing {@link JsonNode}-watching {@link Watcher}.
+     *
+     * @param jsonPointer a <a href="https://tools.ietf.org/html/rfc6901">JSON pointer</a> that is encoded
+     *
+     * @return A new child {@link Watcher}, whose transformation is a
+     *         <a href="https://tools.ietf.org/html/rfc6901">JSON pointer</a> query.
+     */
+    static Watcher<JsonNode> atJsonPointer(Watcher<JsonNode> watcher, String jsonPointer) {
+        requireNonNull(watcher, "watcher");
+        requireNonNull(jsonPointer, "jsonPointer");
+        return watcher.newChild(new Function<JsonNode, JsonNode>() {
+            @Override
+            public JsonNode apply(JsonNode node) {
+                if (node == null) {
+                    return MissingNode.getInstance();
+                } else {
+                    return node.at(jsonPointer);
+                }
+            }
+
+            @Override
+            public String toString() {
+                return "JSON pointer " + jsonPointer;
+            }
+        });
+    }
 
     /**
      * Returns the {@link CompletableFuture} which is completed when the initial value retrieval is done
@@ -177,5 +209,17 @@ public interface Watcher<T> extends AutoCloseable {
     default void watch(Consumer<? super T> listener) {
         requireNonNull(listener, "listener");
         watch((revision, value) -> listener.accept(value));
+    }
+
+    /**
+     * Forks into a new {@link Watcher}, that reuses the current watcher and applies a transformation.
+     *
+     * @return A {@link Watcher} that is effectively filtering in a sense that,
+     *         its listeners are <b>not</b> notified when a change has no effect on the transformed value.
+     *         Furthermore, it does not need to be closed after use.
+     */
+    default <U> Watcher<U> newChild(Function<T, U> transformer) {
+        requireNonNull(transformer, "transformer");
+        return new TransformingWatcher<>(this, transformer);
     }
 }

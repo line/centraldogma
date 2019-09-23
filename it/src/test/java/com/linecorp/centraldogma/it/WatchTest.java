@@ -18,19 +18,25 @@ package com.linecorp.centraldogma.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 
+import com.linecorp.centraldogma.client.Latest;
+import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PushResult;
@@ -53,8 +59,8 @@ public class WatchTest extends AbstractMultiClientTest {
 
         final List<Change<JsonNode>> changes = Arrays.asList(change1, change2);
         if (!client()
-                 .getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, changes)
-                 .join().isEmpty()) {
+                .getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, changes)
+                .join().isEmpty()) {
             client().push(
                     rule.project(), rule.repo1(), Revision.HEAD,
                     "Revert test files", changes).join();
@@ -142,12 +148,12 @@ public class WatchTest extends AbstractMultiClientTest {
     @Test
     public void testWatchFile() throws Exception {
         final Revision rev0 = client()
-                                  .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
-                                  .join();
+                .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
+                .join();
 
         final CompletableFuture<Entry<JsonNode>> future =
                 client().watchFile(rule.project(), rule.repo1(), rev0,
-                                        Query.ofJsonPath("/test/test1.json", "$[0]"), 3000);
+                                   Query.ofJsonPath("/test/test1.json", "$[0]"), 3000);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
@@ -177,8 +183,8 @@ public class WatchTest extends AbstractMultiClientTest {
     @Test
     public void testWatchFileWithIdentityQuery() throws Exception {
         final Revision rev0 = client()
-                                  .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
-                                  .join();
+                .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
+                .join();
 
         final CompletableFuture<Entry<JsonNode>> future = client().watchFile(
                 rule.project(), rule.repo1(), rev0,
@@ -216,5 +222,71 @@ public class WatchTest extends AbstractMultiClientTest {
                 Query.ofJsonPath("/test/test1.json", "$"), 1000).join();
 
         assertThat(res).isNull();
+    }
+
+    @Test
+    public void testTransformingWatcher() throws InterruptedException {
+        final String filePath = "/test/test2.json";
+        final Watcher<JsonNode> heavyWatcher = client().fileWatcher(rule.project(), rule.repo1(),
+                                                                    Query.ofJsonPath(filePath));
+
+        final Watcher<JsonNode> forExisting = Watcher.atJsonPointer(heavyWatcher, "/a");
+        final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
+        final AtomicInteger triggeredCount = new AtomicInteger();
+        forExisting.watch((rev, node) -> {
+            watchResult.set(new Latest<>(rev, node));
+            triggeredCount.incrementAndGet();
+        });
+
+        // After the initial value is fetched, `latest` points to the specified JSON path
+        final Latest<JsonNode> initialValue = forExisting.awaitInitialValue();
+
+        final Revision rev0 = client()
+                .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
+                .join();
+        assertThat(initialValue.revision()).isEqualTo(rev0);
+        assertThat(initialValue.value()).isEqualTo(new TextNode("apple"));
+        assertThat(forExisting.latest()).isEqualTo(initialValue);
+        assertThat(triggeredCount.get()).isEqualTo(1);
+        assertThat(watchResult.get()).isEqualTo(initialValue);
+
+        // An irrelevant change should not trigger a notification.
+        final Change<JsonNode> unrelatedChange = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
+        final Revision rev1 = client().push(rule.project(), rule.repo1(), rev0, "Add /b", unrelatedChange)
+                                      .join()
+                                      .revision();
+
+        assertThat(triggeredCount.get()).isEqualTo(1);
+        assertThat(watchResult.get()).isEqualTo(initialValue);
+
+        // An relevant change should trigger a notification.
+        final Change<JsonNode> relatedChange = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"artichoke\", \"b\": \"banana\" }");
+        final Revision rev2 = client().push(rule.project(), rule.repo1(), rev1, "Change /a", relatedChange)
+                                      .join()
+                                      .revision();
+
+        await().untilAsserted(() -> assertThat(forExisting.latest()).isEqualTo(
+                new Latest<>(rev2, new TextNode("artichoke"))));
+        assertThat(watchResult.get()).isEqualTo(forExisting.latest());
+        assertThat(triggeredCount.get()).isEqualTo(2);
+
+        // Once closed, it's deaf
+        forExisting.close();
+
+        final Change<JsonNode> nextRelatedChange = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apricot\", \"b\": \"banana\" }");
+        final Revision rev3 = client().push(rule.project(), rule.repo1(), rev2, "Change /a again",
+                                            nextRelatedChange)
+                                      .join()
+                                      .revision();
+
+        Thread.sleep(1100); // DELAY_ON_SUCCESS_MILLIS + epsilon
+        assertThat(forExisting.latest()).isEqualTo(new Latest<>(rev2, new TextNode("artichoke")));
+        assertThat(watchResult.get()).isEqualTo(forExisting.latest());
+        assertThat(triggeredCount.get()).isEqualTo(2);
+        assertThat(heavyWatcher.latestValue().at("/a")).isEqualTo(new TextNode("apricot"));
+        assertThat(heavyWatcher.latest().revision()).isEqualTo(rev3);
     }
 }
