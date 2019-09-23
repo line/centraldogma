@@ -50,7 +50,8 @@ public interface Watcher<T> extends AutoCloseable {
      *         <a href="https://tools.ietf.org/html/rfc6901">JSON pointer</a> query.
      */
     static Watcher<JsonNode> atJsonPointer(Watcher<JsonNode> watcher, String jsonPointer) {
-        requireNonNull(watcher, "transformer");
+        requireNonNull(watcher, "watcher");
+        requireNonNull(jsonPointer, "jsonPointer");
         return watcher.newChild(new Function<JsonNode, JsonNode>() {
             @Override
             public JsonNode apply(JsonNode node) {
