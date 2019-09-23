@@ -224,23 +224,23 @@ public class WatchTest extends AbstractMultiClientTest {
     }
 
     @Test
-    public void testWatchFiltered() throws InterruptedException {
-        String filePath = "/test/test2.json";
-        Watcher<JsonNode> heavyWatcher = client().fileWatcher(rule.project(), rule.repo1(),
+    public void testTransformingWatcher() throws InterruptedException {
+        final String filePath = "/test/test2.json";
+        final Watcher<JsonNode> heavyWatcher = client().fileWatcher(rule.project(), rule.repo1(),
                                                               Query.ofJsonPath(filePath));
 
-        Watcher<JsonNode> forExisting = Watcher.atJsonPointer(heavyWatcher, "/a");
-        AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
-        AtomicInteger triggeredCount = new AtomicInteger();
+        final Watcher<JsonNode> forExisting = Watcher.atJsonPointer(heavyWatcher, "/a");
+        final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
+        final AtomicInteger triggeredCount = new AtomicInteger();
         forExisting.watch((rev, node) -> {
             watchResult.set(new Latest<>(rev, node));
             triggeredCount.incrementAndGet();
         });
 
         // After the initial value is fetched, `latest` points to the specified JSON path
-        Latest<JsonNode> initialValue = forExisting.awaitInitialValue();
+        final Latest<JsonNode> initialValue = forExisting.awaitInitialValue();
 
-        Revision rev0 = client()
+        final Revision rev0 = client()
                 .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
                 .join();
         assertThat(initialValue.revision()).isEqualTo(rev0);
@@ -250,9 +250,9 @@ public class WatchTest extends AbstractMultiClientTest {
         assertThat(watchResult.get()).isEqualTo(initialValue);
 
         // An irrelevant change should not trigger a notification.
-        Change<JsonNode> unrelatedChange = Change.ofJsonUpsert(
+        final Change<JsonNode> unrelatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
-        Revision rev1 = client().push(rule.project(), rule.repo1(), rev0, "Add /b", unrelatedChange)
+        final Revision rev1 = client().push(rule.project(), rule.repo1(), rev0, "Add /b", unrelatedChange)
                                 .join()
                                 .revision();
 
@@ -260,9 +260,9 @@ public class WatchTest extends AbstractMultiClientTest {
         assertThat(watchResult.get()).isEqualTo(initialValue);
 
         // An relevant change should trigger a notification.
-        Change<JsonNode> relatedChange = Change.ofJsonUpsert(
+        final Change<JsonNode> relatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"artichoke\", \"b\": \"banana\" }");
-        Revision rev2 = client().push(rule.project(), rule.repo1(), rev1, "Change /a", relatedChange)
+        final Revision rev2 = client().push(rule.project(), rule.repo1(), rev1, "Change /a", relatedChange)
                                 .join()
                                 .revision();
 
@@ -274,9 +274,9 @@ public class WatchTest extends AbstractMultiClientTest {
         // Once closed, it's deaf
         forExisting.close();
 
-        Change<JsonNode> nextRelatedChange = Change.ofJsonUpsert(
+        final Change<JsonNode> nextRelatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"apricot\", \"b\": \"banana\" }");
-        Revision rev3 = client().push(rule.project(), rule.repo1(), rev2, "Change /a again", nextRelatedChange)
+        final Revision rev3 = client().push(rule.project(), rule.repo1(), rev2, "Change /a again", nextRelatedChange)
                                 .join()
                                 .revision();
 
