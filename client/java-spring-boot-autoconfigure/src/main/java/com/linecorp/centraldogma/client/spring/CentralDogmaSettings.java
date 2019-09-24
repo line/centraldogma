@@ -91,6 +91,18 @@ public class CentralDogmaSettings {
     private Boolean useTls;
 
     /**
+     * The maximum number of retries to perform when replication lag is detected.
+     */
+    @Nullable
+    private Integer maxNumRetriesOnReplicationLag;
+
+    /**
+     * The number of milliseconds between retries which occurred due to replication lag.
+     */
+    @Nullable
+    private Long retryIntervalOnReplicationLagMillis;
+
+    /**
      * Returns the Central Dogma client profile name.
      *
      * @return {@code null} if not specified.
@@ -176,6 +188,40 @@ public class CentralDogmaSettings {
         this.useTls = useTls;
     }
 
+    /**
+     * Returns the maximum number of retries to perform when replication lag is detected.
+     *
+     * @return {@code null} if not specified.
+     */
+    @Nullable
+    public Integer getMaxNumRetriesOnReplicationLag() {
+        return maxNumRetriesOnReplicationLag;
+    }
+
+    /**
+     * Sets the maximum number of retries to perform when replication lag is detected.
+     */
+    public void setMaxNumRetriesOnReplicationLag(@Nullable Integer maxNumRetriesOnReplicationLag) {
+        this.maxNumRetriesOnReplicationLag = maxNumRetriesOnReplicationLag;
+    }
+
+    /**
+     * Returns the number of milliseconds between retries which occurred due to replication lag.
+     *
+     * @return {@code null} if not specified.
+     */
+    @Nullable
+    public Long getRetryIntervalOnReplicationLagMillis() {
+        return retryIntervalOnReplicationLagMillis;
+    }
+
+    /**
+     * Sets the number of milliseconds between retries which occurred due to replication lag.
+     */
+    public void setRetryIntervalOnReplicationLagMillis(@Nullable Long retryIntervalOnReplicationLagMillis) {
+        this.retryIntervalOnReplicationLagMillis = retryIntervalOnReplicationLagMillis;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
@@ -184,6 +230,8 @@ public class CentralDogmaSettings {
                           .add("accessToken", accessToken != null ? "********" : null)
                           .add("healthCheckIntervalMillis", healthCheckIntervalMillis)
                           .add("useTls", useTls)
+                          .add("maxNumRetriesOnReplicationLag", maxNumRetriesOnReplicationLag)
+                          .add("retryIntervalOnReplicationLagMillis", retryIntervalOnReplicationLagMillis)
                           .toString();
     }
 }
