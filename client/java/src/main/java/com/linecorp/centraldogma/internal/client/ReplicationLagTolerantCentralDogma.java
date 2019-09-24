@@ -35,6 +35,9 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.spotify.futures.CompletableFutures;
@@ -61,9 +64,13 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
  */
 public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDogma {
 
+    private static final Logger logger =
+            LoggerFactory.getLogger(ReplicationLagTolerantCentralDogma.class);
+
     private final CentralDogma delegate;
     private final int maxRetries;
     private final long retryIntervalMillis;
+    private final Supplier<?> currentReplicaHintSupplier;
     private final Map<RepoId, Revision> latestKnownRevisions = new LinkedHashMap<RepoId, Revision>() {
         private static final long serialVersionUID = 3587793379404809027L;
 
@@ -75,17 +82,20 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     };
 
     public ReplicationLagTolerantCentralDogma(ScheduledExecutorService executor, CentralDogma delegate,
-                                              int maxRetries, long retryIntervalMillis) {
+                                              int maxRetries, long retryIntervalMillis,
+                                              Supplier<?> currentReplicaHintSupplier) {
         super(executor);
 
         requireNonNull(delegate, "delegate");
         checkArgument(maxRetries > 0, "maxRetries: %s (expected: > 0)", maxRetries);
         checkArgument(retryIntervalMillis >= 0,
                       "retryIntervalMillis: %s (expected: >= 0)", retryIntervalMillis);
+        requireNonNull(currentReplicaHintSupplier, "currentReplicaHintSupplier");
 
         this.delegate = delegate;
         this.maxRetries = maxRetries;
         this.retryIntervalMillis = retryIntervalMillis;
+        this.currentReplicaHintSupplier = currentReplicaHintSupplier;
     }
 
     @Override
@@ -141,7 +151,17 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     @Override
     public CompletableFuture<Map<String, RepositoryInfo>> listRepositories(String projectName) {
         return executeWithRetries(
-                () -> delegate.listRepositories(projectName),
+                new Supplier<CompletableFuture<Map<String, RepositoryInfo>>>() {
+                    @Override
+                    public CompletableFuture<Map<String, RepositoryInfo>> get() {
+                        return delegate.listRepositories(projectName);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "listRepositories(" + projectName + ')';
+                    }
+                },
                 (res, cause) -> {
                     if (res != null) {
                         for (RepositoryInfo info : res.values()) {
@@ -163,7 +183,18 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     public CompletableFuture<Revision> normalizeRevision(
             String projectName, String repositoryName, Revision revision) {
         return executeWithRetries(
-                () -> delegate.normalizeRevision(projectName, repositoryName, revision),
+                new Supplier<CompletableFuture<Revision>>() {
+                    @Override
+                    public CompletableFuture<Revision> get() {
+                        return delegate.normalizeRevision(projectName, repositoryName, revision);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "normalizeRevision(" + projectName + ", " + repositoryName + ", " +
+                               revision + ')';
+                    }
+                },
                 (res, cause) -> {
                     if (cause != null) {
                         return handleRevisionNotFound(projectName, repositoryName, revision, cause);
@@ -184,7 +215,18 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             String projectName, String repositoryName, Revision revision, String pathPattern) {
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, revision,
-                normRev -> delegate.listFiles(projectName, repositoryName, normRev, pathPattern));
+                new Function<Revision, CompletableFuture<Map<String, EntryType>>>() {
+                    @Override
+                    public CompletableFuture<Map<String, EntryType>> apply(Revision normRev) {
+                        return delegate.listFiles(projectName, repositoryName, normRev, pathPattern);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "listFiles(" + projectName + ", " + repositoryName + ", " +
+                               revision + ", " + pathPattern + ')';
+                    }
+                });
     }
 
     @Override
@@ -192,7 +234,18 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             String projectName, String repositoryName, Revision revision, Query<T> query) {
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, revision,
-                normRev -> delegate.getFile(projectName, repositoryName, normRev, query));
+                new Function<Revision, CompletableFuture<Entry<T>>>() {
+                    @Override
+                    public CompletableFuture<Entry<T>> apply(Revision normRev) {
+                        return delegate.getFile(projectName, repositoryName, normRev, query);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "getFile(" + projectName + ", " + repositoryName + ", " +
+                               revision + ", " + query + ')';
+                    }
+                });
     }
 
     @Override
@@ -200,7 +253,18 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             String projectName, String repositoryName, Revision revision, String pathPattern) {
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, revision,
-                normRev -> delegate.getFiles(projectName, repositoryName, normRev, pathPattern));
+                new Function<Revision, CompletableFuture<Map<String, Entry<?>>>>() {
+                    @Override
+                    public CompletableFuture<Map<String, Entry<?>>> apply(Revision normRev) {
+                        return delegate.getFiles(projectName, repositoryName, normRev, pathPattern);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "getFile(" + projectName + ", " + repositoryName + ", " +
+                               revision + ", " + pathPattern + ')';
+                    }
+                });
     }
 
     @Override
@@ -209,7 +273,18 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             MergeQuery<T> mergeQuery) {
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, revision,
-                normRev -> delegate.mergeFiles(projectName, repositoryName, normRev, mergeQuery));
+                new Function<Revision, CompletableFuture<MergedEntry<T>>>() {
+                    @Override
+                    public CompletableFuture<MergedEntry<T>> apply(Revision normRev) {
+                        return delegate.mergeFiles(projectName, repositoryName, normRev, mergeQuery);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "mergeFiles(" + projectName + ", " + repositoryName + ", " +
+                               revision + ", " + mergeQuery + ')';
+                    }
+                });
     }
 
     @Override
@@ -218,8 +293,19 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             Revision to, String pathPattern) {
         return normalizeRevisionsAndExecuteWithRetries(
                 projectName, repositoryName, from, to,
-                (normFromRev, normToRev) -> delegate.getHistory(projectName, repositoryName,
-                                                                normFromRev, normToRev, pathPattern));
+                new BiFunction<Revision, Revision, CompletableFuture<List<Commit>>>() {
+                    @Override
+                    public CompletableFuture<List<Commit>> apply(Revision normFromRev, Revision normToRev) {
+                        return delegate.getHistory(projectName, repositoryName,
+                                                   normFromRev, normToRev, pathPattern);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "getHistory(" + projectName + ", " + repositoryName + ", " +
+                               from + ", " + to + ", " + pathPattern + ')';
+                    }
+                });
     }
 
     @Override
@@ -227,8 +313,19 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             String projectName, String repositoryName, Revision from, Revision to, Query<T> query) {
         return normalizeRevisionsAndExecuteWithRetries(
                 projectName, repositoryName, from, to,
-                (normFromRev, normToRev) -> delegate.getDiff(projectName, repositoryName,
-                                                             normFromRev, normToRev, query));
+                new BiFunction<Revision, Revision, CompletableFuture<Change<T>>>() {
+                    @Override
+                    public CompletableFuture<Change<T>> apply(Revision normFromRev, Revision normToRev) {
+                        return delegate.getDiff(projectName, repositoryName,
+                                                normFromRev, normToRev, query);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "getDiff(" + projectName + ", " + repositoryName + ", " +
+                               from + ", " + to + ", " + query + ')';
+                    }
+                });
     }
 
     @Override
@@ -236,8 +333,19 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             String projectName, String repositoryName, Revision from, Revision to, String pathPattern) {
         return normalizeRevisionsAndExecuteWithRetries(
                 projectName, repositoryName, from, to,
-                (normFromRev, normToRev) -> delegate.getDiffs(projectName, repositoryName,
-                                                              normFromRev, normToRev, pathPattern));
+                new BiFunction<Revision, Revision, CompletableFuture<List<Change<?>>>>() {
+                    @Override
+                    public CompletableFuture<List<Change<?>>> apply(Revision normFromRev, Revision normToRev) {
+                        return delegate.getDiffs(projectName, repositoryName,
+                                                 normFromRev, normToRev, pathPattern);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "getDiffs(" + projectName + ", " + repositoryName + ", " +
+                               from + ", " + to + ", " + pathPattern + ')';
+                    }
+                });
     }
 
     @Override
@@ -246,7 +354,18 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             Iterable<? extends Change<?>> changes) {
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, baseRevision,
-                normBaseRev -> delegate.getPreviewDiffs(projectName, repositoryName, normBaseRev, changes));
+                new Function<Revision, CompletableFuture<List<Change<?>>>>() {
+                    @Override
+                    public CompletableFuture<List<Change<?>>> apply(Revision normBaseRev) {
+                        return delegate.getPreviewDiffs(projectName, repositoryName, normBaseRev, changes);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "getPreviewDiffs(" + projectName + ", " + repositoryName + ", " +
+                               baseRevision + ", ...)";
+                    }
+                });
     }
 
     @Override
@@ -254,8 +373,19 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             String projectName, String repositoryName, Revision baseRevision,
             String summary, String detail, Markup markup, Iterable<? extends Change<?>> changes) {
         return executeWithRetries(
-                () -> delegate.push(projectName, repositoryName, baseRevision,
-                                    summary, detail, markup, changes),
+                new Supplier<CompletableFuture<PushResult>>() {
+                    @Override
+                    public CompletableFuture<PushResult> get() {
+                        return delegate.push(projectName, repositoryName, baseRevision,
+                                             summary, detail, markup, changes);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "push(" + projectName + ", " + repositoryName + ", " +
+                               baseRevision + ", " + summary + ", ...)";
+                    }
+                },
                 pushRetryPredicate(projectName, repositoryName, baseRevision));
     }
 
@@ -265,8 +395,19 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             Author author, String summary, String detail, Markup markup,
             Iterable<? extends Change<?>> changes) {
         return executeWithRetries(
-                () -> delegate.push(projectName, repositoryName, baseRevision,
-                                    author, summary, detail, markup, changes),
+                new Supplier<CompletableFuture<PushResult>>() {
+                    @Override
+                    public CompletableFuture<PushResult> get() {
+                        return delegate.push(projectName, repositoryName, baseRevision,
+                                             author, summary, detail, markup, changes);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "push(" + projectName + ", " + repositoryName + ", " +
+                               baseRevision + ", ...)";
+                    }
+                },
                 pushRetryPredicate(projectName, repositoryName, baseRevision));
     }
 
@@ -290,16 +431,25 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, lastKnownRevision,
-                normLastKnownRevision -> {
-                    return delegate.watchRepository(projectName, repositoryName, normLastKnownRevision,
-                                                    pathPattern, timeoutMillis)
-                                   .thenApply(newLastKnownRevision -> {
-                                       if (newLastKnownRevision != null) {
-                                           updateLatestKnownRevision(projectName, repositoryName,
-                                                                     newLastKnownRevision);
-                                       }
-                                       return newLastKnownRevision;
-                                   });
+                new Function<Revision, CompletableFuture<Revision>>() {
+                    @Override
+                    public CompletableFuture<Revision> apply(Revision normLastKnownRevision) {
+                        return delegate.watchRepository(projectName, repositoryName, normLastKnownRevision,
+                                                        pathPattern, timeoutMillis)
+                                       .thenApply(newLastKnownRevision -> {
+                                           if (newLastKnownRevision != null) {
+                                               updateLatestKnownRevision(projectName, repositoryName,
+                                                                         newLastKnownRevision);
+                                           }
+                                           return newLastKnownRevision;
+                                       });
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "watchRepository(" + projectName + ", " + repositoryName + ", " +
+                               lastKnownRevision + ", " + pathPattern + ", " + timeoutMillis + ')';
+                    }
                 });
     }
 
@@ -310,16 +460,25 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, lastKnownRevision,
-                normLastKnownRevision -> {
-                    return delegate.watchFile(projectName, repositoryName, normLastKnownRevision,
-                                              query, timeoutMillis)
-                                   .thenApply(entry -> {
-                                       if (entry != null) {
-                                           updateLatestKnownRevision(projectName, repositoryName,
-                                                                     entry.revision());
-                                       }
-                                       return entry;
-                                   });
+                new Function<Revision, CompletableFuture<Entry<T>>>() {
+                    @Override
+                    public CompletableFuture<Entry<T>> apply(Revision normLastKnownRevision) {
+                        return delegate.watchFile(projectName, repositoryName, normLastKnownRevision,
+                                                  query, timeoutMillis)
+                                       .thenApply(entry -> {
+                                           if (entry != null) {
+                                               updateLatestKnownRevision(projectName, repositoryName,
+                                                                         entry.revision());
+                                           }
+                                           return entry;
+                                       });
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "watchFile(" + projectName + ", " + repositoryName + ", " +
+                               lastKnownRevision + ", " + query + ", " + timeoutMillis + ')';
+                    }
                 });
     }
 
@@ -333,7 +492,17 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             Function<Revision, CompletableFuture<T>> taskRunner) {
         return normalizeRevision(projectName, repositoryName, revision)
                 .thenCompose(normRev -> executeWithRetries(
-                        () -> taskRunner.apply(normRev),
+                        new Supplier<CompletableFuture<T>>() {
+                            @Override
+                            public CompletableFuture<T> get() {
+                                return taskRunner.apply(normRev);
+                            }
+
+                            @Override
+                            public String toString() {
+                                return taskRunner + " with " + normRev;
+                            }
+                        },
                         (res, cause) -> cause != null &&
                                         handleRevisionNotFound(projectName, repositoryName, normRev, cause)));
     }
@@ -376,7 +545,17 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                 }
 
                 return executeWithRetries(
-                        () -> taskRunner.apply(normFromRev, normToRev),
+                        new Supplier<CompletableFuture<T>>() {
+                            @Override
+                            public CompletableFuture<T> get() {
+                                return taskRunner.apply(normFromRev, normToRev);
+                            }
+
+                            @Override
+                            public String toString() {
+                                return taskRunner + " with (" + normFromRev + ", " + normToRev + ')';
+                            }
+                        },
                         (res, cause) -> {
                             if (cause == null) {
                                 return false;
@@ -393,7 +572,17 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                 final Revision normFromRev = normRevs.get(0);
                 final Revision normToRev = normRevs.get(1);
                 return executeWithRetries(
-                        () -> taskRunner.apply(normFromRev, normToRev),
+                        new Supplier<CompletableFuture<T>>() {
+                            @Override
+                            public CompletableFuture<T> get() {
+                                return taskRunner.apply(normFromRev, normToRev);
+                            }
+
+                            @Override
+                            public String toString() {
+                                return taskRunner + " with (" + normFromRev + ", " + normToRev + ')';
+                            }
+                        },
                         (res, cause) -> {
                             if (cause == null) {
                                 return false;
@@ -424,12 +613,42 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             int attemptsSoFar) {
 
         return CompletableFutures.handleCompose(taskRunner.get(), (res, cause) -> {
+            final Object currentReplicaHint = currentReplicaHintSupplier.get();
             final int nextAttemptsSoFar = attemptsSoFar + 1;
-            if (!retryPredicate.test(res, cause) || nextAttemptsSoFar > maxRetries) {
+            final boolean retryRequired = retryPredicate.test(res, cause);
+            if (!retryRequired || nextAttemptsSoFar > maxRetries) {
+                if (retryRequired) {
+                    if (currentReplicaHint != null) {
+                        logger.warn("[{}] Failed to retrieve the up-to-date data after {} retries: {}",
+                                    currentReplicaHint, attemptsSoFar, taskRunner);
+                    } else {
+                        logger.warn("Failed to retrieve the up-to-date data after {} retries: {}",
+                                    attemptsSoFar, taskRunner);
+                    }
+                } else if (logger.isDebugEnabled()) {
+                    if (currentReplicaHint != null) {
+                        logger.debug("[{}] Retrieved the up-to-date data after {} retries: {}",
+                                    currentReplicaHint, attemptsSoFar, taskRunner);
+                    } else {
+                        logger.debug("Retrieved the up-to-date data after {} retries: {}",
+                                    attemptsSoFar, taskRunner);
+                    }
+                }
+
                 if (cause == null) {
                     return completedFuture(res);
                 } else {
                     return exceptionallyCompletedFuture(cause);
+                }
+            }
+
+            if (logger.isDebugEnabled()) {
+                if (currentReplicaHint != null) {
+                    logger.debug("[{}] Got the out-of-date data ({} attempt(s) so far): {}",
+                                 currentReplicaHint, nextAttemptsSoFar, taskRunner);
+                } else {
+                    logger.debug("Got the out-of-date data ({} attempt(s) so far): {}",
+                                 nextAttemptsSoFar, taskRunner);
                 }
             }
 

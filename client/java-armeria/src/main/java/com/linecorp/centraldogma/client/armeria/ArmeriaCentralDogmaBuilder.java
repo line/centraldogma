@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.client.armeria;
 import java.net.UnknownHostException;
 
 import com.linecorp.armeria.client.ClientBuilder;
+import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.encoding.HttpDecodingClient;
@@ -48,7 +49,13 @@ public final class ArmeriaCentralDogmaBuilder
             return dogma;
         } else {
             return new ReplicationLagTolerantCentralDogma(
-                    executor, dogma, maxRetriesOnReplicationLag, retryIntervalOnReplicationLagMillis());
+                    executor, dogma, maxRetriesOnReplicationLag, retryIntervalOnReplicationLagMillis(),
+                    () -> {
+                        // FIXME(trustin): Note that this will always return `null` due to a known limitation
+                        //                 in Armeria: https://github.com/line/armeria/issues/760
+                        final ClientRequestContext ctx = ClientRequestContext.currentOrNull();
+                        return ctx != null ? ctx.remoteAddress() : null;
+                    });
         }
     }
 }
