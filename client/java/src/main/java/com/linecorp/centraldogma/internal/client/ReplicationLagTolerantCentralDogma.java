@@ -261,7 +261,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
                     @Override
                     public String toString() {
-                        return "getFile(" + projectName + ", " + repositoryName + ", " +
+                        return "getFiles(" + projectName + ", " + repositoryName + ", " +
                                revision + ", " + pathPattern + ')';
                     }
                 });
@@ -405,7 +405,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                     @Override
                     public String toString() {
                         return "push(" + projectName + ", " + repositoryName + ", " +
-                               baseRevision + ", ...)";
+                               baseRevision + ", " + summary + ", ...)";
                     }
                 },
                 pushRetryPredicate(projectName, repositoryName, baseRevision));
@@ -553,7 +553,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
                             @Override
                             public String toString() {
-                                return taskRunner + " with (" + normFromRev + ", " + normToRev + ')';
+                                return taskRunner + " with [" + normFromRev + ", " + normToRev + ']';
                             }
                         },
                         (res, cause) -> {
