@@ -14,7 +14,6 @@ buildscript {
 }
 
 apply plugin: 'com.boazj.log'
-apply plugin: 'com.bmuschko.docker-remote-api'
 
 evaluationDependsOn(':cli')
 evaluationDependsOn(':server')
