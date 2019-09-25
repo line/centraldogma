@@ -139,6 +139,17 @@ public class CentralDogmaClientAutoConfiguration {
             builder.profile(springBootProfiles);
         }
 
+        // Replication lag tolerance settings.
+        final Integer maxNumRetriesOnReplicationLag = settings.getMaxNumRetriesOnReplicationLag();
+        if (maxNumRetriesOnReplicationLag != null) {
+            builder.maxNumRetriesOnReplicationLag(maxNumRetriesOnReplicationLag);
+        }
+
+        final Long retryIntervalOnReplicationLagMillis = settings.getRetryIntervalOnReplicationLagMillis();
+        if (retryIntervalOnReplicationLagMillis != null) {
+            builder.retryIntervalOnReplicationLagMillis(retryIntervalOnReplicationLagMillis);
+        }
+
         return builder.build();
     }
 

@@ -54,7 +54,9 @@ public class CentralDogmaClientAutoConfigurationOtherPropsTest {
         assertThat(settings.getHosts()).isNull();
         assertThat(settings.getProfile()).isNull();
         assertThat(settings.getUseTls()).isTrue();
-        assertThat(settings.getHealthCheckIntervalMillis()).isEqualTo(60000);
+        assertThat(settings.getHealthCheckIntervalMillis()).isEqualTo(60000L);
         assertThat(settings.getAccessToken()).isEqualTo("my-dogma-access-token");
+        assertThat(settings.getMaxNumRetriesOnReplicationLag()).isEqualTo(42);
+        assertThat(settings.getRetryIntervalOnReplicationLagMillis()).isEqualTo(10000L);
     }
 }

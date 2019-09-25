@@ -55,5 +55,7 @@ public class CentralDogmaClientAutoConfigurationProfileTest {
         assertThat(settings.getProfile()).isEqualTo("myprofile");
         assertThat(settings.getUseTls()).isNull();
         assertThat(settings.getHealthCheckIntervalMillis()).isNull();
+        assertThat(settings.getMaxNumRetriesOnReplicationLag()).isNull();
+        assertThat(settings.getRetryIntervalOnReplicationLagMillis()).isNull();
     }
 }

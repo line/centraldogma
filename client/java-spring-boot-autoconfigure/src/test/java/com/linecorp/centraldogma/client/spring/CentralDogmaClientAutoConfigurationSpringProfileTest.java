@@ -55,5 +55,7 @@ public class CentralDogmaClientAutoConfigurationSpringProfileTest {
         assertThat(settings.getProfile()).isNull();
         assertThat(settings.getUseTls()).isNull();
         assertThat(settings.getHealthCheckIntervalMillis()).isNull();
+        assertThat(settings.getMaxNumRetriesOnReplicationLag()).isNull();
+        assertThat(settings.getRetryIntervalOnReplicationLagMillis()).isNull();
     }
 }
