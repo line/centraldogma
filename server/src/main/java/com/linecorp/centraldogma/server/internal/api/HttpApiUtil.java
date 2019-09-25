@@ -160,7 +160,8 @@ public final class HttpApiUtil {
 
     private static HttpResponse newResponse0(RequestContext ctx, HttpStatus status,
                                              @Nullable Throwable cause, @Nullable String message) {
-        checkArgument(!status.isContentAlwaysEmpty(), "invalid status code. status: %s", status.code());
+        checkArgument(!status.isContentAlwaysEmpty(),
+                      "status: %s (expected: a status with non-empty content)", status);
 
         final ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (cause != null) {
