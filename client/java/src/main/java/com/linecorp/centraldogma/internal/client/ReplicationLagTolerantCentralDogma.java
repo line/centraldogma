@@ -580,7 +580,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
                             @Override
                             public String toString() {
-                                return taskRunner + " with (" + normFromRev + ", " + normToRev + ')';
+                                return taskRunner + " with [" + normFromRev + ", " + normToRev + ']';
                             }
                         },
                         (res, cause) -> {
