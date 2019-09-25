@@ -42,10 +42,10 @@ public final class Util {
     private static final Pattern FILE_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
     private static final Pattern JSON_FILE_PATH_PATTERN = Pattern.compile(
-            "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+\\.(?i)json$");
+            "^(?:/[-_0-9a-zA-Z](?:[-_.:0-9a-zA-Z]*[-_:0-9a-zA-Z])?)+\\.(?i)json$");
     private static final Pattern DIR_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$");
-    private static final Pattern PATH_PATTERN_PATTERN = Pattern.compile("^[- /*_.,0-9a-zA-Z]+$");
+    private static final Pattern PATH_PATTERN_PATTERN = Pattern.compile("^[- /*_.,:0-9a-zA-Z]+$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[_A-Za-z0-9-+]+(?:\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9]+)*(?:\\.[A-Za-z]{2,})$");
     private static final Pattern GENERAL_EMAIL_PATTERN = Pattern.compile(
