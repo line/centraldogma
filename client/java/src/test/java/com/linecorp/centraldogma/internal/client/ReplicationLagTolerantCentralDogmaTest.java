@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -53,6 +54,7 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 public class ReplicationLagTolerantCentralDogmaTest {
 
     private static final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private static final Supplier<?> currentReplicaHintSupplier = () -> "?";
 
     @AfterClass
     public static void shutdownExecutor() {
@@ -63,7 +65,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void normalizeRevision() {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         // Make sure the latest known revision is remembered on `normalizeRevision()`.
         final Revision latestRevision = new Revision(2);
@@ -134,7 +136,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void normalizeRevisionAndExecuteWithRetries() throws Exception {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         final Revision latestRevision = new Revision(3);
         when(delegate.normalizeRevision(any(), any(), any())).thenReturn(completedFuture(latestRevision));
@@ -155,7 +157,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void normalizeRevisionsAndExecuteWithRetriesFastPath() throws Exception {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         when(delegate.normalizeRevision(any(), any(), eq(Revision.HEAD)))
                 .thenReturn(completedFuture(new Revision(2)));
@@ -188,7 +190,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void normalizeRevisionsAndExecuteWithRetriesSlowPath() throws Exception {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         when(delegate.normalizeRevision(any(), any(), eq(Revision.INIT)))
                 .thenReturn(completedFuture(Revision.INIT));
@@ -214,7 +216,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void listRepositories() {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         // `listRepository()` must remember the latest known revisions.
         final Revision latestRevision = new Revision(2);
@@ -266,7 +268,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void retryOnlyOnRevisionNotFoundException() {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         when(delegate.normalizeRevision(any(), any(), any()))
                 .thenReturn(exceptionallyCompletedFuture(new ProjectNotFoundException()));
@@ -283,7 +285,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void push() {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         final PushResult pushResult = new PushResult(new Revision(3), 42L);
         when(delegate.push(any(), any(), any(), any(), any(), any(), any(Iterable.class)))
@@ -301,7 +303,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void pushWithRetries() {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         // Make the client remember the latest known revision.
         when(delegate.normalizeRevision(any(), any(), any()))
@@ -338,7 +340,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void watchRepository() {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         // Make sure `watchRepository()` remembers the latest revision.
         final Revision latestRevision = new Revision(3);
@@ -376,7 +378,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     public void watchFile() {
         final CentralDogma delegate = mock(CentralDogma.class);
         final ReplicationLagTolerantCentralDogma dogma =
-                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0);
+                new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0, currentReplicaHintSupplier);
 
         // Make sure `watchFile()` remembers the latest revision.
         final Revision latestRevision = new Revision(3);
