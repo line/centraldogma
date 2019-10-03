@@ -32,20 +32,14 @@ import org.mockito.junit.MockitoRule;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.client.Client;
-import com.linecorp.armeria.client.ClientOptions;
 import com.linecorp.armeria.client.ClientRequestContext;
-import com.linecorp.armeria.client.DefaultClientRequestContext;
-import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.common.DefaultRpcRequest;
 import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
-import com.linecorp.armeria.common.SessionProtocol;
-import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
-
-import io.netty.channel.DefaultEventLoop;
 
 public class LegacyCentralDogmaTimeoutSchedulerTest {
     @Rule
@@ -101,10 +95,8 @@ public class LegacyCentralDogmaTimeoutSchedulerTest {
     }
 
     private static ClientRequestContext newClientContext(RpcRequest req) {
-        final DefaultClientRequestContext ctx = new DefaultClientRequestContext(
-                new DefaultEventLoop(), NoopMeterRegistry.get(), SessionProtocol.HTTP,
-                HttpMethod.POST, "/cd/thrift/v1", null, null, ClientOptions.DEFAULT, req);
-        ctx.init(Endpoint.of("localhost", 8080));
+        final ClientRequestContext ctx = ClientRequestContext.of(
+                HttpRequest.of(HttpMethod.POST, "/cd/thrift/v1"));
         return spy(ctx);
     }
 }

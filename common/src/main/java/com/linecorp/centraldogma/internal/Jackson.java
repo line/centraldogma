@@ -36,7 +36,6 @@ import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.core.io.JsonStringEncoder;
 import com.fasterxml.jackson.core.io.SegmentedStringWriter;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.core.util.BufferRecyclers;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -252,7 +251,7 @@ public final class Jackson {
         return compactMapper.convertValue(fromValue, toValueType);
     }
 
-    public static <T> T convertValue(Object fromValue, TypeReference<?> toValueTypeRef) {
+    public static <T> T convertValue(Object fromValue, TypeReference<T> toValueTypeRef) {
         return compactMapper.convertValue(fromValue, toValueTypeRef);
     }
 
@@ -297,7 +296,7 @@ public final class Jackson {
     }
 
     public static String escapeText(String text) {
-        final JsonStringEncoder enc = BufferRecyclers.getJsonStringEncoder();
+        final JsonStringEncoder enc = JsonStringEncoder.getInstance();
         return new String(enc.quoteAsString(text));
     }
 
