@@ -619,19 +619,19 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             if (!retryRequired || nextAttemptsSoFar > maxRetries) {
                 if (retryRequired) {
                     if (currentReplicaHint != null) {
-                        logger.warn("[{}] Failed to retrieve the up-to-date data after {} retries: {}",
-                                    currentReplicaHint, attemptsSoFar, taskRunner);
+                        logger.warn("[{}] Failed to retrieve the up-to-date data after {} retries: {} => {}",
+                                    currentReplicaHint, attemptsSoFar, taskRunner, resultOrCause(res, cause));
                     } else {
-                        logger.warn("Failed to retrieve the up-to-date data after {} retries: {}",
-                                    attemptsSoFar, taskRunner);
+                        logger.warn("Failed to retrieve the up-to-date data after {} retries: {} => {}",
+                                    attemptsSoFar, taskRunner, resultOrCause(res, cause));
                     }
                 } else if (logger.isDebugEnabled()) {
                     if (currentReplicaHint != null) {
-                        logger.debug("[{}] Retrieved the up-to-date data after {} retries: {}",
-                                    currentReplicaHint, attemptsSoFar, taskRunner);
+                        logger.debug("[{}] Retrieved the up-to-date data after {} retries: {} => {}",
+                                    currentReplicaHint, attemptsSoFar, taskRunner, resultOrCause(res, cause));
                     } else {
-                        logger.debug("Retrieved the up-to-date data after {} retries: {}",
-                                    attemptsSoFar, taskRunner);
+                        logger.debug("Retrieved the up-to-date data after {} retries: {} => {}",
+                                    attemptsSoFar, taskRunner, resultOrCause(res, cause));
                     }
                 }
 
@@ -644,11 +644,11 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
             if (logger.isDebugEnabled()) {
                 if (currentReplicaHint != null) {
-                    logger.debug("[{}] Got the out-of-date data ({} attempt(s) so far): {}",
-                                 currentReplicaHint, nextAttemptsSoFar, taskRunner);
+                    logger.debug("[{}] Got the out-of-date data ({} attempt(s) so far): {} => {}",
+                                 currentReplicaHint, nextAttemptsSoFar, taskRunner, resultOrCause(res, cause));
                 } else {
-                    logger.debug("Got the out-of-date data ({} attempt(s) so far): {}",
-                                 nextAttemptsSoFar, taskRunner);
+                    logger.debug("Got the out-of-date data ({} attempt(s) so far): {} => {}",
+                                 nextAttemptsSoFar, taskRunner, resultOrCause(res, cause));
                 }
             }
 
@@ -713,22 +713,60 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
      *         the latest known revision is equal to the specified {@link Revision}. {@code false} otherwise.
      */
     private boolean updateLatestKnownRevision(String projectName, String repositoryName, Revision newRevision) {
+        final Object currentReplicaHint = currentReplicaHintSupplier.get();
         final RepoId id = new RepoId(projectName, repositoryName);
         synchronized (latestKnownRevisions) {
             final Revision oldRevision = latestKnownRevisions.get(id);
             if (oldRevision == null) {
+                if (currentReplicaHint != null) {
+                    logger.debug("[{}] Updating the latest known revision for {}/{} from <unknown> to: {}",
+                                 currentReplicaHint, projectName, repositoryName, newRevision);
+                } else {
+                    logger.debug("Updating the latest known revision for {}/{} from <unknown> to: {}",
+                                 projectName, repositoryName, newRevision);
+                }
                 latestKnownRevisions.put(id, newRevision);
                 return true;
             }
 
             final int comparison = oldRevision.compareTo(newRevision);
             if (comparison < 0) {
+                if (currentReplicaHint != null) {
+                    logger.debug("[{}] Updating the latest known revision for {}/{} from {} to: {}",
+                                 currentReplicaHint, projectName, repositoryName, oldRevision, newRevision);
+                } else {
+                    logger.debug("Updating the latest known revision for {}/{} from {} to: {}",
+                                 projectName, repositoryName, oldRevision, newRevision);
+                }
                 latestKnownRevisions.put(id, newRevision);
                 return true;
             }
 
-            return comparison == 0;
+            if (comparison == 0) {
+                if (currentReplicaHint != null) {
+                    logger.debug("[{}] The latest known revision for {}/{} stays unchanged at: {}",
+                                 currentReplicaHint, projectName, repositoryName, newRevision);
+                } else {
+                    logger.debug("The latest known revision for {}/{} stays unchanged at: {}",
+                                 projectName, repositoryName, newRevision);
+                }
+                return true;
+            }
+
+            if (currentReplicaHint != null) {
+                logger.debug("[{}] An out-of-date latest known revision for {}/{}: {}",
+                             currentReplicaHint, projectName, repositoryName, newRevision);
+            } else {
+                logger.debug("An out-of-date latest known revision for {}/{}: {}",
+                             projectName, repositoryName, newRevision);
+            }
+            return false;
         }
+    }
+
+    @Nullable
+    private static Object resultOrCause(@Nullable Object res, @Nullable Throwable cause) {
+        return res != null ? res : cause;
     }
 
     private static final class RepoId {
