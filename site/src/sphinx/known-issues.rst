@@ -31,4 +31,4 @@ Previously known issues
   - The fixed version: 0.41.0 and later.
   - Please check `CVE-2019-6002 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-6002>`_ to get more information.
   - If you found security bugs, please let us know  `dl_oss_dev@linecorp.com <mailto:dl_oss_dev@linecorp.com>`_ or
-    send `Slack DM <https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWRlZTZmZDljNDY3OTBmN2Y1NDAwMGUzMTMzNmFlOTYzNzYyNDNmNmM5YTk3YmExM2M4NGRkOTY2NTE1MDJhODY>`_ to maintainer.
+    send `Slack DM <https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ>`_ to maintainer.

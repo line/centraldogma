@@ -2,10 +2,15 @@
 
 First of all, thank you so much for taking your time to contribute! Central Dogma is not very different from any other open source projects you are aware of. It will be amazing if you could help us by doing any of the following:
 
+- Join [our Slack workspace](https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ) to chat with us.
 - File an issue in [the issue tracker](https://github.com/line/centraldogma/issues) to report bugs and propose new features and improvements.
 - Ask a question by creating a new issue in [the issue tracker](https://github.com/line/centraldogma/issues).
   - Browse [the list of previously answered questions](https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered).
 - Contribute your work by sending [a pull request](https://github.com/line/centraldogma/pulls).
+
+### Build requirements
+
+- [OpenJDK 11 (or later)](https://adoptopenjdk.net/)
 
 ### Contributor license agreement
 
@@ -21,7 +26,7 @@ We expect contributors to follow [our code of conduct](https://github.com/line/c
 
 You can import Central Dogma into your IDE ([IntelliJ IDEA](https://www.jetbrains.com/idea/) or [Eclipse](https://www.eclipse.org/)) as a Gradle project.
 
-- IntelliJ IDEA - See [Importing Project from Gradle Model](https://www.jetbrains.com/help/idea/2016.3/importing-project-from-gradle-model.html)
+- IntelliJ IDEA - See [Importing Project from Gradle Model](https://www.jetbrains.com/help/idea/gradle.html#gradle_import_project_start)
 - Eclipse - Use [Buildship Gradle Integration](https://marketplace.eclipse.org/content/buildship-gradle-integration)
 
 After importing the project, import the IDE settings as well.
@@ -29,8 +34,10 @@ After importing the project, import the IDE settings as well.
 #### IntelliJ IDEA
 
 - [`settings.jar`](https://raw.githubusercontent.com/line/centraldogma/master/settings/intellij_idea/settings.jar) -
-  See [Importing settings from a JAR archive](https://www.jetbrains.com/help/idea/2016.3/exporting-and-importing-settings.html#d2016665e55).
+  See [Import settings from a ZIP archive](https://www.jetbrains.com/help/idea/sharing-your-ide-settings.html#7a4f08b8).
 - Make sure to use 'LINE OSS' code style and inspection profile.
+  - Go to `Preferences` > `Editors` > `Code Style` and set `Scheme` option to `LINE OSS`.
+  - Go to `Preferences` > `Editors` > `Inspections` and set `Profile` option to `LINE OSS`.
 - Although optional, if you want to run Checkstyle from IDEA, install the
   [Checkstyle-IDEA plugin](https://github.com/jshiell/checkstyle-idea), import and activate
   the rule file at `settings/checkstyle/checkstyle.xml`.
@@ -51,12 +58,17 @@ After importing the project, import the IDE settings as well.
     <img src="https://raw.githubusercontent.com/line/centraldogma/master/settings/eclipse/save_actions.png">
   </details>
 - Although optional, if you want to run Checkstyle from Eclipse, install the
-  [Eclipse Checkstyle Plugin](http://eclipse-cs.sourceforge.net/), import and activate
+  [Eclipse Checkstyle Plugin](https://eclipse-cs.sourceforge.net/), import and activate
   the rule file at `settings/checkstyle/checkstyle.xml`.
   - Set the 'Type' to 'External Configuration File'.
   - Click the 'Additional properties...' button. A new dialog will show up.
   - Click the 'Find unresolved properties' button. It will find the `checkstyleConfigDir` property.
     Choose 'Yes' to add it. Set it to `<project root path>/settings/checkstyle`.
+
+### Configure `-parameters` javac option
+
+You can configure your build tool and IDE to add `-parameters` javac option.
+Please refer to [Configure `-parameters` javac option](https://line.github.io/armeria/setup.html#configure-parameters-javac-option) for more information.
 
 ### Checklist for your pull request
 
@@ -181,7 +193,7 @@ public final class MyClass {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         ... usual type check ...
         // OK
         return name.equals(((MyClass) obj).name);
