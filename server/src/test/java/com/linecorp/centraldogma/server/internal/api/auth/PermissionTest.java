@@ -36,17 +36,15 @@ import org.junit.runners.Parameterized.Parameters;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
-import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.client.HttpClientBuilder;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServerBuilder;
-import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
@@ -133,8 +131,7 @@ public class PermissionTest {
             mds.addToken(author, "project1", "app-2", ProjectRole.MEMBER)
                .toCompletableFuture().join();
 
-            final Function<Service<HttpRequest, HttpResponse>,
-                    ? extends Service<HttpRequest, HttpResponse>> decorator =
+            final Function<? super HttpService, ? extends HttpService> decorator =
                     MetadataServiceInjector.newDecorator(mds).andThen(HttpAuthService.newDecorator(
                             new ApplicationTokenAuthorizer(mds::findTokenBySecret)));
             sb.annotatedService(new Object() {
@@ -213,8 +210,9 @@ public class PermissionTest {
 
     @Test
     public void test() {
-        final HttpClient client = new HttpClientBuilder(rule.uri("/"))
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret).build();
+        final WebClient client = WebClient.builder(rule.uri("/"))
+                                          .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret)
+                                          .build();
 
         AggregatedHttpResponse response;
 

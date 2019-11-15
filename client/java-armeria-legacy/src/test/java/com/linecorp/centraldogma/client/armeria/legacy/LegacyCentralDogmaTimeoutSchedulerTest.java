@@ -31,13 +31,12 @@ import org.mockito.junit.MockitoRule;
 
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.armeria.client.Client;
 import com.linecorp.armeria.client.ClientRequestContext;
+import com.linecorp.armeria.client.RpcClient;
 import com.linecorp.armeria.common.DefaultRpcRequest;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.RpcRequest;
-import com.linecorp.armeria.common.RpcResponse;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
@@ -46,7 +45,7 @@ public class LegacyCentralDogmaTimeoutSchedulerTest {
     public MockitoRule rule = MockitoJUnit.rule();
 
     @Mock
-    private Client<RpcRequest, RpcResponse> client;
+    private RpcClient client;
 
     private LegacyCentralDogmaTimeoutScheduler decorator;
 

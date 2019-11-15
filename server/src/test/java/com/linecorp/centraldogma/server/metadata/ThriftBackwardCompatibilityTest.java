@@ -36,8 +36,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.client.ClientBuilder;
-import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.client.HttpClientBuilder;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.centraldogma.internal.CsrfToken;
@@ -55,7 +54,7 @@ public class ThriftBackwardCompatibilityTest {
     @ClassRule
     public static final CentralDogmaRule dogma = new CentralDogmaRule();
 
-    private static HttpClient httpClient;
+    private static WebClient webClient;
     private static Iface client;
 
     private static final Revision head = new Revision(-1, 0);
@@ -66,9 +65,9 @@ public class ThriftBackwardCompatibilityTest {
     @BeforeClass
     public static void init() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
-        httpClient = new HttpClientBuilder("http://127.0.0.1:" + serverAddress.getPort())
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
-                .build();
+        webClient = WebClient.builder("http://127.0.0.1:" + serverAddress.getPort())
+                             .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
+                             .build();
 
         client = new ClientBuilder("ttext+http://127.0.0.1:" + serverAddress.getPort() + "/cd/thrift/v1")
                 .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
@@ -85,7 +84,7 @@ public class ThriftBackwardCompatibilityTest {
                     ImmutableList.of(new Change("/sample.txt", ChangeType.UPSERT_TEXT).setContent("test")));
 
         AggregatedHttpResponse res;
-        res = httpClient.get(PROJECTS_PREFIX + '/' + projectName + REPOS).aggregate().join();
+        res = webClient.get(PROJECTS_PREFIX + '/' + projectName + REPOS).aggregate().join();
         final List<JsonNode> nodes = new ArrayList<>();
         Jackson.readTree(res.contentUtf8()).elements().forEachRemaining(nodes::add);
 
@@ -94,7 +93,7 @@ public class ThriftBackwardCompatibilityTest {
 
         ProjectMetadata metadata;
 
-        res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
+        res = webClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
         assertThat(metadata.repos().size()).isEqualTo(2);
         assertThat(metadata.repo(repo1)).isNotNull();
@@ -104,7 +103,7 @@ public class ThriftBackwardCompatibilityTest {
 
         client.removeRepository(projectName, repo1);
 
-        res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
+        res = webClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
         assertThat(metadata.repos().size()).isEqualTo(2);
         assertThat(metadata.repo(repo1)).isNotNull();
@@ -114,7 +113,7 @@ public class ThriftBackwardCompatibilityTest {
 
         client.unremoveRepository(projectName, repo1);
 
-        res = httpClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
+        res = webClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
         metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
         assertThat(metadata.repos().size()).isEqualTo(2);
         assertThat(metadata.repo(repo1)).isNotNull();

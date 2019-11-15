@@ -42,7 +42,7 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.RequestHeaders;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 
 import io.netty.util.NetUtil;
@@ -53,7 +53,7 @@ public class TokenlessClientLoggerTest {
     @Mock
     private Clock clock; // = Mockito.mock(Clock.class);
     @Mock
-    private Service<HttpRequest, HttpResponse> delegate; // = Mockito.mock(Service.class);
+    private HttpService delegate; // = Mockito.mock(Service.class);
 
     @Test
     public void testWithToken() throws Exception {

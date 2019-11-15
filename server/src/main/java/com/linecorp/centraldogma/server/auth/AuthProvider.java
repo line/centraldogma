@@ -26,13 +26,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.ResponseHeaders;
+import com.linecorp.armeria.server.HttpService;
+import com.linecorp.armeria.server.HttpServiceWithRoutes;
 import com.linecorp.armeria.server.Route;
 import com.linecorp.armeria.server.Service;
-import com.linecorp.armeria.server.ServiceWithRoutes;
 
 /**
  * An interface which configures the authentication layer for the Central Dogma server.
@@ -85,7 +85,7 @@ public interface AuthProvider {
      * Returns a {@link Service} which handles a login request from a web browser. By default,
      * the browser would bring a user to the built-in web login page served on {@value BUILTIN_WEB_LOGIN_PATH}.
      */
-    default Service<HttpRequest, HttpResponse> webLoginService() {
+    default HttpService webLoginService() {
         // Redirect to the default page: /link/auth/login -> /web/auth/login
         return (ctx, req) -> HttpResponse.of(
                 ResponseHeaders.of(HttpStatus.MOVED_PERMANENTLY, HttpHeaderNames.LOCATION,
@@ -97,7 +97,7 @@ public interface AuthProvider {
      * the browser would bring a user to the built-in web logout page served on
      * {@value BUILTIN_WEB_LOGOUT_PATH}.
      */
-    default Service<HttpRequest, HttpResponse> webLogoutService() {
+    default HttpService webLogoutService() {
         // Redirect to the default page: /link/auth/logout -> /web/auth/logout
         return (ctx, req) -> HttpResponse.of(
                 ResponseHeaders.of(HttpStatus.MOVED_PERMANENTLY, HttpHeaderNames.LOCATION,
@@ -110,7 +110,7 @@ public interface AuthProvider {
      * with {@link #LOGIN_API_ROUTES} only if it is provided.
      */
     @Nullable
-    default Service<HttpRequest, HttpResponse> loginApiService() {
+    default HttpService loginApiService() {
         return null;
     }
 
@@ -121,7 +121,7 @@ public interface AuthProvider {
      * because the web console provides a logout button on the navigation bar by default.
      */
     @Nullable
-    default Service<HttpRequest, HttpResponse> logoutApiService() {
+    default HttpService logoutApiService() {
         return null;
     }
 
@@ -129,7 +129,7 @@ public interface AuthProvider {
      * Returns additional {@link Service}s which are required for working this {@link AuthProvider}
      * well.
      */
-    default Iterable<ServiceWithRoutes<HttpRequest, HttpResponse>> moreServices() {
+    default Iterable<HttpServiceWithRoutes> moreServices() {
         return ImmutableList.of();
     }
 }

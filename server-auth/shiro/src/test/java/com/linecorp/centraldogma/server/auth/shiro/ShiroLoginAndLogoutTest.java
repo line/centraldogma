@@ -32,7 +32,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.linecorp.armeria.client.HttpClient;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
@@ -57,7 +57,7 @@ public class ShiroLoginAndLogoutTest {
         }
     };
 
-    private HttpClient client;
+    private WebClient client;
 
     @Before
     public void setClient() {

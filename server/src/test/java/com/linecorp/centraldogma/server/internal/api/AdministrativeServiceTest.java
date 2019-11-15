@@ -26,8 +26,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.client.HttpClientBuilder;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -41,19 +40,20 @@ public class AdministrativeServiceTest {
     @Rule
     public final CentralDogmaRule dogma = new CentralDogmaRule();
 
-    private static HttpClient httpClient;
+    private static WebClient webClient;
 
     @Before
     public void init() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
         final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
-        httpClient = new HttpClientBuilder(serverUri)
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").build();
+        webClient = WebClient.builder(serverUri)
+                             .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                             .build();
     }
 
     @Test
     public void status() {
-        final AggregatedHttpResponse res = httpClient.get(API_V1_PATH_PREFIX + "status").aggregate().join();
+        final AggregatedHttpResponse res = webClient.get(API_V1_PATH_PREFIX + "status").aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo(
                 "{ \"writable\": true, \"replicating\": true }");
@@ -61,7 +61,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void updateStatus_setUnwritable() {
-        final AggregatedHttpResponse res = httpClient.execute(
+        final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }]").aggregate().join();
@@ -73,7 +73,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void updateStatus_setUnwritableAndNonReplicating() {
-        final AggregatedHttpResponse res = httpClient.execute(
+        final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }," +
@@ -86,7 +86,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void updateStatus_setWritableAndNonReplicating() {
-        final AggregatedHttpResponse res = httpClient.execute(
+        final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }," +
@@ -97,7 +97,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void redundantUpdateStatus_Writable() {
-        final AggregatedHttpResponse res = httpClient.execute(
+        final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();
@@ -107,7 +107,7 @@ public class AdministrativeServiceTest {
 
     @Test
     public void redundantUpdateStatus_Replicating() {
-        final AggregatedHttpResponse res = httpClient.execute(
+        final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/replicating\", \"value\": true }]").aggregate().join();
@@ -120,7 +120,7 @@ public class AdministrativeServiceTest {
         // Enter read-only mode.
         updateStatus_setUnwritable();
         // Try to enter writable mode.
-        final AggregatedHttpResponse res = httpClient.execute(
+        final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();

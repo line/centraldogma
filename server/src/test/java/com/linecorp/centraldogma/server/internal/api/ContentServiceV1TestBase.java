@@ -20,8 +20,7 @@ import java.net.InetSocketAddress;
 import org.junit.Before;
 import org.junit.Rule;
 
-import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.client.HttpClientBuilder;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.MediaType;
@@ -45,29 +44,30 @@ public class ContentServiceV1TestBase {
 
     static final String CONTENTS_PREFIX = "/api/v1/projects/myPro/repos/myRepo/contents";
 
-    private HttpClient httpClient;
+    private WebClient webClient;
 
     @Before
     public void init() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
         final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
-        httpClient = new HttpClientBuilder(serverUri)
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").build();
+        webClient = WebClient.builder(serverUri)
+                             .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                             .build();
 
         // the default project used for unit tests
         RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, "/api/v1/projects",
                                                    HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         String body = "{\"name\": \"myPro\"}";
-        httpClient.execute(headers, body).aggregate().join();
+        webClient.execute(headers, body).aggregate().join();
 
         // the default repository used for unit tests
         headers = RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos",
                                     HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         body = "{\"name\": \"myRepo\"}";
-        httpClient.execute(headers, body).aggregate().join();
+        webClient.execute(headers, body).aggregate().join();
     }
 
-    HttpClient httpClient() {
-        return httpClient;
+    WebClient webClient() {
+        return webClient;
     }
 }

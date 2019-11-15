@@ -20,14 +20,14 @@ import java.util.List;
 
 import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.RpcService;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.armeria.server.SimpleDecoratingRpcService;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
-public final class CentralDogmaTimeoutScheduler extends SimpleDecoratingService<RpcRequest, RpcResponse> {
+public final class CentralDogmaTimeoutScheduler extends SimpleDecoratingRpcService {
 
-    public CentralDogmaTimeoutScheduler(Service<RpcRequest, RpcResponse> delegate) {
+    public CentralDogmaTimeoutScheduler(RpcService delegate) {
         super(delegate);
     }
 

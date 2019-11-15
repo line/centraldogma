@@ -29,8 +29,7 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.client.HttpClientBuilder;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -50,14 +49,15 @@ public class ProjectServiceV1Test {
     @Rule
     public final CentralDogmaRule dogma = new CentralDogmaRule();
 
-    private static HttpClient httpClient;
+    private static WebClient webClient;
 
     @Before
     public void init() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
         final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
-        httpClient = new HttpClientBuilder(serverUri)
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").build();
+        webClient = WebClient.builder(serverUri)
+                             .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                             .build();
     }
 
     @Test
@@ -79,7 +79,7 @@ public class ProjectServiceV1Test {
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
 
         final String body = "{\"name\": \"" + name + "\"}";
-        return httpClient.execute(headers, body).aggregate().join();
+        return webClient.execute(headers, body).aggregate().join();
     }
 
     @Test
@@ -100,7 +100,7 @@ public class ProjectServiceV1Test {
         createProject("trustin");
         createProject("hyangtack");
         createProject("minwoox");
-        final AggregatedHttpResponse aRes = httpClient.get(PROJECTS_PREFIX).aggregate().join();
+        final AggregatedHttpResponse aRes = webClient.get(PROJECTS_PREFIX).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '[' +
@@ -138,24 +138,24 @@ public class ProjectServiceV1Test {
     @Test
     public void removeProject() {
         createProject("foo");
-        final AggregatedHttpResponse aRes = httpClient.delete(PROJECTS_PREFIX + "/foo")
-                                                      .aggregate().join();
+        final AggregatedHttpResponse aRes = webClient.delete(PROJECTS_PREFIX + "/foo")
+                                                     .aggregate().join();
         final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
         assertThat(ResponseHeaders.of(headers).status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test
     public void removeAbsentProject() {
-        final AggregatedHttpResponse aRes = httpClient.delete(PROJECTS_PREFIX + "/foo")
-                                                      .aggregate().join();
+        final AggregatedHttpResponse aRes = webClient.delete(PROJECTS_PREFIX + "/foo")
+                                                     .aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
     public void purgeProject() {
         removeProject();
-        final AggregatedHttpResponse aRes = httpClient.delete(PROJECTS_PREFIX + "/foo/removed")
-                                                      .aggregate().join();
+        final AggregatedHttpResponse aRes = webClient.delete(PROJECTS_PREFIX + "/foo/removed")
+                                                     .aggregate().join();
         final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
         assertThat(ResponseHeaders.of(headers).status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
@@ -165,11 +165,11 @@ public class ProjectServiceV1Test {
         createProject("trustin");
         createProject("hyangtack");
         createProject("minwoox");
-        httpClient.delete(PROJECTS_PREFIX + "/hyangtack").aggregate().join();
-        httpClient.delete(PROJECTS_PREFIX + "/minwoox").aggregate().join();
+        webClient.delete(PROJECTS_PREFIX + "/hyangtack").aggregate().join();
+        webClient.delete(PROJECTS_PREFIX + "/minwoox").aggregate().join();
 
-        final AggregatedHttpResponse removedRes = httpClient.get(PROJECTS_PREFIX + "?status=removed")
-                                                            .aggregate().join();
+        final AggregatedHttpResponse removedRes = webClient.get(PROJECTS_PREFIX + "?status=removed")
+                                                           .aggregate().join();
         assertThat(ResponseHeaders.of(removedRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '[' +
@@ -182,7 +182,7 @@ public class ProjectServiceV1Test {
                 ']';
         assertThatJson(removedRes.contentUtf8()).isEqualTo(expectedJson);
 
-        final AggregatedHttpResponse remainedRes = httpClient.get(PROJECTS_PREFIX).aggregate().join();
+        final AggregatedHttpResponse remainedRes = webClient.get(PROJECTS_PREFIX).aggregate().join();
         final String remains = remainedRes.contentUtf8();
         final JsonNode jsonNode = Jackson.readTree(remains);
 
@@ -194,13 +194,13 @@ public class ProjectServiceV1Test {
     public void unremoveProject() throws IOException {
         createProject("bar");
         final String projectPath = PROJECTS_PREFIX + "/bar";
-        httpClient.delete(projectPath).aggregate().join();
+        webClient.delete(projectPath).aggregate().join();
 
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, projectPath,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH);
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpResponse aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
+        final AggregatedHttpResponse aRes = webClient.execute(headers, unremovePatch).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '{' +
@@ -223,7 +223,7 @@ public class ProjectServiceV1Test {
                                                          "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpResponse aRes = httpClient.execute(headers, unremovePatch).aggregate().join();
+        final AggregatedHttpResponse aRes = webClient.execute(headers, unremovePatch).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

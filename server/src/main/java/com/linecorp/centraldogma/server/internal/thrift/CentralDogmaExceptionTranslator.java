@@ -19,14 +19,14 @@ package com.linecorp.centraldogma.server.internal.thrift;
 import com.linecorp.armeria.common.DefaultRpcResponse;
 import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.RpcService;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.armeria.server.SimpleDecoratingRpcService;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
 
-public final class CentralDogmaExceptionTranslator extends SimpleDecoratingService<RpcRequest, RpcResponse> {
+public final class CentralDogmaExceptionTranslator extends SimpleDecoratingRpcService {
 
-    public CentralDogmaExceptionTranslator(Service<RpcRequest, RpcResponse> delegate) {
+    public CentralDogmaExceptionTranslator(RpcService delegate) {
         super(delegate);
     }
 

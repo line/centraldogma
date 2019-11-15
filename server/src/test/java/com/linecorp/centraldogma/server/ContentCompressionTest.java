@@ -34,10 +34,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.CharStreams;
 
 import com.linecorp.armeria.client.ClientBuilder;
-import com.linecorp.armeria.client.ClientOptionsBuilder;
 import com.linecorp.armeria.client.Clients;
-import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.client.HttpClientBuilder;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.encoding.HttpDecodingClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpData;
@@ -95,9 +93,9 @@ public class ContentCompressionTest {
         // Should succeed to decode with the decompressor.
         final Iface clientWithDecompressor = Clients.newDerivedClient(
                 clientWithoutDecompressor,
-                options -> new ClientOptionsBuilder(options)
-                        .decorator(HttpDecodingClient.newDecorator())
-                        .build());
+                options -> options.toBuilder()
+                                  .decorator(HttpDecodingClient.newDecorator())
+                                  .build());
 
         final GetFileResult result = clientWithDecompressor.getFile(PROJ, REPO, head, query);
         assertThat(result.getContent()).contains(CONTENT);
@@ -105,11 +103,11 @@ public class ContentCompressionTest {
 
     @Test
     public void http() throws Exception {
-        final HttpClient client = new HttpClientBuilder(
-                "http://127.0.0.1:" + rule.serverAddress().getPort())
-                .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
-                .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
-                .build();
+        final WebClient client =
+                WebClient.builder("http://127.0.0.1:" + rule.serverAddress().getPort())
+                         .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
+                         .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
+                         .build();
 
         final String contentPath = HttpApiV1Constants.PROJECTS_PREFIX + '/' + PROJ +
                                    HttpApiV1Constants.REPOS + '/' + REPO +

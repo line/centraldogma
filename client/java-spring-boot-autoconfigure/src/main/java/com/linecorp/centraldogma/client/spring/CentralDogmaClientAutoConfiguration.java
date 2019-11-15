@@ -69,14 +69,14 @@ public class CentralDogmaClientAutoConfiguration {
     public @interface ForCentralDogma {}
 
     /**
-     * Returns {@link ClientFactory#DEFAULT} which is used as the default {@link ClientFactory} of a
+     * Returns {@link ClientFactory#ofDefault()} which is used as the default {@link ClientFactory} of a
      * {@link CentralDogma} client.
      */
     @Bean
     @Conditional(MissingCentralDogmaClientFactory.class)
     @ForCentralDogma
     public ClientFactory dogmaClientFactory() {
-        return ClientFactory.DEFAULT;
+        return ClientFactory.ofDefault();
     }
 
     /**

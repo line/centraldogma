@@ -28,7 +28,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import com.linecorp.armeria.client.ClientFactory;
-import com.linecorp.armeria.client.ClientFactoryBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.spring.CentralDogmaAutoConfigurationTest.TestConfiguration;
 import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfiguration.ForCentralDogma;
@@ -39,7 +38,7 @@ import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurati
 public class CentralDogmaAutoConfigurationTest {
     @SpringBootApplication
     public static class TestConfiguration {
-        static final ClientFactory clientFactoryNotForCentralDogma = new ClientFactoryBuilder().build();
+        static final ClientFactory clientFactoryNotForCentralDogma = ClientFactory.builder().build();
 
         @Bean
         public ClientFactory clientFactory() {
@@ -57,6 +56,6 @@ public class CentralDogmaAutoConfigurationTest {
     @Test
     public void centralDogmaClient() throws Exception {
         assertThat(client).isNotNull();
-        assertThat(clientFactory).isSameAs(ClientFactory.DEFAULT);
+        assertThat(clientFactory).isSameAs(ClientFactory.ofDefault());
     }
 }

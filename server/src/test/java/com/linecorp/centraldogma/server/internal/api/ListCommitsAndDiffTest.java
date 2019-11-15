@@ -24,8 +24,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.client.HttpClientBuilder;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -40,26 +39,27 @@ public class ListCommitsAndDiffTest {
     @Rule
     public final CentralDogmaRule dogma = new CentralDogmaRule();
 
-    private static HttpClient httpClient;
+    private static WebClient webClient;
 
     @Before
     public void init() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
         final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
-        httpClient = new HttpClientBuilder(serverUri)
-                .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous").build();
+        webClient = WebClient.builder(serverUri)
+                             .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
+                             .build();
 
         // the default project used for unit tests
         RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, "/api/v1/projects",
                                                    HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         String body = "{\"name\": \"myPro\"}";
-        httpClient.execute(headers, body).aggregate().join();
+        webClient.execute(headers, body).aggregate().join();
 
         // the default repository used for unit tests
         headers = RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos",
                                     HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         body = "{\"name\": \"myRepo\"}";
-        httpClient.execute(headers, body).aggregate().join();
+        webClient.execute(headers, body).aggregate().join();
         // default files used for unit tests
         addFooFile();
     }
@@ -80,14 +80,14 @@ public class ListCommitsAndDiffTest {
                     "       \"markup\": \"PLAINTEXT\"" +
                     "   }" +
                     '}';
-            httpClient.execute(headers, body).aggregate().join();
+            webClient.execute(headers, body).aggregate().join();
         }
     }
 
     @Test
     public void listCommits() {
-        final AggregatedHttpResponse aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits")
-                                                      .aggregate().join();
+        final AggregatedHttpResponse aRes = webClient.get("/api/v1/projects/myPro/repos/myRepo/commits")
+                                                     .aggregate().join();
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -136,8 +136,8 @@ public class ListCommitsAndDiffTest {
     @Test
     public void listCommitsWithmaxCommits() {
         final AggregatedHttpResponse aRes =
-                httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/-1?to=1&maxCommits=2")
-                          .aggregate().join();
+                webClient.get("/api/v1/projects/myPro/repos/myRepo/commits/-1?to=1&maxCommits=2")
+                         .aggregate().join();
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -172,8 +172,8 @@ public class ListCommitsAndDiffTest {
 
     @Test
     public void getOneCommit() {
-        final AggregatedHttpResponse aRes = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/2")
-                                                      .aggregate().join();
+        final AggregatedHttpResponse aRes = webClient.get("/api/v1/projects/myPro/repos/myRepo/commits/2")
+                                                     .aggregate().join();
         final String expectedJson =
                 '{' +
                 "   \"revision\": 2," +
@@ -193,7 +193,7 @@ public class ListCommitsAndDiffTest {
 
     @Test
     public void getCommitWithPath() {
-        final AggregatedHttpResponse aRes = httpClient
+        final AggregatedHttpResponse aRes = webClient
                 .get("/api/v1/projects/myPro/repos/myRepo/commits?path=/foo0.json").aggregate().join();
         final String expectedJson =
                 '[' +
@@ -216,8 +216,8 @@ public class ListCommitsAndDiffTest {
 
     @Test
     public void listCommitsWithRevision() {
-        final AggregatedHttpResponse res1 = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits?to=2")
-                                                      .aggregate().join();
+        final AggregatedHttpResponse res1 = webClient.get("/api/v1/projects/myPro/repos/myRepo/commits?to=2")
+                                                     .aggregate().join();
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -248,15 +248,15 @@ public class ListCommitsAndDiffTest {
                 "   }" +
                 ']';
         assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson);
-        final AggregatedHttpResponse res2 = httpClient.get("/api/v1/projects/myPro/repos/myRepo/commits/3?to=2")
-                                                      .aggregate().join();
+        final AggregatedHttpResponse res2 = webClient.get("/api/v1/projects/myPro/repos/myRepo/commits/3?to=2")
+                                                     .aggregate().join();
         assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson);
     }
 
     @Test
     public void getDiff() {
         editFooFile();
-        final AggregatedHttpResponse aRes = httpClient
+        final AggregatedHttpResponse aRes = webClient
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=3&to=5").aggregate().join();
         final String expectedJson =
                 '[' +
@@ -287,7 +287,7 @@ public class ListCommitsAndDiffTest {
     @Test
     public void getJsonDiff() {
         editFooFile();
-        final AggregatedHttpResponse aRes = httpClient
+        final AggregatedHttpResponse aRes = webClient
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?path=/foo0.json&jsonpath=$.a&from=3&to=4")
                 .aggregate().join();
 
@@ -321,7 +321,7 @@ public class ListCommitsAndDiffTest {
                     "       \"markup\": \"PLAINTEXT\"" +
                     "   }" +
                     '}';
-            httpClient.execute(headers, body).aggregate().join();
+            webClient.execute(headers, body).aggregate().join();
         }
     }
 }

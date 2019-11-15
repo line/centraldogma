@@ -21,9 +21,9 @@ import java.util.function.Function;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
@@ -33,10 +33,9 @@ import com.linecorp.centraldogma.server.metadata.User;
 /**
  * A {@link Decorator} to allow a request from an administrator only.
  */
-public final class RequiresAdministratorDecorator
-        extends SimpleDecoratingService<HttpRequest, HttpResponse> {
+public final class RequiresAdministratorDecorator extends SimpleDecoratingHttpService {
 
-    RequiresAdministratorDecorator(Service<HttpRequest, HttpResponse> delegate) {
+    RequiresAdministratorDecorator(HttpService delegate) {
         super(delegate);
     }
 
@@ -57,8 +56,8 @@ public final class RequiresAdministratorDecorator
     public static final class RequiresAdministratorDecoratorFactory
             implements DecoratorFactoryFunction<RequiresAdministrator> {
         @Override
-        public Function<Service<HttpRequest, HttpResponse>,
-                ? extends Service<HttpRequest, HttpResponse>> newDecorator(RequiresAdministrator parameter) {
+        public Function<? super HttpService, ? extends HttpService>
+        newDecorator(RequiresAdministrator parameter) {
             return RequiresAdministratorDecorator::new;
         }
     }

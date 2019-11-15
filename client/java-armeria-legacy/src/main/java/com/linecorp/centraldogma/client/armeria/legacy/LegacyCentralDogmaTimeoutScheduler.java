@@ -20,7 +20,8 @@ import java.util.List;
 
 import com.linecorp.armeria.client.Client;
 import com.linecorp.armeria.client.ClientRequestContext;
-import com.linecorp.armeria.client.SimpleDecoratingClient;
+import com.linecorp.armeria.client.RpcClient;
+import com.linecorp.armeria.client.SimpleDecoratingRpcClient;
 import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
@@ -28,12 +29,12 @@ import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 /**
  * Decorates a {@link Client} to enlarge responseTimeout when requesting watchFile or watchRepository.
  */
-class LegacyCentralDogmaTimeoutScheduler extends SimpleDecoratingClient<RpcRequest, RpcResponse> {
+class LegacyCentralDogmaTimeoutScheduler extends SimpleDecoratingRpcClient {
 
     /**
      * Creates a new instance that decorates the specified {@link Client}.
      */
-    LegacyCentralDogmaTimeoutScheduler(Client<RpcRequest, RpcResponse> delegate) {
+    LegacyCentralDogmaTimeoutScheduler(RpcClient delegate) {
         super(delegate);
     }
 

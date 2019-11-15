@@ -30,9 +30,9 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -46,14 +46,12 @@ import com.linecorp.centraldogma.server.metadata.User;
 /**
  * A decorator for checking the project role of the user sent a request.
  */
-public final class RequiresRoleDecorator
-        extends SimpleDecoratingService<HttpRequest, HttpResponse> {
+public final class RequiresRoleDecorator extends SimpleDecoratingHttpService {
 
     private final Set<ProjectRole> accessibleRoles;
     private final String roleNames;
 
-    RequiresRoleDecorator(Service<HttpRequest, HttpResponse> delegate,
-                          Set<ProjectRole> accessibleRoles) {
+    RequiresRoleDecorator(HttpService delegate, Set<ProjectRole> accessibleRoles) {
         super(delegate);
         this.accessibleRoles = ImmutableSet.copyOf(requireNonNull(accessibleRoles, "accessibleRoles"));
         roleNames = String.join(",",
@@ -104,8 +102,7 @@ public final class RequiresRoleDecorator
             implements DecoratorFactoryFunction<RequiresRole> {
 
         @Override
-        public Function<Service<HttpRequest, HttpResponse>,
-                ? extends Service<HttpRequest, HttpResponse>> newDecorator(RequiresRole parameter) {
+        public Function<? super HttpService, ? extends HttpService> newDecorator(RequiresRole parameter) {
             return delegate -> new RequiresRoleDecorator(delegate, ImmutableSet.copyOf(parameter.roles()));
         }
     }

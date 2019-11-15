@@ -75,7 +75,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        final AggregatedHttpResponse aRes = httpClient().execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse aRes = webClient().execute(headers, body).aggregate().join();
         final String expectedJson =
                 '{' +
                 "   \"revision\": 3," +
@@ -101,7 +101,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        final AggregatedHttpResponse aRes = httpClient().execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse aRes = webClient().execute(headers, body).aggregate().join();
         final String expectedJson =
                 '{' +
                 "   \"revision\": 3," +
@@ -135,7 +135,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        final AggregatedHttpResponse aRes = httpClient().execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse aRes = webClient().execute(headers, body).aggregate().join();
         final String expectedJson =
                 '{' +
                 "   \"revision\": 2," +
@@ -161,10 +161,10 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        httpClient().execute(headers, editJsonBody).aggregate().join();
+        webClient().execute(headers, editJsonBody).aggregate().join();
 
         // check whether the change is right
-        final AggregatedHttpResponse res1 = httpClient()
+        final AggregatedHttpResponse res1 = webClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=2&to=3").aggregate().join();
         final JsonNode content1 = Jackson.readTree(res1.contentUtf8()).get(0).get("content");
         assertThat(content1.size()).isOne();
@@ -183,12 +183,12 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        httpClient().execute(RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
-                                               HttpHeaderNames.CONTENT_TYPE, MediaType.JSON),
-                             editTextBody).aggregate().join();
+        webClient().execute(RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                              HttpHeaderNames.CONTENT_TYPE, MediaType.JSON),
+                            editTextBody).aggregate().join();
 
         // check whether the change is right
-        final AggregatedHttpResponse res2 = httpClient()
+        final AggregatedHttpResponse res2 = webClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=4&to=5").aggregate().join();
         final JsonNode content2 = Jackson.readTree(res2.contentUtf8()).get(0).get("content");
         assertThat(content2.textValue()).isEqualToIgnoringCase("--- /a/bar.txt\n" +
@@ -224,8 +224,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        httpClient().execute(headers, body).aggregate().join();
-        final AggregatedHttpResponse aRes = httpClient()
+        webClient().execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse aRes = webClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=3&to=4").aggregate().join();
         final String expectedJson =
                 '[' +
@@ -258,7 +258,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     @Test
     public void getFile() {
         addFooJson();
-        final AggregatedHttpResponse aRes = httpClient().get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
+        final AggregatedHttpResponse aRes = webClient().get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
 
         final String expectedJson =
                 '{' +
@@ -275,7 +275,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
     @Test
     public void getFileWithJsonPath() {
         addFooJson();
-        final AggregatedHttpResponse aRes = httpClient()
+        final AggregatedHttpResponse aRes = webClient()
                 .get(CONTENTS_PREFIX + "/foo.json?jsonpath=$[?(@.a == \"bar\")]&jsonpath=$[0].a")
                 .aggregate().join();
 
@@ -296,7 +296,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         addFooJson();
         addBarTxt();
         // get the list of all files
-        final AggregatedHttpResponse res1 = httpClient()
+        final AggregatedHttpResponse res1 = webClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/list/**").aggregate().join();
         final String expectedJson1 =
                 '[' +
@@ -322,7 +322,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson1);
 
         // get the list of files only under root
-        final AggregatedHttpResponse res2 = httpClient()
+        final AggregatedHttpResponse res2 = webClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/list/").aggregate().join();
         final String expectedJson2 =
                 '[' +
@@ -342,7 +342,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson2);
 
         // get the list of all files with revision 2, so only foo.json will be fetched
-        final AggregatedHttpResponse res3 = httpClient()
+        final AggregatedHttpResponse res3 = webClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/list/**?revision=2").aggregate().join();
         final String expectedJson3 =
                 '[' +
@@ -356,7 +356,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         assertThatJson(res3.contentUtf8()).isEqualTo(expectedJson3);
 
         // get the list with a file path
-        final AggregatedHttpResponse res4 = httpClient()
+        final AggregatedHttpResponse res4 = webClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/list/foo.json").aggregate().join();
         final String expectedJson4 =
                 '[' +
@@ -376,7 +376,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         addBarTxt();
 
         // get the list of all files
-        final AggregatedHttpResponse res1 = httpClient().get(CONTENTS_PREFIX + "/**").aggregate().join();
+        final AggregatedHttpResponse res1 = webClient().get(CONTENTS_PREFIX + "/**").aggregate().join();
         final String expectedJson1 =
                 '[' +
                 "   {" +
@@ -402,8 +402,8 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 ']';
         assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson1);
 
-        final AggregatedHttpResponse res2 = httpClient().get(CONTENTS_PREFIX + "/**?revision=2")
-                                                        .aggregate().join();
+        final AggregatedHttpResponse res2 = webClient().get(CONTENTS_PREFIX + "/**?revision=2")
+                                                       .aggregate().join();
         final String expectedJson2 =
                 '[' +
                 "   {" +
@@ -432,10 +432,10 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        final AggregatedHttpResponse res1 = httpClient().execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse res1 = webClient().execute(headers, body).aggregate().join();
         assertThat(ResponseHeaders.of(res1.headers()).status()).isEqualTo(HttpStatus.OK);
 
-        final AggregatedHttpResponse res2 = httpClient().get(CONTENTS_PREFIX + "/**").aggregate().join();
+        final AggregatedHttpResponse res2 = webClient().get(CONTENTS_PREFIX + "/**").aggregate().join();
         // /a directory and /a/bar.txt file are left
         assertThat(Jackson.readTree(res2.contentUtf8()).size()).isEqualTo(2);
     }
@@ -454,7 +454,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX + "?revision=2",
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        final AggregatedHttpResponse res = httpClient().execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse res = webClient().execute(headers, body).aggregate().join();
         assertThat(ResponseHeaders.of(res.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
         assertThatJson(res.contentUtf8()).isEqualTo(
                 '{' +
@@ -486,7 +486,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                             '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        final AggregatedHttpResponse res = httpClient().execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse res = webClient().execute(headers, body).aggregate().join();
         assertThat(ResponseHeaders.of(res.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
         assertThatJson(res.contentUtf8()).isEqualTo(
                 '{' +
@@ -507,7 +507,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final String actualJson = res1.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
 
-        final AggregatedHttpResponse res2 = httpClient().get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
+        final AggregatedHttpResponse res2 = webClient().get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
         assertThat(Jackson.readTree(res2.contentUtf8()).get("content").get("a").textValue())
                 .isEqualToIgnoringCase("baz");
     }
@@ -533,7 +533,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
 
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        final AggregatedHttpResponse res1 = httpClient().execute(headers, patch).aggregate().join();
+        final AggregatedHttpResponse res1 = webClient().execute(headers, patch).aggregate().join();
         final String expectedJson =
                 '{' +
                 "   \"revision\": 3," +
@@ -542,7 +542,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final String actualJson = res1.contentUtf8();
         assertThatJson(actualJson).isEqualTo(expectedJson);
 
-        final AggregatedHttpResponse res2 = httpClient().get(CONTENTS_PREFIX + "/a/bar.txt").aggregate().join();
+        final AggregatedHttpResponse res2 = webClient().get(CONTENTS_PREFIX + "/a/bar.txt").aggregate().join();
         assertThat(Jackson.readTree(res2.contentUtf8()).get("content").textValue())
                 .isEqualTo("text in some file.\n");
     }
@@ -552,7 +552,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         addFooJson();
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, CONTENTS_PREFIX,
                                                          HttpHeaderNames.IF_NONE_MATCH, "-1");
-        final CompletableFuture<AggregatedHttpResponse> future = httpClient().execute(headers).aggregate();
+        final CompletableFuture<AggregatedHttpResponse> future = webClient().execute(headers).aggregate();
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
                 .isExactlyInstanceOf(TimeoutException.class);
@@ -575,7 +575,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, CONTENTS_PREFIX,
                                                          HttpHeaderNames.IF_NONE_MATCH, "-1",
                                                          HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
-        final CompletableFuture<AggregatedHttpResponse> future = httpClient().execute(headers).aggregate();
+        final CompletableFuture<AggregatedHttpResponse> future = webClient().execute(headers).aggregate();
         await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
         assertThat(ResponseHeaders.of(future.join().headers()).status()).isSameAs(HttpStatus.NOT_MODIFIED);
     }
@@ -585,7 +585,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json",
                                                          HttpHeaderNames.IF_NONE_MATCH, "-1",
                                                          HttpHeaderNames.PREFER, "wait=5"); // 5 seconds
-        final CompletableFuture<AggregatedHttpResponse> future = httpClient().execute(headers).aggregate();
+        final CompletableFuture<AggregatedHttpResponse> future = webClient().execute(headers).aggregate();
         await().between(4, TimeUnit.SECONDS, 6, TimeUnit.SECONDS).until(future::isDone);
         assertThat(ResponseHeaders.of(future.join().headers()).status()).isSameAs(HttpStatus.NOT_MODIFIED);
     }
@@ -595,7 +595,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         addFooJson();
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json",
                                                          HttpHeaderNames.IF_NONE_MATCH, "-1");
-        final CompletableFuture<AggregatedHttpResponse> future = httpClient().execute(headers).aggregate();
+        final CompletableFuture<AggregatedHttpResponse> future = webClient().execute(headers).aggregate();
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
                 .isExactlyInstanceOf(TimeoutException.class);
@@ -629,7 +629,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET,
                                                          CONTENTS_PREFIX + "/foo.json?jsonpath=%24.a",
                                                          HttpHeaderNames.IF_NONE_MATCH, "-1");
-        final CompletableFuture<AggregatedHttpResponse> future = httpClient().execute(headers).aggregate();
+        final CompletableFuture<AggregatedHttpResponse> future = webClient().execute(headers).aggregate();
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
                 .isExactlyInstanceOf(TimeoutException.class);
@@ -670,7 +670,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        httpClient().execute(headers, body).aggregate().join();
+        webClient().execute(headers, body).aggregate().join();
         final String expectedJson =
                 '[' +
                 "   {" +
@@ -681,12 +681,12 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 "   }" +
                 ']';
         // List directory without slash.
-        final AggregatedHttpResponse res1 = httpClient()
+        final AggregatedHttpResponse res1 = webClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/list/a.json").aggregate().join();
         assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson);
 
         // Listing directory with a slash is same with the listing director without slash which is res1.
-        final AggregatedHttpResponse res2 = httpClient()
+        final AggregatedHttpResponse res2 = webClient()
                 .get("/api/v1/projects/myPro/repos/myRepo/list/a.json/").aggregate().join();
         assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson);
     }
@@ -705,7 +705,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        return httpClient().execute(headers, body).aggregate().join();
+        return webClient().execute(headers, body).aggregate().join();
     }
 
     private AggregatedHttpResponse editFooJson() {
@@ -728,7 +728,7 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
 
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        return httpClient().execute(headers, body).aggregate().join();
+        return webClient().execute(headers, body).aggregate().join();
     }
 
     private AggregatedHttpResponse addBarTxt() {
@@ -745,6 +745,6 @@ public class ContentServiceV1Test extends ContentServiceV1TestBase {
                 '}';
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-        return httpClient().execute(headers, body).aggregate().join();
+        return webClient().execute(headers, body).aggregate().join();
     }
 }
