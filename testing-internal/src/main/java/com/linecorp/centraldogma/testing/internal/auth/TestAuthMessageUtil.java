@@ -19,7 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Base64.Encoder;
 
-import com.linecorp.armeria.client.HttpClient;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -39,7 +39,7 @@ public final class TestAuthMessageUtil {
 
     private static final Encoder encoder = Base64.getEncoder();
 
-    public static AggregatedHttpResponse login(HttpClient client, String username, String password) {
+    public static AggregatedHttpResponse login(WebClient client, String username, String password) {
         return client.execute(
                 RequestHeaders.of(HttpMethod.POST, "/api/v1/login",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.FORM_DATA),
@@ -47,8 +47,8 @@ public final class TestAuthMessageUtil {
                 StandardCharsets.US_ASCII).aggregate().join();
     }
 
-    public static AggregatedHttpResponse loginWithBasicAuth(HttpClient client, String username,
-                                                           String password) {
+    public static AggregatedHttpResponse loginWithBasicAuth(WebClient client, String username,
+                                                            String password) {
         return client.execute(
                 RequestHeaders.of(HttpMethod.POST, "/api/v1/login",
                                   HttpHeaderNames.AUTHORIZATION,
@@ -57,13 +57,13 @@ public final class TestAuthMessageUtil {
                      .aggregate().join();
     }
 
-    public static AggregatedHttpResponse logout(HttpClient client, String sessionId) {
+    public static AggregatedHttpResponse logout(WebClient client, String sessionId) {
         return client.execute(
                 RequestHeaders.of(HttpMethod.POST, "/api/v1/logout",
                                   HttpHeaderNames.AUTHORIZATION, "Bearer " + sessionId)).aggregate().join();
     }
 
-    public static AggregatedHttpResponse usersMe(HttpClient client, String sessionId) {
+    public static AggregatedHttpResponse usersMe(WebClient client, String sessionId) {
         return client.execute(
                 RequestHeaders.of(HttpMethod.GET, "/api/v0/users/me",
                                   HttpHeaderNames.AUTHORIZATION, "Bearer " + sessionId)).aggregate().join();

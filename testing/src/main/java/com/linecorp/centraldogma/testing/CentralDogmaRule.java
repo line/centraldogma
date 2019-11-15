@@ -30,8 +30,8 @@ import org.junit.rules.TemporaryFolder;
 
 import com.spotify.futures.CompletableFutures;
 
-import com.linecorp.armeria.client.ClientFactoryBuilder;
-import com.linecorp.armeria.client.HttpClient;
+import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServerPort;
@@ -77,7 +77,7 @@ public class CentralDogmaRule extends TemporaryFolder {
     @Nullable
     private volatile CentralDogma legacyClient;
     @Nullable
-    private volatile HttpClient httpClient;
+    private volatile WebClient webClient;
     @Nullable
     private volatile InetSocketAddress serverAddress;
 
@@ -149,12 +149,12 @@ public class CentralDogmaRule extends TemporaryFolder {
      *
      * @throws IllegalStateException if Central Dogma did not start yet
      */
-    public final HttpClient httpClient() {
-        final HttpClient httpClient = this.httpClient;
-        if (httpClient == null) {
+    public final WebClient httpClient() {
+        final WebClient webClient = this.webClient;
+        if (webClient == null) {
             throw new IllegalStateException("Central Dogma not started");
         }
-        return httpClient;
+        return webClient;
     }
 
     /**
@@ -252,7 +252,7 @@ public class CentralDogmaRule extends TemporaryFolder {
                 // Should never reach here.
                 throw new IOError(e);
             }
-            httpClient = HttpClient.of(
+            webClient = WebClient.of(
                     "h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort());
         });
     }
@@ -265,8 +265,10 @@ public class CentralDogmaRule extends TemporaryFolder {
         if (useTls) {
             builder.useTls();
             builder.clientFactory(
-                    new ClientFactoryBuilder().sslContextCustomizer(
-                            b -> b.trustManager(InsecureTrustManagerFactory.INSTANCE)).build());
+                    ClientFactory.builder()
+                                 .sslContextCustomizer(
+                                         b -> b.trustManager(InsecureTrustManagerFactory.INSTANCE))
+                                 .build());
         }
     }
 

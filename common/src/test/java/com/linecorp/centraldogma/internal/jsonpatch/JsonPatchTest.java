@@ -39,7 +39,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.only;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
@@ -122,6 +122,6 @@ public final class JsonPatchTest {
             assertEquals(e.getMessage(), message);
         }
 
-        verifyZeroInteractions(op2);
+        verifyNoMoreInteractions(op2);
     }
 }

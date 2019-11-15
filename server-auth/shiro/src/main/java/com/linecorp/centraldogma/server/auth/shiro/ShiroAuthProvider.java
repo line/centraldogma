@@ -29,9 +29,7 @@ import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.session.mgt.DefaultSessionManager;
 import org.apache.shiro.util.Factory;
 
-import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.HttpResponse;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -41,8 +39,8 @@ import com.linecorp.centraldogma.server.auth.Session;
  */
 public final class ShiroAuthProvider implements AuthProvider {
 
-    private final Service<HttpRequest, HttpResponse> loginApiService;
-    private final Service<HttpRequest, HttpResponse> logoutApiService;
+    private final HttpService loginApiService;
+    private final HttpService logoutApiService;
 
     ShiroAuthProvider(AuthConfig authConfig,
                       Ini config,
@@ -84,12 +82,12 @@ public final class ShiroAuthProvider implements AuthProvider {
     }
 
     @Override
-    public Service<HttpRequest, HttpResponse> loginApiService() {
+    public HttpService loginApiService() {
         return loginApiService;
     }
 
     @Override
-    public Service<HttpRequest, HttpResponse> logoutApiService() {
+    public HttpService logoutApiService() {
         return logoutApiService;
     }
 }

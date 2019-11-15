@@ -61,7 +61,7 @@ import com.google.common.math.IntMath;
 import com.google.common.math.LongMath;
 
 import com.linecorp.armeria.client.Clients;
-import com.linecorp.armeria.client.HttpClient;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -127,10 +127,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     .put(RepositoryExistsException.class.getName(), RepositoryExistsException::new)
                     .build();
 
-    private final HttpClient client;
+    private final WebClient client;
     private final String authorization;
 
-    ArmeriaCentralDogma(ScheduledExecutorService executor, HttpClient client, String accessToken) {
+    ArmeriaCentralDogma(ScheduledExecutorService executor, WebClient client, String accessToken) {
         super(executor);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
@@ -1104,7 +1104,6 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static <T> T handleErrorResponse(AggregatedHttpResponse res) {
         final HttpStatus status = res.status();
-        assert status != null : res;
         if (status.codeClass() != HttpStatusClass.SUCCESS) {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
             final JsonNode exceptionNode = node.get("exception");

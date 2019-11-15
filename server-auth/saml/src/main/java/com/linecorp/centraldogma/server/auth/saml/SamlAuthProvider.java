@@ -19,11 +19,10 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.server.Service;
-import com.linecorp.armeria.server.ServiceWithRoutes;
+import com.linecorp.armeria.server.HttpService;
+import com.linecorp.armeria.server.HttpServiceWithRoutes;
 import com.linecorp.armeria.server.saml.SamlServiceProvider;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 
@@ -39,13 +38,14 @@ public class SamlAuthProvider implements AuthProvider {
     }
 
     @Override
-    public Service<HttpRequest, HttpResponse> webLoginService() {
+    public HttpService webLoginService() {
         // Should always redirect to the IdP because the browser cannot set a token to the request.
-        return sp.newSamlDecorator().apply((ctx, req) -> HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR));
+        final HttpService service = (ctx, req) -> HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR);
+        return service.decorate(sp.newSamlDecorator());
     }
 
     @Override
-    public Iterable<ServiceWithRoutes<HttpRequest, HttpResponse>> moreServices() {
+    public Iterable<HttpServiceWithRoutes> moreServices() {
         return ImmutableList.of(sp.newSamlService());
     }
 }

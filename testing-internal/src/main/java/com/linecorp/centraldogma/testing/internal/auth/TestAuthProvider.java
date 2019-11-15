@@ -36,10 +36,8 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.server.HttpService;
-import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
-import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.auth.BasicToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
@@ -54,14 +52,12 @@ import io.netty.handler.codec.http.QueryStringDecoder;
  */
 public class TestAuthProvider implements AuthProvider {
 
-    private final Authorizer<HttpRequest> authorizer;
     private final Supplier<String> sessionIdGenerator;
     private final Function<Session, CompletableFuture<Void>> loginSessionPropagator;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
 
     public TestAuthProvider(AuthProviderParameters parameters) {
         requireNonNull(parameters, "parameters");
-        authorizer = parameters.authorizer();
         sessionIdGenerator = parameters.sessionIdGenerator();
         loginSessionPropagator = parameters.loginSessionPropagator();
         logoutSessionPropagator = parameters.logoutSessionPropagator();
@@ -69,13 +65,13 @@ public class TestAuthProvider implements AuthProvider {
 
     @Nullable
     @Override
-    public Service<HttpRequest, HttpResponse> loginApiService() {
+    public HttpService loginApiService() {
         return new LoginService();
     }
 
     @Nullable
     @Override
-    public Service<HttpRequest, HttpResponse> logoutApiService() {
+    public HttpService logoutApiService() {
         return new LogoutService();
     }
 

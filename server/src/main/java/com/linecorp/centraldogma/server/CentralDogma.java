@@ -82,11 +82,11 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.StartStopSupport;
 import com.linecorp.armeria.common.util.SystemInfo;
 import com.linecorp.armeria.server.AbstractHttpService;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Route;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.HttpAuthService;
 import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
@@ -485,7 +485,7 @@ public class CentralDogma implements AutoCloseable {
 
     private Server startServer(ProjectManager pm, CommandExecutor executor,
                                PrometheusMeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
-        final ServerBuilder sb = new ServerBuilder();
+        final ServerBuilder sb = Server.builder();
         sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
 
@@ -628,7 +628,7 @@ public class CentralDogma implements AutoCloseable {
         final CentralDogmaServiceImpl service =
                 new CentralDogmaServiceImpl(pm, executor, watchService, mds);
 
-        Service<HttpRequest, HttpResponse> thriftService =
+        HttpService thriftService =
                 ThriftCallService.of(service)
                                  .decorate(CentralDogmaTimeoutScheduler::new)
                                  .decorate(CentralDogmaExceptionTranslator::new)
@@ -651,8 +651,7 @@ public class CentralDogma implements AutoCloseable {
                                   WatchService watchService, MetadataService mds,
                                   @Nullable AuthProvider authProvider,
                                   @Nullable SessionManager sessionManager) {
-        Function<Service<HttpRequest, HttpResponse>,
-                ? extends Service<HttpRequest, HttpResponse>> decorator;
+        Function<? super HttpService, ? extends HttpService> decorator;
 
         if (authProvider != null) {
             sb.service("/security_enabled", new AbstractHttpService() {
@@ -714,7 +713,7 @@ public class CentralDogma implements AutoCloseable {
                     .ifPresent(login -> LOGIN_API_ROUTES.forEach(mapping -> sb.service(mapping, login)));
 
             // Provide logout API by default.
-            final Service<HttpRequest, HttpResponse> logout =
+            final HttpService logout =
                     Optional.ofNullable(authProvider.logoutApiService())
                             .orElseGet(() -> new DefaultLogoutService(executor));
             for (Route route : LOGOUT_API_ROUTES) {
@@ -751,8 +750,7 @@ public class CentralDogma implements AutoCloseable {
         }
     }
 
-    private static Function<Service<HttpRequest, HttpResponse>,
-            HttpEncodingService> contentEncodingDecorator() {
+    private static Function<? super HttpService, HttpEncodingService> contentEncodingDecorator() {
         return delegate -> new HttpEncodingService(delegate, contentType -> {
             if ("application".equals(contentType.type())) {
                 final String subtype = contentType.subtype();

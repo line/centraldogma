@@ -39,8 +39,8 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                              "path=/foo2.json" + '&' +
                              "optional_path=/foo3.json";
 
-        AggregatedHttpResponse aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
-                                                       queryString).aggregate().join();
+        AggregatedHttpResponse aRes = webClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
+                                                      queryString).aggregate().join();
 
         String expectedJson =
                 '{' +
@@ -58,8 +58,8 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                       "path=/foo1.json" + '&' +
                       "path=/foo2.json" + '&' +
                       "path=/foo3.json";
-        aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate()
-                           .join();
+        aRes = webClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate()
+                          .join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.NOT_FOUND);
         expectedJson =
                 '{' +
@@ -75,8 +75,8 @@ public class MergeFileTest extends ContentServiceV1TestBase {
         final String queryString = "optional_path=/no_exist1.json" + '&' +
                                    "optional_path=/no_exist2.json";
 
-        final AggregatedHttpResponse aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
-                                                             queryString).aggregate().join();
+        final AggregatedHttpResponse aRes = webClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
+                                                            queryString).aggregate().join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.NOT_FOUND);
         final String expectedJson =
                 '{' +
@@ -100,15 +100,15 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "       \"summary\" : \"Add foo3.json\"" +
                 "   }" +
                 '}';
-        httpClient().execute(headers, body).aggregate().join();
+        webClient().execute(headers, body).aggregate().join();
 
         final String queryString = "path=/foo.json" + '&' +
                                    "path=/foo1.json" + '&' +
                                    "path=/foo2.json" + '&' +
                                    "path=/foo10.json";
 
-        final AggregatedHttpResponse aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
-                                                             queryString).aggregate().join();
+        final AggregatedHttpResponse aRes = webClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
+                                                            queryString).aggregate().join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         final String expectedJson =
                 '{' +
@@ -126,8 +126,8 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                              "path=/foo2.json" + '&' +
                              "jsonpath=$[?(@.b == \"baz\")]&jsonpath=$[0].b";
 
-        AggregatedHttpResponse aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
-                                                       queryString).aggregate().join();
+        AggregatedHttpResponse aRes = webClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" +
+                                                      queryString).aggregate().join();
         String expectedJson =
                 '{' +
                 "   \"revision\" : 4," +
@@ -141,8 +141,8 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                       "path=/foo1.json" + '&' +
                       "path=/foo2.json" + '&' +
                       "jsonpath=$.c";
-        aRes = httpClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate()
-                           .join();
+        aRes = webClient().get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate()
+                          .join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         expectedJson =
                 '{' +
@@ -164,7 +164,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "       \"summary\" : \"Add foo.json\"" +
                 "   }" +
                 '}';
-        httpClient().execute(headers, body).aggregate().join();
+        webClient().execute(headers, body).aggregate().join();
         body =
                 '{' +
                 "   \"path\" : \"/foo1.json\"," +
@@ -174,7 +174,7 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "       \"summary\" : \"Add foo1.json\"" +
                 "   }" +
                 '}';
-        httpClient().execute(headers, body).aggregate().join();
+        webClient().execute(headers, body).aggregate().join();
         body =
                 '{' +
                 "   \"path\" : \"/foo2.json\"," +
@@ -184,6 +184,6 @@ public class MergeFileTest extends ContentServiceV1TestBase {
                 "       \"summary\" : \"Add foo3.json\"" +
                 "   }" +
                 '}';
-        httpClient().execute(headers, body).aggregate().join();
+        webClient().execute(headers, body).aggregate().join();
     }
 }

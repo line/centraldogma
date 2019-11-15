@@ -48,7 +48,7 @@ import org.junit.rules.Timeout;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.armeria.client.HttpClient;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
@@ -73,8 +73,8 @@ public class ReplicatedLoginAndLogoutTest {
 
     private CentralDogma replica1;
     private CentralDogma replica2;
-    private HttpClient client1;
-    private HttpClient client2;
+    private WebClient client1;
+    private WebClient client2;
     private CuratorFramework curator;
 
     @Before
@@ -113,8 +113,8 @@ public class ReplicatedLoginAndLogoutTest {
                 .replication(new ZooKeeperReplicationConfig(2, servers))
                 .build();
 
-        client1 = HttpClient.of("http://127.0.0.1:" + port1);
-        client2 = HttpClient.of("http://127.0.0.1:" + port2);
+        client1 = WebClient.of("http://127.0.0.1:" + port1);
+        client2 = WebClient.of("http://127.0.0.1:" + port2);
 
         final CompletableFuture<Void> f1 = replica1.start();
         final CompletableFuture<Void> f2 = replica2.start();

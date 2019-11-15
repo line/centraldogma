@@ -33,11 +33,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 
-public class TokenlessClientLogger extends SimpleDecoratingService<HttpRequest, HttpResponse> {
+public class TokenlessClientLogger extends SimpleDecoratingHttpService {
 
     private static final Logger logger = LoggerFactory.getLogger(TokenlessClientLogger.class);
 
@@ -46,12 +46,12 @@ public class TokenlessClientLogger extends SimpleDecoratingService<HttpRequest, 
     private final Clock clock;
     private final ConcurrentMap<String, Instant> reportedAddresses = new ConcurrentHashMap<>();
 
-    public TokenlessClientLogger(Service<HttpRequest, HttpResponse> delegate) {
+    public TokenlessClientLogger(HttpService delegate) {
         this(delegate, Clock.systemUTC());
     }
 
     @VisibleForTesting
-    TokenlessClientLogger(Service<HttpRequest, HttpResponse> delegate, Clock clock) {
+    TokenlessClientLogger(HttpService delegate, Clock clock) {
         super(delegate);
         this.clock = requireNonNull(clock, "clock");
     }

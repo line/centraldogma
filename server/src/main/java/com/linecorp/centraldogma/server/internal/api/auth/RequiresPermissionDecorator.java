@@ -29,9 +29,9 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 import com.linecorp.armeria.server.annotation.Decorator;
 import com.linecorp.armeria.server.annotation.DecoratorFactoryFunction;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
@@ -45,13 +45,11 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 /**
  * A {@link Decorator} to allow a request from a user who has the specified {@link Permission}.
  */
-public final class RequiresPermissionDecorator
-        extends SimpleDecoratingService<HttpRequest, HttpResponse> {
+public final class RequiresPermissionDecorator extends SimpleDecoratingHttpService {
 
     private final Permission requiredPermission;
 
-    public RequiresPermissionDecorator(Service<HttpRequest, HttpResponse> delegate,
-                                       Permission requiredPermission) {
+    public RequiresPermissionDecorator(HttpService delegate, Permission requiredPermission) {
         super(delegate);
         this.requiredPermission = requireNonNull(requiredPermission, "requiredPermission");
     }
@@ -135,8 +133,8 @@ public final class RequiresPermissionDecorator
     public static final class RequiresReadPermissionDecoratorFactory
             implements DecoratorFactoryFunction<RequiresReadPermission> {
         @Override
-        public Function<Service<HttpRequest, HttpResponse>,
-                ? extends Service<HttpRequest, HttpResponse>> newDecorator(RequiresReadPermission parameter) {
+        public Function<? super HttpService, ? extends HttpService>
+        newDecorator(RequiresReadPermission parameter) {
             return delegate -> new RequiresPermissionDecorator(delegate, Permission.READ);
         }
     }
@@ -148,8 +146,8 @@ public final class RequiresPermissionDecorator
     public static final class RequiresWritePermissionDecoratorFactory
             implements DecoratorFactoryFunction<RequiresWritePermission> {
         @Override
-        public Function<Service<HttpRequest, HttpResponse>,
-                ? extends Service<HttpRequest, HttpResponse>> newDecorator(RequiresWritePermission parameter) {
+        public Function<? super HttpService, ? extends HttpService>
+        newDecorator(RequiresWritePermission parameter) {
             return delegate -> new RequiresPermissionDecorator(delegate, Permission.WRITE);
         }
     }

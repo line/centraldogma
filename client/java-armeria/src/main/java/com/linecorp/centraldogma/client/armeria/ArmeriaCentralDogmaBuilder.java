@@ -20,7 +20,7 @@ import java.net.UnknownHostException;
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.Endpoint;
-import com.linecorp.armeria.client.HttpClient;
+import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.encoding.HttpDecodingClient;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
@@ -43,7 +43,7 @@ public final class ArmeriaCentralDogmaBuilder
         final EventLoopGroup executor = clientFactory().eventLoopGroup();
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
         final CentralDogma dogma = new ArmeriaCentralDogma(executor,
-                                                           builder.build(HttpClient.class),
+                                                           builder.build(WebClient.class),
                                                            accessToken());
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;

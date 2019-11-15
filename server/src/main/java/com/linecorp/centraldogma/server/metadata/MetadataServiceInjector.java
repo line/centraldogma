@@ -22,22 +22,22 @@ import java.util.function.Function;
 
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.SimpleDecoratingService;
+import com.linecorp.armeria.server.SimpleDecoratingHttpService;
 
 import io.netty.util.AttributeKey;
 
 /**
  * Injects the {@link MetadataService} instance into the attribute of the {@link ServiceRequestContext}.
  */
-public final class MetadataServiceInjector extends SimpleDecoratingService<HttpRequest, HttpResponse> {
+public final class MetadataServiceInjector extends SimpleDecoratingHttpService {
 
     /**
      * Returns a newly created {@link Service} decorator from the specified {@link MetadataService}.
      */
-    public static Function<Service<HttpRequest, HttpResponse>,
-            MetadataServiceInjector> newDecorator(MetadataService mds) {
+    public static Function<? super HttpService, MetadataServiceInjector> newDecorator(MetadataService mds) {
         requireNonNull(mds, "mds");
         return service -> new MetadataServiceInjector(service, mds);
     }
@@ -47,7 +47,7 @@ public final class MetadataServiceInjector extends SimpleDecoratingService<HttpR
 
     private final MetadataService mds;
 
-    private MetadataServiceInjector(Service<HttpRequest, HttpResponse> delegate, MetadataService mds) {
+    private MetadataServiceInjector(HttpService delegate, MetadataService mds) {
         super(delegate);
         this.mds = requireNonNull(mds, "mds");
     }
