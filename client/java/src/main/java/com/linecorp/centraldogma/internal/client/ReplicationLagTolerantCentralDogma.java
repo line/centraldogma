@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -39,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.spotify.futures.CompletableFutures;
 
@@ -681,6 +683,9 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             String projectName, String repositoryName, Revision revision, Throwable cause) {
 
         requireNonNull(cause, "cause");
+        if (cause instanceof CompletionException) {
+            cause = Throwables.getRootCause(cause);
+        }
 
         if (!(cause instanceof RevisionNotFoundException)) {
             return false;
