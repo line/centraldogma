@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -628,10 +630,10 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                 } else if (logger.isDebugEnabled()) {
                     if (currentReplicaHint != null) {
                         logger.debug("[{}] Retrieved the up-to-date data after {} retries: {} => {}",
-                                    currentReplicaHint, attemptsSoFar, taskRunner, resultOrCause(res, cause));
+                                     currentReplicaHint, attemptsSoFar, taskRunner, resultOrCause(res, cause));
                     } else {
                         logger.debug("Retrieved the up-to-date data after {} retries: {} => {}",
-                                    attemptsSoFar, taskRunner, resultOrCause(res, cause));
+                                     attemptsSoFar, taskRunner, resultOrCause(res, cause));
                     }
                 }
 
@@ -674,14 +676,27 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     }
 
     /**
+     * Returns the cause of the specified {@code throwable} peeling it recursively, if it is one of the
+     * {@link CompletionException}, {@link ExecutionException}. Otherwise returns the {@code throwable}.
+     */
+    private static Throwable peel(Throwable throwable) {
+        Throwable cause = throwable.getCause();
+        while (cause != null && cause != throwable &&
+               (throwable instanceof CompletionException || throwable instanceof ExecutionException)) {
+            throwable = cause;
+            cause = throwable.getCause();
+        }
+        return throwable;
+    }
+
+    /**
      * Returns {@code true} to indicate that the request must be retried if {@code cause} is
      * a {@link RevisionNotFoundException} and the specified {@link Revision} is supposed to exist.
      */
     private boolean handleRevisionNotFound(
             String projectName, String repositoryName, Revision revision, Throwable cause) {
-
         requireNonNull(cause, "cause");
-
+        cause = peel(cause);
         if (!(cause instanceof RevisionNotFoundException)) {
             return false;
         }
