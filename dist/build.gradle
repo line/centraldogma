@@ -116,9 +116,9 @@ task docker(group: 'Build',
             type: DockerBuildImage) {
     inputDir = file('.')
     def name = 'line/centraldogma:'
-    tags = [name + "${project.version}"]
+    images = [name + "${project.version}"]
     if (!(project.version =~ /-SNAPSHOT$/)) {
-        tags.add(name + "latest")
+        images.add(name + "latest")
     }
 }
 

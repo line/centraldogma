@@ -4,8 +4,8 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.10.1
-- com.linecorp.armeria:armeria-bom:0.96.0
-- io.micrometer:micrometer-bom:1.3.1
+- com.linecorp.armeria:armeria-bom:0.97.0
+- io.micrometer:micrometer-bom:1.3.2
 
 
 ch.qos.logback:
@@ -22,7 +22,7 @@ com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
 com.bmuschko:
-  gradle-docker-plugin: { version: '5.3.0' }
+  gradle-docker-plugin: { version: '6.0.0' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
@@ -112,7 +112,7 @@ com.linecorp.armeria:
     - https://line.github.io/armeria/apidocs/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.26' }
+  checkstyle: { version: '8.27' }
 
 com.spotify:
   completable-futures:
@@ -130,10 +130,10 @@ gradle.plugin.net.davidecavestro:
 io.micrometer:
   micrometer-core:
     javadocs:
-    - https://static.javadoc.io/io.micrometer/micrometer-core/1.3.1/
+    - https://static.javadoc.io/io.micrometer/micrometer-core/1.3.2/
   micrometer-registry-prometheus:
     javadocs:
-    - https://static.javadoc.io/io.micrometer/micrometer-registry-prometheus/1.3.1/
+    - https://static.javadoc.io/io.micrometer/micrometer-registry-prometheus/1.3.2/
 
 jakarta.annotation:
   jakarta.annotation-api: { version: '1.3.5' }
@@ -214,7 +214,7 @@ org.javassist:
   javassist: { version: '3.26.0-GA' }
 
 org.mockito:
-  mockito-core: { version: '3.1.0' }
+  mockito-core: { version: '3.2.0' }
 
 org.mortbay.jetty.alpn:
   jetty-alpn-agent: { version: '2.0.9' }
@@ -234,7 +234,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.1.10.RELEASE'
+    version: &SPRING_BOOT_VERSION '2.2.1.RELEASE'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
