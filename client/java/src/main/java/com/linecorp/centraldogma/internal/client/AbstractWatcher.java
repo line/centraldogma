@@ -265,13 +265,13 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  }
 
                  if (!logged) {
-                     logger.warn("Failed to watch a file ({}/{}{}); trying again",
+                     logger.warn("Failed to watch a file ({}/{}{}) at Central Dogma; trying again",
                                  projectName, repositoryName, pathPattern, cause);
                  }
 
                  scheduleWatch(numAttemptsSoFar + 1);
              } catch (Throwable t) {
-                 logger.error("Unexpected exception while watching a file:", t);
+                 logger.error("Unexpected exception while watching a file at Central Dogma:", t);
              }
              return null;
          });
