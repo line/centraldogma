@@ -621,10 +621,12 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
             if (!retryRequired || nextAttemptsSoFar > maxRetries) {
                 if (retryRequired) {
                     if (currentReplicaHint != null) {
-                        logger.warn("[{}] Failed to retrieve the up-to-date data at Central Dogma after {} retries: {} => {}",
+                        logger.warn("[{}] Failed to retrieve the up-to-date data from Central Dogma " +
+                                    "after {} retries: {} => {}",
                                     currentReplicaHint, attemptsSoFar, taskRunner, resultOrCause(res, cause));
                     } else {
-                        logger.warn("Failed to retrieve the up-to-date data at Central Dogma after {} retries: {} => {}",
+                        logger.warn("Failed to retrieve the up-to-date data from Central Dogma " +
+                                    "after {} retries: {} => {}",
                                     attemptsSoFar, taskRunner, resultOrCause(res, cause));
                     }
                 } else if (logger.isDebugEnabled()) {
