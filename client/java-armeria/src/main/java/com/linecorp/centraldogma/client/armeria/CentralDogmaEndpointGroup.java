@@ -106,11 +106,11 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
                 }
                 setEndpoints(newEndpoints);
             } catch (Exception e) {
-                logger.warn("Failed to refresh the endpoint list.", e);
+                logger.warn("Failed to refresh the endpoint list at Central Dogma.", e);
             }
         });
         instanceListWatcher.initialValueFuture().exceptionally(e -> {
-            logger.warn("Failed to initialize instance list.", e);
+            logger.warn("Failed to initialize instance list at Central Dogma.", e);
             return null;
         });
     }
