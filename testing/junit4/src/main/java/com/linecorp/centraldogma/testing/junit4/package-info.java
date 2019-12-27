@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,10 +13,11 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 /**
  * Simplifies the integration testing with Central Dogma.
  */
 @NonNullByDefault
-package com.linecorp.centraldogma.testing;
+package com.linecorp.centraldogma.testing.junit4;
 
 import com.linecorp.centraldogma.common.util.NonNullByDefault;

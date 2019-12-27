@@ -30,7 +30,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
 
 public class ListCommitsAndDiffTest {
 

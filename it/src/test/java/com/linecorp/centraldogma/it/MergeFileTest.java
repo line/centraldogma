@@ -35,7 +35,7 @@ import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
 
 public class MergeFileTest extends AbstractMultiClientTest {
 

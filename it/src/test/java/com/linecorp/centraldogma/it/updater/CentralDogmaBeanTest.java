@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -29,9 +29,9 @@ import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 import org.awaitility.core.ConditionTimeoutException;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -43,12 +43,12 @@ import com.linecorp.centraldogma.client.updater.CentralDogmaBeanFactory;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class CentralDogmaBeanTest {
+class CentralDogmaBeanTest {
 
-    @ClassRule
-    public static final CentralDogmaRule dogma = new CentralDogmaRule() {
+    @RegisterExtension
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("a").join();
@@ -64,13 +64,13 @@ public class CentralDogmaBeanTest {
 
     private CentralDogmaBeanFactory factory;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setUp() {
         factory = new CentralDogmaBeanFactory(dogma.client(), objectMapper);
     }
 
     @Test
-    public void stayDefault() {
+    void stayDefault() {
         final TestPropertyDefault property = factory.get(new TestPropertyDefault(), TestPropertyDefault.class);
 
         // Delay to detect if data for this bean has already been written to the server.
@@ -82,7 +82,7 @@ public class CentralDogmaBeanTest {
     }
 
     @Test
-    public void test() throws Exception {
+    void test() {
         final int[] called = new int[1];
         final Consumer<TestProperty> listener = testProperty -> called[0] = 1;
         final CentralDogma client = dogma.client();
@@ -142,7 +142,7 @@ public class CentralDogmaBeanTest {
     }
 
     @Test
-    public void overrideSettings() throws Exception {
+    void overrideSettings() {
         final CentralDogma client = dogma.client();
 
         client.push("alice", "bob", Revision.HEAD, "Add charlie.json",
@@ -173,7 +173,7 @@ public class CentralDogmaBeanTest {
     }
 
     @Test
-    public void updateListenerIgnoreDefault() {
+    void updateListenerIgnoreDefault() {
         final CentralDogma client = dogma.client();
         final AtomicReference<TestProperty> update = new AtomicReference<>();
 

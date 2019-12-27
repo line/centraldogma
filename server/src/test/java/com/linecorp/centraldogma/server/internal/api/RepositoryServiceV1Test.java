@@ -42,7 +42,7 @@ import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
 
 public class RepositoryServiceV1Test {
 

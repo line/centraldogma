@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -28,9 +28,9 @@ import static com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUti
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.apache.shiro.config.Ini;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -40,12 +40,12 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class ShiroLoginAndLogoutTest {
+class ShiroLoginAndLogoutTest {
 
-    @Rule
-    public final CentralDogmaRule rule = new CentralDogmaRule() {
+    @RegisterExtension
+    final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
             builder.authProviderFactory(new ShiroAuthProviderFactory(unused -> {
@@ -55,17 +55,22 @@ public class ShiroLoginAndLogoutTest {
             }));
             builder.webAppEnabled(true);
         }
+
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
     };
 
     private WebClient client;
 
-    @Before
-    public void setClient() {
-        client = rule.httpClient();
+    @BeforeEach
+    void setClient() {
+        client = dogma.httpClient();
     }
 
     @Test
-    public void password() throws Exception { // grant_type=password
+    void password() throws Exception { // grant_type=password
         loginAndLogout(login(client, USERNAME, PASSWORD));
     }
 
@@ -84,23 +89,23 @@ public class ShiroLoginAndLogoutTest {
     }
 
     @Test
-    public void basicAuth() throws Exception {
+    void basicAuth() throws Exception {
         loginAndLogout(loginWithBasicAuth(client, USERNAME, PASSWORD));
     }
 
     @Test
-    public void incorrectLogin() throws Exception {
+    void incorrectLogin() {
         assertThat(login(client, USERNAME, WRONG_PASSWORD).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    public void incorrectLogout() throws Exception {
+    void incorrectLogout() {
         assertThat(logout(client, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(logout(client, MALFORMED_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    public void shouldUseBuiltinWebPages() throws Exception {
+    void shouldUseBuiltinWebPages() {
         AggregatedHttpResponse resp;
         resp = client.get(AuthProvider.LOGIN_PATH).aggregate().join();
         assertThat(resp.status()).isEqualTo(HttpStatus.MOVED_PERMANENTLY);

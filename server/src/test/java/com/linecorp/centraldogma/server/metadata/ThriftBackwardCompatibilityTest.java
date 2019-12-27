@@ -28,9 +28,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -47,12 +47,12 @@ import com.linecorp.centraldogma.internal.thrift.Change;
 import com.linecorp.centraldogma.internal.thrift.ChangeType;
 import com.linecorp.centraldogma.internal.thrift.Comment;
 import com.linecorp.centraldogma.internal.thrift.Revision;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class ThriftBackwardCompatibilityTest {
+class ThriftBackwardCompatibilityTest {
 
-    @ClassRule
-    public static final CentralDogmaRule dogma = new CentralDogmaRule();
+    @RegisterExtension
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
     private static WebClient webClient;
     private static Iface client;
@@ -62,8 +62,8 @@ public class ThriftBackwardCompatibilityTest {
 
     private static final String projectName = "foo";
 
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
         webClient = WebClient.builder("http://127.0.0.1:" + serverAddress.getPort())
                              .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
@@ -75,7 +75,7 @@ public class ThriftBackwardCompatibilityTest {
     }
 
     @Test
-    public void shouldBackwardCompatible() throws Exception {
+    void shouldBackwardCompatible() throws Exception {
         final String repo1 = "repo1";
 
         client.createProject(projectName);

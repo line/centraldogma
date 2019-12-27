@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -25,8 +25,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,9 +42,10 @@ import com.linecorp.centraldogma.client.armeria.EndpointListDecoder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class CentralDogmaEndpointGroupTest {
+class CentralDogmaEndpointGroupTest {
+
     private static final List<String> HOST_AND_PORT_LIST = ImmutableList.of(
             "1.2.3.4:5678",
             "centraldogma-sample001.com:1234");
@@ -62,8 +64,8 @@ public class CentralDogmaEndpointGroupTest {
             Endpoint.of("1.2.3.4", 5678),
             Endpoint.of("centraldogma-sample001.com", 1234));
 
-    @Rule
-    public final CentralDogmaRule dogma = new CentralDogmaRule() {
+    @RegisterExtension
+    final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("directory").join();
@@ -78,10 +80,15 @@ public class CentralDogmaEndpointGroupTest {
                                             String.join("\n", HOST_AND_PORT_LIST)))
                   .join();
         }
+
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
     };
 
     @Test
-    public void json() throws Exception {
+    void json() throws Exception {
         try (Watcher<JsonNode> watcher = dogma.client().fileWatcher("directory", "my-service",
                                                                     Query.ofJson("/endpoint.json"))) {
             final CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
@@ -91,8 +98,9 @@ public class CentralDogmaEndpointGroupTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void text() throws Exception {
+    @Test
+    @Timeout(10)
+    void text() throws Exception {
         try (Watcher<String> watcher = dogma.client().fileWatcher("directory", "my-service",
                                                                   Query.ofText("/endpoints.txt"))) {
             final CountDownLatch latch = new CountDownLatch(2);
@@ -114,7 +122,7 @@ public class CentralDogmaEndpointGroupTest {
     }
 
     @Test
-    public void recoverFromNotFound() throws Exception {
+    void recoverFromNotFound() throws Exception {
         try (Watcher<String> watcher = dogma.client().fileWatcher("directory",
                                                                   "new-service",
                                                                   Query.ofText("/endpoints.txt"))) {

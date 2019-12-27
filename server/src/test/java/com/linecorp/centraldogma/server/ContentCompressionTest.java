@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2019 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -25,8 +25,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.zip.InflaterInputStream;
 
 import org.apache.thrift.TException;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.google.common.base.Strings;
@@ -50,20 +50,20 @@ import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.Iface;
 import com.linecorp.centraldogma.internal.thrift.GetFileResult;
 import com.linecorp.centraldogma.internal.thrift.Query;
 import com.linecorp.centraldogma.internal.thrift.QueryType;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 /**
  * Makes sure an API response is compressed if a client requested with an 'accept-encoding' header.
  */
-public class ContentCompressionTest {
+class ContentCompressionTest {
 
     private static final String PROJ = "proj";
     private static final String REPO = "repo";
     private static final String PATH = "/foo.txt";
     private static final String CONTENT = Strings.repeat("Central Dogma ", 1024);
 
-    @ClassRule
-    public static final CentralDogmaRule rule = new CentralDogmaRule() {
+    @RegisterExtension
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject(PROJ).join();
@@ -74,14 +74,14 @@ public class ContentCompressionTest {
     };
 
     @Test
-    public void thrift() throws Exception {
+     void thrift() throws Exception {
         final com.linecorp.centraldogma.internal.thrift.Revision head =
                 new com.linecorp.centraldogma.internal.thrift.Revision(-1, 0);
         final Query query = new Query(PATH, QueryType.IDENTITY, ImmutableList.of());
 
         // Should fail to decode without the decompressor.
         final Iface clientWithoutDecompressor = new ClientBuilder(
-                "ttext+http://127.0.0.1:" + rule.serverAddress().getPort() + "/cd/thrift/v1")
+                "ttext+http://127.0.0.1:" + dogma.serverAddress().getPort() + "/cd/thrift/v1")
                 .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                 .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
                 .build(Iface.class);
@@ -102,9 +102,9 @@ public class ContentCompressionTest {
     }
 
     @Test
-    public void http() throws Exception {
+    void http() throws Exception {
         final WebClient client =
-                WebClient.builder("http://127.0.0.1:" + rule.serverAddress().getPort())
+                WebClient.builder("http://127.0.0.1:" + dogma.serverAddress().getPort())
                          .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                          .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
                          .build();

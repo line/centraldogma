@@ -27,7 +27,7 @@ import java.util.List;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
 
 public class CentralDogmaRuleWithScaffolding extends CentralDogmaRule {
 

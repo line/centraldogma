@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.it;
 import java.util.function.Function;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
 
 enum ClientType {
     DEFAULT(CentralDogmaRule::client),

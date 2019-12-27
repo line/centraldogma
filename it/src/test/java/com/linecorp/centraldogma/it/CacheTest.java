@@ -36,7 +36,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
 
 public class CacheTest extends AbstractMultiClientTest {
 

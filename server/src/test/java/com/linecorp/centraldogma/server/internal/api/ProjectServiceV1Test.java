@@ -39,7 +39,7 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
 
 public class ProjectServiceV1Test {
 
