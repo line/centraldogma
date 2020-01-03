@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -34,7 +34,7 @@ import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 
 /**
- * JUnit {@link Rule} that starts an embedded Central Dogma server.
+ * A JUnit {@link Rule} that starts an embedded Central Dogma server.
  *
  * <pre>{@code
  * > public class MyTest {
