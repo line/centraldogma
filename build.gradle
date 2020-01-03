@@ -18,8 +18,8 @@ allprojects {
 }
 
 ext {
+    // Remove 'java' from the client artifact IDs.
     artifactIdOverrides = [
-        // Remove 'java' from the client artifact IDs.
         ':client:java': "${rootProject.name}-client",
         ':client:java-armeria': "${rootProject.name}-client-armeria",
         ':client:java-armeria-legacy': "${rootProject.name}-client-armeria-legacy",
