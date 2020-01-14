@@ -97,7 +97,7 @@ com.googlecode.java-diff-utils:
 
 com.jayway.jsonpath:
   # Don't update `json-path` version
-  json-path: 
+  json-path:
     version: '2.2.0'
     relocations:
     - from: com.jayway.jsonpath
@@ -156,6 +156,8 @@ org.junit.jupiter:
     javadocs:
       - https://junit.org/junit5/docs/5.5.2/api/
   junit-jupiter-engine:
+    version: *JUNIT_JUPITER_VERSION
+  junit-jupiter-params:
     version: *JUNIT_JUPITER_VERSION
 org.junit.platform:
   junit-platform-launcher:

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -27,9 +27,9 @@ import java.util.List;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class CentralDogmaRuleWithScaffolding extends CentralDogmaRule {
+public class CentralDogmaExtensionWithScaffolding extends CentralDogmaExtension {
 
     private final String testProject = 'p' + randomText();
     private final String testRepository1 = 'r' + randomText();
@@ -71,7 +71,7 @@ public class CentralDogmaRuleWithScaffolding extends CentralDogmaRule {
         requireNonNull(resourceDir, "resourceDir");
 
         final URL resourceUrl =
-                CentralDogmaRuleWithScaffolding.class.getClassLoader().getResource(resourceDir);
+                CentralDogmaExtensionWithScaffolding.class.getClassLoader().getResource(resourceDir);
 
         if (resourceUrl == null) {
             throw new IllegalArgumentException("non-existing resource directory: " + resourceDir);
@@ -110,7 +110,7 @@ public class CentralDogmaRuleWithScaffolding extends CentralDogmaRule {
         client().removeRepository(testProject, removedRepository).join();
 
         // Import the initial content.
-        importDirectory(CentralDogmaRuleWithScaffolding.class.getPackage().getName().replace('.', '/') +
+        importDirectory(CentralDogmaExtensionWithScaffolding.class.getPackage().getName().replace('.', '/') +
                         "/import/", "/test/");
     }
 }

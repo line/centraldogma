@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,14 +17,19 @@
 package com.linecorp.centraldogma.testing.internal;
 
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOError;
 import java.io.IOException;
+import java.util.regex.Pattern;
+
+import org.junit.jupiter.api.TestInfo;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
 public final class TestUtil {
+
+    private static final Pattern DISALLOWED_CHARS = Pattern.compile("[^a-zA-Z0-9]");
 
     public static <T> void assertJsonConversion(T value, String json) {
         @SuppressWarnings("unchecked")
@@ -35,10 +40,14 @@ public final class TestUtil {
     public static <T> void assertJsonConversion(T value, Class<T> valueType, String json) {
         assertThatJson(json).isEqualTo(value);
         try {
-            assertEquals(value, Jackson.readValue(json, valueType));
+            assertThat(Jackson.readValue(json, valueType)).isEqualTo(value);
         } catch (IOException e) {
             throw new IOError(e);
         }
+    }
+
+    public static String getMethodName(TestInfo testInfo) {
+        return DISALLOWED_CHARS.matcher(testInfo.getDisplayName()).replaceAll("");
     }
 
     private TestUtil() {}

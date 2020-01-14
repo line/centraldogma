@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,28 +16,27 @@
 
 package com.linecorp.centraldogma.it;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Revision;
 
-public class FileHistoryAndDiffTest extends AbstractMultiClientTest {
+class FileHistoryAndDiffTest {
 
-    @ClassRule
-    public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
+    @RegisterExtension
+    static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding();
 
-    public FileHistoryAndDiffTest(ClientType clientType) {
-        super(clientType);
-    }
-
-    // getHistory
     // getDiff
 
-    @Test
-    public void testGetHistory() throws Exception {
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void getHistory(ClientType clientType) {
         // TODO(trustin): Implement me.
+        final CentralDogma client = clientType.client(dogma);
         System.err.println(
-                client().getHistory(rule.project(), rule.repo1(),
-                                    new Revision(1), Revision.HEAD, "/**").join());
+                client.getHistory(dogma.project(), dogma.repo1(),
+                                  new Revision(1), Revision.HEAD, "/**").join());
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,16 +17,17 @@ package com.linecorp.centraldogma.it;
 
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
+import static com.linecorp.centraldogma.testing.internal.TestUtil.getMethodName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -36,29 +37,23 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class CacheTest extends AbstractMultiClientTest {
+class CacheTest {
 
     private static final String REPO_FOO = "foo";
 
-    @ClassRule
-    public static final CentralDogmaRule rule = new CentralDogmaRule();
+    @RegisterExtension
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
     private static final Supplier<Map<String, Double>> metersSupplier =
-            () -> MoreMeters.measureAll(rule.dogma().meterRegistry().get());
+            () -> MoreMeters.measureAll(dogma.dogma().meterRegistry().get());
 
-    @Rule
-    public final TestName testName = new TestName();
-
-    public CacheTest(ClientType clientType) {
-        super(clientType);
-    }
-
-    @Test
-    public void getFile() {
-        final String project = projectName();
-        final CentralDogma client = client();
+    @ParameterizedTest(name = "getFile [{index}: {0}]")
+    @EnumSource(ClientType.class)
+    void getFile(ClientType clientType, TestInfo testInfo) {
+        final String project = getMethodName(testInfo);
+        final CentralDogma client = clientType.client(dogma);
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
@@ -67,7 +62,7 @@ public class CacheTest extends AbstractMultiClientTest {
                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
 
         final Map<String, Double> meters2 = metersSupplier.get();
-        if (clientType() == ClientType.LEGACY) {
+        if (clientType == ClientType.LEGACY) {
             // NB: A push operation involves a history() operation to retrieve the last commit.
             //     Therefore we should observe one cache miss. (Thrift only)
             assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
@@ -101,10 +96,11 @@ public class CacheTest extends AbstractMultiClientTest {
         }
     }
 
-    @Test
-    public void history() throws Exception {
-        final String project = projectName();
-        final CentralDogma client = client();
+    @ParameterizedTest(name = "history [{index}: {0}]")
+    @EnumSource(ClientType.class)
+    void history(ClientType clientType, TestInfo testInfo) {
+        final String project = getMethodName(testInfo);
+        final CentralDogma client = clientType.client(dogma);
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
@@ -135,10 +131,11 @@ public class CacheTest extends AbstractMultiClientTest {
         assertThat(hitCount(meters2)).isEqualTo(hitCount(meters1) + 3);
     }
 
-    @Test
-    public void getDiffs() throws Exception {
-        final String project = projectName();
-        final CentralDogma client = client();
+    @ParameterizedTest(name = "getDiffs [{index}: {0}]")
+    @EnumSource(ClientType.class)
+    void getDiffs(ClientType clientType, TestInfo testInfo) {
+        final String project = getMethodName(testInfo);
+        final CentralDogma client = clientType.client(dogma);
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
@@ -167,10 +164,6 @@ public class CacheTest extends AbstractMultiClientTest {
         // Should miss once and hit 3 times.
         assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
         assertThat(hitCount(meters2)).isEqualTo(hitCount(meters1) + 3);
-    }
-
-    private String projectName() {
-        return testName.getMethodName().replaceAll("[^a-zA-Z0-9]", "");
     }
 
     private static Double hitCount(Map<String, Double> meters) {
