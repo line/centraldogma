@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,9 +22,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.InetSocketAddress;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -33,17 +33,22 @@ import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class AdministrativeServiceTest {
+class AdministrativeServiceTest {
 
-    @Rule
-    public final CentralDogmaRule dogma = new CentralDogmaRule();
+    @RegisterExtension
+    final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
+    };
 
     private static WebClient webClient;
 
-    @Before
-    public void init() {
+    @BeforeEach
+    void setUp() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
         final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
         webClient = WebClient.builder(serverUri)
@@ -52,7 +57,7 @@ public class AdministrativeServiceTest {
     }
 
     @Test
-    public void status() {
+    void status() {
         final AggregatedHttpResponse res = webClient.get(API_V1_PATH_PREFIX + "status").aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo(
@@ -60,7 +65,7 @@ public class AdministrativeServiceTest {
     }
 
     @Test
-    public void updateStatus_setUnwritable() {
+    void updateStatus_setUnwritable() {
         final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -72,7 +77,7 @@ public class AdministrativeServiceTest {
     }
 
     @Test
-    public void updateStatus_setUnwritableAndNonReplicating() {
+    void updateStatus_setUnwritableAndNonReplicating() {
         final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -85,7 +90,7 @@ public class AdministrativeServiceTest {
     }
 
     @Test
-    public void updateStatus_setWritableAndNonReplicating() {
+    void updateStatus_setWritableAndNonReplicating() {
         final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -96,7 +101,7 @@ public class AdministrativeServiceTest {
     }
 
     @Test
-    public void redundantUpdateStatus_Writable() {
+    void redundantUpdateStatus_Writable() {
         final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -106,7 +111,7 @@ public class AdministrativeServiceTest {
     }
 
     @Test
-    public void redundantUpdateStatus_Replicating() {
+    void redundantUpdateStatus_Replicating() {
         final AggregatedHttpResponse res = webClient.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -116,7 +121,7 @@ public class AdministrativeServiceTest {
     }
 
     @Test
-    public void updateStatus_leaveReadOnlyMode() {
+    void updateStatus_leaveReadOnlyMode() {
         // Enter read-only mode.
         updateStatus_setUnwritable();
         // Try to enter writable mode.

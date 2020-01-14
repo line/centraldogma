@@ -18,7 +18,12 @@ includeWithFlags ':common-legacy',                          'java', 'publish', '
 includeWithFlags ':server',                                 'java', 'publish', 'relocate'
 includeWithFlags ':server-auth:saml',                       'java', 'publish', 'relocate'
 includeWithFlags ':server-auth:shiro',                      'java', 'publish', 'relocate'
-includeWithFlags ':testing',                                'java', 'publish', 'relocate'
+includeWithFlags ':testing:testing-common',                 'java', 'publish', 'relocate'
+includeWithFlags ':testing:junit',                          'java', 'publish', 'relocate'
+includeWithFlags ':testing:junit4',                         'java', 'publish', 'relocate'
+
+// Set correct directory names
+project(':testing:testing-common').projectDir = file('testing/common')
 
 // Command line interface
 include ':cli'

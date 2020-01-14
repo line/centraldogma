@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -17,19 +17,19 @@ package com.linecorp.centraldogma.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class TlsServerTest {
+class TlsServerTest {
 
-    @ClassRule
-    public static CentralDogmaRule rule = new CentralDogmaRule(true);
+    @RegisterExtension
+    static CentralDogmaExtension dogma = new CentralDogmaExtension(true);
 
     @Test
-    public void tls() {
-        rule.client().createProject("overTls").join();
-        assertThat(rule.client().listProjects().join()).contains("overTls");
+    void tls() {
+        dogma.client().createProject("overTls").join();
+        assertThat(dogma.client().listProjects().join()).contains("overTls");
     }
 }

@@ -150,6 +150,20 @@ junit:
     javadocs:
     - https://junit.org/junit4/javadoc/4.12/
 
+org.junit.jupiter:
+  junit-jupiter-api:
+    version: &JUNIT_JUPITER_VERSION '5.5.2'
+    javadocs:
+      - https://junit.org/junit5/docs/5.5.2/api/
+  junit-jupiter-engine:
+    version: *JUNIT_JUPITER_VERSION
+org.junit.platform:
+  junit-platform-launcher:
+    version: '1.5.2'
+org.junit.vintage:
+  junit-vintage-engine:
+    version: '5.5.2'
+
 kr.motd.gradle:
   sphinx-gradle-plugin: { version: '2.6.1' }
 

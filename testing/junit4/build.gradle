@@ -1,0 +1,4 @@
+dependencies {
+    compile project(':testing:testing-common')
+    compile 'junit:junit'
+}

@@ -27,7 +27,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.testing.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
 
 @RunWith(Parameterized.class)
 public abstract class AbstractMultiClientTest {

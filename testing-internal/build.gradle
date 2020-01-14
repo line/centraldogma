@@ -1,6 +1,7 @@
 dependencies {
-    compile project(':testing')
-    compile 'junit:junit'
+    compile project(':testing:junit')
+    compile project(':testing:junit4')
+
     compile 'org.assertj:assertj-core'
     compile 'net.javacrumbs.json-unit:json-unit-fluent'
     compile 'ch.qos.logback:logback-classic'
