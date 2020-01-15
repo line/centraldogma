@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -220,7 +220,7 @@ class GitMirrorAuthTest {
         }
 
         final Collection<Arguments> parameters = builder.build();
-        assumeFalse(parameters.isEmpty(), "Nothing to test.");
+        assumeThat(parameters).isNotEmpty();
         return parameters;
     }
 
