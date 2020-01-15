@@ -46,7 +46,7 @@ public final class TestUtil {
         }
     }
 
-    public static String getMethodName(TestInfo testInfo) {
+    public static String normalizedDisplayName(TestInfo testInfo) {
         return DISALLOWED_CHARS.matcher(testInfo.getDisplayName()).replaceAll("");
     }
 

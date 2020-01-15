@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.it;
 
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
-import static com.linecorp.centraldogma.testing.internal.TestUtil.getMethodName;
+import static com.linecorp.centraldogma.testing.internal.TestUtil.normalizedDisplayName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -52,7 +52,7 @@ class CacheTest {
     @ParameterizedTest(name = "getFile [{index}: {0}]")
     @EnumSource(ClientType.class)
     void getFile(ClientType clientType, TestInfo testInfo) {
-        final String project = getMethodName(testInfo);
+        final String project = normalizedDisplayName(testInfo);
         final CentralDogma client = clientType.client(dogma);
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
@@ -99,7 +99,7 @@ class CacheTest {
     @ParameterizedTest(name = "history [{index}: {0}]")
     @EnumSource(ClientType.class)
     void history(ClientType clientType, TestInfo testInfo) {
-        final String project = getMethodName(testInfo);
+        final String project = normalizedDisplayName(testInfo);
         final CentralDogma client = clientType.client(dogma);
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
@@ -134,7 +134,7 @@ class CacheTest {
     @ParameterizedTest(name = "getDiffs [{index}: {0}]")
     @EnumSource(ClientType.class)
     void getDiffs(ClientType clientType, TestInfo testInfo) {
-        final String project = getMethodName(testInfo);
+        final String project = normalizedDisplayName(testInfo);
         final CentralDogma client = clientType.client(dogma);
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
