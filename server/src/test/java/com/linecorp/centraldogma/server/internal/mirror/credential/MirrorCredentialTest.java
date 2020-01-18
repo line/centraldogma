@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -25,14 +25,14 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
-public class MirrorCredentialTest {
+class MirrorCredentialTest {
 
     static final Iterable<Pattern> HOSTNAME_PATTERNS = ImmutableSet.of(Pattern.compile("^foo\\.com$"));
 
@@ -42,7 +42,7 @@ public class MirrorCredentialTest {
             Pattern.compile("^bar\\.com$"));
 
     @Test
-    public void testConstruction() {
+    void testConstruction() {
         // Without ID and hostnamePatterns, i.e. effectively disabled.
         assertThat(new MirrorCredentialImpl(null, null).id()).isEmpty();
         assertThat(new MirrorCredentialImpl(null, null).hostnamePatterns()).isEmpty();

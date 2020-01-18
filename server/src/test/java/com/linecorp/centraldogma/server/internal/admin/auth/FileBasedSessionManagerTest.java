@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,29 +13,32 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
+import static java.nio.file.Files.createTempDirectory;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.CompletionException;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.linecorp.centraldogma.server.auth.Session;
 
-public class FileBasedSessionManagerTest {
+class FileBasedSessionManagerTest {
 
-    @ClassRule
-    public static TemporaryFolder rootDir = new TemporaryFolder();
+    @TempDir
+    static Path rootDir;
 
     @Test
-    public void shouldDoBasicOperations() throws Exception {
-        final FileBasedSessionManager manager = new FileBasedSessionManager(rootDir.newFolder().toPath(), null);
+    void shouldDoBasicOperations() throws Exception {
+        final FileBasedSessionManager manager =
+                new FileBasedSessionManager(createTempDirectory(rootDir, ""), null);
         final Session session = new Session(manager.generateSessionId(), "username", Duration.ofHours(1));
         manager.create(session).join();
         assertThat(manager.get(session.id()).join())
@@ -52,9 +55,9 @@ public class FileBasedSessionManagerTest {
     }
 
     @Test
-    public void shouldDeleteExpiredSessions() throws Exception {
+    void shouldDeleteExpiredSessions() throws Exception {
         final FileBasedSessionManager manager =
-                new FileBasedSessionManager(rootDir.newFolder().toPath(), "*/2 * * ? * *");
+                new FileBasedSessionManager(createTempDirectory(rootDir, ""), "*/2 * * ? * *");
 
         final Session session =
                 new Session(manager.generateSessionId(), "username", Duration.ofSeconds(5));
@@ -64,8 +67,9 @@ public class FileBasedSessionManagerTest {
     }
 
     @Test
-    public void invalidSessionIds() throws Exception {
-        final FileBasedSessionManager manager = new FileBasedSessionManager(rootDir.newFolder().toPath(), null);
+    void invalidSessionIds() throws Exception {
+        final FileBasedSessionManager manager =
+                new FileBasedSessionManager(createTempDirectory(rootDir, ""), null);
         assertThat(manager.get("anonymous").join()).isNull();
         assertThat(manager.exists("anonymous").join()).isFalse();
 

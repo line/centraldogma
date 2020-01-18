@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,15 +25,15 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 
-public class ExpiredSessionDeletingSessionManagerTest {
+class ExpiredSessionDeletingSessionManagerTest {
 
     @Test
-    public void shouldReturnNonNull() {
+    void shouldReturnNonNull() {
         final Session expiredAfterOneHour = createSession(Instant.now().plus(1, ChronoUnit.HOURS));
         final SessionManager delegate = mock(SessionManager.class);
         when(delegate.get(any())).thenReturn(CompletableFuture.completedFuture(expiredAfterOneHour));
@@ -42,7 +43,7 @@ public class ExpiredSessionDeletingSessionManagerTest {
     }
 
     @Test
-    public void shouldReturnNull() {
+    void shouldReturnNull() {
         final Session expiredSession = createSession(Instant.EPOCH);
         final SessionManager delegate = mock(SessionManager.class);
         when(delegate.get(any())).thenReturn(CompletableFuture.completedFuture(expiredSession));

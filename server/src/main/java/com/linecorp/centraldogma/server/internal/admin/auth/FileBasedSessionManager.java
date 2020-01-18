@@ -110,7 +110,7 @@ public final class FileBasedSessionManager implements SessionManager {
         // The scheduler can be started and stopped several times in JUnit tests, but Quartz holds
         // every scheduler instances in a singleton SchedulerRepository. So it's possible to pick up
         // the scheduler which is going to be stopped if we use the same instance name for every scheduler,
-        // because CentralDogmaRule stops the server asynchronously using another thread.
+        // because CentralDogmaExtension stops the server asynchronously using another thread.
         final String myInstanceId = String.valueOf(hashCode());
 
         final Properties cfg = new Properties();

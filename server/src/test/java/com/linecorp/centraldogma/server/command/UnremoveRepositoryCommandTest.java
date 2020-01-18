@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -19,14 +19,15 @@ package com.linecorp.centraldogma.server.command;
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Jackson;
 
-public class UnremoveRepositoryCommandTest {
+class UnremoveRepositoryCommandTest {
+
     @Test
-    public void testJsonConversion() {
+    void testJsonConversion() {
         assertJsonConversion(new UnremoveRepositoryCommand(1234L, Author.SYSTEM, "foo", "bar"),
                              Command.class,
                              '{' +
@@ -42,7 +43,7 @@ public class UnremoveRepositoryCommandTest {
     }
 
     @Test
-    public void backwardCompatibility() throws Exception {
+    void backwardCompatibility() throws Exception {
         final UnremoveRepositoryCommand c = (UnremoveRepositoryCommand) Jackson.readValue(
                 '{' +
                 "  \"type\": \"UNREMOVE_REPOSITORY\"," +

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,30 +16,26 @@
 
 package com.linecorp.centraldogma.common;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 
-public class AuthorTest {
+class AuthorTest {
 
     @Test
-    public void testAuthor_invalidParameters() {
-        try {
-            new Author(null, "email@test.com");
-            fail("Expected NullPointerException");
-        } catch (NullPointerException ignored) {
-        }
-        try {
-            new Author("", "invalid mail address");
-            fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException ignored) {
-        }
+    void testAuthor_invalidParameters() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> new Author(null, "email@test.com"));
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new Author("", "invalid mail address"));
     }
 
     @Test
-    public void testJsonConversion() {
+    void testJsonConversion() {
         TestUtil.assertJsonConversion(new Author("Homer Simpson", "homer@simpsonsworld.com"),
                              '{' +
                              "  \"name\": \"Homer Simpson\"," +

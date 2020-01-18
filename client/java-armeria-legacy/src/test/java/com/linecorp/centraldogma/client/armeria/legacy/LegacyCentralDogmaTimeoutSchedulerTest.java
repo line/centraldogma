@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,12 +22,11 @@ import static org.mockito.Mockito.verify;
 
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.collect.ImmutableList;
 
@@ -40,42 +39,41 @@ import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
-public class LegacyCentralDogmaTimeoutSchedulerTest {
-    @Rule
-    public MockitoRule rule = MockitoJUnit.rule();
+@ExtendWith(MockitoExtension.class)
+class LegacyCentralDogmaTimeoutSchedulerTest {
 
     @Mock
     private RpcClient client;
 
     private LegacyCentralDogmaTimeoutScheduler decorator;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setUp() {
         decorator = new LegacyCentralDogmaTimeoutScheduler(client);
     }
 
     @Test
-    public void execute() throws Exception {
+    void execute() throws Exception {
         check("listProjects", 1000L, 1L, 1L);
     }
 
     @Test
-    public void execute_watchFile() throws Exception {
+    void execute_watchFile() throws Exception {
         check("watchFile", 1000L, 1L, 1001L);
     }
 
     @Test
-    public void execute_watchRepository() throws Exception {
+    void execute_watchRepository() throws Exception {
         check("watchRepository", 1000L, 1L, 1001L);
     }
 
     @Test
-    public void execute_watch_timeoutOverflow() throws Exception {
+    void execute_watch_timeoutOverflow() throws Exception {
         check("watchRepository", Long.MAX_VALUE - 10, 100L, WatchTimeout.MAX_MILLIS);
     }
 
     @Test
-    public void execute_noTimeout() throws Exception {
+    void execute_noTimeout() throws Exception {
         check("watchFile", 1000L, 0, 0);
     }
 

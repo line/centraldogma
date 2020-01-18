@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,11 +20,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class CentralDogmaExceptionTest {
+class CentralDogmaExceptionTest {
+
     @Test
-    public void tracelessInstantiation() {
+    void tracelessInstantiation() {
         final AtomicBoolean filledInStackTrace = new AtomicBoolean();
         final CentralDogmaException e = new CentralDogmaException("foo", false) {
             private static final long serialVersionUID = -4128575947135273677L;

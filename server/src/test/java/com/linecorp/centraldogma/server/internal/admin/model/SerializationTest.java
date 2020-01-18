@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -24,7 +24,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -38,10 +38,10 @@ import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.TokenRegistration;
 import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
 
-public class SerializationTest {
+class SerializationTest {
 
     @Test
-    public void testTimeSerialization() throws IOException {
+    void testTimeSerialization() throws IOException {
         final Member member =
                 new Member("armeria@dogma.org", ProjectRole.MEMBER, newCreationTag());
         assertThatJson(member).isEqualTo("{\n" +
@@ -62,7 +62,7 @@ public class SerializationTest {
     }
 
     @Test
-    public void testValidProject() throws IOException {
+    void testValidProject() throws IOException {
         final String userLogin = "armeria@dogma.org";
         final Member member = new Member(userLogin, ProjectRole.MEMBER, newCreationTag());
         final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),
@@ -136,7 +136,7 @@ public class SerializationTest {
     }
 
     @Test
-    public void testRemovedProject() throws IOException {
+    void testRemovedProject() throws IOException {
         final Member member = new Member("armeria@dogma.org", ProjectRole.MEMBER,
                                          newCreationTag());
         final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),

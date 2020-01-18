@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,17 +21,17 @@ import static com.linecorp.centraldogma.client.armeria.JsonEndpointListDecoderTe
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.client.Endpoint;
 
-public class TextEndpointListDecoderTest {
+class TextEndpointListDecoderTest {
+
     @Test
-    public void decode() {
-        EndpointListDecoder<String> decoder = EndpointListDecoder.TEXT;
-        List<Endpoint> decoded = decoder.decode(HOST_AND_PORT_LIST.stream().collect(Collectors.joining("\n")));
+    void decode() {
+        final EndpointListDecoder<String> decoder = EndpointListDecoder.TEXT;
+        final List<Endpoint> decoded = decoder.decode(String.join("\n", HOST_AND_PORT_LIST));
 
         assertThat(decoded).hasSize(4);
         assertThat(decoded).isEqualTo(ENDPOINT_LIST);

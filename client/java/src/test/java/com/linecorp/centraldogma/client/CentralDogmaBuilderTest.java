@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,12 +21,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.InetSocketAddress;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class CentralDogmaBuilderTest {
+class CentralDogmaBuilderTest {
 
     @Test
-    public void mutuallyExclusiveHostAndProfile() {
+    void mutuallyExclusiveHostAndProfile() {
         final CentralDogmaBuilder b1 = new CentralDogmaBuilder();
         b1.host("foo");
         assertThatThrownBy(() -> b1.profile("bar"))
@@ -40,7 +41,7 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void emptyProfile() {
+    void emptyProfile() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         assertThatThrownBy(() -> b.profile("bar"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -48,7 +49,7 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void mismatchingProfile() {
+    void mismatchingProfile() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
 
         assertThatThrownBy(() -> b.profile("none"))
@@ -57,7 +58,7 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void httpProfile() {
+    void httpProfile() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.profile("foo");
         assertThat(b.hosts()).containsExactlyInAnyOrder(
@@ -65,7 +66,7 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void httpsProfile() {
+    void httpsProfile() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.useTls();
         b.profile("foo");
@@ -74,7 +75,7 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void profileLoadedFromAllResources() {
+    void profileLoadedFromAllResources() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.profile("production");
         assertThat(b.hosts()).containsExactlyInAnyOrder(
@@ -83,7 +84,7 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void ipHosts() {
+    void ipHosts() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.profile("ip_hosts");
         assertThat(b.hosts()).containsExactlyInAnyOrder(
@@ -92,7 +93,7 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void profileWithHighPriorityWins() {
+    void profileWithHighPriorityWins() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.profile("high_priority_wins");
         assertThat(b.hosts()).containsExactlyInAnyOrder(
@@ -100,7 +101,7 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void profileWithLowPriorityLoses() {
+    void profileWithLowPriorityLoses() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.profile("low_priority_loses");
         assertThat(b.hosts()).containsExactlyInAnyOrder(
@@ -108,7 +109,7 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void lastProfileFirst() {
+    void lastProfileFirst() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         // The last valid profile should win, to be consistent with Spring Boot profiles.
         b.profile("foo", "qux");
@@ -119,14 +120,14 @@ public class CentralDogmaBuilderTest {
     }
 
     @Test
-    public void singleHost() {
+    void singleHost() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.host("foo");
         assertThat(b.hosts()).containsExactly(InetSocketAddress.createUnresolved("foo", 36462));
     }
 
     @Test
-    public void multipleHosts() {
+    void multipleHosts() {
         final CentralDogmaBuilder b = new CentralDogmaBuilder();
         b.host("foo", 1);
         b.host("bar", 2);

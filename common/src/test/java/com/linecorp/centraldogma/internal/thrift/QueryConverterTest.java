@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,12 +22,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Collections;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 
-public class QueryConverterTest {
+class QueryConverterTest {
 
     private static final com.linecorp.centraldogma.common.Query<String> IDENTITY_MODEL =
             com.linecorp.centraldogma.common.Query.ofText("/a.txt");
@@ -41,7 +41,7 @@ public class QueryConverterTest {
                                                            .setExpressions(ImmutableList.of("a", "b"));
 
     @Test
-    public void test() throws Exception {
+    void test() {
         assertThat(TO_DATA.convert(IDENTITY_MODEL)).isEqualTo(IDENTITY_DATA);
         assertThat(TO_MODEL.convert(IDENTITY_DATA)).isEqualTo(IDENTITY_MODEL);
         assertThat(TO_DATA.convert(TO_MODEL.convert(IDENTITY_DATA))).isEqualTo(IDENTITY_DATA);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.internal.api.v1;
 
 import static com.linecorp.centraldogma.internal.api.v1.WatchTimeout.MAX_MILLIS;
@@ -20,12 +21,12 @@ import static com.linecorp.centraldogma.internal.api.v1.WatchTimeout.makeReasona
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class WatchTimeoutTest {
+class WatchTimeoutTest {
 
     @Test
-    public void testMakeReasonable() {
+    void testMakeReasonable() {
         assertThat(makeReasonable(1_000, 1_000)).isEqualTo(2_000);
         assertThat(makeReasonable(MAX_MILLIS, 1_000)).isEqualTo(MAX_MILLIS);
         assertThat(makeReasonable(MAX_MILLIS + 1_000, 0)).isEqualTo(MAX_MILLIS);

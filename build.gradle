@@ -91,6 +91,7 @@ configure(projectsWithFlags('java')) {
         testCompile 'org.hamcrest:hamcrest-library'
         testCompile 'org.assertj:assertj-core'
         testCompile 'org.mockito:mockito-core'
+        testCompile 'org.mockito:mockito-junit-jupiter'
         testCompile 'org.junit.jupiter:junit-jupiter-api'
         testRuntime 'org.junit.jupiter:junit-jupiter-engine'
         testRuntime 'org.junit.platform:junit-platform-launcher'

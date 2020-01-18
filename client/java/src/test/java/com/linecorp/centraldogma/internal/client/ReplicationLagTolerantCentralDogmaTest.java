@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.internal.client;
 
 import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
@@ -34,13 +35,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -56,31 +56,30 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
-public class ReplicationLagTolerantCentralDogmaTest {
+@ExtendWith(MockitoExtension.class)
+class ReplicationLagTolerantCentralDogmaTest {
+
     private static final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     private static final Supplier<?> currentReplicaHintSupplier = () -> "?";
-
-    @Rule
-    public MockitoRule rule = MockitoJUnit.rule();
-
-    @AfterClass
-    public static void shutdownExecutor() {
-        executor.shutdown();
-    }
 
     @Mock
     private CentralDogma delegate;
 
     private ReplicationLagTolerantCentralDogma dogma;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setUp() {
         dogma = new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0,
                                                        currentReplicaHintSupplier);
     }
 
+    @AfterAll
+    static void shutdownExecutor() {
+        executor.shutdown();
+    }
+
     @Test
-    public void normalizeRevision() {
+    void normalizeRevision() {
         // Make sure the latest known revision is remembered on `normalizeRevision()`.
         final Revision latestRevision = new Revision(2);
         for (int i = 1; i <= latestRevision.major(); i++) {
@@ -147,7 +146,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void normalizeRevisionAndExecuteWithRetries() throws Exception {
+    void normalizeRevisionAndExecuteWithRetries() throws Exception {
         final Revision latestRevision = new Revision(3);
         when(delegate.normalizeRevision(any(), any(), any())).thenReturn(completedFuture(latestRevision));
         when(delegate.getFile(any(), any(), any(), any(Query.class))).thenReturn(
@@ -164,7 +163,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void normalizeRevisionsAndExecuteWithRetriesFastPath() throws Exception {
+    void normalizeRevisionsAndExecuteWithRetriesFastPath() {
         when(delegate.normalizeRevision(any(), any(), eq(Revision.HEAD)))
                 .thenReturn(completedFuture(new Revision(2)));
         when(delegate.getDiff(any(), any(), any(), any(), any(Query.class))).thenReturn(
@@ -193,7 +192,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void normalizeRevisionsAndExecuteWithRetriesSlowPath() throws Exception {
+    void normalizeRevisionsAndExecuteWithRetriesSlowPath() {
         when(delegate.normalizeRevision(any(), any(), eq(Revision.INIT)))
                 .thenReturn(completedFuture(Revision.INIT));
         when(delegate.normalizeRevision(any(), any(), eq(Revision.HEAD)))
@@ -215,7 +214,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void listRepositories() {
+    void listRepositories() {
         // `listRepository()` must remember the latest known revisions.
         final Revision latestRevision = new Revision(2);
         for (int i = 1; i <= latestRevision.major(); i++) {
@@ -263,7 +262,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void retryOnlyOnRevisionNotFoundException() {
+    void retryOnlyOnRevisionNotFoundException() {
         when(delegate.normalizeRevision(any(), any(), any()))
                 .thenReturn(exceptionallyCompletedFuture(new ProjectNotFoundException()));
 
@@ -276,7 +275,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void push() {
+    void push() {
         final PushResult pushResult = new PushResult(new Revision(3), 42L);
         when(delegate.push(any(), any(), any(), any(), any(), any(), any(Iterable.class)))
                 .thenReturn(completedFuture(pushResult));
@@ -290,7 +289,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void pushWithRetries() {
+    void pushWithRetries() {
         // Make the client remember the latest known revision.
         when(delegate.normalizeRevision(any(), any(), any()))
                 .thenReturn(completedFuture(new Revision(3)));
@@ -323,7 +322,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void watchRepository() {
+    void watchRepository() {
         // Make sure `watchRepository()` remembers the latest revision.
         final Revision latestRevision = new Revision(3);
         when(delegate.normalizeRevision(any(), any(), any()))
@@ -357,7 +356,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void watchFile() {
+    void watchFile() {
         // Make sure `watchFile()` remembers the latest revision.
         final Revision latestRevision = new Revision(3);
         final Entry<String> latestEntry = Entry.ofText(latestRevision, "/a.txt", "a");
@@ -377,7 +376,7 @@ public class ReplicationLagTolerantCentralDogmaTest {
     }
 
     @Test
-    public void getFile() {
+    void getFile() {
         final Revision latestRevision = new Revision(3);
         final Entry<String> latestEntry = Entry.ofText(latestRevision, "/a.txt", "a");
         when(delegate.normalizeRevision(any(), any(), any()))

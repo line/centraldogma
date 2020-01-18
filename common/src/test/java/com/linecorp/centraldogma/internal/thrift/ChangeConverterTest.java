@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,9 +18,9 @@ package com.linecorp.centraldogma.internal.thrift;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class ChangeConverterTest {
+class ChangeConverterTest {
 
     private static final com.linecorp.centraldogma.common.Change<String> COMMON =
             com.linecorp.centraldogma.common.Change.ofTextUpsert("/a.txt", "hello");
@@ -30,7 +30,7 @@ public class ChangeConverterTest {
                                                      .setContent("hello");
 
     @Test
-    public void test() throws Exception {
+    void test() {
         assertThat(ChangeConverter.TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
         assertThat(ChangeConverter.TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
         assertThat(ChangeConverter.TO_DATA.convert(ChangeConverter.TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);

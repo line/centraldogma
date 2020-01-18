@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,16 +20,16 @@ import static com.linecorp.centraldogma.internal.thrift.RevisionConverter.TO_DAT
 import static com.linecorp.centraldogma.internal.thrift.RevisionConverter.TO_MODEL;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class RevisionConverterTest {
+class RevisionConverterTest {
 
     private static final com.linecorp.centraldogma.common.Revision COMMON =
             new com.linecorp.centraldogma.common.Revision(1);
     private static final Revision THRIFT = new Revision(1, 0);
 
     @Test
-    public void test() throws Exception {
+    void test() {
         assertThat(TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
         assertThat(TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
         assertThat(TO_DATA.convert(TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);

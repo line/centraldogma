@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,28 +13,27 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.common;
 
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.fail;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
-public class EntryTest {
+class EntryTest {
 
     @Test
-    public void ofDirectory() throws Exception {
+    void ofDirectory() throws Exception {
         final Entry<Void> e = Entry.ofDirectory(new Revision(1), "/");
         assertThat(e.revision()).isEqualTo(new Revision(1));
         assertThat(e.hasContent()).isFalse();
-        e.ifHasContent(unused -> fail());
         assertThatThrownBy(e::content).isInstanceOf(EntryNoContentException.class);
         assertThatThrownBy(e::contentAsJson).isInstanceOf(EntryNoContentException.class);
         assertThatThrownBy(e::contentAsText).isInstanceOf(EntryNoContentException.class);
@@ -60,7 +59,7 @@ public class EntryTest {
     }
 
     @Test
-    public void ofText() throws Exception {
+    void ofText() throws Exception {
         final Entry<String> e = Entry.ofText(new Revision(1), "/a.txt", "foo");
         assertThat(e.revision()).isEqualTo(new Revision(1));
         assertThat(e.hasContent()).isTrue();
@@ -97,7 +96,7 @@ public class EntryTest {
     }
 
     @Test
-    public void ofJson() throws Exception {
+    void ofJson() throws Exception {
         final Entry<JsonNode> e = Entry.ofJson(new Revision(1), "/a.json", "{ \"foo\": \"bar\" }");
         assertThat(e.revision()).isEqualTo(new Revision(1));
         assertThat(e.hasContent()).isTrue();
@@ -128,7 +127,7 @@ public class EntryTest {
     }
 
     @Test
-    public void of() {
+    void of() {
         // Null checks
         assertThatThrownBy(() -> Entry.of(null, "/1.txt", EntryType.TEXT, "1"))
                 .isInstanceOf(NullPointerException.class);
@@ -151,7 +150,7 @@ public class EntryTest {
     }
 
     @Test
-    public void testEquals() {
+    void testEquals() {
         final Entry<Void> e = Entry.ofDirectory(new Revision(1), "/foo");
         assertThat(e).isNotEqualTo(null);
         assertThat(e).isNotEqualTo(new Object());
@@ -159,7 +158,7 @@ public class EntryTest {
     }
 
     @Test
-    public void testToString() {
+    void testToString() {
         assertThat(Entry.ofText(new Revision(1), "/a.txt", "a").toString()).isNotEmpty();
     }
 }

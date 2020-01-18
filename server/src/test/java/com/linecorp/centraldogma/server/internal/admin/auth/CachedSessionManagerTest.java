@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.server.internal.admin.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,7 +27,7 @@ import static org.mockito.Mockito.when;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -34,10 +35,10 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.auth.SessionManager;
 
-public class CachedSessionManagerTest {
+class CachedSessionManagerTest {
 
     @Test
-    public void shouldOperateWithCache() {
+    void shouldOperateWithCache() {
         final Session session =
                 new Session("id", "username", Duration.ofHours(1));
 

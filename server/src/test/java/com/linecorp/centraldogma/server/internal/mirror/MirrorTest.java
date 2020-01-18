@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,7 +26,7 @@ import java.time.ZonedDateTime;
 
 import javax.annotation.Nullable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -38,13 +39,13 @@ import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-public class MirrorTest {
+class MirrorTest {
 
     private static final Cron EVERY_MINUTE = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ)).parse("0 * * * * ?");
 
     @Test
-    public void testGitMirror() {
+    void testGitMirror() {
         // Simplest possible form
         assertMirror("git://a.com/b.git", GitMirror.class,
                      "git://a.com/b.git", "/", "master");
@@ -73,7 +74,7 @@ public class MirrorTest {
     }
 
     @Test
-    public void testCentralDogmaMirror() {
+    void testCentralDogmaMirror() {
         CentralDogmaMirror m;
 
         // Simplest possible form
@@ -120,7 +121,7 @@ public class MirrorTest {
     }
 
     @Test
-    public void testUnknownScheme() {
+    void testUnknownScheme() {
         assertThatThrownBy(() -> newMirror("magma://a.com/b.magma", Mirror.class))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> newMirror("git+foo://a.com/b.git", Mirror.class))
@@ -128,7 +129,7 @@ public class MirrorTest {
     }
 
     @Test
-    public void jitter() {
+    void jitter() {
         final AbstractMirror mirror = newMirror("git://a.com/b.git", AbstractMirror.class);
 
         assertThat(mirror.schedule()).isSameAs(EVERY_MINUTE);

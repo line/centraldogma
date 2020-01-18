@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,12 +22,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.charset.StandardCharsets;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
-public class PublicKeyMirrorCredentialTest {
+class PublicKeyMirrorCredentialTest {
 
     private static final String USERNAME = "trustin";
 
@@ -61,7 +61,7 @@ public class PublicKeyMirrorCredentialTest {
     private static final String PASSPHRASE_BASE64 = "base64:c2VzYW1l"; // 'sesame'
 
     @Test
-    public void testConstruction() throws Exception {
+    void testConstruction() {
         // null checks
         assertThatThrownBy(() -> new PublicKeyMirrorCredential(
                 null, null, null, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE))
@@ -103,14 +103,14 @@ public class PublicKeyMirrorCredentialTest {
     }
 
     @Test
-    public void testBase64Passphrase() throws Exception {
+    void testBase64Passphrase() {
         final PublicKeyMirrorCredential c = new PublicKeyMirrorCredential(
                 null, null, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
         assertThat(c.passphrase()).isEqualTo(PASSPHRASE.getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
-    public void testDeserialization() throws Exception {
+    void testDeserialization() throws Exception {
         // plaintext passphrase
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"public_key\"," +

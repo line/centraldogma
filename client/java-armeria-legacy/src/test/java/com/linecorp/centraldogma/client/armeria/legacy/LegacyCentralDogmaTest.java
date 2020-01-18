@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.client.armeria.legacy;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,12 +29,11 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.thrift.async.AsyncMethodCallback;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -72,24 +72,23 @@ import com.linecorp.centraldogma.internal.thrift.Repository;
 import com.linecorp.centraldogma.internal.thrift.WatchFileResult;
 import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 
-public class LegacyCentralDogmaTest {
-    private static final String TIMESTAMP = "2016-01-02T03:04:05Z";
+@ExtendWith(MockitoExtension.class)
+class LegacyCentralDogmaTest {
 
-    @Rule
-    public MockitoRule rule = MockitoJUnit.rule();
+    private static final String TIMESTAMP = "2016-01-02T03:04:05Z";
 
     @Mock
     private CentralDogmaService.AsyncIface iface;
 
     private CentralDogma client;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setUp() {
         client = new LegacyCentralDogma(CommonPools.workerGroup(), iface);
     }
 
     @Test
-    public void createProject() throws Exception {
+    void createProject() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Void> callback = invocation.getArgument(1);
             callback.onComplete(null);
@@ -100,7 +99,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void removeProject() throws Exception {
+    void removeProject() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Void> callback = invocation.getArgument(1);
             callback.onComplete(null);
@@ -111,7 +110,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void purgeProject() throws Exception {
+    void purgeProject() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Void> callback = invocation.getArgument(1);
             callback.onComplete(null);
@@ -122,7 +121,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void unremoveProject() throws Exception {
+    void unremoveProject() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Void> callback = invocation.getArgument(1);
             callback.onComplete(null);
@@ -133,7 +132,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void listProjects() throws Exception {
+    void listProjects() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<List<Project>> callback = invocation.getArgument(0);
             callback.onComplete(ImmutableList.of(new Project("project")));
@@ -144,7 +143,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void listRemovedProjects() throws Exception {
+    void listRemovedProjects() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Set<String>> callback = invocation.getArgument(0);
             callback.onComplete(ImmutableSet.of("project"));
@@ -155,7 +154,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void createRepository() throws Exception {
+    void createRepository() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Void> callback = invocation.getArgument(2);
             callback.onComplete(null);
@@ -166,7 +165,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void removeRepository() throws Exception {
+    void removeRepository() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Void> callback = invocation.getArgument(2);
             callback.onComplete(null);
@@ -177,7 +176,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void purgeRepository() throws Exception {
+    void purgeRepository() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Void> callback = invocation.getArgument(2);
             callback.onComplete(null);
@@ -188,7 +187,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void unremoveRepository() throws Exception {
+    void unremoveRepository() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Void> callback = invocation.getArgument(2);
             callback.onComplete(null);
@@ -199,7 +198,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void listRepositories() throws Exception {
+    void listRepositories() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<List<Repository>> callback = invocation.getArgument(1);
             final Repository repository = new Repository("repo").setHead(
@@ -216,7 +215,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void listRemovedRepositories() throws Exception {
+    void listRemovedRepositories() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<Set<String>> callback = invocation.getArgument(1);
             callback.onComplete(ImmutableSet.of("repo"));
@@ -227,7 +226,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void normalizeRevision() throws Exception {
+    void normalizeRevision() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<TRevision> callback = invocation.getArgument(3);
             callback.onComplete(new TRevision(3));
@@ -239,7 +238,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void listFiles() throws Exception {
+    void listFiles() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<List<TEntry>> callback = invocation.getArgument(4);
             final TEntry entry = new TEntry("/a.txt", TEntryType.TEXT);
@@ -253,13 +252,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void getFiles() throws Exception {
-        doAnswer(invocation -> {
-            final AsyncMethodCallback<com.linecorp.centraldogma.internal.thrift.Revision> callback =
-                    invocation.getArgument(3);
-            callback.onComplete(new com.linecorp.centraldogma.internal.thrift.Revision(1, 0));
-            return null;
-        }).when(iface).normalizeRevision(any(), any(), any(), any());
+    void getFiles() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<List<TEntry>> callback = invocation.getArgument(4);
             final TEntry entry = new TEntry("/b.txt", TEntryType.TEXT);
@@ -273,7 +266,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void getHistory() throws Exception {
+    void getHistory() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<List<TCommit>> callback = invocation.getArgument(5);
             callback.onComplete(ImmutableList.of(new TCommit(
@@ -294,7 +287,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void getDiffs() throws Exception {
+    void getDiffs() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<List<TChange>> callback = invocation.getArgument(5);
             final TChange change = new TChange("/a.txt", ChangeType.UPSERT_TEXT);
@@ -308,7 +301,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void getPreviewDiffs() throws Exception {
+    void getPreviewDiffs() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<List<TChange>> callback = invocation.getArgument(4);
             final TChange change = new TChange("/a.txt", ChangeType.UPSERT_TEXT);
@@ -323,7 +316,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void push() throws Exception {
+    void push() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<TCommit> callback = invocation.getArgument(7);
             callback.onComplete(new TCommit(
@@ -345,13 +338,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void getFile() throws Exception {
-        doAnswer(invocation -> {
-            final AsyncMethodCallback<com.linecorp.centraldogma.internal.thrift.Revision> callback =
-                    invocation.getArgument(3);
-            callback.onComplete(new com.linecorp.centraldogma.internal.thrift.Revision(1, 0));
-            return null;
-        }).when(iface).normalizeRevision(any(), any(), any(), any());
+    void getFile() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<GetFileResult> callback = invocation.getArgument(4);
             callback.onComplete(new GetFileResult(TEntryType.TEXT, "content"));
@@ -363,13 +350,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void getFile_path() throws Exception {
-        doAnswer(invocation -> {
-            final AsyncMethodCallback<com.linecorp.centraldogma.internal.thrift.Revision> callback =
-                    invocation.getArgument(3);
-            callback.onComplete(new com.linecorp.centraldogma.internal.thrift.Revision(1, 0));
-            return null;
-        }).when(iface).normalizeRevision(any(), any(), any(), any());
+    void getFile_path() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<GetFileResult> callback = invocation.getArgument(4);
             callback.onComplete(new GetFileResult(TEntryType.TEXT, "content"));
@@ -381,7 +362,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void mergeFiles() throws Exception {
+    void mergeFiles() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<MergedEntry> callback = invocation.getArgument(4);
             callback.onComplete(new MergedEntry(new TRevision(1), TEntryType.JSON, "{\"foo\": \"bar\"}",
@@ -399,7 +380,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void diffFile() throws Exception {
+    void diffFile() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<DiffFileResult> callback = invocation.getArgument(5);
             callback.onComplete(new DiffFileResult(ChangeType.UPSERT_TEXT, "some_text"));
@@ -412,7 +393,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void watchRepository() throws Exception {
+    void watchRepository() throws Exception {
         doAnswer(invocation -> {
             final AsyncMethodCallback<WatchRepositoryResult> callback = invocation.getArgument(5);
             callback.onComplete(new WatchRepositoryResult().setRevision(new TRevision(42)));
@@ -424,7 +405,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void watchRepositoryTimedOut() throws Exception {
+    void watchRepositoryTimedOut() throws Exception {
         doAnswer(invocation -> {
             AsyncMethodCallback<WatchRepositoryResult> callback = invocation.getArgument(5);
             callback.onComplete(new WatchRepositoryResult());
@@ -436,7 +417,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void watchFile() throws Exception {
+    void watchFile() throws Exception {
         doAnswer(invocation -> {
             AsyncMethodCallback<WatchFileResult> callback = invocation.getArgument(5);
             callback.onComplete(new WatchFileResult().setRevision(new TRevision(42))
@@ -450,7 +431,7 @@ public class LegacyCentralDogmaTest {
     }
 
     @Test
-    public void watchFileTimedOut() throws Exception {
+    void watchFileTimedOut() throws Exception {
         doAnswer(invocation -> {
             AsyncMethodCallback<WatchFileResult> callback = invocation.getArgument(5);
             callback.onComplete(new WatchFileResult());

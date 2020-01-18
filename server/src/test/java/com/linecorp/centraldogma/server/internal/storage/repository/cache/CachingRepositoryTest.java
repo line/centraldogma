@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
@@ -37,12 +38,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
-import org.mockito.quality.Strictness;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -69,17 +68,14 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
-public class CachingRepositoryTest {
-
-    @Rule
-    public final MockitoRule mockito = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
+@ExtendWith(MockitoExtension.class)
+class CachingRepositoryTest {
 
     @Mock
     private Repository delegateRepo;
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void identityQuery() {
+    void identityQuery() {
         final Repository repo = setMockNames(newCachingRepo());
         final Query<String> query = Query.ofText("/baz.txt");
 
@@ -105,7 +101,7 @@ public class CachingRepositoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void jsonPathQuery() throws JsonParseException {
+    void jsonPathQuery() throws JsonParseException {
         final Repository repo = setMockNames(newCachingRepo());
         final Query<JsonNode> query = Query.ofJsonPath("/baz.json", "$.a");
         final Entry<JsonNode> queryResult = Entry.ofJson(new Revision(10), query.path(), "{\"a\": \"b\"}");
@@ -128,8 +124,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void mergeQuery() throws JsonParseException {
+    void mergeQuery() throws JsonParseException {
         final Repository repo = setMockNames(newCachingRepo());
         final MergeQuery<JsonNode> query = MergeQuery.ofJson(MergeSource.ofRequired("/foo.json"),
                                                              MergeSource.ofRequired("/bar.json"));
@@ -161,8 +156,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void identityQueryMissingEntry() {
+    void identityQueryMissingEntry() {
         final Repository repo = setMockNames(newCachingRepo());
         final Query<String> query = Query.ofText("/baz.txt");
 
@@ -185,7 +179,7 @@ public class CachingRepositoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void jsonPathQueryMissingEntry() {
+    void jsonPathQueryMissingEntry() {
         final Repository repo = setMockNames(newCachingRepo());
         final Query<JsonNode> query = Query.ofJsonPath("/baz.json", "$.a");
 
@@ -207,7 +201,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void find() {
+    void find() {
         final Repository repo = setMockNames(newCachingRepo());
         final Map<String, Entry<?>> entries =
                 ImmutableMap.of("/baz.txt", Entry.ofText(new Revision(10), "/baz.txt", "qux"));
@@ -230,7 +224,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void history() {
+    void history() {
         final Repository repo = setMockNames(newCachingRepo());
         final List<Commit> commits = ImmutableList.of(
                 new Commit(new Revision(3), SYSTEM, "third", "", Markup.MARKDOWN),
@@ -259,7 +253,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void singleDiff() {
+    void singleDiff() {
         final Repository repo = setMockNames(newCachingRepo());
         final Query<String> query = Query.ofText("/foo.txt");
         final Change<String> change = Change.ofTextUpsert(query.path(), "bar");
@@ -286,7 +280,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void multiDiff() {
+    void multiDiff() {
         final Repository repo = setMockNames(newCachingRepo());
         final Map<String, Change<?>> changes = ImmutableMap.of(
                 "/foo.txt", Change.ofTextUpsert("/foo.txt", "bar"));
@@ -313,7 +307,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void findLatestRevision() {
+    void findLatestRevision() {
         final Repository repo = setMockNames(newCachingRepo());
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
@@ -331,7 +325,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void findLatestRevisionNull() {
+    void findLatestRevisionNull() {
         final Repository repo = setMockNames(newCachingRepo());
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
@@ -349,7 +343,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void finaLatestRevisionHead() {
+    void finaLatestRevisionHead() {
         final Repository repo = newCachingRepo();
         final Revision actualHeadRev = new Revision(2);
         doReturn(new RevisionRange(actualHeadRev, actualHeadRev))
@@ -361,7 +355,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void watchFastPath() {
+    void watchFastPath() {
         final Repository repo = setMockNames(newCachingRepo());
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
@@ -381,7 +375,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void watchSlowPath() {
+    void watchSlowPath() {
         final Repository repo = setMockNames(newCachingRepo());
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
@@ -402,7 +396,7 @@ public class CachingRepositoryTest {
     }
 
     @Test
-    public void metrics() {
+    void metrics() {
         final MeterRegistry meterRegistry = PrometheusMeterRegistries.newRegistry();
         final Repository repo = newCachingRepo(meterRegistry);
         final Map<String, Double> meters = MoreMeters.measureAll(meterRegistry);
