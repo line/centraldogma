@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,8 +21,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.extension.Extension;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -31,30 +31,64 @@ import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
- * JUnit {@link Rule} that starts a {@link ProjectManager}.
+ * A JUnit {@link Extension} that starts a {@link ProjectManager}.
  *
  * <pre>{@code
- * > public class MyTest {
- * >     @ClassRule
- * >     public static final ProjectManagerRule rule = new ProjectManagerRule();
+ * > class MyTest {
+ * >     @RegisterExtension
+ * >     static final ProjectManagerExtension extension = new ProjectManagerExtension();
  * >
  * >     @Test
- * >     public void test() throws Exception {
- * >         MetadataService mds = new MetadataService(rule.projectManager(), rule.executor());
+ * >     void test() throws Exception {
+ * >         MetadataService mds = new MetadataService(extension.projectManager(), extension.executor());
  * >         ...
  * >     }
  * > }
  * }</pre>
  */
-public class ProjectManagerRule extends TemporaryFolder {
+public class ProjectManagerExtension extends AbstractAllOrEachExtension {
 
     private ProjectManager projectManager;
     private CommandExecutor executor;
     private ScheduledExecutorService purgeWorker;
+
+    private final TemporaryFolder tempDir = new TemporaryFolder();
+
+    /**
+     * Configures an {@link Executor}, {@link ProjectManager} and {@link CommandExecutor},
+     * then starts the {@link CommandExecutor} and initializes internal projects.
+     */
+    @Override
+    public void before(ExtensionContext context) throws Exception {
+        tempDir.create();
+
+        final Executor repositoryWorker = newWorker();
+        purgeWorker = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("purge-worker", true));
+        projectManager = newProjectManager(repositoryWorker, purgeWorker);
+        executor = newCommandExecutor(projectManager, repositoryWorker);
+
+        executor.start().get();
+        ProjectInitializer.initializeInternalProject(executor);
+
+        afterExecutorStarted();
+    }
+
+    /**
+     * Stops the {@link CommandExecutor} and the {@link ProjectManager}.
+     */
+    @Override
+    public void after(ExtensionContext context) throws Exception {
+        tempDir.delete();
+        executor.stop();
+        purgeWorker.shutdownNow();
+        projectManager.close(ShuttingDownException::new);
+    }
 
     /**
      * Returns a {@link ProjectManager}.
@@ -78,26 +112,6 @@ public class ProjectManagerRule extends TemporaryFolder {
     }
 
     /**
-     * Configures an {@link Executor}, {@link ProjectManager} and {@link CommandExecutor}, then starts the
-     * {@link CommandExecutor} and initializes internal projects.
-     */
-    @Override
-    protected final void before() throws Throwable {
-        super.before();
-
-        final Executor repositoryWorker = newWorker();
-        purgeWorker = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("purge-worker", true));
-        projectManager = newProjectManager(repositoryWorker, purgeWorker);
-        executor = newCommandExecutor(projectManager, repositoryWorker);
-
-        executor.start().get();
-        ProjectInitializer.initializeInternalProject(executor);
-
-        afterExecutorStarted();
-    }
-
-    /**
      * Override this method to configure a project after the executor started.
      */
     protected void afterExecutorStarted() {}
@@ -112,11 +126,10 @@ public class ProjectManagerRule extends TemporaryFolder {
     /**
      * Override this method to customize a {@link ProjectManager}.
      */
-    protected ProjectManager newProjectManager(Executor repositoryWorker,
-                                               Executor purgeWorker) {
+    protected ProjectManager newProjectManager(Executor repositoryWorker, Executor purgeWorker) {
         try {
-            return new DefaultProjectManager(newFolder(), repositoryWorker, purgeWorker,
-                                             NoopMeterRegistry.get(), null);
+            return new DefaultProjectManager(tempDir.newFolder().toFile(), repositoryWorker,
+                                             purgeWorker, NoopMeterRegistry.get(), null);
         } catch (Exception e) {
             // Should not reach here.
             throw new Error(e);
@@ -128,16 +141,5 @@ public class ProjectManagerRule extends TemporaryFolder {
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker) {
         return new StandaloneCommandExecutor(projectManager, worker, null, null, null);
-    }
-
-    /**
-     * Stops the {@link CommandExecutor} and the {@link ProjectManager}.
-     */
-    @Override
-    protected void after() {
-        super.after();
-        executor.stop();
-        purgeWorker.shutdownNow();
-        projectManager.close(ShuttingDownException::new);
     }
 }

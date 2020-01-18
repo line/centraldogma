@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -19,8 +19,8 @@ package com.linecorp.centraldogma.server.metadata;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -28,21 +28,26 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
-import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
+import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 /**
  * Makes sure {@link MetadataService} adds the default metadata of a repository when the {@code metadata.json}
  * does not contain the repository metadata.
  */
-public class MissingRepositoryMetadataTest {
+class MissingRepositoryMetadataTest {
 
-    @Rule
-    public final ProjectManagerRule rule = new ProjectManagerRule() {
+    @RegisterExtension
+    final ProjectManagerExtension manager = new ProjectManagerExtension() {
         @Override
         protected void afterExecutorStarted() {
             MigrationUtil.migrate(projectManager(), executor());
             // Create a project and its metadata here.
             executor().execute(Command.createProject(AUTHOR, PROJ)).join();
+        }
+
+        @Override
+        protected boolean runForEachTest() {
+            return true;
         }
     };
 
@@ -50,10 +55,10 @@ public class MissingRepositoryMetadataTest {
     private static final String PROJ = "proj";
 
     @Test
-    public void missingRepositoryMetadata() throws Exception {
-        final ProjectManager pm = rule.projectManager();
+    void missingRepositoryMetadata() {
+        final ProjectManager pm = manager.projectManager();
         final RepositoryManager rm = pm.get(PROJ).repos();
-        final CommandExecutor executor = rule.executor();
+        final CommandExecutor executor = manager.executor();
 
         // Create a new repository without adding metadata.
         rm.create("repo", AUTHOR);

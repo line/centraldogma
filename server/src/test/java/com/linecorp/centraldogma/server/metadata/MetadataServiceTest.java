@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -23,8 +23,8 @@ import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ChangeConflictException;
@@ -32,17 +32,22 @@ import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
+import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
-public class MetadataServiceTest {
+class MetadataServiceTest {
 
-    @Rule
-    public final ProjectManagerRule rule = new ProjectManagerRule() {
+    @RegisterExtension
+    final ProjectManagerExtension manager = new ProjectManagerExtension() {
         @Override
         protected void afterExecutorStarted() {
             MigrationUtil.migrate(projectManager(), executor());
             // Create a project and its metadata here.
             executor().execute(Command.createProject(author, project1)).join();
+        }
+
+        @Override
+        protected boolean runForEachTest() {
+            return true;
         }
     };
 
@@ -60,14 +65,13 @@ public class MetadataServiceTest {
             new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION);
 
     @Test
-    public void project() throws Exception {
-        final MetadataService mds = newMetadataService(rule);
+    void project() {
+        final MetadataService mds = newMetadataService(manager);
 
         ProjectMetadata metadata;
         metadata = mds.getProject(project1).join();
 
-        assertThatThrownBy(() -> rule.executor().execute(Command.createProject(author, project1))
-                                     .join())
+        assertThatThrownBy(() -> manager.executor().execute(Command.createProject(author, project1)).join())
                 .hasCauseInstanceOf(ProjectExistsException.class);
 
         assertThat(metadata.name()).isEqualTo(project1);
@@ -91,8 +95,8 @@ public class MetadataServiceTest {
     }
 
     @Test
-    public void repository() throws Exception {
-        final MetadataService mds = newMetadataService(rule);
+    void repository() {
+        final MetadataService mds = newMetadataService(manager);
 
         final ProjectMetadata metadata;
         RepositoryMetadata repositoryMetadata;
@@ -135,8 +139,8 @@ public class MetadataServiceTest {
     }
 
     @Test
-    public void perRolePermissions() throws Exception {
-        final MetadataService mds = newMetadataService(rule);
+    void perRolePermissions() {
+        final MetadataService mds = newMetadataService(manager);
 
         final ProjectMetadata metadata;
         RepositoryMetadata repositoryMetadata;
@@ -170,8 +174,8 @@ public class MetadataServiceTest {
     }
 
     @Test
-    public void perUserPermissions() throws Exception {
-        final MetadataService mds = newMetadataService(rule);
+    void perUserPermissions() {
+        final MetadataService mds = newMetadataService(manager);
 
         mds.addRepo(author, project1, repo1, ownerOnly).join();
 
@@ -210,8 +214,8 @@ public class MetadataServiceTest {
     }
 
     @Test
-    public void perTokenPermissions() throws Exception {
-        final MetadataService mds = newMetadataService(rule);
+    void perTokenPermissions() {
+        final MetadataService mds = newMetadataService(manager);
 
         mds.addRepo(author, project1, repo1, ownerOnly).join();
         mds.createToken(author, app1).join();
@@ -250,8 +254,8 @@ public class MetadataServiceTest {
     }
 
     @Test
-    public void removeMember() throws Exception {
-        final MetadataService mds = newMetadataService(rule);
+    void removeMember() {
+        final MetadataService mds = newMetadataService(manager);
 
         mds.addRepo(author, project1, repo1, ownerOnly).join();
 
@@ -277,8 +281,8 @@ public class MetadataServiceTest {
     }
 
     @Test
-    public void removeToken() throws Exception {
-        final MetadataService mds = newMetadataService(rule);
+    void removeToken() {
+        final MetadataService mds = newMetadataService(manager);
 
         mds.addRepo(author, project1, repo1, ownerOnly).join();
         mds.createToken(author, app1).join();
@@ -303,8 +307,8 @@ public class MetadataServiceTest {
     }
 
     @Test
-    public void destroyToken() throws Exception {
-        final MetadataService mds = newMetadataService(rule);
+    void destroyToken() {
+        final MetadataService mds = newMetadataService(manager);
 
         mds.addRepo(author, project1, repo1, ownerOnly).join();
         mds.createToken(author, app1).join();
@@ -331,8 +335,8 @@ public class MetadataServiceTest {
     }
 
     @Test
-    public void tokenActivationAndDeactivation() throws Exception {
-        final MetadataService mds = newMetadataService(rule);
+    void tokenActivationAndDeactivation() {
+        final MetadataService mds = newMetadataService(manager);
 
         Token token;
         mds.createToken(author, app1).join();
@@ -343,6 +347,7 @@ public class MetadataServiceTest {
         mds.deactivateToken(author, app1).join();
         token = mds.getTokens().join().get(app1);
         assertThat(token.isActive()).isFalse();
+        assertThat(token.deactivation()).isNotNull();
         assertThat(token.deactivation().user()).isEqualTo(owner.id());
 
         mds.activateToken(author, app1).join();
@@ -354,8 +359,8 @@ public class MetadataServiceTest {
         return metadata.repo(repo1);
     }
 
-    private static MetadataService newMetadataService(ProjectManagerRule rule) {
-        return new MetadataService(rule.projectManager(), rule.executor());
+    private static MetadataService newMetadataService(ProjectManagerExtension extension) {
+        return new MetadataService(extension.projectManager(), extension.executor());
     }
 
     private static ProjectMetadata getProject(MetadataService mds, String projectName) {

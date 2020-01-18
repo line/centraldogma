@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,9 +22,9 @@ import static org.mockito.Mockito.verify;
 
 import java.util.concurrent.Executor;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.command.Command;
@@ -33,9 +33,9 @@ import com.linecorp.centraldogma.server.command.PurgeProjectCommand;
 import com.linecorp.centraldogma.server.command.PurgeRepositoryCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
-import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
+import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
-public class PurgeSchedulingServiceTest {
+class PurgeSchedulingServiceTest {
 
     private static final String PROJA_ACTIVE = "proja";
     private static final String REPOA_REMOVED = "repoa";
@@ -46,8 +46,8 @@ public class PurgeSchedulingServiceTest {
     private PurgeSchedulingService service;
     private MetadataService metadataService;
 
-    @Rule
-    public final ProjectManagerRule rule = new ProjectManagerRule() {
+    @RegisterExtension
+    final ProjectManagerExtension manager = new ProjectManagerExtension() {
         @Override
         protected ProjectManager newProjectManager(Executor repositoryWorker, Executor purgeWorker) {
             return spy(super.newProjectManager(repositoryWorker, unused -> { /* noop for test */}));
@@ -71,30 +71,35 @@ public class PurgeSchedulingServiceTest {
             executor().execute(Command.createProject(AUTHOR, PROJB_REMOVED)).join();
             executor().execute(Command.removeProject(AUTHOR, PROJB_REMOVED)).join();
         }
+
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
     };
 
-    @Before
-    public void init() {
-        service = new PurgeSchedulingService(rule.projectManager(),
-                                             rule.purgeWorker(),
+    @BeforeEach
+    void setUp() {
+        service = new PurgeSchedulingService(manager.projectManager(),
+                                             manager.purgeWorker(),
                                              MAX_REMOVED_REPOSITORY_AGE_MILLIS);
     }
 
     @Test
-    public void testClear() throws InterruptedException {
-        rule.executor().execute(Command.purgeRepository(AUTHOR, PROJA_ACTIVE, REPOA_REMOVED)).join();
-        rule.executor().execute(Command.purgeProject(AUTHOR, PROJB_REMOVED)).join();
+    void testClear() {
+        manager.executor().execute(Command.purgeRepository(AUTHOR, PROJA_ACTIVE, REPOA_REMOVED)).join();
+        manager.executor().execute(Command.purgeProject(AUTHOR, PROJB_REMOVED)).join();
 
-        service.start(rule.executor(), metadataService);
-        verify(rule.projectManager()).purgeMarked();
+        service.start(manager.executor(), metadataService);
+        verify(manager.projectManager()).purgeMarked();
         service.stop();
     }
 
     @Test
-    public void testSchedule() throws InterruptedException {
+    void testSchedule() throws InterruptedException {
         Thread.sleep(10); // let removed files be purged
-        service.purgeProjectAndRepository(rule.executor(), metadataService);
-        verify(rule.executor()).execute(isA(PurgeProjectCommand.class));
-        verify(rule.executor()).execute(isA(PurgeRepositoryCommand.class));
+        service.purgeProjectAndRepository(manager.executor(), metadataService);
+        verify(manager.executor()).execute(isA(PurgeProjectCommand.class));
+        verify(manager.executor()).execute(isA(PurgeRepositoryCommand.class));
     }
 }
