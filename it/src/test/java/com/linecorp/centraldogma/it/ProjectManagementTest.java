@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,82 +21,94 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 
-public class ProjectManagementTest extends AbstractMultiClientTest {
-
-    @ClassRule
-    public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
+class ProjectManagementTest {
 
     private static final Logger logger = LoggerFactory.getLogger(ProjectManagementTest.class);
 
-    public ProjectManagementTest(ClientType clientType) {
-        super(clientType);
-    }
+    @RegisterExtension
+    static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding();
 
-    @Test
-    public void testUnremoveProject() throws Exception {
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void unremoveProject(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+
         try {
-            client().unremoveProject(rule.removedProject()).join();
-            final Set<String> projects = client().listProjects().join();
-            assertThat(projects).contains(rule.removedProject());
+            client.unremoveProject(dogma.removedProject()).join();
+            final Set<String> projects = client.listProjects().join();
+            assertThat(projects).contains(dogma.removedProject());
         } finally {
             try {
-                client().removeProject(rule.removedProject()).join();
+                client.removeProject(dogma.removedProject()).join();
             } catch (Exception e) {
-                logger.warn("Failed to re-remove a project: {}", rule.removedProject(), e);
+                logger.warn("Failed to re-remove a project: {}", dogma.removedProject(), e);
             }
         }
     }
 
-    @Test
-    public void testCreateProjectFailures() throws Exception {
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void createProjectFailures(ClientType clientType) throws Exception {
+        final CentralDogma client = clientType.client(dogma);
+
         assertThatThrownByWithExpectedException(ProjectExistsException.class, "project: p", () ->
-                client().createProject(rule.project()).join())
+                client.createProject(dogma.project()).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ProjectExistsException.class);
 
         assertThatThrownByWithExpectedException(ProjectExistsException.class, "project: rp", () ->
                 // It is not allowed to create a new project whose name is same with the removed project.
-                client().createProject(rule.removedProject()).join())
+                client.createProject(dogma.removedProject()).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(ProjectExistsException.class);
     }
 
-    @Test
-    public void testRemoveProjectFailures() throws Exception {
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void removeProjectFailures(ClientType clientType) throws Exception {
+        final CentralDogma client = clientType.client(dogma);
         assertThatThrownByWithExpectedException(ProjectNotFoundException.class, "project: mp", () ->
-                client().removeProject(rule.missingProject()).join())
+                client.removeProject(dogma.missingProject()).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ProjectNotFoundException.class);
     }
 
-    @Test
-    public void testListProjects() throws Exception {
-        final Set<String> names = client().listProjects().join();
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void listProjects(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final Set<String> names = client.listProjects().join();
 
         // Should contain "test.nnn"
-        assertThat(names).contains(rule.project());
+        assertThat(names).contains(dogma.project());
     }
 
-    @Test
-    public void testListRemovedProjects() throws Exception {
-        final Set<String> names = client().listRemovedProjects().join();
-        assertThat(names).containsExactly(rule.removedProject());
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void listRemovedProjects(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final Set<String> names = client.listRemovedProjects().join();
+        assertThat(names).containsExactly(dogma.removedProject());
     }
 
-    @Test
-    public void testPurgeProject() throws Exception {
-        client().purgeProject(rule.removedProject()).join();
-        final Set<String> names = client().listRemovedProjects().join();
-        assertThat(names).doesNotContain(rule.removedProject());
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void purgeProject(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        client.purgeProject(dogma.removedProject()).join();
+        final Set<String> names = client.listRemovedProjects().join();
+        assertThat(names).doesNotContain(dogma.removedProject());
         // revert the purged project
-        client().createProject(rule.removedProject()).join();
-        client().removeProject(rule.removedProject()).join();
+        client.createProject(dogma.removedProject()).join();
+        client.removeProject(dogma.removedProject()).join();
     }
 }

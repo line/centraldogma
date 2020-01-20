@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,26 +20,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.DisableOnDebug;
-import org.junit.rules.TestRule;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 
-public class GracefulShutdownTest extends AbstractMultiClientTest {
+@Timeout(20)
+class GracefulShutdownTest {
 
-    @ClassRule
-    public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding() {
+    @RegisterExtension
+    static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
             super.configure(builder);
@@ -47,34 +46,31 @@ public class GracefulShutdownTest extends AbstractMultiClientTest {
         }
     };
 
-    @Rule
-    public TestRule globalTimeout = new DisableOnDebug(new Timeout(20, TimeUnit.SECONDS));
-
-    public GracefulShutdownTest(ClientType clientType) {
-        super(clientType);
+    @BeforeEach
+    void startServer() {
+        dogma.start();
     }
 
-    @Before
-    public void startServer() {
-        rule.start();
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchRepositoryGracefulShutdown(ClientType clientType) throws Exception {
+        final CentralDogma client = clientType.client(dogma);
+        testGracefulShutdown(client.watchRepository(
+                dogma.project(), dogma.repo1(), Revision.HEAD, "/**", 60000));
     }
 
-    @Test(timeout = 20000)
-    public void testWatchRepositoryGracefulShutdown() throws Exception {
-        testGracefulShutdown(client().watchRepository(
-                rule.project(), rule.repo1(), Revision.HEAD, "/**", 60000));
-    }
-
-    @Test(timeout = 20000)
-    public void testWatchFileGracefulShutdown() throws Exception {
-        testGracefulShutdown(client().watchFile(
-                rule.project(), rule.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000));
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchFileGracefulShutdown(ClientType clientType) throws Exception {
+        final CentralDogma client = clientType.client(dogma);
+        testGracefulShutdown(client.watchFile(
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000));
     }
 
     private static void testGracefulShutdown(CompletableFuture<?> future) throws Exception {
         // Wait a little bit so that we do not start to stop the server before the watch operation is accepted.
         Thread.sleep(500);
-        rule.stopAsync();
+        dogma.stopAsync();
 
         assertThatThrownBy(future::join)
                 .isInstanceOf(CompletionException.class)

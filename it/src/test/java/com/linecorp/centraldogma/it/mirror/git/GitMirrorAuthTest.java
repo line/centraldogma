@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
+import static org.assertj.core.api.Assumptions.assumeThat;
+
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -24,16 +26,11 @@ import java.util.Collection;
 
 import javax.annotation.Nullable;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,15 +49,14 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-@RunWith(Parameterized.class)
-public class GitMirrorAuthTest {
+class GitMirrorAuthTest {
 
     private static final Logger logger = LoggerFactory.getLogger(GitMirrorAuthTest.class);
 
-    @ClassRule
-    public static final CentralDogmaRule rule = new CentralDogmaRule() {
+    @RegisterExtension
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
             builder.mirroringEnabled(true);
@@ -141,11 +137,41 @@ public class GitMirrorAuthTest {
     private static CentralDogma client;
     private static MirroringService mirroringService;
 
-    @Parameters(name = "{0}")
-    public static Collection<Object[]> parameters() throws Exception {
-        final ImmutableSet.Builder<Object[]> builder = ImmutableSet.builder();
+    @BeforeAll
+    static void setUp() {
+        client = dogma.client();
+        mirroringService = dogma.mirroringService();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("parameters")
+    void auth(String projName, String gitUri, JsonNode credential) {
+        client.createProject(projName).join();
+        client.createRepository(projName, "main").join();
+
+        // Add /credentials.json and /mirrors.json
+        final ArrayNode credentials = JsonNodeFactory.instance.arrayNode().add(credential);
+        client.push(projName, Project.REPO_META, Revision.HEAD, "Add a mirror",
+                    Change.ofJsonUpsert("/credentials.json", credentials),
+                    Change.ofJsonUpsert("/mirrors.json",
+                                        "[{" +
+                                        "  \"type\": \"single\"," +
+                                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                                        "  \"localRepo\": \"main\"," +
+                                        "  \"localPath\": \"/\"," +
+                                        "  \"remoteUri\": \"" + gitUri + '"' +
+                                        "}]")).join();
+
+        // Try to perform mirroring to see if authentication works as expected.
+        mirroringService.mirror().join();
+
+        client.removeProject(projName).join();
+    }
+
+    private static Collection<Arguments> parameters() throws Exception {
+        final ImmutableSet.Builder<Arguments> builder = ImmutableSet.builder();
         if (GIT_PASSWORD != null) {
-            builder.add(new Object[] {
+            builder.add(Arguments.of(
                     "https",
                     "git+https://" + GIT_HOST + ':' + GIT_PORT_HTTPS + GIT_PATH,
                     Jackson.readTree(
@@ -154,8 +180,7 @@ public class GitMirrorAuthTest {
                             "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                             "  \"username\": \"" + GIT_USERNAME_HTTPS + "\"," +
                             "  \"password\": \"" + Jackson.escapeText(GIT_PASSWORD) + '"' +
-                            '}')
-            });
+                            '}')));
         }
 
         // Test Git-over-SSH only when the public key and private key files are specified and readable.
@@ -178,7 +203,7 @@ public class GitMirrorAuthTest {
                         passphraseProperty = "\"passphrase\": null";
                     }
 
-                    builder.add(new Object[] {
+                    builder.add(Arguments.of(
                             "ssh",
                             "git+ssh://" + GIT_HOST + ':' + GIT_PORT_SSH + GIT_PATH,
                             Jackson.readTree(
@@ -189,13 +214,14 @@ public class GitMirrorAuthTest {
                                     "  \"publicKey\": \"" + Jackson.escapeText(publicKey) + "\"," +
                                     "  \"privateKey\": \"" + Jackson.escapeText(privateKey) + "\"," +
                                     passphraseProperty +
-                                    '}')
-                    });
+                                    '}')));
                 }
             }
         }
 
-        return builder.build();
+        final Collection<Arguments> parameters = builder.build();
+        assumeThat(parameters).isNotEmpty();
+        return parameters;
     }
 
     private static boolean isEncrypted(byte[] privateKeyBytes, byte[] publicKeyBytes) {
@@ -205,54 +231,5 @@ public class GitMirrorAuthTest {
             logger.warn("Failed to load the SSH key: {}", GIT_PRIVATE_KEY, e);
             return true;
         }
-    }
-
-    @BeforeClass
-    public static void init() {
-        client = rule.client();
-        mirroringService = rule.mirroringService();
-    }
-
-    @Rule
-    public final TemporaryFolder gitRepoDir = new TemporaryFolder();
-
-    private final String projName;
-    private final String gitUri;
-    private final JsonNode credential;
-
-    public GitMirrorAuthTest(String projName, String gitUri, JsonNode credential) {
-        this.projName = projName;
-        this.gitUri = gitUri;
-        this.credential = credential;
-    }
-
-    @Before
-    public void initDogmaRepo() throws Exception {
-        client.createProject(projName).join();
-        client.createRepository(projName, "main").join();
-    }
-
-    @After
-    public void destroyDogmaRepo() throws Exception {
-        client.removeProject(projName).join();
-    }
-
-    @Test
-    public void testAuth() throws Exception {
-        // Add /credentials.json and /mirrors.json
-        final ArrayNode credentials = JsonNodeFactory.instance.arrayNode().add(credential);
-        client.push(projName, Project.REPO_META, Revision.HEAD, "Add a mirror",
-                    Change.ofJsonUpsert("/credentials.json", credentials),
-                    Change.ofJsonUpsert("/mirrors.json",
-                                        "[{" +
-                                        "  \"type\": \"single\"," +
-                                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                                        "  \"localRepo\": \"main\"," +
-                                        "  \"localPath\": \"/\"," +
-                                        "  \"remoteUri\": \"" + gitUri + '"' +
-                                        "}]")).join();
-
-        // Try to perform mirroring to see if authentication works as expected.
-        mirroringService.mirror().join();
     }
 }

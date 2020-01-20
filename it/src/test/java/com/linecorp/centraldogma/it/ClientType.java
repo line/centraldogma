@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -19,19 +19,19 @@ package com.linecorp.centraldogma.it;
 import java.util.function.Function;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 enum ClientType {
-    DEFAULT(CentralDogmaRule::client),
-    LEGACY(CentralDogmaRule::legacyClient);
+    DEFAULT(CentralDogmaExtension::client),
+    LEGACY(CentralDogmaExtension::legacyClient);
 
-    private final Function<CentralDogmaRule, CentralDogma> clientFactory;
+    private final Function<CentralDogmaExtension, CentralDogma> clientFactory;
 
-    ClientType(Function<CentralDogmaRule, CentralDogma> clientFactory) {
+    ClientType(Function<CentralDogmaExtension, CentralDogma> clientFactory) {
         this.clientFactory = clientFactory;
     }
 
-    CentralDogma client(CentralDogmaRule rule) {
-        return clientFactory.apply(rule);
+    CentralDogma client(CentralDogmaExtension extension) {
+        return clientFactory.apply(extension);
     }
 }

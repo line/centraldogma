@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -28,13 +28,14 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
+import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Change;
@@ -43,36 +44,21 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
-public class WatchTest extends AbstractMultiClientTest {
+class WatchTest {
 
-    @ClassRule
-    public static final CentralDogmaRuleWithScaffolding rule = new CentralDogmaRuleWithScaffolding();
+    @RegisterExtension
+    static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding();
 
-    public WatchTest(ClientType clientType) {
-        super(clientType);
-    }
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchRepository(ClientType clientType) throws Exception {
+        revertTestFiles(clientType);
 
-    @Before
-    public void revertTestFiles() {
-        final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test1.json", "[ 1, 2, 3 ]");
-        final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test2.json", "{ \"a\": \"apple\" }");
-
-        final List<Change<JsonNode>> changes = Arrays.asList(change1, change2);
-        if (!client()
-                .getPreviewDiffs(rule.project(), rule.repo1(), Revision.HEAD, changes)
-                .join().isEmpty()) {
-            client().push(
-                    rule.project(), rule.repo1(), Revision.HEAD,
-                    "Revert test files", changes).join();
-        }
-    }
-
-    @Test
-    public void testWatchRepository() throws Exception {
-        final Revision rev1 = client().normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD).join();
+        final CentralDogma client = clientType.client(dogma);
+        final Revision rev1 = client.normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD).join();
 
         final CompletableFuture<Revision> future =
-                client().watchRepository(rule.project(), rule.repo1(), rev1, "/**", 3000);
+                client.watchRepository(dogma.project(), dogma.repo1(), rev1, "/**", 3000);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
@@ -80,8 +66,8 @@ public class WatchTest extends AbstractMultiClientTest {
                                                             "[" + System.currentTimeMillis() + ", " +
                                                             System.nanoTime() + ']');
 
-        final PushResult result = client().push(
-                rule.project(), rule.repo1(), rev1, "Add test3.json", change).join();
+        final PushResult result = client.push(
+                dogma.project(), dogma.repo1(), rev1, "Add test3.json", change).join();
 
         final Revision rev2 = result.revision();
 
@@ -89,30 +75,38 @@ public class WatchTest extends AbstractMultiClientTest {
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
     }
 
-    @Test
-    public void testWatchRepositoryImmediateWakeup() throws Exception {
-        final Revision rev1 = client().normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD).join();
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchRepositoryImmediateWakeup(ClientType clientType) throws Exception {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Revision rev1 = client.normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD).join();
         final Change<JsonNode> change = Change.ofJsonUpsert("/test/test3.json",
                                                             "[" + System.currentTimeMillis() + ", " +
                                                             System.nanoTime() + ']');
 
-        final PushResult result = client().push(
-                rule.project(), rule.repo1(), rev1, "Add test3.json", change).join();
+        final PushResult result = client.push(
+                dogma.project(), dogma.repo1(), rev1, "Add test3.json", change).join();
 
         final Revision rev2 = result.revision();
 
         assertThat(rev2).isEqualTo(rev1.forward(1));
 
         final CompletableFuture<Revision> future =
-                client().watchRepository(rule.project(), rule.repo1(), rev1, "/**", 3000);
+                client.watchRepository(dogma.project(), dogma.repo1(), rev1, "/**", 3000);
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
     }
 
-    @Test
-    public void testWatchRepositoryWithUnrelatedChange() throws Exception {
-        final Revision rev0 = client().normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD).join();
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchRepositoryWithUnrelatedChange(ClientType clientType) throws Exception {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Revision rev0 = client.normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD).join();
         final CompletableFuture<Revision> future =
-                client().watchRepository(rule.project(), rule.repo1(), rev0, "/test/test4.json", 3000);
+                client.watchRepository(dogma.project(), dogma.repo1(), rev0, "/test/test4.json", 3000);
 
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test3.json",
                                                              "[" + System.currentTimeMillis() + ", " +
@@ -121,16 +115,16 @@ public class WatchTest extends AbstractMultiClientTest {
                                                              "[" + System.currentTimeMillis() + ", " +
                                                              System.nanoTime() + ']');
 
-        final PushResult result1 = client().push(
-                rule.project(), rule.repo1(), rev0, "Add test3.json", change1).join();
+        final PushResult result1 = client.push(
+                dogma.project(), dogma.repo1(), rev0, "Add test3.json", change1).join();
         final Revision rev1 = result1.revision();
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         // Ensure that the watcher is not notified because the path pattern does not match test3.json.
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
-        final PushResult result2 = client().push(
-                rule.project(), rule.repo1(), rev1, "Add test4.json", change2).join();
+        final PushResult result2 = client.push(
+                dogma.project(), dogma.repo1(), rev1, "Add test4.json", change2).join();
         final Revision rev2 = result2.revision();
         assertThat(rev2).isEqualTo(rev1.forward(1));
 
@@ -138,30 +132,38 @@ public class WatchTest extends AbstractMultiClientTest {
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
     }
 
-    @Test
-    public void testWatchRepositoryTimeout() {
-        final Revision rev = client().watchRepository(
-                rule.project(), rule.repo1(), Revision.HEAD, "/**", 1000).join();
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchRepositoryTimeout(ClientType clientType) {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Revision rev = client.watchRepository(
+                dogma.project(), dogma.repo1(), Revision.HEAD, "/**", 1000).join();
         assertThat(rev).isNull();
     }
 
-    @Test
-    public void testWatchFile() throws Exception {
-        final Revision rev0 = client()
-                .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchFile(ClientType clientType) throws Exception {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Revision rev0 = client
+                .normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD)
                 .join();
 
         final CompletableFuture<Entry<JsonNode>> future =
-                client().watchFile(rule.project(), rule.repo1(), rev0,
-                                   Query.ofJsonPath("/test/test1.json", "$[0]"), 3000);
+                client.watchFile(dogma.project(), dogma.repo1(), rev0,
+                                 Query.ofJsonPath("/test/test1.json", "$[0]"), 3000);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final PushResult res1 = client().push(
-                rule.project(), rule.repo1(), rev0, "Add test2.json", change1).join();
+        final PushResult res1 = client.push(
+                dogma.project(), dogma.repo1(), rev0, "Add test2.json", change1).join();
 
         final Revision rev1 = res1.revision();
 
@@ -170,8 +172,8 @@ public class WatchTest extends AbstractMultiClientTest {
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final PushResult res2 = client().push(
-                rule.project(), rule.repo1(), rev1, "Add test1.json", change2).join();
+        final PushResult res2 = client.push(
+                dogma.project(), dogma.repo1(), rev1, "Add test1.json", change2).join();
 
         final Revision rev2 = res2.revision();
 
@@ -180,14 +182,18 @@ public class WatchTest extends AbstractMultiClientTest {
                 Entry.ofJson(rev2, "/test/test1.json", "-1"));
     }
 
-    @Test
-    public void testWatchFileWithIdentityQuery() throws Exception {
-        final Revision rev0 = client()
-                .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchFileWithIdentityQuery(ClientType clientType) throws Exception {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Revision rev0 = client
+                .normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD)
                 .join();
 
-        final CompletableFuture<Entry<JsonNode>> future = client().watchFile(
-                rule.project(), rule.repo1(), rev0,
+        final CompletableFuture<Entry<JsonNode>> future = client.watchFile(
+                dogma.project(), dogma.repo1(), rev0,
                 Query.ofJson("/test/test1.json"), 3000);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
@@ -195,8 +201,8 @@ public class WatchTest extends AbstractMultiClientTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final PushResult res1 = client().push(
-                rule.project(), rule.repo1(), rev0, "Add test2.json", change1).join();
+        final PushResult res1 = client.push(
+                dogma.project(), dogma.repo1(), rev0, "Add test2.json", change1).join();
 
         final Revision rev1 = res1.revision();
 
@@ -205,8 +211,8 @@ public class WatchTest extends AbstractMultiClientTest {
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final PushResult res2 = client().push(
-                rule.project(), rule.repo1(), rev1, "Update test1.json", change2).join();
+        final PushResult res2 = client.push(
+                dogma.project(), dogma.repo1(), rev1, "Update test1.json", change2).join();
 
         final Revision rev2 = res2.revision();
 
@@ -215,20 +221,28 @@ public class WatchTest extends AbstractMultiClientTest {
                 Entry.ofJson(rev2, "/test/test1.json", "[-1,-2,-3]"));
     }
 
-    @Test
-    public void testWatchFileWithTimeout() {
-        final Entry<JsonNode> res = client().watchFile(
-                rule.project(), rule.repo1(), Revision.HEAD,
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchFileWithTimeout(ClientType clientType) {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Entry<JsonNode> res = client.watchFile(
+                dogma.project(), dogma.repo1(), Revision.HEAD,
                 Query.ofJsonPath("/test/test1.json", "$"), 1000).join();
 
         assertThat(res).isNull();
     }
 
-    @Test
-    public void testTransformingWatcher() throws InterruptedException {
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void transformingWatcher(ClientType clientType) throws InterruptedException {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
-        final Watcher<JsonNode> heavyWatcher = client().fileWatcher(rule.project(), rule.repo1(),
-                                                                    Query.ofJsonPath(filePath));
+        final Watcher<JsonNode> heavyWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
+                                                                  Query.ofJsonPath(filePath));
 
         final Watcher<JsonNode> forExisting = Watcher.atJsonPointer(heavyWatcher, "/a");
         final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
@@ -241,8 +255,8 @@ public class WatchTest extends AbstractMultiClientTest {
         // After the initial value is fetched, `latest` points to the specified JSON path
         final Latest<JsonNode> initialValue = forExisting.awaitInitialValue();
 
-        final Revision rev0 = client()
-                .normalizeRevision(rule.project(), rule.repo1(), Revision.HEAD)
+        final Revision rev0 = client
+                .normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD)
                 .join();
         assertThat(initialValue.revision()).isEqualTo(rev0);
         assertThat(initialValue.value()).isEqualTo(new TextNode("apple"));
@@ -253,9 +267,9 @@ public class WatchTest extends AbstractMultiClientTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> unrelatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
-        final Revision rev1 = client().push(rule.project(), rule.repo1(), rev0, "Add /b", unrelatedChange)
-                                      .join()
-                                      .revision();
+        final Revision rev1 = client.push(dogma.project(), dogma.repo1(), rev0, "Add /b", unrelatedChange)
+                                    .join()
+                                    .revision();
 
         assertThat(triggeredCount.get()).isEqualTo(1);
         assertThat(watchResult.get()).isEqualTo(initialValue);
@@ -263,9 +277,9 @@ public class WatchTest extends AbstractMultiClientTest {
         // An relevant change should trigger a notification.
         final Change<JsonNode> relatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"artichoke\", \"b\": \"banana\" }");
-        final Revision rev2 = client().push(rule.project(), rule.repo1(), rev1, "Change /a", relatedChange)
-                                      .join()
-                                      .revision();
+        final Revision rev2 = client.push(dogma.project(), dogma.repo1(), rev1, "Change /a", relatedChange)
+                                    .join()
+                                    .revision();
 
         await().untilAsserted(() -> assertThat(forExisting.latest()).isEqualTo(
                 new Latest<>(rev2, new TextNode("artichoke"))));
@@ -277,10 +291,10 @@ public class WatchTest extends AbstractMultiClientTest {
 
         final Change<JsonNode> nextRelatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"apricot\", \"b\": \"banana\" }");
-        final Revision rev3 = client().push(rule.project(), rule.repo1(), rev2, "Change /a again",
-                                            nextRelatedChange)
-                                      .join()
-                                      .revision();
+        final Revision rev3 = client.push(dogma.project(), dogma.repo1(), rev2, "Change /a again",
+                                          nextRelatedChange)
+                                    .join()
+                                    .revision();
 
         Thread.sleep(1100); // DELAY_ON_SUCCESS_MILLIS + epsilon
         assertThat(forExisting.latest()).isEqualTo(new Latest<>(rev2, new TextNode("artichoke")));
@@ -288,5 +302,19 @@ public class WatchTest extends AbstractMultiClientTest {
         assertThat(triggeredCount.get()).isEqualTo(2);
         assertThat(heavyWatcher.latestValue().at("/a")).isEqualTo(new TextNode("apricot"));
         assertThat(heavyWatcher.latest().revision()).isEqualTo(rev3);
+    }
+
+    private static void revertTestFiles(ClientType clientType) {
+        final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test1.json", "[ 1, 2, 3 ]");
+        final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test2.json", "{ \"a\": \"apple\" }");
+
+        final List<Change<JsonNode>> changes = Arrays.asList(change1, change2);
+        final CentralDogma client = clientType.client(dogma);
+
+        if (!client.getPreviewDiffs(dogma.project(), dogma.repo1(), Revision.HEAD, changes)
+                   .join().isEmpty()) {
+            client.push(dogma.project(), dogma.repo1(), Revision.HEAD,
+                        "Revert test files", changes).join();
+        }
     }
 }
