@@ -129,7 +129,8 @@ class MirrorTest {
 
     @Test
     void jitter() {
-        final AbstractMirror mirror = newMirror("git://a.com/b.git", AbstractMirror.class);
+        final AbstractMirror mirror = assertMirror("git://a.com/b.git", AbstractMirror.class,
+                                                   "git://a.com/b.git", "/", "master");
 
         assertThat(mirror.schedule()).isSameAs(EVERY_MINUTE);
 
@@ -156,7 +157,13 @@ class MirrorTest {
                                                      String expectedRemoteRepoUri,
                                                      String expectedRemotePath,
                                                      @Nullable String expectedRemoteBranch) {
-        final T m = newMirror(remoteUri, mirrorType);
+        final Repository repository = mock(Repository.class);
+        final Project project = mock(Project.class);
+        when(repository.parent()).thenReturn(project);
+        when(repository.name()).thenReturn("bar");
+        when(project.name()).thenReturn("foo");
+
+        final T m = newMirror(remoteUri, EVERY_MINUTE, repository, mirrorType);
         assertThat(m.remoteRepoUri().toString()).isEqualTo(expectedRemoteRepoUri);
         assertThat(m.remotePath()).isEqualTo(expectedRemotePath);
         assertThat(m.remoteBranch()).isEqualTo(expectedRemoteBranch);
@@ -164,23 +171,19 @@ class MirrorTest {
     }
 
     private static <T extends Mirror> T newMirror(String remoteUri, Class<T> mirrorType) {
-        return newMirror(remoteUri, EVERY_MINUTE, mirrorType);
+        return newMirror(remoteUri, EVERY_MINUTE, mock(Repository.class), mirrorType);
     }
 
-    private static <T extends Mirror> T newMirror(String remoteUri, Cron schedule, Class<T> mirrorType) {
+    private static <T extends Mirror> T newMirror(String remoteUri, Cron schedule,
+                                                  Repository repository, Class<T> mirrorType) {
         final MirrorCredential credential = mock(MirrorCredential.class);
-        final Repository localRepo = mock(Repository.class);
-        final Project localProj = mock(Project.class);
-        when(localRepo.parent()).thenReturn(localProj);
-        when(localProj.name()).thenReturn("foo");
-        when(localRepo.name()).thenReturn("bar");
         final Mirror mirror = Mirror.of(schedule, MirrorDirection.LOCAL_TO_REMOTE,
-                                        credential, localRepo, "/", URI.create(remoteUri));
+                                        credential, repository, "/", URI.create(remoteUri));
 
         assertThat(mirror).isInstanceOf(mirrorType);
         assertThat(mirror.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);
         assertThat(mirror.credential()).isSameAs(credential);
-        assertThat(mirror.localRepo()).isSameAs(localRepo);
+        assertThat(mirror.localRepo()).isSameAs(repository);
         assertThat(mirror.localPath()).isEqualTo("/");
 
         @SuppressWarnings("unchecked")
