@@ -13,7 +13,6 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.client.armeria.legacy;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,9 +30,7 @@ import java.util.Set;
 import org.apache.thrift.async.AsyncMethodCallback;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -72,7 +69,6 @@ import com.linecorp.centraldogma.internal.thrift.Repository;
 import com.linecorp.centraldogma.internal.thrift.WatchFileResult;
 import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 
-@ExtendWith(MockitoExtension.class)
 class LegacyCentralDogmaTest {
 
     private static final String TIMESTAMP = "2016-01-02T03:04:05Z";

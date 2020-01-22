@@ -13,7 +13,6 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.internal.client;
 
 import static com.spotify.futures.CompletableFutures.exceptionallyCompletedFuture;
@@ -38,9 +37,7 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -56,7 +53,6 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
-@ExtendWith(MockitoExtension.class)
 class ReplicationLagTolerantCentralDogmaTest {
 
     private static final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();

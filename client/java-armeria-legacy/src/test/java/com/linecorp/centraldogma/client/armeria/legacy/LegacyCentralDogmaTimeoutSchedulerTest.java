@@ -24,9 +24,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.collect.ImmutableList;
 
@@ -39,7 +37,6 @@ import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
-@ExtendWith(MockitoExtension.class)
 class LegacyCentralDogmaTimeoutSchedulerTest {
 
     @Mock

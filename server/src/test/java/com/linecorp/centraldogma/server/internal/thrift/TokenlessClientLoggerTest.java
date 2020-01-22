@@ -13,7 +13,6 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.server.internal.thrift;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,9 +33,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -48,7 +45,6 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 
 import io.netty.util.NetUtil;
 
-@ExtendWith(MockitoExtension.class)
 class TokenlessClientLoggerTest {
 
     @Mock
