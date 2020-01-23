@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -32,8 +32,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -52,16 +52,22 @@ import com.linecorp.centraldogma.server.internal.admin.auth.LegacyToken;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
-import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
+import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
-public class MigrationUtilTest {
-    @Rule
-    public final ProjectManagerRule rule = new ProjectManagerRule() {
+class MigrationUtilTest {
+
+    @RegisterExtension
+    final ProjectManagerExtension manager = new ProjectManagerExtension() {
         @Override
         protected CommandExecutor newCommandExecutor(ProjectManager projectManager,
                                                      Executor worker) {
             return new LegacyProjectInitializingCommandExecutor(
                     new StandaloneCommandExecutor(projectManager, worker, null, null, null));
+        }
+
+        @Override
+        protected boolean runForEachTest() {
+            return true;
         }
     };
 
@@ -69,13 +75,13 @@ public class MigrationUtilTest {
     private static final String REPO_FOO = "foo";
 
     @Test
-    public void migrationWithoutLegacyTokens() throws Exception {
-        final ProjectManager pm = rule.projectManager();
-        final CommandExecutor executor = rule.executor();
+    void migrationWithoutLegacyTokens() {
+        final ProjectManager pm = manager.projectManager();
+        final CommandExecutor executor = manager.executor();
 
         final MetadataService mds = new MetadataService(pm, executor);
 
-        // There is no legacy tokens.
+        // There are no legacy tokens.
         MigrationUtil.migrate(pm, executor);
 
         final Tokens tokens1 = mds.getTokens().join();
@@ -84,9 +90,9 @@ public class MigrationUtilTest {
     }
 
     @Test
-    public void migration() throws Exception {
-        final ProjectManager pm = rule.projectManager();
-        final CommandExecutor executor = rule.executor();
+    void migration() {
+        final ProjectManager pm = manager.projectManager();
+        final CommandExecutor executor = manager.executor();
 
         final MetadataService mds = new MetadataService(pm, executor);
 
@@ -114,7 +120,7 @@ public class MigrationUtilTest {
             MigrationUtil.migrate(pm, executor);
 
             final Tokens tokens2 = mds.getTokens().join();
-            assertThat(tokens2.appIds().size()).isEqualTo(2);
+            assertThat(tokens2.appIds()).hasSize(2);
             assertThat(tokens2.appIds().get("app1").secret()).isEqualTo(legacyToken1.secret());
             assertThat(tokens2.appIds().get("app2").secret()).isEqualTo(legacyToken2.secret());
 
@@ -124,7 +130,7 @@ public class MigrationUtilTest {
                     mds.getProject("legacyProject3").join());
 
             for (final ProjectMetadata m : metadataList) {
-                assertThat(m.tokens().size()).isEqualTo(2);
+                assertThat(m.tokens()).hasSize(2);
 
                 // Every token has to be registered to every project with member role.
                 assertThat(m.tokens().get("app1").role()).isEqualTo(ProjectRole.MEMBER);
@@ -153,9 +159,9 @@ public class MigrationUtilTest {
     }
 
     @Test
-    public void migrationFrom0_23_0() {
-        final ProjectManager pm = rule.projectManager();
-        final CommandExecutor executor = rule.executor();
+    void migrationFrom0_23_0() {
+        final ProjectManager pm = manager.projectManager();
+        final CommandExecutor executor = manager.executor();
 
         // Create a legacy token repository.
         pm.get(INTERNAL_PROJ).repos().create("main", Author.SYSTEM);
@@ -216,7 +222,7 @@ public class MigrationUtilTest {
     }
 
     private Project createProjectWithoutMetadata(String projectName) {
-        final Project project = rule.projectManager().create(projectName, Author.SYSTEM);
+        final Project project = manager.projectManager().create(projectName, Author.SYSTEM);
         final RepositoryManager manager = project.repos();
         manager.get(REPO_DOGMA).commit(Revision.HEAD, System.currentTimeMillis(), author,
                                        "Delete /metadata.json to mimic the legacy project",

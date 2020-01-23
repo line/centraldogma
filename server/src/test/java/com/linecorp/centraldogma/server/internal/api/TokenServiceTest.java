@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,9 +21,9 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Collection;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -32,14 +32,14 @@ import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MigrationUtil;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.User;
-import com.linecorp.centraldogma.testing.internal.ProjectManagerRule;
+import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 import io.netty.util.internal.StringUtil;
 
-public class TokenServiceTest {
+class TokenServiceTest {
 
-    @ClassRule
-    public static final ProjectManagerRule rule = new ProjectManagerRule() {
+    @RegisterExtension
+    static final ProjectManagerExtension manager = new ProjectManagerExtension() {
         @Override
         protected void afterExecutorStarted() {
             MigrationUtil.migrate(projectManager(), executor());
@@ -55,14 +55,14 @@ public class TokenServiceTest {
 
     private final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
 
-    @BeforeClass
-    public static void beforeClass() {
-        tokenService = new TokenService(rule.projectManager(), rule.executor(),
-                                        new MetadataService(rule.projectManager(), rule.executor()));
+    @BeforeAll
+    static void setUp() {
+        tokenService = new TokenService(manager.projectManager(), manager.executor(),
+                                        new MetadataService(manager.projectManager(), manager.executor()));
     }
 
     @Test
-    public void adminToken() {
+    void adminToken() {
         final Token token = tokenService.createToken("forAdmin1", true, adminAuthor, admin).join()
                                         .content().get();
         assertThat(token.isActive()).isTrue();
@@ -86,7 +86,7 @@ public class TokenServiceTest {
     }
 
     @Test
-    public void userToken() {
+    void userToken() {
         final Token userToken1 = tokenService.createToken("forUser1", false, adminAuthor, admin)
                                              .join().content().get();
         final Token userToken2 = tokenService.createToken("forUser2", false, guestAuthor, guest)

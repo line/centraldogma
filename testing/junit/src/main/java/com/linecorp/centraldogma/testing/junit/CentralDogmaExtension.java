@@ -15,16 +15,10 @@
  */
 package com.linecorp.centraldogma.testing.junit;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-
-import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -38,6 +32,7 @@ import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
+import com.linecorp.centraldogma.testing.internal.TemporaryFolder;
 
 /**
  * A JUnit {@link Extension} that starts an embedded Central Dogma server.
@@ -59,8 +54,8 @@ import com.linecorp.centraldogma.testing.internal.CentralDogmaRuleDelegate;
 public class CentralDogmaExtension extends AbstractAllOrEachExtension {
 
     private final CentralDogmaRuleDelegate delegate;
-    @Nullable
-    private File dataDir;
+
+    private final TemporaryFolder dataDir = new TemporaryFolder();
 
     /**
      * Creates a new instance with TLS disabled.
@@ -98,16 +93,15 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
 
     @Override
     public void before(ExtensionContext context) throws Exception {
-        createDataDir();
-        assert dataDir != null;
-        delegate.setUp(dataDir);
+        dataDir.create();
+        delegate.setUp(dataDir.getRoot().toFile());
     }
 
     @Override
     public void after(ExtensionContext context) throws Exception {
         stopAsync().whenComplete((unused1, unused2) -> {
             try {
-                deleteDataDir();
+                dataDir.delete();
             } catch (IOException e) {
                 throw new CompletionException(e);
             }
@@ -129,15 +123,15 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
      */
     public final CompletableFuture<Void> startAsync() {
         // Create the root folder first if it doesn't exist.
-        if (dataDir == null) {
+        if (!dataDir.exists()) {
             try {
-                createDataDir();
+                dataDir.create();
             } catch (IOException e) {
                 return CompletableFutures.exceptionallyCompletedFuture(e);
             }
         }
 
-        return delegate.startAsync(dataDir);
+        return delegate.startAsync(dataDir.getRoot().toFile());
     }
 
     /**
@@ -237,21 +231,4 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
      * such as creating a repository and populating sample data.
      */
     protected void scaffold(CentralDogma client) {}
-
-    private void createDataDir() throws IOException {
-        dataDir = Files.createTempDirectory("centraldogma").toFile();
-    }
-
-    private void deleteDataDir() throws IOException {
-        if (dataDir == null) {
-            return;
-        }
-
-        Files.walk(dataDir.toPath())
-             .sorted(Comparator.reverseOrder())
-             .map(Path::toFile)
-             .forEach(File::delete);
-
-        dataDir = null;
-    }
 }
