@@ -230,7 +230,8 @@ org.javassist:
   javassist: { version: '3.26.0-GA' }
 
 org.mockito:
-  mockito-core: { version: '3.2.0' }
+  mockito-core: { version: &MOCKITO_VERSION '3.2.4' }
+  mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
   jetty-alpn-agent: { version: '2.0.9' }

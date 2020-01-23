@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,16 +20,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.regex.Pattern;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
-public class NoneMirrorCredentialTest {
+class NoneMirrorCredentialTest {
+
     @Test
-    public void testDeserialization() throws Exception {
+    void testDeserialization() throws Exception {
         // With hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"none\"," +

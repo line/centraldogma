@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -32,12 +32,12 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
 
-public class WatchRequestConverterTest {
+class WatchRequestConverterTest {
 
     private static final WatchRequestConverter converter = new WatchRequestConverter();
 
     @Test
-    public void convertWatchRequest() throws Exception {
+    void convertWatchRequest() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/",
@@ -52,7 +52,7 @@ public class WatchRequestConverterTest {
     }
 
     @Test
-    public void emptyHeader() throws Exception {
+    void emptyHeader() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/");

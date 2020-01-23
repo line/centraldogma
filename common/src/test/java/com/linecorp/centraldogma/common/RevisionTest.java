@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,12 +22,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class RevisionTest {
+class RevisionTest {
 
     @Test
-    public void deserialization() throws Exception {
+    void deserialization() throws Exception {
         assertThat(toRevision("2")).isEqualTo(new Revision(2));
         assertThat(toRevision("\"3\"")).isEqualTo(new Revision(3));
         assertThat(toRevision("\"4.0\"")).isEqualTo(new Revision(4));
@@ -51,7 +51,7 @@ public class RevisionTest {
     }
 
     @Test
-    public void serialization() throws Exception {
+    void serialization() {
         assertThatJson(new Revision(9)).isEqualTo("9");
         assertThatJson(Revision.HEAD).isEqualTo("-1");
     }

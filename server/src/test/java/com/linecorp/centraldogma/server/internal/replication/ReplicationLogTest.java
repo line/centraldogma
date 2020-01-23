@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -26,12 +26,12 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
 
-public class ReplicationLogTest {
+class ReplicationLogTest {
 
     private static final Author AUTHOR = new Author("foo", "bar@baz.com");
 
     @Test
-    public void testJsonConversion() {
+    void testJsonConversion() {
         assertJsonConversion(new ReplicationLog<>(1, Command.createProject(1234L, AUTHOR, "foo"), null),
                              '{' +
                              "  \"replicaId\": 1," +

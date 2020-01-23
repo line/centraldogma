@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,19 +22,19 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 
-public class QueryRequestConverterTest {
+class QueryRequestConverterTest {
 
     private static final QueryRequestConverter converter = new QueryRequestConverter();
 
     @Test
-    public void convertIdentityQuery() throws Exception {
+    void convertIdentityQuery() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final String filePath = "/a.txt";
         when(ctx.pathParam("path")).thenReturn(filePath);
@@ -46,7 +46,7 @@ public class QueryRequestConverterTest {
     }
 
     @Test
-    public void invalidPath() throws Exception {
+    void invalidPath() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final String filePath = "/"; // a directory
         when(ctx.pathParam("path")).thenReturn(filePath);
@@ -56,7 +56,7 @@ public class QueryRequestConverterTest {
     }
 
     @Test
-    public void convertJsonPathQuery() throws Exception {
+    void convertJsonPathQuery() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final String jsonFilePath = "/a.json";
         when(ctx.pathParam("path")).thenReturn(jsonFilePath);
@@ -72,7 +72,7 @@ public class QueryRequestConverterTest {
     }
 
     @Test
-    public void withoutExpression() throws Exception {
+    void withoutExpression() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
 
         // even though the file is a JSON file, the converted query's type will be IDENTITY because there's no

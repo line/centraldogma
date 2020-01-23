@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,9 +16,9 @@
 
 package com.linecorp.centraldogma.common;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
@@ -27,10 +27,10 @@ import difflib.DiffUtils;
 import difflib.Patch;
 import difflib.PatchFailedException;
 
-public class ChangeTest {
+class ChangeTest {
 
     @Test
-    public void testTextPatches() throws PatchFailedException {
+    void testTextPatches() throws PatchFailedException {
         final String oriStr = "1\n2\n3\n4\n5\n6\n7\n8\n9";
         final String newStr = "1a\n2\n3\n4\n5\n6\n7\n8\n9a";
         final String expectedUnifiedDiff = "--- /text_file.txt\n" +
@@ -48,14 +48,14 @@ public class ChangeTest {
                                            "-9\n" +
                                            "+9a";
         final Change<String> change = Change.ofTextPatch("/text_file.txt", oriStr, newStr);
-        assertEquals(expectedUnifiedDiff, change.content());
+        assertThat(change.content()).isEqualTo(expectedUnifiedDiff);
         final Patch<String> patch = DiffUtils.parseUnifiedDiff(Util.stringToLines(change.content()));
         final String patchedStr = String.join("\n", patch.applyTo(Util.stringToLines(oriStr)));
-        assertEquals(newStr, patchedStr);
+        assertThat(patchedStr).isEqualTo(newStr);
     }
 
     @Test
-    public void testJsonConversion() throws Exception {
+    void testJsonConversion() {
         TestUtil.assertJsonConversion(Change.ofJsonUpsert("/1.json", "{ \"a\": 42 }"), Change.class,
                              '{' +
                              "  \"type\": \"UPSERT_JSON\"," +

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -29,7 +29,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.function.Consumer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
@@ -41,12 +41,12 @@ import com.linecorp.armeria.client.endpoint.EndpointGroupRegistry;
 import com.linecorp.armeria.client.endpoint.StaticEndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
 
-public class ArmeriaCentralDogmaBuilderTest {
+class ArmeriaCentralDogmaBuilderTest {
 
     // Note: This test case relies on http://xip.io/
 
     @Test
-    public void buildingWithProfile() throws Exception {
+    void buildingWithProfile() throws Exception {
         final String groupName = "centraldogma-profile-xip";
         try {
             final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
@@ -79,7 +79,7 @@ public class ArmeriaCentralDogmaBuilderTest {
     }
 
     @Test
-    public void buildingWithSingleResolvedHost() throws Exception {
+    void buildingWithSingleResolvedHost() throws Exception {
         final long id = AbstractArmeriaCentralDogmaBuilder.nextAnonymousGroupId.get();
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.host("1.2.3.4");
@@ -91,7 +91,7 @@ public class ArmeriaCentralDogmaBuilderTest {
     }
 
     @Test
-    public void buildingWithSingleUnresolvedHost() throws Exception {
+    void buildingWithSingleUnresolvedHost() throws Exception {
         final long id = AbstractArmeriaCentralDogmaBuilder.nextAnonymousGroupId.get();
         final String expectedGroupName = "centraldogma-anonymous-" + id;
 
@@ -110,7 +110,7 @@ public class ArmeriaCentralDogmaBuilderTest {
     }
 
     @Test
-    public void buildingWithMultipleHosts() throws Exception {
+    void buildingWithMultipleHosts() throws Exception {
         final long id = AbstractArmeriaCentralDogmaBuilder.nextAnonymousGroupId.get();
         final String groupName = "centraldogma-anonymous-" + id;
         try {
@@ -161,7 +161,7 @@ public class ArmeriaCentralDogmaBuilderTest {
      * </ol>
      */
     @Test
-    public void newClientBuilderCustomizationOrder() {
+    void newClientBuilderCustomizationOrder() {
         final ClientFactory cf1 = mock(ClientFactory.class);
         final ClientFactory cf2 = mock(ClientFactory.class);
         final ClientFactory cf3 = mock(ClientFactory.class);

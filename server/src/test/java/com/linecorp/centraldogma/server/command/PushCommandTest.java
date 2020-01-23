@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Collections;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -29,10 +29,10 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 
-public class PushCommandTest {
+class PushCommandTest {
 
     @Test
-    public void testJsonConversion() {
+    void testJsonConversion() {
         assertJsonConversion(
                 new PushCommand(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
                                 "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
@@ -60,7 +60,7 @@ public class PushCommandTest {
     }
 
     @Test
-    public void backwardCompatibility() throws Exception {
+    void backwardCompatibility() throws Exception {
         final PushCommand c = (PushCommand) Jackson.readValue(
                 '{' +
                 "  \"type\": \"PUSH\"," +

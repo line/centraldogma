@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -19,12 +19,11 @@ package com.linecorp.centraldogma.server.internal.storage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -35,16 +34,16 @@ import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
-public class DefaultProjectManagerTest {
+class DefaultProjectManagerTest {
 
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir
+    File tempDir;
 
     @Test
-    public void testProjectPurgeMarked() throws IOException {
+    void testProjectPurgeMarked() {
         final AtomicInteger counter = new AtomicInteger();
         final DefaultProjectManager pm = new DefaultProjectManager(
-                folder.newFolder(),
+                tempDir,
                 MoreExecutors.directExecutor(),
                 (Runnable r) -> counter.incrementAndGet(),
                 mock(MeterRegistry.class),

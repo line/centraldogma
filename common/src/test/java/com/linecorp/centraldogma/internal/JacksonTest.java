@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,16 +22,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.QueryExecutionException;
 
-public class JacksonTest {
+class JacksonTest {
 
     @Test
-    public void nullCanBeAnyTypeWhileMerging() throws IOException {
+    void nullCanBeAnyTypeWhileMerging() throws IOException {
         final JsonNode nullNode = readTree("{\"a\": null}");
         final JsonNode numberNode = readTree("{\"a\": 1}");
         JsonNode merged = Jackson.mergeTree(nullNode, numberNode);
@@ -59,7 +59,7 @@ public class JacksonTest {
     }
 
     @Test
-    public void rootShouldBeObjectNode() throws IOException {
+    void rootShouldBeObjectNode() throws IOException {
         final JsonNode arrayJson1 = readTree("[1, 2, 3]");
         final JsonNode arrayJson2 = readTree("[3, 4, 5]");
 
@@ -69,7 +69,7 @@ public class JacksonTest {
     }
 
     @Test
-    public void mergeMixedJsonNodeTypes() throws IOException {
+    void mergeMixedJsonNodeTypes() throws IOException {
         final JsonNode baseJson = readTree('{' +
                                            "   \"a\": \"foo1\"," +
                                            "   \"b\": \"foo2\"," +
@@ -122,7 +122,7 @@ public class JacksonTest {
     }
 
     @Test
-    public void mismatchedValueNodeWhileMerging() throws IOException {
+    void mismatchedValueNodeWhileMerging() throws IOException {
         final JsonNode baseJson = readTree('{' +
                                            "   \"a\": {" +
                                            "      \"b\": \"foo\"" +

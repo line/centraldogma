@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -24,7 +24,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -32,10 +32,10 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.Session;
 
-public class CreateSessionCommandTest {
+class CreateSessionCommandTest {
 
     @Test
-    public void testJsonConversion() throws Exception {
+    void testJsonConversion() throws Exception {
         final Session session =
                 new Session("session-id-12345",
                             "foo",

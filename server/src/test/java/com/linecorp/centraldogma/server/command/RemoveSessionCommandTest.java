@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,13 +18,14 @@ package com.linecorp.centraldogma.server.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.common.Author;
 
-public class RemoveSessionCommandTest {
+class RemoveSessionCommandTest {
+
     @Test
-    public void testJsonConversion() {
+    void testJsonConversion() {
         assertJsonConversion(
                 new RemoveSessionCommand(1234L, new Author("foo", "bar@baz.com"), "some-id"),
                 Command.class,

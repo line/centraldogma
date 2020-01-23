@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -15,26 +15,28 @@
  */
 package com.linecorp.centraldogma.server;
 
+import static java.nio.file.Files.createTempFile;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import java.nio.file.Path;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
-public class ConfigDeserializationTest {
+class ConfigDeserializationTest {
 
-    @ClassRule
-    public static TemporaryFolder folder = new TemporaryFolder();
+    @TempDir
+    static Path tempDir;
 
     @Test
-    public void tlsConfig() throws Exception {
-        final String cert = Jackson.escapeText(folder.newFile().getAbsolutePath());
-        final String key = Jackson.escapeText(folder.newFile().getAbsolutePath());
+    void tlsConfig() throws Exception {
+        final String cert = Jackson.escapeText(createTempFile(tempDir, "", "").toAbsolutePath().toString());
+        final String key = Jackson.escapeText(createTempFile(tempDir, "", "").toAbsolutePath().toString());
 
         final String jsonConfig = String.format("{\"tls\": {" +
                                                 "\"keyCertChainFile\": \"%s\", " +

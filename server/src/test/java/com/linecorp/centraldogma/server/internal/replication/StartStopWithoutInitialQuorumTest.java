@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -19,31 +19,28 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.curator.test.InstanceSpec;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.DisableOnDebug;
-import org.junit.rules.TestRule;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.ZooKeeperAddress;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
-import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 /**
  * Makes sure that we can stop a replica that's waiting for the initial quorum.
  */
-public class StartStopWithoutInitialQuorumTest {
+@Timeout(value = 1, unit = TimeUnit.MINUTES)
+class StartStopWithoutInitialQuorumTest {
 
-    @Rule
-    public final TestRule timeoutRule = new DisableOnDebug(new Timeout(1, TimeUnit.MINUTES));
-
-    @Rule
-    public final CentralDogmaRule dogma = new CentralDogmaRule() {
+    @RegisterExtension
+    final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
-        protected void before() {
+        public void before(ExtensionContext context) throws Exception {
             // Do not start yet.
         }
 
@@ -59,10 +56,15 @@ public class StartStopWithoutInitialQuorumTest {
                                                                quorumPort, electionPort, clientPort),
                                        2, new ZooKeeperAddress("127.0.0.1", 1, 1, 1))));
         }
+
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
     };
 
     @Test
-    public void test() {
+    void test() {
         final CompletableFuture<Void> startFuture = dogma.startAsync();
         dogma.stopAsync().join();
         startFuture.join();

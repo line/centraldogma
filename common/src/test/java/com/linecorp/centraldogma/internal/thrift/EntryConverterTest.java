@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,9 +18,9 @@ package com.linecorp.centraldogma.internal.thrift;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class EntryConverterTest {
+class EntryConverterTest {
 
     private static final com.linecorp.centraldogma.common.Revision REV =
             new com.linecorp.centraldogma.common.Revision(42);
@@ -29,7 +29,7 @@ public class EntryConverterTest {
     private static final Entry THRIFT = new Entry("/a.txt", EntryType.TEXT).setContent("hello");
 
     @Test
-    public void test() throws Exception {
+    void test() {
         assertThat(EntryConverter.convert(COMMON)).isEqualTo(THRIFT);
         assertThat(EntryConverter.convert(REV, THRIFT)).isEqualTo(COMMON);
         assertThat(EntryConverter.convert(EntryConverter.convert(REV, THRIFT))).isEqualTo(THRIFT);

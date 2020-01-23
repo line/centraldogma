@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,12 +20,12 @@ import static com.linecorp.centraldogma.common.Revision.INIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class RevisionRangeTest {
+class RevisionRangeTest {
 
     @Test
-    public void revisionRange() {
+    void revisionRange() {
         RevisionRange range = new RevisionRange(2, 4);
 
         assertThat(range.isAscending()).isTrue();

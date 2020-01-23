@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,12 +22,12 @@ import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class UtilTest {
+class UtilTest {
 
     @Test
-    public void testValidateFilePath() {
+    void testValidateFilePath() {
         assertFilePathValidationSuccess("/foo.txt");
         assertFilePathValidationSuccess("/foo/bar.txt");
         assertFilePathValidationSuccess("/foo.bar/baz.json");
@@ -61,7 +61,7 @@ public class UtilTest {
     }
 
     @Test
-    public void testValidateJsonFilePath() {
+    void testValidateJsonFilePath() {
         assertJsonFilePathValidationSuccess("/foo.json");
         assertJsonFilePathValidationSuccess("/foo/bar.json");
         assertJsonFilePathValidationSuccess("/foo.bar/baz.json");
@@ -98,7 +98,7 @@ public class UtilTest {
     }
 
     @Test
-    public void testValidateDirPath() {
+    void testValidateDirPath() {
         assertDirPathValidationSuccess("/");
         assertDirPathValidationSuccess("/foo");
         assertDirPathValidationSuccess("/foo/");
@@ -131,7 +131,7 @@ public class UtilTest {
     }
 
     @Test
-    public void testValidEmailAddress() {
+    void testValidEmailAddress() {
         testValidEmail("dogma@github.com");
         testValidEmail("dogma@127.0.0.1");
         testValidEmail("dogma@10.1.1.1");

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.internal.thrift;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,11 +32,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Nullable;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -47,20 +45,19 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 
 import io.netty.util.NetUtil;
 
-@RunWith(MockitoJUnitRunner.class)
-public class TokenlessClientLoggerTest {
+class TokenlessClientLoggerTest {
 
     @Mock
-    private Clock clock; // = Mockito.mock(Clock.class);
+    private Clock clock;
     @Mock
-    private HttpService delegate; // = Mockito.mock(Service.class);
+    private HttpService delegate;
 
     @Test
-    public void testWithToken() throws Exception {
+    void testWithToken() throws Exception {
         final MockTokenlessClientLogger logger = new MockTokenlessClientLogger();
 
         // When a request with a CSRF token is received
-        final ServiceRequestContext ctx = newContext("foo", "192.168.0.1");
+        final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final HttpRequest req = newRequestWithToken();
         logger.serve(ctx, req);
 
@@ -74,7 +71,7 @@ public class TokenlessClientLoggerTest {
     }
 
     @Test
-    public void testWithoutToken() throws Exception {
+    void testWithoutToken() throws Exception {
         final MockTokenlessClientLogger logger = new MockTokenlessClientLogger();
 
         final Instant startTime = Instant.now();
@@ -130,7 +127,7 @@ public class TokenlessClientLoggerTest {
     }
 
     private static ServiceRequestContext newContext(String hostname, String ip) {
-        final ServiceRequestContext ctx = Mockito.mock(ServiceRequestContext.class);
+        final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         try {
             when(ctx.remoteAddress()).thenReturn(new InetSocketAddress(
                     InetAddress.getByAddress(hostname, NetUtil.createByteArrayFromIpAddressString(ip)),

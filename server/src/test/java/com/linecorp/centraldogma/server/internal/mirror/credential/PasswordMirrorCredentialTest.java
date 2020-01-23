@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,15 +20,15 @@ import static com.linecorp.centraldogma.server.internal.mirror.credential.Mirror
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
-public class PasswordMirrorCredentialTest {
+class PasswordMirrorCredentialTest {
 
     @Test
-    public void testConstruction() throws Exception {
+    void testConstruction() throws Exception {
         // null checks
         assertThatThrownBy(() -> new PasswordMirrorCredential(null, null, null, "sesame"))
                 .isInstanceOf(NullPointerException.class);
@@ -50,7 +50,7 @@ public class PasswordMirrorCredentialTest {
     }
 
     @Test
-    public void testDeserialization() throws Exception {
+    void testDeserialization() throws Exception {
         // With hostnamePatterns
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"password\"," +

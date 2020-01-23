@@ -35,7 +35,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.nio.file.Files;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -149,7 +148,7 @@ public class ZooKeeperCommandExecutorTest {
                                                      Command<?> command1,
                                                      Command<?> command2) {
         final AtomicReference<Command<?>> lastCommand = new AtomicReference<>();
-        verify(replica.delegate, timeout(Duration.ofSeconds(2)).times(1)).apply(argThat(c -> {
+        verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
             if (lastCommand.get() != null) {
                 return c.equals(lastCommand.get());
             }
@@ -163,7 +162,7 @@ public class ZooKeeperCommandExecutorTest {
         }));
 
         final Command<?> expected = lastCommand.get().equals(command1) ? command2 : command1;
-        verify(replica.delegate, timeout(Duration.ofSeconds(2)).times(1)).apply(argThat(c -> {
+        verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
             return c.equals(expected);
         }));
     }

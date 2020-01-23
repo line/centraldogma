@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,15 +18,16 @@ package com.linecorp.centraldogma.internal.thrift;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class AuthorConverterTest {
+class AuthorConverterTest {
+
     private static final com.linecorp.centraldogma.common.Author COMMON =
             new com.linecorp.centraldogma.common.Author("user", "user@sample.com");
     private static final Author THRIFT = new Author("user", "user@sample.com");
 
     @Test
-    public void test() throws Exception {
+    void test() {
         assertThat(AuthorConverter.TO_DATA.convert(COMMON)).isEqualTo(THRIFT);
         assertThat(AuthorConverter.TO_MODEL.convert(THRIFT)).isEqualTo(COMMON);
         assertThat(AuthorConverter.TO_DATA.convert(AuthorConverter.TO_MODEL.convert(THRIFT))).isEqualTo(THRIFT);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,7 +20,7 @@ import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpMethod;
@@ -32,7 +32,7 @@ import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 
-public class CentralDogmaAuthFailureHandlerTest {
+class CentralDogmaAuthFailureHandlerTest {
 
     private final CentralDogmaAuthFailureHandler handler = new CentralDogmaAuthFailureHandler();
     @SuppressWarnings("unchecked")
@@ -41,7 +41,7 @@ public class CentralDogmaAuthFailureHandlerTest {
     private final ServiceRequestContext ctx = ServiceRequestContext.of(req);
 
     @Test
-    public void shuttingDown() throws Exception {
+    void shuttingDown() throws Exception {
         final AggregatedHttpResponse res = handler.authFailed(delegate, ctx, req, new ShuttingDownException())
                                                   .aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -54,7 +54,7 @@ public class CentralDogmaAuthFailureHandlerTest {
     }
 
     @Test
-    public void failure() throws Exception {
+    void failure() throws Exception {
         final AggregatedHttpResponse res = handler.authFailed(delegate, ctx, req, new Exception("oops"))
                                                   .aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -67,7 +67,7 @@ public class CentralDogmaAuthFailureHandlerTest {
     }
 
     @Test
-    public void incorrectToken() throws Exception {
+    void incorrectToken() throws Exception {
         final AggregatedHttpResponse res = handler.authFailed(delegate, ctx, req, null)
                                                   .aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.UNAUTHORIZED);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 
 import javax.annotation.Nullable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.storage.PurgeSchedulingServicePlugin;
@@ -31,10 +31,10 @@ import com.linecorp.centraldogma.server.plugin.NoopPluginForLeader;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
-public class PluginGroupTest {
+class PluginGroupTest {
 
     @Test
-    public void confirmPluginsForAllReplicasLoaded() {
+    void confirmPluginsForAllReplicasLoaded() {
         final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
         final PluginGroup group = PluginGroup.loadPlugins(PluginTarget.ALL_REPLICAS, cfg);
         assertThat(group).isNotNull();
@@ -42,7 +42,7 @@ public class PluginGroupTest {
     }
 
     @Test
-    public void confirmPluginsForLeaderLoaded() {
+    void confirmPluginsForLeaderLoaded() {
         final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
         final PluginGroup group = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group).isNotNull();
@@ -54,7 +54,7 @@ public class PluginGroupTest {
      * {@link CentralDogmaConfig#isMirroringEnabled()} property is {@code true}.
      */
     @Test
-    public void confirmDefaultMirroringServiceLoadedDependingOnConfig() {
+    void confirmDefaultMirroringServiceLoadedDependingOnConfig() {
         final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
         when(cfg.isMirroringEnabled()).thenReturn(true);
         final PluginGroup group1 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
@@ -72,7 +72,7 @@ public class PluginGroupTest {
      * {@link CentralDogmaConfig#maxRemovedRepositoryAgeMillis()} property is greater then 0.
      */
     @Test
-    public void confirmScheduledPurgingServiceLoadedDependingOnConfig() {
+    void confirmScheduledPurgingServiceLoadedDependingOnConfig() {
         final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
         when(cfg.maxRemovedRepositoryAgeMillis()).thenReturn(1L);
         final PluginGroup group1 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);

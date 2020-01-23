@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -30,12 +30,12 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 
-public class MergeQueryRequestConverterTest {
+class MergeQueryRequestConverterTest {
 
     private static final MergeQueryRequestConverter converter = new MergeQueryRequestConverter();
 
     @Test
-    public void convert() throws Exception {
+    void convert() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final String queryString = "path=/foo.json" + '&' +
                                    "pa%22th=/foo1.json" + '&' +

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,35 +16,27 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class TagUtilTest {
+class TagUtilTest {
 
     @Test
-    public void testByteHexDirName() throws Exception {
-        assertEquals("01/", TagUtil.byteHexDirName(0x00000001));
-        assertEquals("0a/0b/", TagUtil.byteHexDirName(0x00000b0a));
-        assertEquals("0a/0b/0c/", TagUtil.byteHexDirName(0x000c0b0a));
-        assertEquals("0a/0b/0c/0d/", TagUtil.byteHexDirName(0x0d0c0b0a));
+    void testByteHexDirName() {
+        assertThat(TagUtil.byteHexDirName(0x00000001)).isEqualTo("01/");
+        assertThat(TagUtil.byteHexDirName(0x00000b0a)).isEqualTo("0a/0b/");
+        assertThat(TagUtil.byteHexDirName(0x000c0b0a)).isEqualTo("0a/0b/0c/");
+        assertThat(TagUtil.byteHexDirName(0x0d0c0b0a)).isEqualTo("0a/0b/0c/0d/");
     }
 
     @Test
-    public void testByteHexDirNameException() {
-        try {
-            TagUtil.byteHexDirName(0);
-            fail();
-        } catch (IllegalArgumentException ignored) {
-            // Expected
-        }
+    void testByteHexDirNameException() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> TagUtil.byteHexDirName(0));
 
-        try {
-            TagUtil.byteHexDirName(-1);
-            fail();
-        } catch (IllegalArgumentException ignored) {
-            // Expected
-        }
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> TagUtil.byteHexDirName(-1));
     }
 }

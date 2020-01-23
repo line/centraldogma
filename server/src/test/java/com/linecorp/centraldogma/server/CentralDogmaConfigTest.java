@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -23,15 +23,15 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.function.Predicate;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.server.ClientAddressSource;
 import com.linecorp.centraldogma.internal.Jackson;
 
-public class CentralDogmaConfigTest {
+class CentralDogmaConfigTest {
 
     @Test
-    public void trustedProxyAddress_withCustomClientAddressSources() throws Exception {
+    void trustedProxyAddress_withCustomClientAddressSources() throws Exception {
         final CentralDogmaConfig cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
@@ -58,8 +58,8 @@ public class CentralDogmaConfigTest {
                                   "  ]\n" +
                                   '}',
                                   CentralDogmaConfig.class);
-        assertThat(cfg.trustedProxyAddresses().size()).isEqualTo(2);
-        assertThat(cfg.clientAddressSources().size()).isEqualTo(2);
+        assertThat(cfg.trustedProxyAddresses()).hasSize(2);
+        assertThat(cfg.clientAddressSources()).hasSize(2);
 
         final Predicate<InetAddress> p = cfg.trustedProxyAddressPredicate();
         assertThat(p.test(InetAddress.getByName("10.0.0.1"))).isTrue();
@@ -68,7 +68,7 @@ public class CentralDogmaConfigTest {
         assertThat(p.test(InetAddress.getByName("11.0.1.1"))).isFalse();
 
         final List<ClientAddressSource> sources = cfg.clientAddressSourceList();
-        assertThat(sources.size()).isEqualTo(2);
+        assertThat(sources).hasSize(2);
         // TODO(hyangtack) Need to add equals/hashCode to ClientAddressSource class.
         //                 https://github.com/line/armeria/pull/1804
         assertThat(sources.get(0).toString())
@@ -77,7 +77,7 @@ public class CentralDogmaConfigTest {
     }
 
     @Test
-    public void trustedProxyAddress_withDefaultClientAddressSources() throws Exception {
+    void trustedProxyAddress_withDefaultClientAddressSources() throws Exception {
         final CentralDogmaConfig cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
@@ -100,11 +100,11 @@ public class CentralDogmaConfigTest {
                                   "  ]\n" +
                                   '}',
                                   CentralDogmaConfig.class);
-        assertThat(cfg.trustedProxyAddresses().size()).isEqualTo(2);
+        assertThat(cfg.trustedProxyAddresses()).hasSize(2);
         assertThat(cfg.clientAddressSources()).isNull();
 
         final List<ClientAddressSource> sources = cfg.clientAddressSourceList();
-        assertThat(sources.size()).isEqualTo(3);
+        assertThat(sources).hasSize(3);
         // TODO(hyangtack) Need to add equals/hashCode to ClientAddressSource class.
         //                 https://github.com/line/armeria/pull/1804
         assertThat(sources.get(0).toString()).isEqualTo(ClientAddressSource.ofHeader("forwarded").toString());
@@ -114,7 +114,7 @@ public class CentralDogmaConfigTest {
     }
 
     @Test
-    public void trustedProxyAddress_withDefaultClientAddressSources_withoutProxyProtocol() throws Exception {
+    void trustedProxyAddress_withDefaultClientAddressSources_withoutProxyProtocol() throws Exception {
         final CentralDogmaConfig cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
@@ -136,11 +136,11 @@ public class CentralDogmaConfigTest {
                                   "  ]\n" +
                                   '}',
                                   CentralDogmaConfig.class);
-        assertThat(cfg.trustedProxyAddresses().size()).isEqualTo(2);
+        assertThat(cfg.trustedProxyAddresses()).hasSize(2);
         assertThat(cfg.clientAddressSources()).isNull();
 
         final List<ClientAddressSource> sources = cfg.clientAddressSourceList();
-        assertThat(sources.size()).isEqualTo(2);
+        assertThat(sources).hasSize(2);
         // TODO(hyangtack) Need to add equals/hashCode to ClientAddressSource class.
         //                 https://github.com/line/armeria/pull/1804
         assertThat(sources.get(0).toString()).isEqualTo(ClientAddressSource.ofHeader("forwarded").toString());
@@ -149,7 +149,7 @@ public class CentralDogmaConfigTest {
     }
 
     @Test
-    public void noTrustedProxyAddress() throws Exception {
+    void noTrustedProxyAddress() throws Exception {
         final CentralDogmaConfig cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
@@ -174,7 +174,7 @@ public class CentralDogmaConfigTest {
     }
 
     @Test
-    public void maxRemovedRepositoryAgeMillis() throws Exception {
+    void maxRemovedRepositoryAgeMillis() throws Exception {
         final CentralDogmaConfig cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
@@ -198,7 +198,7 @@ public class CentralDogmaConfigTest {
     }
 
     @Test
-    public void maxRemovedRepositoryAgeMillis_withDefault() throws Exception {
+    void maxRemovedRepositoryAgeMillis_withDefault() throws Exception {
         final CentralDogmaConfig cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
@@ -221,7 +221,7 @@ public class CentralDogmaConfigTest {
     }
 
     @Test
-    public void maxRemovedRepositoryAgeMillis_withNegativeValue() throws Exception {
+    void maxRemovedRepositoryAgeMillis_withNegativeValue() {
         assertThatThrownBy(() ->
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +

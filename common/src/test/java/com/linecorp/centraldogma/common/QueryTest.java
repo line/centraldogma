@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -16,13 +16,14 @@
 
 package com.linecorp.centraldogma.common;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 
-public class QueryTest {
+class QueryTest {
+
     @Test
-    public void testJsonConversion() {
+    void testJsonConversion() {
         TestUtil.assertJsonConversion(Query.ofText("/foo.txt"), Query.class,
                              '{' +
                              "  \"type\": \"IDENTITY\"," +

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -20,15 +20,16 @@ import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConv
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.internal.Jackson;
 
-public class ZooKeeperReplicationConfigTest {
+class ZooKeeperReplicationConfigTest {
+
     @Test
-    public void testJsonConversion() throws Exception {
+    void testJsonConversion() {
         final ZooKeeperReplicationConfig cfg = new ZooKeeperReplicationConfig(
                 1, ImmutableMap.of(1, new ZooKeeperAddress("2", 3, 4, 5),
                                    6, new ZooKeeperAddress("7", 8, 9, 10)),
@@ -60,7 +61,7 @@ public class ZooKeeperReplicationConfigTest {
     }
 
     @Test
-    public void testJsonConversionWithoutOptionalProperties() throws Exception {
+    void testJsonConversionWithoutOptionalProperties() throws Exception {
         final ReplicationConfig defaultCfg =
                 Jackson.readValue(
                         '{' +
@@ -89,7 +90,7 @@ public class ZooKeeperReplicationConfigTest {
     }
 
     @Test
-    public void autoDetection() throws Exception {
+    void autoDetection() throws Exception {
         final ZooKeeperReplicationConfig cfg = Jackson.readValue(
                 '{' +
                 "  \"method\": \"ZOOKEEPER\"," +
@@ -111,7 +112,7 @@ public class ZooKeeperReplicationConfigTest {
     }
 
     @Test
-    public void autoDetectionFailure_TwoMatches() throws Exception {
+    void autoDetectionFailure_TwoMatches() {
         final String json =
                 '{' +
                 "  \"method\": \"ZOOKEEPER\"," +
@@ -137,7 +138,7 @@ public class ZooKeeperReplicationConfigTest {
     }
 
     @Test
-    public void autoDetectionFailure_NoMatch() throws Exception {
+    void autoDetectionFailure_NoMatch() {
         final String json =
                 '{' +
                 "  \"method\": \"ZOOKEEPER\"," +
