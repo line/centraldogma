@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.server.internal.api;
 import static com.linecorp.centraldogma.testing.internal.TestUtil.getClient;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,8 +38,8 @@ class ListCommitsAndDiffTest {
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
-    @BeforeEach
-    void setUp() {
+    @BeforeAll
+    static void setUp() {
         createProject(dogma);
     }
 

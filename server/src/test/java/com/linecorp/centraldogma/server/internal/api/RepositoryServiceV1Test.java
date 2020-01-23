@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -52,8 +53,8 @@ class RepositoryServiceV1Test {
 
     private static final String REPOS_PREFIX = PROJECTS_PREFIX + "/myPro" + REPOS;
 
-    @BeforeEach
-    void setUp() {
+    @BeforeAll
+    static void setUp() {
         createProject(dogma);
     }
 
@@ -84,15 +85,15 @@ class RepositoryServiceV1Test {
     @Test
     void createRepositoryWithSameName() {
         final WebClient client = getClient(dogma);
-        createRepository(client, "myRepo");
+        createRepository(client, "myNewRepo");
 
         // create again with the same name
-        final AggregatedHttpResponse aRes = createRepository(client, "myRepo");
+        final AggregatedHttpResponse aRes = createRepository(client, "myNewRepo");
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
                 "  \"exception\": \"" + RepositoryExistsException.class.getName() + "\"," +
-                "  \"message\": \"Repository 'myPro/myRepo' exists already.\"" +
+                "  \"message\": \"Repository 'myPro/myNewRepo' exists already.\"" +
                 '}';
         assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
@@ -138,32 +139,6 @@ class RepositoryServiceV1Test {
     }
 
     @Test
-    void unremoveRepository() {
-        final WebClient client = getClient(dogma);
-        createRepository(client, "foo");
-        client.delete(REPOS_PREFIX + "/foo").aggregate().join();
-        final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/foo",
-                                                         HttpHeaderNames.CONTENT_TYPE,
-                                                         "application/json-patch+json");
-
-        final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpResponse aRes = client.execute(headers, unremovePatch).aggregate().join();
-        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
-        final String expectedJson =
-                '{' +
-                "   \"name\": \"foo\"," +
-                "   \"creator\": {" +
-                "       \"name\": \"admin\"," +
-                "       \"email\": \"admin@localhost.localdomain\"" +
-                "   }," +
-                "   \"headRevision\": 1," +
-                "   \"url\": \"/api/v1/projects/myPro/repos/foo\"," +
-                "   \"createdAt\": \"${json-unit.ignore}\"" +
-                '}';
-        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
-    }
-
-    @Test
     void unremoveAbsentRepository() {
         final WebClient client = getClient(dogma);
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/baz",
@@ -175,17 +150,8 @@ class RepositoryServiceV1Test {
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    @Test
-    void normalizeRevision() {
-        final WebClient client = getClient(dogma);
-        createRepository(client, "foo");
-        final AggregatedHttpResponse res = client.get(REPOS_PREFIX + "/foo/revision/-1")
-                                                 .aggregate().join();
-        assertThatJson(res.contentUtf8()).isEqualTo("{\"revision\":1}");
-    }
-
     @Nested
-    class ListRepositoriesTest {
+    class RepositoriesTest {
 
         @RegisterExtension
         final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -272,6 +238,41 @@ class RepositoryServiceV1Test {
 
             // dogma, meta and trustin repositories are left
             assertThat(jsonNode).hasSize(3);
+        }
+
+        @Test
+        void unremoveRepository() {
+            final WebClient client = getClient(dogma);
+            createRepository(client, "foo");
+            client.delete(REPOS_PREFIX + "/foo").aggregate().join();
+            final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/foo",
+                                                             HttpHeaderNames.CONTENT_TYPE,
+                                                             "application/json-patch+json");
+
+            final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
+            final AggregatedHttpResponse aRes = client.execute(headers, unremovePatch).aggregate().join();
+            assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
+            final String expectedJson =
+                    '{' +
+                    "   \"name\": \"foo\"," +
+                    "   \"creator\": {" +
+                    "       \"name\": \"admin\"," +
+                    "       \"email\": \"admin@localhost.localdomain\"" +
+                    "   }," +
+                    "   \"headRevision\": 1," +
+                    "   \"url\": \"/api/v1/projects/myPro/repos/foo\"," +
+                    "   \"createdAt\": \"${json-unit.ignore}\"" +
+                    '}';
+            assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
+        }
+
+        @Test
+        void normalizeRevision() {
+            final WebClient client = getClient(dogma);
+            createRepository(client, "foo");
+            final AggregatedHttpResponse res = client.get(REPOS_PREFIX + "/foo/revision/-1")
+                                                     .aggregate().join();
+            assertThatJson(res.contentUtf8()).isEqualTo("{\"revision\":1}");
         }
     }
 
