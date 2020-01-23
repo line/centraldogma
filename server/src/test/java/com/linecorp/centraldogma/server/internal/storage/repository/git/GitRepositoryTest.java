@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,8 +22,9 @@ import static java.util.concurrent.ForkJoinPool.commonPool;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
-import static org.junit.Assert.fail;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -51,16 +52,14 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.revwalk.RevWalk;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
@@ -80,15 +79,16 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.testing.internal.TestUtil;
 
-public class GitRepositoryTest {
+class GitRepositoryTest {
 
     private static final String SUMMARY = "summary";
 
     private static final int NUM_ITERATIONS = 3;
 
-    @ClassRule
-    public static final TemporaryFolder repoDir = new TemporaryFolder();
+    @TempDir
+    static File repoDir;
 
     private static GitRepository repo;
 
@@ -98,9 +98,9 @@ public class GitRepositoryTest {
     @Nullable
     private static Consumer<CompletableFuture<Revision>> watchConsumer;
 
-    @BeforeClass
-    public static void init() throws Exception {
-        repo = new GitRepository(mock(Project.class), new File(repoDir.getRoot(), "test_repo"),
+    @BeforeAll
+    static void init() {
+        repo = new GitRepository(mock(Project.class), new File(repoDir, "test_repo"),
                                  commonPool(), 0L, Author.SYSTEM) {
             /**
              * Used by {@link GitRepositoryTest#testWatchWithQueryCancellation()}.
@@ -116,15 +116,12 @@ public class GitRepositoryTest {
         };
     }
 
-    @AfterClass
-    public static void destroy() {
+    @AfterAll
+    static void destroy() {
         if (repo != null) {
             repo.internalClose();
         }
     }
-
-    @Rule
-    public final TestName testName = new TestName();
 
     private String prefix;
     private String allPattern;
@@ -135,9 +132,9 @@ public class GitRepositoryTest {
     private final Change<JsonNode>[] jsonPatches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<String>[] textPatches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
 
-    @Before
-    public void setUp() throws Exception {
-        prefix = '/' + testName.getMethodName() + '/';
+    @BeforeEach
+    void setUp(TestInfo testInfo) {
+        prefix = '/' + TestUtil.normalizedDisplayName(testInfo) + '/';
         allPattern = prefix + "**";
 
         for (int i = 0; i < NUM_ITERATIONS; i++) {
@@ -164,12 +161,12 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testJsonUpsert() throws Exception {
+    void testJsonUpsert() {
         testUpsert(jsonUpserts, EntryType.JSON);
     }
 
     @Test
-    public void testTextUpsert() throws Exception {
+    void testTextUpsert() {
         testUpsert(textUpserts, EntryType.TEXT);
     }
 
@@ -209,8 +206,9 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testJsonPatch_safeReplace() throws JsonProcessingException {
-        final String jsonFilePath = String.format("/test_%s.json", testName.getMethodName());
+    void testJsonPatch_safeReplace(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
+        final String jsonFilePath = String.format("/test_%s.json", name);
         final Change<JsonNode> change = Change.ofJsonUpsert(jsonFilePath, "{\"key\":1}");
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change).join();
         final Change<JsonNode> nextChange = Change.ofJsonPatch(jsonFilePath, "{\"key\":2}", "{\"key\":3}");
@@ -221,12 +219,12 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testJsonPatch() throws Exception {
+    void testJsonPatch() {
         testPatch(jsonPatches, jsonUpserts);
     }
 
     @Test
-    public void testTextPatch() throws Exception {
+    void testTextPatch() {
         testPatch(textPatches, textUpserts);
     }
 
@@ -266,7 +264,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testRemoval() throws Exception {
+    void testRemoval() {
         // A removal should fail when there's no such entry.
         assertThatThrownBy(() -> repo
                 .commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Change.ofRemoval(jsonPaths[0])).join())
@@ -288,7 +286,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testRecursiveRemoval() throws Exception {
+    void testRecursiveRemoval() {
         // A recursive removal should fail when there's no such entry.
         final String curDir = prefix.substring(0, prefix.length() - 1); // Remove trailing '/'.
         assertThatThrownBy(
@@ -306,7 +304,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testRename() throws Exception {
+    void testRename() {
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
         // Rename without content modification.
@@ -332,7 +330,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testRecursiveRename() throws Exception {
+    void testRecursiveRename() {
         // Add some files under a directory.
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts).join();
         assertThat(repo.find(HEAD, allPattern).join()).hasSize(jsonUpserts.length);
@@ -356,7 +354,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testRenameFailure() throws Exception {
+    void testRenameFailure() {
         assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                              jsonUpserts[0], jsonUpserts[1],
                                              Change.ofRename(jsonPaths[0], jsonPaths[1])).join())
@@ -382,7 +380,7 @@ public class GitRepositoryTest {
      * Tests the case where a commit is attempted at an old base revision.
      */
     @Test
-    public void testLateCommit() throws Exception {
+    void testLateCommit() {
         // Increase the head revision by one by pushing one commit.
         final Revision rev = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
@@ -394,7 +392,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testEmptyCommit() {
+    void testEmptyCommit() {
         assertThatThrownBy(
                 () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Collections.emptyList()).join())
                 .isInstanceOf(CompletionException.class)
@@ -402,7 +400,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testEmptyCommitWithRedundantRenames() throws Exception {
+    void testEmptyCommitWithRedundantRenames() {
         // Create a file to produce redundant changes.
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
@@ -415,7 +413,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testEmptyCommitWithRedundantUpsert() throws Exception {
+    void testEmptyCommitWithRedundantUpsert() {
         assertThatThrownBy(
                 () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, Collections.emptyList()).join())
                 .isInstanceOf(CompletionException.class)
@@ -432,7 +430,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testEmptyCommitWithRedundantUpsert2() throws Exception {
+    void testEmptyCommitWithRedundantUpsert2() {
         // Create files to produce redundant changes.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/redundant_upsert_2.json",
                                                              "{ \"foo\": 0, \"bar\": 1 }");
@@ -457,7 +455,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testTextSanitization() throws Exception {
+    void testTextSanitization() {
         // Ensure CRs are stripped.
         final Change<String> dosText = Change.ofTextUpsert("/text_sanitization_dos.txt", "foo\r\nbar\r\n");
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, dosText).join();
@@ -489,12 +487,10 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testMultipleChanges() throws Exception {
+    void testMultipleChanges() {
         final List<Change<?>> changes = new ArrayList<>();
         Collections.addAll(changes, jsonUpserts);
-        for (int i = 1; i < jsonPatches.length; i++) {
-            changes.add(jsonPatches[i]);
-        }
+        changes.addAll(Arrays.asList(jsonPatches).subList(1, jsonPatches.length));
 
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, changes).join();
 
@@ -515,7 +511,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testRenameWithConflict() throws Exception {
+    void testRenameWithConflict() {
         // Create a file to produce redundant changes.
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
@@ -527,7 +523,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testMultipleChangesWithConflict() throws Exception {
+    void testMultipleChangesWithConflict() {
         assertThatThrownBy(() -> repo
                 .commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0], jsonPatches[2]).join())
                 .isInstanceOf(CompletionException.class)
@@ -538,7 +534,7 @@ public class GitRepositoryTest {
      * Test exception handling when invalid arguments are given.
      */
     @Test
-    public void testDiff_invalidParameters() throws Exception {
+    void testDiff_invalidParameters() {
         final String path = jsonPatches[0].path();
         final Revision revision1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                                jsonPatches[0]).join();
@@ -565,7 +561,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testPreviewDiff() {
+    void testPreviewDiff() {
         final Map<String, Change<?>> changeMap = repo.previewDiff(HEAD, jsonUpserts[0]).join();
         assertThat(changeMap).containsEntry(jsonPaths[0], jsonUpserts[0]);
 
@@ -601,7 +597,7 @@ public class GitRepositoryTest {
      * Run a sequence of add operation on the same path, valid the diff after each push.
      */
     @Test
-    public void testDiff_add() throws Exception {
+    void testDiff_add() {
         final String jsonPath = jsonUpserts[0].path();
         final String textPath = textUpserts[0].path();
 
@@ -632,7 +628,7 @@ public class GitRepositoryTest {
      * Run a sequence of remove operation on the same path, valid the diff after each push.
      */
     @Test
-    public void testDiff_remove() throws Exception {
+    void testDiff_remove() {
         // add all files into repository
         Revision lastRevision = null;
         for (int i = 0; i < NUM_ITERATIONS; i++) {
@@ -670,7 +666,7 @@ public class GitRepositoryTest {
      * Run a sequence of modification on the same path, validate the diff after each push.
      */
     @Test
-    public void testDiff_modify() throws Exception {
+    void testDiff_modify() {
         final String jsonNodePath = jsonPatches[0].path();
         final String textNodePath = textPatches[0].path();
 
@@ -703,7 +699,7 @@ public class GitRepositoryTest {
      * - Updates its content.
      */
     @Test
-    public void testDiff_twoCommits() throws Exception {
+    void testDiff_twoCommits() {
         final String oldPath = prefix + "foo/a.json";
         final String newPath = prefix + "bar/a.json";
 
@@ -741,7 +737,7 @@ public class GitRepositoryTest {
      * Tests if the results are in the correct range for given parameters.
      */
     @Test
-    public void testHistory_correctRangeOfResult() throws Exception {
+    void testHistory_correctRangeOfResult() {
 
         final String jsonPath = jsonPatches[0].path();
         final String textPath = textPatches[0].path();
@@ -816,7 +812,7 @@ public class GitRepositoryTest {
      * Given a path, check if only the affected revisions are returned.
      */
     @Test
-    public void testHistory_returnOnlyAffectedRevisions() throws Exception {
+    void testHistory_returnOnlyAffectedRevisions() {
         final String jsonPath = jsonPatches[0].path();
         final String textPath = textPatches[0].path();
 
@@ -851,7 +847,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testHistory_parameterCheck() throws Exception {
+    void testHistory_parameterCheck() {
         // Make sure that we added at least one non-initial commit.
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
 
@@ -890,12 +886,12 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testFind_negativeRevisionQuery() throws Exception {
-
+    void testFind_negativeRevisionQuery(TestInfo testInfo) {
         final int numIterations = 10;
 
-        final String jsonNodePath = String.format("/node_%s.json", testName.getMethodName());
-        final String textNodePath = String.format("/text_%s.txt", testName.getMethodName());
+        final String name = TestUtil.normalizedDisplayName(testInfo);
+        final String jsonNodePath = String.format("/node_%s.json", name);
+        final String textNodePath = String.format("/text_%s.txt", name);
 
         final String jsonStringPattern = "{\"key\":\"%d\"}";
         final String textStringPattern = "a\n%d\nc";
@@ -920,10 +916,10 @@ public class GitRepositoryTest {
         }
 
         if (revision == null) {
-            fail();
+            fail("revision is null");
         }
 
-        for (int i = 0 - numIterations; i < 0; i++) {
+        for (int i = -numIterations; i < 0; i++) {
             final Map<String, Entry<?>> entryMap = repo.find(new Revision(i), Repository.ALL_PATH).join();
             assertThatJson(entryMap.get(jsonNodePath).content()).isEqualTo(
                     String.format(jsonStringPattern, numIterations + i));
@@ -933,13 +929,13 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testFindNone() {
+    void testFindNone() {
         assertThat(repo.find(HEAD, "/non-existent").join()).isEmpty();
         assertThat(repo.find(HEAD, "non-existent").join()).isEmpty();
     }
 
     @Test
-    public void testFind_invalidPathPattern() {
+    void testFind_invalidPathPattern() {
         final String pattern = "a'\"><img src=1 onerror=alert(document.domain)>";
         assertThatThrownBy(() -> repo.find(HEAD, pattern).join())
                 .isInstanceOf(CompletionException.class)
@@ -950,7 +946,7 @@ public class GitRepositoryTest {
      * when the target path or revision is not valid, return an empty map.
      */
     @Test
-    public void testFind_invalidParameter() throws Exception {
+    void testFind_invalidParameter() {
         final String jsonNodePath = "/node.json";
         final String jsonString = "{\"key\":\"value\"}";
         final Change<JsonNode> jsonChange = Change.ofJsonUpsert(jsonNodePath, jsonString);
@@ -962,7 +958,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testFind_directory() throws Exception {
+    void testFind_directory() {
         // Will create the following directory structure:
         //
         // prefix -+- a
@@ -994,7 +990,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testJsonPathQuery() throws Exception {
+    void testJsonPathQuery() {
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                     Change.ofJsonUpsert("/instances.json",
                                         '[' +
@@ -1058,7 +1054,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testWatch() throws Exception {
+    void testWatch() throws Exception {
         final Revision rev1 = repo.normalizeNow(HEAD);
         final Revision rev2 = rev1.forward(1);
 
@@ -1074,7 +1070,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testWatchWithPathPattern() throws Exception {
+    void testWatchWithPathPattern() throws Exception {
         final Revision rev1 = repo.normalizeNow(HEAD);
         final Revision rev2 = rev1.forward(1);
         final Revision rev3 = rev2.forward(1);
@@ -1096,7 +1092,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testWatchWithOldRevision() throws Exception {
+    void testWatchWithOldRevision() throws Exception {
         final Revision lastKnownRev = repo.normalizeNow(HEAD);
         repo.commit(lastKnownRev, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts).join();
         final Revision latestRev = repo.normalizeNow(HEAD);
@@ -1110,7 +1106,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testWatchWithOldRevisionAndPathPattern() throws Exception {
+    void testWatchWithOldRevisionAndPathPattern() throws Exception {
         final Revision lastKnownRev = repo.normalizeNow(HEAD);
         repo.commit(lastKnownRev, 0L, Author.UNKNOWN, SUMMARY, jsonPatches).join();
         final Revision latestRev = repo.normalizeNow(HEAD);
@@ -1131,7 +1127,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testWatchWithQuery() throws Exception {
+    void testWatchWithQuery() throws Exception {
         final Revision rev1 = repo.commit(
                 HEAD, 0L, Author.UNKNOWN, SUMMARY,
                 Change.ofJsonUpsert(jsonPaths[0], "{ \"hello\": \"mars\" }")).join();
@@ -1164,8 +1160,9 @@ public class GitRepositoryTest {
         ensureWatcherCleanUp();
     }
 
-    @Test(timeout = 10000)
-    public void testWatchWithIdentityQuery() throws Exception {
+    @Test
+    @Timeout(10)
+    void testWatchWithIdentityQuery() throws Exception {
         final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, textUpserts[0]).join();
 
         final CompletableFuture<Entry<String>> f =
@@ -1182,7 +1179,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testWatchRemoval() throws Exception {
+    void testWatchRemoval() throws Exception {
         final String path = jsonPaths[0];
         final Change<JsonNode> upsert1 = Change.ofJsonUpsert(path, "1");
         final Change<JsonNode> upsert2 = Change.ofJsonUpsert(path, "2");
@@ -1221,7 +1218,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testWatchWithQueryCancellation() throws Exception {
+    void testWatchWithQueryCancellation() throws Exception {
         final AtomicInteger numSubtasks = new AtomicInteger();
         final CountDownLatch subtaskCancelled = new CountDownLatch(1);
 
@@ -1265,7 +1262,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testDoUpdateRef() throws Exception {
+    void testDoUpdateRef() throws Exception {
         final ObjectId commitId = mock(ObjectId.class);
 
         // A commit on the mainlane
@@ -1278,10 +1275,10 @@ public class GitRepositoryTest {
         final RevWalk revWalk = mock(RevWalk.class);
         final RefUpdate refUpdate = mock(RefUpdate.class);
 
-        when(jGitRepo.exactRef(ref)).thenReturn(tagExists ? mock(Ref.class) : null);
-        when(jGitRepo.updateRef(ref)).thenReturn(refUpdate);
+        lenient().when(jGitRepo.exactRef(ref)).thenReturn(tagExists ? mock(Ref.class) : null);
+        lenient().when(jGitRepo.updateRef(ref)).thenReturn(refUpdate);
 
-        when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.NEW);
+        lenient().when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.NEW);
         GitRepository.doRefUpdate(jGitRepo, revWalk, ref, commitId);
 
         when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.FAST_FORWARD);
@@ -1293,7 +1290,7 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void testDoUpdateRefOnExistingTag() throws Exception {
+    void testDoUpdateRefOnExistingTag() {
         final ObjectId commitId = mock(ObjectId.class);
 
         assertThatThrownBy(() -> testDoUpdateRef(Constants.R_TAGS + "01/1.0", commitId, true))
@@ -1301,10 +1298,10 @@ public class GitRepositoryTest {
     }
 
     @Test
-    public void operationOnClosedRepository() throws Exception {
+    void operationOnClosedRepository() {
         final CentralDogmaException expectedException = new CentralDogmaException();
         final GitRepository repo = new GitRepository(mock(Project.class),
-                                                     new File(repoDir.getRoot(), "close_test_repo"),
+                                                     new File(repoDir, "close_test_repo"),
                                                      commonPool(), 0L, Author.SYSTEM);
         repo.close(() -> expectedException);
 

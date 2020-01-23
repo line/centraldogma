@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,15 +18,16 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
+import static com.linecorp.centraldogma.testing.internal.TestUtil.getClient;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -42,39 +43,24 @@ import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class RepositoryServiceV1Test {
+class RepositoryServiceV1Test {
 
-    // TODO(minwoox) replace this unit test using nested structure in junit 5
-    // Rule is used instead of ClassRule because the listRepository and listRemovedRepository are
-    // affected by other unit tests.
-    @Rule
-    public final CentralDogmaRule dogma = new CentralDogmaRule();
+    @RegisterExtension
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
 
     private static final String REPOS_PREFIX = PROJECTS_PREFIX + "/myPro" + REPOS;
 
-    private static WebClient webClient;
-
-    @Before
-    public void init() {
-        final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
-        final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
-        webClient = WebClient.builder(serverUri)
-                             .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                             .build();
-
-        // the default project used for unit tests
-        final String body = "{\"name\": \"myPro\"}";
-        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX,
-                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
-
-        webClient.execute(headers, body).aggregate().join();
+    @BeforeEach
+    void setUp() {
+        createProject(dogma);
     }
 
     @Test
-    public void createRepository() throws IOException {
-        final AggregatedHttpResponse aRes = createRepository("myRepo");
+    void createRepository() throws IOException {
+        final WebClient client = getClient(dogma);
+        final AggregatedHttpResponse aRes = createRepository(client, "myRepo");
         final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
         assertThat(headers.status()).isEqualTo(HttpStatus.CREATED);
 
@@ -87,20 +73,21 @@ public class RepositoryServiceV1Test {
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
     }
 
-    private static AggregatedHttpResponse createRepository(String repoName) {
+    private static AggregatedHttpResponse createRepository(WebClient client, String repoName) {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, REPOS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final String body = "{\"name\": \"" + repoName + "\"}";
 
-        return webClient.execute(headers, body).aggregate().join();
+        return client.execute(headers, body).aggregate().join();
     }
 
     @Test
-    public void createRepositoryWithSameName() {
-        createRepository("myRepo");
+    void createRepositoryWithSameName() {
+        final WebClient client = getClient(dogma);
+        createRepository(client, "myRepo");
 
         // create again with the same name
-        final AggregatedHttpResponse aRes = createRepository("myRepo");
+        final AggregatedHttpResponse aRes = createRepository(client, "myRepo");
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
         final String expectedJson =
                 '{' +
@@ -111,12 +98,13 @@ public class RepositoryServiceV1Test {
     }
 
     @Test
-    public void createRepositoryInAbsentProject() {
+    void createRepositoryInAbsentProject() {
+        final WebClient client = getClient(dogma);
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST,
                                                          PROJECTS_PREFIX + "/absentProject" + REPOS,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final String body = "{\"name\": \"myRepo\"}";
-        final AggregatedHttpResponse aRes = webClient.execute(headers, body).aggregate().join();
+        final AggregatedHttpResponse aRes = client.execute(headers, body).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
         final String expectedJson =
                 '{' +
@@ -127,107 +115,39 @@ public class RepositoryServiceV1Test {
     }
 
     @Test
-    public void listRepositories() {
-        createRepository("myRepo");
-        final AggregatedHttpResponse aRes = webClient.get(REPOS_PREFIX).aggregate().join();
-
-        assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
-        final String expectedJson =
-                '[' +
-                "   {" +
-                "       \"name\": \"dogma\"," +
-                "       \"creator\": {" +
-                "           \"name\": \"System\"," +
-                "           \"email\": \"system@localhost.localdomain\"" +
-                "       }," +
-                "       \"headRevision\": \"${json-unit.ignore}\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/dogma\"," +
-                "       \"createdAt\": \"${json-unit.ignore}\"" +
-                "   }," +
-                "   {" +
-                "       \"name\": \"meta\"," +
-                "       \"creator\": {" +
-                "           \"name\": \"System\"," +
-                "           \"email\": \"system@localhost.localdomain\"" +
-                "       }," +
-                "       \"headRevision\": \"${json-unit.ignore}\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/meta\"," +
-                "       \"createdAt\": \"${json-unit.ignore}\"" +
-                "   }," +
-                "   {" +
-                "       \"name\": \"myRepo\"," +
-                "       \"creator\": {" +
-                "           \"name\": \"admin\"," +
-                "           \"email\": \"admin@localhost.localdomain\"" +
-                "       }," +
-                "       \"headRevision\": \"${json-unit.ignore}\"," +
-                "       \"url\": \"/api/v1/projects/myPro/repos/myRepo\"," +
-                "       \"createdAt\": \"${json-unit.ignore}\"" +
-                "   }" +
-                ']';
-        assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
-    }
-
-    @Test
-    public void removeRepository() {
-        createRepository("foo");
-        final AggregatedHttpResponse aRes = webClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
+    void removeRepository() {
+        final WebClient client = getClient(dogma);
+        createRepository(client,"foo");
+        final AggregatedHttpResponse aRes = client.delete(REPOS_PREFIX + "/foo").aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test
-    public void removeAbsentRepository() {
-        final AggregatedHttpResponse aRes = webClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
+    void removeAbsentRepository() {
+        final WebClient client = getClient(dogma);
+        final AggregatedHttpResponse aRes = client.delete(REPOS_PREFIX + "/foo").aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
-    public void removeMetaRepository() {
-        final AggregatedHttpResponse aRes = webClient.delete(REPOS_PREFIX + '/' + Project.REPO_META)
-                                                     .aggregate().join();
+    void removeMetaRepository() {
+        final WebClient client = getClient(dogma);
+        final AggregatedHttpResponse aRes = client.delete(REPOS_PREFIX + '/' + Project.REPO_META)
+                                                  .aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    public void listRemovedRepositories() throws IOException {
-        createRepository("trustin");
-        createRepository("hyangtack");
-        createRepository("minwoox");
-        webClient.delete(REPOS_PREFIX + "/hyangtack").aggregate().join();
-        webClient.delete(REPOS_PREFIX + "/minwoox").aggregate().join();
-
-        final AggregatedHttpResponse removedRes = webClient.get(REPOS_PREFIX + "?status=removed")
-                                                           .aggregate().join();
-        assertThat(ResponseHeaders.of(removedRes.headers()).status()).isEqualTo(HttpStatus.OK);
-        final String expectedJson =
-                '[' +
-                "   {" +
-                "       \"name\": \"hyangtack\"" +
-                "   }," +
-                "   {" +
-                "       \"name\": \"minwoox\"" +
-                "   }" +
-                ']';
-        assertThatJson(removedRes.contentUtf8()).isEqualTo(expectedJson);
-
-        final AggregatedHttpResponse remainedRes = webClient.get(REPOS_PREFIX).aggregate().join();
-        final String remains = remainedRes.contentUtf8();
-        final JsonNode jsonNode = Jackson.readTree(remains);
-
-        // dogma, meta and trustin repositories are left
-        assertThat(jsonNode.size()).isEqualTo(3);
-    }
-
-    @Test
-    public void unremoveRepository() {
-        createRepository("foo");
-        webClient.delete(REPOS_PREFIX + "/foo").aggregate().join();
+    void unremoveRepository() {
+        final WebClient client = getClient(dogma);
+        createRepository(client, "foo");
+        client.delete(REPOS_PREFIX + "/foo").aggregate().join();
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/foo",
                                                          HttpHeaderNames.CONTENT_TYPE,
                                                          "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpResponse aRes = webClient.execute(headers, unremovePatch).aggregate().join();
+        final AggregatedHttpResponse aRes = client.execute(headers, unremovePatch).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
         final String expectedJson =
                 '{' +
@@ -244,21 +164,124 @@ public class RepositoryServiceV1Test {
     }
 
     @Test
-    public void unremoveAbsentRepository() {
+    void unremoveAbsentRepository() {
+        final WebClient client = getClient(dogma);
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/baz",
                                                          HttpHeaderNames.CONTENT_TYPE,
                                                          "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final AggregatedHttpResponse aRes = webClient.execute(headers, unremovePatch).aggregate().join();
+        final AggregatedHttpResponse aRes = client.execute(headers, unremovePatch).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
-    public void normalizeRevision() {
-        createRepository("foo");
-        final AggregatedHttpResponse res = webClient.get(REPOS_PREFIX + "/foo/revision/-1")
-                                                    .aggregate().join();
+    void normalizeRevision() {
+        final WebClient client = getClient(dogma);
+        createRepository(client, "foo");
+        final AggregatedHttpResponse res = client.get(REPOS_PREFIX + "/foo/revision/-1")
+                                                 .aggregate().join();
         assertThatJson(res.contentUtf8()).isEqualTo("{\"revision\":1}");
+    }
+
+    @Nested
+    class ListRepositoriesTest {
+
+        @RegisterExtension
+        final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+            @Override
+            protected boolean runForEachTest() {
+                return true;
+            }
+        };
+
+        @BeforeEach
+        void setUp() {
+            createProject(dogma);
+        }
+
+        @Test
+        void listRepositories() {
+            final WebClient client = getClient(dogma);
+            createRepository(client, "myRepo");
+            final AggregatedHttpResponse aRes = client.get(REPOS_PREFIX).aggregate().join();
+
+            assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.OK);
+            final String expectedJson =
+                    '[' +
+                    "   {" +
+                    "       \"name\": \"dogma\"," +
+                    "       \"creator\": {" +
+                    "           \"name\": \"System\"," +
+                    "           \"email\": \"system@localhost.localdomain\"" +
+                    "       }," +
+                    "       \"headRevision\": \"${json-unit.ignore}\"," +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/dogma\"," +
+                    "       \"createdAt\": \"${json-unit.ignore}\"" +
+                    "   }," +
+                    "   {" +
+                    "       \"name\": \"meta\"," +
+                    "       \"creator\": {" +
+                    "           \"name\": \"System\"," +
+                    "           \"email\": \"system@localhost.localdomain\"" +
+                    "       }," +
+                    "       \"headRevision\": \"${json-unit.ignore}\"," +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/meta\"," +
+                    "       \"createdAt\": \"${json-unit.ignore}\"" +
+                    "   }," +
+                    "   {" +
+                    "       \"name\": \"myRepo\"," +
+                    "       \"creator\": {" +
+                    "           \"name\": \"admin\"," +
+                    "           \"email\": \"admin@localhost.localdomain\"" +
+                    "       }," +
+                    "       \"headRevision\": \"${json-unit.ignore}\"," +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo\"," +
+                    "       \"createdAt\": \"${json-unit.ignore}\"" +
+                    "   }" +
+                    ']';
+            assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
+        }
+
+        @Test
+        void listRemovedRepositories() throws IOException {
+            final WebClient client = getClient(dogma);
+            createRepository(client, "trustin");
+            createRepository(client, "hyangtack");
+            createRepository(client, "minwoox");
+            client.delete(REPOS_PREFIX + "/hyangtack").aggregate().join();
+            client.delete(REPOS_PREFIX + "/minwoox").aggregate().join();
+
+            final AggregatedHttpResponse removedRes = client.get(REPOS_PREFIX + "?status=removed")
+                                                            .aggregate().join();
+            assertThat(ResponseHeaders.of(removedRes.headers()).status()).isEqualTo(HttpStatus.OK);
+            final String expectedJson =
+                    '[' +
+                    "   {" +
+                    "       \"name\": \"hyangtack\"" +
+                    "   }," +
+                    "   {" +
+                    "       \"name\": \"minwoox\"" +
+                    "   }" +
+                    ']';
+            assertThatJson(removedRes.contentUtf8()).isEqualTo(expectedJson);
+
+            final AggregatedHttpResponse remainedRes = client.get(REPOS_PREFIX).aggregate().join();
+            final String remains = remainedRes.contentUtf8();
+            final JsonNode jsonNode = Jackson.readTree(remains);
+
+            // dogma, meta and trustin repositories are left
+            assertThat(jsonNode).hasSize(3);
+        }
+    }
+
+    private static void createProject(CentralDogmaExtension dogma) {
+        // the default project used for unit tests
+        final String body = "{\"name\": \"myPro\"}";
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+
+        final WebClient client = getClient(dogma);
+        client.execute(headers, body).aggregate().join();
     }
 }

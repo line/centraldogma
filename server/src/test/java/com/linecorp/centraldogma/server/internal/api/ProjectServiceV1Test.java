@@ -17,11 +17,11 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
+import static com.linecorp.centraldogma.testing.internal.TestUtil.getClient;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -235,13 +235,5 @@ class ProjectServiceV1Test {
             // Only trustin project is left
             assertThat(jsonNode.size()).isOne();
         }
-    }
-
-    private static WebClient getClient(CentralDogmaExtension dogma) {
-        final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
-        final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
-        return WebClient.builder(serverUri)
-                        .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                        .build();
     }
 }

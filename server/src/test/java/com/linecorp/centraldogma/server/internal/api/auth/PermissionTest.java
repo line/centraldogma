@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,18 +21,18 @@ import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_
 import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.EnumSet;
+import java.io.File;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
-import org.junit.AfterClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -49,7 +49,7 @@ import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.auth.HttpAuthService;
-import com.linecorp.armeria.testing.junit4.server.ServerRule;
+import com.linecorp.armeria.testing.junit.server.ServerExtension;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -65,8 +65,7 @@ import com.linecorp.centraldogma.server.metadata.Permission;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
-@RunWith(Parameterized.class)
-public class PermissionTest {
+class PermissionTest {
 
     private static final Author author = Author.SYSTEM;
 
@@ -74,31 +73,16 @@ public class PermissionTest {
     private static final String secret2 = "appToken-2";
     private static final String secret3 = "appToken-3";
 
-    protected static TemporaryFolder initStaticTemp() {
-        try {
-            return new TemporaryFolder() {
-                {
-                    before();
-                }
-            };
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
-        }
-    }
+    @TempDir
+    @Order(1)
+    static File rootDir;
 
-    public static final TemporaryFolder rootDir = initStaticTemp();
-
-    @AfterClass
-    public static void cleanup() throws Exception {
-        rootDir.delete();
-    }
-
-    @ClassRule
-    public static final ServerRule rule = new ServerRule() {
+    @RegisterExtension
+    static final ServerExtension server = new ServerExtension() {
         @Override
         protected void configure(ServerBuilder sb) throws Exception {
             final ProjectManager pm = new DefaultProjectManager(
-                    rootDir.newFolder(), ForkJoinPool.commonPool(), MoreExecutors.directExecutor(),
+                    rootDir, ForkJoinPool.commonPool(), MoreExecutors.directExecutor(),
                     NoopMeterRegistry.get(), null
             );
             final CommandExecutor executor = new StandaloneCommandExecutor(
@@ -158,59 +142,11 @@ public class PermissionTest {
         }
     };
 
-    private final String secret;
-    private final String projectName;
-    private final ProjectRole role;
-    private final String repoName;
-    private final Set<Permission> permission;
-    private final HttpStatus expectedFailureStatus;
-
-    public PermissionTest(String secret, String projectName, ProjectRole role,
-                          String repoName, Set<Permission> permission,
-                          HttpStatus expectedFailureStatus) {
-        this.secret = secret;
-        this.projectName = projectName;
-        this.role = role;
-        this.repoName = repoName;
-        this.permission = EnumSet.copyOf(permission);
-        this.expectedFailureStatus = expectedFailureStatus;
-    }
-
-    @Parameters
-    public static Object[][] parameters() {
-        return new Object[][] {
-                {
-                        secret1,
-                        "project1", ProjectRole.OWNER, "repo1", READ_WRITE,
-                        HttpStatus.FORBIDDEN
-                },
-                {
-                        secret2,
-                        "project1", ProjectRole.MEMBER, "repo1", READ_ONLY,
-                        HttpStatus.FORBIDDEN
-                },
-                {
-                        secret3,
-                        "project1", ProjectRole.GUEST, "repo1", NO_PERMISSION,
-                        HttpStatus.FORBIDDEN
-                },
-                {
-                        secret1,
-                        "project2", ProjectRole.GUEST, "repo1", NO_PERMISSION,
-                        HttpStatus.NOT_FOUND
-                },
-                {
-                        "appToken-invalid",
-                        "project1", ProjectRole.GUEST, "repo1", NO_PERMISSION,
-                        // Need to authorize because the token is invalid.
-                        HttpStatus.UNAUTHORIZED
-                }
-        };
-    }
-
-    @Test
-    public void test() {
-        final WebClient client = WebClient.builder(rule.uri("/"))
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void test(String secret, String projectName, ProjectRole role, String repoName,
+              Set<Permission> permission, HttpStatus expectedFailureStatus) {
+        final WebClient client = WebClient.builder(server.uri("/"))
                                           .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret)
                                           .build();
 
@@ -230,5 +166,30 @@ public class PermissionTest {
                          .aggregate().join();
         assertThat(response.status()).isEqualTo(permission.isEmpty() ? expectedFailureStatus
                                                                      : HttpStatus.OK);
+    }
+
+    private static Stream<Arguments> parameters() {
+        return Stream.of(
+                Arguments.of(
+                        secret1,
+                        "project1", ProjectRole.OWNER, "repo1", READ_WRITE,
+                        HttpStatus.FORBIDDEN),
+                Arguments.of(
+                        secret2,
+                        "project1", ProjectRole.MEMBER, "repo1", READ_ONLY,
+                        HttpStatus.FORBIDDEN),
+                Arguments.of(
+                        secret3,
+                        "project1", ProjectRole.GUEST, "repo1", NO_PERMISSION,
+                        HttpStatus.FORBIDDEN),
+                Arguments.of(
+                        secret1,
+                        "project2", ProjectRole.GUEST, "repo1", NO_PERMISSION,
+                        HttpStatus.NOT_FOUND),
+                Arguments.of(
+                        "appToken-invalid",
+                        "project1", ProjectRole.GUEST, "repo1", NO_PERMISSION,
+                        // Need to authorize because the token is invalid.
+                        HttpStatus.UNAUTHORIZED));
     }
 }

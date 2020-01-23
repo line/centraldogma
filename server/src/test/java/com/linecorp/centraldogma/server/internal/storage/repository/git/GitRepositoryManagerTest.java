@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,18 +18,16 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -40,19 +38,15 @@ import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCa
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-public class GitRepositoryManagerTest {
+class GitRepositoryManagerTest {
 
     private static final String TEST_REPO = "test_repo";
 
-    @Rule
-    public final TemporaryFolder rootDir = new TemporaryFolder();
-
-    File rootDir() {
-        return rootDir.getRoot();
-    }
+    @TempDir
+    File rootDir;
 
     @Test
-    public void testCreate() throws Exception {
+    void testCreate() {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         final Repository repository = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(repository).isInstanceOf(GitRepository.class);
@@ -64,7 +58,7 @@ public class GitRepositoryManagerTest {
     }
 
     @Test
-    public void testOpen() throws Exception {
+    void testOpen() {
         // Create a new repository and close the manager.
         GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
@@ -78,7 +72,7 @@ public class GitRepositoryManagerTest {
     }
 
     @Test
-    public void testGet() throws Exception {
+    void testGet() {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
 
@@ -89,7 +83,7 @@ public class GitRepositoryManagerTest {
     }
 
     @Test
-    public void testGetAndHas() {
+    void testGetAndHas() {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
         final Repository repo = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
@@ -98,7 +92,7 @@ public class GitRepositoryManagerTest {
     }
 
     @Test
-    public void testDelete() throws Exception {
+    void testDelete() {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isTrue();
@@ -109,7 +103,7 @@ public class GitRepositoryManagerTest {
     }
 
     @Test
-    public void testList() {
+    void testList() {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         final int numRepoFiles = 1;
         final String repoNamePattern = "repo%d";
@@ -120,7 +114,7 @@ public class GitRepositoryManagerTest {
 
         final int numDummyFiles = 1;
         for (int i = 0; i < numDummyFiles; i++) {
-            if (!Paths.get(rootDir.getRoot().toString(), String.format("dummyDir%d", i)).toFile().mkdirs()) {
+            if (!Paths.get(rootDir.toString(), String.format("dummyDir%d", i)).toFile().mkdirs()) {
                 fail("failed to test on testList");
             }
         }
@@ -130,7 +124,7 @@ public class GitRepositoryManagerTest {
     }
 
     @Test
-    public void testHas() throws IOException {
+    void testHas() {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
         gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
@@ -139,7 +133,7 @@ public class GitRepositoryManagerTest {
     }
 
     private GitRepositoryManager newRepositoryManager() {
-        return new GitRepositoryManager(mock(Project.class), rootDir(), ForkJoinPool.commonPool(),
+        return new GitRepositoryManager(mock(Project.class), rootDir, ForkJoinPool.commonPool(),
                                         MoreExecutors.directExecutor(), mock(RepositoryCache.class));
     }
 }
