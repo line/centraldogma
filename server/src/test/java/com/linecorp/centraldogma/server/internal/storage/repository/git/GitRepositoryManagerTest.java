@@ -21,13 +21,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
-import java.io.File;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -37,13 +36,19 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 
 class GitRepositoryManagerTest {
 
     private static final String TEST_REPO = "test_repo";
 
-    @TempDir
-    File rootDir;
+    @RegisterExtension
+    final TemporaryFolderExtension rootDir = new TemporaryFolderExtension() {
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
+    };
 
     @Test
     void testCreate() {
@@ -133,7 +138,8 @@ class GitRepositoryManagerTest {
     }
 
     private GitRepositoryManager newRepositoryManager() {
-        return new GitRepositoryManager(mock(Project.class), rootDir, ForkJoinPool.commonPool(),
-                                        MoreExecutors.directExecutor(), mock(RepositoryCache.class));
+        return new GitRepositoryManager(mock(Project.class), rootDir.getRoot().toFile(),
+                                        ForkJoinPool.commonPool(), MoreExecutors.directExecutor(),
+                                        mock(RepositoryCache.class));
     }
 }
