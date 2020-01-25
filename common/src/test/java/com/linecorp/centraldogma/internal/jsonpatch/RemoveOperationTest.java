@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -34,29 +34,24 @@
 
 package com.linecorp.centraldogma.internal.jsonpatch;
 
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
-public final class RemoveOperationTest extends JsonPatchOperationTest {
+class RemoveOperationTest {
 
     private static final JsonPointer EMPTY_JSON_POINTER = JsonPointer.compile("");
 
-    public RemoveOperationTest() throws IOException {
-        super("remove");
-    }
-
     @Test
-    public void removingRootReturnsMissingNode() {
+    void removingRootReturnsMissingNode() {
         final JsonNode node = JsonNodeFactory.instance.nullNode();
         final JsonPatchOperation op = new RemoveOperation(EMPTY_JSON_POINTER);
         final JsonNode ret = op.apply(node);
-        assertTrue(ret.isMissingNode());
+
+        assertThat(ret.isMissingNode()).isTrue();
     }
 }

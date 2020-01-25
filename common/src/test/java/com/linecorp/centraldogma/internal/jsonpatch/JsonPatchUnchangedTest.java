@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -34,57 +34,49 @@
 
 package com.linecorp.centraldogma.internal.jsonpatch;
 
-import static org.testng.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 
-public final class JsonPatchUnchangedTest {
+class JsonPatchUnchangedTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final TypeReference<Map<JsonPointer, JsonNode>> TYPE_REF =
             new TypeReference<Map<JsonPointer, JsonNode>>() {};
 
-    private final JsonNode testData;
-
-    public JsonPatchUnchangedTest() throws IOException {
-        final String resource = "/jsonpatch/diff/unchanged.json";
-        final URL url = getClass().getResource(resource);
-        testData = MAPPER.readTree(url);
+    @ParameterizedTest
+    @MethodSource("arguments")
+    void computeUnchangedValues(JsonNode source, JsonNode target, Map<JsonPointer, JsonNode> expected) {
+        final Map<JsonPointer, JsonNode> actual = JsonPatch.unchangedValues(source, target);
+        assertThat(actual).isEqualTo(expected);
     }
 
-    @DataProvider
-    public Iterator<Object[]> getTestData()
-            throws IOException {
-        final List<Object[]> list = Lists.newArrayList();
+    private static List<Arguments> arguments() throws IOException {
+        final String resource = "/jsonpatch/diff/unchanged.json";
+        final URL url = JsonPatchUnchangedTest.class.getResource(resource);
+        final JsonNode nodes = MAPPER.readTree(url);
 
-        for (final JsonNode node : testData) {
-            list.add(new Object[] {
+        final List<Arguments> arguments = new ArrayList<>();
+
+        for (JsonNode node : nodes) {
+            arguments.add(Arguments.of(
                     node.get("first"), node.get("second"),
-                    MAPPER.readValue(node.get("unchanged").traverse(), TYPE_REF)
-            });
+                    MAPPER.readValue(node.get("unchanged").traverse(), TYPE_REF)));
         }
 
-        return list.iterator();
-    }
-
-    @Test(dataProvider = "getTestData")
-    public void computeUnchangedValuesWorks(final JsonNode source, final JsonNode target,
-                                            final Map<JsonPointer, JsonNode> expected) {
-        final Map<JsonPointer, JsonNode> actual = JsonPatch.unchangedValues(source, target);
-
-        assertEquals(actual, expected);
+        return arguments;
     }
 }

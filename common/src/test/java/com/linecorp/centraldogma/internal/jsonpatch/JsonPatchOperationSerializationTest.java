@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -34,82 +34,91 @@
 
 package com.linecorp.centraldogma.internal.jsonpatch;
 
-import static org.testng.Assert.assertSame;
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Equivalence;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableMap;
 
-@Test
-public abstract class JsonPatchOperationSerializationTest {
+class JsonPatchOperationSerializationTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Equivalence<JsonNode> EQUIVALENCE = JsonNumEquals.getInstance();
 
-    private final Class<? extends JsonPatchOperation> opType;
-    private final JsonNode node;
-    private final ObjectMapper mapper;
+    private static final Map<String, Class<? extends JsonPatchOperation>> OPERATIONS =
+            ImmutableMap.<String, Class<? extends JsonPatchOperation>>builder()
+                    .put("add", AddOperation.class)
+                    .put("copy", CopyOperation.class)
+                    .put("move", MoveOperation.class)
+                    .put("remove", RemoveOperation.class)
+                    .put("removeIfExists", RemoveIfExistsOperation.class)
+                    .put("replace", ReplaceOperation.class)
+                    .put("test", TestOperation.class)
+                    .put("testAbsence", TestAbsenceOperation.class)
+                    .build();
 
-    protected JsonPatchOperationSerializationTest(
-            final String prefix, final Class<? extends JsonPatchOperation> opType) throws IOException {
-        mapper = new ObjectMapper();
-        final String resource = "/jsonpatch/" + prefix + ".json";
-        final URL url = getClass().getResource(resource);
-        node = mapper.readTree(url);
-        this.opType = opType;
-    }
-
-    @DataProvider
-    public final Iterator<Object[]> getInputs() {
-        final List<Object[]> list = Lists.newArrayList();
-
-        for (final JsonNode n : node.get("errors")) {
-            list.add(new Object[] { n.get("op") });
-        }
-
-        for (final JsonNode n : node.get("ops")) {
-            list.add(new Object[] { n.get("op") });
-        }
-
-        return list.iterator();
-    }
-
-    @Test(dataProvider = "getInputs")
-    public final void patchOperationSerializationWorks(final JsonNode input) throws IOException {
-        /*
-         * Deserialize a string input
-         */
+    @ParameterizedTest
+    @MethodSource("arguments")
+    void serialization(Class<? extends JsonPatchOperation> opType, JsonNode input) throws Exception {
+        // Deserialize a string input.
         final String in = input.toString();
-        final JsonPatchOperation op = mapper.readValue(in, JsonPatchOperation.class);
+        final JsonPatchOperation op = MAPPER.readValue(in, JsonPatchOperation.class);
 
-        /*
-         * Check that the class of the operation is what is expected
-         */
-        assertSame(op.getClass(), opType);
+        // Check that the class of the operation is what is expected.
+        assertThat(op.getClass()).isSameAs(opType);
 
-        /*
-         * Now, write the operation as a String...
-         */
-        final String out = mapper.writeValueAsString(op);
+        // Now write the operation as a String...
+        final String out = MAPPER.writeValueAsString(op);
 
-        /*
-         * And read it as a JsonNode again, then test for equality.
-         *
-         * The reason we do that is that JSON does not guarantee the order of
-         * object members; but JsonNode's .equals() method will correctly handle
-         * this event, and we trust its .toString().
-         */
-        final JsonNode output = mapper.readTree(out);
-        assertTrue(EQUIVALENCE.equivalent(input, output));
+        // And read it as a JsonNode again, then test for equality.
+        // The reason we do that is that JSON does not guarantee the order of
+        // object members; but JsonNode's .equals() method will correctly handle
+        // this event, and we trust its .toString().
+        final JsonNode output = MAPPER.readTree(out);
+        assertThat(EQUIVALENCE.equivalent(input, output)).isTrue();
+    }
+
+    private static List<Arguments> arguments() throws Exception {
+        final List<Arguments> arguments = new ArrayList<>();
+
+        for (Entry<String, Class<? extends JsonPatchOperation>> op : OPERATIONS.entrySet()) {
+            getNodes(op.getKey())
+                    .stream()
+                    .map(node -> Arguments.of(op.getValue(), node))
+                    .forEach(arguments::add);
+        }
+
+        return arguments;
+    }
+
+    private static List<JsonNode> getNodes(String prefix) throws IOException {
+        final String resource = "/jsonpatch/" + prefix + ".json";
+        final URL url = JsonPatchOperationSerializationTest.class.getResource(resource);
+        final JsonNode node = MAPPER.readTree(url);
+
+        final List<JsonNode> inputs = new ArrayList<>();
+
+        for (JsonNode n : node.get("errors")) {
+            inputs.add(n.get("op"));
+        }
+
+        for (JsonNode n : node.get("ops")) {
+            inputs.add(n.get("op"));
+        }
+
+        return inputs;
     }
 }
 

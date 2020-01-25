@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -34,64 +34,49 @@
 
 package com.linecorp.centraldogma.internal.jsonpatch;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.only;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertSame;
-import static org.testng.Assert.fail;
 
-import java.io.IOException;
-
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.mockito.Mock;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableList;
 
-public final class JsonPatchTest {
+class JsonPatchTest {
 
     private static final JsonNodeFactory FACTORY = JsonNodeFactory.instance;
 
+    @Mock
     private JsonPatchOperation op1;
+    @Mock
     private JsonPatchOperation op2;
 
-    @BeforeMethod
-    public void init() {
-        op1 = mock(JsonPatchOperation.class);
-        op2 = mock(JsonPatchOperation.class);
+    @Test
+    void nullInputsDuringBuildAreRejected() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> JsonPatch.fromJson(null));
     }
 
     @Test
-    public void nullInputsDuringBuildAreRejected() throws IOException {
-        try {
-            JsonPatch.fromJson(null);
-            fail("No exception thrown!");
-        } catch (NullPointerException e) {
-            // Expected
-        }
-    }
-
-    @Test
-    public void cannotPatchNull() {
+    void cannotPatchNull() {
         final JsonPatch patch = new JsonPatch(ImmutableList.of(op1, op2));
 
-        try {
-            patch.apply(null);
-            fail("No exception thrown!");
-        } catch (NullPointerException e) {
-            // Expected
-        }
+        assertThatNullPointerException()
+                .isThrownBy(() -> patch.apply(null));
     }
 
     @Test
-    public void operationsAreCalledInOrder() {
+    void operationsAreCalledInOrder() {
         final JsonNode node1 = FACTORY.textNode("hello");
         final JsonNode node2 = FACTORY.textNode("world");
 
@@ -104,23 +89,20 @@ public final class JsonPatchTest {
         verify(op1, only()).apply(same(node1));
         verify(op2, only()).apply(captor.capture());
 
-        assertSame(captor.getValue(), node2);
+        assertThat(captor.getValue()).isSameAs(node2);
     }
 
     @Test
-    public void whenOneOperationFailsNextOperationIsNotCalled() {
+    void whenOneOperationFailsNextOperationIsNotCalled() {
         final String message = "foo";
         when(op1.apply(any(JsonNode.class)))
                 .thenThrow(new JsonPatchException(message));
 
         final JsonPatch patch = new JsonPatch(ImmutableList.of(op1, op2));
 
-        try {
-            patch.apply(FACTORY.nullNode());
-            fail("No exception thrown!");
-        } catch (JsonPatchException e) {
-            assertEquals(e.getMessage(), message);
-        }
+        assertThatThrownBy(() -> patch.apply(FACTORY.nullNode()))
+                .isInstanceOf(JsonPatchException.class)
+                .hasMessage(message);
 
         verifyNoMoreInteractions(op2);
     }
