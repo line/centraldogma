@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
-import static com.linecorp.centraldogma.testing.internal.TestUtil.getClient;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -38,6 +38,11 @@ class AdministrativeServiceTest {
     @RegisterExtension
     final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
+        protected void configureHttpClient(WebClientBuilder builder) {
+            builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+        }
+
+        @Override
         protected boolean runForEachTest() {
             return true;
         }
@@ -45,7 +50,7 @@ class AdministrativeServiceTest {
 
     @Test
     void status() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse res = client.get(API_V1_PATH_PREFIX + "status").aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo(
@@ -54,7 +59,7 @@ class AdministrativeServiceTest {
 
     @Test
     void updateStatus_setUnwritable() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -67,7 +72,7 @@ class AdministrativeServiceTest {
 
     @Test
     void updateStatus_setUnwritableAndNonReplicating() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -81,7 +86,7 @@ class AdministrativeServiceTest {
 
     @Test
     void updateStatus_setWritableAndNonReplicating() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -93,7 +98,7 @@ class AdministrativeServiceTest {
 
     @Test
     void redundantUpdateStatus_Writable() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -104,7 +109,7 @@ class AdministrativeServiceTest {
 
     @Test
     void redundantUpdateStatus_Replicating() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
@@ -115,7 +120,7 @@ class AdministrativeServiceTest {
 
     @Test
     void updateStatus_leaveReadOnlyMode() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         // Enter read-only mode.
         updateStatus_setUnwritable();
         // Try to enter writable mode.

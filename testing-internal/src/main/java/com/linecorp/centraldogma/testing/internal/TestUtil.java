@@ -21,15 +21,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOError;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.TestInfo;
 
-import com.linecorp.armeria.client.WebClient;
-import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 public final class TestUtil {
 
@@ -52,14 +48,6 @@ public final class TestUtil {
 
     public static String normalizedDisplayName(TestInfo testInfo) {
         return DISALLOWED_CHARS.matcher(testInfo.getDisplayName()).replaceAll("");
-    }
-
-    public static WebClient getClient(CentralDogmaExtension extension) {
-        final InetSocketAddress serverAddress = extension.dogma().activePort().get().localAddress();
-        final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
-        return WebClient.builder(serverUri)
-                        .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                        .build();
     }
 
     private TestUtil() {}

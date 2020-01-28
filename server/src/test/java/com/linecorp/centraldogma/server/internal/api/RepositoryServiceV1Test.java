@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.internal.api;
 
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REPOS;
-import static com.linecorp.centraldogma.testing.internal.TestUtil.getClient;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,6 +32,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -49,7 +49,12 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 class RepositoryServiceV1Test {
 
     @RegisterExtension
-    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected void configureHttpClient(WebClientBuilder builder) {
+            builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+        }
+    };
 
     private static final String REPOS_PREFIX = PROJECTS_PREFIX + "/myPro" + REPOS;
 
@@ -60,7 +65,7 @@ class RepositoryServiceV1Test {
 
     @Test
     void createRepository() throws IOException {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes = createRepository(client, "myRepo");
         final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
         assertThat(headers.status()).isEqualTo(HttpStatus.CREATED);
@@ -84,7 +89,7 @@ class RepositoryServiceV1Test {
 
     @Test
     void createRepositoryWithSameName() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         createRepository(client, "myNewRepo");
 
         // create again with the same name
@@ -100,7 +105,7 @@ class RepositoryServiceV1Test {
 
     @Test
     void createRepositoryInAbsentProject() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST,
                                                          PROJECTS_PREFIX + "/absentProject" + REPOS,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
@@ -117,7 +122,7 @@ class RepositoryServiceV1Test {
 
     @Test
     void removeRepository() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         createRepository(client,"foo");
         final AggregatedHttpResponse aRes = client.delete(REPOS_PREFIX + "/foo").aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NO_CONTENT);
@@ -125,14 +130,14 @@ class RepositoryServiceV1Test {
 
     @Test
     void removeAbsentRepository() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes = client.delete(REPOS_PREFIX + "/foo").aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
     void removeMetaRepository() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes = client.delete(REPOS_PREFIX + '/' + Project.REPO_META)
                                                   .aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -140,7 +145,7 @@ class RepositoryServiceV1Test {
 
     @Test
     void unremoveAbsentRepository() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/baz",
                                                          HttpHeaderNames.CONTENT_TYPE,
                                                          "application/json-patch+json");
@@ -156,6 +161,11 @@ class RepositoryServiceV1Test {
         @RegisterExtension
         final CentralDogmaExtension dogma = new CentralDogmaExtension() {
             @Override
+            protected void configureHttpClient(WebClientBuilder builder) {
+                builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+            }
+
+            @Override
             protected boolean runForEachTest() {
                 return true;
             }
@@ -168,7 +178,7 @@ class RepositoryServiceV1Test {
 
         @Test
         void listRepositories() {
-            final WebClient client = getClient(dogma);
+            final WebClient client = dogma.httpClient();
             createRepository(client, "myRepo");
             final AggregatedHttpResponse aRes = client.get(REPOS_PREFIX).aggregate().join();
 
@@ -211,7 +221,7 @@ class RepositoryServiceV1Test {
 
         @Test
         void listRemovedRepositories() throws IOException {
-            final WebClient client = getClient(dogma);
+            final WebClient client = dogma.httpClient();
             createRepository(client, "trustin");
             createRepository(client, "hyangtack");
             createRepository(client, "minwoox");
@@ -242,7 +252,7 @@ class RepositoryServiceV1Test {
 
         @Test
         void unremoveRepository() {
-            final WebClient client = getClient(dogma);
+            final WebClient client = dogma.httpClient();
             createRepository(client, "foo");
             client.delete(REPOS_PREFIX + "/foo").aggregate().join();
             final RequestHeaders headers = RequestHeaders.of(HttpMethod.PATCH, REPOS_PREFIX + "/foo",
@@ -268,7 +278,7 @@ class RepositoryServiceV1Test {
 
         @Test
         void normalizeRevision() {
-            final WebClient client = getClient(dogma);
+            final WebClient client = dogma.httpClient();
             createRepository(client, "foo");
             final AggregatedHttpResponse res = client.get(REPOS_PREFIX + "/foo/revision/-1")
                                                      .aggregate().join();
@@ -282,7 +292,7 @@ class RepositoryServiceV1Test {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, PROJECTS_PREFIX,
                                                          HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
 
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         client.execute(headers, body).aggregate().join();
     }
 }

@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.linecorp.centraldogma.testing.internal.TestUtil.getClient;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -26,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -36,7 +36,12 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 class ListCommitsAndDiffTest {
 
     @RegisterExtension
-    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected void configureHttpClient(WebClientBuilder builder) {
+            builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+        }
+    };
 
     @BeforeAll
     static void setUp() {
@@ -45,7 +50,7 @@ class ListCommitsAndDiffTest {
 
     @Test
     void listCommitsWithMaxCommits() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes =
                 client.get("/api/v1/projects/myPro/repos/myRepo/commits/-1?to=1&maxCommits=2")
                       .aggregate().join();
@@ -83,7 +88,7 @@ class ListCommitsAndDiffTest {
 
     @Test
     void getOneCommit() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes = client.get("/api/v1/projects/myPro/repos/myRepo/commits/2")
                                                   .aggregate().join();
         final String expectedJson =
@@ -105,7 +110,7 @@ class ListCommitsAndDiffTest {
 
     @Test
     void getCommitWithPath() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes = client
                 .get("/api/v1/projects/myPro/repos/myRepo/commits?path=/foo0.json").aggregate().join();
         final String expectedJson =
@@ -129,7 +134,7 @@ class ListCommitsAndDiffTest {
 
     @Test
     void getDiff() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         editFooFile(client);
         final AggregatedHttpResponse aRes = client
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?from=3&to=5").aggregate().join();
@@ -161,7 +166,7 @@ class ListCommitsAndDiffTest {
 
     @Test
     void getJsonDiff() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         editFooFile(client);
         final AggregatedHttpResponse aRes = client
                 .get("/api/v1/projects/myPro/repos/myRepo/compare?path=/foo0.json&jsonpath=$.a&from=3&to=4")
@@ -187,6 +192,11 @@ class ListCommitsAndDiffTest {
         @RegisterExtension
         final CentralDogmaExtension dogma = new CentralDogmaExtension() {
             @Override
+            protected void configureHttpClient(WebClientBuilder builder) {
+                builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+            }
+
+            @Override
             protected boolean runForEachTest() {
                 return true;
             }
@@ -199,7 +209,7 @@ class ListCommitsAndDiffTest {
 
         @Test
         void listCommits() {
-            final WebClient client = getClient(dogma);
+            final WebClient client = dogma.httpClient();
             final AggregatedHttpResponse aRes = client.get("/api/v1/projects/myPro/repos/myRepo/commits")
                                                       .aggregate().join();
             final String expectedJson =
@@ -249,7 +259,7 @@ class ListCommitsAndDiffTest {
 
         @Test
         void listCommitsWithRevision() {
-            final WebClient client = getClient(dogma);
+            final WebClient client = dogma.httpClient();
             final AggregatedHttpResponse res1 = client.get("/api/v1/projects/myPro/repos/myRepo/commits?to=2")
                                                       .aggregate().join();
             final String expectedJson =
@@ -289,7 +299,7 @@ class ListCommitsAndDiffTest {
     }
 
     private static void createProject(CentralDogmaExtension dogma) {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         // the default project used for unit tests
         RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, "/api/v1/projects",
                                                    HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);

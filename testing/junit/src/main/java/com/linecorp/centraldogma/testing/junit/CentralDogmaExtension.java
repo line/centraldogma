@@ -26,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
@@ -82,6 +83,11 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
             @Override
             protected void configureClient(LegacyCentralDogmaBuilder builder) {
                 CentralDogmaExtension.this.configureClient(builder);
+            }
+
+            @Override
+            protected void configureHttpClient(WebClientBuilder builder) {
+                CentralDogmaExtension.this.configureHttpClient(builder);
             }
 
             @Override
@@ -225,6 +231,11 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
      * Override this method to configure the Thrift-based {@link CentralDogma} client builder.
      */
     protected void configureClient(LegacyCentralDogmaBuilder builder) {}
+
+    /**
+     * Override this method to configure the {@link WebClient} builder.
+     */
+    protected void configureHttpClient(WebClientBuilder builder) {}
 
     /**
      * Override this method to perform the initial updates on the server,
