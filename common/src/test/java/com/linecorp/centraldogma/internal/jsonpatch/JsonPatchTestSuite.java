@@ -39,7 +39,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,6 +47,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 
 class JsonPatchTestSuite {
 
@@ -67,7 +67,7 @@ class JsonPatchTestSuite {
     }
 
     private static List<Arguments> tests() throws Exception {
-        final List<Arguments> arguments = new ArrayList<>();
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
 
         final URL url = JsonPatchTestSuite.class.getResource("/jsonpatch/testsuite.json");
         final JsonNode testNode = MAPPER.readTree(url);
@@ -85,6 +85,6 @@ class JsonPatchTestSuite {
             arguments.add(Arguments.of(source, patch, expected, valid));
         }
 
-        return arguments;
+        return arguments.build();
     }
 }

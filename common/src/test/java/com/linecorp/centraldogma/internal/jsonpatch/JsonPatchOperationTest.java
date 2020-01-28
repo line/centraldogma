@@ -39,7 +39,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -82,7 +81,7 @@ class JsonPatchOperationTest {
     }
 
     private static List<Arguments> ops() throws Exception {
-        final List<Arguments> arguments = new ArrayList<>();
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
 
         for (String prefix : OPERATIONS) {
             final JsonNode ops = getNode(prefix, "ops");
@@ -95,11 +94,11 @@ class JsonPatchOperationTest {
             }
         }
 
-        return arguments;
+        return arguments.build();
     }
 
     private static List<Arguments> errors() throws Exception {
-        final List<Arguments> arguments = new ArrayList<>();
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
 
         for (String prefix : OPERATIONS) {
             final JsonNode errors = getNode(prefix, "errors");
@@ -112,7 +111,7 @@ class JsonPatchOperationTest {
             }
         }
 
-        return arguments;
+        return arguments.build();
     }
 
     private static JsonNode getNode(String prefix, String field) throws IOException {

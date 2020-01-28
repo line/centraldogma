@@ -38,7 +38,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -50,6 +49,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Equivalence;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 class JsonPatchOperationSerializationTest {
@@ -91,7 +91,7 @@ class JsonPatchOperationSerializationTest {
     }
 
     private static List<Arguments> arguments() throws Exception {
-        final List<Arguments> arguments = new ArrayList<>();
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
 
         for (Entry<String, Class<? extends JsonPatchOperation>> op : OPERATIONS.entrySet()) {
             getNodes(op.getKey())
@@ -100,7 +100,7 @@ class JsonPatchOperationSerializationTest {
                     .forEach(arguments::add);
         }
 
-        return arguments;
+        return arguments.build();
     }
 
     private static List<JsonNode> getNodes(String prefix) throws IOException {
@@ -108,7 +108,7 @@ class JsonPatchOperationSerializationTest {
         final URL url = JsonPatchOperationSerializationTest.class.getResource(resource);
         final JsonNode node = MAPPER.readTree(url);
 
-        final List<JsonNode> inputs = new ArrayList<>();
+        final ImmutableList.Builder<JsonNode> inputs = ImmutableList.builder();
 
         for (JsonNode n : node.get("errors")) {
             inputs.add(n.get("op"));
@@ -118,7 +118,7 @@ class JsonPatchOperationSerializationTest {
             inputs.add(n.get("op"));
         }
 
-        return inputs;
+        return inputs.build();
     }
 }
 

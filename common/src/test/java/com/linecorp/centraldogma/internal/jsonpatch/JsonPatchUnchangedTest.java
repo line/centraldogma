@@ -38,7 +38,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +49,7 @@ import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 
 class JsonPatchUnchangedTest {
 
@@ -69,7 +69,7 @@ class JsonPatchUnchangedTest {
         final URL url = JsonPatchUnchangedTest.class.getResource(resource);
         final JsonNode nodes = MAPPER.readTree(url);
 
-        final List<Arguments> arguments = new ArrayList<>();
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
 
         for (JsonNode node : nodes) {
             arguments.add(Arguments.of(
@@ -77,6 +77,6 @@ class JsonPatchUnchangedTest {
                     MAPPER.readValue(node.get("unchanged").traverse(), TYPE_REF)));
         }
 
-        return arguments;
+        return arguments.build();
     }
 }

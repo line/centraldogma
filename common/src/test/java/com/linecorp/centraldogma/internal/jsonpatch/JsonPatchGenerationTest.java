@@ -38,7 +38,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -50,6 +49,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Equivalence;
+import com.google.common.collect.ImmutableList;
 
 class JsonPatchGenerationTest {
 
@@ -83,17 +83,17 @@ class JsonPatchGenerationTest {
     }
 
     private static List<Arguments> patches() throws Exception {
-        final List<Arguments> arguments = new ArrayList<>();
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
 
         for (JsonNode node : getNode()) {
             arguments.add(Arguments.of(node.get("first"), node.get("second")));
         }
 
-        return arguments;
+        return arguments.build();
     }
 
     private static List<Arguments> literalPatches() throws Exception {
-        final List<Arguments> arguments = new ArrayList<>();
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
 
         for (JsonNode node : getNode()) {
             if (!node.has("patch")) {
@@ -105,7 +105,7 @@ class JsonPatchGenerationTest {
                     node.get("second"), node.get("patch")));
         }
 
-        return arguments;
+        return arguments.build();
     }
 
     private static JsonNode getNode() throws IOException {
