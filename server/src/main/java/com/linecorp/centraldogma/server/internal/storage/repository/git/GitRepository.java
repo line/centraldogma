@@ -572,8 +572,6 @@ class GitRepository implements Repository {
 
             // Walk through the commit tree to get the corresponding commit information by given filters
             revWalk.setTreeFilter(AndTreeFilter.create(TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
-            // Disable rewriteParents because otherwise `RevWalk` will load every commit into memory.
-            revWalk.setRewriteParents(false);
             revWalk.markStart(revWalk.parseCommit(fromCommitId));
             final RevCommit toCommit = revWalk.parseCommit(toCommitId);
             if (toCommit.getParentCount() != 0) {
@@ -1480,6 +1478,7 @@ class GitRepository implements Repository {
     }
 
     private static void configureRevWalk(RevWalk revWalk) {
+        // Disable rewriteParents because otherwise `RevWalk` will load every commit into memory.
         revWalk.setRewriteParents(false);
     }
 
