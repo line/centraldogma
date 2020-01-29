@@ -15,13 +15,14 @@
  */
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Optional;
 
 import javax.annotation.Nullable;
 
@@ -57,6 +58,10 @@ public final class Main {
                      File.separatorChar + "conf" +
                      File.separatorChar + "dogma.json");
 
+    private static final File DEFAULT_PID_FILE =
+            new File(System.getProperty("user.dir", ".") +
+                     File.separatorChar + "dogma.pid");
+
     @Nullable
     @Parameter(names = "-config", description = "The path to the config file", converter = FileConverter.class)
     private File configFile;
@@ -64,7 +69,7 @@ public final class Main {
     @Nullable
     @Parameter(names = "-pidfile",
             description = "The path to the file containing the pid of the server" +
-                          " (defaults to /var/run/centraldogma.pid)",
+                          " (defaults to ./dogma.pid)",
             converter = FileConverter.class)
     private File pidFile;
 
@@ -81,6 +86,7 @@ public final class Main {
     private CentralDogma dogma;
     @Nullable
     private PidFile procIdFile;
+    private boolean procIdFileCreated;
 
     private Main(String[] args) {
         final JCommander commander = new JCommander(this);
@@ -90,8 +96,7 @@ public final class Main {
         if (help != null && help) {
             commander.usage();
         } else {
-            procIdFile = new PidFile(Optional.ofNullable(pidFile)
-                                             .orElseGet(() -> new File("/var/run/centraldogma.pid")));
+            procIdFile = new PidFile(firstNonNull(pidFile, DEFAULT_PID_FILE));
             state = State.INITIALIZED;
         }
     }
@@ -126,6 +131,7 @@ public final class Main {
         // because the state has been updated.
         assert procIdFile != null;
         procIdFile.create();
+        procIdFileCreated = true;
     }
 
     @Nullable
@@ -174,10 +180,12 @@ public final class Main {
         }
 
         assert procIdFile != null;
-        try {
-            procIdFile.destroy();
-        } catch (IOException e) {
-            logger.warn("Failed to destroy the PID file:", e);
+        if (procIdFileCreated) {
+            try {
+                procIdFile.destroy();
+            } catch (IOException e) {
+                logger.warn("Failed to destroy the PID file:", e);
+            }
         }
 
         state = State.DESTROYED;

@@ -459,7 +459,7 @@ class GitRepository implements Repository {
         readLock();
         try (ObjectReader reader = jGitRepository.newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
-             RevWalk revWalk = new RevWalk(reader)) {
+             RevWalk revWalk = newRevWalk(reader)) {
 
             // Query on a non-exist revision will return empty result.
             final Revision headRevision = cachedHeadRevision();
@@ -566,13 +566,12 @@ class GitRepository implements Repository {
 
         // At this point, we are sure: from.major >= to.major
         readLock();
-        try (RevWalk revWalk = new RevWalk(jGitRepository)) {
+        try (RevWalk revWalk = newRevWalk()) {
             final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
             final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
 
             // Walk through the commit tree to get the corresponding commit information by given filters
             revWalk.setTreeFilter(AndTreeFilter.create(TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
-
             revWalk.markStart(revWalk.parseCommit(fromCommitId));
             final RevCommit toCommit = revWalk.parseCommit(toCommitId);
             if (toCommit.getParentCount() != 0) {
@@ -599,7 +598,7 @@ class GitRepository implements Repository {
             // If the pathPattern does not contain "/**", the caller wants commits only with the specific path,
             // so skip the empty commit.
             if (needsLastCommit && pathPattern.contains(ALL_PATH)) {
-                try (RevWalk tmpRevWalk = new RevWalk(jGitRepository)) {
+                try (RevWalk tmpRevWalk = newRevWalk()) {
                     final RevCommit lastRevCommit = tmpRevWalk.parseCommit(toCommitId);
                     final Revision lastCommitRevision =
                             CommitUtil.extractRevision(lastRevCommit.getFullMessage());
@@ -665,7 +664,7 @@ class GitRepository implements Repository {
 
             final RevisionRange range = normalizeNow(from, to).toAscending();
             readLock();
-            try (RevWalk rw = new RevWalk(jGitRepository)) {
+            try (RevWalk rw = newRevWalk()) {
                 final RevTree treeA = rw.parseTree(commitIdDatabase.get(range.from()));
                 final RevTree treeB = rw.parseTree(commitIdDatabase.get(range.to()));
 
@@ -709,7 +708,7 @@ class GitRepository implements Repository {
 
         readLock();
         try (ObjectReader reader = jGitRepository.newObjectReader();
-             RevWalk revWalk = new RevWalk(reader);
+             RevWalk revWalk = newRevWalk(reader);
              DiffFormatter diffFormatter = new DiffFormatter(null)) {
 
             final ObjectId baseTreeId = toTree(revWalk, baseRevision);
@@ -882,7 +881,7 @@ class GitRepository implements Repository {
 
         try (ObjectInserter inserter = jGitRepository.newObjectInserter();
              ObjectReader reader = jGitRepository.newObjectReader();
-             RevWalk revWalk = new RevWalk(reader)) {
+             RevWalk revWalk = newRevWalk(reader)) {
 
             final ObjectId prevTreeId = prevRevision != null ? toTree(revWalk, prevRevision) : null;
 
@@ -1025,8 +1024,8 @@ class GitRepository implements Repository {
                         }
                         break;
                     case RENAME: {
-                        final String newPath = ((String) change.content()).substring(
-                                1); // Strip the leading '/'.
+                        final String newPath =
+                                ((String) change.content()).substring(1); // Strip the leading '/'.
 
                         if (dirCache.getEntry(newPath) != null) {
                             throw new ChangeConflictException("a file exists at the target path: " + change);
@@ -1299,7 +1298,7 @@ class GitRepository implements Repository {
         // Convert the revisions to Git trees.
         final List<DiffEntry> diffEntries;
         readLock();
-        try (RevWalk revWalk = new RevWalk(jGitRepository)) {
+        try (RevWalk revWalk = newRevWalk()) {
             final RevTree treeA = toTree(revWalk, range.from());
             final RevTree treeB = toTree(revWalk, range.to());
             diffEntries = blockingCompareTrees(treeA, treeB);
@@ -1442,7 +1441,7 @@ class GitRepository implements Repository {
      * Returns the current revision.
      */
     private Revision uncachedHeadRevision() {
-        try (RevWalk revWalk = new RevWalk(jGitRepository)) {
+        try (RevWalk revWalk = newRevWalk()) {
             final ObjectId headRevisionId = jGitRepository.resolve(R_HEADS_MASTER);
             if (headRevisionId != null) {
                 final RevCommit revCommit = revWalk.parseCommit(headRevisionId);
@@ -1464,6 +1463,23 @@ class GitRepository implements Repository {
         } catch (IOException e) {
             throw new StorageException("failed to parse a commit: " + commitId, e);
         }
+    }
+
+    private RevWalk newRevWalk() {
+        final RevWalk revWalk = new RevWalk(jGitRepository);
+        configureRevWalk(revWalk);
+        return revWalk;
+    }
+
+    private static RevWalk newRevWalk(ObjectReader reader) {
+        final RevWalk revWalk = new RevWalk(reader);
+        configureRevWalk(revWalk);
+        return revWalk;
+    }
+
+    private static void configureRevWalk(RevWalk revWalk) {
+        // Disable rewriteParents because otherwise `RevWalk` will load every commit into memory.
+        revWalk.setRewriteParents(false);
     }
 
     private void readLock() {
