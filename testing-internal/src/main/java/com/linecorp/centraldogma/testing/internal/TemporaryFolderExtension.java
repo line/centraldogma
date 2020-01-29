@@ -30,7 +30,7 @@ import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
  * <pre>{@code
  * > class MyTest {
  * >     @RegisterExtension
- * >     static final TemporaryFolder folder = new TemporaryFolder();
+ * >     static final TemporaryFolderExtension folder = new TemporaryFolderExtension();
  * >
  * >     @Test
  * >     void test() throws Exception {
