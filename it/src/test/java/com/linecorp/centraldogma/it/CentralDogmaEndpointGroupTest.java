@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -99,7 +98,6 @@ class CentralDogmaEndpointGroupTest {
     }
 
     @Test
-    @Timeout(10)
     void text() throws Exception {
         try (Watcher<String> watcher = dogma.client().fileWatcher("directory", "my-service",
                                                                   Query.ofText("/endpoints.txt"))) {

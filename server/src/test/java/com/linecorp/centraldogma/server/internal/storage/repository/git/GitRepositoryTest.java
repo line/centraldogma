@@ -57,7 +57,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -1161,7 +1160,6 @@ class GitRepositoryTest {
     }
 
     @Test
-    @Timeout(10)
     void testWatchWithIdentityQuery() throws Exception {
         final Revision rev1 = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, textUpserts[0]).join();
 
