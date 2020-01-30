@@ -21,7 +21,6 @@ import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,6 +29,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -44,11 +44,16 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 class ProjectServiceV1Test {
 
     @RegisterExtension
-    static final CentralDogmaExtension dogma = new CentralDogmaExtension();
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected void configureHttpClient(WebClientBuilder builder) {
+            builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+        }
+    };
 
     @Test
     void createProject() throws IOException {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes = createProject(client, "myPro");
         final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
         assertThat(headers.status()).isEqualTo(HttpStatus.CREATED);
@@ -71,7 +76,7 @@ class ProjectServiceV1Test {
 
     @Test
     void createProjectWithSameName() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         createProject(client, "myNewPro");
         final AggregatedHttpResponse res = createProject(client, "myNewPro");
         assertThat(ResponseHeaders.of(res.headers()).status()).isEqualTo(HttpStatus.CONFLICT);
@@ -85,7 +90,7 @@ class ProjectServiceV1Test {
 
     @Test
     void removeProject() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         createProject(client, "foo");
         final AggregatedHttpResponse aRes = client.delete(PROJECTS_PREFIX + "/foo")
                                                   .aggregate().join();
@@ -95,7 +100,7 @@ class ProjectServiceV1Test {
 
     @Test
     void removeAbsentProject() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes = client.delete(PROJECTS_PREFIX + "/foo")
                                                   .aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -105,7 +110,7 @@ class ProjectServiceV1Test {
     void purgeProject() {
         removeProject();
 
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes = client.delete(PROJECTS_PREFIX + "/foo/removed")
                                                   .aggregate().join();
         final ResponseHeaders headers = ResponseHeaders.of(aRes.headers());
@@ -114,7 +119,7 @@ class ProjectServiceV1Test {
 
     @Test
     void unremoveProject() {
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         createProject(client, "bar");
 
         final String projectPath = PROJECTS_PREFIX + "/bar";
@@ -147,7 +152,7 @@ class ProjectServiceV1Test {
                                                          "application/json-patch+json");
 
         final String unremovePatch = "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"active\"}]";
-        final WebClient client = getClient(dogma);
+        final WebClient client = dogma.httpClient();
         final AggregatedHttpResponse aRes = client.execute(headers, unremovePatch).aggregate().join();
         assertThat(ResponseHeaders.of(aRes.headers()).status()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -158,6 +163,11 @@ class ProjectServiceV1Test {
         @RegisterExtension
         final CentralDogmaExtension dogma = new CentralDogmaExtension() {
             @Override
+            protected void configureHttpClient(WebClientBuilder builder) {
+                builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+            }
+
+            @Override
             protected boolean runForEachTest() {
                 return true;
             }
@@ -165,7 +175,7 @@ class ProjectServiceV1Test {
 
         @Test
         void listProjects() {
-            final WebClient client = getClient(dogma);
+            final WebClient client = dogma.httpClient();
             createProject(client, "trustin");
             createProject(client, "hyangtack");
             createProject(client, "minwoox");
@@ -207,7 +217,7 @@ class ProjectServiceV1Test {
 
         @Test
         void listRemovedProjects() throws IOException {
-            final WebClient client = getClient(dogma);
+            final WebClient client = dogma.httpClient();
             createProject(client, "trustin");
             createProject(client, "hyangtack");
             createProject(client, "minwoox");
@@ -235,13 +245,5 @@ class ProjectServiceV1Test {
             // Only trustin project is left
             assertThat(jsonNode.size()).isOne();
         }
-    }
-
-    private static WebClient getClient(CentralDogmaExtension dogma) {
-        final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
-        final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
-        return WebClient.builder(serverUri)
-                        .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                        .build();
     }
 }

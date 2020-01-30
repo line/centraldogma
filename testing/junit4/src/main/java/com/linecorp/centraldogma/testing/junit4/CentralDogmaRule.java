@@ -26,6 +26,7 @@ import org.junit.rules.TemporaryFolder;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
@@ -79,6 +80,11 @@ public class CentralDogmaRule extends TemporaryFolder {
             @Override
             protected void configureClient(LegacyCentralDogmaBuilder builder) {
                 CentralDogmaRule.this.configureClient(builder);
+            }
+
+            @Override
+            protected void configureHttpClient(WebClientBuilder builder) {
+                CentralDogmaRule.this.configureHttpClient(builder);
             }
 
             @Override
@@ -224,6 +230,11 @@ public class CentralDogmaRule extends TemporaryFolder {
      * Override this method to configure the Thrift-based {@link CentralDogma} client builder.
      */
     protected void configureClient(LegacyCentralDogmaBuilder builder) {}
+
+    /**
+     * Override this method to configure the {@link WebClient} builder.
+     */
+    protected void configureHttpClient(WebClientBuilder builder) {}
 
     /**
      * Override this method to perform the initial updates on the server,

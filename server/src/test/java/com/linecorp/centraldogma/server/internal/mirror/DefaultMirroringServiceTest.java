@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -24,9 +24,8 @@ import java.io.File;
 import java.net.URI;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -44,16 +43,16 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-public class DefaultMirroringServiceTest {
+class DefaultMirroringServiceTest {
 
-    @ClassRule
-    public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir
+    static File temporaryFolder;
 
     private static final Cron EVERY_SECOND = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ)).parse("* * * * * ?");
 
     @Test
-    public void mirroringTaskShouldNeverBeRejected() throws Exception {
+    void mirroringTaskShouldNeverBeRejected() {
         final AtomicInteger taskCounter = new AtomicInteger();
         final ProjectManager pm = mock(ProjectManager.class);
         final Project p = mock(Project.class);
@@ -82,8 +81,7 @@ public class DefaultMirroringServiceTest {
 
         when(mr.mirrors()).thenReturn(ImmutableSet.of(mirror));
 
-        final DefaultMirroringService service =
-                new DefaultMirroringService(temporaryFolder.getRoot(), pm, 1, 1, 1);
+        final DefaultMirroringService service = new DefaultMirroringService(temporaryFolder, pm, 1, 1, 1);
         service.start(mock(CommandExecutor.class));
 
         try {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -28,11 +28,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.eclipse.jgit.lib.ObjectId;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -41,33 +40,33 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
-public class CommitIdDatabaseTest {
+class CommitIdDatabaseTest {
 
-    @Rule
-    public final TemporaryFolder tmpDir = new TemporaryFolder();
+    @TempDir
+    File tempDir;
 
     private CommitIdDatabase db;
 
-    @Before
-    public void init() {
-        db = new CommitIdDatabase(tmpDir.getRoot());
+    @BeforeEach
+    void setUp() {
+        db = new CommitIdDatabase(tempDir);
     }
 
-    @After
-    public void destroy() {
+    @AfterEach
+    void tearDown() {
         if (db != null) {
             db.close();
         }
     }
 
     @Test
-    public void emptyDatabase() throws Exception {
+    void emptyDatabase() {
         assertThat(db.headRevision()).isNull();
         assertThatThrownBy(() -> db.get(Revision.INIT)).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void simpleAccess() throws Exception {
+    void simpleAccess() {
         final int numCommits = 10;
         final ObjectId[] expectedCommitIds = new ObjectId[numCommits + 1];
         for (int i = 1; i <= numCommits; i++) {
@@ -90,29 +89,29 @@ public class CommitIdDatabaseTest {
     }
 
     @Test
-    public void truncatedDatabase() throws Exception {
+    void truncatedDatabase() throws Exception {
         db.put(Revision.INIT, randomCommitId());
         db.close();
 
         // Truncate the database file.
-        try (FileChannel f = FileChannel.open(new File(tmpDir.getRoot(), "commit_ids.dat").toPath(),
+        try (FileChannel f = FileChannel.open(new File(tempDir, "commit_ids.dat").toPath(),
                          StandardOpenOption.APPEND)) {
 
             assertThat(f.size()).isEqualTo(24);
             f.truncate(23);
         }
 
-        assertThatThrownBy(() -> new CommitIdDatabase(tmpDir.getRoot()))
+        assertThatThrownBy(() -> new CommitIdDatabase(tempDir))
                 .isInstanceOf(StorageException.class)
                 .hasMessageContaining("incorrect file length");
     }
 
     @Test
-    public void mismatchingRevision() throws Exception {
+    void mismatchingRevision() throws Exception {
         db.close();
 
         // Append a record with incorrect revision number.
-        try (FileChannel f = FileChannel.open(new File(tmpDir.getRoot(), "commit_ids.dat").toPath(),
+        try (FileChannel f = FileChannel.open(new File(tempDir, "commit_ids.dat").toPath(),
                                               StandardOpenOption.APPEND)) {
 
             final ByteBuffer buf = ByteBuffer.allocate(24);
@@ -127,16 +126,16 @@ public class CommitIdDatabaseTest {
         }
 
         // Reopen the database and see if it fails to resolve the revision 1.
-        db = new CommitIdDatabase(tmpDir.getRoot());
+        db = new CommitIdDatabase(tempDir);
         assertThatThrownBy(() -> db.get(Revision.INIT))
                 .isInstanceOf(StorageException.class)
                 .hasMessageContaining("incorrect revision number");
     }
 
     @Test
-    public void rebuildingBadDatabase() throws Exception {
+    void rebuildingBadDatabase() throws Exception {
         final int numCommits = 10;
-        final File repoDir = tmpDir.getRoot();
+        final File repoDir = tempDir;
         final File commitIdDatabaseFile = new File(repoDir, "commit_ids.dat");
 
         // Create a repository which contains some commits.

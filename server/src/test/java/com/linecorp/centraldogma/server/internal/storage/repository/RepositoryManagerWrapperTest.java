@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,25 +18,20 @@ package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
-import java.util.stream.Collectors;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
@@ -46,31 +41,31 @@ import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepos
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
+import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
+import com.linecorp.centraldogma.testing.internal.TestUtil;
 
-public class RepositoryManagerWrapperTest {
-
-    @ClassRule
-    public static final TemporaryFolder rootDir = new TemporaryFolder();
+class RepositoryManagerWrapperTest {
 
     private static RepositoryManager m;
 
-    @Rule
-    public final TestName testName = new TestName();
-
     private Executor purgeWorker;
 
-    @Before
-    public void init() throws IOException {
+    @RegisterExtension
+    static final TemporaryFolderExtension rootDir = new TemporaryFolderExtension();
+
+    @BeforeEach
+    void setUp() {
         purgeWorker = mock(Executor.class);
-        m = new RepositoryManagerWrapper(new GitRepositoryManager(mock(Project.class), rootDir.getRoot(),
+        m = new RepositoryManagerWrapper(new GitRepositoryManager(mock(Project.class),
+                                                                  rootDir.getRoot().toFile(),
                                                                   ForkJoinPool.commonPool(),
                                                                   purgeWorker, null),
                                          RepositoryWrapper::new);
     }
 
     @Test
-    public void testCreate() {
-        final String name = testName.getMethodName();
+    void create(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
         final Repository repo = m.create(name, Author.SYSTEM);
         assertThat(repo).isInstanceOf(RepositoryWrapper.class);
         // The cached result will be returned on the second call.
@@ -78,8 +73,8 @@ public class RepositoryManagerWrapperTest {
     }
 
     @Test
-    public void testGet() {
-        final String name = testName.getMethodName();
+    void get(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
         final Repository repo = m.create(name, Author.SYSTEM);
         final Repository repo2 = m.get(name);
 
@@ -88,35 +83,33 @@ public class RepositoryManagerWrapperTest {
     }
 
     @Test
-    public void testRemove() {
-        final String name = testName.getMethodName();
+    void remove(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
         m.create(name, Author.SYSTEM);
         m.remove(name);
         assertThat(m.exists(name)).isFalse();
     }
 
     @Test
-    public void testRemove_failure() {
-        final String name = testName.getMethodName();
+    void remove_failure(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
         assertThatThrownBy(() -> m.remove(name)).isInstanceOf(RepositoryNotFoundException.class);
     }
 
     @Test
-    public void testUnRemove_failure() {
-        final String name = testName.getMethodName();
+    void unremove_failure(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
         assertThatThrownBy(() -> m.unremove(name)).isInstanceOf(RepositoryNotFoundException.class);
     }
 
     @Test
-    public void testList() {
-        final String name = testName.getMethodName();
+    void list(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
         final int numNames = 10;
         for (int i = 0; i < numNames; i++) {
             m.create(name + i, Author.SYSTEM);
         }
-        final List<String> names = m.list().entrySet().stream()
-                                    .map(Map.Entry::getKey)
-                                    .collect(Collectors.toList());
+        final List<String> names = new ArrayList<>(m.list().keySet());
 
         // Check if names is in ascending order
         for (int i = 0; i < numNames - 1; i++) {
@@ -127,8 +120,8 @@ public class RepositoryManagerWrapperTest {
     }
 
     @Test
-    public void testMarkForPurge() {
-        final String name = testName.getMethodName();
+    void markForPurge(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
         m.create(name, Author.SYSTEM);
         m.remove(name);
         m.markForPurge(name);
@@ -137,27 +130,27 @@ public class RepositoryManagerWrapperTest {
     }
 
     @Test
-    public void testPurgeMarked() {
-        final String name = testName.getMethodName();
+    void purgeMarked(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
         final int numNames = 10;
         for (int i = 0; i < numNames; i++) {
-            String targetName = name + i;
+            final String targetName = name + i;
             m.create(targetName, Author.SYSTEM);
             m.remove(targetName);
             m.markForPurge(targetName);
         }
         m.purgeMarked();
         for (int i = 0; i < numNames; i++) {
-            String targetName = name + i;
+            final String targetName = name + i;
             assertThatThrownBy(() -> m.get(targetName)).isInstanceOf(RepositoryNotFoundException.class);
         }
     }
 
     @Test
-    public void testClose() {
-        final String name = testName.getMethodName();
+    void close(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
         m.create(name, Author.SYSTEM);
-        assertTrue(m.exists(name));
+        assertThat(m.exists(name)).isTrue();
         m.close(ShuttingDownException::new);
 
         assertThatThrownBy(() -> m.get(name)).isInstanceOf(ShuttingDownException.class);

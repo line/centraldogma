@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -29,9 +29,8 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,27 +45,26 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-public class GitRepositoryMigrationTest {
+class GitRepositoryMigrationTest {
 
     private static final Logger logger = LoggerFactory.getLogger(GitRepositoryMigrationTest.class);
 
     private static final Project proj = mock(Project.class);
 
-    @Rule
-    public final TemporaryFolder tempDir = new TemporaryFolder();
+    @TempDir
+    File tempDir;
 
     /**
      * Makes sure {@link GitRepository} can create the legacy format repository, with Git repository format
      * version 0 and hexadecimal tag encoding.
      */
     @Test
-    public void legacyFormatCreation() {
-        final File repoDir0 = tempDir.getRoot();
-        final GitRepository repo0 = new GitRepository(proj, repoDir0, V0, commonPool(),
+    void legacyFormatCreation() {
+        final GitRepository repo0 = new GitRepository(proj, tempDir, V0, commonPool(),
                                                       0L, Author.SYSTEM, null);
         try {
             assertThat(repo0.format()).isSameAs(V0);
-            assertThat(Paths.get(repoDir0.getPath(), "refs", "heads", "master"))
+            assertThat(Paths.get(tempDir.getPath(), "refs", "heads", "master"))
                     .existsNoFollowLinks()
                     .isRegularFile();
         } finally {
@@ -79,12 +77,11 @@ public class GitRepositoryMigrationTest {
      * version 1 and simple tag encoding.
      */
     @Test
-    public void modernFormatCreation() {
-        final File repoDir1 = tempDir.getRoot();
-        final GitRepository repo1 = new GitRepository(proj, repoDir1, commonPool(), 0L, Author.SYSTEM);
+    void modernFormatCreation() {
+        final GitRepository repo1 = new GitRepository(proj, tempDir, commonPool(), 0L, Author.SYSTEM);
         try {
             assertThat(repo1.format()).isSameAs(V1);
-            assertThat(Paths.get(repoDir1.getPath(), "refs", "heads", "master"))
+            assertThat(Paths.get(tempDir.getPath(), "refs", "heads", "master"))
                     .existsNoFollowLinks()
                     .isRegularFile();
         } finally {
@@ -96,9 +93,9 @@ public class GitRepositoryMigrationTest {
      * Makes sure a legacy {@link GitRepository} is migrated to the modern format.
      */
     @Test
-    public void singleRepositoryMigration() {
-        final File repoDir0 = new File(tempDir.getRoot(), "legacy");
-        final File repoDir1 = new File(tempDir.getRoot(), "modern");
+    void singleRepositoryMigration() {
+        final File repoDir0 = new File(tempDir, "legacy");
+        final File repoDir1 = new File(tempDir, "modern");
         final GitRepository repo0 = new GitRepository(proj, repoDir0, V0, commonPool(),
                                                       0, Author.SYSTEM, null);
         try {
@@ -164,8 +161,7 @@ public class GitRepositoryMigrationTest {
      * Makes sure {@link GitRepositoryManager} performs migration.
      */
     @Test
-    public void multipleRepositoryMigration() {
-        final File tempDir = this.tempDir.getRoot();
+    void multipleRepositoryMigration() {
         final Executor purgeWorker = MoreExecutors.directExecutor();
         // Create repositories of older format.
         final GitRepositoryManager managerA = new GitRepositoryManager(proj, tempDir, V0, commonPool(),

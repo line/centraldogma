@@ -20,13 +20,11 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.InetSocketAddress;
-
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
@@ -40,25 +38,20 @@ class AdministrativeServiceTest {
     @RegisterExtension
     final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
+        protected void configureHttpClient(WebClientBuilder builder) {
+            builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+        }
+
+        @Override
         protected boolean runForEachTest() {
             return true;
         }
     };
 
-    private static WebClient webClient;
-
-    @BeforeEach
-    void setUp() {
-        final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
-        final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
-        webClient = WebClient.builder(serverUri)
-                             .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")
-                             .build();
-    }
-
     @Test
     void status() {
-        final AggregatedHttpResponse res = webClient.get(API_V1_PATH_PREFIX + "status").aggregate().join();
+        final WebClient client = dogma.httpClient();
+        final AggregatedHttpResponse res = client.get(API_V1_PATH_PREFIX + "status").aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo(
                 "{ \"writable\": true, \"replicating\": true }");
@@ -66,7 +59,8 @@ class AdministrativeServiceTest {
 
     @Test
     void updateStatus_setUnwritable() {
-        final AggregatedHttpResponse res = webClient.execute(
+        final WebClient client = dogma.httpClient();
+        final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }]").aggregate().join();
@@ -78,7 +72,8 @@ class AdministrativeServiceTest {
 
     @Test
     void updateStatus_setUnwritableAndNonReplicating() {
-        final AggregatedHttpResponse res = webClient.execute(
+        final WebClient client = dogma.httpClient();
+        final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }," +
@@ -91,7 +86,8 @@ class AdministrativeServiceTest {
 
     @Test
     void updateStatus_setWritableAndNonReplicating() {
-        final AggregatedHttpResponse res = webClient.execute(
+        final WebClient client = dogma.httpClient();
+        final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }," +
@@ -102,7 +98,8 @@ class AdministrativeServiceTest {
 
     @Test
     void redundantUpdateStatus_Writable() {
-        final AggregatedHttpResponse res = webClient.execute(
+        final WebClient client = dogma.httpClient();
+        final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();
@@ -112,7 +109,8 @@ class AdministrativeServiceTest {
 
     @Test
     void redundantUpdateStatus_Replicating() {
-        final AggregatedHttpResponse res = webClient.execute(
+        final WebClient client = dogma.httpClient();
+        final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/replicating\", \"value\": true }]").aggregate().join();
@@ -122,10 +120,11 @@ class AdministrativeServiceTest {
 
     @Test
     void updateStatus_leaveReadOnlyMode() {
+        final WebClient client = dogma.httpClient();
         // Enter read-only mode.
         updateStatus_setUnwritable();
         // Try to enter writable mode.
-        final AggregatedHttpResponse res = webClient.execute(
+        final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
                 "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();

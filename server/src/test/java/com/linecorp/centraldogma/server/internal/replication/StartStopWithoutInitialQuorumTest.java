@@ -16,11 +16,9 @@
 package com.linecorp.centraldogma.server.internal.replication;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.curator.test.InstanceSpec;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -34,7 +32,6 @@ import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 /**
  * Makes sure that we can stop a replica that's waiting for the initial quorum.
  */
-@Timeout(value = 1, unit = TimeUnit.MINUTES)
 class StartStopWithoutInitialQuorumTest {
 
     @RegisterExtension

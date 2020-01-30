@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.ServerPort;
@@ -130,8 +131,10 @@ public class CentralDogmaRuleDelegate {
                 throw new IOError(e);
             }
 
-            webClient = WebClient.of(
-                    "h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort());
+            final String uri = "h2c://" + serverAddress.getHostString() + ':' + serverAddress.getPort();
+            final WebClientBuilder webClientBuilder = WebClient.builder(uri);
+            configureHttpClient(webClientBuilder);
+            webClient = webClientBuilder.build();
         });
     }
 
@@ -244,6 +247,11 @@ public class CentralDogmaRuleDelegate {
      * Override this method to configure the Thrift-based {@link CentralDogma} client builder.
      */
     protected void configureClient(LegacyCentralDogmaBuilder builder) {}
+
+    /**
+     * Override this method to configure the {@link WebClient} builder.
+     */
+    protected void configureHttpClient(WebClientBuilder builder) {}
 
     /**
      * Override this method to perform the initial updates on the server,

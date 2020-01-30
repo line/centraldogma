@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -21,19 +21,18 @@ import static com.linecorp.centraldogma.server.internal.storage.repository.Defau
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.File;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
@@ -55,8 +54,9 @@ import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
+import com.linecorp.centraldogma.testing.internal.TestUtil;
 
-public class DefaultMetaRepositoryTest {
+class DefaultMetaRepositoryTest {
 
     private static final Change<JsonNode> UPSERT_CREDENTIALS = Change.ofJsonUpsert(
             PATH_CREDENTIALS,
@@ -76,36 +76,34 @@ public class DefaultMetaRepositoryTest {
     private static final CronParser cronParser = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
 
-    @ClassRule
-    public static final TemporaryFolder rootDir = new TemporaryFolder();
+    @TempDir
+    static File rootDir;
 
     private static ProjectManager pm;
-
-    @Rule
-    public final TestName testName = new TestName();
 
     private Project project;
     private MetaRepository metaRepo;
 
-    @BeforeClass
-    public static void init() throws Exception {
-        pm = new DefaultProjectManager(rootDir.getRoot(), ForkJoinPool.commonPool(),
+    @BeforeAll
+    static void init() {
+        pm = new DefaultProjectManager(rootDir, ForkJoinPool.commonPool(),
                                        MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null);
     }
 
-    @AfterClass
-    public static void destroy() {
+    @AfterAll
+    static void destroy() {
         pm.close(ShuttingDownException::new);
     }
 
-    @Before
-    public void setUp() {
-        project = pm.create(testName.getMethodName(), Author.SYSTEM);
+    @BeforeEach
+    void setUp(TestInfo testInfo) {
+        final String name = TestUtil.normalizedDisplayName(testInfo);
+        project = pm.create(name, Author.SYSTEM);
         metaRepo = project.metaRepo();
     }
 
     @Test
-    public void testEmptyMirrors() {
+    void testEmptyMirrors() {
         // should return an empty result when both /credentials.json and /mirrors.json are non-existent.
         assertThat(metaRepo.mirrors()).isEmpty();
 
@@ -122,7 +120,7 @@ public class DefaultMetaRepositoryTest {
      * Ensures a {@link RepositoryMetadataException} is raised when the mirror configuration is not valid.
      */
     @Test
-    public void testInvalidMirrors() {
+    void testInvalidMirrors() {
         // not an array but an object
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(PATH_MIRRORS, "{}")).join();
@@ -140,7 +138,7 @@ public class DefaultMetaRepositoryTest {
     }
 
     @Test
-    public void testSingleTypeMirror() {
+    void testSingleTypeMirror() {
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
                                 PATH_MIRRORS,
@@ -231,7 +229,7 @@ public class DefaultMetaRepositoryTest {
     }
 
     @Test
-    public void testSingleTypeMirrorWithCredentialId() {
+    void testSingleTypeMirrorWithCredentialId() {
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
                                 PATH_MIRRORS,
@@ -255,7 +253,7 @@ public class DefaultMetaRepositoryTest {
     }
 
     @Test
-    public void testMultipleTypeMirror() {
+    void testMultipleTypeMirror() {
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
                                 PATH_MIRRORS,
@@ -345,7 +343,7 @@ public class DefaultMetaRepositoryTest {
     }
 
     @Test
-    public void testMultipleTypeMirrorWithCredentialId() {
+    void testMultipleTypeMirrorWithCredentialId() {
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
                                 PATH_MIRRORS,
