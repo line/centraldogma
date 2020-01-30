@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -40,14 +40,12 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
@@ -61,17 +59,19 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.testing.junit4.CentralDogmaRule;
+import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
+import com.linecorp.centraldogma.testing.internal.TestUtil;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class GitMirrorTest {
+class GitMirrorTest {
 
     private static final int MAX_NUM_FILES = 32;
     private static final long MAX_NUM_BYTES = 1048576; // 1 MiB
 
     private static final String REPO_FOO = "foo";
 
-    @ClassRule
-    public static final CentralDogmaRule rule = new CentralDogmaRule() {
+    @RegisterExtension
+    static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
             builder.mirroringEnabled(true);
@@ -83,17 +83,19 @@ public class GitMirrorTest {
     private static CentralDogma client;
     private static MirroringService mirroringService;
 
-    @BeforeClass
-    public static void init() {
-        client = rule.client();
-        mirroringService = rule.mirroringService();
+    @BeforeAll
+    static void init() {
+        client = dogma.client();
+        mirroringService = dogma.mirroringService();
     }
 
-    @Rule
-    public final TemporaryFolder gitRepoDir = new TemporaryFolder();
-
-    @Rule
-    public final TestName testName = new TestName();
+    @RegisterExtension
+    final TemporaryFolderExtension gitRepoDir = new TemporaryFolderExtension() {
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
+    };
 
     private Git git;
     private File gitWorkTree;
@@ -101,9 +103,10 @@ public class GitMirrorTest {
 
     private String projName;
 
-    @Before
-    public void initGitRepo() throws Exception {
-        gitWorkTree = new File(gitRepoDir.getRoot(), testName.getMethodName()).getAbsoluteFile();
+    @BeforeEach
+    void initGitRepo(TestInfo testInfo) throws Exception {
+        final String repoName = TestUtil.normalizedDisplayName(testInfo);
+        gitWorkTree = new File(gitRepoDir.getRoot().toFile(), repoName).getAbsoluteFile();
         final Repository gitRepo = new FileRepositoryBuilder().setWorkTree(gitWorkTree).build();
         createGitRepo(gitRepo);
 
@@ -126,20 +129,20 @@ public class GitMirrorTest {
         config.save();
     }
 
-    @Before
-    public void initDogmaRepo() throws Exception {
-        projName = testName.getMethodName();
+    @BeforeEach
+    void initDogmaRepo(TestInfo testInfo) {
+        projName = TestUtil.normalizedDisplayName(testInfo);
         client.createProject(projName).join();
         client.createRepository(projName, REPO_FOO).join();
     }
 
-    @After
-    public void destroyDogmaRepo() {
+    @AfterEach
+    void destroyDogmaRepo() {
         client.removeProject(projName).join();
     }
 
     @Test
-    public void remoteToLocal() throws Exception {
+    void remoteToLocal() throws Exception {
         pushMirrorSettings(null, null);
 
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
@@ -207,7 +210,7 @@ public class GitMirrorTest {
     }
 
     @Test
-    public void remoteToLocal_subdirectory() throws Exception {
+    void remoteToLocal_subdirectory() throws Exception {
         pushMirrorSettings("/target", "/source/main");
 
         client.push(projName, REPO_FOO, Revision.HEAD, "Add a file that's not part of mirror",
@@ -254,7 +257,7 @@ public class GitMirrorTest {
     }
 
     @Test
-    public void remoteToLocal_merge() throws Exception {
+    void remoteToLocal_merge() throws Exception {
         pushMirrorSettings(null, null);
 
         // Mirror an empty git repository, which will;
@@ -306,12 +309,13 @@ public class GitMirrorTest {
     }
 
     @Test
-    public void remoteToLocal_submodule() throws Exception {
+    void remoteToLocal_submodule(TestInfo testInfo) throws Exception {
         pushMirrorSettings(null, null);
 
         // Create a new repository for a submodule.
+        final String submoduleName = TestUtil.normalizedDisplayName(testInfo) + ".submodule";
         final File gitSubmoduleWorkTree =
-                new File(gitRepoDir.getRoot(), testName.getMethodName() + ".submodule").getAbsoluteFile();
+                new File(gitRepoDir.getRoot().toFile(), submoduleName).getAbsoluteFile();
         final Repository gitSubmoduleRepo =
                 new FileRepositoryBuilder().setWorkTree(gitSubmoduleWorkTree).build();
         createGitRepo(gitSubmoduleRepo);
@@ -340,7 +344,7 @@ public class GitMirrorTest {
     }
 
     @Test
-    public void remoteToLocal_tooManyFiles() throws Exception {
+    void remoteToLocal_tooManyFiles() throws Exception {
         pushMirrorSettings(null, null);
 
         // Add more than allowed number of filed.
@@ -357,7 +361,7 @@ public class GitMirrorTest {
     }
 
     @Test
-    public void remoteToLocal_tooManyBytes() throws Exception {
+    void remoteToLocal_tooManyBytes() throws Exception {
         pushMirrorSettings(null, null);
 
         // Add files whose total size exceeds the allowed maximum.

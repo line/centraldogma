@@ -141,7 +141,7 @@ class PermissionTest {
     };
 
     @ParameterizedTest
-    @MethodSource("parameters")
+    @MethodSource("arguments")
     void test(String secret, String projectName, ProjectRole role, String repoName,
               Set<Permission> permission, HttpStatus expectedFailureStatus) {
         final WebClient client = WebClient.builder(server.uri("/"))
@@ -166,7 +166,7 @@ class PermissionTest {
                                                                      : HttpStatus.OK);
     }
 
-    private static Stream<Arguments> parameters() {
+    private static Stream<Arguments> arguments() {
         return Stream.of(
                 Arguments.of(
                         secret1,

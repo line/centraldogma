@@ -144,7 +144,7 @@ class GitMirrorAuthTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("parameters")
+    @MethodSource("arguments")
     void auth(String projName, String gitUri, JsonNode credential) {
         client.createProject(projName).join();
         client.createRepository(projName, "main").join();
@@ -168,7 +168,7 @@ class GitMirrorAuthTest {
         client.removeProject(projName).join();
     }
 
-    private static Collection<Arguments> parameters() throws Exception {
+    private static Collection<Arguments> arguments() throws Exception {
         final ImmutableSet.Builder<Arguments> builder = ImmutableSet.builder();
         if (GIT_PASSWORD != null) {
             builder.add(Arguments.of(
@@ -219,9 +219,9 @@ class GitMirrorAuthTest {
             }
         }
 
-        final Collection<Arguments> parameters = builder.build();
-        assumeThat(parameters).isNotEmpty();
-        return parameters;
+        final Collection<Arguments> arguments = builder.build();
+        assumeThat(arguments).isNotEmpty();
+        return arguments;
     }
 
     private static boolean isEncrypted(byte[] privateKeyBytes, byte[] publicKeyBytes) {

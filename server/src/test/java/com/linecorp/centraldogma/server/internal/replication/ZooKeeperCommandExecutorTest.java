@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -22,11 +22,11 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -51,12 +51,8 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 import org.apache.curator.test.InstanceSpec;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.DisableOnDebug;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestRule;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,23 +67,26 @@ import com.linecorp.centraldogma.server.ZooKeeperAddress;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
-public class ZooKeeperCommandExecutorTest {
+class ZooKeeperCommandExecutorTest {
 
     private static final Logger logger = LoggerFactory.getLogger(ZooKeeperCommandExecutorTest.class);
 
     private static final int NUM_REPLICAS = 5;
 
-    @Rule
-    public final TestRule timeoutRule = new DisableOnDebug(new Timeout(1, TimeUnit.MINUTES));
-
-    @Rule
-    public final TemporaryFolder testFolder = new TemporaryFolder();
+    @RegisterExtension
+    final TemporaryFolderExtension testFolder = new TemporaryFolderExtension() {
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
+    };
 
     @Test
-    public void testLogWatch() throws Exception {
+    void testLogWatch() throws Exception {
         // The 5th replica is used for ensuring the quorum.
         final List<Replica> cluster = buildCluster(5, true /* start */,
                                                    ZooKeeperCommandExecutorTest::newMockDelegate);
@@ -102,6 +101,7 @@ public class ZooKeeperCommandExecutorTest {
             replica1.rm.execute(command1).join();
 
             final Optional<ReplicationLog<?>> commandResult2 = replica1.rm.loadLog(0, false);
+            assertThat(commandResult2).isPresent();
             assertThat(commandResult2.get().command()).isEqualTo(command1);
             assertThat(commandResult2.get().result()).isNull();
 
@@ -194,7 +194,7 @@ public class ZooKeeperCommandExecutorTest {
      * increase by 1 from 1.
      */
     @Test
-    public void testRace() throws Exception {
+    void testRace() throws Exception {
         // Each replica has its own AtomicInteger which counts the number of commands
         // it executed/replayed so far.
         final List<Replica> replicas = buildCluster(NUM_REPLICAS, true /* start */, () -> {
@@ -242,7 +242,7 @@ public class ZooKeeperCommandExecutorTest {
      * Makes sure that we can stop a replica that's waiting for the initial quorum.
      */
     @Test
-    public void stopWhileWaitingForInitialQuorum() throws Exception {
+    void stopWhileWaitingForInitialQuorum() throws Exception {
         final List<Replica> cluster = buildCluster(2, false /* start */,
                                                    ZooKeeperCommandExecutorTest::newMockDelegate);
 
@@ -255,7 +255,7 @@ public class ZooKeeperCommandExecutorTest {
     }
 
     @Test
-    public void metrics() throws Exception {
+    void metrics() throws Exception {
         final List<Replica> cluster = buildCluster(1, true /* start */,
                                                    ZooKeeperCommandExecutorTest::newMockDelegate);
         try {
@@ -308,7 +308,7 @@ public class ZooKeeperCommandExecutorTest {
         final Map<Integer, ZooKeeperAddress> servers = new HashMap<>();
         for (int i = 0; i < numReplicas; i++) {
             final InstanceSpec spec = new InstanceSpec(
-                    testFolder.newFolder(),
+                    testFolder.newFolder().toFile(),
                     0,
                     electionPorts.get(i).getLocalPort(),
                     quorumPorts.get(i).getLocalPort(),
@@ -343,7 +343,7 @@ public class ZooKeeperCommandExecutorTest {
     private static Function<Command<?>, CompletableFuture<?>> newMockDelegate() {
         @SuppressWarnings("unchecked")
         final Function<Command<?>, CompletableFuture<?>> delegate = mock(Function.class);
-        when(delegate.apply(any())).thenReturn(completedFuture(null));
+        lenient().when(delegate.apply(any())).thenReturn(completedFuture(null));
         return delegate;
     }
 
