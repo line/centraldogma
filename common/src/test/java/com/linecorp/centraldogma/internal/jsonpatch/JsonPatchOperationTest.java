@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -34,93 +34,89 @@
 
 package com.linecorp.centraldogma.internal.jsonpatch;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Equivalence;
+import com.google.common.collect.ImmutableList;
 
-@Test
-public abstract class JsonPatchOperationTest {
+class JsonPatchOperationTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectReader READER = MAPPER.readerFor(JsonPatchOperation.class);
     private static final Equivalence<JsonNode> EQUIVALENCE = JsonNumEquals.getInstance();
 
-    private final JsonNode errors;
-    private final JsonNode ops;
-    private final ObjectReader reader;
+    private static final List<String> OPERATIONS =
+            ImmutableList.of("add", "copy", "move", "remove", "removeIfExists",
+                             "replace", "safe_replace", "test", "testAbsence");
 
-    protected JsonPatchOperationTest(final String prefix) throws IOException {
-        final String resource = "/jsonpatch/" + prefix + ".json";
-        final URL url = getClass().getResource(resource);
-        final ObjectMapper objectMapper = new ObjectMapper();
-        final JsonNode node = objectMapper.readTree(url);
-        errors = node.get("errors");
-        ops = node.get("ops");
-        reader = objectMapper.readerFor(JsonPatchOperation.class);
-    }
-
-    @DataProvider
-    public final Iterator<Object[]> getErrors() throws NoSuchFieldException, IllegalAccessException {
-        final List<Object[]> list = new ArrayList<>();
-
-        for (final JsonNode node : errors) {
-            list.add(new Object[] {
-                    node.get("op"),
-                    node.get("node"),
-                    node.get("message").textValue()
-            });
-        }
-
-        return list.iterator();
-    }
-
-    @Test(dataProvider = "getErrors")
-    public final void errorsAreCorrectlyReported(final JsonNode patch, final JsonNode node,
-                                                 final String message) throws IOException {
-
-        final JsonPatchOperation op = reader.readValue(patch);
-        try {
-            op.apply(node);
-            fail("No exception thrown!!");
-        } catch (JsonPatchException e) {
-            assertEquals(e.getMessage(), message);
-        }
-    }
-
-    @DataProvider
-    public final Iterator<Object[]> getOps() {
-        final List<Object[]> list = new ArrayList<>();
-        for (final JsonNode node : ops) {
-            list.add(new Object[] {
-                    node.get("op"),
-                    node.get("node"),
-                    node.get("expected")
-            });
-        }
-
-        return list.iterator();
-    }
-
-    @Test(dataProvider = "getOps")
-    public final void operationsYieldExpectedResults(
-            final JsonNode patch, final JsonNode node, final JsonNode expected) throws IOException {
-        final JsonPatchOperation op = reader.readValue(patch);
+    @ParameterizedTest
+    @MethodSource("ops")
+    void operationsYieldExpectedResults(JsonNode patch, JsonNode node, JsonNode expected) throws IOException {
+        final JsonPatchOperation op = READER.readValue(patch);
         final JsonNode actual = op.apply(node.deepCopy());
 
-        assertTrue(EQUIVALENCE.equivalent(actual, expected),
-                   "patched node differs from expectations: expected " + expected +
-                   " but found " + actual);
+        assertThat(EQUIVALENCE.equivalent(actual, expected)).isTrue();
+    }
+
+    @ParameterizedTest
+    @MethodSource("errors")
+    void errorsAreCorrectlyReported(JsonNode patch, JsonNode node, String message) throws IOException {
+        final JsonPatchOperation op = READER.readValue(patch);
+
+        assertThatThrownBy(() -> op.apply(node))
+                .isInstanceOf(JsonPatchException.class)
+                .hasMessage(message);
+    }
+
+    private static List<Arguments> ops() throws Exception {
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
+
+        for (String prefix : OPERATIONS) {
+            final JsonNode ops = getNode(prefix, "ops");
+
+            for (JsonNode node : ops) {
+                arguments.add(Arguments.of(
+                        node.get("op"),
+                        node.get("node"),
+                        node.get("expected")));
+            }
+        }
+
+        return arguments.build();
+    }
+
+    private static List<Arguments> errors() throws Exception {
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
+
+        for (String prefix : OPERATIONS) {
+            final JsonNode errors = getNode(prefix, "errors");
+
+            for (JsonNode node : errors) {
+                arguments.add(Arguments.of(
+                        node.get("op"),
+                        node.get("node"),
+                        node.get("message").textValue()));
+            }
+        }
+
+        return arguments.build();
+    }
+
+    private static JsonNode getNode(String prefix, String field) throws IOException {
+        final String resource = "/jsonpatch/" + prefix + ".json";
+        final URL url = JsonPatchOperationTest.class.getResource(resource);
+        return MAPPER.readTree(url).get(field);
     }
 }

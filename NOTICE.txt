@@ -300,11 +300,6 @@ This product depends on Spring Framework, distributed by Pivotal Software, Inc:
   * License: licenses/LICENSE.spring.al20.txt (Apache License v2.0)
   * Homepage: https://spring.io/
 
-This product depends on TestNG, distributed by Cédric Beust:
-
-  * License: licenses/LICENSE.testng.al20.txt (Apache License v2.0)
-  * Homepage: http://testng.org/doc/
-
 This product depends on Apache Thrift, distributed by Apache Software Foundation:
 
   * License: licenses/LICENSE.thrift.al20.txt (Apache License v2.0)

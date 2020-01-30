@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -34,67 +34,57 @@
 
 package com.linecorp.centraldogma.internal.jsonpatch;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
+import static com.google.common.base.MoreObjects.firstNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 
-public final class JsonPatchTestSuite {
+class JsonPatchTestSuite {
 
-    private final JsonNode testNode;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public JsonPatchTestSuite() throws IOException {
-        final URL url = getClass().getResource("/jsonpatch/testsuite.json");
-        final ObjectMapper objectMapper = new ObjectMapper();
-        testNode = objectMapper.readTree(url);
+    @ParameterizedTest
+    @MethodSource("tests")
+    void testSuite(JsonNode source, JsonPatch patch, JsonNode expected, boolean valid) {
+        if (valid) {
+            final JsonNode actual = patch.apply(source);
+            // Cast to Object so that we do not use IterableAssert.
+            assertThat((Object) actual).isEqualTo(expected);
+        } else {
+            assertThatThrownBy(() -> patch.apply(source))
+                    .isInstanceOf(JsonPatchException.class);
+        }
     }
 
-    @DataProvider
-    public Iterator<Object[]> getTests() throws IOException {
-        final List<Object[]> list = new ArrayList<>();
-        for (final JsonNode element : testNode) {
+    private static List<Arguments> tests() throws Exception {
+        final ImmutableList.Builder<Arguments> arguments = ImmutableList.builder();
+
+        final URL url = JsonPatchTestSuite.class.getResource("/jsonpatch/testsuite.json");
+        final JsonNode testNode = MAPPER.readTree(url);
+
+        for (JsonNode element : testNode) {
             if (!element.has("patch")) {
                 continue;
             }
 
             final JsonPatch patch = JsonPatch.fromJson(element.get("patch"));
             final JsonNode source = element.get("doc");
-            JsonNode expected = element.get("expected");
-            if (expected == null) {
-                expected = source;
-            }
-
+            final JsonNode expected = firstNonNull(element.get("expected"), source);
             final boolean valid = !element.has("error");
-            list.add(new Object[] { source, patch, expected, valid });
+
+            arguments.add(Arguments.of(source, patch, expected, valid));
         }
 
-        return list.iterator();
-    }
-
-    @Test(dataProvider = "getTests")
-    public void testsFromTestSuitePass(final JsonNode source, final JsonPatch patch,
-                                       final JsonNode expected, final boolean valid) {
-        try {
-            final JsonNode actual = patch.apply(source);
-            if (!valid) {
-                fail("Test was expected to fail!");
-            }
-            // Cast to Object so that we do not call assertEquals(Iterable, Iterable).
-            assertEquals((Object) actual, expected);
-        } catch (JsonPatchException ignored) {
-            if (valid) {
-                fail("Test was expected to succeed!");
-            }
-        }
+        return arguments.build();
     }
 }

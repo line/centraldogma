@@ -260,6 +260,3 @@ org.springframework.boot:
 
 org.quartz-scheduler:
   quartz: { version: '2.3.2' }
-
-org.testng:
-  testng: { version: '7.0.0' }
