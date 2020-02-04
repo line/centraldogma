@@ -17,8 +17,8 @@ tasks.compileJava.source "${autoconfigureProjectDir}/src/main/java"
 tasks.processResources.from "${autoconfigureProjectDir}/src/main/resources"
 tasks.compileTestJava.source "${autoconfigureProjectDir}/src/test/java", "${autoconfigureProjectDir}/gen-src/test/java"
 tasks.processTestResources.from "${autoconfigureProjectDir}/src/test/resources"
-tasks.sourceJar.from "${autoconfigureProjectDir}/src/main/java"
-tasks.sourceJar.from "${autoconfigureProjectDir}/src/main/resources"
+tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/java"
+tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/resources"
 tasks.javadoc.source "${autoconfigureProjectDir}/src/main/java"
 
 // Disable checkstyle because it's checked by 'client-spring-boot-autoconfigure'
