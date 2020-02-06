@@ -54,7 +54,7 @@ public final class MetadataServiceInjector extends SimpleDecoratingHttpService {
 
     @Override
     public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
-        ctx.attr(METADATA_SERVICE_ATTRIBUTE_KEY).set(mds);
+        ctx.setAttr(METADATA_SERVICE_ATTRIBUTE_KEY, mds);
         return delegate().serve(ctx, req);
     }
 
@@ -62,7 +62,7 @@ public final class MetadataServiceInjector extends SimpleDecoratingHttpService {
      * Returns the {@link MetadataService} instance from the specified {@link ServiceRequestContext}.
      */
     public static MetadataService getMetadataService(ServiceRequestContext ctx) {
-        final MetadataService mds = ctx.attr(METADATA_SERVICE_ATTRIBUTE_KEY).get();
+        final MetadataService mds = ctx.attr(METADATA_SERVICE_ATTRIBUTE_KEY);
         if (mds != null) {
             return mds;
         }

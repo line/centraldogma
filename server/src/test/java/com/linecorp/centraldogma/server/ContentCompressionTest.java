@@ -33,9 +33,10 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.CharStreams;
 
-import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.Clients;
+import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.client.encoding.HttpDecodingClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpData;
@@ -74,14 +75,15 @@ class ContentCompressionTest {
     };
 
     @Test
-     void thrift() throws Exception {
+    void thrift() throws Exception {
         final com.linecorp.centraldogma.internal.thrift.Revision head =
                 new com.linecorp.centraldogma.internal.thrift.Revision(-1, 0);
         final Query query = new Query(PATH, QueryType.IDENTITY, ImmutableList.of());
 
         // Should fail to decode without the decompressor.
-        final Iface clientWithoutDecompressor = new ClientBuilder(
-                "ttext+http://127.0.0.1:" + dogma.serverAddress().getPort() + "/cd/thrift/v1")
+        final Iface clientWithoutDecompressor = Clients
+                .builder("ttext+http", Endpoint.of("127.0.0.1", dogma.serverAddress().getPort()))
+                .path("/cd/thrift/v1")
                 .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                 .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
                 .build(Iface.class);
@@ -94,7 +96,7 @@ class ContentCompressionTest {
         final Iface clientWithDecompressor = Clients.newDerivedClient(
                 clientWithoutDecompressor,
                 options -> options.toBuilder()
-                                  .decorator(HttpDecodingClient.newDecorator())
+                                  .decorator(DecodingClient.newDecorator())
                                   .build());
 
         final GetFileResult result = clientWithDecompressor.getFile(PROJ, REPO, head, query);

@@ -26,16 +26,13 @@ class WatchTimeoutTest {
 
     @Test
     void testMakeReasonable() {
-        assertThat(makeReasonable(1_000, 1_000)).isEqualTo(2_000);
-        assertThat(makeReasonable(MAX_MILLIS, 1_000)).isEqualTo(MAX_MILLIS);
-        assertThat(makeReasonable(MAX_MILLIS + 1_000, 0)).isEqualTo(MAX_MILLIS);
-        assertThat(makeReasonable(MAX_MILLIS - 1_000, 500)).isEqualTo(MAX_MILLIS - 500);
+        assertThat(makeReasonable(1_000)).isEqualTo(1_000);
+        assertThat(makeReasonable(MAX_MILLIS)).isEqualTo(MAX_MILLIS);
+        assertThat(makeReasonable(MAX_MILLIS + 1_000)).isEqualTo(MAX_MILLIS);
 
-        assertThatThrownBy(() -> makeReasonable(0, 1_000))
+        assertThatThrownBy(() -> makeReasonable(0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> makeReasonable(-1, 1_000))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> makeReasonable(1_000, -1))
+        assertThatThrownBy(() -> makeReasonable(-1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

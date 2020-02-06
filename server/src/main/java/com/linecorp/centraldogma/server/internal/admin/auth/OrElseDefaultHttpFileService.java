@@ -22,13 +22,13 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.ServiceRequestContextWrapper;
-import com.linecorp.armeria.server.file.HttpFileService;
+import com.linecorp.armeria.server.file.FileService;
 
 public final class OrElseDefaultHttpFileService implements HttpService {
 
     private final HttpService delegate;
 
-    public OrElseDefaultHttpFileService(HttpFileService fileService, String defaultPath) {
+    public OrElseDefaultHttpFileService(FileService fileService, String defaultPath) {
         requireNonNull(fileService, "fileService");
         requireNonNull(defaultPath, "defaultPath");
         // Always return '/index.html' if there is no entry on the requested path, in order to route

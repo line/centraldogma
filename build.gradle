@@ -14,6 +14,10 @@ allprojects {
     repositories {
         mavenCentral()
         jcenter()
+        // TODO(ikhoon): Will remove snapshot repoistory after releasing Armeria 0.98.0
+        maven {
+            url 'https://oss.sonatype.org/content/repositories/snapshots/'
+        }
     }
 }
 

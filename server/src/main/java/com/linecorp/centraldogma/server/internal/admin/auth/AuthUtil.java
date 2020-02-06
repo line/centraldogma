@@ -37,7 +37,7 @@ public final class AuthUtil {
             AttributeKey.valueOf(AuthUtil.class, "CURRENT_USER");
 
     public static Author currentAuthor(ServiceRequestContext ctx) {
-        final User user = ctx.attr(CURRENT_USER_KEY).get();
+        final User user = ctx.attr(CURRENT_USER_KEY);
         assert user != null;
         return user == User.DEFAULT ? Author.DEFAULT
                                     : new Author(user.name(), user.email());
@@ -48,7 +48,7 @@ public final class AuthUtil {
     }
 
     public static User currentUser(ServiceRequestContext ctx) {
-        return ctx.attr(CURRENT_USER_KEY).get();
+        return ctx.attr(CURRENT_USER_KEY);
     }
 
     public static User currentUser() {
@@ -58,7 +58,7 @@ public final class AuthUtil {
     public static void setCurrentUser(ServiceRequestContext ctx, User currentUser) {
         requireNonNull(ctx, "ctx");
         requireNonNull(currentUser, "currentUser");
-        ctx.attr(CURRENT_USER_KEY).set(currentUser);
+        ctx.setAttr(CURRENT_USER_KEY, currentUser);
     }
 
     private AuthUtil() {}

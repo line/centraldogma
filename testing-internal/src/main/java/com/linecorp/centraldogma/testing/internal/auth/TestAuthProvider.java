@@ -82,7 +82,7 @@ public class TestAuthProvider implements AuthProvider {
                 final AggregatedHttpRequest msg = req.aggregate().join();
                 final String username;
                 final String password;
-                final BasicToken basicToken = AuthTokenExtractors.BASIC.apply(RequestHeaders.of(msg.headers()));
+                final BasicToken basicToken = AuthTokenExtractors.basic().apply(RequestHeaders.of(msg.headers()));
                 if (basicToken != null) {
                     username = basicToken.username();
                     password = basicToken.password();
@@ -116,7 +116,7 @@ public class TestAuthProvider implements AuthProvider {
             return HttpResponse.from(CompletableFuture.supplyAsync(() -> {
                 final AggregatedHttpRequest msg = req.aggregate().join();
                 final String sessionId =
-                        AuthTokenExtractors.OAUTH2.apply(RequestHeaders.of(msg.headers())).accessToken();
+                        AuthTokenExtractors.oAuth2().apply(RequestHeaders.of(msg.headers())).accessToken();
                 if (!WRONG_SESSION_ID.equals(sessionId)) {
                     logoutSessionPropagator.apply(sessionId).join();
                 }

@@ -48,7 +48,7 @@ public class ContentServiceV1TestBase {
 
     @Before
     public void init() {
-        final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
+        final InetSocketAddress serverAddress = dogma.dogma().activePort().localAddress();
         final String serverUri = "http://127.0.0.1:" + serverAddress.getPort();
         webClient = WebClient.builder(serverUri)
                              .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous")

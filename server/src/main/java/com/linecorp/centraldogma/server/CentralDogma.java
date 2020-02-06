@@ -88,13 +88,12 @@ import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.auth.HttpAuthService;
-import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
-import com.linecorp.armeria.server.docs.DocServiceBuilder;
-import com.linecorp.armeria.server.encoding.HttpEncodingService;
+import com.linecorp.armeria.server.auth.AuthService;
+import com.linecorp.armeria.server.auth.Authorizer;
+import com.linecorp.armeria.server.docs.DocService;
+import com.linecorp.armeria.server.encoding.EncodingService;
+import com.linecorp.armeria.server.file.FileService;
 import com.linecorp.armeria.server.file.HttpFile;
-import com.linecorp.armeria.server.file.HttpFileBuilder;
-import com.linecorp.armeria.server.file.HttpFileServiceBuilder;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
@@ -232,16 +231,17 @@ public class CentralDogma implements AutoCloseable {
      *
      * @return the primary {@link ServerPort} if the server is started. {@link Optional#empty()} otherwise.
      */
-    public Optional<ServerPort> activePort() {
+    @Nullable
+    public ServerPort activePort() {
         final Server server = this.server;
-        return server != null ? server.activePort() : Optional.empty();
+        return server != null ? server.activePort() : null;
     }
 
     /**
      * Returns the ports of the server.
      *
      * @return the {@link Map} which contains the pairs of local {@link InetSocketAddress} and
-     *         {@link ServerPort} is the server is started. {@link Optional#empty()} otherwise.
+     * {@link ServerPort} is the server is started. {@link Optional#empty()} otherwise.
      */
     public Map<InetSocketAddress, ServerPort> activePorts() {
         final Server server = this.server;
@@ -256,7 +256,7 @@ public class CentralDogma implements AutoCloseable {
      * Returns the {@link MirroringService} of the server.
      *
      * @return the {@link MirroringService} if the server is started and mirroring is enabled.
-     *         {@link Optional#empty()} otherwise.
+     * {@link Optional#empty()} otherwise.
      */
     public Optional<MirroringService> mirroringService() {
         if (pluginsForLeaderOnly == null) {
@@ -537,11 +537,11 @@ public class CentralDogma implements AutoCloseable {
             }
         });
         sb.serviceUnder("/docs/",
-                        new DocServiceBuilder().exampleHttpHeaders(
-                                CentralDogmaService.class,
-                                HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
-                                               "Bearer " + CsrfToken.ANONYMOUS))
-                                               .build());
+                        DocService.builder()
+                                  .exampleHttpHeaders(CentralDogmaService.class,
+                                                      HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
+                                                                     "Bearer " + CsrfToken.ANONYMOUS))
+                                  .build());
 
         configureHttpApi(sb, pm, executor, watchService, mds, authProvider, sessionManager);
 
@@ -572,10 +572,10 @@ public class CentralDogma implements AutoCloseable {
 
         try {
             final HttpData data = HttpData.ofUtf8(Jackson.writeValueAsString(titleAndHostname));
-            return HttpFileBuilder.of(data)
-                                  .contentType(MediaType.JSON_UTF_8)
-                                  .cacheControl(ServerCacheControl.REVALIDATED)
-                                  .build();
+            return HttpFile.builder(data)
+                           .contentType(MediaType.JSON_UTF_8)
+                           .cacheControl(ServerCacheControl.REVALIDATED)
+                           .build();
         } catch (JsonProcessingException e) {
             throw new Error("Failed to encode the title and hostname:", e);
         }
@@ -635,7 +635,7 @@ public class CentralDogma implements AutoCloseable {
                                  .decorate(THttpService.newDecorator());
 
         if (cfg.isCsrfTokenRequiredForThrift()) {
-            thriftService = thriftService.decorate(HttpAuthService.newDecorator(new CsrfTokenAuthorizer()));
+            thriftService = thriftService.decorate(AuthService.newDecorator(new CsrfTokenAuthorizer()));
         } else {
             thriftService = thriftService.decorate(TokenlessClientLogger::new);
         }
@@ -664,18 +664,20 @@ public class CentralDogma implements AutoCloseable {
             final AuthConfig authCfg = cfg.authConfig();
             assert authCfg != null : "authCfg";
             assert sessionManager != null : "sessionManager";
+            final Authorizer<HttpRequest> tokenAuthorizer =
+                    new ApplicationTokenAuthorizer(mds::findTokenBySecret)
+                            .orElse(new SessionTokenAuthorizer(sessionManager,
+                                                               authCfg.administrators()));
             decorator = MetadataServiceInjector
                     .newDecorator(mds)
-                    .andThen(new HttpAuthServiceBuilder()
-                                     .add(new ApplicationTokenAuthorizer(mds::findTokenBySecret)
-                                                  .orElse(new SessionTokenAuthorizer(sessionManager,
-                                                                                     authCfg.administrators())))
-                                     .onFailure(new CentralDogmaAuthFailureHandler())
-                                     .newDecorator());
+                    .andThen(AuthService.builder()
+                                        .add(tokenAuthorizer)
+                                        .onFailure(new CentralDogmaAuthFailureHandler())
+                                        .newDecorator());
         } else {
             decorator = MetadataServiceInjector
                     .newDecorator(mds)
-                    .andThen(HttpAuthService.newDecorator(new CsrfTokenAuthorizer()));
+                    .andThen(AuthService.newDecorator(new CsrfTokenAuthorizer()));
         }
 
         final SafeProjectManager safePm = new SafeProjectManager(pm);
@@ -739,19 +741,20 @@ public class CentralDogma implements AutoCloseable {
                 sb.service(LOGOUT_PATH, authProvider.webLogoutService());
 
                 sb.serviceUnder(BUILTIN_WEB_BASE_PATH, new OrElseDefaultHttpFileService(
-                        HttpFileServiceBuilder.forClassPath("auth-webapp")
-                                              .cacheControl(ServerCacheControl.REVALIDATED)
-                                              .build(),
+                        FileService.builder(CentralDogma.class.getClassLoader(), "auth-webapp")
+                                   .cacheControl(ServerCacheControl.REVALIDATED)
+                                   .build(),
                         "/index.html"));
             }
-            sb.serviceUnder("/", HttpFileServiceBuilder.forClassPath("webapp")
-                                                       .cacheControl(ServerCacheControl.REVALIDATED)
-                                                       .build());
+            sb.serviceUnder("/",
+                            FileService.builder(CentralDogma.class.getClassLoader(), "webapp")
+                                       .cacheControl(ServerCacheControl.REVALIDATED)
+                                       .build());
         }
     }
 
-    private static Function<? super HttpService, HttpEncodingService> contentEncodingDecorator() {
-        return delegate -> new HttpEncodingService(delegate, contentType -> {
+    private static Function<? super HttpService, EncodingService> contentEncodingDecorator() {
+        return delegate -> new EncodingService(delegate, contentType -> {
             if ("application".equals(contentType.type())) {
                 final String subtype = contentType.subtype();
                 switch (subtype) {

@@ -56,7 +56,7 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
 
     @Override
     public CompletionStage<Boolean> authorize(ServiceRequestContext ctx, HttpRequest data) {
-        final OAuth2Token token = AuthTokenExtractors.OAUTH2.apply(data.headers());
+        final OAuth2Token token = AuthTokenExtractors.oAuth2().apply(data.headers());
         if (token == null || !Tokens.isValidSecret(token.accessToken())) {
             return completedFuture(false);
         }

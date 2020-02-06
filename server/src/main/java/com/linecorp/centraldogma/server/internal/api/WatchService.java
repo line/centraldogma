@@ -98,7 +98,7 @@ public final class WatchService {
     }
 
     private static void updateRequestTimeout(ServiceRequestContext ctx, long timeoutMillis) {
-        ctx.setRequestTimeoutMillis(WatchTimeout.makeReasonable(timeoutMillis, ctx.requestTimeoutMillis()));
+        ctx.setRequestTimeoutAfterMillis(WatchTimeout.makeReasonable(timeoutMillis));
     }
 
     /**

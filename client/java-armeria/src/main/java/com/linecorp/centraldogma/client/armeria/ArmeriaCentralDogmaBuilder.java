@@ -19,9 +19,9 @@ import java.net.UnknownHostException;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
-import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.WebClient;
-import com.linecorp.armeria.client.encoding.HttpDecodingClient;
+import com.linecorp.armeria.client.encoding.DecodingClient;
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
 
@@ -35,11 +35,10 @@ public final class ArmeriaCentralDogmaBuilder
      * @throws UnknownHostException if failed to resolve the host names from the DNS servers
      */
     public CentralDogma build() throws UnknownHostException {
-        final Endpoint endpoint = endpoint();
-        final String scheme = "none+" + (isUseTls() ? "https" : "http") + "://";
-        final String uri = scheme + endpoint.authority();
+        final EndpointGroup endpoint = endpointGroup();
+        final String scheme = "none+" + (isUseTls() ? "https" : "http");
         final ClientBuilder builder =
-                newClientBuilder(uri, cb -> cb.decorator(HttpDecodingClient.newDecorator()));
+                newClientBuilder(scheme, endpoint, cb -> cb.decorator(DecodingClient.newDecorator()));
         final EventLoopGroup executor = clientFactory().eventLoopGroup();
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
         final CentralDogma dogma = new ArmeriaCentralDogma(executor,
