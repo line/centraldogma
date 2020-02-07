@@ -25,10 +25,11 @@ class WatchTimeoutTest {
 
     @Test
     void testMakeReasonable() {
-        assertThat(WatchTimeout.availableTimeout(1_000, 1_000)).isEqualTo(0);
+        assertThat(WatchTimeout.availableTimeout(1_000, 0)).isEqualTo(1_000);
+        assertThat(WatchTimeout.availableTimeout(1_000, 1_000)).isEqualTo(1_000);
         assertThat(WatchTimeout.availableTimeout(MAX_MILLIS, 1_000)).isEqualTo(MAX_MILLIS - 1_000);
         assertThat(WatchTimeout.availableTimeout(MAX_MILLIS + 1_000, 0)).isEqualTo(MAX_MILLIS);
-        assertThat(WatchTimeout.availableTimeout(MAX_MILLIS - 1_000, 500)).isEqualTo(MAX_MILLIS - 1500);
+        assertThat(WatchTimeout.availableTimeout(MAX_MILLIS - 1_000, 500)).isEqualTo(MAX_MILLIS - 1000);
 
         assertThatThrownBy(() -> WatchTimeout.availableTimeout(0, 1_000))
                 .isInstanceOf(IllegalArgumentException.class);

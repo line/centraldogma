@@ -52,11 +52,10 @@ public final class WatchTimeout {
      *
      * <p>For example:
      * <pre>{@code
-     * assert WatchTimeout.availableTimeout(1000, 100) == 900;
-     * // No available timeout
-     * assert WatchTimeout.availableTimeout(1000, 1000) == 0;
+     * assert WatchTimeout.availableTimeout(1000, 100) == 1000;
+     * assert WatchTimeout.availableTimeout(1000, 0) == 1000;
      * // Limit max timeout duration
-     * assert WatchTimeout.availableTimeout(Long.MAX_VALUE, 1000) == WatchTimeout.MAX_MILLIS;
+     * assert WatchTimeout.availableTimeout(Long.MAX_VALUE, 1000) == WatchTimeout.MAX_MILLIS - 1000;
      * }</pre>
      *
      * @param expectedTimeoutMillis timeout duration that a user wants to use, in milliseconds
@@ -73,12 +72,8 @@ public final class WatchTimeout {
             return 0;
         }
 
-        final long maxTimeoutMillis = Math.min(expectedTimeoutMillis, MAX_MILLIS);
-        if (currentTimeoutMillis == 0) {
-            return maxTimeoutMillis;
-        }
-
-        return maxTimeoutMillis - currentTimeoutMillis;
+        final long maxAvailableTimeoutMillis = MAX_MILLIS - currentTimeoutMillis;
+        return Math.min(expectedTimeoutMillis, maxAvailableTimeoutMillis);
     }
 
     private WatchTimeout() {}

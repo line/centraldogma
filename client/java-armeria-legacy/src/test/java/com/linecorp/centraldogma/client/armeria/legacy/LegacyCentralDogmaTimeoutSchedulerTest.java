@@ -88,7 +88,7 @@ class LegacyCentralDogmaTimeoutSchedulerTest {
 
     private static RpcRequest newRequest(String method, List<Object> args) {
         return RpcRequest.of(CentralDogmaService.AsyncIface.class, method, args);
-}
+    }
 
     private static ClientRequestContext newClientContext(RpcRequest req) {
         final ClientRequestContext ctx = ClientRequestContext.of(

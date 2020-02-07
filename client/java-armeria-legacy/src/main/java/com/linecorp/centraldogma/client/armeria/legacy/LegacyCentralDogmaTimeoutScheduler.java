@@ -47,10 +47,8 @@ class LegacyCentralDogmaTimeoutScheduler extends SimpleDecoratingRpcClient {
                 final List<Object> params = req.params();
                 final long timeout = (Long) params.get(params.size() - 1);
                 if (timeout > 0) {
-                    final long adjustmentMillis = WatchTimeout.availableTimeout(timeout);
-                    if (adjustmentMillis > 0) {
-                       ctx.extendResponseTimeoutMillis(adjustmentMillis);
-                    }
+                    ctx.extendResponseTimeoutMillis(
+                            WatchTimeout.availableTimeout(timeout, responseTimeoutMillis));
                 }
             }
         }
