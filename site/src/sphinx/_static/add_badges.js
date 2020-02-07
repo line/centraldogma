@@ -34,7 +34,8 @@ function addBadges(parent) {
     'https://search.maven.org/search?q=g:com.linecorp.centraldogma');
   addBadge(div, 'https://img.shields.io/github/commit-activity/m/line/centraldogma.svg?style=flat-square',
     'https://github.com/line/centraldogma/pulse');
-  addBadge(div, 'https://img.shields.io/github/issues/line/centraldogma/good%20first%20issue.svg?label=good%20first%20issues&style=flat-square');
+  addBadge(div, 'https://img.shields.io/github/issues/line/centraldogma/good%20first%20issue.svg?label=good%20first%20issues&style=flat-square',
+    'https://github.com/line/centraldogma/labels/good%20first%20issue');
   addBadge(div, 'https://img.shields.io/codecov/c/github/line/centraldogma/master.svg?style=flat-square',
     'https://codecov.io/gh/line/centraldogma');
   li.appendChild(div);
