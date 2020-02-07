@@ -29,16 +29,56 @@ public final class WatchTimeout {
     public static final long MAX_MILLIS = TimeUnit.DAYS.toMillis(1);
 
     /**
-     * Returns a reasonable timeout duration for a watch request.
+     * Returns an available timeout duration for a watch request with limitation of max timeout.
+     *
+     * <p>For example:
+     * <pre>{@code
+     * assert WatchTimeout.availableTimeout(1000) == 1000;
+     * // Limit max timeout duration
+     * assert WatchTimeout.availableTimeout(Long.MAX_VALUE) == WatchTimeout.MAX_MILLIS;
+     * }</pre>
      *
      * @param expectedTimeoutMillis timeout duration that a user wants to use, in milliseconds
      * @return timeout duration in milliseconds, between 1 and the {@link #MAX_MILLIS}.
      */
-    public static long makeReasonable(long expectedTimeoutMillis) {
+    public static long availableTimeout(long expectedTimeoutMillis) {
+        return availableTimeout(expectedTimeoutMillis, 0);
+    }
+
+    /**
+     * Returns an available timeout duration for a watch request.
+     * This method subtracts {@code currentTimeoutMillis} from {@code expectedTimeoutMills}
+     * with limitation of max timeout.
+     *
+     * <p>For example:
+     * <pre>{@code
+     * assert WatchTimeout.availableTimeout(1000, 100) == 900;
+     * // No available timeout
+     * assert WatchTimeout.availableTimeout(1000, 1000) == 0;
+     * // Limit max timeout duration
+     * assert WatchTimeout.availableTimeout(Long.MAX_VALUE, 1000) == WatchTimeout.MAX_MILLIS;
+     * }</pre>
+     *
+     * @param expectedTimeoutMillis timeout duration that a user wants to use, in milliseconds
+     * @param currentTimeoutMillis timeout duration that is currently used, in milliseconds
+     * @return timeout duration in milliseconds, between 1 and the {@link #MAX_MILLIS}.
+     */
+    public static long availableTimeout(long expectedTimeoutMillis, long currentTimeoutMillis) {
         checkArgument(expectedTimeoutMillis > 0,
                       "expectedTimeoutMillis: %s (expected: > 0)", expectedTimeoutMillis);
+        checkArgument(currentTimeoutMillis >= 0,
+                      "currentTimeoutMillis: %s (expected: >= 0)", currentTimeoutMillis);
 
-        return Math.min(expectedTimeoutMillis, MAX_MILLIS);
+        if (currentTimeoutMillis >= MAX_MILLIS) {
+            return 0;
+        }
+
+        final long maxTimeoutMillis = Math.min(expectedTimeoutMillis, MAX_MILLIS);
+        if (currentTimeoutMillis == 0) {
+            return maxTimeoutMillis;
+        }
+
+        return maxTimeoutMillis - currentTimeoutMillis;
     }
 
     private WatchTimeout() {}

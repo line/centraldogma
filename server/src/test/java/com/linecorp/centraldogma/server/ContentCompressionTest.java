@@ -37,7 +37,6 @@ import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.encoding.DecodingClient;
-import com.linecorp.armeria.client.encoding.HttpDecodingClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;

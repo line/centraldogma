@@ -879,7 +879,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
 
         try (SafeCloseable ignored = Clients.withContextCustomizer(ctx -> {
-            ctx.setResponseTimeoutAfterMillis(WatchTimeout.makeReasonable(timeoutMillis));
+            ctx.setResponseTimeoutAfterMillis(WatchTimeout.availableTimeout(timeoutMillis));
         })) {
             return client.execute(builder.build()).aggregate().thenApply(func);
         }

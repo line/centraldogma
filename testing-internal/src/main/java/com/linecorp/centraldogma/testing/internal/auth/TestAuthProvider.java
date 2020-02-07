@@ -82,7 +82,8 @@ public class TestAuthProvider implements AuthProvider {
                 final AggregatedHttpRequest msg = req.aggregate().join();
                 final String username;
                 final String password;
-                final BasicToken basicToken = AuthTokenExtractors.basic().apply(RequestHeaders.of(msg.headers()));
+                final BasicToken basicToken = AuthTokenExtractors.basic()
+                                                                 .apply(RequestHeaders.of(msg.headers()));
                 if (basicToken != null) {
                     username = basicToken.username();
                     password = basicToken.password();

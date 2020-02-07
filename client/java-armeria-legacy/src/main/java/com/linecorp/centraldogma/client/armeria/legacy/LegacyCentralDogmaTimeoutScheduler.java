@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.client.armeria.legacy;
 
 import java.util.List;
 
-import com.google.common.math.LongMath;
-
 import com.linecorp.armeria.client.Client;
 import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.RpcClient;
@@ -49,11 +47,9 @@ class LegacyCentralDogmaTimeoutScheduler extends SimpleDecoratingRpcClient {
                 final List<Object> params = req.params();
                 final long timeout = (Long) params.get(params.size() - 1);
                 if (timeout > 0) {
-                    final long normalizedTimeout = WatchTimeout.makeReasonable(timeout);
-                    if (LongMath.saturatedAdd(responseTimeoutMillis, normalizedTimeout) <= WatchTimeout.MAX_MILLIS) {
-                        ctx.extendResponseTimeoutMillis(normalizedTimeout);
-                    } else {
-                        ctx.extendResponseTimeoutMillis(WatchTimeout.MAX_MILLIS - responseTimeoutMillis);
+                    final long adjustmentMillis = WatchTimeout.availableTimeout(timeout);
+                    if (adjustmentMillis > 0) {
+                       ctx.extendResponseTimeoutMillis(adjustmentMillis);
                     }
                 }
             }

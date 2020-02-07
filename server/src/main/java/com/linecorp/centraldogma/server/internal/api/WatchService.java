@@ -98,7 +98,11 @@ public final class WatchService {
     }
 
     private static void updateRequestTimeout(ServiceRequestContext ctx, long timeoutMillis) {
-        ctx.setRequestTimeoutAfterMillis(WatchTimeout.makeReasonable(timeoutMillis));
+        final long adjustmentMillis = WatchTimeout.availableTimeout(timeoutMillis, ctx.requestTimeoutMillis());
+        if (adjustmentMillis == 0) {
+            return;
+        }
+        ctx.extendRequestTimeoutMillis(adjustmentMillis);
     }
 
     /**
@@ -127,7 +131,7 @@ public final class WatchService {
         final ScheduledFuture<?> timeoutFuture;
         final long watchTimeoutMillis;
         if (timeoutMillis > 0) {
-            watchTimeoutMillis = applyJitter(WatchTimeout.makeReasonable(timeoutMillis));
+            watchTimeoutMillis = applyJitter(WatchTimeout.availableTimeout(timeoutMillis));
             timeoutFuture = ctx.eventLoop().schedule(() -> result.completeExceptionally(CANCELLATION_EXCEPTION),
                                                      watchTimeoutMillis, TimeUnit.MILLISECONDS);
         } else {
