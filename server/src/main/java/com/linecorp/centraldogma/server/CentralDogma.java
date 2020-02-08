@@ -754,22 +754,25 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private static Function<? super HttpService, EncodingService> contentEncodingDecorator() {
-        return delegate -> new EncodingService(delegate, contentType -> {
-            if ("application".equals(contentType.type())) {
-                final String subtype = contentType.subtype();
-                switch (subtype) {
-                    case "json":
-                    case "xml":
-                    case "x-thrift":
-                        return true;
-                    default:
-                        return subtype.endsWith("+json") ||
-                               subtype.endsWith("+xml") ||
-                               subtype.startsWith("vnd.apache.thrift.");
-                }
-            }
-            return false;
-        }, 1024); // Do not encode if content-length < 1024.
+        return delegate -> EncodingService
+                .builder()
+                .encodableContentTypePredicate(contentType -> {
+                    if ("application".equals(contentType.type())) {
+                        final String subtype = contentType.subtype();
+                        switch (subtype) {
+                            case "json":
+                            case "xml":
+                            case "x-thrift":
+                                return true;
+                            default:
+                                return subtype.endsWith("+json") ||
+                                       subtype.endsWith("+xml") ||
+                                       subtype.startsWith("vnd.apache.thrift.");
+                        }
+                    }
+                    return false;
+                })
+                .build(delegate);
     }
 
     private void configureMetrics(ServerBuilder sb, PrometheusMeterRegistry registry) {

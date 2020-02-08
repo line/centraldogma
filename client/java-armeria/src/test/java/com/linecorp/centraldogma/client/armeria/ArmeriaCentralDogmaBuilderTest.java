@@ -23,7 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -77,7 +76,9 @@ class ArmeriaCentralDogmaBuilderTest {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.healthCheckIntervalMillis(0);
         b.host("1.2.3.4.xip.io");
-        assertThat(b.endpointGroup()).isEqualTo(Endpoint.of("1.2.3.4.xip.io"));
+        assertThat(b.endpointGroup()).isInstanceOf(DnsAddressEndpointGroup.class);
+        assertThat(b.endpointGroup().endpoints().size()).isEqualTo(1);
+        assertThat(b.endpointGroup().endpoints().get(0).host()).isEqualTo("1.2.3.4.xip.io");
     }
 
     @Test
@@ -142,7 +143,6 @@ class ArmeriaCentralDogmaBuilderTest {
         verify(cf1, times(1)).newClient(any());
         verify(cf2, never()).newClient(any());
         verify(cf3, never()).newClient(any());
-        verifyNoMoreInteractions(cf1, cf2, cf3);
     }
 
     private static final class ArmeriaCentralDogmaBuilder
