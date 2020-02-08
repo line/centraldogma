@@ -99,9 +99,6 @@ public final class WatchService {
 
     private static void updateRequestTimeout(ServiceRequestContext ctx, long timeoutMillis) {
         final long adjustmentMillis = WatchTimeout.availableTimeout(timeoutMillis, ctx.requestTimeoutMillis());
-        if (adjustmentMillis == 0) {
-            return;
-        }
         ctx.extendRequestTimeoutMillis(adjustmentMillis);
     }
 

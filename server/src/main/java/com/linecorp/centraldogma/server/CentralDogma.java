@@ -241,7 +241,7 @@ public class CentralDogma implements AutoCloseable {
      * Returns the ports of the server.
      *
      * @return the {@link Map} which contains the pairs of local {@link InetSocketAddress} and
-     * {@link ServerPort} is the server is started. {@link Optional#empty()} otherwise.
+     *         {@link ServerPort} is the server is started. {@link Optional#empty()} otherwise.
      */
     public Map<InetSocketAddress, ServerPort> activePorts() {
         final Server server = this.server;
@@ -256,7 +256,7 @@ public class CentralDogma implements AutoCloseable {
      * Returns the {@link MirroringService} of the server.
      *
      * @return the {@link MirroringService} if the server is started and mirroring is enabled.
-     * {@link Optional#empty()} otherwise.
+     *         {@link Optional#empty()} otherwise.
      */
     public Optional<MirroringService> mirroringService() {
         if (pluginsForLeaderOnly == null) {

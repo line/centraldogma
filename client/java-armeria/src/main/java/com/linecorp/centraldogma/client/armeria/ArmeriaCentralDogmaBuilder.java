@@ -35,10 +35,10 @@ public final class ArmeriaCentralDogmaBuilder
      * @throws UnknownHostException if failed to resolve the host names from the DNS servers
      */
     public CentralDogma build() throws UnknownHostException {
-        final EndpointGroup endpoint = endpointGroup();
+        final EndpointGroup endpointGroup = endpointGroup();
         final String scheme = "none+" + (isUseTls() ? "https" : "http");
         final ClientBuilder builder =
-                newClientBuilder(scheme, endpoint, cb -> cb.decorator(DecodingClient.newDecorator()));
+                newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()));
         final EventLoopGroup executor = clientFactory().eventLoopGroup();
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
         final CentralDogma dogma = new ArmeriaCentralDogma(executor,
