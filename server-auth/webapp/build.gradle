@@ -47,7 +47,7 @@ task buildWebApp(type: YarnTask) {
 tasks.assemble.dependsOn tasks.buildWebApp
 
 node {
-    version = '10.16.0'
-    yarnVersion = '1.17.3'
+    version = '12.15.0'
+    yarnVersion = '1.22.0'
     download = true
 }
