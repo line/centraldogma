@@ -1,4 +1,4 @@
 dependencies {
-    compile project(':client:java-armeria-legacy')
-    compile project(':server')
+    api project(':client:java-armeria-legacy')
+    api project(':server')
 }

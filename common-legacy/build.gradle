@@ -1,6 +1,6 @@
 dependencies {
     // Thrift
-    compile 'org.apache.thrift:libthrift'
+    implementation 'org.apache.thrift:libthrift'
     compileOnly 'jakarta.annotation:jakarta.annotation-api'
 }
 

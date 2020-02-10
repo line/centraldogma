@@ -1,5 +1,5 @@
 dependencies {
-    compile project(':client:java')
+    api project(':client:java')
     // Armeria
-    compile 'com.linecorp.armeria:armeria'
+    api 'com.linecorp.armeria:armeria'
 }

@@ -9,21 +9,21 @@ buildscript {
 
 dependencies {
     // DiffUtils
-    compile 'com.googlecode.java-diff-utils:diffutils'
+    implementation 'com.googlecode.java-diff-utils:diffutils'
 
     // Jackson JSR310
-    compile 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     // Guava
-    compile 'com.google.guava:guava'
+    implementation 'com.google.guava:guava'
 
     // Jackson
     [ 'core', 'annotations', 'databind' ].each {
-        compile "com.fasterxml.jackson.core:jackson-$it"
+        implementation "com.fasterxml.jackson.core:jackson-$it"
     }
 
     // JSON-path
-    compile 'com.jayway.jsonpath:json-path'
+    implementation 'com.jayway.jsonpath:json-path'
 }
 
 if (tasks.findByName('trimShadedJar')) {

@@ -50,55 +50,55 @@ configure(projectsWithFlags('java')) {
     dependencies {
         // All projects currently require ':common' (except itself)
         if (project.name != 'common') {
-            compile project(':common')
+            api project(':common')
         }
 
         // Testing utilities
-        testCompile project(':testing-internal')
+        testImplementation project(':testing-internal')
 
         // completable-futures
-        compile 'com.spotify:completable-futures'
+        implementation 'com.spotify:completable-futures'
 
         // cron-utils
-        compile 'com.cronutils:cron-utils'
+        implementation 'com.cronutils:cron-utils'
 
         // Guava
-        compile 'com.google.guava:guava'
+        implementation 'com.google.guava:guava'
 
         // Jackson
         ['annotations', 'core', 'databind'].each {
-            compile "com.fasterxml.jackson.core:jackson-$it"
+            implementation "com.fasterxml.jackson.core:jackson-$it"
         }
 
         // javax.inject
-        compile 'javax.inject:javax.inject'
+        api 'javax.inject:javax.inject'
 
         // JSR305
-        compile 'com.google.code.findbugs:jsr305'
+        implementation 'com.google.code.findbugs:jsr305'
 
         // Jetty ALPN support
         compileOnly 'org.eclipse.jetty.alpn:alpn-api'
 
         // Logging
-        compile 'org.slf4j:slf4j-api'
-        testCompile 'org.slf4j:jul-to-slf4j'
-        testRuntime 'ch.qos.logback:logback-classic'
+        implementation 'org.slf4j:slf4j-api'
+        testImplementation 'org.slf4j:jul-to-slf4j'
+        testRuntimeOnly 'ch.qos.logback:logback-classic'
         ['jcl-over-slf4j', 'log4j-over-slf4j'].each {
-            testRuntime "org.slf4j:$it"
+            testRuntimeOnly "org.slf4j:$it"
         }
 
         // Test-time dependencies
-        testCompile 'net.javacrumbs.json-unit:json-unit-fluent'
-        testCompile 'org.awaitility:awaitility'
-        testCompile 'org.hamcrest:hamcrest-library'
-        testCompile 'org.assertj:assertj-core'
-        testCompile 'org.mockito:mockito-core'
-        testCompile 'org.mockito:mockito-junit-jupiter'
-        testCompile 'org.junit.jupiter:junit-jupiter-api'
-        testCompile 'org.junit.jupiter:junit-jupiter-params'
-        testRuntime 'org.junit.jupiter:junit-jupiter-engine'
-        testRuntime 'org.junit.platform:junit-platform-launcher'
-        testRuntime 'org.junit.vintage:junit-vintage-engine'
+        testImplementation 'net.javacrumbs.json-unit:json-unit-fluent'
+        testImplementation 'org.awaitility:awaitility'
+        testImplementation 'org.hamcrest:hamcrest-library'
+        testImplementation 'org.assertj:assertj-core'
+        testImplementation 'org.mockito:mockito-core'
+        testImplementation 'org.mockito:mockito-junit-jupiter'
+        testImplementation 'org.junit.jupiter:junit-jupiter-api'
+        testImplementation 'org.junit.jupiter:junit-jupiter-params'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        testRuntimeOnly 'org.junit.vintage:junit-vintage-engine'
     }
 
     // Target Java 8.
