@@ -19,8 +19,8 @@ import java.net.UnknownHostException;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
-import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.encoding.HttpDecodingClient;
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -44,12 +44,14 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
      * @throws UnknownHostException if failed to resolve the host names from the DNS servers
      */
     public CentralDogma build() throws UnknownHostException {
-        final Endpoint endpoint = endpoint();
-        final String scheme = "tbinary+" + (isUseTls() ? "https" : "http") + "://";
-        final String uri = scheme + endpoint.authority() + "/cd/thrift/v1";
+        final EndpointGroup endpointGroup = endpointGroup();
+        final String scheme = "tbinary+" + (isUseTls() ? "https" : "http");
         final ClientBuilder builder =
-                newClientBuilder(uri, cb -> cb.decorator(HttpDecodingClient.newDecorator())
-                                              .rpcDecorator(LegacyCentralDogmaTimeoutScheduler::new));
+                newClientBuilder(scheme, endpointGroup, cb -> {
+                    cb.path("/cd/thrift/v1")
+                      .decorator(HttpDecodingClient.newDecorator())
+                      .rpcDecorator(LegacyCentralDogmaTimeoutScheduler::new);
+                });
 
         final String authorization = "Bearer " + accessToken();
         builder.decorator((delegate, ctx, req) -> {

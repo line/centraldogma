@@ -64,7 +64,7 @@ class TokenServiceTest {
     @Test
     void adminToken() {
         final Token token = tokenService.createToken("forAdmin1", true, adminAuthor, admin).join()
-                                        .content().get();
+                                        .content();
         assertThat(token.isActive()).isTrue();
         assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, guestAuthor, guest)
                                              .join())
@@ -88,9 +88,9 @@ class TokenServiceTest {
     @Test
     void userToken() {
         final Token userToken1 = tokenService.createToken("forUser1", false, adminAuthor, admin)
-                                             .join().content().get();
+                                             .join().content();
         final Token userToken2 = tokenService.createToken("forUser2", false, guestAuthor, guest)
-                                             .join().content().get();
+                                             .join().content();
         assertThat(userToken1.isActive()).isTrue();
         assertThat(userToken2.isActive()).isTrue();
 

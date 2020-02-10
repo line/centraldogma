@@ -40,14 +40,15 @@ class LegacyCentralDogmaTimeoutScheduler extends SimpleDecoratingRpcClient {
 
     @Override
     public RpcResponse execute(ClientRequestContext ctx, RpcRequest req) throws Exception {
-        if (ctx.responseTimeoutMillis() > 0) {
+        final long responseTimeoutMillis = ctx.responseTimeoutMillis();
+        if (responseTimeoutMillis > 0) {
             final String method = req.method();
             if ("watchFile".equals(method) || "watchRepository".equals(method)) {
                 final List<Object> params = req.params();
                 final long timeout = (Long) params.get(params.size() - 1);
                 if (timeout > 0) {
-                    ctx.setResponseTimeoutMillis(
-                            WatchTimeout.makeReasonable(timeout, ctx.responseTimeoutMillis()));
+                    ctx.extendResponseTimeoutMillis(
+                            WatchTimeout.availableTimeout(timeout, responseTimeoutMillis));
                 }
             }
         }

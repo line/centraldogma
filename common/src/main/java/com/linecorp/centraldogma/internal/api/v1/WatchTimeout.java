@@ -29,39 +29,51 @@ public final class WatchTimeout {
     public static final long MAX_MILLIS = TimeUnit.DAYS.toMillis(1);
 
     /**
-     * Returns a reasonable timeout duration for a watch request.
+     * Returns an available timeout duration for a watch request with limitation of max timeout.
+     *
+     * <p>For example:
+     * <pre>{@code
+     * assert WatchTimeout.availableTimeout(1000) == 1000;
+     * // Limit max timeout duration
+     * assert WatchTimeout.availableTimeout(Long.MAX_VALUE) == WatchTimeout.MAX_MILLIS;
+     * }</pre>
      *
      * @param expectedTimeoutMillis timeout duration that a user wants to use, in milliseconds
      * @return timeout duration in milliseconds, between 1 and the {@link #MAX_MILLIS}.
      */
-    public static long makeReasonable(long expectedTimeoutMillis) {
-        return makeReasonable(expectedTimeoutMillis, 0);
+    public static long availableTimeout(long expectedTimeoutMillis) {
+        return availableTimeout(expectedTimeoutMillis, 0);
     }
 
     /**
-     * Returns a reasonable timeout duration for a watch request.
+     * Returns an available timeout duration for a watch request.
+     * This method subtracts {@code currentTimeoutMillis} from {@code expectedTimeoutMills}
+     * with limitation of max timeout.
+     *
+     * <p>For example:
+     * <pre>{@code
+     * assert WatchTimeout.availableTimeout(1000, 100) == 1000;
+     * assert WatchTimeout.availableTimeout(1000, 0) == 1000;
+     * // Limit max timeout duration
+     * assert WatchTimeout.availableTimeout(Long.MAX_VALUE, 1000) == WatchTimeout.MAX_MILLIS - 1000;
+     * }</pre>
      *
      * @param expectedTimeoutMillis timeout duration that a user wants to use, in milliseconds
-     * @param bufferMillis buffer duration which needs to be added, in milliseconds
-     * @return timeout duration in milliseconds, between the specified {@code bufferMillis} and
-     *         the {@link #MAX_MILLIS}.
+     * @param currentTimeoutMillis timeout duration that is currently used, in milliseconds
+     * @return timeout duration in milliseconds, between 1 and the {@link #MAX_MILLIS}.
      */
-    public static long makeReasonable(long expectedTimeoutMillis, long bufferMillis) {
+    public static long availableTimeout(long expectedTimeoutMillis, long currentTimeoutMillis) {
         checkArgument(expectedTimeoutMillis > 0,
                       "expectedTimeoutMillis: %s (expected: > 0)", expectedTimeoutMillis);
-        checkArgument(bufferMillis >= 0,
-                      "bufferMillis: %s (expected: > 0)", bufferMillis);
+        checkArgument(currentTimeoutMillis >= 0,
+                      "currentTimeoutMillis: %s (expected: >= 0)", currentTimeoutMillis);
 
-        final long timeout = Math.min(expectedTimeoutMillis, MAX_MILLIS);
-        if (bufferMillis == 0) {
-            return timeout;
+        if (currentTimeoutMillis >= MAX_MILLIS) {
+            return 0;
         }
 
-        if (timeout > MAX_MILLIS - bufferMillis) {
-            return MAX_MILLIS;
-        } else {
-            return bufferMillis + timeout;
-        }
+        final long maxAvailableTimeoutMillis = MAX_MILLIS - currentTimeoutMillis;
+        return Math.min(expectedTimeoutMillis, maxAvailableTimeoutMillis);
     }
 
     private WatchTimeout() {}

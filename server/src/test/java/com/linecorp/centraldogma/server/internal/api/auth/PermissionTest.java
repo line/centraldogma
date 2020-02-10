@@ -46,7 +46,7 @@ import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
 import com.linecorp.armeria.server.annotation.Post;
-import com.linecorp.armeria.server.auth.HttpAuthService;
+import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.testing.junit.server.ServerExtension;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.command.Command;
@@ -114,7 +114,7 @@ class PermissionTest {
                .toCompletableFuture().join();
 
             final Function<? super HttpService, ? extends HttpService> decorator =
-                    MetadataServiceInjector.newDecorator(mds).andThen(HttpAuthService.newDecorator(
+                    MetadataServiceInjector.newDecorator(mds).andThen(AuthService.newDecorator(
                             new ApplicationTokenAuthorizer(mds::findTokenBySecret)));
             sb.annotatedService(new Object() {
                 @Get("/projects/{projectName}")
@@ -144,7 +144,7 @@ class PermissionTest {
     @MethodSource("arguments")
     void test(String secret, String projectName, ProjectRole role, String repoName,
               Set<Permission> permission, HttpStatus expectedFailureStatus) {
-        final WebClient client = WebClient.builder(server.uri("/"))
+        final WebClient client = WebClient.builder(server.httpUri())
                                           .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret)
                                           .build();
 
@@ -155,7 +155,7 @@ class PermissionTest {
                 .isEqualTo(role == ProjectRole.OWNER || role == ProjectRole.MEMBER ? HttpStatus.OK
                                                                                    : expectedFailureStatus);
 
-        response = client.post("/projects/" + projectName + "/repos/" + repoName, HttpData.EMPTY_DATA)
+        response = client.post("/projects/" + projectName + "/repos/" + repoName, HttpData.empty())
                          .aggregate().join();
         assertThat(response.status()).isEqualTo(permission.contains(Permission.WRITE) ? HttpStatus.OK
                                                                                       : expectedFailureStatus);

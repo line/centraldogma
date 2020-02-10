@@ -879,8 +879,13 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
 
         try (SafeCloseable ignored = Clients.withContextCustomizer(ctx -> {
-            ctx.setResponseTimeoutMillis(
-                    WatchTimeout.makeReasonable(timeoutMillis, ctx.responseTimeoutMillis()));
+            final long responseTimeoutMillis = ctx.responseTimeoutMillis();
+            final long adjustmentMillis = WatchTimeout.availableTimeout(timeoutMillis, responseTimeoutMillis);
+            if (responseTimeoutMillis > 0) {
+                ctx.extendResponseTimeoutMillis(adjustmentMillis);
+            } else {
+               ctx.setResponseTimeoutAfterMillis(adjustmentMillis);
+            }
         })) {
             return client.execute(builder.build()).aggregate().thenApply(func);
         }
@@ -1027,7 +1032,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static String toString(AggregatedHttpResponse res) {
         final MediaType contentType = firstNonNull(res.headers().contentType(), MediaType.JSON_UTF_8);
-        final Charset charset = contentType.charset().orElse(StandardCharsets.UTF_8);
+        final Charset charset = contentType.charset(StandardCharsets.UTF_8);
         return res.content(charset);
     }
 

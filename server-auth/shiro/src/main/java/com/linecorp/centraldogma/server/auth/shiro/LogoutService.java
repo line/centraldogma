@@ -57,7 +57,7 @@ final class LogoutService extends AbstractHttpService {
     @Override
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         return HttpResponse.from(
-                req.aggregate().thenApply(msg -> AuthTokenExtractors.OAUTH2.apply(
+                req.aggregate().thenApply(msg -> AuthTokenExtractors.oAuth2().apply(
                         RequestHeaders.of(msg.headers())))
                    .thenApplyAsync(token -> {
                        if (token == null) {

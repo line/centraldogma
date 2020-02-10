@@ -92,7 +92,7 @@ class CentralDogmaEndpointGroupTest {
                                                                     Query.ofJson("/endpoint.json"))) {
             final CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.JSON);
-            endpointGroup.awaitInitialEndpoints();
+            endpointGroup.whenReady().get();
             assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
         }
     }
@@ -105,7 +105,7 @@ class CentralDogmaEndpointGroupTest {
             watcher.watch(unused -> latch.countDown());
             final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);
-            endpointGroup.awaitInitialEndpoints();
+            endpointGroup.whenReady().get();
             assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
             assertThat(latch.getCount()).isOne();
 
@@ -130,7 +130,7 @@ class CentralDogmaEndpointGroupTest {
             final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);
             // Timeout because the initial watcher is still trying to fetch missing repository.
-            assertThatThrownBy(() -> endpointGroup.awaitInitialEndpoints(1, TimeUnit.SECONDS))
+            assertThatThrownBy(() -> endpointGroup.whenReady().get(1, TimeUnit.SECONDS))
                     .isInstanceOf(TimeoutException.class);
             assertThat(endpointGroup.endpoints()).isEmpty();
             assertThat(latch.getCount()).isEqualTo(1);
@@ -140,7 +140,7 @@ class CentralDogmaEndpointGroupTest {
                                 Revision.HEAD, "commit",
                                 Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
                  .join();
-            endpointGroup.awaitInitialEndpoints(20, TimeUnit.SECONDS);
+            endpointGroup.whenReady().get(20, TimeUnit.SECONDS);
 
             await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
             assertThat(endpointGroup.endpoints()).containsExactly(Endpoint.of("foo.bar", 1234));

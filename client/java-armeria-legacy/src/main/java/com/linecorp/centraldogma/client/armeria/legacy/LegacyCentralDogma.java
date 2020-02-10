@@ -45,7 +45,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
-import com.linecorp.armeria.common.thrift.ThriftCompletableFuture;
+import com.linecorp.armeria.common.thrift.ThriftFuture;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
@@ -574,7 +574,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     }
 
     private static <T> CompletableFuture<T> run(ThriftCall<T> call) {
-        final ThriftCompletableFuture<T> future = new ThriftCompletableFuture<>();
+        final ThriftFuture<T> future = new ThriftFuture<>();
         try {
             call.apply(future);
             return future.exceptionally(cause -> Exceptions.throwUnsafely(convertCause(cause)));
@@ -644,6 +644,6 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     @FunctionalInterface
     private interface ThriftCall<T> {
-        void apply(ThriftCompletableFuture<T> callback) throws TException;
+        void apply(ThriftFuture<T> callback) throws TException;
     }
 }

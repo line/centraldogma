@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.client.armeria;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +117,8 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
     }
 
     @Override
-    public void close() {
+    protected void doCloseAsync(CompletableFuture<?> future) {
         instanceListWatcher.close();
+        future.complete(null);
     }
 }

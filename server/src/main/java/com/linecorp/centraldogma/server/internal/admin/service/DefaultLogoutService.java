@@ -40,7 +40,7 @@ public class DefaultLogoutService extends AbstractHttpService {
     protected HttpResponse doPost(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         return HttpResponse.from(
                 req.aggregate()
-                   .thenApply(msg -> AuthTokenExtractors.OAUTH2.apply(RequestHeaders.of(msg.headers())))
+                   .thenApply(msg -> AuthTokenExtractors.oAuth2().apply(RequestHeaders.of(msg.headers())))
                    .thenCompose(token -> {
                        final String sessionId = token.accessToken();
                        return executor.execute(Command.removeSession(sessionId));

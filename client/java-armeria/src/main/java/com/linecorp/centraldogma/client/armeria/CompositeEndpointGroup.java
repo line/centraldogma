@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -27,12 +28,14 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
+import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 
 final class CompositeEndpointGroup extends DynamicEndpointGroup {
 
     private final List<EndpointGroup> groups;
 
-    CompositeEndpointGroup(Iterable<EndpointGroup> groups) {
+    CompositeEndpointGroup(Iterable<EndpointGroup> groups, EndpointSelectionStrategy selectionStrategy) {
+        super(requireNonNull(selectionStrategy, "selectionStrategy"));
         this.groups = ImmutableList.copyOf(requireNonNull(groups, "groups"));
 
         // Add the listener for all groups.
@@ -61,8 +64,11 @@ final class CompositeEndpointGroup extends DynamicEndpointGroup {
     }
 
     @Override
-    public void close() {
-        super.close();
-        groups.forEach(EndpointGroup::close);
+    protected void doCloseAsync(CompletableFuture<?> future) {
+        try {
+            groups.forEach(EndpointGroup::close);
+        } finally {
+            future.complete(null);
+        }
     }
 }

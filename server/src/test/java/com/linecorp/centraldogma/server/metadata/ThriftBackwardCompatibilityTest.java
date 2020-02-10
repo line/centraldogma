@@ -35,7 +35,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 
-import com.linecorp.armeria.client.ClientBuilder;
+import com.linecorp.armeria.client.Clients;
+import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -64,14 +65,15 @@ class ThriftBackwardCompatibilityTest {
 
     @BeforeAll
     static void init() {
-        final InetSocketAddress serverAddress = dogma.dogma().activePort().get().localAddress();
+        final InetSocketAddress serverAddress = dogma.dogma().activePort().localAddress();
         webClient = WebClient.builder("http://127.0.0.1:" + serverAddress.getPort())
                              .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                              .build();
 
-        client = new ClientBuilder("ttext+http://127.0.0.1:" + serverAddress.getPort() + "/cd/thrift/v1")
-                .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
-                .build(Iface.class);
+        client = Clients.builder("ttext+http", Endpoint.of("127.0.0.1", serverAddress.getPort()))
+                        .path("/cd/thrift/v1")
+                        .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
+                        .build(Iface.class);
     }
 
     @Test

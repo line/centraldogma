@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.internal.api.v1;
 
 import static com.linecorp.centraldogma.internal.api.v1.WatchTimeout.MAX_MILLIS;
-import static com.linecorp.centraldogma.internal.api.v1.WatchTimeout.makeReasonable;
+import static com.linecorp.centraldogma.internal.api.v1.WatchTimeout.availableTimeout;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -26,16 +26,17 @@ class WatchTimeoutTest {
 
     @Test
     void testMakeReasonable() {
-        assertThat(makeReasonable(1_000, 1_000)).isEqualTo(2_000);
-        assertThat(makeReasonable(MAX_MILLIS, 1_000)).isEqualTo(MAX_MILLIS);
-        assertThat(makeReasonable(MAX_MILLIS + 1_000, 0)).isEqualTo(MAX_MILLIS);
-        assertThat(makeReasonable(MAX_MILLIS - 1_000, 500)).isEqualTo(MAX_MILLIS - 500);
+        assertThat(availableTimeout(1_000, 0)).isEqualTo(1_000);
+        assertThat(availableTimeout(1_000, 1_000)).isEqualTo(1_000);
+        assertThat(availableTimeout(MAX_MILLIS, 1_000)).isEqualTo(MAX_MILLIS - 1_000);
+        assertThat(availableTimeout(MAX_MILLIS + 1_000, 0)).isEqualTo(MAX_MILLIS);
+        assertThat(availableTimeout(MAX_MILLIS - 1_000, 500)).isEqualTo(MAX_MILLIS - 1000);
 
-        assertThatThrownBy(() -> makeReasonable(0, 1_000))
+        assertThatThrownBy(() -> availableTimeout(0, 1_000))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> makeReasonable(-1, 1_000))
+        assertThatThrownBy(() -> availableTimeout(-1, 1_000))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> makeReasonable(1_000, -1))
+        assertThatThrownBy(() -> availableTimeout(1_000, -1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

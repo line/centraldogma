@@ -27,6 +27,7 @@ import org.opensaml.security.credential.CredentialResolver;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import com.linecorp.armeria.server.saml.KeyStoreCredentialResolverBuilder;
+import com.linecorp.armeria.server.saml.SamlServiceProvider;
 import com.linecorp.armeria.server.saml.SamlServiceProviderBuilder;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
@@ -45,7 +46,7 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
         try {
             final KeyStore ks = properties.keyStore();
             final Idp idp = properties.idp();
-            final SamlServiceProviderBuilder builder = new SamlServiceProviderBuilder();
+            final SamlServiceProviderBuilder builder = SamlServiceProvider.builder();
             builder.entityId(properties.entityId())
                    .hostname(properties.hostname())
                    .signingKey(properties.signingKey())
@@ -92,7 +93,7 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
             builder = new KeyStoreCredentialResolverBuilder(file);
         } else {
             builder = new KeyStoreCredentialResolverBuilder(
-                    path, SamlAuthProviderFactory.class.getClassLoader());
+                    SamlAuthProviderFactory.class.getClassLoader(), path);
         }
 
         builder.type(keyStore.type())

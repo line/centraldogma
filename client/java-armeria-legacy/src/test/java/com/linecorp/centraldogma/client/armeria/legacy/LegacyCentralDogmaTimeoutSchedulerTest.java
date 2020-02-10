@@ -17,7 +17,6 @@
 package com.linecorp.centraldogma.client.armeria.legacy;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.util.List;
@@ -30,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.RpcClient;
-import com.linecorp.armeria.common.DefaultRpcRequest;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.RpcRequest;
@@ -74,23 +72,27 @@ class LegacyCentralDogmaTimeoutSchedulerTest {
         check("watchFile", 1000L, 0, 0);
     }
 
-    private void check(String method, long timeoutMills, long defaultTimeoutMills, long expectedTimeoutMills)
+    private void check(String method, long timeoutMillis, long defaultTimeoutMills, long expectedTimeoutMills)
             throws Exception {
-        final RpcRequest req = newRequest(method, ImmutableList.of("a", "b", "c", timeoutMills));
+        final RpcRequest req = newRequest(method, ImmutableList.of("a", "b", "c", timeoutMillis));
         final ClientRequestContext ctx = newClientContext(req);
-        ctx.setResponseTimeoutMillis(defaultTimeoutMills);
+        ctx.clearResponseTimeout();
+        if (defaultTimeoutMills > 0) {
+            ctx.setResponseTimeoutAfterMillis(defaultTimeoutMills);
+        }
+
         decorator.execute(ctx, req);
         assertThat(ctx.responseTimeoutMillis()).isEqualTo(expectedTimeoutMills);
         verify(client).execute(ctx, req);
     }
 
     private static RpcRequest newRequest(String method, List<Object> args) {
-        return new DefaultRpcRequest(CentralDogmaService.AsyncIface.class, method, args);
+        return RpcRequest.of(CentralDogmaService.AsyncIface.class, method, args);
     }
 
     private static ClientRequestContext newClientContext(RpcRequest req) {
         final ClientRequestContext ctx = ClientRequestContext.of(
                 HttpRequest.of(HttpMethod.POST, "/cd/thrift/v1"));
-        return spy(ctx);
+        return ctx;
     }
 }

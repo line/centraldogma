@@ -31,13 +31,15 @@ import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 /**
  * A request converter that converts to {@link CommitMessageDto}.
  */
-public final class CommitMessageRequestConverter extends JacksonRequestConverterFunction {
+public final class CommitMessageRequestConverter implements RequestConverterFunction {
+
+    private final JacksonRequestConverterFunction delegate = new JacksonRequestConverterFunction();
 
     @Override
     public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
                                  Class<?> expectedResultType) throws Exception {
         if (expectedResultType == CommitMessageDto.class) {
-            final JsonNode node = (JsonNode) super.convertRequest(ctx, request, JsonNode.class);
+            final JsonNode node = (JsonNode) delegate.convertRequest(ctx, request, JsonNode.class);
             if (node == null || node.get("commitMessage") == null) {
                 throw new IllegalArgumentException("commitMessage should be non-null.");
             }

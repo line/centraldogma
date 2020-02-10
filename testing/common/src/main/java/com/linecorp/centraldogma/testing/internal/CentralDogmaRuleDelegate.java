@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.IOError;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
@@ -40,7 +39,6 @@ import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.TlsConfig;
 
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.util.NetUtil;
 
@@ -106,13 +104,13 @@ public class CentralDogmaRuleDelegate {
         final com.linecorp.centraldogma.server.CentralDogma dogma = builder.build();
         this.dogma = dogma;
         return dogma.start().thenRun(() -> {
-            final Optional<ServerPort> activePort = dogma.activePort();
-            if (!activePort.isPresent()) {
+            final ServerPort activePort = dogma.activePort();
+            if (activePort == null) {
                 // Stopped already.
                 return;
             }
 
-            final InetSocketAddress serverAddress = activePort.get().localAddress();
+            final InetSocketAddress serverAddress = activePort.localAddress();
             this.serverAddress = serverAddress;
 
             final ArmeriaCentralDogmaBuilder clientBuilder = new ArmeriaCentralDogmaBuilder();
@@ -266,11 +264,7 @@ public class CentralDogmaRuleDelegate {
 
         if (useTls) {
             builder.useTls();
-            builder.clientFactory(
-                    ClientFactory.builder()
-                                 .sslContextCustomizer(
-                                         b -> b.trustManager(InsecureTrustManagerFactory.INSTANCE))
-                                 .build());
+            builder.clientFactory(ClientFactory.insecure());
         }
     }
 }

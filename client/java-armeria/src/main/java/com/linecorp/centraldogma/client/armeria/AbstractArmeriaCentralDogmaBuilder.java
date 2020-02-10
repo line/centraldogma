@@ -26,18 +26,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
-import com.linecorp.armeria.client.endpoint.EndpointGroupRegistry;
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
 import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
@@ -51,9 +49,6 @@ import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
  */
 public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentralDogmaBuilder<B>>
         extends AbstractCentralDogmaBuilder<B> {
-
-    @VisibleForTesting
-    static final AtomicLong nextAnonymousGroupId = new AtomicLong();
 
     private static final int DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS = 15000;
 
@@ -117,77 +112,65 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     }
 
     /**
-     * Returns the {@link Endpoint} this client will connect to, derived from {@link #hosts()}.
+     * Returns the {@link EndpointGroup} this client will connect to, derived from {@link #hosts()}.
      *
      * @throws UnknownHostException if failed to resolve the host names from the DNS servers
      */
-    protected final Endpoint endpoint() throws UnknownHostException {
+    protected final EndpointGroup endpointGroup() throws UnknownHostException {
         final Set<InetSocketAddress> hosts = hosts();
         checkState(!hosts.isEmpty(), "no hosts were added.");
 
         final InetSocketAddress firstHost = Iterables.getFirst(hosts, null);
-        final Endpoint endpoint;
         if (hosts.size() == 1 && !firstHost.isUnresolved()) {
-            endpoint = toResolvedHostEndpoint(firstHost);
-        } else {
-            final String groupName;
-            if (selectedProfile() != null) {
-                // Generate a group name from profile name.
-                groupName = "centraldogma-profile-" + selectedProfile();
-            } else {
-                // Generate an anonymous group name with an arbitrary integer.
-                groupName = "centraldogma-anonymous-" + nextAnonymousGroupId.getAndIncrement();
-            }
-
-            final List<Endpoint> staticEndpoints = new ArrayList<>();
-            final List<EndpointGroup> groups = new ArrayList<>();
-            for (final InetSocketAddress addr : hosts) {
-                if (addr.isUnresolved()) {
-                    groups.add(DnsAddressEndpointGroup.builder(addr.getHostString())
-                                                      .eventLoop(clientFactory.eventLoopGroup().next())
-                                                      .port(addr.getPort())
-                                                      .build());
-                } else {
-                    staticEndpoints.add(toResolvedHostEndpoint(addr));
-                }
-            }
-
-            if (!staticEndpoints.isEmpty()) {
-                groups.add(EndpointGroup.of(staticEndpoints));
-            }
-
-            EndpointGroup group;
-            if (groups.size() == 1) {
-                group = groups.get(0);
-            } else {
-                group = new CompositeEndpointGroup(groups);
-            }
-
-            if (group instanceof DynamicEndpointGroup) {
-                // Wait until the initial endpoint list is ready.
-                try {
-                    group.awaitInitialEndpoints(10, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    final UnknownHostException cause = new UnknownHostException(
-                            "failed to resolve any of: " + hosts);
-                    cause.initCause(e);
-                    throw cause;
-                }
-            }
-
-            if (!healthCheckInterval.isZero()) {
-                group = HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
-                                                  .clientFactory(clientFactory)
-                                                  .protocol(isUseTls() ? SessionProtocol.HTTPS
-                                                                       : SessionProtocol.HTTP)
-                                                  .retryInterval(healthCheckInterval)
-                                                  .build();
-            }
-
-            EndpointGroupRegistry.register(groupName, group, EndpointSelectionStrategy.ROUND_ROBIN);
-            endpoint = Endpoint.ofGroup(groupName);
+            return toResolvedHostEndpoint(firstHost);
         }
-        return endpoint;
+
+        final List<Endpoint> staticEndpoints = new ArrayList<>();
+        final List<EndpointGroup> groups = new ArrayList<>();
+        for (final InetSocketAddress addr : hosts) {
+            if (addr.isUnresolved()) {
+                groups.add(DnsAddressEndpointGroup.builder(addr.getHostString())
+                                                  .eventLoop(clientFactory.eventLoopGroup().next())
+                                                  .port(addr.getPort())
+                                                  .build());
+            } else {
+                staticEndpoints.add(toResolvedHostEndpoint(addr));
+            }
+        }
+
+        if (!staticEndpoints.isEmpty()) {
+            groups.add(EndpointGroup.of(staticEndpoints));
+        }
+
+        final EndpointGroup group;
+        if (groups.size() == 1) {
+            group = groups.get(0);
+        } else {
+            group = new CompositeEndpointGroup(groups, EndpointSelectionStrategy.roundRobin());
+        }
+
+        if (group instanceof DynamicEndpointGroup) {
+            // Wait until the initial endpointGroup list is ready.
+            try {
+                group.whenReady().get(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                final UnknownHostException cause = new UnknownHostException(
+                        "failed to resolve any of: " + hosts);
+                cause.initCause(e);
+                throw cause;
+            }
+        }
+
+        if (!healthCheckInterval.isZero()) {
+            return HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
+                                             .clientFactory(clientFactory)
+                                             .protocol(isUseTls() ? SessionProtocol.HTTPS
+                                                                  : SessionProtocol.HTTP)
+                                             .retryInterval(healthCheckInterval)
+                                             .build();
+        } else {
+            return group;
+        }
     }
 
     private static Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {
@@ -200,8 +183,9 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
      * and then with the {@link ArmeriaClientConfigurator} specified with
      * {@link #clientConfigurator(ArmeriaClientConfigurator)}.
      */
-    protected final ClientBuilder newClientBuilder(String uri, Consumer<ClientBuilder> customizer) {
-        final ClientBuilder builder = new ClientBuilder(uri);
+    protected final ClientBuilder newClientBuilder(String scheme, EndpointGroup endpointGroup,
+                                                   Consumer<ClientBuilder> customizer) {
+        final ClientBuilder builder = Clients.builder(scheme, endpointGroup);
         customizer.accept(builder);
         clientConfigurator.configure(builder);
         builder.factory(clientFactory());

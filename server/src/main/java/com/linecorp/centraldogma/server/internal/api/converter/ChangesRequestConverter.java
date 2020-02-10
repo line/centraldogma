@@ -26,18 +26,21 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
+import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeType;
 
 /**
  * A request converter that converts to {@code Iterable<Change<?>>}.
  */
-public final class ChangesRequestConverter extends JacksonRequestConverterFunction {
+public final class ChangesRequestConverter implements RequestConverterFunction {
+
+    private final JacksonRequestConverterFunction delegate = new JacksonRequestConverterFunction();
 
     @Override
     public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
                                  Class<?> expectedResultType) throws Exception {
-        final JsonNode node = (JsonNode) super.convertRequest(ctx, request, JsonNode.class);
+        final JsonNode node = (JsonNode) delegate.convertRequest(ctx, request, JsonNode.class);
         final ArrayNode changesNode;
         if (node.getNodeType() == JsonNodeType.ARRAY) {
             changesNode = (ArrayNode) node;
