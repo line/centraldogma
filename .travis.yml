@@ -1,6 +1,6 @@
 language: java
 jdk:
-- openjdk11
+- openjdk13
 sudo: false
 os:
 - linux
