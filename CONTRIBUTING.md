@@ -10,7 +10,7 @@ First of all, thank you so much for taking your time to contribute! Central Dogm
 
 ### Build requirements
 
-- [OpenJDK 11 (or later)](https://adoptopenjdk.net/)
+- [OpenJDK 13 (or later)](https://adoptopenjdk.net/)
 
 ### Contributor license agreement
 
