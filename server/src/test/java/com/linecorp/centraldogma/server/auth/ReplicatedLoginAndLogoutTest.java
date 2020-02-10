@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2020 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -36,15 +36,10 @@ import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryUntilElapsed;
 import org.apache.curator.test.InstanceSpec;
 import org.awaitility.Durations;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.DisableOnDebug;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestRule;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -59,15 +54,13 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.ZooKeeperAddress;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
+import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 
-public class ReplicatedLoginAndLogoutTest {
+class ReplicatedLoginAndLogoutTest {
 
-    @ClassRule
-    public static final TemporaryFolder tempDir = new TemporaryFolder();
-
-    @Rule
-    public final TestRule timeoutRule = new DisableOnDebug(new Timeout(30, TimeUnit.SECONDS));
+    @RegisterExtension
+    static final TemporaryFolderExtension tempDir = new TemporaryFolderExtension();
 
     // Prepare two replicas.
 
@@ -77,8 +70,8 @@ public class ReplicatedLoginAndLogoutTest {
     private WebClient client2;
     private CuratorFramework curator;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         final int port1 = InstanceSpec.getRandomPort();
         final int zkQuorumPort1 = InstanceSpec.getRandomPort();
         final int zkElectionPort1 = InstanceSpec.getRandomPort();
@@ -95,7 +88,7 @@ public class ReplicatedLoginAndLogoutTest {
 
         final AuthProviderFactory factory = new TestAuthProviderFactory();
 
-        replica1 = new CentralDogmaBuilder(tempDir.newFolder())
+        replica1 = new CentralDogmaBuilder(tempDir.newFolder().toFile())
                 .port(port1, SessionProtocol.HTTP)
                 .authProviderFactory(factory)
                 .webAppEnabled(true)
@@ -104,7 +97,7 @@ public class ReplicatedLoginAndLogoutTest {
                 .replication(new ZooKeeperReplicationConfig(1, servers))
                 .build();
 
-        replica2 = new CentralDogmaBuilder(tempDir.newFolder())
+        replica2 = new CentralDogmaBuilder(tempDir.newFolder().toFile())
                 .port(port2, SessionProtocol.HTTP)
                 .authProviderFactory(factory)
                 .webAppEnabled(true)
@@ -128,8 +121,8 @@ public class ReplicatedLoginAndLogoutTest {
         assertThat(curator.blockUntilConnected(10, TimeUnit.SECONDS)).isTrue();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() {
         if (curator != null) {
             curator.close();
         }
@@ -142,7 +135,7 @@ public class ReplicatedLoginAndLogoutTest {
     }
 
     @Test
-    public void loginAndLogout() throws Exception {
+    void loginAndLogout() throws Exception {
         final int baselineReplicationLogCount = replicationLogCount();
 
         // Log in from the 1st replica.
@@ -176,7 +169,7 @@ public class ReplicatedLoginAndLogoutTest {
     }
 
     @Test
-    public void incorrectLogin() throws Exception {
+    void incorrectLogin() throws Exception {
         final int baselineReplicationLogCount = replicationLogCount();
         assertThat(login(client1, USERNAME, WRONG_PASSWORD).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
@@ -185,7 +178,7 @@ public class ReplicatedLoginAndLogoutTest {
     }
 
     @Test
-    public void incorrectLogout() throws Exception {
+    void incorrectLogout() throws Exception {
         final int baselineReplicationLogCount = replicationLogCount();
         assertThat(logout(client1, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(logout(client1, MALFORMED_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);

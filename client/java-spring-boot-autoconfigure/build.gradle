@@ -5,6 +5,7 @@ dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
     testCompile project(':client:java-armeria')
+    testCompile 'junit:junit'
     testCompile 'org.springframework.boot:spring-boot-starter-test'
     testRuntime 'org.hibernate.validator:hibernate-validator'
 }
