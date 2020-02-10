@@ -50,7 +50,7 @@ configure(projectsWithFlags('java')) {
     dependencies {
         // All projects currently require ':common' (except itself)
         if (project.name != 'common') {
-            compile project(':common')
+            api project(':common')
         }
 
         // Testing utilities
