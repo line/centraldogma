@@ -1,7 +1,7 @@
 dependencies {
-    compile project(':common-legacy')
-    compile project(':client:java-armeria')
+    api project(':common-legacy')
+    api project(':client:java-armeria')
 
     // Armeria
-    compile 'com.linecorp.armeria:armeria-thrift0.9'
+    implementation 'com.linecorp.armeria:armeria-thrift0.9'
 }

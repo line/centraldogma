@@ -10,46 +10,45 @@ buildscript {
 apply plugin: 'com.craigburke.client-dependencies'
 
 dependencies {
-    compile project(':common-legacy')
+    implementation project(':common-legacy')
 
     // Armeria
     ['armeria', 'armeria-thrift0.9'].each {
-        compile "com.linecorp.armeria:$it"
+        api "com.linecorp.armeria:$it"
     }
-    testCompile 'com.linecorp.armeria:armeria-testing-junit'
+    testImplementation 'com.linecorp.armeria:armeria-testing-junit'
 
     // JSch
-    compile 'com.jcraft:jsch'
+    implementation 'com.jcraft:jsch'
 
     // Caffeine
-    compile 'com.github.ben-manes.caffeine:caffeine'
+    implementation 'com.github.ben-manes.caffeine:caffeine'
 
     // Curator & ZooKeeper
-    compile 'org.apache.curator:curator-recipes'
-    compile 'org.apache.zookeeper:zookeeper'
-    testCompile 'org.apache.curator:curator-test'
+    implementation 'org.apache.curator:curator-recipes'
+    implementation 'org.apache.zookeeper:zookeeper'
+    testImplementation 'org.apache.curator:curator-test'
+
+    // DiffUtils
+    implementation 'com.googlecode.java-diff-utils:diffutils'
 
     // jCommander
-    compile('com.beust:jcommander') {
-        ext.optional = true
-    }
+    optionalImplementation 'com.beust:jcommander'
 
     // jGit
-    compile 'org.eclipse.jgit:org.eclipse.jgit'
+    implementation 'org.eclipse.jgit:org.eclipse.jgit'
 
     // Micrometer
-    compile 'io.micrometer:micrometer-core'
-    compile 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.micrometer:micrometer-core'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
 
     // Quartz
-    compile 'org.quartz-scheduler:quartz'
+    implementation 'org.quartz-scheduler:quartz'
 
     // Mockito for mocking a Project
     jmh 'org.mockito:mockito-core'
     // Logging
-    runtime('ch.qos.logback:logback-classic') {
-        ext.optional = true
-    }
+    optionalImplementation 'ch.qos.logback:logback-classic'
 }
 
 clientDependencies {

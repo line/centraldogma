@@ -1,6 +1,6 @@
 dependencies {
-    compile project(':server')
-    compile 'com.linecorp.armeria:armeria-saml'
+    implementation project(':server')
+    implementation 'com.linecorp.armeria:armeria-saml'
 
-    testCompile project(':testing-internal')
+    testImplementation project(':testing-internal')
 }

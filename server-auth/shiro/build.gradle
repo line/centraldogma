@@ -1,7 +1,10 @@
 dependencies {
-    compile project(':server')
-    testCompile project(':testing-internal')
+    api project(':server')
+    testImplementation project(':testing-internal')
+
+    // Caffeine
+    implementation 'com.github.ben-manes.caffeine:caffeine'
 
     // Shiro
-    compile 'org.apache.shiro:shiro-core'
+    implementation 'org.apache.shiro:shiro-core'
 }
