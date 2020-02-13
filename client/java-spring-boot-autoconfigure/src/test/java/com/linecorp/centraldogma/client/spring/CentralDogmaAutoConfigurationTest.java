@@ -21,6 +21,7 @@ import javax.inject.Inject;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.SpringBootVersion;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
@@ -35,13 +36,13 @@ import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurati
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestConfiguration.class)
 @ActiveProfiles({ "local", "confTest" })
-public class CentralDogmaAutoConfigurationTest {
+class CentralDogmaAutoConfigurationTest {
     @SpringBootApplication
-    public static class TestConfiguration {
+    static class TestConfiguration {
         static final ClientFactory clientFactoryNotForCentralDogma = ClientFactory.builder().build();
 
         @Bean
-        public ClientFactory clientFactory() {
+        ClientFactory clientFactory() {
             return clientFactoryNotForCentralDogma;
         }
     }
@@ -53,9 +54,23 @@ public class CentralDogmaAutoConfigurationTest {
     @ForCentralDogma
     private ClientFactory clientFactory;
 
+    /**
+     * When there are no `ClientFactory`s with `ForCentralDogma` qualifier,
+     * the default `ClientFactory` must be used.
+     */
     @Test
-    public void centralDogmaClient() throws Exception {
+    void centralDogmaClient() throws Exception {
         assertThat(client).isNotNull();
-        assertThat(clientFactory).isSameAs(ClientFactory.ofDefault());
+
+        if (SpringBootVersion.getVersion().startsWith("1.")) {
+            // JUnit 5 extension for Spring Boot 1.x has a bug which pulls in a bean from other tests,
+            // so we can't test this properly.
+            final ClientFactory expectedClientFactory =
+                    new CentralDogmaClientAutoConfigurationWithClientFactoryTest.TestConfiguration()
+                            .dogmaClientFactory();
+            assertThat(clientFactory).isSameAs(expectedClientFactory);
+        } else {
+            assertThat(clientFactory).isSameAs(ClientFactory.ofDefault());
+        }
     }
 }

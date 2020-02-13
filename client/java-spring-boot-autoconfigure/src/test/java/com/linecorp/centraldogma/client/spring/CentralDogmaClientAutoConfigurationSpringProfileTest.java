@@ -33,10 +33,10 @@ import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurati
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestConfiguration.class)
 @ActiveProfiles({ "local", "confTest" })
-public class CentralDogmaClientAutoConfigurationSpringProfileTest {
+class CentralDogmaClientAutoConfigurationSpringProfileTest {
     @Configuration
     @Import(CentralDogmaClientAutoConfiguration.class)
-    public static class TestConfiguration {}
+    static class TestConfiguration {}
 
     @Inject
     private CentralDogma client;
@@ -45,12 +45,12 @@ public class CentralDogmaClientAutoConfigurationSpringProfileTest {
     private CentralDogmaSettings settings;
 
     @Test
-    public void centralDogmaClient() throws Exception {
+    void centralDogmaClient() throws Exception {
         assertThat(client).isNotNull();
     }
 
     @Test
-    public void settings() {
+    void settings() {
         assertThat(settings.getHosts()).isNull();
         assertThat(settings.getProfile()).isNull();
         assertThat(settings.getUseTls()).isNull();
