@@ -1,10 +1,9 @@
 dependencies {
-    api project(':client:java-armeria-legacy')
+    api project(':client:java-armeria')
     compileOnly 'javax.validation:validation-api'
     api 'org.springframework.boot:spring-boot-starter'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    testImplementation project(':client:java-armeria')
     testImplementation 'junit:junit'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.hibernate.validator:hibernate-validator'
