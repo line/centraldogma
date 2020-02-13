@@ -4,7 +4,6 @@ dependencies {
     api 'org.springframework.boot:spring-boot-starter:1.5.22.RELEASE'
 
     testImplementation project(':client:java-armeria')
-    testImplementation 'junit:junit'
     testImplementation 'org.springframework.boot:spring-boot-starter-test:1.5.22.RELEASE'
     testRuntimeOnly 'org.hibernate.validator:hibernate-validator'
 }
