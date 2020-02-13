@@ -4,7 +4,6 @@ dependencies {
     api 'org.springframework.boot:spring-boot-starter'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    testImplementation 'junit:junit'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.hibernate.validator:hibernate-validator'
 }
