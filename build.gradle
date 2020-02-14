@@ -3,7 +3,6 @@ plugins {
     id 'me.champeau.gradle.jmh' version '0.5.0' apply false
 }
 
-
 allprojects {
     repositories {
         mavenCentral()
