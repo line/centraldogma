@@ -36,9 +36,9 @@ import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurati
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestConfiguration.class)
 @ActiveProfiles({ "local", "confTest" })
-public class CentralDogmaClientAutoConfigurationWithClientFactoryTest {
+class CentralDogmaClientAutoConfigurationWithClientFactoryTest {
     @SpringBootApplication
-    public static class TestConfiguration {
+    static class TestConfiguration {
         private static final ClientFactory dogmaClientFactory = ClientFactory.builder().build();
         private static final ClientFactory otherClientFactory = ClientFactory.builder().build();
 
@@ -77,7 +77,7 @@ public class CentralDogmaClientAutoConfigurationWithClientFactoryTest {
     private ClientFactory clientFactoryForCentralDogma;
 
     @Test
-    public void centralDogmaClient() throws Exception {
+    void centralDogmaClient() throws Exception {
         assertThat(client).isNotNull();
         assertThat(clientFactoryForCentralDogma).isNotSameAs(ClientFactory.ofDefault());
         assertThat(clientFactoryForCentralDogma).isSameAs(TestConfiguration.dogmaClientFactory);

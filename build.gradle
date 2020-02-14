@@ -1,13 +1,6 @@
-buildscript {
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.google.gradle:osdetector-gradle-plugin:1.6.2'
-        classpath 'io.spring.gradle:dependency-management-plugin:1.0.9.RELEASE'
-        classpath 'me.champeau.gradle:jmh-gradle-plugin:0.5.0'
-    }
+plugins {
+    id 'com.google.osdetector' version '1.6.2' apply false
+    id 'me.champeau.gradle.jmh' version '0.5.0' apply false
 }
 
 allprojects {

@@ -1,9 +1,27 @@
+final def SPRING_BOOT_VERSION = '1.5.22.RELEASE'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+
 dependencies {
     api project(':client:java-armeria')
     api 'javax.validation:validation-api'
-    api 'org.springframework.boot:spring-boot-starter:1.5.22.RELEASE'
+    api('org.springframework.boot:spring-boot-starter') {
+        version {
+            // Will fail the build if the override doesn't work
+            strictly SPRING_BOOT_VERSION
+        }
+    }
 
-    testImplementation 'org.springframework.boot:spring-boot-starter-test:1.5.22.RELEASE'
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        version {
+            // Will fail the build if the override doesn't work
+            strictly SPRING_BOOT_VERSION
+        }
+    }
+    testImplementation 'com.github.sbrannen:spring-test-junit5:1.5.0'
     testRuntimeOnly 'org.hibernate.validator:hibernate-validator'
 }
 
@@ -21,5 +39,6 @@ tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/resources"
 tasks.javadoc.source "${autoconfigureProjectDir}/src/main/java"
 
 // Disable checkstyle because it's checked by 'client-spring-boot-autoconfigure'
-tasks.checkstyleMain.onlyIf { false }
-tasks.checkstyleTest.onlyIf { false }
+tasks.withType(Checkstyle) {
+    onlyIf { false }
+}
