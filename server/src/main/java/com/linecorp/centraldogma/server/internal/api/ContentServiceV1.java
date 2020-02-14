@@ -41,6 +41,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
@@ -224,6 +225,7 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
     public CompletableFuture<?> getFiles(
+            ServiceRequestContext ctx,
             @Param("path") String path, @Param("revision") @Default("-1") String revision,
             Repository repository,
             @RequestConverter(WatchRequestConverter.class) Optional<WatchRequest> watchRequest,
@@ -235,10 +237,10 @@ public class ContentServiceV1 extends AbstractService {
             final Revision lastKnownRevision = watchRequest.get().lastKnownRevision();
             final long timeOutMillis = watchRequest.get().timeoutMillis();
             if (query.isPresent()) {
-                return watchFile(repository, lastKnownRevision, query.get(), timeOutMillis);
+                return watchFile(ctx, repository, lastKnownRevision, query.get(), timeOutMillis);
             }
 
-            return watchRepository(repository, lastKnownRevision, normalizedPath, timeOutMillis);
+            return watchRepository(ctx, repository, lastKnownRevision, normalizedPath, timeOutMillis);
         }
 
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
@@ -255,10 +257,15 @@ public class ContentServiceV1 extends AbstractService {
         return future;
     }
 
-    private CompletableFuture<?> watchFile(Repository repository, Revision lastKnownRevision,
+    private CompletableFuture<?> watchFile(ServiceRequestContext ctx,
+                                           Repository repository, Revision lastKnownRevision,
                                            Query<?> query, long timeOutMillis) {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
                 repository, lastKnownRevision, query, timeOutMillis);
+
+        if (!future.isDone()) {
+            ctx.log().whenComplete().thenRun(() -> future.cancel(false));
+        }
 
         return future.thenApply(entry -> {
             final Revision revision = entry.revision();
@@ -267,10 +274,15 @@ public class ContentServiceV1 extends AbstractService {
         }).exceptionally(ContentServiceV1::handleWatchFailure);
     }
 
-    private CompletableFuture<?> watchRepository(Repository repository, Revision lastKnownRevision,
+    private CompletableFuture<?> watchRepository(ServiceRequestContext ctx,
+                                                 Repository repository, Revision lastKnownRevision,
                                                  String pathPattern, long timeOutMillis) {
         final CompletableFuture<Revision> future =
                 watchService.watchRepository(repository, lastKnownRevision, pathPattern, timeOutMillis);
+
+        if (!future.isDone()) {
+            ctx.log().whenComplete().thenRun(() -> future.cancel(false));
+        }
 
         return future.thenApply(revision -> (Object) new WatchResultDto(revision, null))
                      .exceptionally(ContentServiceV1::handleWatchFailure);

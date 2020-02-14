@@ -63,6 +63,7 @@ import com.google.common.math.LongMath;
 import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.ClosedSessionException;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
@@ -70,6 +71,7 @@ import com.linecorp.armeria.common.HttpStatusClass;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.RequestHeadersBuilder;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
@@ -887,7 +889,20 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                ctx.setResponseTimeoutAfterMillis(adjustmentMillis);
             }
         })) {
-            return client.execute(builder.build()).aggregate().thenApply(func);
+            return client.execute(builder.build()).aggregate()
+                         .handle((res, cause) -> {
+                             if (cause == null) {
+                                 return func.apply(res);
+                             }
+
+                             if (cause instanceof ClosedSessionException &&
+                                 client.options().factory().isClosing()) {
+                                 // A user closed the client factory while watching.
+                                 return null;
+                             }
+
+                             return Exceptions.throwUnsafely(cause);
+                         });
         }
     }
 
