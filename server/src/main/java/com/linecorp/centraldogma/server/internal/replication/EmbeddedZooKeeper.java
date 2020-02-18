@@ -98,33 +98,33 @@ final class EmbeddedZooKeeper extends QuorumPeer {
                  .tag("type", "min")
                  .register(meterRegistry);
 
-        Gauge.builder("replica.zk.outstandingRequests", this,
+        Gauge.builder("replica.zk.outstanding.requests", this,
                       self -> serverStats(self).getOutstandingRequests())
              .register(meterRegistry);
 
-        Gauge.builder("replica.zk.lastProcessedZxid", this,
+        Gauge.builder("replica.zk.last.processed.zxid", this,
                       self -> serverStats(self).getLastProcessedZxid())
              .register(meterRegistry);
 
-        Gauge.builder("replica.zk.dataDirSize", this,
+        Gauge.builder("replica.zk.data.dir.size", this,
                       self -> serverStats(self).getDataDirSize())
              .baseUnit("bytes")
              .register(meterRegistry);
 
-        Gauge.builder("replica.zk.logDirSize", this,
+        Gauge.builder("replica.zk.log.dir.size", this,
                       self -> serverStats(self).getLogDirSize())
              .baseUnit("bytes")
              .register(meterRegistry);
 
-        FunctionCounter.builder("replica.zk.packetsReceived", this,
+        FunctionCounter.builder("replica.zk.packets.received", this,
                                 self -> serverStats(self).getPacketsReceived())
                        .register(meterRegistry);
 
-        FunctionCounter.builder("replica.zk.packetsSent", this,
+        FunctionCounter.builder("replica.zk.packets.sent", this,
                                 self -> serverStats(self).getPacketsSent())
                        .register(meterRegistry);
 
-        Gauge.builder("replica.zk.aliveClientConnections", this,
+        Gauge.builder("replica.zk.alive.client.connections", this,
                       self -> serverStats(self).getNumAliveClientConnections())
              .register(meterRegistry);
 
@@ -151,7 +151,7 @@ final class EmbeddedZooKeeper extends QuorumPeer {
              .register(meterRegistry);
 
         // Bind the meters pulled in from DataTree.
-        Gauge.builder("replica.zk.approximateDataSize", this, new ApproximateDataSizeFunction())
+        Gauge.builder("replica.zk.approximate.data.size", this, new ApproximateDataSizeFunction())
              .baseUnit("bytes")
              .register(meterRegistry);
 

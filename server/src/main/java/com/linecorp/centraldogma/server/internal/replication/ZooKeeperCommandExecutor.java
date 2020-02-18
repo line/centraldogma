@@ -263,15 +263,15 @@ public final class ZooKeeperCommandExecutor
 
         // Register the metrics which are accessible even before started.
         Gauge.builder("replica.id", this, self -> replicaId()).register(meterRegistry);
-        Gauge.builder("replica.readOnly", this, self -> self.isWritable() ? 0 : 1).register(meterRegistry);
+        Gauge.builder("replica.read.only", this, self -> self.isWritable() ? 0 : 1).register(meterRegistry);
         Gauge.builder("replica.replicating", this, self -> self.isStarted() ? 1 : 0).register(meterRegistry);
-        Gauge.builder("replica.hasLeadership", this,
+        Gauge.builder("replica.has.leadership", this,
                       self -> {
                           final OldLogRemover remover = self.oldLogRemover;
                           return remover != null && remover.hasLeadership ? 1 : 0;
                       })
              .register(meterRegistry);
-        Gauge.builder("replica.lastReplayedRevision", this,
+        Gauge.builder("replica.last.replayed.revision", this,
                       self -> {
                           final ListenerInfo info = self.listenerInfo;
                           if (info == null) {
