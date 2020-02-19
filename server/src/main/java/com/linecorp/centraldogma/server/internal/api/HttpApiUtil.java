@@ -50,6 +50,8 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
 
+import io.netty.handler.codec.http2.Http2Exception;
+
 /**
  * A utility class which provides common functions for HTTP API.
  */
@@ -180,8 +182,9 @@ public final class HttpApiUtil {
             if (cause != null) {
                 if (!(Exceptions.isStreamCancelling(cause) ||
                       cause instanceof ShuttingDownException ||
-                      // TODO(trustin): Remove this condition after upgrading to 0.98.3+.
-                      cause instanceof ClosedStreamException)) {
+                      // TODO(trustin): Remove the following 2 conditions after upgrading to 0.98.3+.
+                      cause instanceof ClosedStreamException ||
+                      cause instanceof Http2Exception.StreamException)) {
                     logger.warn("{} Returning an internal server error: {}", ctx, m, cause);
                 }
             } else {
