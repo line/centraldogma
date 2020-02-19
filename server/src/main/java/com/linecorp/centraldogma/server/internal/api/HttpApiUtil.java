@@ -179,9 +179,9 @@ public final class HttpApiUtil {
         if (status == HttpStatus.INTERNAL_SERVER_ERROR) {
             if (cause != null) {
                 if (!(Exceptions.isStreamCancelling(cause) ||
-                      // TODO(trustin): Remove this after upgrading to 0.98.3+.
-                      cause instanceof ClosedStreamException ||
-                      cause instanceof ShuttingDownException)) {
+                      cause instanceof ShuttingDownException ||
+                      // TODO(trustin): Remove this condition after upgrading to 0.98.3+.
+                      cause instanceof ClosedStreamException)) {
                     logger.warn("{} Returning an internal server error: {}", ctx, m, cause);
                 }
             } else {
