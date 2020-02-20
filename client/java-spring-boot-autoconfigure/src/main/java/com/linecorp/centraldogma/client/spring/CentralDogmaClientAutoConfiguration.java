@@ -83,7 +83,7 @@ public class CentralDogmaClientAutoConfiguration {
      * Returns a newly created {@link CentralDogma} client.
      */
     @Bean
-    public CentralDogma client(
+    public CentralDogma dogmaClient(
             Environment env,
             CentralDogmaSettings settings,
             @ForCentralDogma ClientFactory clientFactory,
