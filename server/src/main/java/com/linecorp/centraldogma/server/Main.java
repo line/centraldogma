@@ -40,6 +40,21 @@ import com.linecorp.armeria.common.util.SystemInfo;
  */
 public final class Main {
 
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+
+    static {
+        try {
+            // Install the java.util.logging to SLF4J bridge.
+            final Class<?> bridgeHandler =
+                    Class.forName("org.slf4j.bridge.SLF4JBridgeHandler", true, Main.class.getClassLoader());
+            bridgeHandler.getMethod("removeHandlersForRootLogger").invoke(null);
+            bridgeHandler.getMethod("install").invoke(null);
+            logger.debug("Installed the java.util.logging-to-SLF4J bridge.");
+        } catch (Throwable cause) {
+            logger.debug("Failed to install the java.util.logging-to-SLF4J bridge:", cause);
+        }
+    }
+
     enum State {
         NONE,
         INITIALIZED,
@@ -47,8 +62,6 @@ public final class Main {
         STOPPED,
         DESTROYED
     }
-
-    private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
     private static final File DEFAULT_DATA_DIR =
             new File(System.getProperty("user.dir", ".") + File.separatorChar + "data");
