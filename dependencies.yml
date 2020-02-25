@@ -4,7 +4,7 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.10.2.20200130
-- com.linecorp.armeria:armeria-bom:0.98.2
+- com.linecorp.armeria:armeria-bom:0.98.3
 - io.micrometer:micrometer-bom:1.3.5
 - org.junit:junit-bom:5.6.0
 
@@ -22,7 +22,7 @@ com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
 com.bmuschko:
-  gradle-docker-plugin: { version: '6.1.3' }
+  gradle-docker-plugin: { version: '6.1.4' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
@@ -56,7 +56,7 @@ com.github.jengelman.gradle.plugins:
   shadow: { version: '5.2.0' }
 
 com.github.node-gradle:
-  gradle-node-plugin: { version: '2.2.1' }
+  gradle-node-plugin: { version: '2.2.2' }
 
 com.google.code.findbugs:
   jsr305: { version: '3.0.2' }

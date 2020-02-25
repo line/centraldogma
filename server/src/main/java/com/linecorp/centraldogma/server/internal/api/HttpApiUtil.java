@@ -181,10 +181,7 @@ public final class HttpApiUtil {
         if (status == HttpStatus.INTERNAL_SERVER_ERROR) {
             if (cause != null) {
                 if (!(Exceptions.isStreamCancelling(cause) ||
-                      cause instanceof ShuttingDownException ||
-                      // TODO(trustin): Remove the following 2 conditions after upgrading to 0.98.3+.
-                      cause instanceof ClosedStreamException ||
-                      cause instanceof Http2Exception.StreamException)) {
+                      cause instanceof ShuttingDownException) {
                     logger.warn("{} Returning an internal server error: {}", ctx, m, cause);
                 }
             } else {
