@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
   <!-- Up to 1GB per file, 7 days and 8GB total by default -->
-  <variable name="LOG_MAX_FILE_SIZE" value="${ACCESS_LOG_MAX_FILE_SIZE:-1GB}" />
-  <variable name="LOG_MAX_HISTORY" value="${ACCESS_LOG_MAX_HISTORY:-7}" />
-  <variable name="LOG_TOTAL_SIZE_CAP" value="${ACCESS_LOG_TOTAL_SIZE_CAP:-8GB}" />
+  <variable name="LOG_MAX_FILE_SIZE" value="${LOG_MAX_FILE_SIZE:-1GB}" />
+  <variable name="LOG_MAX_HISTORY" value="${LOG_MAX_HISTORY:-7}" />
+  <variable name="LOG_TOTAL_SIZE_CAP" value="${LOG_TOTAL_SIZE_CAP:-8GB}" />
   <variable name="ACCESS_LOG_MAX_FILE_SIZE" value="${ACCESS_LOG_MAX_FILE_SIZE:-1GB}" />
   <variable name="ACCESS_LOG_MAX_HISTORY" value="${ACCESS_LOG_MAX_HISTORY:-7}" />
   <variable name="ACCESS_LOG_TOTAL_SIZE_CAP" value="${ACCESS_LOG_TOTAL_SIZE_CAP:-8GB}" />
