@@ -42,10 +42,9 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestContext;
+import com.linecorp.armeria.common.logging.LogLevel;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
-import com.linecorp.centraldogma.common.QueryExecutionException;
-import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
 
@@ -54,7 +53,9 @@ import com.linecorp.centraldogma.internal.Jackson;
  */
 //TODO(minwoox) change this class to package-local when the admin API is integrated with HTTP API
 public final class HttpApiUtil {
+
     private static final Logger logger = LoggerFactory.getLogger(HttpApiUtil.class);
+    private static final String ERROR_MESSAGE_FORMAT = "{} Returning a {} response: {}";
 
     static final JsonNode unremoveRequest = Jackson.valueToTree(
             ImmutableList.of(
@@ -173,24 +174,50 @@ public final class HttpApiUtil {
         final String m = nullToEmpty(message);
         node.put("message", m);
 
-        // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return
-        //                 the stack trace of the cause to the trusted client.
-        if (status == HttpStatus.INTERNAL_SERVER_ERROR) {
-            if (cause != null) {
-                if (!(Exceptions.isStreamCancelling(cause) ||
-                      cause instanceof ShuttingDownException)) {
-                    logger.warn("{} Returning an internal server error: {}", ctx, m, cause);
+        final LogLevel logLevel;
+        switch (status.codeClass()) {
+            case SERVER_ERROR:
+                if (cause != null) {
+                    if (!(Exceptions.isStreamCancelling(cause) ||
+                          cause instanceof ShuttingDownException)) {
+                        logLevel = LogLevel.WARN;
+                    } else {
+                        logLevel = null;
+                    }
+                } else {
+                    logLevel = LogLevel.WARN;
                 }
-            } else {
-                logger.warn("{} Returning an internal server error: {}", ctx, m);
-            }
-        } else if (status == HttpStatus.CONFLICT && !(cause instanceof RedundantChangeException)) {
-            logger.warn("{} Returning a conflict: {}", ctx, m, cause);
-        } else if (status == HttpStatus.BAD_REQUEST && cause instanceof QueryExecutionException) {
-            logger.warn("{} Returning a bad request: {}", ctx, m, cause);
+                break;
+            case CLIENT_ERROR:
+                logLevel = LogLevel.DEBUG;
+                break;
+            case UNKNOWN:
+                logLevel = LogLevel.WARN;
+                break;
+            default:
+                logLevel = null;
         }
 
-        // TODO(minwoox) refine the error message
+        // TODO(trustin): Use LogLevel.OFF instead of null and logLevel.log()
+        //                once we add LogLevel.OFF and LogLevel.log() with more args.
+        if (logLevel != null) {
+            if (logLevel == LogLevel.WARN) {
+                if (cause != null) {
+                    logger.warn(ERROR_MESSAGE_FORMAT, ctx, status, m, cause);
+                } else {
+                    logger.warn(ERROR_MESSAGE_FORMAT, ctx, status, m);
+                }
+            } else {
+                if (cause != null) {
+                    logger.debug(ERROR_MESSAGE_FORMAT, ctx, status, m, cause);
+                } else {
+                    logger.debug(ERROR_MESSAGE_FORMAT, ctx, status, m);
+                }
+            }
+        }
+
+        // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return
+        //                 the stack trace of the cause to the trusted client.
         try {
             return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));
         } catch (JsonProcessingException e) {

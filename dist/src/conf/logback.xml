@@ -1,57 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+  <!-- Up to 1GB per file, 7 days and 8GB total by default -->
+  <variable name="LOG_MAX_FILE_SIZE" value="${ACCESS_LOG_MAX_FILE_SIZE:-1GB}" />
+  <variable name="LOG_MAX_HISTORY" value="${ACCESS_LOG_MAX_HISTORY:-7}" />
+  <variable name="LOG_TOTAL_SIZE_CAP" value="${ACCESS_LOG_TOTAL_SIZE_CAP:-8GB}" />
+  <variable name="ACCESS_LOG_MAX_FILE_SIZE" value="${ACCESS_LOG_MAX_FILE_SIZE:-1GB}" />
+  <variable name="ACCESS_LOG_MAX_HISTORY" value="${ACCESS_LOG_MAX_HISTORY:-7}" />
+  <variable name="ACCESS_LOG_TOTAL_SIZE_CAP" value="${ACCESS_LOG_TOTAL_SIZE_CAP:-8GB}" />
+
   <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
     <file>${APP_LOG_DIR:-.}/${APP_NAME:-logback}.log</file>
     <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
       <fileNamePattern>${APP_LOG_DIR:-.}/${APP_NAME:-logback}.%d{yyyy-MM-dd}.log</fileNamePattern>
-      <maxHistory>7</maxHistory>
-      <totalSizeCap>32GB</totalSizeCap>
+      <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
+      <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
+      <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
     </rollingPolicy>
     <encoder>
       <pattern>%date{yyyy-MM-dd HH:mm:ss.SSS} [%-5level]\(%logger{1}\) [%thread] %msg%n</pattern>
     </encoder>
   </appender>
 
-  <appender name="RCEA" class="com.linecorp.armeria.common.logback.RequestContextExportingAppender">
-    <appender-ref ref="FILE" />
-    <export>elapsed_nanos</export>
-    <export>local.host</export>
-    <export>local.port</export>
-    <export>remote.host</export>
-    <export>remote.port</export>
-    <export>req.authority</export>
-    <export>req.content_length</export>
-    <export>req.direction</export>
-    <export>req.method</export>
-    <export>req.path</export>
-    <export>req.rpc_method</export>
-    <export>req.rpc_params</export>
-    <export>res.content_length</export>
-    <export>res.rpc_result</export>
-    <export>res.status_code</export>
-    <export>scheme</export>
-    <export>tls.cipher</export>
-    <export>tls.proto</export>
-    <export>tls.session_id</export>
-    <export>req.http_headers.user-agent</export>
-    <export>req.http_headers.x-forwarded-for</export>
-  </appender>
-
   <appender name="ACCESS" class="ch.qos.logback.core.rolling.RollingFileAppender">
     <file>${APP_LOG_DIR:-.}/access.log</file>
     <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-      <!-- daily rollover -->
       <fileNamePattern>${APP_LOG_DIR:-.}/access.%d{yyyy-MM-dd}-%i.log</fileNamePattern>
-      <!-- each file should be at most 1GB, keep 30 days worth of history, but at most 30GB -->
-      <maxFileSize>1GB</maxFileSize>
-      <maxHistory>30</maxHistory>
-      <totalSizeCap>30GB</totalSizeCap>
+      <maxFileSize>${ACCESS_LOG_MAX_FILE_SIZE}</maxFileSize>
+      <maxHistory>${ACCESS_LOG_MAX_HISTORY}</maxHistory>
+      <totalSizeCap>${ACCESS_LOG_TOTAL_SIZE_CAP}</totalSizeCap>
     </rollingPolicy>
     <encoder>
       <pattern>%msg%n</pattern>
     </encoder>
   </appender>
 
+  <logger name="com.github.benmanes.caffeine.cache" level="ERROR" />
   <logger name="com.linecorp" level="INFO" />
   <logger name="com.linecorp.centraldogma" level="DEBUG" />
   <logger name="com.linecorp.armeria.logging.access" level="INFO" additivity="false">
@@ -62,6 +45,6 @@
   <logger name="org.apache.curator.framework.imps.EnsembleTracker" level="OFF" />
 
   <root level="WARN">
-    <appender-ref ref="RCEA" />
+    <appender-ref ref="FILE" />
   </root>
 </configuration>
