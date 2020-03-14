@@ -71,6 +71,7 @@ import com.linecorp.armeria.common.HttpStatusClass;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.RequestHeadersBuilder;
+import com.linecorp.armeria.common.stream.ClosedStreamException;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
@@ -886,7 +887,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             if (responseTimeoutMillis > 0) {
                 ctx.extendResponseTimeoutMillis(adjustmentMillis);
             } else {
-               ctx.setResponseTimeoutAfterMillis(adjustmentMillis);
+                ctx.setResponseTimeoutAfterMillis(adjustmentMillis);
             }
         })) {
             return client.execute(builder.build()).aggregate()
@@ -895,7 +896,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                                  return func.apply(res);
                              }
 
-                             if (cause instanceof ClosedSessionException &&
+                             if ((cause instanceof ClosedSessionException ||
+                                  cause instanceof ClosedStreamException) &&
                                  client.options().factory().isClosing()) {
                                  // A user closed the client factory while watching.
                                  return null;
