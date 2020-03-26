@@ -81,8 +81,8 @@ class ContentCompressionTest {
 
         // Should fail to decode without the decompressor.
         final Iface clientWithoutDecompressor = Clients
-                .builder("ttext+http", Endpoint.of("127.0.0.1", dogma.serverAddress().getPort()))
-                .path("/cd/thrift/v1")
+                .builder("ttext+http", Endpoint.of("127.0.0.1", dogma.serverAddress().getPort()),
+                         "/cd/thrift/v1")
                 .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                 .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
                 .build(Iface.class);

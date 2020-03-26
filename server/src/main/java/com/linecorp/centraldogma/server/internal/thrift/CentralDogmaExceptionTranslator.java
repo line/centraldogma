@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.thrift;
 
-import com.linecorp.armeria.common.DefaultRpcResponse;
+import com.linecorp.armeria.common.CompletableRpcResponse;
 import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
 import com.linecorp.armeria.server.RpcService;
@@ -32,7 +32,7 @@ public final class CentralDogmaExceptionTranslator extends SimpleDecoratingRpcSe
 
     @Override
     public RpcResponse serve(ServiceRequestContext ctx, RpcRequest req) throws Exception {
-        final DefaultRpcResponse newRes = new DefaultRpcResponse();
+        final CompletableRpcResponse newRes = new CompletableRpcResponse();
         try {
             final RpcResponse oldRes = delegate().serve(ctx, req);
             oldRes.handle((res, cause) -> {
@@ -49,7 +49,7 @@ public final class CentralDogmaExceptionTranslator extends SimpleDecoratingRpcSe
         return newRes;
     }
 
-    private static void handleException(RpcRequest req, DefaultRpcResponse res, Throwable cause) {
+    private static void handleException(RpcRequest req, CompletableRpcResponse res, Throwable cause) {
         final CentralDogmaException convertedCause = Converter.convert(cause);
         CentralDogmaExceptions.log(req.method(), convertedCause);
         res.completeExceptionally(convertedCause);

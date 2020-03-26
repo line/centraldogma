@@ -184,8 +184,8 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
      * {@link #clientConfigurator(ArmeriaClientConfigurator)}.
      */
     protected final ClientBuilder newClientBuilder(String scheme, EndpointGroup endpointGroup,
-                                                   Consumer<ClientBuilder> customizer) {
-        final ClientBuilder builder = Clients.builder(scheme, endpointGroup);
+                                                   Consumer<ClientBuilder> customizer, String path) {
+        final ClientBuilder builder = Clients.builder(scheme, endpointGroup, path);
         customizer.accept(builder);
         clientConfigurator.configure(builder);
         builder.factory(clientFactory());

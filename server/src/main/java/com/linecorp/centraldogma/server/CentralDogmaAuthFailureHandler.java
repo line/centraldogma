@@ -23,21 +23,21 @@ import org.slf4j.LoggerFactory;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthFailureHandler;
 import com.linecorp.centraldogma.common.AuthorizationException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
-final class CentralDogmaAuthFailureHandler implements AuthFailureHandler<HttpRequest, HttpResponse> {
+final class CentralDogmaAuthFailureHandler implements AuthFailureHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaAuthFailureHandler.class);
 
     private static final AuthorizationException AUTHORIZATION_EXCEPTION = new AuthorizationException("", false);
 
     @Override
-    public HttpResponse authFailed(Service<HttpRequest, HttpResponse> delegate,
+    public HttpResponse authFailed(HttpService delegate,
                                    ServiceRequestContext ctx, HttpRequest req,
                                    @Nullable Throwable cause) throws Exception {
         if (cause != null) {

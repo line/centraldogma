@@ -514,7 +514,7 @@ public class CentralDogma implements AutoCloseable {
         cfg.requestTimeoutMillis().ifPresent(sb::requestTimeoutMillis);
         cfg.maxFrameLength().ifPresent(sb::maxRequestLength);
         cfg.gracefulShutdownTimeout().ifPresent(
-                t -> sb.gracefulShutdownTimeout(t.quietPeriodMillis(), t.timeoutMillis()));
+                t -> sb.gracefulShutdownTimeoutMillis(t.quietPeriodMillis(), t.timeoutMillis()));
 
         final MetadataService mds = new MetadataService(pm, executor);
         final WatchService watchService = new WatchService(meterRegistry);

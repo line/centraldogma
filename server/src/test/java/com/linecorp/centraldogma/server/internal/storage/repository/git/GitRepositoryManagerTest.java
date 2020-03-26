@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
+import java.io.File;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
@@ -119,9 +120,11 @@ class GitRepositoryManagerTest {
 
         final int numDummyFiles = 1;
         for (int i = 0; i < numDummyFiles; i++) {
-            if (!Paths.get(rootDir.toString(), String.format("dummyDir%d", i)).toFile().mkdirs()) {
+            final File file = Paths.get(rootDir.toString(), String.format("dummyDir%d", i)).toFile();
+            if (!file.mkdirs()) {
                 fail("failed to test on testList");
             }
+            file.delete();
         }
 
         final Map<String, Repository> repoNameList = gitRepositoryManager.list();

@@ -19,7 +19,7 @@ import java.net.UnknownHostException;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
-import com.linecorp.armeria.client.encoding.HttpDecodingClient;
+import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpRequest;
@@ -48,20 +48,18 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         final String scheme = "tbinary+" + (isUseTls() ? "https" : "http");
         final ClientBuilder builder =
                 newClientBuilder(scheme, endpointGroup, cb -> {
-                    cb.path("/cd/thrift/v1")
-                      .decorator(HttpDecodingClient.newDecorator())
+                    cb.decorator(DecodingClient.newDecorator())
                       .rpcDecorator(LegacyCentralDogmaTimeoutScheduler::new);
-                });
+                }, "/cd/thrift/v1");
 
         final String authorization = "Bearer " + accessToken();
         builder.decorator((delegate, ctx, req) -> {
             if (!req.headers().contains(HttpHeaderNames.AUTHORIZATION)) {
                 // To prevent CSRF attack, we add 'Authorization' header to every request.
-                final HttpRequest newReq =
-                        HttpRequest.of(req, req.headers()
-                                               .toBuilder()
-                                               .set(HttpHeaderNames.AUTHORIZATION, authorization)
-                                               .build());
+                final HttpRequest newReq = req.withHeaders(req.headers()
+                                                              .toBuilder()
+                                                              .set(HttpHeaderNames.AUTHORIZATION, authorization)
+                                                              .build());
                 return delegate.execute(ctx, newReq);
             }
             return delegate.execute(ctx, req);
