@@ -198,6 +198,15 @@ org.apache.zookeeper:
     - org.apache.yetus:audience-annotations
     - org.slf4j:slf4j-log4j12
 
+# Ensure that we use the same Dropwizard and Snappy version as what ZooKeeper depends on.
+# See: https://github.com/apache/zookeeper/blob/master/pom.xml
+
+io.dropwizard.metrics:
+  metrics-core: { version: '3.2.5' }
+
+org.xerial.snappy:
+  snappy-java: { version: '1.1.7' }
+
 org.assertj:
   assertj-core: { version: '3.15.0' }
 
