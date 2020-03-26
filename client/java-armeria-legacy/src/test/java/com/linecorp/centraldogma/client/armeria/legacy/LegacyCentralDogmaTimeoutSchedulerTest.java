@@ -78,7 +78,7 @@ class LegacyCentralDogmaTimeoutSchedulerTest {
         final ClientRequestContext ctx = newClientContext(req);
         ctx.clearResponseTimeout();
         if (defaultTimeoutMills > 0) {
-            ctx.setResponseTimeoutAfterMillis(defaultTimeoutMills);
+            ctx.setResponseTimeoutMillis(defaultTimeoutMills);
         }
 
         decorator.execute(ctx, req);

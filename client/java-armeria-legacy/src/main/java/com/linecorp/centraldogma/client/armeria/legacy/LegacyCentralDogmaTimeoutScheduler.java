@@ -24,6 +24,7 @@ import com.linecorp.armeria.client.RpcClient;
 import com.linecorp.armeria.client.SimpleDecoratingRpcClient;
 import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
+import com.linecorp.armeria.common.util.TimeoutMode;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
 /**
@@ -47,8 +48,8 @@ class LegacyCentralDogmaTimeoutScheduler extends SimpleDecoratingRpcClient {
                 final List<Object> params = req.params();
                 final long timeout = (Long) params.get(params.size() - 1);
                 if (timeout > 0) {
-                    ctx.extendResponseTimeoutMillis(
-                            WatchTimeout.availableTimeout(timeout, responseTimeoutMillis));
+                    ctx.setResponseTimeoutMillis(TimeoutMode.EXTEND,
+                                                 WatchTimeout.availableTimeout(timeout, responseTimeoutMillis));
                 }
             }
         }

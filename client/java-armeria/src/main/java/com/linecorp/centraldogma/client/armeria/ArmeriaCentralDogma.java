@@ -74,6 +74,7 @@ import com.linecorp.armeria.common.RequestHeadersBuilder;
 import com.linecorp.armeria.common.stream.ClosedStreamException;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.armeria.common.util.TimeoutMode;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.Author;
@@ -885,9 +886,9 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             final long responseTimeoutMillis = ctx.responseTimeoutMillis();
             final long adjustmentMillis = WatchTimeout.availableTimeout(timeoutMillis, responseTimeoutMillis);
             if (responseTimeoutMillis > 0) {
-                ctx.extendResponseTimeoutMillis(adjustmentMillis);
+                ctx.setResponseTimeoutMillis(TimeoutMode.EXTEND, adjustmentMillis);
             } else {
-                ctx.setResponseTimeoutAfterMillis(adjustmentMillis);
+                ctx.setResponseTimeoutMillis(adjustmentMillis);
             }
         })) {
             return client.execute(builder.build()).aggregate()
