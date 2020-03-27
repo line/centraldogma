@@ -25,10 +25,9 @@ import org.junit.jupiter.api.Test;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
-import com.linecorp.armeria.server.Service;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 
@@ -36,7 +35,7 @@ class CentralDogmaAuthFailureHandlerTest {
 
     private final CentralDogmaAuthFailureHandler handler = new CentralDogmaAuthFailureHandler();
     @SuppressWarnings("unchecked")
-    private final Service<HttpRequest, HttpResponse> delegate = mock(Service.class);
+    private final HttpService delegate = mock(HttpService.class);
     private final HttpRequest req = HttpRequest.of(HttpMethod.GET, "/");
     private final ServiceRequestContext ctx = ServiceRequestContext.of(req);
 

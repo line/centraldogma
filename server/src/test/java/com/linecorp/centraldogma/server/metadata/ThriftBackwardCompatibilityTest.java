@@ -70,8 +70,8 @@ class ThriftBackwardCompatibilityTest {
                              .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                              .build();
 
-        client = Clients.builder("ttext+http", Endpoint.of("127.0.0.1", serverAddress.getPort()))
-                        .path("/cd/thrift/v1")
+        client = Clients.builder("ttext+http", Endpoint.of("127.0.0.1", serverAddress.getPort()),
+                                 "/cd/thrift/v1")
                         .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                         .build(Iface.class);
     }

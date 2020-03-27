@@ -136,7 +136,7 @@ class ArmeriaCentralDogmaBuilderTest {
                                                     cb2 -> {
                                                         cb2.factory(cf3);
                                                         buf.append('1');
-                                                    });
+                                                    }, "/");
         assertThat(buf.toString()).isEqualTo("12");
 
         cb.build(HttpClient.class);

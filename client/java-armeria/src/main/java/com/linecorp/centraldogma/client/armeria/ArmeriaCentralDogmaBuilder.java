@@ -38,7 +38,7 @@ public final class ArmeriaCentralDogmaBuilder
         final EndpointGroup endpointGroup = endpointGroup();
         final String scheme = "none+" + (isUseTls() ? "https" : "http");
         final ClientBuilder builder =
-                newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()));
+                newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()), "/");
         final EventLoopGroup executor = clientFactory().eventLoopGroup();
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
         final CentralDogma dogma = new ArmeriaCentralDogma(executor,

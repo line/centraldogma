@@ -20,6 +20,7 @@ import java.util.List;
 
 import com.linecorp.armeria.common.RpcRequest;
 import com.linecorp.armeria.common.RpcResponse;
+import com.linecorp.armeria.common.util.TimeoutMode;
 import com.linecorp.armeria.server.RpcService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.SimpleDecoratingRpcService;
@@ -39,7 +40,7 @@ public final class CentralDogmaTimeoutScheduler extends SimpleDecoratingRpcServi
                 final List<Object> params = req.params();
                 final long timeout = (Long) params.get(params.size() - 1);
                 if (timeout > 0) {
-                    ctx.extendRequestTimeoutMillis(
+                    ctx.setRequestTimeoutMillis(TimeoutMode.EXTEND,
                             WatchTimeout.availableTimeout(timeout, ctx.requestTimeoutMillis()));
                 }
             }

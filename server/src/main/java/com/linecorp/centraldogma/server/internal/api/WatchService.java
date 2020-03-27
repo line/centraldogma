@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.armeria.common.util.TimeoutMode;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
@@ -99,7 +100,7 @@ public final class WatchService {
 
     private static void updateRequestTimeout(ServiceRequestContext ctx, long timeoutMillis) {
         final long adjustmentMillis = WatchTimeout.availableTimeout(timeoutMillis, ctx.requestTimeoutMillis());
-        ctx.extendRequestTimeoutMillis(adjustmentMillis);
+        ctx.setRequestTimeoutMillis(TimeoutMode.EXTEND, adjustmentMillis);
     }
 
     /**
