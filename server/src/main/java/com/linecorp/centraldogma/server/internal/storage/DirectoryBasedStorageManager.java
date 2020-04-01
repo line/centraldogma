@@ -355,8 +355,13 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
         };
 
         synchronized (this) {
-            if (!removed.exists() || !removed.isDirectory()) {
-                throw newStorageNotFoundException(name + SUFFIX_REMOVED);
+            if (!removed.exists()) {
+                logger.warn("Tried to purge {}, but it's non-existent.", removed);
+                return;
+            }
+
+            if (!removed.isDirectory()) {
+                throw new StorageException("not a directory: " + removed);
             }
 
             marked = newMarkedFile.get();
@@ -373,7 +378,11 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
             }
         }
         final File purged = marked;
-        purgeWorker.execute(() -> deletePurgedFile(purged));
+        try {
+            purgeWorker.execute(() -> deletePurgedFile(purged));
+        } catch (Exception e) {
+            logger.warn("Failed to schedule a purge task for {}:", purged, e);
+        }
     }
 
     @Override
