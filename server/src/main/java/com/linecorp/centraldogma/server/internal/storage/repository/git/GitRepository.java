@@ -569,7 +569,7 @@ class GitRepository implements Repository {
         try (RevWalk revWalk = newRevWalk()) {
             final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
             final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
-            final int lastRevision = descendingRange.to().major();
+            final int minRevision = descendingRange.to().major();
 
             // Walk through the commit tree to get the corresponding commit information by given filters
             revWalk.setTreeFilter(AndTreeFilter.create(TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
@@ -580,13 +580,13 @@ class GitRepository implements Repository {
             for (RevCommit revCommit : revWalk) {
                 final Commit commit = toCommit(revCommit);
                 final int revision = commit.revision().major();
-                if (revision < lastRevision) {
+                if (revision < minRevision) {
                     // Went beyond the last commit.
                     needsLastCommit = false;
                     break;
                 }
                 commitList.add(commit);
-                if (revision == lastRevision || commitList.size() == maxCommits) {
+                if (revision == minRevision || commitList.size() == maxCommits) {
                     // Visited the last commit or can't retrieve beyond maxCommits
                     needsLastCommit = false;
                     break;
