@@ -609,7 +609,6 @@ class GitRepository implements Repository {
                     TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
 
             final List<Commit> commitList = new ArrayList<>();
-            boolean needsLastCommit = true;
             int numProcessedCommits = 0;
             for (RevCommit revCommit : revWalk) {
                 if (filter.include(revWalk, revCommit)) {
@@ -619,7 +618,6 @@ class GitRepository implements Repository {
                 }
 
                 if (revCommit.getId().equals(toCommitId) || commitList.size() >= maxCommits) {
-                    needsLastCommit = false;
                     break;
                 }
 
@@ -635,7 +633,7 @@ class GitRepository implements Repository {
             // when a new repository is created.
             // If the pathPattern does not contain "/**", the caller wants commits only with the specific path,
             // so skip the empty commit.
-            if (needsLastCommit && pathPattern.contains(ALL_PATH)) {
+            if (commitList.isEmpty() && pathPattern.contains(ALL_PATH)) {
                 try (RevWalk tmpRevWalk = newRevWalk()) {
                     final RevCommit lastRevCommit = tmpRevWalk.parseCommit(toCommitId);
                     final Revision lastCommitRevision =
