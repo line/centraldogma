@@ -569,23 +569,24 @@ class GitRepository implements Repository {
         try (RevWalk revWalk = newRevWalk()) {
             final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
             final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
+            final int lastRevision = descendingRange.to().major();
 
             // Walk through the commit tree to get the corresponding commit information by given filters
             revWalk.setTreeFilter(AndTreeFilter.create(TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
             revWalk.markStart(revWalk.parseCommit(fromCommitId));
-            final RevCommit toCommit = revWalk.parseCommit(toCommitId);
-            if (toCommit.getParentCount() != 0) {
-                revWalk.markUninteresting(toCommit.getParent(0));
-            } else {
-                // The initial commit.
-                revWalk.markUninteresting(toCommit);
-            }
 
             final List<Commit> commitList = new ArrayList<>();
             boolean needsLastCommit = true;
             for (RevCommit revCommit : revWalk) {
-                commitList.add(toCommit(revCommit));
-                if (revCommit.getId().equals(toCommitId) || commitList.size() == maxCommits) {
+                final Commit commit = toCommit(revCommit);
+                final int revision = commit.revision().major();
+                if (revision < lastRevision) {
+                    // Went beyond the last commit.
+                    needsLastCommit = false;
+                    break;
+                }
+                commitList.add(commit);
+                if (revision == lastRevision || commitList.size() == maxCommits) {
                     // Visited the last commit or can't retrieve beyond maxCommits
                     needsLastCommit = false;
                     break;
