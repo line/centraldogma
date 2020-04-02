@@ -85,7 +85,6 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.revwalk.TreeRevFilter;
-import org.eclipse.jgit.revwalk.filter.AndRevFilter;
 import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
