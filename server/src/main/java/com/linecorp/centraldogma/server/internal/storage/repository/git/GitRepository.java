@@ -628,19 +628,12 @@ class GitRepository implements Repository {
                 }
             }
 
-            // Handle the case where the last commit was not visited by the RevWalk,
-            // which can happen when the commit is empty.  In our repository, an empty commit can only be made
-            // when a new repository is created.
-            // If the pathPattern does not contain "/**", the caller wants commits only with the specific path,
-            // so skip the empty commit.
-            if (commitList.isEmpty() && pathPattern.contains(ALL_PATH)) {
+            // Include the initial empty commit only when the pathPattern contains '/**' and
+            // the caller specified the initial revision (1) in the range.
+            if (descendingRange.to().major() == 1 && pathPattern.contains(ALL_PATH)) {
                 try (RevWalk tmpRevWalk = newRevWalk()) {
                     final RevCommit lastRevCommit = tmpRevWalk.parseCommit(toCommitId);
-                    final Revision lastCommitRevision =
-                            CommitUtil.extractRevision(lastRevCommit.getFullMessage());
-                    if (lastCommitRevision.major() == 1) {
-                        commitList.add(toCommit(lastRevCommit));
-                    }
+                    commitList.add(toCommit(lastRevCommit));
                 }
             }
 
