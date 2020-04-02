@@ -99,6 +99,8 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.math.IntMath;
+import com.google.common.primitives.Ints;
 
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
@@ -585,6 +587,8 @@ class GitRepository implements Repository {
             throw new IllegalArgumentException("maxCommits: " + maxCommits + " (expected: > 0)");
         }
 
+        maxCommits = Math.min(maxCommits, MAX_MAX_COMMITS);
+
         final RevisionRange range = normalizeNow(from, to);
         final RevisionRange descendingRange = range.toDescending();
 
@@ -609,6 +613,7 @@ class GitRepository implements Repository {
                     TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
 
             final List<Commit> commitList = new ArrayList<>();
+            final int maxNumProcessedCommits = Math.max(maxCommits * 10, MAX_MAX_COMMITS);
             int numProcessedCommits = 0;
             for (RevCommit revCommit : revWalk) {
                 numProcessedCommits++;
@@ -622,7 +627,7 @@ class GitRepository implements Repository {
                 if (revCommit.getId().equals(toCommitId) ||
                     commitList.size() >= maxCommits ||
                     // Prevent from iterating for too long.
-                    numProcessedCommits >= MAX_MAX_COMMITS * 10) {
+                    numProcessedCommits >= maxNumProcessedCommits) {
                     break;
                 }
 
