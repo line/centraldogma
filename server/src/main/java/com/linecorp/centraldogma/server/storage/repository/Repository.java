@@ -61,7 +61,8 @@ import com.linecorp.centraldogma.server.storage.project.Project;
  */
 public interface Repository {
 
-    int DEFAULT_MAX_COMMITS = 1024;
+    int DEFAULT_MAX_COMMITS = 100;
+    int MAX_MAX_COMMITS = 1000;
 
     String ALL_PATH = "/**";
 

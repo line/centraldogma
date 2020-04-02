@@ -326,7 +326,7 @@ public class ContentServiceV1 extends AbstractService {
         }
 
         final RevisionRange range = repository.normalizeNow(fromRevision, toRevision).toDescending();
-        final int maxCommits0 = maxCommits.map(integer -> Math.min(integer, Repository.DEFAULT_MAX_COMMITS))
+        final int maxCommits0 = maxCommits.map(integer -> Math.min(integer, Repository.MAX_MAX_COMMITS))
                                           .orElse(Repository.DEFAULT_MAX_COMMITS);
         return repository
                 .history(range.from(), range.to(), normalizePath(path), maxCommits0)

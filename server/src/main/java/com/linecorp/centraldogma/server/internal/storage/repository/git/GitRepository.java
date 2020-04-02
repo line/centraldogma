@@ -611,19 +611,24 @@ class GitRepository implements Repository {
             final List<Commit> commitList = new ArrayList<>();
             int numProcessedCommits = 0;
             for (RevCommit revCommit : revWalk) {
+                numProcessedCommits++;
+
                 if (filter.include(revWalk, revCommit)) {
                     revWalk.parseBody(revCommit);
                     commitList.add(toCommit(revCommit));
                     revCommit.disposeBody();
                 }
 
-                if (revCommit.getId().equals(toCommitId) || commitList.size() >= maxCommits) {
+                if (revCommit.getId().equals(toCommitId) ||
+                    commitList.size() >= maxCommits ||
+                    // Prevent from iterating for too long.
+                    numProcessedCommits >= MAX_MAX_COMMITS * 10) {
                     break;
                 }
 
                 // Clear the internal lookup table of RevWalk to reduce the memory usage.
                 // This is safe because we have linear history and traverse in one direction.
-                if (++numProcessedCommits % 16 == 0) {
+                if (numProcessedCommits % 16 == 0) {
                     revWalkInternalMap.clear();
                 }
             }
