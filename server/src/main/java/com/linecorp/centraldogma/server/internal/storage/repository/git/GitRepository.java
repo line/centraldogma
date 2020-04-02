@@ -611,7 +611,7 @@ class GitRepository implements Repository {
                     TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
 
             // Search up to 1000 commits when maxCommits <= 100.
-            // Search up to (maxCommits * 10) commits when maxCommits > 100.
+            // Search up to (maxCommits * 10) commits when 100 < maxCommits <= 1000.
             final int maxNumProcessedCommits = Math.max(maxCommits * 10, MAX_MAX_COMMITS);
 
             final List<Commit> commitList = new ArrayList<>();
