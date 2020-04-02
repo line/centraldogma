@@ -628,9 +628,11 @@ class GitRepository implements Repository {
                 }
             }
 
-            // Include the initial empty commit only when the pathPattern contains '/**' and
-            // the caller specified the initial revision (1) in the range.
-            if (descendingRange.to().major() == 1 && pathPattern.contains(ALL_PATH)) {
+            // Include the initial empty commit only when the caller specified
+            // the initial revision (1) in the range and the pathPattern contains '/**'.
+            if (commitList.size() < maxCommits &&
+                descendingRange.to().major() == 1 &&
+                pathPattern.contains(ALL_PATH)) {
                 try (RevWalk tmpRevWalk = newRevWalk()) {
                     final RevCommit lastRevCommit = tmpRevWalk.parseCommit(toCommitId);
                     commitList.add(toCommit(lastRevCommit));
