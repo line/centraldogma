@@ -99,8 +99,6 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.math.IntMath;
-import com.google.common.primitives.Ints;
 
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
@@ -612,8 +610,11 @@ class GitRepository implements Repository {
             final RevFilter filter = new TreeRevFilter(revWalk, AndTreeFilter.create(
                     TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
 
-            final List<Commit> commitList = new ArrayList<>();
+            // Search up to 1000 commits when maxCommits <= 100.
+            // Search up to (maxCommits * 10) commits when maxCommits > 100.
             final int maxNumProcessedCommits = Math.max(maxCommits * 10, MAX_MAX_COMMITS);
+
+            final List<Commit> commitList = new ArrayList<>();
             int numProcessedCommits = 0;
             for (RevCommit revCommit : revWalk) {
                 numProcessedCommits++;
