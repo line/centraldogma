@@ -84,6 +84,9 @@ import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.revwalk.TreeRevFilter;
+import org.eclipse.jgit.revwalk.filter.AndRevFilter;
+import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
@@ -594,34 +597,36 @@ class GitRepository implements Repository {
 
             final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
             final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
-            final int minRevision = descendingRange.to().major();
 
-            // Walk through the commit tree to get the corresponding commit information by given filters
-            revWalk.setTreeFilter(AndTreeFilter.create(TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
             revWalk.markStart(revWalk.parseCommit(fromCommitId));
+            revWalk.setRetainBody(false);
+
+            // Instead of relying on RevWalk to filter the commits,
+            // we let RevWalk yield all commits so we can:
+            // - Have more control on when iteration should be stopped.
+            //   (A single Iterator.next() doesn't take long.)
+            // - Clean up the internal map as early as possible.
+            final RevFilter filter = new TreeRevFilter(revWalk, AndTreeFilter.create(
+                    TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
 
             final List<Commit> commitList = new ArrayList<>();
             boolean needsLastCommit = true;
+            int numProcessedCommits = 0;
             for (RevCommit revCommit : revWalk) {
-                final Commit commit = toCommit(revCommit);
-                final int revision = commit.revision().major();
-
-                if (revision < minRevision) {
-                    // Went beyond the last commit.
-                    needsLastCommit = false;
-                    break;
+                if (filter.include(revWalk, revCommit)) {
+                    revWalk.parseBody(revCommit);
+                    commitList.add(toCommit(revCommit));
+                    revCommit.disposeBody();
                 }
 
-                commitList.add(commit);
-                if (revision == minRevision || commitList.size() == maxCommits) {
-                    // Visited the last commit or can't retrieve beyond maxCommits
+                if (revCommit.getId().equals(toCommitId) || commitList.size() >= maxCommits) {
                     needsLastCommit = false;
                     break;
                 }
 
                 // Clear the internal lookup table of RevWalk to reduce the memory usage.
                 // This is safe because we have linear history and traverse in one direction.
-                if (commitList.size() % 16 == 0) {
+                if (++numProcessedCommits % 16 == 0) {
                     revWalkInternalMap.clear();
                 }
             }
