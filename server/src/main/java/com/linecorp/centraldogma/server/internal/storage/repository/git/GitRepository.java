@@ -35,6 +35,7 @@ import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_SYMLINKS;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -71,6 +72,7 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.CoreConfig.HideDotFiles;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectIdOwnerMap;
 import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
@@ -135,6 +137,26 @@ class GitRepository implements Repository {
 
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
+
+    private static final Field revWalkObjectsField;
+
+    static {
+        Field field = null;
+        try {
+            field = RevWalk.class.getDeclaredField("objects");
+            if (field.getType() != ObjectIdOwnerMap.class) {
+                throw new IllegalStateException(
+                        RevWalk.class.getSimpleName() + ".objects is not an " +
+                        ObjectIdOwnerMap.class.getSimpleName() + '.');
+            }
+            field.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            throw new IllegalStateException(
+                    RevWalk.class.getSimpleName() + ".objects does not exist.");
+        }
+
+        revWalkObjectsField = field;
+    }
 
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Project parent;
@@ -580,16 +602,24 @@ class GitRepository implements Repository {
             for (RevCommit revCommit : revWalk) {
                 final Commit commit = toCommit(revCommit);
                 final int revision = commit.revision().major();
+
                 if (revision < minRevision) {
                     // Went beyond the last commit.
                     needsLastCommit = false;
                     break;
                 }
+
                 commitList.add(commit);
                 if (revision == minRevision || commitList.size() == maxCommits) {
                     // Visited the last commit or can't retrieve beyond maxCommits
                     needsLastCommit = false;
                     break;
+                }
+
+                // Clear the internal lookup table of RevWalk to reduce the memory usage.
+                // This is safe because we have linear history and traverse in one direction.
+                if (commitList.size() % 16 == 0) {
+                    ((ObjectIdOwnerMap<?>) revWalkObjectsField.get(revWalk)).clear();
                 }
             }
 
