@@ -589,6 +589,9 @@ class GitRepository implements Repository {
         // At this point, we are sure: from.major >= to.major
         readLock();
         try (RevWalk revWalk = newRevWalk()) {
+            final ObjectIdOwnerMap<?> revWalkInternalMap =
+                    (ObjectIdOwnerMap<?>) revWalkObjectsField.get(revWalk);
+
             final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
             final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
             final int minRevision = descendingRange.to().major();
@@ -619,7 +622,7 @@ class GitRepository implements Repository {
                 // Clear the internal lookup table of RevWalk to reduce the memory usage.
                 // This is safe because we have linear history and traverse in one direction.
                 if (commitList.size() % 16 == 0) {
-                    ((ObjectIdOwnerMap<?>) revWalkObjectsField.get(revWalk)).clear();
+                    revWalkInternalMap.clear();
                 }
             }
 
