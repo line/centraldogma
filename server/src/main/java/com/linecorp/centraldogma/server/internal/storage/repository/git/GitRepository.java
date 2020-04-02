@@ -35,6 +35,7 @@ import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_SYMLINKS;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -71,6 +72,7 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.CoreConfig.HideDotFiles;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectIdOwnerMap;
 import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
@@ -82,6 +84,8 @@ import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.revwalk.TreeRevFilter;
+import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
@@ -135,6 +139,26 @@ class GitRepository implements Repository {
 
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
+
+    private static final Field revWalkObjectsField;
+
+    static {
+        Field field = null;
+        try {
+            field = RevWalk.class.getDeclaredField("objects");
+            if (field.getType() != ObjectIdOwnerMap.class) {
+                throw new IllegalStateException(
+                        RevWalk.class.getSimpleName() + ".objects is not an " +
+                        ObjectIdOwnerMap.class.getSimpleName() + '.');
+            }
+            field.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            throw new IllegalStateException(
+                    RevWalk.class.getSimpleName() + ".objects does not exist.");
+        }
+
+        revWalkObjectsField = field;
+    }
 
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Project parent;
@@ -561,50 +585,68 @@ class GitRepository implements Repository {
             throw new IllegalArgumentException("maxCommits: " + maxCommits + " (expected: > 0)");
         }
 
+        maxCommits = Math.min(maxCommits, MAX_MAX_COMMITS);
+
         final RevisionRange range = normalizeNow(from, to);
         final RevisionRange descendingRange = range.toDescending();
 
         // At this point, we are sure: from.major >= to.major
         readLock();
         try (RevWalk revWalk = newRevWalk()) {
+            final ObjectIdOwnerMap<?> revWalkInternalMap =
+                    (ObjectIdOwnerMap<?>) revWalkObjectsField.get(revWalk);
+
             final ObjectId fromCommitId = commitIdDatabase.get(descendingRange.from());
             final ObjectId toCommitId = commitIdDatabase.get(descendingRange.to());
 
-            // Walk through the commit tree to get the corresponding commit information by given filters
-            revWalk.setTreeFilter(AndTreeFilter.create(TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
             revWalk.markStart(revWalk.parseCommit(fromCommitId));
-            final RevCommit toCommit = revWalk.parseCommit(toCommitId);
-            if (toCommit.getParentCount() != 0) {
-                revWalk.markUninteresting(toCommit.getParent(0));
-            } else {
-                // The initial commit.
-                revWalk.markUninteresting(toCommit);
-            }
+            revWalk.setRetainBody(false);
+
+            // Instead of relying on RevWalk to filter the commits,
+            // we let RevWalk yield all commits so we can:
+            // - Have more control on when iteration should be stopped.
+            //   (A single Iterator.next() doesn't take long.)
+            // - Clean up the internal map as early as possible.
+            final RevFilter filter = new TreeRevFilter(revWalk, AndTreeFilter.create(
+                    TreeFilter.ANY_DIFF, PathPatternFilter.of(pathPattern)));
+
+            // Search up to 1000 commits when maxCommits <= 100.
+            // Search up to (maxCommits * 10) commits when 100 < maxCommits <= 1000.
+            final int maxNumProcessedCommits = Math.max(maxCommits * 10, MAX_MAX_COMMITS);
 
             final List<Commit> commitList = new ArrayList<>();
-            boolean needsLastCommit = true;
+            int numProcessedCommits = 0;
             for (RevCommit revCommit : revWalk) {
-                commitList.add(toCommit(revCommit));
-                if (revCommit.getId().equals(toCommitId) || commitList.size() == maxCommits) {
-                    // Visited the last commit or can't retrieve beyond maxCommits
-                    needsLastCommit = false;
+                numProcessedCommits++;
+
+                if (filter.include(revWalk, revCommit)) {
+                    revWalk.parseBody(revCommit);
+                    commitList.add(toCommit(revCommit));
+                    revCommit.disposeBody();
+                }
+
+                if (revCommit.getId().equals(toCommitId) ||
+                    commitList.size() >= maxCommits ||
+                    // Prevent from iterating for too long.
+                    numProcessedCommits >= maxNumProcessedCommits) {
                     break;
+                }
+
+                // Clear the internal lookup table of RevWalk to reduce the memory usage.
+                // This is safe because we have linear history and traverse in one direction.
+                if (numProcessedCommits % 16 == 0) {
+                    revWalkInternalMap.clear();
                 }
             }
 
-            // Handle the case where the last commit was not visited by the RevWalk,
-            // which can happen when the commit is empty.  In our repository, an empty commit can only be made
-            // when a new repository is created.
-            // If the pathPattern does not contain "/**", the caller wants commits only with the specific path,
-            // so skip the empty commit.
-            if (needsLastCommit && pathPattern.contains(ALL_PATH)) {
+            // Include the initial empty commit only when the caller specified
+            // the initial revision (1) in the range and the pathPattern contains '/**'.
+            if (commitList.size() < maxCommits &&
+                descendingRange.to().major() == 1 &&
+                pathPattern.contains(ALL_PATH)) {
                 try (RevWalk tmpRevWalk = newRevWalk()) {
                     final RevCommit lastRevCommit = tmpRevWalk.parseCommit(toCommitId);
-                    final Revision lastCommitRevision =
-                            CommitUtil.extractRevision(lastRevCommit.getFullMessage());
-                    if (lastCommitRevision.major() == 1) {
-                        commitList.add(toCommit(lastRevCommit));
-                    }
+                    commitList.add(toCommit(lastRevCommit));
                 }
             }
 
