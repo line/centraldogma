@@ -209,18 +209,24 @@ public final class ZooKeeperCommandExecutor
                         break;
                     }
 
-                    final List<CuratorOp> ops = new ArrayList<>();
-                    ops.add(curator.transactionOp().delete().forPath(logPath));
+                    deleteLog(curator.transactionOp().delete().forPath(logPath), deleted, children.get(i));
                     for (long blockId : meta.blocks()) {
                         final String blockPath = absolutePath(LOG_BLOCK_PATH) + '/' + pathFromRevision(blockId);
-                        ops.add(curator.transactionOp().delete().forPath(blockPath));
+                        deleteLog(curator.transactionOp().delete().forPath(blockPath),
+                                  deleted, children.get(i));
                     }
-
-                    curator.transaction().forOperations(ops);
-                    deleted.add(children.get(i));
                 }
             } finally {
                 logger.info("delete logs: {}", deleted);
+            }
+        }
+
+        private void deleteLog(CuratorOp curatorOp, List<String> deleted, String childName) {
+            try {
+                curator.transaction().forOperations(curatorOp);
+                deleted.add(childName);
+            } catch (Throwable t) {
+                logger.warn("Failed to delete ZooKeeper log: {}", childName, t);
             }
         }
     }
