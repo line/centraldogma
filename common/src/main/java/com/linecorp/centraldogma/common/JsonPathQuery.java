@@ -23,8 +23,6 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
@@ -44,9 +42,7 @@ final class JsonPathQuery implements Query<JsonNode> {
         this(path, ImmutableList.copyOf(requireNonNull(jsonPaths, "jsonPaths")));
     }
 
-    @JsonCreator
-    JsonPathQuery(@JsonProperty("path") String path,
-                  @JsonProperty("expressions") Iterable<String> jsonPaths) {
+    JsonPathQuery(String path, Iterable<String> jsonPaths) {
         this.path = validateJsonFilePath(path, "path");
         Streams.stream(requireNonNull(jsonPaths, "jsonPaths"))
                .forEach(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"));
@@ -64,7 +60,11 @@ final class JsonPathQuery implements Query<JsonNode> {
     }
 
     @Override
-    @JsonProperty
+    public EntryType contentType() {
+        return EntryType.JSON;
+    }
+
+    @Override
     public List<String> expressions() {
         return jsonPaths;
     }

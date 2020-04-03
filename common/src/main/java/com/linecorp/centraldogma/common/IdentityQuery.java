@@ -24,18 +24,16 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 final class IdentityQuery<T> implements Query<T> {
 
     private final String path;
+    private final EntryType contentType;
     @Nullable
     private String strVal;
 
-    @JsonCreator
-    IdentityQuery(@JsonProperty("path") String path) {
+    IdentityQuery(String path, EntryType contentType) {
         this.path = validateFilePath(path, "path");
+        this.contentType = requireNonNull(contentType, "contentType");
     }
 
     @Override
@@ -46,6 +44,11 @@ final class IdentityQuery<T> implements Query<T> {
     @Override
     public QueryType type() {
         return QueryType.IDENTITY;
+    }
+
+    @Override
+    public EntryType contentType() {
+        return contentType;
     }
 
     @Override

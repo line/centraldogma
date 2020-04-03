@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.common;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Ascii;
 
@@ -36,7 +38,12 @@ public enum EntryType {
     /**
      * A directory.
      */
-    DIRECTORY(Void.class);
+    DIRECTORY(Void.class),
+    /**
+     * An unknown type. This is used for the {@link Query#contentType()} when the {@link Query} is created
+     * using {@link Query#of(QueryType, String, String...)}.
+     */
+    UNKNOWN(null);
 
     /**
      * Guesses the {@link EntryType} from the specified {@code path}.
@@ -58,15 +65,17 @@ public enum EntryType {
         return TEXT;
     }
 
+    @Nullable
     private final Class<?> type;
 
-    EntryType(Class<?> type) {
+    EntryType(@Nullable Class<?> type) {
         this.type = type;
     }
 
     /**
      * Returns the type of the content returned by {@link Entry#content()}.
      */
+    @Nullable
     public Class<?> type() {
         return type;
     }

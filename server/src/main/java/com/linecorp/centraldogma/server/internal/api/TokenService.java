@@ -22,9 +22,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -60,7 +57,6 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 @ProducesJson
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class TokenService extends AbstractService {
-    private static final Logger logger = LoggerFactory.getLogger(TokenService.class);
 
     private static final JsonNode activation = Jackson.valueToTree(
             ImmutableList.of(

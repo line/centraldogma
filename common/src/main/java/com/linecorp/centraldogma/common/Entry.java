@@ -122,6 +122,8 @@ public final class Entry<T> implements ContentHolder<T> {
         this.type = requireNonNull(type, "type");
 
         final Class<?> entryContentType = type.type();
+        checkArgument(entryContentType != null, "entry type is null.");
+
         if (entryContentType == Void.class) {
             checkArgument(content == null, "content: %s (expected: null)", content);
             this.content = null;

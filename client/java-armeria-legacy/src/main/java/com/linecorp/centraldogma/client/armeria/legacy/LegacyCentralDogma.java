@@ -41,7 +41,6 @@ import javax.annotation.Nullable;
 
 import org.apache.thrift.TException;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
@@ -230,7 +229,6 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
                                                    Revision revision, Query<T> query) {
-
         return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
             final CompletableFuture<GetFileResult> future = run(callback -> {
                 requireNonNull(query, "query");
@@ -243,30 +241,43 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                     return null;
                 }
 
-                final Entry<T> converted;
-                switch (r.getType()) {
-                    case JSON:
-                        try {
-                            converted = unsafeCast(
-                                    Entry.ofJson(normRev, query.path(), Jackson.readTree(r.getContent())));
-                        } catch (IOException e) {
-                            throw new CompletionException(
-                                    "failed to parse the query result: " + query, e);
-                        }
-                        break;
-                    case TEXT:
-                        converted = unsafeCast(Entry.ofText(normRev, query.path(), r.getContent()));
-                        break;
-                    case DIRECTORY:
-                        converted = unsafeCast(Entry.ofDirectory(normRev, query.path()));
-                        break;
-                    default:
-                        throw new Error("unknown entry type: " + r.getType());
-                }
-
-                return converted;
+                final EntryType contentType = query.contentType();
+                final String content = r.getContent();
+                return toEntry(query, normRev, contentType, content, r.getType());
             });
         });
+    }
+
+    private static <T> Entry<T> toEntry(Query<T> query, Revision normRev, EntryType contentType, String content,
+                                        com.linecorp.centraldogma.internal.thrift.EntryType receivedEntryType) {
+        if (contentType == EntryType.JSON) {
+            return entryAsJson(query, normRev, content);
+        }
+        if (contentType == EntryType.TEXT) {
+            return entryAsText(query, normRev, content);
+        }
+        switch (receivedEntryType) {
+            case JSON:
+                return entryAsJson(query, normRev, content);
+            case TEXT:
+                return entryAsText(query, normRev, content);
+            case DIRECTORY:
+                return unsafeCast(Entry.ofDirectory(normRev, query.path()));
+            default:
+                throw new Error("unknown entry type: " + receivedEntryType);
+        }
+    }
+
+    private static <T> Entry<T> entryAsJson(Query<T> query, Revision normRev, String content) {
+        try {
+            return unsafeCast(Entry.ofJson(normRev, query.path(), Jackson.readTree(content)));
+        } catch (IOException e) {
+            throw new CompletionException("failed to parse the query result: " + query, e);
+        }
+    }
+
+    private static <T> Entry<T> entryAsText(Query<T> query, Revision normRev, String content) {
+        return unsafeCast(Entry.ofText(normRev, query.path(), content));
     }
 
     @Override
@@ -498,26 +509,9 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 return null;
             }
 
-            final Entry<T> converted;
-            switch (r.getType()) {
-                case JSON:
-                    try {
-                        converted = unsafeCast(Entry.ofJson(revision, query.path(), r.getContent()));
-                    } catch (JsonParseException e) {
-                        throw new CompletionException("failed to parse the query result: " + query, e);
-                    }
-                    break;
-                case TEXT:
-                    converted = unsafeCast(Entry.ofText(revision, query.path(), r.getContent()));
-                    break;
-                case DIRECTORY:
-                    converted = unsafeCast(Entry.ofDirectory(revision, query.path()));
-                    break;
-                default:
-                    throw new Error("unknown entry type: " + r.getType());
-            }
-
-            return converted;
+            final EntryType contentType = query.contentType();
+            final String content = r.getContent();
+            return toEntry(query, revision, contentType, content, r.getType());
         });
     }
 
