@@ -41,7 +41,7 @@ public interface Query<T> extends Function<T, T> {
      */
     @Deprecated
     static Query<Object> identity(String path) {
-        return new IdentityQuery<>(path, EntryType.UNKNOWN);
+        return new IdentityQuery<>(path, QueryType.IDENTITY);
     }
 
     /**
@@ -50,7 +50,7 @@ public interface Query<T> extends Function<T, T> {
      * @param path the path of a file being queried on
      */
     static Query<String> ofText(String path) {
-        return new IdentityQuery<>(path, EntryType.TEXT);
+        return new IdentityQuery<>(path, QueryType.IDENTITY_TEXT);
     }
 
     /**
@@ -59,7 +59,7 @@ public interface Query<T> extends Function<T, T> {
      * @param path the path of a file being queried on
      */
     static Query<JsonNode> ofJson(String path) {
-        return new IdentityQuery<>(path, EntryType.JSON);
+        return new IdentityQuery<>(path, QueryType.IDENTITY_JSON);
     }
 
     /**
@@ -97,7 +97,11 @@ public interface Query<T> extends Function<T, T> {
         requireNonNull(type, "type");
         switch (type) {
             case IDENTITY:
-                return new IdentityQuery<>(path, EntryType.UNKNOWN);
+                return new IdentityQuery<>(path, QueryType.IDENTITY);
+            case IDENTITY_TEXT:
+                return new IdentityQuery<>(path, QueryType.IDENTITY_TEXT);
+            case IDENTITY_JSON:
+                return new IdentityQuery<>(path, QueryType.IDENTITY_JSON);
             case JSON_PATH:
                 requireNonNull(expressions, "expressions");
                 return ofJsonPath(path, expressions);
@@ -115,11 +119,6 @@ public interface Query<T> extends Function<T, T> {
      * Returns the type of this {@link Query}.
      */
     QueryType type();
-
-    /**
-     * Returns the type of the content of the file being queried.
-     */
-    EntryType contentType();
 
     /**
      * Returns the list of the query expressions of this {@link Query}.

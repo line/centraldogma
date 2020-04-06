@@ -190,6 +190,8 @@ struct Project {
 enum QueryType {
     IDENTITY = 1,
     JSON_PATH = 2,
+    IDENTITY_TEXT = 3,
+    IDENTITY_JSON = 4,
 }
 
 struct Query {

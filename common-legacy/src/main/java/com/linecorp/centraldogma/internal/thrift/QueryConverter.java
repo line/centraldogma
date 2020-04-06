@@ -38,6 +38,10 @@ public final class QueryConverter extends Converter<com.linecorp.centraldogma.co
         switch (query.type()) {
             case IDENTITY:
                 return new Query(query.path(), QueryType.IDENTITY, Collections.emptyList());
+            case IDENTITY_TEXT:
+                return new Query(query.path(), QueryType.IDENTITY_TEXT, Collections.emptyList());
+            case IDENTITY_JSON:
+                return new Query(query.path(), QueryType.IDENTITY_JSON, Collections.emptyList());
             case JSON_PATH:
                 return new Query(query.path(), QueryType.JSON_PATH, query.expressions());
         }
@@ -51,6 +55,10 @@ public final class QueryConverter extends Converter<com.linecorp.centraldogma.co
             case IDENTITY:
                 return com.linecorp.centraldogma.common.Query.of(
                         com.linecorp.centraldogma.common.QueryType.IDENTITY, query.getPath());
+            case IDENTITY_TEXT:
+                return com.linecorp.centraldogma.common.Query.ofText(query.getPath());
+            case IDENTITY_JSON:
+                return com.linecorp.centraldogma.common.Query.ofJson(query.getPath());
             case JSON_PATH:
                 return com.linecorp.centraldogma.common.Query.ofJsonPath(query.getPath(),
                                                                          query.getExpressions());

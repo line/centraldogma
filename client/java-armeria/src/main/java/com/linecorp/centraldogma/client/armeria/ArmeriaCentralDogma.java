@@ -462,7 +462,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private static <T> Entry<T> getFile(Revision normRev, AggregatedHttpResponse res, Query<T> query) {
         if (res.status().code() == 200) {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
-            return toEntry(normRev, node, query.contentType());
+            return toEntry(normRev, node, query.type());
         }
 
         return handleErrorResponse(res);
@@ -501,11 +501,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 final JsonNode node = toJson(res, null);
                 final ImmutableMap.Builder<String, Entry<?>> builder = ImmutableMap.builder();
                 if (node.isObject()) { // Single entry
-                    final Entry<?> entry = toEntry(normRev, node, EntryType.UNKNOWN);
+                    final Entry<?> entry = toEntry(normRev, node, QueryType.IDENTITY);
                     builder.put(entry.path(), entry);
                 } else if (node.isArray()) { // Multiple entries
                     node.forEach(e -> {
-                        final Entry<?> entry = toEntry(normRev, e, EntryType.UNKNOWN);
+                        final Entry<?> entry = toEntry(normRev, e, QueryType.IDENTITY);
                         builder.put(entry.path(), entry);
                     });
                 } else {
@@ -816,7 +816,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             }
             path.append(encodePathPattern(pathPattern));
 
-            return watch(lastKnownRevision, timeoutMillis, path.toString(), EntryType.UNKNOWN,
+            return watch(lastKnownRevision, timeoutMillis, path.toString(), QueryType.IDENTITY,
                          ArmeriaCentralDogma::watchRepository);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
@@ -824,7 +824,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Nullable
-    private static Revision watchRepository(AggregatedHttpResponse res, EntryType entryType) {
+    private static Revision watchRepository(AggregatedHttpResponse res, QueryType unused) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
@@ -857,7 +857,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 path.setLength(path.length() - 1);
             }
 
-            return watch(lastKnownRevision, timeoutMillis, path.toString(), query.contentType(),
+            return watch(lastKnownRevision, timeoutMillis, path.toString(), query.type(),
                          ArmeriaCentralDogma::watchFile);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
@@ -865,12 +865,12 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Nullable
-    private static <T> Entry<T> watchFile(AggregatedHttpResponse res, EntryType contentType) {
+    private static <T> Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
                 final Revision revision = new Revision(getField(node, "revision").asInt());
-                return toEntry(revision, getField(node, "entry"), contentType);
+                return toEntry(revision, getField(node, "entry"), queryType);
             case 304: // Not Modified
                 return null;
         }
@@ -879,8 +879,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private <T> CompletableFuture<T> watch(Revision lastKnownRevision, long timeoutMillis,
-                                           String path, EntryType contentType,
-                                           BiFunction<AggregatedHttpResponse, EntryType, T> func) {
+                                           String path, QueryType queryType,
+                                           BiFunction<AggregatedHttpResponse, QueryType, T> func) {
         final RequestHeadersBuilder builder = headersBuilder(HttpMethod.GET, path);
         builder.set(HttpHeaderNames.IF_NONE_MATCH, lastKnownRevision.text())
                .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
@@ -897,7 +897,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             return client.execute(builder.build()).aggregate()
                          .handle((res, cause) -> {
                              if (cause == null) {
-                                 return func.apply(res, contentType);
+                                 return func.apply(res, queryType);
                              }
 
                              if ((cause instanceof ClosedSessionException ||
@@ -1057,24 +1057,30 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return res.content(charset);
     }
 
-    private static <T> Entry<T> toEntry(Revision revision, JsonNode node, EntryType contentType) {
+    private static <T> Entry<T> toEntry(Revision revision, JsonNode node, QueryType queryType) {
         final String entryPath = getField(node, "path").asText();
-        if (contentType == EntryType.JSON) {
-            return entryAsJson(revision, node, entryPath);
-        }
-        if (contentType == EntryType.TEXT) {
-            return entryAsText(revision, node, entryPath);
-        }
         final EntryType receivedEntryType = EntryType.valueOf(getField(node, "type").asText());
-        switch (receivedEntryType) {
-            case JSON:
-                return entryAsJson(revision, node, entryPath);
-            case TEXT:
+        switch (queryType) {
+            case IDENTITY_TEXT:
                 return entryAsText(revision, node, entryPath);
-            case DIRECTORY:
-                return unsafeCast(Entry.ofDirectory(revision, entryPath));
+            case IDENTITY_JSON:
+            case JSON_PATH:
+                if (receivedEntryType != EntryType.JSON) {
+                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
+                                                    " (expected: " + queryType + ')');
+                }
+                return entryAsJson(revision, node, entryPath);
+            case IDENTITY:
+                switch (receivedEntryType) {
+                    case JSON:
+                        return entryAsJson(revision, node, entryPath);
+                    case TEXT:
+                        return entryAsText(revision, node, entryPath);
+                    case DIRECTORY:
+                        return unsafeCast(Entry.ofDirectory(revision, entryPath));
+                }
         }
-        throw new Error(); // Never reaches here.
+        throw new Error(); // Should never reach here.
     }
 
     private static <T> Entry<T> entryAsText(Revision revision, JsonNode node, String entryPath) {

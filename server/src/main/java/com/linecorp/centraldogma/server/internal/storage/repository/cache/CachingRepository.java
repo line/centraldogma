@@ -86,7 +86,8 @@ final class CachingRepository implements Repository {
         requireNonNull(query, "query");
 
         final Revision normalizedRevision = normalizeNow(revision);
-        if (query.type() == QueryType.IDENTITY) {
+        if (query.type() == QueryType.IDENTITY || query.type() == QueryType.IDENTITY_TEXT ||
+            query.type() == QueryType.IDENTITY_JSON) {
             // If the query is an IDENTITY type, call find() so that the caches are reused in one place when
             // calls getOrNull(), find() and mergeFiles().
             final String path = query.path();

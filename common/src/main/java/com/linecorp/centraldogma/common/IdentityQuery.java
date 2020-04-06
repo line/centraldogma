@@ -27,13 +27,13 @@ import javax.annotation.Nullable;
 final class IdentityQuery<T> implements Query<T> {
 
     private final String path;
-    private final EntryType contentType;
+    private final QueryType queryType;
     @Nullable
     private String strVal;
 
-    IdentityQuery(String path, EntryType contentType) {
+    IdentityQuery(String path, QueryType queryType) {
         this.path = validateFilePath(path, "path");
-        this.contentType = requireNonNull(contentType, "contentType");
+        this.queryType = requireNonNull(queryType, "queryType");
     }
 
     @Override
@@ -43,12 +43,7 @@ final class IdentityQuery<T> implements Query<T> {
 
     @Override
     public QueryType type() {
-        return QueryType.IDENTITY;
-    }
-
-    @Override
-    public EntryType contentType() {
-        return contentType;
+        return queryType;
     }
 
     @Override

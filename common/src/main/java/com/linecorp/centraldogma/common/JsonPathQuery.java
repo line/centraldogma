@@ -60,11 +60,6 @@ final class JsonPathQuery implements Query<JsonNode> {
     }
 
     @Override
-    public EntryType contentType() {
-        return EntryType.JSON;
-    }
-
-    @Override
     public List<String> expressions() {
         return jsonPaths;
     }

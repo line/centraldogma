@@ -28,6 +28,16 @@ public enum QueryType {
      * Retrieves the content as it is.
      */
     IDENTITY(EnumSet.of(EntryType.TEXT, EntryType.JSON)),
+
+    /**
+     * Retrieves the String content as it is.
+     */
+    IDENTITY_TEXT(EnumSet.of(EntryType.TEXT)),
+
+    /**
+     * Retrieves the JSON content as it is.
+     */
+    IDENTITY_JSON(EnumSet.of(EntryType.JSON)),
     /**
      * Applies a series of <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path
      * expressions</a> to the content.

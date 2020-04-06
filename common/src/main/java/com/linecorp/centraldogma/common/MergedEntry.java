@@ -77,7 +77,6 @@ public final class MergedEntry<T> implements ContentHolder<T> {
         this.type = requireNonNull(type, "type");
         requireNonNull(content, "content");
         final Class<?> entryType = type.type();
-        checkArgument(entryType != null, "entry type is null.");
         checkArgument(entryType.isAssignableFrom(content.getClass()),
                       "content type: %s (expected: %s)", content.getClass(), entryType);
         this.content = content;

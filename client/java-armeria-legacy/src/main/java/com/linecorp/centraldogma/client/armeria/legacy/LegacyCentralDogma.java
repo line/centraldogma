@@ -64,6 +64,7 @@ import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -241,31 +242,34 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                     return null;
                 }
 
-                final EntryType contentType = query.contentType();
-                final String content = r.getContent();
-                return toEntry(query, normRev, contentType, content, r.getType());
+                return toEntry(query, normRev, query.type(), r.getContent(), r.getType());
             });
         });
     }
 
-    private static <T> Entry<T> toEntry(Query<T> query, Revision normRev, EntryType contentType, String content,
+    private static <T> Entry<T> toEntry(Query<T> query, Revision normRev, QueryType queryType, String content,
                                         com.linecorp.centraldogma.internal.thrift.EntryType receivedEntryType) {
-        if (contentType == EntryType.JSON) {
-            return entryAsJson(query, normRev, content);
-        }
-        if (contentType == EntryType.TEXT) {
-            return entryAsText(query, normRev, content);
-        }
-        switch (receivedEntryType) {
-            case JSON:
-                return entryAsJson(query, normRev, content);
-            case TEXT:
+        switch (queryType) {
+            case IDENTITY_TEXT:
                 return entryAsText(query, normRev, content);
-            case DIRECTORY:
-                return unsafeCast(Entry.ofDirectory(normRev, query.path()));
-            default:
-                throw new Error("unknown entry type: " + receivedEntryType);
+            case IDENTITY_JSON:
+            case JSON_PATH:
+                if (receivedEntryType != com.linecorp.centraldogma.internal.thrift.EntryType.JSON) {
+                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
+                                                    " (expected: " + queryType + ')');
+                }
+                return entryAsJson(query, normRev, content);
+            case IDENTITY:
+                switch (receivedEntryType) {
+                    case JSON:
+                        return entryAsJson(query, normRev, content);
+                    case TEXT:
+                        return entryAsText(query, normRev, content);
+                    case DIRECTORY:
+                        return unsafeCast(Entry.ofDirectory(normRev, query.path()));
+                }
         }
+        throw new Error(); // Should never reach here.
     }
 
     private static <T> Entry<T> entryAsJson(Query<T> query, Revision normRev, String content) {
@@ -509,9 +513,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 return null;
             }
 
-            final EntryType contentType = query.contentType();
-            final String content = r.getContent();
-            return toEntry(query, revision, contentType, content, r.getType());
+            return toEntry(query, revision, query.type(), r.getContent(), r.getType());
         });
     }
 
