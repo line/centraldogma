@@ -30,7 +30,7 @@ public enum QueryType {
     IDENTITY(EnumSet.of(EntryType.TEXT, EntryType.JSON)),
 
     /**
-     * Retrieves the String content as it is.
+     * Retrieves the textual content as it is.
      */
     IDENTITY_TEXT(EnumSet.of(EntryType.TEXT)),
 
