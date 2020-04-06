@@ -900,8 +900,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                                  return func.apply(res, queryType);
                              }
 
-                             if ((cause instanceof ClosedSessionException ||
-                                  cause instanceof ClosedStreamException) &&
+                             if ((cause instanceof ClosedStreamException) &&
                                  client.options().factory().isClosing()) {
                                  // A user closed the client factory while watching.
                                  return null;
