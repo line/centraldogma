@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collector;
@@ -276,7 +275,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
         try {
             return unsafeCast(Entry.ofJson(normRev, query.path(), Jackson.readTree(content)));
         } catch (IOException e) {
-            throw new CompletionException("failed to parse the query result: " + query, e);
+            throw new CentralDogmaException("failed to parse the query result: " + query, e);
         }
     }
 
@@ -326,7 +325,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                 entryType, Jackson.readTree(entry.content), entry.paths);
                         return converted;
                     } catch (IOException e) {
-                        throw new CompletionException(
+                        throw new CentralDogmaException(
                                 "failed to parse the content: " + entry.content, e);
                     }
                 default:
