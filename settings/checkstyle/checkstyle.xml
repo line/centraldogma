@@ -30,15 +30,22 @@
 
   <!-- Copyright headers -->
   <module name="RegexpSingleline">
+    <property name="id" value="CopyrightHeader"/>
     <property name="format" value="^(?:\s|\*)*Copyright\s+[0-9]+\s+LINE Corporation\s*$"/>
     <property name="minimum" value="1"/>
     <property name="maximum" value="1"/>
     <property name="message" value="missing copyright header"/>
   </module>
+  <module name="RegexpSingleline">
+    <property name="id" value="NoCopyrightHeader"/>
+    <property name="format" value="^(?:\s|/|\*)*copyright"/>
+    <property name="ignoreCase" value="true"/>
+    <property name="message" value="A copyright header must not appear in examples."/>
+  </module>
   <!-- All packages must be annotated with @NonNullByDefault -->
   <module name="RegexpSingleline">
     <property name="id" value="NonNullByDefaultAnnotation"/>
-    <property name="format" value="^\s*@(?:com\.linecorp\.centraldogma\.common\.util\.)?NonNullByDefault"/>
+    <property name="format" value="^\s*@(?:com\.linecorp\.armeria\.common\.util\.)?NonNullByDefault"/>
     <property name="minimum" value="1"/>
     <property name="maximum" value="1"/>
     <property name="message" value="A package must be annotated with @NonNullByDefault."/>
@@ -73,6 +80,22 @@
   <module name="RegexpMultiline">
     <property name="format" value="(?:\s*\r?\n){2,}\s*\}"/>
     <property name="message" value="empty lines before a closing brace ('}')"/>
+  </module>
+  <!-- Test classes -->
+  <module name="RegexpSingleline">
+    <property name="format" value="org.assertj.core.api.Java6Assertions"/>
+    <property name="message"
+              value="Java6Assertions must not be used with Java8. Use org.assertj.core.api.Assertions instead."/>
+  </module>
+  <!--
+    for (;;) with spaces, e.g.
+    - for ( ;;)
+    - for (; ;)
+    - for (;; )
+  -->
+  <module name="RegexpSingleline">
+    <property name="format" value="for\s*(?:\(\s+;|\(;\s+;|\(;;\s+\))"/>
+    <property name="message" value="unnecessary spaces in for (;;)"/>
   </module>
 
   <module name="JavadocPackage"/>
@@ -109,6 +132,8 @@
       <property name="tokens"
                 value="CLASS_DEF, METHOD_DEF, CTOR_DEF, LITERAL_FOR, LITERAL_WHILE, STATIC_INIT, INSTANCE_INIT"/>
     </module>
+
+    <module name="FinalLocalVariable"/>
 
     <module name="FinalClass"/>
     <module name="HideUtilityClassConstructor"/>
@@ -159,16 +184,12 @@
       <property name="scope" value="protected"/>
       <property name="excludeScope" value="package"/>
       <property name="allowMissingParamTags" value="true"/>
-      <property name="allowMissingThrowsTags" value="true"/>
       <property name="allowMissingReturnTag" value="true"/>
       <property name="allowedAnnotations" value="Override, Test"/>
-      <property name="allowThrowsTagsForSubclasses" value="true"/>
-      <property name="allowUndeclaredRTE" value="true"/>
-      <property name="suppressLoadErrors" value="true"/>
     </module>
-    <module name="MissingJavadocMethod">
-      <property name="minLineCount" value="1"/>
-    </module>
+    <module name="MissingJavadocMethod"/>
+    <module name="MissingJavadocPackage"/>
+    <module name="MissingJavadocType"/>
     <module name="JavadocParagraph"/>
     <module name="JavadocTagContinuationIndentation"/>
     <module name="NonEmptyAtclauseDescription"/>

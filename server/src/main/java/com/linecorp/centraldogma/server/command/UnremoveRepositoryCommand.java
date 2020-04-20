@@ -43,6 +43,9 @@ public final class UnremoveRepositoryCommand extends ProjectCommand<Void> {
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
     }
 
+    /**
+     * Return the repository name.
+     */
     @JsonProperty
     public String repositoryName() {
         return repositoryName;

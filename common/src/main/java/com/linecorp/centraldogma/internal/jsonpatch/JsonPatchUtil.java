@@ -32,7 +32,7 @@ public final class JsonPatchUtil {
         final StringBuilder sb = new StringBuilder(segment.length() + 1);
         sb.append('/');
         for (int i = 0, end = segment.length(); i < end; ++i) {
-            char c = segment.charAt(i);
+            final char c = segment.charAt(i);
             if (c == '/') {
                 sb.append("~1");
                 continue;

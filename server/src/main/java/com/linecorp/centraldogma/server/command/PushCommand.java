@@ -69,26 +69,41 @@ public final class PushCommand extends RepositoryCommand<Revision> {
                 StreamSupport.stream(changes.spliterator(), false).collect(Collectors.toList()));
     }
 
+    /**
+     * Returns the base {@link Revision}.
+     */
     @JsonProperty
     public Revision baseRevision() {
         return baseRevision;
     }
 
+    /**
+     * Returns the human-readable summary of the commit.
+     */
     @JsonProperty
     public String summary() {
         return summary;
     }
 
+    /**
+     * Returns the human-readable detail of the commit.
+     */
     @JsonProperty
     public String detail() {
         return detail;
     }
 
+    /**
+     * Returns the {@link Markup} of the {@link #detail()}.
+     */
     @JsonProperty
     public Markup markup() {
         return markup;
     }
 
+    /**
+     * Returns the {@link Change}s of the commit.
+     */
     @JsonProperty
     public List<Change<?>> changes() {
         return changes;

@@ -87,16 +87,25 @@ public class PerRolePermissions {
         this.guest = Sets.immutableEnumSet(requireNonNull(guest, "guest"));
     }
 
+    /**
+     * Returns the permissions granted to owners.
+     */
     @JsonProperty
     public Set<Permission> owner() {
         return owner;
     }
 
+    /**
+     * Returns the permissions granted to members.
+     */
     @JsonProperty
     public Set<Permission> member() {
         return member;
     }
 
+    /**
+     * Returns the permissions granted to guests.
+     */
     @JsonProperty
     public Set<Permission> guest() {
         return guest;

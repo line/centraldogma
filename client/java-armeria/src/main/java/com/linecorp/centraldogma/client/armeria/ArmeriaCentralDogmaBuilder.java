@@ -27,6 +27,10 @@ import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDo
 
 import io.netty.channel.EventLoopGroup;
 
+/**
+ * Builds a {@link CentralDogma} client based on an <a href="https://line.github.io/armeria/">Armeria</a>
+ * HTTP client.
+ */
 public final class ArmeriaCentralDogmaBuilder
         extends AbstractArmeriaCentralDogmaBuilder<ArmeriaCentralDogmaBuilder> {
     /**

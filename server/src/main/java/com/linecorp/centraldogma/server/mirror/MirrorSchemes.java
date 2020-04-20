@@ -15,14 +15,39 @@
  */
 package com.linecorp.centraldogma.server.mirror;
 
+/**
+ * URL schemes used by mirrors.
+ */
 public final class MirrorSchemes {
 
+    /**
+     * {@code "dogma"}.
+     */
     public static final String SCHEME_DOGMA = "dogma";
 
+    /**
+     * {@code "git"}.
+     */
     public static final String SCHEME_GIT = "git";
+
+    /**
+     * {@code "git+ssh"}.
+     */
     public static final String SCHEME_GIT_SSH = "git+ssh";
+
+    /**
+     * {@code "git+http"}.
+     */
     public static final String SCHEME_GIT_HTTP = "git+http";
+
+    /**
+     * {@code "git+https"}.
+     */
     public static final String SCHEME_GIT_HTTPS = "git+https";
+
+    /**
+     * {@code "git+file"}.
+     */
     public static final String SCHEME_GIT_FILE = "git+file";
 
     private MirrorSchemes() {}

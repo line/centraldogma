@@ -23,16 +23,28 @@ package com.linecorp.centraldogma.server.storage;
 public class StorageException extends RuntimeException {
     private static final long serialVersionUID = -1863726420582803362L;
 
+    /**
+     * Creates a new instance.
+     */
     public StorageException() {}
 
+    /**
+     * Creates a new instance with the specified {@code message}.
+     */
     public StorageException(String message) {
         super(message);
     }
 
+    /**
+     * Creates a new instance with the specified {@code cause}.
+     */
     public StorageException(Throwable cause) {
         super(cause);
     }
 
+    /**
+     * Creates a new instance with the specified {@code message} and {@code cause}.
+     */
     public StorageException(String message, Throwable cause) {
         super(message, cause);
     }

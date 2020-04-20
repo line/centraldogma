@@ -43,6 +43,9 @@ public final class CreateRepositoryCommand extends ProjectCommand<Void> {
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
     }
 
+    /**
+     * Returns the repository name.
+     */
     @JsonProperty
     public String repositoryName() {
         return repositoryName;

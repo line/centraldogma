@@ -30,6 +30,9 @@ public class RevisionJsonSerializer extends StdSerializer<Revision> {
 
     private static final long serialVersionUID = 1536427117293976073L;
 
+    /**
+     * Creates a new instance.
+     */
     public RevisionJsonSerializer() {
         super(Revision.class);
     }

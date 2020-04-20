@@ -136,40 +136,64 @@ public final class AuthConfig {
         this.properties = properties;
     }
 
+    /**
+     * Returns the {@link AuthProviderFactory}.
+     */
     public AuthProviderFactory factory() {
         return factory;
     }
 
+    /**
+     * Returns the class name of the {@link AuthProviderFactory}.
+     */
     @JsonProperty
     public String factoryClassName() {
         return factory.getClass().getName();
     }
 
+    /**
+     * Returns the usernames of the users with administrator rights.
+     */
     @JsonProperty
     public Set<String> administrators() {
         return administrators;
     }
 
+    /**
+     * Returns whether login names are case-sensitive.
+     */
     @JsonProperty
     public boolean caseSensitiveLoginNames() {
         return caseSensitiveLoginNames;
     }
 
+    /**
+     * Returns the spec of the session cache.
+     */
     @JsonProperty
     public String sessionCacheSpec() {
         return sessionCacheSpec;
     }
 
+    /**
+     * Returns the timeout of an inactive session in milliseconds.
+     */
     @JsonProperty
     public long sessionTimeoutMillis() {
         return sessionTimeoutMillis;
     }
 
+    /**
+     * Returns the cron expression that describes how often session validation task should run.
+     */
     @JsonProperty
     public String sessionValidationSchedule() {
         return sessionValidationSchedule;
     }
 
+    /**
+     * Returns the additional properties given to the {@link AuthProviderFactory}.
+     */
     @Nullable
     @JsonProperty
     public JsonNode properties() {
@@ -177,7 +201,7 @@ public final class AuthConfig {
     }
 
     /**
-     * Returns a properties object which is converted to {@code T}.
+     * Returns the additional properties, converted to {@code T}.
      */
     @Nullable
     public <T> T properties(Class<T> clazz) throws JsonProcessingException {

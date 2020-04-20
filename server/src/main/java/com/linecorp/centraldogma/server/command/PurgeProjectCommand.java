@@ -41,6 +41,9 @@ public class PurgeProjectCommand extends RootCommand<Void> {
         this.projectName = requireNonNull(projectName, "projectName");
     }
 
+    /**
+     * Returns the project name.
+     */
     @JsonProperty
     public String projectName() {
         return projectName;
