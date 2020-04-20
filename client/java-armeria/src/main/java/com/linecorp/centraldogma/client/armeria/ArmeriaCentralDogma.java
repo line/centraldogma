@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
@@ -63,7 +64,6 @@ import com.google.common.math.LongMath;
 import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
-import com.linecorp.armeria.common.ClosedSessionException;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpStatus;
@@ -451,17 +451,17 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
                 return client.execute(headers(HttpMethod.GET, path.toString()))
                              .aggregate()
-                             .thenApply(res -> getFile(normRev, res));
+                             .thenApply(res -> getFile(normRev, res, query));
             });
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
     }
 
-    private static <T> Entry<T> getFile(Revision normRev, AggregatedHttpResponse res) {
+    private static <T> Entry<T> getFile(Revision normRev, AggregatedHttpResponse res, Query<T> query) {
         if (res.status().code() == 200) {
             final JsonNode node = toJson(res, JsonNodeType.OBJECT);
-            return toEntry(normRev, node);
+            return toEntry(normRev, node, query.type());
         }
 
         return handleErrorResponse(res);
@@ -500,11 +500,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 final JsonNode node = toJson(res, null);
                 final ImmutableMap.Builder<String, Entry<?>> builder = ImmutableMap.builder();
                 if (node.isObject()) { // Single entry
-                    final Entry<?> entry = toEntry(normRev, node);
+                    final Entry<?> entry = toEntry(normRev, node, QueryType.IDENTITY);
                     builder.put(entry.path(), entry);
                 } else if (node.isArray()) { // Multiple entries
                     node.forEach(e -> {
-                        final Entry<?> entry = toEntry(normRev, e);
+                        final Entry<?> entry = toEntry(normRev, e, QueryType.IDENTITY);
                         builder.put(entry.path(), entry);
                     });
                 } else {
@@ -815,7 +815,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             }
             path.append(encodePathPattern(pathPattern));
 
-            return watch(lastKnownRevision, timeoutMillis, path.toString(),
+            return watch(lastKnownRevision, timeoutMillis, path.toString(), QueryType.IDENTITY,
                          ArmeriaCentralDogma::watchRepository);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
@@ -823,7 +823,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Nullable
-    private static Revision watchRepository(AggregatedHttpResponse res) {
+    private static Revision watchRepository(AggregatedHttpResponse res, QueryType unused) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
@@ -856,19 +856,20 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 path.setLength(path.length() - 1);
             }
 
-            return watch(lastKnownRevision, timeoutMillis, path.toString(), ArmeriaCentralDogma::watchFile);
+            return watch(lastKnownRevision, timeoutMillis, path.toString(), query.type(),
+                         ArmeriaCentralDogma::watchFile);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
     }
 
     @Nullable
-    private static <T> Entry<T> watchFile(AggregatedHttpResponse res) {
+    private static <T> Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType) {
         switch (res.status().code()) {
             case 200: // OK
                 final JsonNode node = toJson(res, JsonNodeType.OBJECT);
                 final Revision revision = new Revision(getField(node, "revision").asInt());
-                return toEntry(revision, getField(node, "entry"));
+                return toEntry(revision, getField(node, "entry"), queryType);
             case 304: // Not Modified
                 return null;
         }
@@ -877,7 +878,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private <T> CompletableFuture<T> watch(Revision lastKnownRevision, long timeoutMillis,
-                                           String path, Function<AggregatedHttpResponse, T> func) {
+                                           String path, QueryType queryType,
+                                           BiFunction<AggregatedHttpResponse, QueryType, T> func) {
         final RequestHeadersBuilder builder = headersBuilder(HttpMethod.GET, path);
         builder.set(HttpHeaderNames.IF_NONE_MATCH, lastKnownRevision.text())
                .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
@@ -894,11 +896,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             return client.execute(builder.build()).aggregate()
                          .handle((res, cause) -> {
                              if (cause == null) {
-                                 return func.apply(res);
+                                 return func.apply(res, queryType);
                              }
 
-                             if ((cause instanceof ClosedSessionException ||
-                                  cause instanceof ClosedStreamException) &&
+                             if ((cause instanceof ClosedStreamException) &&
                                  client.options().factory().isClosing()) {
                                  // A user closed the client factory while watching.
                                  return null;
@@ -1054,19 +1055,45 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return res.content(charset);
     }
 
-    private static <T> Entry<T> toEntry(Revision revision, JsonNode node) {
+    private static <T> Entry<T> toEntry(Revision revision, JsonNode node, QueryType queryType) {
         final String entryPath = getField(node, "path").asText();
-        final EntryType entryType = EntryType.valueOf(getField(node, "type").asText());
-        switch (entryType) {
-            case JSON:
-                return unsafeCast(Entry.ofJson(revision, entryPath, getField(node, "content")));
-            case TEXT:
-                return unsafeCast(Entry.ofText(revision, entryPath,
-                                               getField(node, "content").asText()));
-            case DIRECTORY:
-                return unsafeCast(Entry.ofDirectory(revision, entryPath));
+        final EntryType receivedEntryType = EntryType.valueOf(getField(node, "type").asText());
+        switch (queryType) {
+            case IDENTITY_TEXT:
+                return entryAsText(revision, node, entryPath);
+            case IDENTITY_JSON:
+            case JSON_PATH:
+                if (receivedEntryType != EntryType.JSON) {
+                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
+                                                    " (expected: " + queryType + ')');
+                }
+                return entryAsJson(revision, node, entryPath);
+            case IDENTITY:
+                switch (receivedEntryType) {
+                    case JSON:
+                        return entryAsJson(revision, node, entryPath);
+                    case TEXT:
+                        return entryAsText(revision, node, entryPath);
+                    case DIRECTORY:
+                        return unsafeCast(Entry.ofDirectory(revision, entryPath));
+                }
         }
-        throw new Error(); // Never reaches here.
+        throw new Error(); // Should never reach here.
+    }
+
+    private static <T> Entry<T> entryAsText(Revision revision, JsonNode node, String entryPath) {
+        final JsonNode content = getField(node, "content");
+        final String content0;
+        if (content.isContainerNode()) {
+            content0 = content.toString();
+        } else {
+            content0 = content.asText();
+        }
+        return unsafeCast(Entry.ofText(revision, entryPath, content0));
+    }
+
+    private static <T> Entry<T> entryAsJson(Revision revision, JsonNode node, String entryPath) {
+        return unsafeCast(Entry.ofJson(revision, entryPath, getField(node, "content")));
     }
 
     private static Commit toCommit(JsonNode node) {

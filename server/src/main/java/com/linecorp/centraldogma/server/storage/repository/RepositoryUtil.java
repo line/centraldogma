@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.server.storage.repository;
 
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.common.QueryType.IDENTITY;
+import static com.linecorp.centraldogma.common.QueryType.IDENTITY_JSON;
+import static com.linecorp.centraldogma.common.QueryType.IDENTITY_TEXT;
 import static com.linecorp.centraldogma.common.QueryType.JSON_PATH;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
@@ -136,7 +138,7 @@ final class RepositoryUtil {
                                               " (query: " + query + ')');
         }
 
-        if (queryType == IDENTITY) {
+        if (queryType == IDENTITY || queryType == IDENTITY_TEXT || queryType == IDENTITY_JSON) {
             return entry;
         } else if (queryType == JSON_PATH) {
             return Entry.of(entry.revision(), query.path(), entryType, query.apply(entry.content()));

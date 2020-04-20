@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.it;
 
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -232,6 +233,21 @@ class WatchTest {
                 Query.ofJsonPath("/test/test1.json", "$"), 1000).join();
 
         assertThat(res).isNull();
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchJsonAsText(ClientType clientType) throws InterruptedException {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Watcher<JsonNode> jsonWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
+                                                                 Query.ofJson("/test/test2.json"));
+        assertThatJson(jsonWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
+
+        final Watcher<String> stringWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
+                                                                 Query.ofText("/test/test2.json"));
+        assertThat(stringWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
     }
 
     @ParameterizedTest

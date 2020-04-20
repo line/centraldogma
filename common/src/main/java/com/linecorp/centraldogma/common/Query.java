@@ -23,10 +23,6 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
@@ -34,11 +30,6 @@ import com.fasterxml.jackson.databind.JsonNode;
  *
  * @param <T> the content type of a file being queried
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-        @Type(value = IdentityQuery.class, name = "IDENTITY"),
-        @Type(value = JsonPathQuery.class, name = "JSON_PATH"),
-})
 public interface Query<T> extends Function<T, T> {
 
     /**
@@ -50,7 +41,7 @@ public interface Query<T> extends Function<T, T> {
      */
     @Deprecated
     static Query<Object> identity(String path) {
-        return new IdentityQuery<>(path);
+        return new IdentityQuery<>(path, QueryType.IDENTITY);
     }
 
     /**
@@ -59,7 +50,7 @@ public interface Query<T> extends Function<T, T> {
      * @param path the path of a file being queried on
      */
     static Query<String> ofText(String path) {
-        return new IdentityQuery<>(path);
+        return new IdentityQuery<>(path, QueryType.IDENTITY_TEXT);
     }
 
     /**
@@ -68,7 +59,7 @@ public interface Query<T> extends Function<T, T> {
      * @param path the path of a file being queried on
      */
     static Query<JsonNode> ofJson(String path) {
-        return new IdentityQuery<>(path);
+        return new IdentityQuery<>(path, QueryType.IDENTITY_JSON);
     }
 
     /**
@@ -106,7 +97,11 @@ public interface Query<T> extends Function<T, T> {
         requireNonNull(type, "type");
         switch (type) {
             case IDENTITY:
-                return new IdentityQuery<>(path);
+                return new IdentityQuery<>(path, QueryType.IDENTITY);
+            case IDENTITY_TEXT:
+                return new IdentityQuery<>(path, QueryType.IDENTITY_TEXT);
+            case IDENTITY_JSON:
+                return new IdentityQuery<>(path, QueryType.IDENTITY_JSON);
             case JSON_PATH:
                 requireNonNull(expressions, "expressions");
                 return ofJsonPath(path, expressions);
@@ -118,13 +113,11 @@ public interface Query<T> extends Function<T, T> {
     /**
      * Returns the path of the file being queried on.
      */
-    @JsonProperty
     String path();
 
     /**
      * Returns the type of this {@link Query}.
      */
-    @JsonProperty
     QueryType type();
 
     /**

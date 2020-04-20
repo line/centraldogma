@@ -22,20 +22,16 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collections;
 import java.util.List;
 
-import javax.annotation.Nullable;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
 
 final class IdentityQuery<T> implements Query<T> {
 
     private final String path;
-    @Nullable
-    private String strVal;
+    private final QueryType queryType;
 
-    @JsonCreator
-    IdentityQuery(@JsonProperty("path") String path) {
+    IdentityQuery(String path, QueryType queryType) {
         this.path = validateFilePath(path, "path");
+        this.queryType = requireNonNull(queryType, "queryType");
     }
 
     @Override
@@ -45,7 +41,7 @@ final class IdentityQuery<T> implements Query<T> {
 
     @Override
     public QueryType type() {
-        return QueryType.IDENTITY;
+        return queryType;
     }
 
     @Override
@@ -80,16 +76,9 @@ final class IdentityQuery<T> implements Query<T> {
 
     @Override
     public String toString() {
-        String strVal = this.strVal;
-        if (strVal == null) {
-            final StringBuilder buf = new StringBuilder(path.length() + 15);
-            buf.append("IdentityQuery(");
-            buf.append(path);
-            buf.append(')');
-
-            this.strVal = strVal = buf.toString();
-        }
-
-        return strVal;
+        return MoreObjects.toStringHelper(this)
+                          .add("path", path)
+                          .add("queryType", queryType)
+                          .toString();
     }
 }

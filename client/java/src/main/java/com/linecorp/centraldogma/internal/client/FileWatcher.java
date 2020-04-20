@@ -28,18 +28,18 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
 public final class FileWatcher<T> extends AbstractWatcher<T> {
-    private final Query<Object> query;
+    private final Query<?> query;
     private final Function<Object, ? extends T> function;
 
     /**
      * Creates a new instance.
      */
     public <U> FileWatcher(CentralDogma client, ScheduledExecutorService executor,
-                    String projectName, String repositoryName,
-                    Query<U> query, Function<? super U, ? extends T> function) {
+                           String projectName, String repositoryName,
+                           Query<U> query, Function<? super U, ? extends T> function) {
 
         super(client, executor, projectName, repositoryName, requireNonNull(query, "query").path());
-        this.query = unsafeCast(query);
+        this.query = query;
         this.function = unsafeCast(requireNonNull(function, "function"));
     }
 

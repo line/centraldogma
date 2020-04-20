@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collector;
@@ -41,7 +40,6 @@ import javax.annotation.Nullable;
 
 import org.apache.thrift.TException;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
@@ -65,6 +63,7 @@ import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
@@ -230,7 +229,6 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
                                                    Revision revision, Query<T> query) {
-
         return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
             final CompletableFuture<GetFileResult> future = run(callback -> {
                 requireNonNull(query, "query");
@@ -243,30 +241,46 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                     return null;
                 }
 
-                final Entry<T> converted;
-                switch (r.getType()) {
-                    case JSON:
-                        try {
-                            converted = unsafeCast(
-                                    Entry.ofJson(normRev, query.path(), Jackson.readTree(r.getContent())));
-                        } catch (IOException e) {
-                            throw new CompletionException(
-                                    "failed to parse the query result: " + query, e);
-                        }
-                        break;
-                    case TEXT:
-                        converted = unsafeCast(Entry.ofText(normRev, query.path(), r.getContent()));
-                        break;
-                    case DIRECTORY:
-                        converted = unsafeCast(Entry.ofDirectory(normRev, query.path()));
-                        break;
-                    default:
-                        throw new Error("unknown entry type: " + r.getType());
-                }
-
-                return converted;
+                return toEntry(query, normRev, query.type(), r.getContent(), r.getType());
             });
         });
+    }
+
+    private static <T> Entry<T> toEntry(Query<T> query, Revision normRev, QueryType queryType, String content,
+                                        com.linecorp.centraldogma.internal.thrift.EntryType receivedEntryType) {
+        switch (queryType) {
+            case IDENTITY_TEXT:
+                return entryAsText(query, normRev, content);
+            case IDENTITY_JSON:
+            case JSON_PATH:
+                if (receivedEntryType != com.linecorp.centraldogma.internal.thrift.EntryType.JSON) {
+                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
+                                                    " (expected: " + queryType + ')');
+                }
+                return entryAsJson(query, normRev, content);
+            case IDENTITY:
+                switch (receivedEntryType) {
+                    case JSON:
+                        return entryAsJson(query, normRev, content);
+                    case TEXT:
+                        return entryAsText(query, normRev, content);
+                    case DIRECTORY:
+                        return unsafeCast(Entry.ofDirectory(normRev, query.path()));
+                }
+        }
+        throw new Error(); // Should never reach here.
+    }
+
+    private static <T> Entry<T> entryAsJson(Query<T> query, Revision normRev, String content) {
+        try {
+            return unsafeCast(Entry.ofJson(normRev, query.path(), Jackson.readTree(content)));
+        } catch (IOException e) {
+            throw new CentralDogmaException("failed to parse the query result: " + query, e);
+        }
+    }
+
+    private static <T> Entry<T> entryAsText(Query<T> query, Revision normRev, String content) {
+        return unsafeCast(Entry.ofText(normRev, query.path(), content));
     }
 
     @Override
@@ -311,7 +325,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                 entryType, Jackson.readTree(entry.content), entry.paths);
                         return converted;
                     } catch (IOException e) {
-                        throw new CompletionException(
+                        throw new CentralDogmaException(
                                 "failed to parse the content: " + entry.content, e);
                     }
                 default:
@@ -498,26 +512,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 return null;
             }
 
-            final Entry<T> converted;
-            switch (r.getType()) {
-                case JSON:
-                    try {
-                        converted = unsafeCast(Entry.ofJson(revision, query.path(), r.getContent()));
-                    } catch (JsonParseException e) {
-                        throw new CompletionException("failed to parse the query result: " + query, e);
-                    }
-                    break;
-                case TEXT:
-                    converted = unsafeCast(Entry.ofText(revision, query.path(), r.getContent()));
-                    break;
-                case DIRECTORY:
-                    converted = unsafeCast(Entry.ofDirectory(revision, query.path()));
-                    break;
-                default:
-                    throw new Error("unknown entry type: " + r.getType());
-            }
-
-            return converted;
+            return toEntry(query, revision, query.type(), r.getContent(), r.getType());
         });
     }
 

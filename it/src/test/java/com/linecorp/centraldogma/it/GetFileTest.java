@@ -17,6 +17,8 @@
 package com.linecorp.centraldogma.it;
 
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
+import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CompletionException;
@@ -25,7 +27,11 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.Query;
@@ -37,6 +43,23 @@ class GetFileTest {
 
     @RegisterExtension
     static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding();
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void getJsonAsText(ClientType clientType) throws Exception {
+        final CentralDogma client = clientType.client(dogma);
+        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add a file",
+                    Change.ofJsonUpsert("/test/foo.json", "{ \"a\": \"b\" }")).join();
+        final Entry<JsonNode> json = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                    Query.ofJson("/test/foo.json")).join();
+        assertThatJson(json.content()).isEqualTo("{\"a\":\"b\"}");
+
+        final Entry<String> text = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                  Query.ofText("/test/foo.json")).join();
+        assertThat(text.content()).isEqualTo("{\"a\":\"b\"}");
+        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Remove a file",
+                    Change.ofRemoval("/test/foo.json")).join();
+    }
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
