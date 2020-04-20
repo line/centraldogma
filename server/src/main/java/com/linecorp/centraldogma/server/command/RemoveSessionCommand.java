@@ -40,6 +40,9 @@ public final class RemoveSessionCommand extends SessionCommand {
         this.sessionId = requireNonNull(sessionId, "sessionId");
     }
 
+    /**
+     * Returns the ID of the session being removed.
+     */
     @JsonProperty("sessionId")
     public String sessionId() {
         return sessionId;

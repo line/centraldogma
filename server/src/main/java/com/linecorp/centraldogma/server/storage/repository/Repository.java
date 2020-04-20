@@ -315,6 +315,10 @@ public interface Repository {
         return unsafeCast(future);
     }
 
+    /**
+     * Returns the diff for all files that are matched by the specified {@code pathPattern}
+     * between the specified two {@link Revision}s.
+     */
     CompletableFuture<Map<String, Change<?>>> diff(Revision from, Revision to, String pathPattern);
 
     /**
@@ -325,6 +329,9 @@ public interface Repository {
         return previewDiff(baseRevision, Arrays.asList(changes));
     }
 
+    /**
+     * Generates the preview diff against the specified {@code baseRevision} and {@code changes}.
+     */
     CompletableFuture<Map<String, Change<?>>> previewDiff(Revision baseRevision, Iterable<Change<?>> changes);
 
     /**

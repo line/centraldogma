@@ -49,7 +49,7 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
     public Latest<U> latest() {
         if (!closed) {
             final Latest<T> latestParent = parent.latest();
-            U transformedValue = transformer.apply(latestParent.value());
+            final U transformedValue = transformer.apply(latestParent.value());
             transformedLatest = new Latest<>(latestParent.revision(), transformedValue);
         }
         return transformedLatest;

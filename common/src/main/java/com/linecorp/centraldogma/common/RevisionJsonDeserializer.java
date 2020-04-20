@@ -34,6 +34,9 @@ public class RevisionJsonDeserializer extends StdDeserializer<Revision> {
 
     private static final long serialVersionUID = -2337105643062794190L;
 
+    /**
+     * Creates a new instance.
+     */
     public RevisionJsonDeserializer() {
         super(Revision.class);
     }

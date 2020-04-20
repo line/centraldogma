@@ -26,12 +26,15 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 /**
- * Deserialized a raw session instance from a base64-encoded string.
+ * Deserializes a raw session instance from a base64-encoded string.
  */
 public final class RawSessionJsonDeserializer extends StdDeserializer<Serializable> {
 
     private static final long serialVersionUID = 6711539370106208875L;
 
+    /**
+     * Creates a new instance.
+     */
     public RawSessionJsonDeserializer() {
         super(Serializable.class);
     }

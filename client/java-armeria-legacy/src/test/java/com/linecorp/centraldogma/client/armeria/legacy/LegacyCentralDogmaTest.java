@@ -403,7 +403,7 @@ class LegacyCentralDogmaTest {
     @Test
     void watchRepositoryTimedOut() throws Exception {
         doAnswer(invocation -> {
-            AsyncMethodCallback<WatchRepositoryResult> callback = invocation.getArgument(5);
+            final AsyncMethodCallback<WatchRepositoryResult> callback = invocation.getArgument(5);
             callback.onComplete(new WatchRepositoryResult());
             return null;
         }).when(iface).watchRepository(any(), any(), any(), anyString(), anyLong(), any());
@@ -415,7 +415,7 @@ class LegacyCentralDogmaTest {
     @Test
     void watchFile() throws Exception {
         doAnswer(invocation -> {
-            AsyncMethodCallback<WatchFileResult> callback = invocation.getArgument(5);
+            final AsyncMethodCallback<WatchFileResult> callback = invocation.getArgument(5);
             callback.onComplete(new WatchFileResult().setRevision(new TRevision(42))
                                                      .setType(TEntryType.TEXT)
                                                      .setContent("foo"));
@@ -429,7 +429,7 @@ class LegacyCentralDogmaTest {
     @Test
     void watchFileTimedOut() throws Exception {
         doAnswer(invocation -> {
-            AsyncMethodCallback<WatchFileResult> callback = invocation.getArgument(5);
+            final AsyncMethodCallback<WatchFileResult> callback = invocation.getArgument(5);
             callback.onComplete(new WatchFileResult());
             return null;
         }).when(iface).watchFile(any(), any(), any(), any(), anyLong(), any());

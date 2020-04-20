@@ -23,20 +23,36 @@ public class AuthException extends RuntimeException {
 
     private static final long serialVersionUID = -2644435537146538363L;
 
+    /**
+     * Creates a new instance.
+     */
     public AuthException() {}
 
+    /**
+     * Creates a new instance with the specified {@code message}.
+     */
     public AuthException(String message) {
         super(message);
     }
 
+    /**
+     * Creates a new instance with the specified {@code cause}.
+     */
     public AuthException(Throwable cause) {
         super(cause);
     }
 
+    /**
+     * Creates a new instance with the specified {@code message} and {@code cause}.
+     */
     public AuthException(String message, Throwable cause) {
         super(message, cause);
     }
 
+    /**
+     * Creates a new instance with the specified {@code message}, {@code cause},
+     * suppression enabled or disabled, and writable stack trace enabled or disabled.
+     */
     protected AuthException(String message, Throwable cause, boolean enableSuppression,
                             boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);

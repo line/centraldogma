@@ -42,6 +42,9 @@ public final class CreateSessionCommand extends SessionCommand {
         this.session = requireNonNull(session, "session");
     }
 
+    /**
+     * Returns the {@link Session} being created.
+     */
     @JsonProperty("session")
     public Session session() {
         return session;

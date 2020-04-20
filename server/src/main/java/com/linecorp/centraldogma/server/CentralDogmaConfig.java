@@ -69,6 +69,9 @@ import com.linecorp.centraldogma.server.auth.AuthConfig;
 
 import io.netty.util.NetUtil;
 
+/**
+ * {@link CentralDogma} server configuration.
+ */
 public final class CentralDogmaConfig {
 
     private final File dataDir;
@@ -211,70 +214,115 @@ public final class CentralDogmaConfig {
                                           ports.stream().anyMatch(ServerPort::hasProxyProtocol));
     }
 
+    /**
+     * Returns the data directory.
+     */
     @JsonProperty
     public File dataDir() {
         return dataDir;
     }
 
+    /**
+     * Returns the {@link ServerPort}s.
+     */
     @JsonProperty
     @JsonSerialize(contentUsing = ServerPortSerializer.class)
     public List<ServerPort> ports() {
         return ports;
     }
 
+    /**
+     * Returns the TLS configuration.
+     */
     @Nullable
     @JsonProperty
     public TlsConfig tls() {
         return tls;
     }
 
+    /**
+     * Returns the IP addresses of the trusted proxy servers. If trusted, the sources specified in
+     * {@link #clientAddressSources()} will be used to determine the actual IP address of clients.
+     */
     @Nullable
     @JsonProperty
     public List<String> trustedProxyAddresses() {
         return trustedProxyAddresses;
     }
 
+    /**
+     * Returns the sources that determines a client address. For example:
+     * <ul>
+     *   <li>{@code "forwarded"}</li>
+     *   <li>{@code "x-forwarded-for"}</li>
+     *   <li>{@code "PROXY_PROTOCOL"}</li>
+     * </ul>
+     *
+     */
     @Nullable
     @JsonProperty
     public List<String> clientAddressSources() {
         return clientAddressSources;
     }
 
+    /**
+     * Returns the number of event loop threads.
+     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
     public Optional<Integer> numWorkers() {
         return Optional.ofNullable(numWorkers);
     }
 
+    /**
+     * Returns the maximum number of established connections.
+     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
     public Optional<Integer> maxNumConnections() {
         return Optional.ofNullable(maxNumConnections);
     }
 
+    /**
+     * Returns the request timeout in milliseconds.
+     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
     public Optional<Long> requestTimeoutMillis() {
         return Optional.ofNullable(requestTimeoutMillis);
     }
 
+    /**
+     * Returns the timeout of an idle connection in milliseconds.
+     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
     public Optional<Long> idleTimeoutMillis() {
         return Optional.ofNullable(idleTimeoutMillis);
     }
 
+    /**
+     * Returns the maximum length of request content in bytes.
+     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
     public Optional<Integer> maxFrameLength() {
         return Optional.ofNullable(maxFrameLength);
     }
 
+    /**
+     * Returns the number of repository worker threads.
+     */
     @JsonProperty
     int numRepositoryWorkers() {
         return numRepositoryWorkers;
     }
 
+    /**
+     * Returns the maximum age of a removed repository in milliseconds. A removed repository is first marked
+     * as removed, and then is purged permanently once the amount of time returned by this property passes
+     * since marked.
+     */
     @JsonProperty
     public long maxRemovedRepositoryAgeMillis() {
         return maxRemovedRepositoryAgeMillis;
@@ -291,64 +339,101 @@ public final class CentralDogmaConfig {
         return repositoryCacheSpec;
     }
 
+    /**
+     * Returns the cache spec of the repository cache.
+     */
     @JsonProperty
     public String repositoryCacheSpec() {
         return repositoryCacheSpec;
     }
 
+    /**
+     * Returns the graceful shutdown timeout.
+     */
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
     public Optional<GracefulShutdownTimeout> gracefulShutdownTimeout() {
         return Optional.ofNullable(gracefulShutdownTimeout);
     }
 
+    /**
+     * Returns whether web app is enabled.
+     */
     @JsonProperty
     public boolean isWebAppEnabled() {
         return webAppEnabled;
     }
 
+    /**
+     * Returns the title of the web app.
+     */
     @Nullable
     @JsonProperty("webAppTitle")
     public String webAppTitle() {
         return webAppTitle;
     }
 
+    /**
+     * Returns whether mirroring is enabled.
+     */
     @JsonProperty
     public boolean isMirroringEnabled() {
         return mirroringEnabled;
     }
 
+    /**
+     * Returns the number of mirroring threads.
+     */
     @JsonProperty
     public int numMirroringThreads() {
         return numMirroringThreads;
     }
 
+    /**
+     * Returns the maximum allowed number of files per mirror.
+     */
     @JsonProperty
     public int maxNumFilesPerMirror() {
         return maxNumFilesPerMirror;
     }
 
+    /**
+     * Returns the maximum allowed number of bytes per mirror.
+     */
     @JsonProperty
     public long maxNumBytesPerMirror() {
         return maxNumBytesPerMirror;
     }
 
+    /**
+     * Returns the {@link ReplicationConfig}.
+     */
     @JsonProperty("replication")
     public ReplicationConfig replicationConfig() {
         return replicationConfig;
     }
 
+    /**
+     * Returns whether a CSRF token is required for Thrift clients. Note that it's not safe to enable this
+     * feature. It only exists for a legacy Thrift client that does not send a CSRF token.
+     */
     @JsonProperty
     public boolean isCsrfTokenRequiredForThrift() {
         return csrfTokenRequiredForThrift;
     }
 
+    /**
+     * Returns the access log format.
+     */
     @JsonProperty
     @Nullable
     public String accessLogFormat() {
         return accessLogFormat;
     }
 
+    /**
+     * Returns the {@link AuthConfig}.
+     */
     @Nullable
     @JsonProperty("authentication")
     public AuthConfig authConfig() {

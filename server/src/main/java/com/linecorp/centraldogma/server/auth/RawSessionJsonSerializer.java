@@ -32,6 +32,9 @@ public final class RawSessionJsonSerializer extends StdSerializer<Serializable> 
 
     private static final long serialVersionUID = -8209099521255193022L;
 
+    /**
+     * Creates a new instance.
+     */
     public RawSessionJsonSerializer() {
         super(Serializable.class);
     }

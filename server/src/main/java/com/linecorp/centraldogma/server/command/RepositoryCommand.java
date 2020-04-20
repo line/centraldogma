@@ -44,11 +44,17 @@ public abstract class RepositoryCommand<T> extends AbstractCommand<T> {
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
     }
 
+    /**
+     * Returns the project name.
+     */
     @JsonProperty
     public final String projectName() {
         return projectName;
     }
 
+    /**
+     * Returns the repository name.
+     */
     @JsonProperty
     public final String repositoryName() {
         return repositoryName;
