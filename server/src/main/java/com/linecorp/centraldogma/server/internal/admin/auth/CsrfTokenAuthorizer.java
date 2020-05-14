@@ -20,10 +20,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import com.linecorp.armeria.common.HttpRequest;
+import com.linecorp.armeria.common.auth.OAuth2Token;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
-import com.linecorp.armeria.server.auth.OAuth2Token;
 import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.server.metadata.User;

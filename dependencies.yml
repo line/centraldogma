@@ -3,9 +3,9 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.fasterxml.jackson:jackson-bom:2.10.3
-- com.linecorp.armeria:armeria-bom:0.99.4
-- io.micrometer:micrometer-bom:1.3.6
+- com.fasterxml.jackson:jackson-bom:2.11.0
+- com.linecorp.armeria:armeria-bom:0.99.5
+- io.micrometer:micrometer-bom:1.5.1
 - org.junit:junit-bom:5.6.2
 
 ch.qos.logback:
@@ -48,7 +48,7 @@ com.fasterxml.jackson.core:
 
 com.github.ben-manes.caffeine:
   caffeine:
-    version: '2.8.1'
+    version: '2.8.2'
     javadocs:
     - https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.8.1/
 
@@ -112,7 +112,7 @@ com.linecorp.armeria:
     - https://line.github.io/armeria/apidocs/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.31' }
+  checkstyle: { version: '8.32' }
 
 com.spotify:
   completable-futures:
@@ -193,24 +193,15 @@ org.apache.thrift:
 
 org.apache.zookeeper:
   zookeeper:
-    version: '3.5.7'
+    version: '3.5.8'
     exclusions:
     - io.netty:netty-all
     - log4j:log4j
     - org.apache.yetus:audience-annotations
     - org.slf4j:slf4j-log4j12
 
-# Ensure that we use the same Dropwizard and Snappy version as what ZooKeeper depends on.
-# See: https://github.com/apache/zookeeper/blob/master/pom.xml
-
-io.dropwizard.metrics:
-  metrics-core: { version: '3.2.5' }
-
-org.xerial.snappy:
-  snappy-java: { version: '1.1.7.3' }
-
 org.assertj:
-  assertj-core: { version: '3.15.0' }
+  assertj-core: { version: '3.16.1' }
 
 org.awaitility:
   awaitility: { version: '4.0.2' }
@@ -225,7 +216,7 @@ org.eclipse.jgit:
   org.eclipse.jgit: { version: '5.7.0.202003110725-r' }
 
 org.hibernate.validator:
-  hibernate-validator: { version: '6.1.4.Final' }
+  hibernate-validator: { version: '6.1.5.Final' }
 
 org.javassist:
   javassist: { version: '3.27.0-GA' }
@@ -252,7 +243,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.2.6.RELEASE'
+    version: &SPRING_BOOT_VERSION '2.2.7.RELEASE'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
