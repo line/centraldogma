@@ -32,9 +32,6 @@ dependencies {
     // DiffUtils
     implementation 'com.googlecode.java-diff-utils:diffutils'
 
-    // Dropwizard
-    implementation 'io.dropwizard.metrics:metrics-core'
-
     // jCommander
     optionalImplementation 'com.beust:jcommander'
 
@@ -47,9 +44,6 @@ dependencies {
 
     // Quartz
     implementation 'org.quartz-scheduler:quartz'
-
-    // Snappy
-    implementation 'org.xerial.snappy:snappy-java'
 
     // Mockito for mocking a Project
     jmh 'org.mockito:mockito-core'
