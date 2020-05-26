@@ -4,7 +4,7 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.11.0
-- com.linecorp.armeria:armeria-bom:0.99.5
+- com.linecorp.armeria:armeria-bom:0.99.6
 - io.micrometer:micrometer-bom:1.5.1
 - org.junit:junit-bom:5.6.2
 
