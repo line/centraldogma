@@ -1,7 +1,7 @@
 .. _`Apache Shiro`: https://shiro.apache.org/
 .. _`keytool`: https://docs.oracle.com/en/java/javase/11/tools/keytool.html
 .. _`OpenSAML`: https://wiki.shibboleth.net/confluence/display/OS30/Home
-.. _`Quartz cron expression`: https://www.quartz-scheduler.org/documentation/quartz-2.x/tutorials/crontrigger.html
+.. _`Quartz cron expression`: https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html
 .. _`Security Assertion Markup Language (SAML)`: https://en.wikipedia.org/wiki/Security_Assertion_Markup_Language
 .. _`the Caffeine API documentation`: https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.6.2/com/github/benmanes/caffeine/cache/CaffeineSpec.html
 

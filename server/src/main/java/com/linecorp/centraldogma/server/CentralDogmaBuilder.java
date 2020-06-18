@@ -415,7 +415,7 @@ public final class CentralDogmaBuilder {
 
     /**
      * Configures a format of an access log. It will work only if any logging framework is configured.
-     * Read the <a href="https://line.github.io/armeria/server-access-log.html">Writing an access log</a>
+     * Read the <a href="https://line.github.io/armeria/docs/server-access-log">Writing an access log</a>
      * document for more information.
      */
     public CentralDogmaBuilder accessLogFormat(String accessLogFormat) {

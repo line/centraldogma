@@ -109,7 +109,7 @@ com.jcraft:
 com.linecorp.armeria:
   armeria:
     javadocs:
-    - https://line.github.io/armeria/apidocs/
+    - https://javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/latest/
 
 com.puppycrawl.tools:
   checkstyle: { version: '8.32' }
