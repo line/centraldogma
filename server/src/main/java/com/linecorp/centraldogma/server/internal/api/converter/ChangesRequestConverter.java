@@ -18,6 +18,11 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.lang.reflect.ParameterizedType;
+import java.util.List;
+
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
@@ -38,9 +43,15 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
     private final JacksonRequestConverterFunction delegate = new JacksonRequestConverterFunction();
 
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
-                                 Class<?> expectedResultType) throws Exception {
-        final JsonNode node = (JsonNode) delegate.convertRequest(ctx, request, JsonNode.class);
+    public List<Change<?>> convertRequest(
+            ServiceRequestContext ctx, AggregatedHttpRequest request, Class<?> expectedResultType,
+            @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
+
+        final JsonNode node = (JsonNode) delegate.convertRequest(ctx, request, JsonNode.class, null);
+        if (node == null) {
+            return RequestConverterFunction.fallthrough();
+        }
+
         final ArrayNode changesNode;
         if (node.getNodeType() == JsonNodeType.ARRAY) {
             changesNode = (ArrayNode) node;

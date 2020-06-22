@@ -313,6 +313,7 @@ final class GitWithAuth extends Git {
                 }
 
                 @Override
+                @Deprecated
                 public boolean decrypt() {
                     throw new UnsupportedOperationException();
                 }

@@ -19,6 +19,10 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import java.lang.reflect.ParameterizedType;
+
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
@@ -36,10 +40,12 @@ public final class CommitMessageRequestConverter implements RequestConverterFunc
     private final JacksonRequestConverterFunction delegate = new JacksonRequestConverterFunction();
 
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
-                                 Class<?> expectedResultType) throws Exception {
+    public CommitMessageDto convertRequest(
+            ServiceRequestContext ctx, AggregatedHttpRequest request, Class<?> expectedResultType,
+            @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
+
         if (expectedResultType == CommitMessageDto.class) {
-            final JsonNode node = (JsonNode) delegate.convertRequest(ctx, request, JsonNode.class);
+            final JsonNode node = (JsonNode) delegate.convertRequest(ctx, request, JsonNode.class, null);
             if (node == null || node.get("commitMessage") == null) {
                 throw new IllegalArgumentException("commitMessage should be non-null.");
             }

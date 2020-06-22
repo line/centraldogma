@@ -43,7 +43,7 @@ public final class RequiresAdministratorDecorator extends SimpleDecoratingHttpSe
     public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         final User user = AuthUtil.currentUser(ctx);
         if (user.isAdmin()) {
-            return delegate().serve(ctx, req);
+            return unwrap().serve(ctx, req);
         }
         return HttpApiUtil.throwResponse(
                 ctx, HttpStatus.FORBIDDEN,

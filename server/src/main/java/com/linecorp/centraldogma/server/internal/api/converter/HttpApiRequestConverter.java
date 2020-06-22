@@ -20,6 +20,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
 
+import java.lang.reflect.ParameterizedType;
+
+import javax.annotation.Nullable;
+
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -44,8 +48,10 @@ public final class HttpApiRequestConverter implements RequestConverterFunction {
     }
 
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
-                                 Class<?> expectedResultType) throws Exception {
+    public Object convertRequest(
+            ServiceRequestContext ctx, AggregatedHttpRequest request, Class<?> expectedResultType,
+            @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
+
         if (expectedResultType == Project.class) {
             final String projectName = ctx.pathParam("projectName");
             checkArgument(!isNullOrEmpty(projectName),

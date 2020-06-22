@@ -37,6 +37,7 @@ dependencies {
 
     // jGit
     implementation 'org.eclipse.jgit:org.eclipse.jgit'
+    implementation 'org.eclipse.jgit:org.eclipse.jgit.ssh.jsch'
 
     // Micrometer
     implementation 'io.micrometer:micrometer-core'

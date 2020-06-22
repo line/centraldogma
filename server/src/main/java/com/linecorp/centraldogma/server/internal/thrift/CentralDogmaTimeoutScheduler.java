@@ -40,12 +40,13 @@ public final class CentralDogmaTimeoutScheduler extends SimpleDecoratingRpcServi
                 final List<Object> params = req.params();
                 final long timeout = (Long) params.get(params.size() - 1);
                 if (timeout > 0) {
-                    ctx.setRequestTimeoutMillis(TimeoutMode.EXTEND,
+                    ctx.setRequestTimeoutMillis(
+                            TimeoutMode.EXTEND,
                             WatchTimeout.availableTimeout(timeout, ctx.requestTimeoutMillis()));
                 }
             }
         }
 
-        return delegate().serve(ctx, req);
+        return unwrap().serve(ctx, req);
     }
 }

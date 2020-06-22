@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.api.converter;
 
+import java.lang.reflect.ParameterizedType;
+
 import javax.annotation.Nullable;
 
 import com.google.common.base.Splitter;
@@ -34,10 +36,11 @@ public class MergeQueryRequestConverter implements RequestConverterFunction {
 
     private static final Splitter querySplitter = Splitter.on('&').trimResults().omitEmptyStrings();
 
-    @Nullable
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
-                                 Class<?> expectedResultType) throws Exception {
+    public MergeQuery<?> convertRequest(
+            ServiceRequestContext ctx, AggregatedHttpRequest request, Class<?> expectedResultType,
+            @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
+
         final String queryString = ctx.query();
         if (queryString != null) {
             // Decode queryString manually so that the original order of "path" and "optional_path" is
@@ -55,12 +58,16 @@ public class MergeQueryRequestConverter implements RequestConverterFunction {
                 }
                 final String key = query.substring(0, index);
                 final String value = query.substring(index + 1);
-                if ("path".equals(key)) {
-                    mergeSourceBuilder.add(MergeSource.ofRequired(value));
-                } else if ("optional_path".equals(key)) {
-                    mergeSourceBuilder.add(MergeSource.ofOptional(value));
-                } else if ("jsonpath".equals(key)) {
-                    jsonPathsBuilder.add(value);
+                switch (key) {
+                    case "path":
+                        mergeSourceBuilder.add(MergeSource.ofRequired(value));
+                        break;
+                    case "optional_path":
+                        mergeSourceBuilder.add(MergeSource.ofOptional(value));
+                        break;
+                    case "jsonpath":
+                        jsonPathsBuilder.add(value);
+                        break;
                 }
             }
 

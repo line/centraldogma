@@ -19,8 +19,10 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 
+import java.lang.reflect.ParameterizedType;
 import java.util.List;
-import java.util.Optional;
+
+import javax.annotation.Nullable;
 
 import com.google.common.collect.ImmutableList;
 
@@ -38,22 +40,26 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 public final class QueryRequestConverter implements RequestConverterFunction {
 
     /**
-     * Converts the specified {@code request} to {@link Optional} which contains {@link Query} when
-     * the request has a valid file path. {@link Optional#empty()} otherwise.
+     * Converts the specified {@code request} to a {@link Query} when the request has a valid file path.
+     * {@code null} otherwise.
      */
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
-                                 Class<?> expectedResultType) throws Exception {
+    @Nullable
+    public Query<?> convertRequest(
+            ServiceRequestContext ctx, AggregatedHttpRequest request, Class<?> expectedResultType,
+            @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
+
         final String path = getPath(ctx);
-        final Optional<Iterable<String>> jsonPaths = getJsonPaths(ctx);
-        if (jsonPaths.isPresent()) {
-            return Optional.of(Query.ofJsonPath(path, jsonPaths.get()));
+        final Iterable<String> jsonPaths = getJsonPaths(ctx);
+        if (jsonPaths != null) {
+            return Query.ofJsonPath(path, jsonPaths);
         }
 
         if (isValidFilePath(path)) {
-            return Optional.of(Query.of(QueryType.IDENTITY, path));
+            return Query.of(QueryType.IDENTITY, path);
         }
-        return Optional.empty();
+
+        return null;
     }
 
     private static String getPath(ServiceRequestContext ctx) {
@@ -75,15 +81,16 @@ public final class QueryRequestConverter implements RequestConverterFunction {
         return "";
     }
 
-    private static Optional<Iterable<String>> getJsonPaths(ServiceRequestContext ctx) {
+    @Nullable
+    private static Iterable<String> getJsonPaths(ServiceRequestContext ctx) {
         final String query = ctx.query();
         if (query != null) {
             final List<String> jsonPaths = new QueryStringDecoder(query, false).parameters().get(
                     "jsonpath");
             if (jsonPaths != null) {
-                return Optional.of(ImmutableList.copyOf(jsonPaths));
+                return ImmutableList.copyOf(jsonPaths);
             }
         }
-        return Optional.empty();
+        return null;
     }
 }

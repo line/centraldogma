@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.linecorp.centraldogma.common.EntryType.DIRECTORY;
@@ -28,10 +29,11 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -100,8 +102,8 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns the list of files in the path.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/list(?<path>(|/.*))$")
-    public CompletableFuture<List<EntryDto<?>>> listFiles(@Param("path") String path,
-                                                          @Param("revision") @Default("-1") String revision,
+    public CompletableFuture<List<EntryDto<?>>> listFiles(@Param String path,
+                                                          @Param @Default("-1") String revision,
                                                           Repository repository) {
         final String normalizedPath = normalizePath(path);
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
@@ -168,7 +170,7 @@ public class ContentServiceV1 extends AbstractService {
     @Post("/projects/{projectName}/repos/{repoName}/contents")
     @RequiresWritePermission
     public CompletableFuture<PushResultDto> push(
-            @Param("revision") @Default("-1") String revision,
+            @Param @Default("-1") String revision,
             Repository repository,
             Author author,
             CommitMessageDto commitMessage,
@@ -199,7 +201,7 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Post("/projects/{projectName}/repos/{repoName}/preview")
     public CompletableFuture<Iterable<ChangeDto<?>>> preview(
-            @Param("revision") @Default("-1") String revision,
+            @Param @Default("-1") String revision,
             Repository repository,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
 
@@ -226,27 +228,27 @@ public class ContentServiceV1 extends AbstractService {
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/contents(?<path>(|/.*))$")
     public CompletableFuture<?> getFiles(
             ServiceRequestContext ctx,
-            @Param("path") String path, @Param("revision") @Default("-1") String revision,
+            @Param String path, @Param @Default("-1") String revision,
             Repository repository,
-            @RequestConverter(WatchRequestConverter.class) Optional<WatchRequest> watchRequest,
-            @RequestConverter(QueryRequestConverter.class) Optional<Query<?>> query) {
+            @RequestConverter(WatchRequestConverter.class) @Nullable WatchRequest watchRequest,
+            @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query) {
         final String normalizedPath = normalizePath(path);
 
         // watch repository or a file
-        if (watchRequest.isPresent()) {
-            final Revision lastKnownRevision = watchRequest.get().lastKnownRevision();
-            final long timeOutMillis = watchRequest.get().timeoutMillis();
-            if (query.isPresent()) {
-                return watchFile(ctx, repository, lastKnownRevision, query.get(), timeOutMillis);
+        if (watchRequest != null) {
+            final Revision lastKnownRevision = watchRequest.lastKnownRevision();
+            final long timeOutMillis = watchRequest.timeoutMillis();
+            if (query != null) {
+                return watchFile(ctx, repository, lastKnownRevision, query, timeOutMillis);
             }
 
             return watchRepository(ctx, repository, lastKnownRevision, normalizedPath, timeOutMillis);
         }
 
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
-        if (query.isPresent()) {
+        if (query != null) {
             // get a file
-            return repository.get(normalizedRev, query.get())
+            return repository.get(normalizedRev, query)
                              .handle(returnOrThrow((Entry<?> result) -> convert(repository, normalizedRev,
                                                                                 result, true)));
         }
@@ -305,10 +307,10 @@ public class ContentServiceV1 extends AbstractService {
      * specify {@code to}, this will return the list of commits.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/commits(?<revision>(|/.*))$")
-    public CompletableFuture<?> listCommits(@Param("revision") String revision,
-                                            @Param("path") @Default("/**") String path,
-                                            @Param("to") Optional<String> to,
-                                            @Param("maxCommits") Optional<Integer> maxCommits,
+    public CompletableFuture<?> listCommits(@Param String revision,
+                                            @Param @Default("/**") String path,
+                                            @Param @Nullable String to,
+                                            @Param @Nullable Integer maxCommits,
                                             Repository repository) {
         final Revision fromRevision;
         final Revision toRevision;
@@ -319,19 +321,20 @@ public class ContentServiceV1 extends AbstractService {
         // 4. nothing is specified:                   get from "HEAD" to "INIT" and return the list
         if (isNullOrEmpty(revision) || "/".equalsIgnoreCase(revision)) {
             fromRevision = Revision.HEAD;
-            toRevision = to.map(Revision::new).orElse(Revision.INIT);
+            toRevision = to != null ? new Revision(to) : Revision.INIT;
         } else {
             fromRevision = new Revision(revision.substring(1));
-            toRevision = to.map(Revision::new).orElse(fromRevision);
+            toRevision = to != null ? new Revision(to) : fromRevision;
         }
 
         final RevisionRange range = repository.normalizeNow(fromRevision, toRevision).toDescending();
-        final int maxCommits0 = maxCommits.orElse(Repository.DEFAULT_MAX_COMMITS);
+        final int maxCommits0 = firstNonNull(maxCommits, Repository.DEFAULT_MAX_COMMITS);
         return repository
                 .history(range.from(), range.to(), normalizePath(path), maxCommits0)
                 .thenApply(commits -> {
-                    final boolean toList = isNullOrEmpty(revision) || "/".equalsIgnoreCase(revision) ||
-                                           to.isPresent();
+                    final boolean toList = to != null ||
+                                           isNullOrEmpty(revision) ||
+                                           "/".equalsIgnoreCase(revision);
                     return objectOrList(commits, toList, DtoConverter::convert);
                 });
     }
@@ -347,18 +350,20 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
     public CompletableFuture<?> getDiff(
-            @Param("pathPattern") @Default("/**") String pathPattern,
-            @Param("from") @Default("1") String from, @Param("to") @Default("head") String to,
+            @Param @Default("/**") String pathPattern,
+            @Param @Default("1") String from, @Param @Default("head") String to,
             Repository repository,
-            @RequestConverter(QueryRequestConverter.class) Optional<Query<?>> query) {
-        if (query.isPresent()) {
-            return repository.diff(new Revision(from), new Revision(to), query.get())
+            @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query) {
+
+        if (query != null) {
+            return repository.diff(new Revision(from), new Revision(to), query)
                              .thenApply(DtoConverter::convert);
+        } else {
+            return repository
+                    .diff(new Revision(from), new Revision(to), normalizePath(pathPattern))
+                    .thenApply(changeMap -> changeMap.values().stream()
+                                                     .map(DtoConverter::convert).collect(toImmutableList()));
         }
-        return repository
-                .diff(new Revision(from), new Revision(to), normalizePath(pathPattern))
-                .thenApply(changeMap -> changeMap.values().stream()
-                                                 .map(DtoConverter::convert).collect(toImmutableList()));
     }
 
     private static <T> Object objectOrList(Collection<T> collection, boolean toList, Function<T, ?> converter) {
@@ -379,7 +384,7 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/merge")
     public <T> CompletableFuture<?> mergeFiles(
-            @Param("revision") @Default("-1") String revision, Repository repository,
+            @Param @Default("-1") String revision, Repository repository,
             @RequestConverter(MergeQueryRequestConverter.class) MergeQuery<T> query) {
         return repository.mergeFiles(new Revision(revision), query).thenApply(DtoConverter::convert);
     }

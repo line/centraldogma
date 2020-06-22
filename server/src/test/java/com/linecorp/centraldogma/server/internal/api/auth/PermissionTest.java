@@ -119,21 +119,21 @@ class PermissionTest {
             sb.annotatedService(new Object() {
                 @Get("/projects/{projectName}")
                 @RequiresRole(roles = { ProjectRole.OWNER, ProjectRole.MEMBER })
-                public HttpResponse project(@Param("projectName") String projectName) {
+                public HttpResponse project(@Param String projectName) {
                     return HttpResponse.of(HttpStatus.OK);
                 }
 
                 @Post("/projects/{projectName}/repos/{repoName}")
                 @RequiresWritePermission
-                public HttpResponse write(@Param("projectName") String projectName,
-                                          @Param("repoName") String repoName) {
+                public HttpResponse write(@Param String projectName,
+                                          @Param String repoName) {
                     return HttpResponse.of(HttpStatus.OK);
                 }
 
                 @Get("/projects/{projectName}/repos/{repoName}")
                 @RequiresReadPermission
-                public HttpResponse read(@Param("projectName") String projectName,
-                                         @Param("repoName") String repoName) {
+                public HttpResponse read(@Param String projectName,
+                                         @Param String repoName) {
                     return HttpResponse.of(HttpStatus.OK);
                 }
             }, decorator, new HttpApiExceptionHandler());
