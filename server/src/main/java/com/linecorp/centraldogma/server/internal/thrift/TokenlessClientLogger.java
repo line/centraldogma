@@ -78,7 +78,7 @@ public class TokenlessClientLogger extends SimpleDecoratingHttpService {
             }
         }
 
-        return delegate().serve(ctx, req);
+        return unwrap().serve(ctx, req);
     }
 
     @VisibleForTesting

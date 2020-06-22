@@ -102,8 +102,8 @@ public class TokenService extends AbstractService {
     @Post("/tokens")
     @StatusCode(201)
     @ResponseConverter(CreateApiResponseConverter.class)
-    public CompletableFuture<HttpResult<Token>> createToken(@Param("appId") String appId,
-                                                            @Param("isAdmin") boolean isAdmin,
+    public CompletableFuture<HttpResult<Token>> createToken(@Param String appId,
+                                                            @Param boolean isAdmin,
                                                             Author author, User loginUser) {
         checkArgument(!isAdmin || loginUser.isAdmin(),
                       "Only administrators are allowed to create an admin-level token.");
@@ -124,7 +124,7 @@ public class TokenService extends AbstractService {
      */
     @Delete("/tokens/{appId}")
     public CompletableFuture<Token> deleteToken(ServiceRequestContext ctx,
-                                                @Param("appId") String appId,
+                                                @Param String appId,
                                                 Author author, User loginUser) {
         return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
                 token -> mds.destroyToken(author, appId)
@@ -139,7 +139,7 @@ public class TokenService extends AbstractService {
     @Patch("/tokens/{appId}")
     @Consumes("application/json-patch+json")
     public CompletableFuture<Token> updateToken(ServiceRequestContext ctx,
-                                                @Param("appId") String appId,
+                                                @Param String appId,
                                                 JsonNode node, Author author, User loginUser) {
         if (node.equals(activation)) {
             return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(

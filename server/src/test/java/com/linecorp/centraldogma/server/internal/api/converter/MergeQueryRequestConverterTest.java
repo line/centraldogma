@@ -47,7 +47,7 @@ class MergeQueryRequestConverterTest {
         @SuppressWarnings("unchecked")
         final MergeQuery<JsonNode> mergeQuery =
                 (MergeQuery<JsonNode>) converter.convertRequest(
-                        ctx, mock(AggregatedHttpRequest.class), null);
+                        ctx, mock(AggregatedHttpRequest.class), null, null);
         assertThat(mergeQuery).isEqualTo(
                 MergeQuery.ofJsonPath(
                         ImmutableList.of(MergeSource.ofRequired("/foo.json"),

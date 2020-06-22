@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Optional;
+import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,10 +45,10 @@ class WatchRequestConverterTest {
                                                          HttpHeaderNames.PREFER, "wait=10");
         when(request.headers()).thenReturn(headers);
 
-        final Optional<WatchRequest> watchRequest = convert(ctx, request);
-        assert watchRequest.isPresent();
-        assertThat(watchRequest.get().lastKnownRevision()).isEqualTo(Revision.HEAD);
-        assertThat(watchRequest.get().timeoutMillis()).isEqualTo(10000); // 10 seconds
+        final WatchRequest watchRequest = convert(ctx, request);
+        assertThat(watchRequest).isNotNull();
+        assertThat(watchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
+        assertThat(watchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
     }
 
     @Test
@@ -59,13 +59,13 @@ class WatchRequestConverterTest {
 
         when(request.headers()).thenReturn(headers);
 
-        final Optional<WatchRequest> watchRequest = convert(ctx, request);
-        assertThat(watchRequest.isPresent()).isFalse();
+        final WatchRequest watchRequest = convert(ctx, request);
+        assertThat(watchRequest).isNull();
     }
 
-    @SuppressWarnings("unchecked")
-    private static Optional<WatchRequest> convert(
+    @Nullable
+    private static WatchRequest convert(
             ServiceRequestContext ctx, AggregatedHttpRequest request) throws Exception {
-        return (Optional<WatchRequest>) converter.convertRequest(ctx, request, null);
+        return (WatchRequest) converter.convertRequest(ctx, request, null, null);
     }
 }

@@ -55,7 +55,7 @@ public final class MetadataServiceInjector extends SimpleDecoratingHttpService {
     @Override
     public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
         ctx.setAttr(METADATA_SERVICE_ATTRIBUTE_KEY, mds);
-        return delegate().serve(ctx, req);
+        return unwrap().serve(ctx, req);
     }
 
     /**

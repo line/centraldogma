@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -37,6 +36,7 @@ import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Param;
@@ -85,9 +85,9 @@ public class RepositoryService extends AbstractService {
      * Normalizes the revision into an absolute revision.
      */
     @Get("/projects/{projectName}/repositories/{repoName}/revision/{revision}")
-    public RevisionDto normalizeRevision(@Param("projectName") String projectName,
-                                         @Param("repoName") String repoName,
-                                         @Param("revision") String revision) {
+    public RevisionDto normalizeRevision(@Param String projectName,
+                                         @Param String repoName,
+                                         @Param String revision) {
         return DtoConverter.convert(projectManager().get(projectName).repos().get(repoName)
                                                     .normalizeNow(new Revision(revision)));
     }
@@ -98,15 +98,14 @@ public class RepositoryService extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/files/revisions/(?<revision>[^/]+)(?<path>/.*$)")
-    public CompletionStage<EntryDto> getFile(@Param("projectName") String projectName,
-                                             @Param("repoName") String repoName,
-                                             @Param("revision") String revision,
-                                             @Param("path") String path,
-                                             @Param("queryType") Optional<String> queryType,
-                                             @Param("expression") Optional<String> expressions) {
+    public CompletionStage<EntryDto> getFile(@Param String projectName,
+                                             @Param String repoName,
+                                             @Param String revision,
+                                             @Param String path,
+                                             @Param @Default("IDENTITY") QueryType queryType,
+                                             @Param @Default("") String expression) {
 
-        final Query<?> query = Query.of(QueryType.valueOf(queryType.orElse("IDENTITY")),
-                                        path, expressions.orElse(""));
+        final Query<?> query = Query.of(queryType,path, expression);
         final Repository repo = projectManager().get(projectName).repos().get(repoName);
         return repo.get(repo.normalizeNow(new Revision(revision)), query)
                    .thenApply(DtoConverter::convert);
@@ -120,9 +119,9 @@ public class RepositoryService extends AbstractService {
     @Put
     @Path("/projects/{projectName}/repositories/{repoName}/files/revisions/{revision}")
     @RequiresWritePermission
-    public CompletionStage<Object> addOrEditFile(@Param("projectName") String projectName,
-                                                 @Param("repoName") String repoName,
-                                                 @Param("revision") String revision,
+    public CompletionStage<Object> addOrEditFile(@Param String projectName,
+                                                 @Param String repoName,
+                                                 @Param String revision,
                                                  AggregatedHttpRequest request,
                                                  ServiceRequestContext ctx) {
         final Entry<CommitMessageDto, Change<?>> p = commitMessageAndChange(request);
@@ -143,10 +142,10 @@ public class RepositoryService extends AbstractService {
     @Post("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
           "/delete/revisions/(?<revision>[^/]+)(?<path>/.*$)")
     @RequiresWritePermission
-    public HttpResponse deleteFile(@Param("projectName") String projectName,
-                                   @Param("repoName") String repoName,
-                                   @Param("revision") String revision,
-                                   @Param("path") String path,
+    public HttpResponse deleteFile(@Param String projectName,
+                                   @Param String repoName,
+                                   @Param String revision,
+                                   @Param String path,
                                    AggregatedHttpRequest request,
                                    ServiceRequestContext ctx) {
         final CommitMessageDto commitMessage;
@@ -171,14 +170,14 @@ public class RepositoryService extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/history(?<path>/.*$)")
-    public CompletionStage<List<CommitDto>> getHistory(@Param("projectName") String projectName,
-                                                       @Param("repoName") String repoName,
-                                                       @Param("path") String path,
-                                                       @Param("from") Optional<String> from,
-                                                       @Param("to") Optional<String> to) {
+    public CompletionStage<List<CommitDto>> getHistory(@Param String projectName,
+                                                       @Param String repoName,
+                                                       @Param String path,
+                                                       @Param @Default("-1") String from,
+                                                       @Param @Default("-1") String to) {
         return projectManager().get(projectName).repos().get(repoName)
-                               .history(new Revision(from.orElse("-1")),
-                                        new Revision(to.orElse("1")),
+                               .history(new Revision(from),
+                                        new Revision(to),
                                         path + "**")
                                .thenApply(commits -> commits.stream()
                                                             .map(DtoConverter::convert)
@@ -190,10 +189,10 @@ public class RepositoryService extends AbstractService {
      * Finds the files matched by {@code term}.
      */
     @Get("/projects/{projectName}/repositories/{repoName}/search/revisions/{revision}")
-    public CompletionStage<List<EntryDto>> search(@Param("projectName") String projectName,
-                                                  @Param("repoName") String repoName,
-                                                  @Param("revision") String revision,
-                                                  @Param("term") String term) {
+    public CompletionStage<List<EntryDto>> search(@Param String projectName,
+                                                  @Param String repoName,
+                                                  @Param String revision,
+                                                  @Param String term) {
         return projectManager().get(projectName).repos().get(repoName)
                                .find(new Revision(revision), normalizeSearchTerm(term), FIND_ALL_WITH_CONTENT)
                                .thenApply(entries -> entries.values().stream()
@@ -207,11 +206,11 @@ public class RepositoryService extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/diff(?<path>/.*$)")
-    public CompletionStage<List<ChangeDto>> getDiff(@Param("projectName") String projectName,
-                                                    @Param("repoName") String repoName,
-                                                    @Param("path") String path,
-                                                    @Param("from") String from,
-                                                    @Param("to") String to) {
+    public CompletionStage<List<ChangeDto>> getDiff(@Param String projectName,
+                                                    @Param String repoName,
+                                                    @Param String path,
+                                                    @Param String from,
+                                                    @Param String to) {
         return projectManager().get(projectName).repos().get(repoName)
                                .diff(new Revision(from), new Revision(to), path)
                                .thenApply(changeMap -> changeMap.values().stream()

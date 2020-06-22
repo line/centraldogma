@@ -75,7 +75,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
                                            MetadataService mds, User user,
                                            String projectName) throws Exception {
         if (user.isAdmin()) {
-            return delegate().serve(ctx, req);
+            return unwrap().serve(ctx, req);
         }
         // We do not manage permission for the internal repository. Actually we do not have a metadata of that.
         // So we need to check whether the current user is an 'administrator' or not when the request is
@@ -91,7 +91,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
                         projectName, Project.REPO_DOGMA);
             }
             try {
-                return delegate().serve(ctx, req);
+                return unwrap().serve(ctx, req);
             } catch (Exception e) {
                 return Exceptions.throwUnsafely(e);
             }
@@ -119,7 +119,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
                         requiredPermission, projectName, repoName);
             }
             try {
-                return delegate().serve(ctx, req);
+                return unwrap().serve(ctx, req);
             } catch (Exception e) {
                 return Exceptions.throwUnsafely(e);
             }

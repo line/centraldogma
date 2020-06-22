@@ -23,8 +23,9 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
@@ -79,12 +80,14 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos")
     public CompletableFuture<List<RepositoryDto>> listRepositories(ServiceRequestContext ctx, Project project,
-                                                                   @Param("status") Optional<String> status,
-                                                                   User user) {
-        status.ifPresent(HttpApiUtil::checkStatusArgument);
+                                                                   @Param @Nullable String status, User user) {
+        if (status != null) {
+            HttpApiUtil.checkStatusArgument(status);
+        }
+
         return mds.findRole(project.name(), user).handle((role, throwable) -> {
             final boolean hasOwnerRole = role == ProjectRole.OWNER;
-            if (status.isPresent()) {
+            if (status != null) {
                 if (hasOwnerRole) {
                     return project.repos().listRemoved().keySet().stream().map(RepositoryDto::new)
                                   .collect(toImmutableList());
@@ -131,7 +134,7 @@ public class RepositoryServiceV1 extends AbstractService {
     @Delete("/projects/{projectName}/repos/{repoName}")
     @RequiresRole(roles = ProjectRole.OWNER)
     public CompletableFuture<Void> removeRepository(ServiceRequestContext ctx,
-                                                    @Param("repoName") String repoName,
+                                                    @Param String repoName,
                                                     Repository repository,
                                                     Author author) {
         if (Project.isReservedRepoName(repoName)) {
@@ -150,7 +153,7 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Delete("/projects/{projectName}/repos/{repoName}/removed")
     @RequiresRole(roles = ProjectRole.OWNER)
-    public CompletableFuture<Void> purgeRepository(@Param("repoName") String repoName,
+    public CompletableFuture<Void> purgeRepository(@Param String repoName,
                                                    Project project, Author author) {
         return execute(Command.purgeRepository(author, project.name(), repoName))
                 .thenCompose(unused -> mds.purgeRepo(author, project.name(), repoName)
@@ -165,7 +168,7 @@ public class RepositoryServiceV1 extends AbstractService {
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}/repos/{repoName}")
     @RequiresRole(roles = ProjectRole.OWNER)
-    public CompletableFuture<RepositoryDto> patchRepository(@Param("repoName") String repoName,
+    public CompletableFuture<RepositoryDto> patchRepository(@Param String repoName,
                                                             Project project,
                                                             JsonNode node,
                                                             Author author) {
@@ -182,7 +185,7 @@ public class RepositoryServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/revision/{revision}")
     @RequiresReadPermission
-    public Map<String, Integer> normalizeRevision(Repository repository, @Param("revision") String revision) {
+    public Map<String, Integer> normalizeRevision(Repository repository, @Param String revision) {
         final Revision normalizedRevision = repository.normalizeNow(new Revision(revision));
         return ImmutableMap.of("revision", normalizedRevision.major());
     }

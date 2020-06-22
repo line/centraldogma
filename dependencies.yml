@@ -4,7 +4,7 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.11.0
-- com.linecorp.armeria:armeria-bom:0.99.6
+- com.linecorp.armeria:armeria-bom:0.99.7
 - io.micrometer:micrometer-bom:1.5.1
 - org.junit:junit-bom:5.6.2
 
@@ -53,7 +53,7 @@ com.github.ben-manes.caffeine:
     - https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.8.1/
 
 com.github.jengelman.gradle.plugins:
-  shadow: { version: '5.2.0' }
+  shadow: { version: '6.0.0' }
 
 com.github.node-gradle:
   gradle-node-plugin: { version: '2.2.4' }
@@ -112,7 +112,7 @@ com.linecorp.armeria:
     - https://line.github.io/armeria/apidocs/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.32' }
+  checkstyle: { version: '8.33' }
 
 com.spotify:
   completable-futures:
@@ -163,7 +163,7 @@ me.champeau.gradle:
   jmh-gradle-plugin: { version: '0.5.0' }
 
 net.javacrumbs.json-unit:
-  json-unit: { version: &JSON_UNIT_VERSION '2.17.0' }
+  json-unit: { version: &JSON_UNIT_VERSION '2.18.1' }
   json-unit-fluent: { version: *JSON_UNIT_VERSION }
 
 net.sf.proguard:
@@ -213,7 +213,8 @@ org.eclipse.jetty.alpn:
   alpn-api: { version: '1.1.3.v20160715' }
 
 org.eclipse.jgit:
-  org.eclipse.jgit: { version: '5.7.0.202003110725-r' }
+  org.eclipse.jgit: { version: &JGIT_VERSION '5.8.0.202006091008-r' }
+  org.eclipse.jgit.ssh.jsch: { version: *JGIT_VERSION }
 
 org.hibernate.validator:
   hibernate-validator: { version: '6.1.5.Final' }
@@ -243,7 +244,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.3.0.RELEASE'
+    version: &SPRING_BOOT_VERSION '2.3.1.RELEASE'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }

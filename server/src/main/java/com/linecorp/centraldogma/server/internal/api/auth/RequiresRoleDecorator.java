@@ -78,7 +78,7 @@ public final class RequiresRoleDecorator extends SimpleDecoratingHttpService {
                             projectName, roleNames);
                 }
                 try {
-                    return delegate().serve(ctx, req);
+                    return unwrap().serve(ctx, req);
                 } catch (Exception e) {
                     return Exceptions.throwUnsafely(e);
                 }

@@ -34,7 +34,7 @@ public final class CentralDogmaExceptionTranslator extends SimpleDecoratingRpcSe
     public RpcResponse serve(ServiceRequestContext ctx, RpcRequest req) throws Exception {
         final CompletableRpcResponse newRes = new CompletableRpcResponse();
         try {
-            final RpcResponse oldRes = delegate().serve(ctx, req);
+            final RpcResponse oldRes = unwrap().serve(ctx, req);
             oldRes.handle((res, cause) -> {
                 if (cause != null) {
                     handleException(req, newRes, cause);

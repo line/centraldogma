@@ -23,12 +23,14 @@ import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOr
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.server.annotation.Consumes;
+import com.linecorp.armeria.server.annotation.Default;
 import com.linecorp.armeria.server.annotation.Delete;
 import com.linecorp.armeria.server.annotation.ExceptionHandler;
 import com.linecorp.armeria.server.annotation.Get;
@@ -72,9 +74,9 @@ public class ProjectServiceV1 extends AbstractService {
      * <p>Returns the list of projects or removed projects.
      */
     @Get("/projects")
-    public CompletableFuture<List<ProjectDto>> listProjects(@Param("status") Optional<String> status) {
-        if (status.isPresent()) {
-            checkStatusArgument(status.get());
+    public CompletableFuture<List<ProjectDto>> listProjects(@Param @Nullable String status) {
+        if (status != null) {
+            checkStatusArgument(status);
             return CompletableFuture.supplyAsync(() -> projectManager().listRemoved().keySet()
                                                                        .stream()
                                                                        .map(ProjectDto::new)
@@ -109,9 +111,9 @@ public class ProjectServiceV1 extends AbstractService {
     @Get("/projects/{projectName}")
     @RequiresRole(roles = { ProjectRole.OWNER, ProjectRole.MEMBER })
     public CompletableFuture<ProjectMetadata> getProjectMetadata(
-            @Param("projectName") String projectName,
-            @Param("checkPermissionOnly") Optional<Boolean> isCheckPermissionOnly) {
-        if (isCheckPermissionOnly.orElse(false)) {
+            @Param String projectName,
+            @Param("checkPermissionOnly") @Default("false") boolean isCheckPermissionOnly) {
+        if (isCheckPermissionOnly) {
             return CompletableFuture.completedFuture(null);
         }
         return mds.getProject(projectName);
@@ -138,9 +140,9 @@ public class ProjectServiceV1 extends AbstractService {
      */
     @Delete("/projects/{projectName}/removed")
     @RequiresRole(roles = ProjectRole.OWNER)
-    public CompletableFuture<Void> purgeProject(@Param("projectName") String projectName, Author author) {
+    public CompletableFuture<Void> purgeProject(@Param String projectName, Author author) {
         return execute(Command.purgeProject(author, projectName))
-                  .handle(HttpApiUtil::throwUnsafelyIfNonNull);
+                .handle(HttpApiUtil::throwUnsafelyIfNonNull);
     }
 
     /**
@@ -151,9 +153,7 @@ public class ProjectServiceV1 extends AbstractService {
     @Consumes("application/json-patch+json")
     @Patch("/projects/{projectName}")
     @RequiresAdministrator
-    public CompletableFuture<ProjectDto> patchProject(@Param("projectName") String projectName,
-                                                      JsonNode node,
-                                                      Author author) {
+    public CompletableFuture<ProjectDto> patchProject(@Param String projectName, JsonNode node, Author author) {
         checkUnremoveArgument(node);
         // Restore the project first then update its metadata as 'active'.
         return execute(Command.unremoveProject(author, projectName))

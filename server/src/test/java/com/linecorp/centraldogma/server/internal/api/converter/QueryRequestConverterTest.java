@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Optional;
+import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,10 +39,10 @@ class QueryRequestConverterTest {
         final String filePath = "/a.txt";
         when(ctx.pathParam("path")).thenReturn(filePath);
 
-        final Optional<Query<?>> query = convert(ctx);
-        assert query.isPresent();
-        assertThat(query.get().type()).isSameAs(QueryType.IDENTITY);
-        assertThat(query.get().path()).isEqualTo(filePath);
+        final Query<?> query = convert(ctx);
+        assertThat(query).isNotNull();
+        assertThat(query.type()).isSameAs(QueryType.IDENTITY);
+        assertThat(query.path()).isEqualTo(filePath);
     }
 
     @Test
@@ -51,8 +51,8 @@ class QueryRequestConverterTest {
         final String filePath = "/"; // a directory
         when(ctx.pathParam("path")).thenReturn(filePath);
 
-        final Optional<Query<?>> query = convert(ctx);
-        assertThat(query.isPresent()).isFalse();
+        final Query<?> query = convert(ctx);
+        assertThat(query).isNull();
     }
 
     @Test
@@ -64,11 +64,11 @@ class QueryRequestConverterTest {
         final String httpQuery = "?jsonpath=%22%24.a%22";  // "$.a"
         when(ctx.query()).thenReturn(httpQuery);
 
-        final Optional<Query<?>> query = convert(ctx);
-        assert query.isPresent();
-        assertThat(query.get().type()).isSameAs(QueryType.JSON_PATH);
-        assertThat(query.get().path()).isEqualTo(jsonFilePath);
-        assertThat(query.get().expressions().get(0)).isEqualTo("\"$.a\"");
+        final Query<?> query = convert(ctx);
+        assertThat(query).isNotNull();
+        assertThat(query.type()).isSameAs(QueryType.JSON_PATH);
+        assertThat(query.path()).isEqualTo(jsonFilePath);
+        assertThat(query.expressions().get(0)).isEqualTo("\"$.a\"");
     }
 
     @Test
@@ -82,14 +82,14 @@ class QueryRequestConverterTest {
 
         when(ctx.query()).thenReturn("");
 
-        final Optional<Query<?>> query = convert(ctx);
-        assert query.isPresent();
-        assertThat(query.get().type()).isSameAs(QueryType.IDENTITY);
-        assertThat(query.get().path()).isEqualTo(jsonFilePath);
+        final Query<?> query = convert(ctx);
+        assertThat(query).isNotNull();
+        assertThat(query.type()).isSameAs(QueryType.IDENTITY);
+        assertThat(query.path()).isEqualTo(jsonFilePath);
     }
 
-    @SuppressWarnings("unchecked")
-    private static Optional<Query<?>> convert(ServiceRequestContext ctx) throws Exception {
-        return (Optional<Query<?>>) converter.convertRequest(ctx, mock(AggregatedHttpRequest.class), null);
+    @Nullable
+    private static Query<?> convert(ServiceRequestContext ctx) throws Exception {
+        return (Query<?>) converter.convertRequest(ctx, mock(AggregatedHttpRequest.class), null, null);
     }
 }

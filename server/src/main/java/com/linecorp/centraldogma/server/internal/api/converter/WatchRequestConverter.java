@@ -19,8 +19,10 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 import static com.google.common.base.Ascii.toLowerCase;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
-import java.util.Optional;
+import java.lang.reflect.ParameterizedType;
 import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nullable;
 
 import com.google.common.base.MoreObjects;
 
@@ -39,25 +41,30 @@ public final class WatchRequestConverter implements RequestConverterFunction {
     private static final long DEFAULT_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(120);
 
     /**
-     * Converts the specified {@code request} to {@link Optional} which contains {@link WatchRequest} when
-     * the request has {@link HttpHeaderNames#IF_NONE_MATCH}. {@link Optional#empty()} otherwise.
+     * Converts the specified {@code request} to a {@link WatchRequest} when the request has
+     * {@link HttpHeaderNames#IF_NONE_MATCH}. {@code null} otherwise.
      */
     @Override
-    public Object convertRequest(ServiceRequestContext ctx, AggregatedHttpRequest request,
-                                 Class<?> expectedResultType) throws Exception {
+    @Nullable
+    public WatchRequest convertRequest(
+            ServiceRequestContext ctx, AggregatedHttpRequest request, Class<?> expectedResultType,
+            @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
+
         final String ifNoneMatch = request.headers().get(HttpHeaderNames.IF_NONE_MATCH);
-        if (!isNullOrEmpty(ifNoneMatch)) {
-            final Revision lastKnownRevision = new Revision(ifNoneMatch);
-            final String prefer = request.headers().get(HttpHeaderNames.PREFER);
-            final long timeoutMillis;
-            if (!isNullOrEmpty(prefer)) {
-                timeoutMillis = getTimeoutMillis(prefer);
-            } else {
-                timeoutMillis = DEFAULT_TIMEOUT_MILLIS;
-            }
-            return Optional.of(new WatchRequest(lastKnownRevision, timeoutMillis));
+        if (isNullOrEmpty(ifNoneMatch)) {
+            return null;
         }
-        return Optional.empty();
+
+        final Revision lastKnownRevision = new Revision(ifNoneMatch);
+        final String prefer = request.headers().get(HttpHeaderNames.PREFER);
+        final long timeoutMillis;
+        if (!isNullOrEmpty(prefer)) {
+            timeoutMillis = getTimeoutMillis(prefer);
+        } else {
+            timeoutMillis = DEFAULT_TIMEOUT_MILLIS;
+        }
+
+        return new WatchRequest(lastKnownRevision, timeoutMillis);
     }
 
     private static long getTimeoutMillis(String preferHeader) {
