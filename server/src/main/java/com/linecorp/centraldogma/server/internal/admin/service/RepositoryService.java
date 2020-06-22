@@ -174,7 +174,7 @@ public class RepositoryService extends AbstractService {
                                                        @Param String repoName,
                                                        @Param String path,
                                                        @Param @Default("-1") String from,
-                                                       @Param @Default("-1") String to) {
+                                                       @Param @Default("1") String to) {
         return projectManager().get(projectName).repos().get(repoName)
                                .history(new Revision(from),
                                         new Revision(to),
