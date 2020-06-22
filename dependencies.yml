@@ -12,7 +12,7 @@ ch.qos.logback:
   logback-classic:
     version: '1.2.3'
     javadocs:
-    - https://static.javadoc.io/ch.qos.logback/logback-classic/1.2.3/
+    - https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.3/
 
 com.beust:
   # Please check `jcommander` version of Maven Central Repository before updating
@@ -50,7 +50,7 @@ com.github.ben-manes.caffeine:
   caffeine:
     version: '2.8.4'
     javadocs:
-    - https://static.javadoc.io/com.github.ben-manes.caffeine/caffeine/2.8.1/
+    - https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.8.1/
 
 com.github.jengelman.gradle.plugins:
   shadow: { version: '5.2.0' }
@@ -109,7 +109,7 @@ com.jcraft:
 com.linecorp.armeria:
   armeria:
     javadocs:
-    - https://line.github.io/armeria/apidocs/
+    - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/0.99.6/
 
 com.puppycrawl.tools:
   checkstyle: { version: '8.32' }
@@ -130,10 +130,10 @@ gradle.plugin.net.davidecavestro:
 io.micrometer:
   micrometer-core:
     javadocs:
-    - https://static.javadoc.io/io.micrometer/micrometer-core/1.3.2/
+    - https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.3.2/
   micrometer-registry-prometheus:
     javadocs:
-    - https://static.javadoc.io/io.micrometer/micrometer-registry-prometheus/1.3.2/
+    - https://www.javadoc.io/doc/io.micrometer/micrometer-registry-prometheus/1.3.2/
 
 jakarta.annotation:
   jakarta.annotation-api: { version: '1.3.5' }
@@ -239,7 +239,7 @@ org.slf4j:
   slf4j-api:
     version: *SLF4J_VERSION
     javadocs:
-    - https://static.javadoc.io/org.slf4j/slf4j-api/1.7.30/
+    - https://www.javadoc.io/doc/org.slf4j/slf4j-api/1.7.30/
 
 org.springframework.boot:
   spring-boot-starter:

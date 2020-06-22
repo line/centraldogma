@@ -202,7 +202,7 @@ Core properties
 
   - the format to be used for writing an access log. ``common`` and ``combined`` are pre-defined for NCSA
     common log format and NCSA combined log format, respectively. Also, a custom log format can be specified
-    here. Read `Writing an access log <https://line.github.io/armeria/server-access-log.html>`_ for more
+    here. Read `Writing an access log <https://line.github.io/armeria/docs/server-access-log>`_ for more
     information. Specify ``null`` to disable access logging feature.
 
 - ``authentication``
