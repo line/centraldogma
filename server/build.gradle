@@ -16,7 +16,7 @@ dependencies {
     ['armeria', 'armeria-thrift0.9'].each {
         api "com.linecorp.armeria:$it"
     }
-    testImplementation 'com.linecorp.armeria:armeria-testing-junit'
+    testImplementation 'com.linecorp.armeria:armeria-junit5'
 
     // JSch
     implementation 'com.jcraft:jsch'
