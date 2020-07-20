@@ -55,19 +55,26 @@ configure(projectsWithFlags('java')) {
                 }
                 generateProtoTasks {
                     all()*.plugins {
-                        grpc {
-                            option 'enable_deprecated=false'
-                        }
-                        if (project.ext.hasFlag('reactor-grpc') && managedVersions.containsKey('com.salesforce.servicelibs:reactor-grpc')) {
-                            reactorGrpc {}
-                        }
-                        if (project.ext.hasFlag('rxgrpc') && managedVersions.containsKey('com.salesforce.servicelibs:rxgrpc')) {
-                            rxgrpc {}
-                        }
-                        if (project.ext.hasFlag('kotlin-grpc') && managedVersions.containsKey('io.grpc:grpc-kotlin-stub')) {
-                            kotlinGrpc {}
+                        if (project.ext.hasFlag('scala-grpc') && managedVersions.containsKey('com.thesamet.scalapb:scalapb-runtime_2.13')) {
+                            scalapb {
+                                option 'grpc'
+                            }
+                        } else {
+                            grpc {
+                                option 'enable_deprecated=false'
+                            }
+                            if (project.ext.hasFlag('reactor-grpc') && managedVersions.containsKey('com.salesforce.servicelibs:reactor-grpc')) {
+                                reactorGrpc {}
+                            }
+                            if (project.ext.hasFlag('rxgrpc') && managedVersions.containsKey('com.salesforce.servicelibs:rxgrpc')) {
+                                rxgrpc {}
+                            }
+                            if (project.ext.hasFlag('kotlin-grpc') && managedVersions.containsKey('io.grpc:grpc-kotlin-stub')) {
+                                kotlinGrpc {}
+                            }
                         }
                     }
+
                     all().each { task ->
                         task.generateDescriptorSet = true
                         task.descriptorSetOptions.includeSourceInfo = true
