@@ -17,9 +17,11 @@
 package com.linecorp.centraldogma.client.armeria.legacy;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.verify;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,7 @@ import com.linecorp.armeria.client.RpcClient;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.RpcRequest;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 
@@ -76,14 +79,25 @@ class LegacyCentralDogmaTimeoutSchedulerTest {
             throws Exception {
         final RpcRequest req = newRequest(method, ImmutableList.of("a", "b", "c", timeoutMillis));
         final ClientRequestContext ctx = newClientContext(req);
-        ctx.clearResponseTimeout();
-        if (defaultTimeoutMills > 0) {
-            ctx.setResponseTimeoutMillis(defaultTimeoutMills);
-        }
-
-        decorator.execute(ctx, req);
-        assertThat(ctx.responseTimeoutMillis()).isEqualTo(expectedTimeoutMills);
-        verify(client).execute(ctx, req);
+        final AtomicBoolean completed = new AtomicBoolean();
+        ctx.eventLoop().execute(() -> {
+            try {
+                ctx.clearResponseTimeout();
+                if (defaultTimeoutMills > 0) {
+                    ctx.setResponseTimeoutMillis(defaultTimeoutMills);
+                }
+                // A response timeout is calculated from the start of the request.
+                final long responseTimeoutMillis = ctx.responseTimeoutMillis();
+                final long adjustment = expectedTimeoutMills - defaultTimeoutMills;
+                decorator.execute(ctx, req);
+                assertThat(ctx.responseTimeoutMillis()).isEqualTo(responseTimeoutMillis + adjustment);
+                verify(client).execute(ctx, req);
+                completed.set(true);
+            } catch (Exception e) {
+                Exceptions.throwUnsafely(e);
+            }
+        });
+        await().untilTrue(completed);
     }
 
     private static RpcRequest newRequest(String method, List<Object> args) {
