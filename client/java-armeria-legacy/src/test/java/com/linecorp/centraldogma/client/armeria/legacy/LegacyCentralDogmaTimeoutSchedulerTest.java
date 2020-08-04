@@ -86,7 +86,7 @@ class LegacyCentralDogmaTimeoutSchedulerTest {
                 if (defaultTimeoutMills > 0) {
                     ctx.setResponseTimeoutMillis(defaultTimeoutMills);
                 }
-                // Response timeout is calculated from the from start of the request.
+                // A response timeout is calculated from the start of the request.
                 final long responseTimeoutMillis = ctx.responseTimeoutMillis();
                 final long adjustment = expectedTimeoutMills - defaultTimeoutMills;
                 decorator.execute(ctx, req);
