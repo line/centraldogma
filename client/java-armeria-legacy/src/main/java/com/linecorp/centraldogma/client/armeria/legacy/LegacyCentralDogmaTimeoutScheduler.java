@@ -53,6 +53,6 @@ class LegacyCentralDogmaTimeoutScheduler extends SimpleDecoratingRpcClient {
                 }
             }
         }
-        return delegate().execute(ctx, req);
+        return unwrap().execute(ctx, req);
     }
 }
