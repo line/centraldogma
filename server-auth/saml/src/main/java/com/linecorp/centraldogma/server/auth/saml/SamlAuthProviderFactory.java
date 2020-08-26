@@ -98,7 +98,7 @@ public final class SamlAuthProviderFactory implements AuthProviderFactory {
 
         builder.type(keyStore.type())
                .password(keyStore.password())
-               .addKeyPasswords(keyStore.keyPasswords());
+               .keyPasswords(keyStore.keyPasswords());
         return builder.build();
     }
 }

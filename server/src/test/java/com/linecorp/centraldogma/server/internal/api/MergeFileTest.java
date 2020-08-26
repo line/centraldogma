@@ -41,7 +41,7 @@ class MergeFileTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configureHttpClient(WebClientBuilder builder) {
-            builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+            builder.addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
         }
     };
 
@@ -149,7 +149,7 @@ class MergeFileTest {
         final CentralDogmaExtension dogma = new CentralDogmaExtension() {
             @Override
             protected void configureHttpClient(WebClientBuilder builder) {
-                builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                builder.addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
             }
 
             @Override

@@ -66,7 +66,7 @@ class ContentServiceV1Test {
 
         @Override
         protected void configureHttpClient(WebClientBuilder builder) {
-            builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+            builder.addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
         }
     };
 
@@ -137,7 +137,7 @@ class ContentServiceV1Test {
         final CentralDogmaExtension dogma = new CentralDogmaExtension() {
             @Override
             protected void configureHttpClient(WebClientBuilder builder) {
-                builder.addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
+                builder.addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer anonymous");
             }
 
             @Override

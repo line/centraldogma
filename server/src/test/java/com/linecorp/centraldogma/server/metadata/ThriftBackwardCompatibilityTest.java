@@ -67,12 +67,12 @@ class ThriftBackwardCompatibilityTest {
     static void init() {
         final InetSocketAddress serverAddress = dogma.dogma().activePort().localAddress();
         webClient = WebClient.builder("http://127.0.0.1:" + serverAddress.getPort())
-                             .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
+                             .addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                              .build();
 
         client = Clients.builder("ttext+http", Endpoint.of("127.0.0.1", serverAddress.getPort()),
                                  "/cd/thrift/v1")
-                        .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
+                        .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
                         .build(Iface.class);
     }
 
