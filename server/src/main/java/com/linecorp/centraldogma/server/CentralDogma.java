@@ -538,9 +538,9 @@ public class CentralDogma implements AutoCloseable {
         });
         sb.serviceUnder("/docs/",
                         DocService.builder()
-                                  .exampleHttpHeaders(CentralDogmaService.class,
-                                                      HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
-                                                                     "Bearer " + CsrfToken.ANONYMOUS))
+                                  .exampleHeaders(CentralDogmaService.class,
+                                                  HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
+                                                                 "Bearer " + CsrfToken.ANONYMOUS))
                                   .build());
 
         configureHttpApi(sb, pm, executor, watchService, mds, authProvider, sessionManager);
@@ -756,7 +756,7 @@ public class CentralDogma implements AutoCloseable {
     private static Function<? super HttpService, EncodingService> contentEncodingDecorator() {
         return delegate -> EncodingService
                 .builder()
-                .encodableContentTypePredicate(contentType -> {
+                .encodableContentTypes(contentType -> {
                     if ("application".equals(contentType.type())) {
                         final String subtype = contentType.subtype();
                         switch (subtype) {

@@ -4,8 +4,8 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.11.2
-- com.linecorp.armeria:armeria-bom:0.99.9
-- io.micrometer:micrometer-bom:1.5.3
+- com.linecorp.armeria:armeria-bom:1.0.0
+- io.micrometer:micrometer-bom:1.5.4
 - org.junit:junit-bom:5.6.2
 
 ch.qos.logback:
@@ -201,7 +201,7 @@ org.apache.zookeeper:
     - org.slf4j:slf4j-log4j12
 
 org.assertj:
-  assertj-core: { version: '3.16.1' }
+  assertj-core: { version: '3.17.0' }
 
 org.awaitility:
   awaitility: { version: '4.0.3' }
@@ -223,14 +223,14 @@ org.javassist:
   javassist: { version: '3.27.0-GA' }
 
 org.mockito:
-  mockito-core: { version: &MOCKITO_VERSION '3.4.6' }
+  mockito-core: { version: &MOCKITO_VERSION '3.5.7' }
   mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
   jetty-alpn-agent: { version: '2.0.10' }
 
 org.openjdk.jmh:
-  jmh-core: { version: &JMH_VERSION '1.23' }
+  jmh-core: { version: &JMH_VERSION '1.25' }
   jmh-generator-annprocess: { version: *JMH_VERSION }
 
 org.slf4j:
@@ -244,7 +244,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.3.2.RELEASE'
+    version: &SPRING_BOOT_VERSION '2.3.3.RELEASE'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }

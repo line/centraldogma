@@ -145,7 +145,7 @@ class PermissionTest {
     void test(String secret, String projectName, ProjectRole role, String repoName,
               Set<Permission> permission, HttpStatus expectedFailureStatus) {
         final WebClient client = WebClient.builder(server.httpUri())
-                                          .addHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret)
+                                          .addHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + secret)
                                           .build();
 
         AggregatedHttpResponse response;

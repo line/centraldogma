@@ -83,8 +83,8 @@ class ContentCompressionTest {
         final Iface clientWithoutDecompressor = Clients
                 .builder("ttext+http", Endpoint.of("127.0.0.1", dogma.serverAddress().getPort()),
                          "/cd/thrift/v1")
-                .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
-                .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
+                .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
+                .setHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
                 .build(Iface.class);
 
         assertThatThrownBy(() -> clientWithoutDecompressor.getFile(PROJ, REPO, head, query))
@@ -106,8 +106,8 @@ class ContentCompressionTest {
     void http() throws Exception {
         final WebClient client =
                 WebClient.builder("http://127.0.0.1:" + dogma.serverAddress().getPort())
-                         .setHttpHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
-                         .setHttpHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
+                         .setHeader(HttpHeaderNames.AUTHORIZATION, "Bearer " + CsrfToken.ANONYMOUS)
+                         .setHeader(HttpHeaderNames.ACCEPT_ENCODING, "deflate")
                          .build();
 
         final String contentPath = HttpApiV1Constants.PROJECTS_PREFIX + '/' + PROJ +
