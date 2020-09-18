@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.replication;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.curator.test.InstanceSpec;
@@ -25,8 +26,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
-import com.linecorp.centraldogma.server.ZooKeeperAddress;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 /**
@@ -48,10 +49,14 @@ class StartStopWithoutInitialQuorumTest {
             final int electionPort = InstanceSpec.getRandomPort();
             final int clientPort = InstanceSpec.getRandomPort();
 
-            builder.replication(new ZooKeeperReplicationConfig(
-                    1, ImmutableMap.of(1, new ZooKeeperAddress("127.0.0.1",
-                                                               quorumPort, electionPort, clientPort),
-                                       2, new ZooKeeperAddress("127.0.0.1", 1, 1, 1))));
+            final Map<Integer, ZooKeeperServerConfig> servers =
+                    ImmutableMap.of(1,
+                                    new ZooKeeperServerConfig("127.0.0.1", quorumPort, electionPort,
+                                                              clientPort, /* groupId */ null, /* weight */ 1),
+                                    2,
+                                    new ZooKeeperServerConfig("127.0.0.1", 1, 1,
+                                                              1, /* groupId */ null, /* weight */ 1));
+            builder.replication(new ZooKeeperReplicationConfig(1, servers));
         }
 
         @Override

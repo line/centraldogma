@@ -53,6 +53,7 @@ import javax.annotation.Nullable;
 import org.apache.curator.test.InstanceSpec;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,8 +64,8 @@ import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.ZooKeeperAddress;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
@@ -88,7 +89,7 @@ class ZooKeeperCommandExecutorTest {
     @Test
     void testLogWatch() throws Exception {
         // The 5th replica is used for ensuring the quorum.
-        final List<Replica> cluster = buildCluster(5, true /* start */,
+        final List<Replica> cluster = buildCluster(5, true /* start */, 1,
                                                    ZooKeeperCommandExecutorTest::newMockDelegate);
         final Replica replica1 = cluster.get(0);
         final Replica replica2 = cluster.get(1);
@@ -197,7 +198,7 @@ class ZooKeeperCommandExecutorTest {
     void testRace() throws Exception {
         // Each replica has its own AtomicInteger which counts the number of commands
         // it executed/replayed so far.
-        final List<Replica> replicas = buildCluster(NUM_REPLICAS, true /* start */, () -> {
+        final List<Replica> replicas = buildCluster(NUM_REPLICAS, true /* start */, 1, () -> {
             final AtomicInteger counter = new AtomicInteger();
             return command -> completedFuture(new Revision(counter.incrementAndGet()));
         });
@@ -243,7 +244,7 @@ class ZooKeeperCommandExecutorTest {
      */
     @Test
     void stopWhileWaitingForInitialQuorum() throws Exception {
-        final List<Replica> cluster = buildCluster(2, false /* start */,
+        final List<Replica> cluster = buildCluster(2, false /* start */, 1,
                                                    ZooKeeperCommandExecutorTest::newMockDelegate);
 
         final CompletableFuture<Void> startFuture = cluster.get(0).rm.start();
@@ -255,12 +256,54 @@ class ZooKeeperCommandExecutorTest {
     }
 
     @Test
+    void hierarchicalQuorums() throws Throwable {
+        // The 5th replica is used for ensuring the quorum.
+        final List<Replica> cluster = buildCluster(15, true /* start */, 3,
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
+
+        for (int i = 0; i < cluster.size(); i++) {
+            final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(i).meterRegistry);
+            assertThat(meters).containsEntry("replica.groupId#value", (i % 3) + 1.0);
+        }
+        final Replica replica1 = cluster.get(0);
+
+        try {
+            final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
+            replica1.rm.execute(command1).join();
+
+            final Optional<ReplicationLog<?>> commandResult2 = replica1.rm.loadLog(0, false);
+            assertThat(commandResult2).isPresent();
+            assertThat(commandResult2.get().command()).isEqualTo(command1);
+            assertThat(commandResult2.get().result()).isNull();
+
+            withReplica(cluster, replica -> {
+                await().untilAsserted(() -> verify(replica.delegate).apply(eq(command1)));
+            });
+
+            withReplica(cluster, replica -> await().until(replica::existsLocalRevision));
+            withReplica(cluster, replica -> assertThat(replica.localRevision()).isEqualTo(0L));
+        } finally {
+            for (Replica r : cluster) {
+                r.rm.stop();
+            }
+        }
+    }
+
+    private static void withReplica(List<Replica> cluster, ThrowingConsumer<Replica> consumer)
+            throws Throwable {
+        for (Replica replica : cluster) {
+            consumer.accept(replica);
+        }
+    }
+
+    @Test
     void metrics() throws Exception {
-        final List<Replica> cluster = buildCluster(1, true /* start */,
+        final List<Replica> cluster = buildCluster(1, true /* start */, 1,
                                                    ZooKeeperCommandExecutorTest::newMockDelegate);
         try {
             final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(0).meterRegistry);
             meters.forEach((k, v) -> logger.debug("{}={}", k, v));
+            assertThat(meters).containsEntry("replica.groupId#value", -1.0);
             assertThat(meters).containsKeys("executor#total{name=zkCommandExecutor}",
                                             "executor#total{name=zkLeaderSelector}",
                                             "executor#total{name=zkLogWatcher}",
@@ -269,6 +312,7 @@ class ZooKeeperCommandExecutorTest {
                                             "executor.pool.size#value{name=zkLogWatcher}",
                                             "replica.has.leadership#value",
                                             "replica.id#value",
+                                            "replica.groupId#value",
                                             "replica.last.replayed.revision#value",
                                             "replica.read.only#value",
                                             "replica.replicating#value",
@@ -293,7 +337,7 @@ class ZooKeeperCommandExecutorTest {
     }
 
     private List<Replica> buildCluster(
-            int numReplicas, boolean start,
+            int numReplicas, boolean start, int numGroup,
             Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier) throws Exception {
 
         // Each replica requires 3 ports, for client, quorum and election.
@@ -305,7 +349,7 @@ class ZooKeeperCommandExecutorTest {
         }
 
         final List<InstanceSpec> specs = new ArrayList<>();
-        final Map<Integer, ZooKeeperAddress> servers = new HashMap<>();
+        final Map<Integer, ZooKeeperServerConfig> servers = new HashMap<>();
         for (int i = 0; i < numReplicas; i++) {
             final InstanceSpec spec = new InstanceSpec(
                     testFolder.newFolder().toFile(),
@@ -316,8 +360,15 @@ class ZooKeeperCommandExecutorTest {
                     i + 1 /* serverId */);
 
             specs.add(spec);
+            final Integer groupId;
+            if (numGroup == 1) {
+                groupId = null;
+            } else {
+                groupId = (i % numGroup) + 1;
+            }
             servers.put(spec.getServerId(),
-                        new ZooKeeperAddress("127.0.0.1", spec.getQuorumPort(), spec.getElectionPort(), 0));
+                        new ZooKeeperServerConfig("127.0.0.1", spec.getQuorumPort(), spec.getElectionPort(), 0,
+                                                  groupId, 1));
         }
 
         logger.debug("Creating a cluster: {}", servers);
@@ -355,7 +406,7 @@ class ZooKeeperCommandExecutorTest {
         private final MeterRegistry meterRegistry;
         private final CompletableFuture<Void> startFuture;
 
-        Replica(InstanceSpec spec, Map<Integer, ZooKeeperAddress> servers,
+        Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
                 Function<Command<?>, CompletableFuture<?>> delegate, boolean start) throws Exception {
             this.delegate = delegate;
 

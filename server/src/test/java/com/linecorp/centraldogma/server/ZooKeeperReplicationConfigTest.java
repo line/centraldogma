@@ -30,9 +30,11 @@ class ZooKeeperReplicationConfigTest {
 
     @Test
     void testJsonConversion() {
+        final ImmutableMap<Integer, ZooKeeperServerConfig> servers = ImmutableMap.of(
+                1, new ZooKeeperServerConfig("2", 3, 4, 5, /* groupId */ null, /* weight */ 1),
+                6, new ZooKeeperServerConfig("7", 8, 9, 10, /* groupId */ null, /* weight */ 1));
         final ZooKeeperReplicationConfig cfg = new ZooKeeperReplicationConfig(
-                1, ImmutableMap.of(1, new ZooKeeperAddress("2", 3, 4, 5),
-                                   6, new ZooKeeperAddress("7", 8, 9, 10)),
+                1, servers,
                 "11", ImmutableMap.of("12", "13", "14", "15"), 16, 17, 18, 19);
         assertJsonConversion(cfg, ReplicationConfig.class,
                              '{' +
@@ -84,8 +86,11 @@ class ZooKeeperReplicationConfigTest {
 
         assertThat(defaultCfg).isEqualTo(
                 new ZooKeeperReplicationConfig(
-                        10, ImmutableMap.of(10, new ZooKeeperAddress("foo", 100, 101, 0),
-                                            11, new ZooKeeperAddress("bar", 200, 201, 0)),
+                        10, ImmutableMap
+                        .of(10, new ZooKeeperServerConfig("foo", 100, 101,
+                                                          0, /* groupId */ null, /* weight */ 1),
+                            11, new ZooKeeperServerConfig("bar", 200, 201,
+                                                          0, /* groupId */ null, /* weight */ 1)),
                         null, null, null, null, null, null));
     }
 
@@ -156,5 +161,59 @@ class ZooKeeperReplicationConfigTest {
                 .satisfies(cause -> {
                     assertThat(cause.getCause().getMessage()).contains("no matching IP address");
                 });
+    }
+
+    @Test
+    void hierarchicalQuorums() throws Exception {
+        final ReplicationConfig defaultCfg =
+                Jackson.readValue(
+                        '{' +
+                        "  \"method\": \"ZOOKEEPER\"," +
+                        "  \"serverId\": 10," +
+                        "  \"servers\": {" +
+                        "    \"10\": {" +
+                        "      \"host\": \"foo-1\"," +
+                        "      \"quorumPort\": 100," +
+                        "      \"electionPort\": 101," +
+                        "      \"groupId\": 1," +
+                        "      \"weight\": 2" +
+                        "    }," +
+                        "    \"11\": {" +
+                        "      \"host\": \"foo-2\"," +
+                        "      \"quorumPort\": 200," +
+                        "      \"electionPort\": 201," +
+                        "      \"groupId\": 1," +
+                        "      \"weight\": 2" +
+                        "    }," +
+                        "    \"12\": {" +
+                        "      \"host\": \"bar-1\"," +
+                        "      \"quorumPort\": 100," +
+                        "      \"electionPort\": 101," +
+                        "      \"groupId\": 2," +
+                        "      \"weight\": 1" +
+                        "    }," +
+                        "    \"13\": {" +
+                        "      \"host\": \"bar-2\"," +
+                        "      \"quorumPort\": 200," +
+                        "      \"electionPort\": 201," +
+                        "      \"groupId\": 2," +
+                        "      \"weight\": 3" +
+                        "    }" +
+                        "  }" +
+                        '}',
+                        ReplicationConfig.class);
+
+        assertThat(defaultCfg).isEqualTo(
+                new ZooKeeperReplicationConfig(
+                        10, ImmutableMap
+                        .of(10, new ZooKeeperServerConfig("foo-1", 100, 101,
+                                                          0, /* groupId */ 1, /* weight */ 2),
+                            11, new ZooKeeperServerConfig("foo-2", 200, 201,
+                                                          0, /* groupId */ 1, /* weight */ 2),
+                            12, new ZooKeeperServerConfig("bar-1", 100, 101,
+                                                          0, /* groupId */ 2, /* weight */ 1),
+                            13, new ZooKeeperServerConfig("bar-2", 200, 201,
+                                                          0, /* groupId */ 2, /* weight */ 3)),
+                        null, null, null, null, null, null));
     }
 }

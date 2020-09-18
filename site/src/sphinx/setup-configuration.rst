@@ -239,17 +239,23 @@ example shows the configuration of the first replica in a 3-replica cluster:
           "1": {
             "host": "replica1.example.com",
             "quorumPort": 36463,
-            "electionPort": 36464
+            "electionPort": 36464,
+            "groupId": null,
+            "weight": null,
           },
           "2": {
             "host": "replica2.example.com",
             "quorumPort": 36463,
-            "electionPort": 36464
+            "electionPort": 36464,
+            "groupId": null,
+            "weight": null,
           },
           "3": {
             "host": "replica3.example.com",
             "quorumPort": 36463,
-            "electionPort": 36464
+            "electionPort": 36464,
+            "groupId": null,
+            "weight": null,
           }
         },
         "secret": "JqJAkZ!oZ6MNx4rBpIH8M*yuVWXDULgR",
@@ -292,6 +298,18 @@ example shows the configuration of the first replica in a 3-replica cluster:
     - ``electionPort`` (integer)
 
       - the TCP/IP port number which is used by ZooKeeper for leader election
+
+    - ``groupId`` (integer)
+
+      - the group ID which is used by ZooKeeper for
+        `hierarchical quorums https://zookeeper.apache.org/doc/r3.5.8/zookeeperHierarchicalQuorums.html`_
+         If ``null`` or unspecified, hierarchical quorums are disabled.
+
+    - ``weight`` (integer)
+
+      - the weight of the replica which is used by ZooKeeper for hierarchical quorums
+        If ``null`` or unspecified, ``1`` is used by default.
+        If ``groupId`` is ``null``, this value will be ignored.
 
   - It is highly recommended to have more than 3, preferably odd number of, replicas because the consensus
     algorithm requires more than half of all replicas to agree with each other to function correctly.

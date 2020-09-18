@@ -141,11 +141,8 @@ class CentralDogmaConfigTest {
 
         final List<ClientAddressSource> sources = cfg.clientAddressSourceList();
         assertThat(sources).hasSize(2);
-        // TODO(hyangtack) Need to add equals/hashCode to ClientAddressSource class.
-        //                 https://github.com/line/armeria/pull/1804
-        assertThat(sources.get(0).toString()).isEqualTo(ClientAddressSource.ofHeader("forwarded").toString());
-        assertThat(sources.get(1).toString()).isEqualTo(
-                ClientAddressSource.ofHeader("x-forwarded-for").toString());
+        assertThat(sources.get(0)).isEqualTo(ClientAddressSource.ofHeader("forwarded"));
+        assertThat(sources.get(1)).isEqualTo(ClientAddressSource.ofHeader("x-forwarded-for"));
     }
 
     @Test

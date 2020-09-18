@@ -52,7 +52,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     private static final String DEFAULT_SECRET = "ch4n63m3";
 
     private final int serverId;
-    private final Map<Integer, ZooKeeperAddress> servers;
+    private final Map<Integer, ZooKeeperServerConfig> servers;
     private final String secret;
     private final Map<String, String> additionalProperties;
     private final int timeoutMillis;
@@ -66,13 +66,13 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
      * @param serverId the ID of this ZooKeeper server in {@code servers}
      * @param servers the ZooKeeper server addresses, keyed by their ZooKeeper server IDs
      */
-    public ZooKeeperReplicationConfig(int serverId, Map<Integer, ZooKeeperAddress> servers) {
+    public ZooKeeperReplicationConfig(int serverId, Map<Integer, ZooKeeperServerConfig> servers) {
         this(serverId, servers, null, null, null, null, null, null);
     }
 
     @VisibleForTesting
     ZooKeeperReplicationConfig(
-            int serverId, Map<Integer, ZooKeeperAddress> servers, String secret,
+            int serverId, Map<Integer, ZooKeeperServerConfig> servers, String secret,
             Map<String, String> additionalProperties,
             int timeoutMillis, int numWorkers, int maxLogCount, long minLogAgeMillis) {
         this(Integer.valueOf(serverId), servers, secret, additionalProperties, Integer.valueOf(timeoutMillis),
@@ -82,8 +82,8 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     @JsonCreator
     ZooKeeperReplicationConfig(@JsonProperty("serverId") @Nullable Integer serverId,
                                @JsonProperty(value = "servers", required = true)
-                               @JsonDeserialize(keyAs = Integer.class, contentAs = ZooKeeperAddress.class)
-                               Map<Integer, ZooKeeperAddress> servers,
+                               @JsonDeserialize(keyAs = Integer.class, contentAs = ZooKeeperServerConfig.class)
+                               Map<Integer, ZooKeeperServerConfig> servers,
                                @JsonProperty("secret") @Nullable String secret,
                                @JsonProperty("additionalProperties")
                                @JsonDeserialize(keyAs = String.class, contentAs = String.class)
@@ -124,7 +124,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
                 minLogAgeMillis == null || minLogAgeMillis <= 0 ? DEFAULT_MIN_LOG_AGE_MILLIS : minLogAgeMillis;
     }
 
-    private static int findServerId(Map<Integer, ZooKeeperAddress> servers) {
+    private static int findServerId(Map<Integer, ZooKeeperServerConfig> servers) {
         int serverId = -1;
         try {
             for (final Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
@@ -143,7 +143,7 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
         return serverId;
     }
 
-    private static int findServerId(Map<Integer, ZooKeeperAddress> servers, int currentServerId,
+    private static int findServerId(Map<Integer, ZooKeeperServerConfig> servers, int currentServerId,
                                     NetworkInterface iface) {
         for (final Enumeration<InetAddress> ea = iface.getInetAddresses(); ea.hasMoreElements();) {
             currentServerId = findServerId(servers, currentServerId, ea.nextElement());
@@ -151,10 +151,10 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
         return currentServerId;
     }
 
-    private static int findServerId(Map<Integer, ZooKeeperAddress> servers, int currentServerId,
+    private static int findServerId(Map<Integer, ZooKeeperServerConfig> servers, int currentServerId,
                                     InetAddress addr) {
         final String ip = NetUtil.toAddressString(addr, true);
-        for (Entry<Integer, ZooKeeperAddress> entry : servers.entrySet()) {
+        for (Entry<Integer, ZooKeeperServerConfig> entry : servers.entrySet()) {
             final String zkAddr;
             try {
                 zkAddr = NetUtil.toAddressString(InetAddress.getByName(entry.getValue().host()), true);
@@ -192,17 +192,17 @@ public final class ZooKeeperReplicationConfig implements ReplicationConfig {
     }
 
     /**
-     * Returns the address of this ZooKeeper server in {@link #servers()}.
+     * Returns the configuration of this ZooKeeper server in {@link #servers()}.
      */
-    public ZooKeeperAddress serverAddress() {
+    public ZooKeeperServerConfig serverConfig() {
         return servers.get(serverId);
     }
 
     /**
-     * Returns the addresses of all ZooKeeper servers, keyed by their server IDs.
+     * Returns the configuration of all ZooKeeper servers, keyed by their server IDs.
      */
     @JsonProperty
-    public Map<Integer, ZooKeeperAddress> servers() {
+    public Map<Integer, ZooKeeperServerConfig> servers() {
         return servers;
     }
 
