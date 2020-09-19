@@ -55,7 +55,7 @@ public final class ZooKeeperServerConfig {
                                  @JsonProperty(value = "electionPort", required = true) int electionPort,
                                  @JsonProperty(value = "clientPort", defaultValue = "0") int clientPort,
                                  @JsonProperty("groupId") @Nullable Integer groupId,
-                                 @JsonProperty(value = "weight", defaultValue = "1") int weight) {
+                                 @JsonProperty(value = "weight", defaultValue = "1") Integer weight) {
 
         this.host = requireNonNull(host, "host");
         this.quorumPort = validatePort(quorumPort, "quorumPort");
@@ -65,7 +65,7 @@ public final class ZooKeeperServerConfig {
                       "clientPort: %s (expected: 0-65535)", clientPort);
         this.clientPort = clientPort;
         this.groupId = groupId;
-        this.weight = weight;
+        this.weight = weight == null ? 1 : weight;
     }
 
     private static int validatePort(int port, String name) {

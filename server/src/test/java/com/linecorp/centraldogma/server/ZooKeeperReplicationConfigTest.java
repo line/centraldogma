@@ -45,13 +45,17 @@ class ZooKeeperReplicationConfigTest {
                              "      \"host\": \"2\"," +
                              "      \"quorumPort\": 3," +
                              "      \"electionPort\": 4," +
-                             "      \"clientPort\": 5" +
+                             "      \"clientPort\": 5," +
+                             "      \"groupId\": null," +
+                             "      \"weight\": 1" +
                              "    }," +
                              "    \"6\": {" +
                              "      \"host\": \"7\"," +
                              "      \"quorumPort\": 8," +
                              "      \"electionPort\": 9," +
-                             "      \"clientPort\": 10" +
+                             "      \"clientPort\": 10," +
+                             "      \"groupId\": null," +
+                             "      \"weight\": 1" +
                              "    }" +
                              "  }," + // NB: secret is not serialized.
                              "  \"additionalProperties\": { \"12\": \"13\", \"14\": \"15\" }," +
