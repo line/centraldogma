@@ -65,7 +65,11 @@ public final class ZooKeeperServerConfig {
                       "clientPort: %s (expected: 0-65535)", clientPort);
         this.clientPort = clientPort;
         this.groupId = groupId;
-        this.weight = weight == null ? 1 : weight;
+        if (weight == null) {
+            weight = 1;
+        }
+        checkArgument(weight >= 0, "weight: %s (expected: >= 0)", weight);
+        this.weight = weight;
     }
 
     private static int validatePort(int port, String name) {

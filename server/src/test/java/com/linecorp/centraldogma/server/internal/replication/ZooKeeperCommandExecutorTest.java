@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.replication;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -43,10 +44,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.ToIntBiFunction;
 
 import javax.annotation.Nullable;
 
@@ -90,7 +93,7 @@ class ZooKeeperCommandExecutorTest {
     void testLogWatch() throws Exception {
         // The 5th replica is used for ensuring the quorum.
         final List<Replica> cluster = buildCluster(5, true /* start */, 1,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate, null);
         final Replica replica1 = cluster.get(0);
         final Replica replica2 = cluster.get(1);
         final Replica replica3 = cluster.get(2);
@@ -201,7 +204,7 @@ class ZooKeeperCommandExecutorTest {
         final List<Replica> replicas = buildCluster(NUM_REPLICAS, true /* start */, 1, () -> {
             final AtomicInteger counter = new AtomicInteger();
             return command -> completedFuture(new Revision(counter.incrementAndGet()));
-        });
+        }, null);
 
         try {
             final Command<Revision> command =
@@ -244,7 +247,7 @@ class ZooKeeperCommandExecutorTest {
      */
     @Test
     void stopWhileWaitingForInitialQuorum() throws Exception {
-        final List<Replica> cluster = buildCluster(2, false /* start */, 1,
+        final List<Replica> cluster = buildCluster(2, false /* start */,
                                                    ZooKeeperCommandExecutorTest::newMockDelegate);
 
         final CompletableFuture<Void> startFuture = cluster.get(0).rm.start();
@@ -257,9 +260,9 @@ class ZooKeeperCommandExecutorTest {
 
     @Test
     void hierarchicalQuorums() throws Throwable {
-        // The 5th replica is used for ensuring the quorum.
         final List<Replica> cluster = buildCluster(15, true /* start */, 3,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate,
+                                                   (groupId, serverId) -> 1);
 
         for (int i = 0; i < cluster.size(); i++) {
             final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(i).meterRegistry);
@@ -289,6 +292,78 @@ class ZooKeeperCommandExecutorTest {
         }
     }
 
+    @Test
+    void hierarchicalQuorumsWithFailOver() throws Throwable {
+        final List<Replica> cluster = buildCluster(9, true /* start */, 3,
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate,
+                                                   (groupId, serverId) -> 1);
+
+        final Replica replica1 = cluster.get(0);
+
+        try {
+            // Stop Group 3, but we can have a majority of votes from Group 1 and Group 2.
+            for (int i = 0; i < cluster.size(); i++) {
+                final Replica replica = cluster.get(i);
+                if (i / 3 == 2) {
+                    replica.rm.stop().join();
+                }
+            }
+
+            final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
+            replica1.rm.execute(command1).join();
+
+            final ReplicationLog<?> commandResult1 = replica1.rm.loadLog(0, false).get();
+            assertThat(commandResult1.command()).isEqualTo(command1);
+            assertThat(commandResult1.result()).isNull();
+
+            for (int i = 0; i < cluster.size(); i++) {
+                final Replica replica = cluster.get(i);
+                if (i / 3 != 2) {
+                    await().untilAsserted(() -> verify(replica.delegate).apply(eq(command1)));
+                }
+            }
+
+            // Stop one instance each in Group 1 and Group 2. Normal quorums need 5 instances for a majority of
+            // votes if the number of participant is 9.
+            // However, hierarchical quorums only need a 4 instances for a majority of votes.
+            cluster.get(1).rm.stop().join();
+            cluster.get(4).rm.stop().join();
+
+            final Command<Void> command2 = Command.createRepository(Author.SYSTEM, "project", "repo2");
+            replica1.rm.execute(command2).get(10, TimeUnit.SECONDS);
+            final ReplicationLog<?> commandResult2 = replica1.rm.loadLog(1, false).get();
+            assertThat(commandResult2.command()).isEqualTo(command2);
+            assertThat(commandResult2.result()).isNull();
+
+            await().untilAsserted(() -> verify(cluster.get(0).delegate).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(2).delegate).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(3).delegate).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(5).delegate).apply(eq(command2)));
+
+            // Stop one instance in Group 1. The hierarchical quorums is not working anymore.
+            cluster.get(2).rm.stop().join();
+
+            final Command<Void> command3 = Command.createRepository(Author.SYSTEM, "project", "repo3");
+            assertThatThrownBy(() -> replica1.rm.execute(command3).get(10, TimeUnit.SECONDS))
+                    .isInstanceOf(TimeoutException.class);
+
+            // Restart two instances in Group 3, so the hierarchical quorums should be working again.
+            final CompletableFuture<Void> replica7Start = cluster.get(7).rm.start();
+            final CompletableFuture<Void> replica8Start = cluster.get(8).rm.start();
+            replica7Start.join();
+            replica8Start.join();
+            await().untilAsserted(() -> verify(cluster.get(0).delegate).apply(eq(command3)));
+            await().untilAsserted(() -> verify(cluster.get(3).delegate).apply(eq(command3)));
+            await().untilAsserted(() -> verify(cluster.get(5).delegate).apply(eq(command3)));
+            await().untilAsserted(() -> verify(cluster.get(7).delegate).apply(eq(command3)));
+            await().untilAsserted(() -> verify(cluster.get(8).delegate).apply(eq(command3)));
+        } finally {
+            for (Replica r : cluster) {
+                r.rm.stop();
+            }
+        }
+    }
+
     private static void withReplica(List<Replica> cluster, ThrowingConsumer<Replica> consumer)
             throws Throwable {
         for (Replica replica : cluster) {
@@ -298,12 +373,11 @@ class ZooKeeperCommandExecutorTest {
 
     @Test
     void metrics() throws Exception {
-        final List<Replica> cluster = buildCluster(1, true /* start */, 1,
+        final List<Replica> cluster = buildCluster(1, true /* start */,
                                                    ZooKeeperCommandExecutorTest::newMockDelegate);
         try {
             final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(0).meterRegistry);
             meters.forEach((k, v) -> logger.debug("{}={}", k, v));
-            assertThat(meters).containsEntry("replica.groupId#value", -1.0);
             assertThat(meters).containsKeys("executor#total{name=zkCommandExecutor}",
                                             "executor#total{name=zkLeaderSelector}",
                                             "executor#total{name=zkLogWatcher}",
@@ -312,7 +386,6 @@ class ZooKeeperCommandExecutorTest {
                                             "executor.pool.size#value{name=zkLogWatcher}",
                                             "replica.has.leadership#value",
                                             "replica.id#value",
-                                            "replica.groupId#value",
                                             "replica.last.replayed.revision#value",
                                             "replica.read.only#value",
                                             "replica.replicating#value",
@@ -337,8 +410,16 @@ class ZooKeeperCommandExecutorTest {
     }
 
     private List<Replica> buildCluster(
-            int numReplicas, boolean start, int numGroup,
+            int numReplicas, boolean start,
             Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier) throws Exception {
+        return buildCluster(numReplicas, start, 1, delegateSupplier, null);
+    }
+
+
+    private List<Replica> buildCluster(
+            int numReplicas, boolean start, int numGroup,
+            Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier,
+            @Nullable ToIntBiFunction<Integer, Integer> weightMappingFunction) throws Exception {
 
         // Each replica requires 3 ports, for client, quorum and election.
         final List<ServerSocket> quorumPorts = new ArrayList<>();
@@ -350,25 +431,34 @@ class ZooKeeperCommandExecutorTest {
 
         final List<InstanceSpec> specs = new ArrayList<>();
         final Map<Integer, ZooKeeperServerConfig> servers = new HashMap<>();
+        final int groupSize = numReplicas / numGroup;
         for (int i = 0; i < numReplicas; i++) {
+            final int serverId = i + 1;
             final InstanceSpec spec = new InstanceSpec(
                     testFolder.newFolder().toFile(),
                     0,
                     electionPorts.get(i).getLocalPort(),
                     quorumPorts.get(i).getLocalPort(),
                     false,
-                    i + 1 /* serverId */);
+                    serverId);
 
             specs.add(spec);
             final Integer groupId;
             if (numGroup == 1) {
                 groupId = null;
             } else {
-                groupId = (i % numGroup) + 1;
+                groupId = (i / groupSize) + 1;
+            }
+
+            final int weight;
+            if (weightMappingFunction != null) {
+                weight = weightMappingFunction.applyAsInt(groupId, serverId);
+            } else {
+                weight = 1;
             }
             servers.put(spec.getServerId(),
                         new ZooKeeperServerConfig("127.0.0.1", spec.getQuorumPort(), spec.getElectionPort(), 0,
-                                                  groupId, 1));
+                                                  groupId, weight));
         }
 
         logger.debug("Creating a cluster: {}", servers);

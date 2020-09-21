@@ -276,10 +276,10 @@ public final class ZooKeeperCommandExecutor
 
         // Register the metrics which are accessible even before started.
         Gauge.builder("replica.id", this, self -> replicaId()).register(meterRegistry);
-        Gauge.builder("replica.groupId", this, self -> {
-            final Integer groupId = self.cfg.serverConfig().groupId();
-            return groupId != null ? groupId : -1;
-        }).register(meterRegistry);
+        if (cfg.serverConfig().groupId() != null) {
+            Gauge.builder("replica.groupId", this, self -> self.cfg.serverConfig().groupId())
+                 .register(meterRegistry);
+        }
         Gauge.builder("replica.read.only", this, self -> self.isWritable() ? 0 : 1).register(meterRegistry);
         Gauge.builder("replica.replicating", this, self -> self.isStarted() ? 1 : 0).register(meterRegistry);
         Gauge.builder("replica.has.leadership", this,
@@ -448,11 +448,11 @@ public final class ZooKeeperCommandExecutor
             // Add groups if exists
             if (hasGroupId) {
                 final ImmutableMultimap.Builder<Integer, Integer> groupBuilder = ImmutableMultimap.builder();
-                boolean hierarchicalQuorumsEnabled = true;
+                boolean isHierarchical = true;
                 for (Entry<Integer, ZooKeeperServerConfig> entry : servers.entrySet()) {
                     final Integer groupId = entry.getValue().groupId();
                     if (groupId == null) {
-                        hierarchicalQuorumsEnabled = false;
+                        isHierarchical = false;
                         final List<ZooKeeperServerConfig> noGroupIds =
                                 servers.values().stream()
                                        .filter(serverConfig -> serverConfig.groupId() == null)
@@ -464,7 +464,7 @@ public final class ZooKeeperCommandExecutor
                         groupBuilder.put(groupId, entry.getKey());
                     }
                 }
-                if (hierarchicalQuorumsEnabled) {
+                if (isHierarchical) {
                     groupBuilder.build().asMap().forEach((groupId, serverIds) -> {
                         // group.1=1:2:3
                         zkProps.setProperty("group." + groupId, colonJoiner.join(serverIds));
