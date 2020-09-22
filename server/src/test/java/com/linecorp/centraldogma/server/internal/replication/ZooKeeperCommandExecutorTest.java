@@ -260,13 +260,13 @@ class ZooKeeperCommandExecutorTest {
 
     @Test
     void hierarchicalQuorums() throws Throwable {
-        final List<Replica> cluster = buildCluster(15, true /* start */, 3,
+        final List<Replica> cluster = buildCluster(9, true /* start */, 3,
                                                    ZooKeeperCommandExecutorTest::newMockDelegate,
                                                    (groupId, serverId) -> 1);
 
         for (int i = 0; i < cluster.size(); i++) {
             final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(i).meterRegistry);
-            assertThat(meters).containsEntry("replica.groupId#value", (i % 3) + 1.0);
+            assertThat(meters).containsEntry("replica.groupId#value", (i / 3) + 1.0);
         }
         final Replica replica1 = cluster.get(0);
 
@@ -357,6 +357,73 @@ class ZooKeeperCommandExecutorTest {
             await().untilAsserted(() -> verify(cluster.get(5).delegate).apply(eq(command3)));
             await().untilAsserted(() -> verify(cluster.get(7).delegate).apply(eq(command3)));
             await().untilAsserted(() -> verify(cluster.get(8).delegate).apply(eq(command3)));
+        } finally {
+            for (Replica r : cluster) {
+                r.rm.stop();
+            }
+        }
+    }
+
+    @Test
+    void hierarchicalQuorums_writingOnZeroWeightReplica() throws Throwable {
+        final List<Replica> cluster = buildCluster(9, true /* start */, 3,
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate,
+                                                   (groupId, serverId) -> {
+                                                       if (serverId == 1) {
+                                                           return 0;
+                                                       } else {
+                                                           return 1;
+                                                       }
+                                                   });
+
+        // The replica1, which has zero-weight, should be excluded from the hierarchical quorums.
+        // However the communication with ZooKeeper cluster should work correctly.
+        final Replica replica1 = cluster.get(0);
+
+        try {
+            final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
+            replica1.rm.execute(command1).join();
+
+            final ReplicationLog<?> commandResult1 = replica1.rm.loadLog(0, false).get();
+            assertThat(commandResult1.command()).isEqualTo(command1);
+            assertThat(commandResult1.result()).isNull();
+
+            for (Replica replica : cluster) {
+                await().untilAsserted(() -> verify(replica.delegate).apply(eq(command1)));
+            }
+        } finally {
+            for (Replica r : cluster) {
+                r.rm.stop();
+            }
+        }
+    }
+
+    @Test
+    void hierarchicalQuorums_replayingOnZeroWeightReplica() throws Throwable {
+        final List<Replica> cluster = buildCluster(9, true /* start */, 3,
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate,
+                                                   (groupId, serverId) -> {
+                                                       if (serverId == 2) {
+                                                           return 0;
+                                                       } else {
+                                                           return 1;
+                                                       }
+                                                   });
+
+        final Replica replica1 = cluster.get(0);
+
+        try {
+            final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
+            replica1.rm.execute(command1).join();
+
+            final ReplicationLog<?> commandResult1 = replica1.rm.loadLog(0, false).get();
+            assertThat(commandResult1.command()).isEqualTo(command1);
+            assertThat(commandResult1.result()).isNull();
+
+            // The ReplicationLog should be relayed to replica2 which has zero-weight.
+            for (Replica replica : cluster) {
+                await().untilAsserted(() -> verify(replica.delegate).apply(eq(command1)));
+            }
         } finally {
             for (Replica r : cluster) {
                 r.rm.stop();
