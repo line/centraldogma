@@ -1,9 +1,11 @@
 buildscript {
     repositories {
         mavenCentral()
+        google()
+        jcenter()
     }
     dependencies {
-        classpath "net.sf.proguard:proguard-gradle:${managedVersions['net.sf.proguard:proguard-gradle']}"
+        classpath "com.guardsquare:proguard-gradle:${managedVersions['com.guardsquare:proguard-gradle']}"
     }
 }
 
