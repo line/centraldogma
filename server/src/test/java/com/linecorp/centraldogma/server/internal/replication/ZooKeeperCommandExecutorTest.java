@@ -415,7 +415,6 @@ class ZooKeeperCommandExecutorTest {
         return buildCluster(numReplicas, start, 1, delegateSupplier, null);
     }
 
-
     private List<Replica> buildCluster(
             int numReplicas, boolean start, int numGroup,
             Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier,
