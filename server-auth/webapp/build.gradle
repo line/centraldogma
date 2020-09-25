@@ -44,7 +44,13 @@ task buildWebApp(type: YarnTask) {
     args = ['run', 'build']
 }
 
+task cleanNodeModules(type: Delete) {
+    delete 'node_modules'
+    followSymlinks = true
+}
+
 tasks.assemble.dependsOn tasks.buildWebApp
+tasks.clean.dependsOn tasks.cleanNodeModules
 
 node {
     version = '10.19.0'
