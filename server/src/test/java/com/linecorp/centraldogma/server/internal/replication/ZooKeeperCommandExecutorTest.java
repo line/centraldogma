@@ -92,8 +92,8 @@ class ZooKeeperCommandExecutorTest {
     @Test
     void testLogWatch() throws Exception {
         // The 5th replica is used for ensuring the quorum.
-        final List<Replica> cluster = buildCluster(5, true /* start */, 1,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate, null);
+        final List<Replica> cluster = buildCluster(5, true /* start */,
+                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
         final Replica replica1 = cluster.get(0);
         final Replica replica2 = cluster.get(1);
         final Replica replica3 = cluster.get(2);
@@ -201,10 +201,10 @@ class ZooKeeperCommandExecutorTest {
     void testRace() throws Exception {
         // Each replica has its own AtomicInteger which counts the number of commands
         // it executed/replayed so far.
-        final List<Replica> replicas = buildCluster(NUM_REPLICAS, true /* start */, 1, () -> {
+        final List<Replica> replicas = buildCluster(NUM_REPLICAS, true /* start */, () -> {
             final AtomicInteger counter = new AtomicInteger();
             return command -> completedFuture(new Revision(counter.incrementAndGet()));
-        }, null);
+        });
 
         try {
             final Command<Revision> command =
