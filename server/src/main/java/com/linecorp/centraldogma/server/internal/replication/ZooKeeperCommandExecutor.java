@@ -457,7 +457,7 @@ public final class ZooKeeperCommandExecutor
                                 servers.values().stream()
                                        .filter(serverConfig -> serverConfig.groupId() == null)
                                        .collect(toImmutableList());
-                        logger.warn("Hierarchical quorums are disabled. 'groupId' are missed in {}",
+                        logger.warn("Hierarchical quorums are disabled. 'groupId' are missing in {}",
                                     noGroupIds);
                         break;
                     } else {
