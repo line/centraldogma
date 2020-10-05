@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
@@ -53,7 +54,7 @@ public final class ZooKeeperServerConfig {
     public ZooKeeperServerConfig(@JsonProperty(value = "host", required = true) String host,
                                  @JsonProperty(value = "quorumPort", required = true) int quorumPort,
                                  @JsonProperty(value = "electionPort", required = true) int electionPort,
-                                 @JsonProperty(value = "clientPort", defaultValue = "0") int clientPort,
+                                 @JsonProperty(value = "clientPort", defaultValue = "0") Integer clientPort,
                                  @JsonProperty("groupId") @Nullable Integer groupId,
                                  @JsonProperty(value = "weight", defaultValue = "1") Integer weight) {
 
@@ -61,6 +62,9 @@ public final class ZooKeeperServerConfig {
         this.quorumPort = validatePort(quorumPort, "quorumPort");
         this.electionPort = validatePort(electionPort, "electionPort");
 
+        if (clientPort == null) {
+            clientPort = 0;
+        }
         checkArgument(clientPort >= 0 && clientPort <= 65535,
                       "clientPort: %s (expected: 0-65535)", clientPort);
         this.clientPort = clientPort;

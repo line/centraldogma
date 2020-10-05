@@ -778,9 +778,12 @@ public final class ZooKeeperCommandExecutor
 
         @JsonCreator
         LogMeta(@JsonProperty(value = "replicaId", required = true) int replicaId,
-                @JsonProperty(value = "timestamp", defaultValue = "0") long timestamp,
+                @JsonProperty(value = "timestamp", defaultValue = "0") Long timestamp,
                 @JsonProperty("size") int size) {
             this.replicaId = replicaId;
+            if (timestamp == null) {
+                timestamp = 0L;
+            }
             this.timestamp = timestamp;
             this.size = size;
         }
