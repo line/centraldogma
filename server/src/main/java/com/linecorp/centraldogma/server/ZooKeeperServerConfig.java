@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.server;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
@@ -47,16 +46,17 @@ public final class ZooKeeperServerConfig {
      * @param quorumPort the quorum port number
      * @param electionPort the election port number
      * @param clientPort the client port number (0-65535)
-     * @param groupId the group ID to use hierarchical quorums
+     * @param groupId the group ID to use for hierarchical quorums
      * @param weight the weight of the Zookeeper server
      */
     @JsonCreator
-    public ZooKeeperServerConfig(@JsonProperty(value = "host", required = true) String host,
-                                 @JsonProperty(value = "quorumPort", required = true) int quorumPort,
-                                 @JsonProperty(value = "electionPort", required = true) int electionPort,
-                                 @JsonProperty(value = "clientPort", defaultValue = "0") Integer clientPort,
-                                 @JsonProperty("groupId") @Nullable Integer groupId,
-                                 @JsonProperty(value = "weight", defaultValue = "1") Integer weight) {
+    public ZooKeeperServerConfig(
+            @JsonProperty(value = "host", required = true) String host,
+            @JsonProperty(value = "quorumPort", required = true) int quorumPort,
+            @JsonProperty(value = "electionPort", required = true) int electionPort,
+            @JsonProperty(value = "clientPort", defaultValue = "0") @Nullable Integer clientPort,
+            @JsonProperty("groupId") @Nullable Integer groupId,
+            @JsonProperty(value = "weight", defaultValue = "1") @Nullable Integer weight) {
 
         this.host = requireNonNull(host, "host");
         this.quorumPort = validatePort(quorumPort, "quorumPort");

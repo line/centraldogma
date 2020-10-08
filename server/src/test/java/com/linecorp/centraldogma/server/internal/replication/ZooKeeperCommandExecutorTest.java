@@ -20,7 +20,6 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -65,6 +64,7 @@ import com.google.common.collect.ImmutableList;
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
@@ -329,11 +329,14 @@ class ZooKeeperCommandExecutorTest {
             cluster.get(1).rm.stop().join();
             cluster.get(4).rm.stop().join();
 
-            final Command<Void> command2 = Command.createRepository(Author.SYSTEM, "project", "repo2");
+            final Command<Revision> command2 =
+                    Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "summary", "detail",
+                                 Markup.PLAINTEXT, Change.ofTextUpsert("/foo", "bar"));
+
             replica1.rm.execute(command2).get(10, TimeUnit.SECONDS);
             final ReplicationLog<?> commandResult2 = replica1.rm.loadLog(1, false).get();
             assertThat(commandResult2.command()).isEqualTo(command2);
-            assertThat(commandResult2.result()).isNull();
+            assertThat(commandResult2.result()).isInstanceOf(Revision.class);
 
             await().untilAsserted(() -> verify(cluster.get(0).delegate).apply(eq(command2)));
             await().untilAsserted(() -> verify(cluster.get(2).delegate).apply(eq(command2)));
@@ -352,6 +355,11 @@ class ZooKeeperCommandExecutorTest {
             final CompletableFuture<Void> replica8Start = cluster.get(8).rm.start();
             replica7Start.join();
             replica8Start.join();
+
+            // The command executed while the Group 3 was down should be relayed.
+            await().untilAsserted(() -> verify(cluster.get(7).delegate).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(8).delegate).apply(eq(command2)));
+
             await().untilAsserted(() -> verify(cluster.get(0).delegate).apply(eq(command3)));
             await().untilAsserted(() -> verify(cluster.get(3).delegate).apply(eq(command3)));
             await().untilAsserted(() -> verify(cluster.get(5).delegate).apply(eq(command3)));
@@ -547,11 +555,16 @@ class ZooKeeperCommandExecutorTest {
         return replicas;
     }
 
-    private static Function<Command<?>, CompletableFuture<?>> newMockDelegate() {
-        @SuppressWarnings("unchecked")
-        final Function<Command<?>, CompletableFuture<?>> delegate = mock(Function.class);
-        lenient().when(delegate.apply(any())).thenReturn(completedFuture(null));
-        return delegate;
+    @SuppressWarnings("unchecked")
+    private static <T> Function<Command<?>, CompletableFuture<?>> newMockDelegate() {
+        final Function<Command<T>, CompletableFuture<T>> delegate = mock(Function.class);
+        lenient().when(delegate.apply(argThat(x -> x == null || x.type().resultType() == Void.class)))
+                 .thenReturn(completedFuture(null));
+
+        lenient().when(delegate.apply(argThat(x -> x.type().resultType() == Revision.class)))
+                 .thenReturn((CompletableFuture<T>) completedFuture(Revision.HEAD));
+
+        return (Function<Command<?>, CompletableFuture<?>>) (Function<?, ?>)delegate;
     }
 
     private static final class Replica {

@@ -466,11 +466,11 @@ public final class ZooKeeperCommandExecutor
                 }
                 if (isHierarchical) {
                     groupBuilder.build().asMap().forEach((groupId, serverIds) -> {
-                        // group.1=1:2:3
+                        // e.g. group.1=1:2:3
                         zkProps.setProperty("group." + groupId, colonJoiner.join(serverIds));
                     });
                     servers.forEach((serverId, serverConfig) -> {
-                        // weight.1=1
+                        // e.g. weight.1=1
                         zkProps.setProperty("weight." + serverId, String.valueOf(serverConfig.weight()));
                     });
                 }
