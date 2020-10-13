@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
@@ -30,6 +31,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -71,13 +74,16 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMultimap;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -93,6 +99,7 @@ public final class ZooKeeperCommandExecutor
     private static final Logger logger = LoggerFactory.getLogger(ZooKeeperCommandExecutor.class);
     private static final Escaper jaasValueEscaper =
             Escapers.builder().addEscape('\"', "\\\"").addEscape('\\', "\\\\").build();
+    private static final Joiner colonJoiner = Joiner.on(':');
 
     private static final String PATH_PREFIX = "/dogma";
     private static final int MAX_BYTES = 1024 * 1023; // Max size in document is 1M. but safety.
@@ -269,6 +276,10 @@ public final class ZooKeeperCommandExecutor
 
         // Register the metrics which are accessible even before started.
         Gauge.builder("replica.id", this, self -> replicaId()).register(meterRegistry);
+        if (cfg.serverConfig().groupId() != null) {
+            Gauge.builder("replica.groupId", this, self -> self.cfg.serverConfig().groupId())
+                 .register(meterRegistry);
+        }
         Gauge.builder("replica.read.only", this, self -> self.isWritable() ? 0 : 1).register(meterRegistry);
         Gauge.builder("replica.replicating", this, self -> self.isStarted() ? 1 : 0).register(meterRegistry);
         Gauge.builder("replica.has.leadership", this,
@@ -417,14 +428,53 @@ public final class ZooKeeperCommandExecutor
             System.setProperty("zookeeper.authProvider.1", SASLAuthenticationProvider.class.getName());
 
             // Set the client port, which is unused.
-            zkProps.setProperty("clientPort", String.valueOf(cfg.serverAddress().clientPort()));
+            zkProps.setProperty("clientPort", String.valueOf(cfg.serverConfig().clientPort()));
 
+            final Map<Integer, ZooKeeperServerConfig> servers = cfg.servers();
             // Add replicas.
-            cfg.servers().forEach((id, addr) -> {
+            boolean hasGroupId = false;
+            for (Entry<Integer, ZooKeeperServerConfig> entry : servers.entrySet()) {
+                final ZooKeeperServerConfig serverConfig = entry.getValue();
                 zkProps.setProperty(
-                        "server." + id,
-                        addr.host() + ':' + addr.quorumPort() + ':' + addr.electionPort() + ":participant");
-            });
+                        "server." + entry.getKey(),
+                        serverConfig.host() + ':' + serverConfig.quorumPort() + ':' +
+                        serverConfig.electionPort() + ":participant");
+
+                if (!hasGroupId && serverConfig.groupId() != null) {
+                    hasGroupId = true;
+                }
+            }
+
+            // Add groups if exists
+            if (hasGroupId) {
+                final ImmutableMultimap.Builder<Integer, Integer> groupBuilder = ImmutableMultimap.builder();
+                boolean isHierarchical = true;
+                for (Entry<Integer, ZooKeeperServerConfig> entry : servers.entrySet()) {
+                    final Integer groupId = entry.getValue().groupId();
+                    if (groupId == null) {
+                        isHierarchical = false;
+                        final List<ZooKeeperServerConfig> noGroupIds =
+                                servers.values().stream()
+                                       .filter(serverConfig -> serverConfig.groupId() == null)
+                                       .collect(toImmutableList());
+                        logger.warn("Hierarchical quorums are disabled. 'groupId' are missing in {}",
+                                    noGroupIds);
+                        break;
+                    } else {
+                        groupBuilder.put(groupId, entry.getKey());
+                    }
+                }
+                if (isHierarchical) {
+                    groupBuilder.build().asMap().forEach((groupId, serverIds) -> {
+                        // e.g. group.1=1:2:3
+                        zkProps.setProperty("group." + groupId, colonJoiner.join(serverIds));
+                    });
+                    servers.forEach((serverId, serverConfig) -> {
+                        // e.g. weight.1=1
+                        zkProps.setProperty("weight." + serverId, String.valueOf(serverConfig.weight()));
+                    });
+                }
+            }
 
             // Disable Jetty-based admin server.
             zkProps.setProperty("admin.enableServer", "false");
@@ -728,9 +778,12 @@ public final class ZooKeeperCommandExecutor
 
         @JsonCreator
         LogMeta(@JsonProperty(value = "replicaId", required = true) int replicaId,
-                @JsonProperty(value = "timestamp", defaultValue = "0") long timestamp,
+                @JsonProperty(value = "timestamp", defaultValue = "0") Long timestamp,
                 @JsonProperty("size") int size) {
             this.replicaId = replicaId;
+            if (timestamp == null) {
+                timestamp = 0L;
+            }
             this.timestamp = timestamp;
             this.size = size;
         }

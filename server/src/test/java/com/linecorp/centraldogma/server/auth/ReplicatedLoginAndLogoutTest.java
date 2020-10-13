@@ -52,8 +52,8 @@ import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
-import com.linecorp.centraldogma.server.ZooKeeperAddress;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
+import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 
@@ -82,9 +82,11 @@ class ReplicatedLoginAndLogoutTest {
         final int zkElectionPort2 = InstanceSpec.getRandomPort();
         final int zkClientPort2 = InstanceSpec.getRandomPort();
 
-        final Map<Integer, ZooKeeperAddress> servers = ImmutableMap.of(
-                1, new ZooKeeperAddress("127.0.0.1", zkQuorumPort1, zkElectionPort1, zkClientPort1),
-                2, new ZooKeeperAddress("127.0.0.1", zkQuorumPort2, zkElectionPort2, zkClientPort2));
+        final Map<Integer, ZooKeeperServerConfig> servers = ImmutableMap.of(
+                1, new ZooKeeperServerConfig("127.0.0.1", zkQuorumPort1, zkElectionPort1,
+                                             zkClientPort1, /* groupId */ null, /* weight */ 1),
+                2, new ZooKeeperServerConfig("127.0.0.1", zkQuorumPort2, zkElectionPort2,
+                                             zkClientPort2, /* groupId */ null, /* weight */ 1));
 
         final AuthProviderFactory factory = new TestAuthProviderFactory();
 

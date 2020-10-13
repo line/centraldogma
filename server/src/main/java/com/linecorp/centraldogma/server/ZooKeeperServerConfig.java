@@ -20,6 +20,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
@@ -27,12 +29,15 @@ import com.google.common.base.MoreObjects;
 /**
  * Represents the address and port numbers of a ZooKeeper node.
  */
-public final class ZooKeeperAddress {
+public final class ZooKeeperServerConfig {
 
     private final String host;
     private final int quorumPort;
     private final int electionPort;
     private final int clientPort;
+    @Nullable
+    private final Integer groupId;
+    private final int weight;
 
     /**
      * Creates a new instance.
@@ -41,20 +46,34 @@ public final class ZooKeeperAddress {
      * @param quorumPort the quorum port number
      * @param electionPort the election port number
      * @param clientPort the client port number (0-65535)
+     * @param groupId the group ID to use for hierarchical quorums
+     * @param weight the weight of the Zookeeper server
      */
     @JsonCreator
-    public ZooKeeperAddress(@JsonProperty(value = "host", required = true) String host,
-                            @JsonProperty(value = "quorumPort", required = true) int quorumPort,
-                            @JsonProperty(value = "electionPort", required = true) int electionPort,
-                            @JsonProperty(value = "clientPort", defaultValue = "0") int clientPort) {
+    public ZooKeeperServerConfig(
+            @JsonProperty(value = "host", required = true) String host,
+            @JsonProperty(value = "quorumPort", required = true) int quorumPort,
+            @JsonProperty(value = "electionPort", required = true) int electionPort,
+            @JsonProperty(value = "clientPort", defaultValue = "0") @Nullable Integer clientPort,
+            @JsonProperty("groupId") @Nullable Integer groupId,
+            @JsonProperty(value = "weight", defaultValue = "1") @Nullable Integer weight) {
 
         this.host = requireNonNull(host, "host");
         this.quorumPort = validatePort(quorumPort, "quorumPort");
         this.electionPort = validatePort(electionPort, "electionPort");
 
+        if (clientPort == null) {
+            clientPort = 0;
+        }
         checkArgument(clientPort >= 0 && clientPort <= 65535,
                       "clientPort: %s (expected: 0-65535)", clientPort);
         this.clientPort = clientPort;
+        this.groupId = groupId;
+        if (weight == null) {
+            weight = 1;
+        }
+        checkArgument(weight >= 0, "weight: %s (expected: >= 0)", weight);
+        this.weight = weight;
     }
 
     private static int validatePort(int port, String name) {
@@ -94,9 +113,26 @@ public final class ZooKeeperAddress {
         return clientPort;
     }
 
+    /**
+     * Returns the group ID to use hierarchical quorums.
+     */
+    @Nullable
+    @JsonProperty
+    public Integer groupId() {
+        return groupId;
+    }
+
+    /**
+     * Returns the weight of the ZooKeeper server.
+     */
+    @JsonProperty
+    public int weight() {
+        return weight;
+    }
+
     @Override
     public int hashCode() {
-        return Objects.hash(host, quorumPort, electionPort, clientPort);
+        return Objects.hash(host, quorumPort, electionPort, clientPort, groupId, weight);
     }
 
     @Override
@@ -109,11 +145,13 @@ public final class ZooKeeperAddress {
             return false;
         }
 
-        final ZooKeeperAddress that = (ZooKeeperAddress) o;
+        final ZooKeeperServerConfig that = (ZooKeeperServerConfig) o;
         return host.equals(that.host) &&
                quorumPort == that.quorumPort &&
                electionPort == that.electionPort &&
-               clientPort == that.clientPort;
+               clientPort == that.clientPort &&
+               Objects.equals(groupId, that.groupId) &&
+               weight == that.weight;
     }
 
     @Override
@@ -123,6 +161,8 @@ public final class ZooKeeperAddress {
                           .add("quorumPort", quorumPort)
                           .add("electionPort", electionPort)
                           .add("clientPort", clientPort)
+                          .add("groupId", groupId)
+                          .add("weight", weight)
                           .toString();
     }
 }

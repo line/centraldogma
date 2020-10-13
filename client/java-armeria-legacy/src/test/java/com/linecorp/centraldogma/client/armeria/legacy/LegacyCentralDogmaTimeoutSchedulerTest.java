@@ -89,8 +89,11 @@ class LegacyCentralDogmaTimeoutSchedulerTest {
                 // A response timeout is calculated from the start of the request.
                 final long responseTimeoutMillis = ctx.responseTimeoutMillis();
                 final long adjustment = expectedTimeoutMills - defaultTimeoutMills;
+
                 decorator.execute(ctx, req);
-                assertThat(ctx.responseTimeoutMillis()).isEqualTo(responseTimeoutMillis + adjustment);
+                assertThat(ctx.responseTimeoutMillis())
+                        .isEqualTo(Math.min(responseTimeoutMillis + adjustment, WatchTimeout.MAX_MILLIS));
+
                 verify(client).execute(ctx, req);
                 completed.set(true);
             } catch (Exception e) {
