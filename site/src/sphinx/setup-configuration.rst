@@ -302,7 +302,7 @@ example shows the configuration of the first replica in a 3-replica cluster:
     - ``groupId`` (integer)
 
       - the group ID which is used by ZooKeeper for
-        `hierarchical quorums https://zookeeper.apache.org/doc/r3.5.8/zookeeperHierarchicalQuorums.html`_
+        `hierarchical quorums <https://zookeeper.apache.org/doc/r3.5.8/zookeeperHierarchicalQuorums.html>`_
          If ``null`` or unspecified, hierarchical quorums are disabled.
 
     - ``weight`` (integer)
