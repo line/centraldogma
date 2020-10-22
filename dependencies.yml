@@ -3,8 +3,8 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.fasterxml.jackson:jackson-bom:2.11.2
-- com.linecorp.armeria:armeria-bom:1.1.0
+- com.fasterxml.jackson:jackson-bom:2.11.3
+- com.linecorp.armeria:armeria-bom:1.2.0
 - io.micrometer:micrometer-bom:1.5.5
 - org.junit:junit-bom:5.7.0
 
@@ -16,6 +16,7 @@ ch.qos.logback:
 
 com.beust:
   # Please check `jcommander` version of Maven Central Repository before updating
+  # https://search.maven.org/artifact/com.beust/jcommander
   jcommander: { version: '1.78' }
 
 com.boazj.gradle:
@@ -48,12 +49,12 @@ com.fasterxml.jackson.core:
 
 com.github.ben-manes.caffeine:
   caffeine:
-    version: '2.8.5'
+    version: '2.8.6'
     javadocs:
     - https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.8.5/
 
 com.github.jengelman.gradle.plugins:
-  shadow: { version: '6.0.0' }
+  shadow: { version: '6.1.0' }
 
 com.github.node-gradle:
   gradle-node-plugin: { version: '2.2.4' }
@@ -63,7 +64,7 @@ com.google.code.findbugs:
 
 com.google.guava:
   guava:
-    version: &GUAVA_VERSION '29.0-jre'
+    version: &GUAVA_VERSION '30.0-jre'
     exclusions:
     - com.google.errorprone:error_prone_annotations
     - com.google.j2objc:j2objc-annotations
@@ -112,7 +113,7 @@ com.linecorp.armeria:
     - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.1.0/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.36.1' }
+  checkstyle: { version: '8.36.2' }
 
 com.spotify:
   completable-futures:
@@ -146,9 +147,9 @@ javax.validation:
 
 junit:
   junit:
-    version: '4.13'
+    version: '4.13.1'
     javadocs:
-      - https://junit.org/junit4/javadoc/4.13/
+      - https://junit.org/junit4/javadoc/4.13.1/
 
 org.junit.jupiter:
   junit-jupiter-api:
@@ -160,7 +161,7 @@ kr.motd.gradle:
   sphinx-gradle-plugin: { version: '2.9.0' }
 
 me.champeau.gradle:
-  jmh-gradle-plugin: { version: '0.5.0' }
+  jmh-gradle-plugin: { version: '0.5.2' }
 
 net.javacrumbs.json-unit:
   json-unit: { version: &JSON_UNIT_VERSION '2.19.0' }
@@ -217,20 +218,20 @@ org.eclipse.jgit:
   org.eclipse.jgit.ssh.jsch: { version: *JGIT_VERSION }
 
 org.hibernate.validator:
-  hibernate-validator: { version: '6.1.5.Final' }
+  hibernate-validator: { version: '6.1.6.Final' }
 
 org.javassist:
   javassist: { version: '3.27.0-GA' }
 
 org.mockito:
-  mockito-core: { version: &MOCKITO_VERSION '3.5.11' }
+  mockito-core: { version: &MOCKITO_VERSION '3.5.15' }
   mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
   jetty-alpn-agent: { version: '2.0.10' }
 
 org.openjdk.jmh:
-  jmh-core: { version: &JMH_VERSION '1.25.2' }
+  jmh-core: { version: &JMH_VERSION '1.26' }
   jmh-generator-annprocess: { version: *JMH_VERSION }
 
 org.slf4j:
