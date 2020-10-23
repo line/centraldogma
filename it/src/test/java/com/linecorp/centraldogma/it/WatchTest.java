@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -248,6 +249,42 @@ class WatchTest {
         final Watcher<String> stringWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
                                                                  Query.ofText("/test/test2.json"));
         assertThat(stringWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watcherThrowsException(ClientType clientType) throws InterruptedException {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final String filePath = "/test/test2.json";
+        final Watcher<JsonNode> jsonWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
+                                                                 Query.ofJson(filePath));
+
+        // wait for initial value
+        assertThatJson(jsonWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
+        final Revision rev0 = jsonWatcher.initialValueFuture().join().revision();
+
+        // add two watchers, the first one throws an exception
+        final AtomicBoolean atomicBoolean = new AtomicBoolean();
+        jsonWatcher.watch(node -> {
+            throw new IllegalArgumentException();
+        });
+        jsonWatcher.watch(node -> {
+            if ("air".equals(node.get("a").asText())) {
+                atomicBoolean.set(true);
+            }
+        });
+
+        // update the json
+        final Change<JsonNode> update = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"air\" }");
+        client.push(dogma.project(), dogma.repo1(), rev0, "Modify /a", update)
+              .join()
+              .revision();
+
+        // the updated json should be reflected in the second watcher
+        await().untilTrue(atomicBoolean);
     }
 
     @ParameterizedTest

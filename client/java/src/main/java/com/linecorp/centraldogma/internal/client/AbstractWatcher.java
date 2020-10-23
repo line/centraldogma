@@ -288,7 +288,12 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
 
         final Latest<T> latest = this.latest;
         for (BiConsumer<? super Revision, ? super T> listener : updateListeners) {
-            listener.accept(latest.revision(), latest.value());
+            try {
+                listener.accept(latest.revision(), latest.value());
+            } catch (Exception e) {
+                logger.warn("Exception thrown for watcher ({}/{}{}) on ({}), ",
+                            projectName, repositoryName, pathPattern, latest, e);
+            }
         }
     }
 
