@@ -60,6 +60,8 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * A {@link CentralDogma} client that retries the request automatically when a {@link RevisionNotFoundException}
  * was raised but it is certain that a given {@link Revision} exists.
@@ -85,8 +87,8 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
     public ReplicationLagTolerantCentralDogma(ScheduledExecutorService blockingTaskExecutor,
                                               CentralDogma delegate, int maxRetries, long retryIntervalMillis,
-                                              Supplier<?> currentReplicaHintSupplier) {
-        super(blockingTaskExecutor);
+                                              Supplier<?> currentReplicaHintSupplier, MeterRegistry meterRegistry) {
+        super(blockingTaskExecutor, meterRegistry);
 
         requireNonNull(delegate, "delegate");
         checkArgument(maxRetries > 0, "maxRetries: %s (expected: > 0)", maxRetries);

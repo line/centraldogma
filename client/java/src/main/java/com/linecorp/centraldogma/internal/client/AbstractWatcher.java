@@ -33,11 +33,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
@@ -48,6 +51,8 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+
+import io.micrometer.core.instrument.Tag;
 
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
@@ -114,6 +119,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners;
     private final AtomicReference<State> state;
     private final CompletableFuture<Latest<T>> initialValueFuture;
+    private final AtomicLong revisionGauge;
 
     private volatile Latest<T> latest;
     private volatile ScheduledFuture<?> currentScheduleFuture;
@@ -126,6 +132,10 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         this.projectName = requireNonNull(projectName, "projectName");
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
+
+        final Iterable<Tag> tags = ImmutableList.of(
+                Tag.of("project", projectName), Tag.of("repository", repositoryName), Tag.of("path", pathPattern));
+        revisionGauge = client.meterRegistry().gauge("centraldogma.client.watcher.revision", tags, new AtomicLong());
 
         updateListeners = new CopyOnWriteArrayList<>();
         state = new AtomicReference<>(State.INIT);
@@ -244,6 +254,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  if (oldLatest == null) {
                      initialValueFuture.complete(newLatest);
                  }
+                 revisionGauge.set(latest.revision().major());
              }
 
              // Watch again for the next change.

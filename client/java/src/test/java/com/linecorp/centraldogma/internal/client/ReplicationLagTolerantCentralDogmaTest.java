@@ -42,6 +42,7 @@ import org.mockito.Mock;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.Change;
@@ -66,7 +67,7 @@ class ReplicationLagTolerantCentralDogmaTest {
     @BeforeEach
     void setUp() {
         dogma = new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0,
-                                                       currentReplicaHintSupplier);
+                                                       currentReplicaHintSupplier, NoopMeterRegistry.get());
     }
 
     @AfterAll

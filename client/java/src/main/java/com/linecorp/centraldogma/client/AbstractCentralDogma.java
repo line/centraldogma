@@ -37,12 +37,15 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.client.FileWatcher;
 import com.linecorp.centraldogma.internal.client.RepositoryWatcher;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * A skeletal {@link CentralDogma} implementation.
  */
 public abstract class AbstractCentralDogma implements CentralDogma {
 
     private final ScheduledExecutorService blockingTaskExecutor;
+    private final MeterRegistry meterRegistry;
 
     /**
      * Creates a new instance.
@@ -51,8 +54,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      *                             tasks related with automatic retries and invoking the callbacks for
      *                             watched changes.
      */
-    protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor) {
+    protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor,
+                                   MeterRegistry meterRegistry) {
         this.blockingTaskExecutor = requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
+        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
     }
 
     /**
@@ -214,5 +219,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         } else {
             return CompletableFuture.completedFuture(revision);
         }
+    }
+
+    @Override
+    public MeterRegistry meterRegistry() {
+        return meterRegistry;
     }
 }

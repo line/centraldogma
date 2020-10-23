@@ -42,6 +42,8 @@ import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Central Dogma client.
  */
@@ -591,4 +593,6 @@ public interface CentralDogma {
      */
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                      Function<Revision, ? extends T> function, Executor executor);
+
+    MeterRegistry meterRegistry();
 }

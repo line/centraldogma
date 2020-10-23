@@ -37,6 +37,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.armeria.common.CommonPools;
+import com.linecorp.armeria.common.metric.NoopMeterRegistry;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.client.armeria.legacy.ThriftTypes.TAuthor;
@@ -80,7 +81,7 @@ class LegacyCentralDogmaTest {
 
     @BeforeEach
     void setUp() {
-        client = new LegacyCentralDogma(CommonPools.blockingTaskExecutor(), iface);
+        client = new LegacyCentralDogma(CommonPools.blockingTaskExecutor(), iface, NoopMeterRegistry.get());
     }
 
     @Test

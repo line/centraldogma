@@ -68,7 +68,7 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
 
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
         final CentralDogma dogma = new LegacyCentralDogma(blockingTaskExecutor,
-                                                          builder.build(AsyncIface.class));
+                                                          builder.build(AsyncIface.class), meterRegistry());
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
@@ -80,7 +80,7 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
                         //                 in Armeria: https://github.com/line/armeria/issues/760
                         final ClientRequestContext ctx = ClientRequestContext.currentOrNull();
                         return ctx != null ? ctx.remoteAddress() : null;
-                    });
+                    }, meterRegistry());
         }
     }
 }
