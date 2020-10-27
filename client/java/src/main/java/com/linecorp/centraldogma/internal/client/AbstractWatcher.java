@@ -291,8 +291,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
             try {
                 listener.accept(latest.revision(), latest.value());
             } catch (Exception e) {
-                logger.warn("Exception thrown for watcher ({}/{}{}) on ({}), ",
-                            projectName, repositoryName, pathPattern, latest, e);
+                logger.warn("Exception thrown for watcher ({}/{}{}): rev={}",
+                            projectName, repositoryName, pathPattern, latest.revision(), e);
             }
         }
     }

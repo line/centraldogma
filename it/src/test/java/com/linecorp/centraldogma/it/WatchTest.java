@@ -280,8 +280,7 @@ class WatchTest {
         final Change<JsonNode> update = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"air\" }");
         client.push(dogma.project(), dogma.repo1(), rev0, "Modify /a", update)
-              .join()
-              .revision();
+              .join();
 
         // the updated json should be reflected in the second watcher
         await().untilTrue(atomicBoolean);
