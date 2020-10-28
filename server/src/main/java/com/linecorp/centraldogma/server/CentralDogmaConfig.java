@@ -66,6 +66,7 @@ import com.linecorp.armeria.server.ClientAddressSource;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.netty.util.NetUtil;
 
@@ -134,6 +135,9 @@ public final class CentralDogmaConfig {
     @Nullable
     private final AuthConfig authConfig;
 
+    @Nullable
+    private final QuotaConfig writeQuota;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -160,7 +164,8 @@ public final class CentralDogmaConfig {
             @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
-            @JsonProperty("authentication") @Nullable AuthConfig authConfig) {
+            @JsonProperty("authentication") @Nullable AuthConfig authConfig,
+            @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuota) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -212,6 +217,8 @@ public final class CentralDogmaConfig {
         clientAddressSourceList =
                 toClientAddressSourceList(clientAddressSources, hasTrustedProxyAddrCfg,
                                           ports.stream().anyMatch(ServerPort::hasProxyProtocol));
+
+        this.writeQuota = writeQuota;
     }
 
     /**
@@ -438,6 +445,15 @@ public final class CentralDogmaConfig {
     @JsonProperty("authentication")
     public AuthConfig authConfig() {
         return authConfig;
+    }
+
+    /**
+     * Returns the maximum allowed write quota per {@link Repository}.
+     */
+    @Nullable
+    @JsonProperty("writeQuotaPerRepository")
+    public QuotaConfig writeQuota() {
+        return writeQuota;
     }
 
     @Override

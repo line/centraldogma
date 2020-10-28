@@ -25,9 +25,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.auth.OAuth2Token;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -41,8 +38,6 @@ import com.linecorp.centraldogma.server.metadata.User;
  * decorator would find a session belonging to the token and attach it to the service context attributes.
  */
 public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
-
-    private static final Logger logger = LoggerFactory.getLogger(SessionTokenAuthorizer.class);
 
     private final SessionManager sessionManager;
     private final Set<String> administrators;

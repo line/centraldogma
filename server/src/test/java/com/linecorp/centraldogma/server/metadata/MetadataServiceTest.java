@@ -31,6 +31,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
+import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
@@ -352,6 +353,24 @@ class MetadataServiceTest {
 
         mds.activateToken(author, app1).join();
         assertThat(mds.getTokens().join().get(app1).isActive()).isTrue();
+    }
+
+    @Test
+    void updateWriteQuota() {
+        final MetadataService mds = newMetadataService(manager);
+        mds.addRepo(author, project1, repo1, PerRolePermissions.ofPublic()).join();
+        RepositoryMetadata repoMeta = mds.getRepo(project1, repo1).join();
+        assertThat(repoMeta.writeQuota()).isNull();
+
+        final QuotaConfig writeQuota1 = new QuotaConfig(5, 2);
+        mds.updateWriteQuota(Author.SYSTEM, project1, repo1, writeQuota1).join();
+        repoMeta = mds.getRepo(project1, repo1).join();
+        assertThat(repoMeta.writeQuota()).isEqualTo(writeQuota1);
+
+        final QuotaConfig writeQuota2 = new QuotaConfig(3, 1);
+        mds.updateWriteQuota(Author.SYSTEM, project1, repo1, writeQuota2).join();
+        repoMeta = mds.getRepo(project1, repo1).join();
+        assertThat(repoMeta.writeQuota()).isEqualTo(writeQuota2);
     }
 
     private static RepositoryMetadata getRepo1(MetadataService mds) {

@@ -73,7 +73,6 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
-import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ServerCacheControl;
 import com.linecorp.armeria.common.metric.MeterIdPrefixFunction;
 import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
@@ -422,7 +421,7 @@ public class CentralDogma implements AutoCloseable {
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
-                executor = new StandaloneCommandExecutor(pm, repositoryWorker, sessionManager,
+                executor = new StandaloneCommandExecutor(pm, repositoryWorker, sessionManager, cfg.writeQuota(),
                                                          onTakeLeadership, onReleaseLeadership);
                 break;
             default:
@@ -526,16 +525,6 @@ public class CentralDogma implements AutoCloseable {
 
         sb.service(HEALTH_CHECK_PATH, HealthCheckService.of());
 
-        // TODO(hyangtack): This service is temporarily added to support redirection from '/docs' to '/docs/'.
-        //                  It would be removed if this kind of redirection is handled by Armeria.
-        sb.service("/docs", new AbstractHttpService() {
-            @Override
-            protected HttpResponse doGet(ServiceRequestContext ctx, HttpRequest req)
-                    throws Exception {
-                return HttpResponse.of(
-                        ResponseHeaders.of(HttpStatus.TEMPORARY_REDIRECT, HttpHeaderNames.LOCATION, "/docs/"));
-            }
-        });
         sb.serviceUnder("/docs/",
                         DocService.builder()
                                   .exampleHeaders(CentralDogmaService.class,
@@ -614,13 +603,11 @@ public class CentralDogma implements AutoCloseable {
 
         // TODO(trustin): Provide a way to restart/reload the replicator
         //                so that we can recover from ZooKeeper maintenance automatically.
-        return new ZooKeeperCommandExecutor(zkCfg, cfg.dataDir(),
-                                            new StandaloneCommandExecutor(pm,
-                                                                          repositoryWorker,
-                                                                          sessionManager,
-                                                                          null, null),
-                                            meterRegistry,
-                                            onTakeLeadership, onReleaseLeadership);
+        return new ZooKeeperCommandExecutor(
+                zkCfg, cfg.dataDir(),
+                new StandaloneCommandExecutor(pm, repositoryWorker, sessionManager,
+                        /* onTakeLeadership */ null, /* onReleaseLeadership */ null),
+                meterRegistry, pm, config().writeQuota(), onTakeLeadership, onReleaseLeadership);
     }
 
     private void configureThriftService(ServerBuilder sb, ProjectManager pm, CommandExecutor executor,

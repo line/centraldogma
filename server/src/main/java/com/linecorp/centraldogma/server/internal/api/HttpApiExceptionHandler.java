@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.newResponse;
 
 import java.util.Map;
@@ -39,6 +40,7 @@ import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
+import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.internal.admin.service.TokenNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.RequestAlreadyTimedOutException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryMetadataException;
@@ -89,7 +91,14 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                     (ctx, req, cause) -> newResponse(ctx, HttpStatus.NOT_FOUND, cause,
                                                      "Token '%s' does not exist.", cause.getMessage()))
                .put(QueryExecutionException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause));
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
+               .put(TooManyRequestsException.class,
+                    (ctx, req, cause) -> {
+                        final TooManyRequestsException cast = (TooManyRequestsException) cause;
+                        final Object type = firstNonNull(cast.type(), "requests");
+                        return newResponse(ctx, HttpStatus.TOO_MANY_REQUESTS, cast,
+                                           "Too many %s are sent to %s", type, cause.getMessage());
+                    });
 
         exceptionHandlers = builder.build();
     }
