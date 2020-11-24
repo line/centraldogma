@@ -62,12 +62,13 @@ class CacheTest {
                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
 
         final Map<String, Double> meters2 = metersSupplier.get();
+        // Metadata needs to access to check a write quota (one cache miss).
         if (clientType == ClientType.LEGACY) {
             // NB: A push operation involves a history() operation to retrieve the last commit.
             //     Therefore we should observe one cache miss. (Thrift only)
-            assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
+            assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 2);
         } else {
-            assertThat(missCount(meters2)).isEqualTo(missCount(meters1));
+            assertThat(missCount(meters2)).isEqualTo(missCount(meters1) + 1);
         }
 
         // First getFile() should miss.
