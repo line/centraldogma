@@ -609,9 +609,8 @@ public class MetadataService {
      * Updates the {@linkplain QuotaConfig write quota} for the specified {@code repoName}
      * in the specified {@code projectName}.
      */
-    public CompletableFuture<Revision> updateWriteQuota(Author author, String projectName,
-                                                        String repoName,
-                                                        QuotaConfig writeQuota) {
+    public CompletableFuture<Revision> updateWriteQuota(
+            Author author, String projectName, String repoName, QuotaConfig writeQuota) {
         requireNonNull(author, "author");
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");

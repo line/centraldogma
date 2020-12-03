@@ -421,7 +421,8 @@ public class CentralDogma implements AutoCloseable {
                 break;
             case NONE:
                 logger.info("No replication mechanism specified; entering standalone");
-                executor = new StandaloneCommandExecutor(pm, repositoryWorker, sessionManager, cfg.writeQuota(),
+                executor = new StandaloneCommandExecutor(pm, repositoryWorker, sessionManager,
+                                                         cfg.writeQuotaPerRepository(),
                                                          onTakeLeadership, onReleaseLeadership);
                 break;
             default:
@@ -607,7 +608,7 @@ public class CentralDogma implements AutoCloseable {
                 zkCfg, cfg.dataDir(),
                 new StandaloneCommandExecutor(pm, repositoryWorker, sessionManager,
                         /* onTakeLeadership */ null, /* onReleaseLeadership */ null),
-                meterRegistry, pm, config().writeQuota(), onTakeLeadership, onReleaseLeadership);
+                meterRegistry, pm, config().writeQuotaPerRepository(), onTakeLeadership, onReleaseLeadership);
     }
 
     private void configureThriftService(ServerBuilder sb, ProjectManager pm, CommandExecutor executor,

@@ -15,17 +15,20 @@
  */
 package com.linecorp.centraldogma.common;
 
+import static java.util.Objects.requireNonNull;
+
 import javax.annotation.Nullable;
 
 /**
- * A {@link CentralDogmaException} that is raised when attempted to send requests more than quota limits.
+ * A {@link CentralDogmaException} that is raised when a client is attempting to send requests more than
+ * quota limits.
  */
 public class TooManyRequestsException extends CentralDogmaException {
 
     private static final long serialVersionUID = 1712601138432866984L;
 
     @Nullable
-    private Object type;
+    private String type;
 
     /**
      * Creates a new instance.
@@ -35,9 +38,9 @@ public class TooManyRequestsException extends CentralDogmaException {
     /**
      * Creates a new instance.
      */
-    public TooManyRequestsException(@Nullable Object type, String path, double permitsPerSecond) {
+    public TooManyRequestsException(String type, String path, double permitsPerSecond) {
         this('\'' + path + "' (quota limit: " + permitsPerSecond + "/sec)");
-        this.type = type;
+        this.type = requireNonNull(type, "type");
     }
 
     /**
@@ -75,15 +78,15 @@ public class TooManyRequestsException extends CentralDogmaException {
      * Creates a new instance.
      */
     protected TooManyRequestsException(String message, Throwable cause, boolean enableSuppression,
-                             boolean writableStackTrace) {
+                                       boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 
     /**
-     * Returns the @{code type} specified when creating this {@link Exception}.
+     * Returns the {@code type} specified when creating this {@link Exception}.
      */
     @Nullable
-    public Object type() {
+    public String type() {
         return type;
     }
 }

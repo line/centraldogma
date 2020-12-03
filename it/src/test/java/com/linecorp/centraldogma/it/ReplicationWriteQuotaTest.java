@@ -17,10 +17,14 @@
 package com.linecorp.centraldogma.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.curator.test.InstanceSpec;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,9 +79,9 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
 
         final Map<Integer, ZooKeeperServerConfig> servers = randomServerConfigs(3);
 
-        final CompletableFuture<Void> r1 = startNewReplica(port1, 1, servers);
-        final CompletableFuture<Void> r2 = startNewReplica(port2, 2, servers);
-        final CompletableFuture<Void> r3 = startNewReplica(port3, 3, servers);
+        final CompletableFuture<Void> r1 = startNewReplicaWithRetries(port1, 1, servers);
+        final CompletableFuture<Void> r2 = startNewReplicaWithRetries(port2, 2, servers);
+        final CompletableFuture<Void> r3 = startNewReplicaWithRetries(port3, 3, servers);
         r1.join();
         r2.join();
         r3.join();
@@ -108,6 +112,17 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
         return builder.build();
     }
 
+    private static CompletableFuture<Void> startNewReplicaWithRetries(
+            int port, int serverId, Map<Integer, ZooKeeperServerConfig> servers) throws IOException {
+        final AtomicReference<CompletableFuture<Void>> futureRef = new AtomicReference<>();
+        await().pollInSameThread().pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+            assertThatCode(() -> {
+                futureRef.set(startNewReplica(port, serverId, servers));
+            }).doesNotThrowAnyException();
+        });
+        return futureRef.get();
+    }
+
     private static CompletableFuture<Void> startNewReplica(
             int port, int serverId, Map<Integer, ZooKeeperServerConfig> servers) throws IOException {
         return new CentralDogmaBuilder(tempDir.newFolder().toFile())
@@ -128,6 +143,6 @@ class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
                 TestAuthMessageUtil.login(client, username, password);
 
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        return Jackson.readValue(response.contentUtf8(), AccessToken.class).accessToken();
+        return Jackson.readValue(response.content().array(), AccessToken.class).accessToken();
     }
 }

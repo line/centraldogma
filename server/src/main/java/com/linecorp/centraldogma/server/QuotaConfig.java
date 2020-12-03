@@ -58,6 +58,13 @@ public final class QuotaConfig {
         return requestQuota;
     }
 
+    /**
+     * Returns a maximum number of acceptable requests per second.
+     */
+    public double permitsPerSecond() {
+        return requestQuota() * 1.0 / timeWindowSeconds();
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

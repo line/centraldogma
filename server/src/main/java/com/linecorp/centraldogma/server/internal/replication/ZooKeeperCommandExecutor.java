@@ -141,8 +141,10 @@ public final class ZooKeeperCommandExecutor
 
     private static final RetryPolicy RETRY_POLICY_ALWAYS = new RetryForever(500);
     private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
-    private static final Entry<InterProcessSemaphoreV2, Lease> EMPTY_ENTRY =
-            new SimpleImmutableEntry<>(null, null);
+
+    private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Entry<InterProcessSemaphoreV2, SettableSharedCount>> semaphoreMap =
+            new ConcurrentHashMap<>();
 
     private final ZooKeeperReplicationConfig cfg;
     private final File revisionFile;
@@ -151,12 +153,11 @@ public final class ZooKeeperCommandExecutor
     private final File zkLogDir;
     private final CommandExecutor delegate;
     private final MeterRegistry meterRegistry;
-    private final MetadataService metadataService;
+
     @Nullable
     private final QuotaConfig writeQuota;
-    private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, Entry<InterProcessSemaphoreV2, SettableSharedCount>> semaphoreMap =
-            new ConcurrentHashMap<>();
+
+    private MetadataService metadataService;
 
     private volatile EmbeddedZooKeeper quorumPeer;
     private volatile CuratorFramework curator;
@@ -579,6 +580,11 @@ public final class ZooKeeperCommandExecutor
         boolean interrupted = shutdown(executor);
         logger.info("Stopped the worker threads");
 
+        logger.info("Stopping the quota worker threads");
+        interrupted |= shutdown(quotaExecutor);
+        logger.info("Stopped the quota worker threads");
+        semaphoreMap.clear();
+
         try {
             logger.info("Stopping the delegate command executor");
             delegate.stop();
@@ -769,7 +775,7 @@ public final class ZooKeeperCommandExecutor
         }
 
         if (writeLock != null) {
-            releaseWriteLock(writeLock, mtx, executionPath);
+            scheduleWriteLockRelease(writeLock, mtx, executionPath);
         }
 
         return () -> safeRelease(mtx);
@@ -824,7 +830,7 @@ public final class ZooKeeperCommandExecutor
         return new WriteLock(semaphore, lease, writeQuota);
     }
 
-    private void releaseWriteLock(WriteLock writeLock, InterProcessMutex mtx, String executionPath) {
+    private void scheduleWriteLockRelease(WriteLock writeLock, InterProcessMutex mtx, String executionPath) {
         final Lease lease = writeLock.lease;
         final QuotaConfig writeQuota = writeLock.writeQuota;
         if (lease == null) {
@@ -836,8 +842,7 @@ public final class ZooKeeperCommandExecutor
         }
     }
 
-    @VisibleForTesting
-    static String path(String... pathElements) {
+    private static String path(String... pathElements) {
         final StringBuilder sb = new StringBuilder();
         for (String path : pathElements) {
             if (path.startsWith("/")) { //remove starting "/"
@@ -1040,6 +1045,11 @@ public final class ZooKeeperCommandExecutor
         } catch (KeeperException.NodeExistsException ignored) {
             // Ignore.
         }
+    }
+
+    @VisibleForTesting
+    void setMetadataService(MetadataService metadataService) {
+        this.metadataService = metadataService;
     }
 
     private static final class WriteLock {

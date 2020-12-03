@@ -84,6 +84,6 @@ class StandaloneWriteQuotaTest extends WriteQuotaTestBase {
                 TestAuthMessageUtil.login(dogma.httpClient(), username, password);
 
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        return Jackson.readValue(response.contentUtf8(), AccessToken.class).accessToken();
+        return Jackson.readValue(response.content().array(), AccessToken.class).accessToken();
     }
 }

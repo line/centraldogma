@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
@@ -72,8 +73,9 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
                                      @Nullable QuotaConfig writeQuota,
                                      @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                      @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
-        this(projectManager, repositoryWorker, sessionManager, permitsPerSecond(writeQuota), onTakeLeadership,
-             onReleaseLeadership);
+        this(projectManager, repositoryWorker, sessionManager,
+             writeQuota != null ? writeQuota.permitsPerSecond() : 0,
+             onTakeLeadership, onReleaseLeadership);
     }
 
     /**
@@ -248,10 +250,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             if (rateLimiter == null || rateLimiter.tryAcquire()) {
                 return push0(c);
             } else {
-                final CompletableFuture<Revision> future = new CompletableFuture<>();
-                future.completeExceptionally(
+                return CompletableFutures.exceptionallyCompletedFuture(
                         new TooManyRequestsException("commits", c.executionPath(), rateLimiter.getRate()));
-                return future;
             }
         });
     }
@@ -264,7 +264,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {
         return metadataService.getRepo(projectName, repoName).thenApply(meta -> {
             final QuotaConfig writeQuota = meta.writeQuota();
-            final double permitsForRepo = permitsPerSecond(writeQuota);
+            final double permitsForRepo = writeQuota.permitsPerSecond();
             final double permitsPerSecond =
                     permitsForRepo != 0 ? permitsForRepo : this.permitsPerSecond;
             if (permitsPerSecond > 0) {
@@ -281,14 +281,6 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             }
             return null;
         });
-    }
-
-    private static double permitsPerSecond(@Nullable QuotaConfig quotaConfig) {
-        if (quotaConfig == null) {
-            return 0;
-        } else {
-            return quotaConfig.requestQuota() * 1.0 / quotaConfig.timeWindowSeconds();
-        }
     }
 
     private Repository repo(RepositoryCommand<?> c) {

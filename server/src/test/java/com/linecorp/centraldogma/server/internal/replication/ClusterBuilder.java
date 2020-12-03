@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 
+import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolder;
@@ -46,6 +47,7 @@ final class ClusterBuilder {
     private int numReplicas = 5;
     private int numGroups = 1;
     private boolean autoStart = true;
+    private QuotaConfig writeQuota;
 
     ClusterBuilder numReplicas(int numReplicas) {
         this.numReplicas = numReplicas;
@@ -59,6 +61,11 @@ final class ClusterBuilder {
 
     ClusterBuilder autoStart(boolean autoStart) {
         this.autoStart = autoStart;
+        return this;
+    }
+
+    ClusterBuilder writeQuota(QuotaConfig writeQuota) {
+        this.writeQuota = writeQuota;
         return this;
     }
 
@@ -117,7 +124,7 @@ final class ClusterBuilder {
 
         final Builder<Replica> builder = ImmutableList.builder();
         for (InstanceSpec spec : specs) {
-            final Replica r = new Replica(spec, servers, commandExecutorSupplier.get(), autoStart);
+            final Replica r = new Replica(spec, servers, commandExecutorSupplier.get(), writeQuota, autoStart);
             builder.add(r);
         }
 

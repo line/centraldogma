@@ -27,64 +27,81 @@ import com.google.common.collect.ImmutableList;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.common.TooManyRequestsException;
+import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 
-public class ZooKeeperQuotaTest {
+class ZooKeeperQuotaTest {
 
     private static final int MAX_QUOTA = 5;
 
     @Test
     void testLimitation() throws Exception {
-        final Cluster cluster = Cluster.of(ZooKeeperCommandExecutorTest::newMockDelegate);
-        final int iteration = MAX_QUOTA * 2;
-        final ImmutableList.Builder<CompletableFuture<?>> resultsBuilder =
-                ImmutableList.builderWithExpectedSize(iteration);
-        final Replica replica = cluster.get(0);
-        for (int i = 0; i < iteration; i++) {
-            final Command<Void> command = Command.createRepository(Author.SYSTEM, "project", "repo1");
-            resultsBuilder.add(replica.commandExecutor().doExecute(command));
-        }
-        final ImmutableList<CompletableFuture<?>> results = resultsBuilder.build();
-        int limited = 0;
-        int succeeded = 0;
-        for (int i = 0; i < iteration; i++) {
-            // Should not raise an exception
-            try {
-                results.get(i).join();
-                succeeded++;
-            } catch (CompletionException e) {
-                final Throwable cause = e.getCause();
-                if (cause instanceof ReplicationException && cause.getMessage().contains("Quota limits")) {
-                    limited++;
-                } else {
-                    throw e;
+        try (Cluster cluster = Cluster.builder()
+                                      .writeQuota(new QuotaConfig(MAX_QUOTA, 1))
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final int iteration = MAX_QUOTA * 3;
+            final ImmutableList.Builder<CompletableFuture<?>> resultsBuilder =
+                    ImmutableList.builderWithExpectedSize(iteration);
+            final Replica replica = cluster.get(0);
+            for (int i = 0; i < iteration; i++) {
+                final Command<Revision> command =
+                        Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "", "", Markup.PLAINTEXT,
+                                     Change.ofTextUpsert("/foo", "foo " + i));
+                resultsBuilder.add(replica.commandExecutor().doExecute(command));
+            }
+            final ImmutableList<CompletableFuture<?>> results = resultsBuilder.build();
+            int limited = 0;
+            int succeeded = 0;
+            for (int i = 0; i < iteration; i++) {
+                try {
+                    results.get(i).join();
+                    succeeded++;
+                } catch (CompletionException e) {
+                    final Throwable cause = e.getCause();
+                    if (cause instanceof TooManyRequestsException &&
+                        cause.getMessage().contains("'/project/repo1' (quota limit: 5.0/sec)")) {
+                        limited++;
+                    } else {
+                        throw e;
+                    }
                 }
             }
+            assertThat(succeeded).isGreaterThanOrEqualTo(MAX_QUOTA);
+            assertThat(limited).isGreaterThanOrEqualTo(1);
         }
-        assertThat(succeeded).isGreaterThanOrEqualTo(MAX_QUOTA);
-        assertThat(limited).isGreaterThanOrEqualTo(1);
     }
 
     @Test
     void testLease() throws Exception {
-        final Cluster cluster = Cluster.of(ZooKeeperCommandExecutorTest::newMockDelegate);
-        ImmutableList.Builder<CompletableFuture<?>> resultsBuilder =
-                ImmutableList.builderWithExpectedSize(MAX_QUOTA);
-        final Replica replica = cluster.get(0);
-        for (int i = 0; i < MAX_QUOTA; i++) {
-            final Command<Void> command = Command.createRepository(Author.SYSTEM, "project", "repo1");
-            resultsBuilder.add(replica.commandExecutor().doExecute(command));
-        }
-        CompletableFutures.allAsList(resultsBuilder.build()).join();
+        try (Cluster cluster = Cluster.builder()
+                                      .writeQuota(new QuotaConfig(MAX_QUOTA, 1))
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            ImmutableList.Builder<CompletableFuture<?>> resultsBuilder =
+                    ImmutableList.builderWithExpectedSize(MAX_QUOTA);
+            final Replica replica = cluster.get(0);
+            for (int i = 0; i < MAX_QUOTA; i++) {
+                final Command<Revision> command =
+                        Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "", "", Markup.PLAINTEXT,
+                                     Change.ofTextUpsert("/foo", "foo " + i));
+                resultsBuilder.add(replica.commandExecutor().doExecute(command));
+            }
+            CompletableFutures.allAsList(resultsBuilder.build()).join();
 
-        // Wait 1 sec to obtain a new quota
-        Thread.sleep(1000);
+            // Wait 1 sec to obtain a new quota
+            Thread.sleep(1000);
 
-        resultsBuilder = ImmutableList.builderWithExpectedSize(MAX_QUOTA);
-        for (int i = 0; i < MAX_QUOTA; i++) {
-            final Command<Void> command = Command.createRepository(Author.SYSTEM, "project", "repo1");
-            resultsBuilder.add(replica.commandExecutor().doExecute(command));
+            resultsBuilder = ImmutableList.builderWithExpectedSize(MAX_QUOTA);
+            for (int i = 0; i < MAX_QUOTA; i++) {
+                final Command<Revision> command =
+                        Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "", "", Markup.PLAINTEXT,
+                                     Change.ofTextUpsert("/foo", "foo " + i));
+                resultsBuilder.add(replica.commandExecutor().doExecute(command));
+            }
+            CompletableFutures.allAsList(resultsBuilder.build()).join();
         }
-        CompletableFutures.allAsList(resultsBuilder.build()).join();
     }
 }

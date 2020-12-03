@@ -17,11 +17,13 @@ package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.util.Map;
@@ -34,15 +36,22 @@ import javax.annotation.Nullable;
 import org.apache.curator.test.InstanceSpec;
 
 import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.metadata.UserAndTimestamp;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
 final class Replica {
-    private final ZooKeeperCommandExecutor rm;
+    private final ZooKeeperCommandExecutor commandExecutor;
     private final Function<Command<?>, CompletableFuture<?>> delegate;
     private final File dataDir;
     private final MeterRegistry meterRegistry;
@@ -50,7 +59,7 @@ final class Replica {
 
     Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
             Function<Command<?>, CompletableFuture<?>> delegate,
-            boolean start) throws Exception {
+            @Nullable QuotaConfig writeQuota, boolean start) {
         this.delegate = delegate;
 
         dataDir = spec.getDataDirectory();
@@ -59,7 +68,7 @@ final class Replica {
         final int id = spec.getServerId();
         final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(id, servers);
 
-        rm = new ZooKeeperCommandExecutor(zkCfg, dataDir, new AbstractCommandExecutor(null, null) {
+        commandExecutor = new ZooKeeperCommandExecutor(zkCfg, dataDir, new AbstractCommandExecutor(null, null) {
             @Override
             public int replicaId() {
                 return id;
@@ -77,9 +86,10 @@ final class Replica {
             protected <T> CompletableFuture<T> doExecute(Command<T> command) {
                 return (CompletableFuture<T>) delegate.apply(command);
             }
-        }, meterRegistry, null, null, null, null);
+        }, meterRegistry, mock(ProjectManager.class), writeQuota, null, null);
+        commandExecutor.setMetadataService(mockMetaService());
 
-        startFuture = start ? rm.start() : null;
+        startFuture = start ? commandExecutor.start() : null;
     }
 
     void awaitStartup() {
@@ -87,7 +97,7 @@ final class Replica {
         startFuture.join();
     }
 
-    long localRevision() throws IOException {
+    long localRevision() {
         return await().ignoreExceptions().until(() -> {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(
                     new FileInputStream(new File(dataDir, "last_revision"))))) {
@@ -96,12 +106,21 @@ final class Replica {
         }, Objects::nonNull);
     }
 
+    private static MetadataService mockMetaService() {
+        final MetadataService mds = mock(MetadataService.class);
+        final RepositoryMetadata repoMeta =
+                new RepositoryMetadata("", UserAndTimestamp.of(Author.SYSTEM), PerRolePermissions.DEFAULT);
+        lenient().when(mds.getRepo(anyString(), anyString()))
+                 .thenReturn(CompletableFuture.completedFuture(repoMeta));
+        return mds;
+    }
+
     boolean existsLocalRevision() {
         return Files.isReadable(new File(dataDir, "last_revision").toPath());
     }
 
     ZooKeeperCommandExecutor commandExecutor() {
-        return rm;
+        return commandExecutor;
     }
 
     Function<Command<?>, CompletableFuture<?>> delegate() {

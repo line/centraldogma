@@ -47,10 +47,7 @@ defaults:
       "numMirroringThreads": null,
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
-      "writeQuotaPerRepository": {
-        "requestQuota" : 10,
-        "timeWindowSeconds": 1
-       },
+      "writeQuotaPerRepository": null,
       "accessLogFormat": "common",
       "authentication": null
     }

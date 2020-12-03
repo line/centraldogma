@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,33 +49,22 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 
 class ZooKeeperCommandExecutorTest {
 
     private static final Logger logger = LoggerFactory.getLogger(ZooKeeperCommandExecutorTest.class);
 
-    private static final int NUM_REPLICAS = 5;
-
-    @RegisterExtension
-    final TemporaryFolderExtension testFolder = new TemporaryFolderExtension() {
-        @Override
-        protected boolean runForEachTest() {
-            return true;
-        }
-    };
-
     @Test
     void testLogWatch() throws Exception {
         // The 5th replica is used for ensuring the quorum.
-        final Cluster cluster = Cluster.of(ZooKeeperCommandExecutorTest::newMockDelegate);
-        final Replica replica1 = cluster.get(0);
-        final Replica replica2 = cluster.get(1);
-        final Replica replica3 = cluster.get(2);
-        final Replica replica4 = cluster.get(3);
-        replica4.commandExecutor().stop().join();
+        try (Cluster cluster = Cluster.of(ZooKeeperCommandExecutorTest::newMockDelegate)) {
 
-        try {
+            final Replica replica1 = cluster.get(0);
+            final Replica replica2 = cluster.get(1);
+            final Replica replica3 = cluster.get(2);
+            final Replica replica4 = cluster.get(3);
+            replica4.commandExecutor().stop().join();
+
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
             replica1.commandExecutor().execute(command1).join();
 
@@ -113,10 +101,6 @@ class ZooKeeperCommandExecutorTest {
             // Start the 4th replica and check if it catches up even if it started from scratch.
             replica4.commandExecutor().start().join();
             verifyTwoIndependentCommands(replica4, command1, command2);
-        } finally {
-            for (Replica r : cluster) {
-                r.commandExecutor().stop();
-            }
         }
     }
 
@@ -303,7 +287,7 @@ class ZooKeeperCommandExecutorTest {
                     Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "summary", "detail",
                                  Markup.PLAINTEXT, Change.ofTextUpsert("/foo", "bar"));
 
-            replica1.commandExecutor().execute(command2).get(10, TimeUnit.SECONDS);
+            replica1.commandExecutor().execute(command2).join();
             final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
             assertThat(commandResult2.command()).isEqualTo(command2);
             assertThat(commandResult2.result()).isInstanceOf(Revision.class);
