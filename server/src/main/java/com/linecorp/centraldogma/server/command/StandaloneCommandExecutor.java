@@ -264,7 +264,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {
         return metadataService.getRepo(projectName, repoName).thenApply(meta -> {
             final QuotaConfig writeQuota = meta.writeQuota();
-            final double permitsForRepo = writeQuota.permitsPerSecond();
+            final double permitsForRepo = writeQuota != null ? writeQuota.permitsPerSecond() : 0;
             final double permitsPerSecond =
                     permitsForRepo != 0 ? permitsForRepo : this.permitsPerSecond;
             if (permitsPerSecond > 0) {
