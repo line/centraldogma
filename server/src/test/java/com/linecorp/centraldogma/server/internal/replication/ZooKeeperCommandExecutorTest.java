@@ -30,24 +30,30 @@ import static org.mockito.Mockito.verify;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
+import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.github.benmanes.caffeine.cache.Cache;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 
 class ZooKeeperCommandExecutorTest {
@@ -413,6 +419,53 @@ class ZooKeeperCommandExecutorTest {
                                             "replica.zk.packets.received#count",
                                             "replica.zk.packets.sent#count",
                                             "replica.zk.watches#value");
+        }
+    }
+
+    @Test
+    void setWriteQuota() throws Exception {
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(1)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final String project = "test_prj";
+            final String repo = "test_repo";
+            final String key = project + '/' + repo;
+            final Replica replica = cluster.get(0);
+            final ZooKeeperCommandExecutor executor = replica.commandExecutor();
+            final Cache<String, QuotaConfig> quotaCache = executor.writeQuotaCache;
+            final ConcurrentMap<String, Entry<InterProcessSemaphoreV2, SettableSharedCount>> semaphoreMap =
+                    executor.semaphoreMap;
+
+            // Initial state
+            QuotaConfig writeQuota = quotaCache.getIfPresent(key);
+            Entry<InterProcessSemaphoreV2, SettableSharedCount> entry = semaphoreMap.get(key);
+            assertThat(writeQuota).isNull();
+            assertThat(entry).isNull();
+
+            // Unlimited quota
+            executor.setWriteQuota(project, repo, null);
+            writeQuota = quotaCache.getIfPresent(key);
+            entry = semaphoreMap.get(key);
+            assertThat(writeQuota.requestQuota()).isEqualTo(Integer.MAX_VALUE);
+            assertThat(entry.getKey()).isNull();
+            assertThat(entry.getValue()).isNull();
+
+            // Set a new quota
+            QuotaConfig newQuota = new QuotaConfig(5, 1);
+            executor.setWriteQuota(project, repo, newQuota);
+            writeQuota = quotaCache.getIfPresent(key);
+            entry = semaphoreMap.get(key);
+            assertThat(writeQuota).isSameAs(newQuota);
+            assertThat(entry.getValue().getCount()).isEqualTo(5);
+
+            // Update the existing quota
+            newQuota = new QuotaConfig(10, 1);
+            executor.setWriteQuota(project, repo, newQuota);
+            writeQuota = quotaCache.getIfPresent(key);
+            final Entry<InterProcessSemaphoreV2, SettableSharedCount> entry2 = semaphoreMap.get(key);
+            assertThat(writeQuota).isSameAs(newQuota);
+            assertThat(entry2).isSameAs(entry);
+            assertThat(entry2.getValue().getCount()).isEqualTo(10);
         }
     }
 

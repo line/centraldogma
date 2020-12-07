@@ -75,6 +75,9 @@ final class Replica {
             }
 
             @Override
+            public void setWriteQuota(String projectName, String repoName, QuotaConfig writeQuota) {}
+
+            @Override
             protected void doStart(@Nullable Runnable onTakeLeadership,
                                    @Nullable Runnable onReleaseLeadership) {}
 

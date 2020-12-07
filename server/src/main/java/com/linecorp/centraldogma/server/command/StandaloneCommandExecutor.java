@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.cronutils.utils.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import com.spotify.futures.CompletableFutures;
 
@@ -49,13 +50,17 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(StandaloneCommandExecutor.class);
 
+    private static final RateLimiter UNLIMITED = RateLimiter.create(Double.MAX_VALUE);
+
     private final ProjectManager projectManager;
     private final Executor repositoryWorker;
     @Nullable
     private final SessionManager sessionManager;
-    private final Map<String, RateLimiter> writeRateLimiters;
     private final double permitsPerSecond;
     private final MetadataService metadataService;
+
+    @VisibleForTesting
+    final Map<String, RateLimiter> writeRateLimiters;
 
     /**
      * Creates a new instance.
@@ -247,14 +252,22 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return push0(c);
         }
 
-        return getRateLimiter(c.projectName(), c.repositoryName()).thenCompose(rateLimiter -> {
-            if (rateLimiter == null || rateLimiter.tryAcquire()) {
-                return push0(c);
-            } else {
-                return CompletableFutures.exceptionallyCompletedFuture(
-                        new TooManyRequestsException("commits", c.executionPath(), rateLimiter.getRate()));
-            }
-        });
+        final RateLimiter rateLimiter =
+                writeRateLimiters.get(rateLimiterKey(c.projectName(), c.repositoryName()));
+        if (rateLimiter != null) {
+            return tryPush(c, rateLimiter);
+        }
+
+        return getRateLimiter(c.projectName(), c.repositoryName()).thenCompose(limiter -> tryPush(c, limiter));
+    }
+
+    private CompletableFuture<Revision> tryPush(PushCommand c, @Nullable RateLimiter rateLimiter) {
+        if (rateLimiter == null || rateLimiter == UNLIMITED || rateLimiter.tryAcquire()) {
+            return push0(c);
+        } else {
+            return CompletableFutures.exceptionallyCompletedFuture(
+                    new TooManyRequestsException("commits", c.executionPath(), rateLimiter.getRate()));
+        }
     }
 
     private CompletableFuture<Revision> push0(PushCommand c) {
@@ -264,23 +277,27 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {
         return metadataService.getRepo(projectName, repoName).thenApply(meta -> {
-            final QuotaConfig writeQuota = meta.writeQuota();
-            final double permitsForRepo = writeQuota != null ? writeQuota.permitsPerSecond() : 0;
-            final double permitsPerSecond =
-                    permitsForRepo != 0 ? permitsForRepo : this.permitsPerSecond;
-            if (permitsPerSecond > 0) {
-                return writeRateLimiters.compute(rateLimiterKey(projectName, repoName), (key, rateLimiter) -> {
-                    if (rateLimiter == null) {
-                        rateLimiter = RateLimiter.create(permitsPerSecond);
-                    } else {
-                        if (Double.compare(rateLimiter.getRate(), permitsPerSecond) != 0) {
-                            rateLimiter.setRate(permitsPerSecond);
-                        }
-                    }
-                    return rateLimiter;
-                });
+            setWriteQuota(projectName, repoName, meta.writeQuota());
+            return writeRateLimiters.get(rateLimiterKey(projectName, repoName));
+        });
+    }
+
+    @Override
+    public final void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota) {
+        final double permitsForRepo = writeQuota != null ? writeQuota.permitsPerSecond() : 0;
+        final double permitsPerSecond = permitsForRepo != 0 ? permitsForRepo : this.permitsPerSecond;
+
+        writeRateLimiters.compute(rateLimiterKey(projectName, repoName), (key, rateLimiter) -> {
+            if (permitsPerSecond == 0) {
+                return UNLIMITED;
             }
-            return null;
+
+            if (rateLimiter == null) {
+                return RateLimiter.create(permitsPerSecond);
+            } else {
+                rateLimiter.setRate(permitsPerSecond);
+                return rateLimiter;
+            }
         });
     }
 

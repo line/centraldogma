@@ -82,12 +82,14 @@ public class MetadataService {
     private final ProjectManager projectManager;
     private final RepositorySupport<ProjectMetadata> metadataRepo;
     private final RepositorySupport<Tokens> tokenRepo;
+    private final CommandExecutor executor;
 
     /**
      * Creates a new instance.
      */
     public MetadataService(ProjectManager projectManager, CommandExecutor executor) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
+        this.executor = requireNonNull(executor, "executor");
         metadataRepo = new RepositorySupport<>(projectManager, executor,
                                                entry -> convertWithJackson(entry, ProjectMetadata.class));
         tokenRepo = new RepositorySupport<>(projectManager, executor,
@@ -621,6 +623,7 @@ public class MetadataService {
                 Change.ofJsonPatch(METADATA_JSON,
                                    new AddOperation(path, Jackson.valueToTree(writeQuota)).toJsonNode());
         final String commitSummary = "Update a write quota for the repository '" + repoName + '\'';
+        executor.setWriteQuota(projectName, repoName, writeQuota);
         return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
