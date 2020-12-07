@@ -220,6 +220,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<Void> removeRepository(RemoveRepositoryCommand c) {
+        writeRateLimiters.remove(rateLimiterKey(c.projectName(), c.repositoryName()));
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().remove(c.repositoryName());
             return null;
@@ -268,7 +269,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             final double permitsPerSecond =
                     permitsForRepo != 0 ? permitsForRepo : this.permitsPerSecond;
             if (permitsPerSecond > 0) {
-                return writeRateLimiters.compute(projectName + '/' + repoName, (key, rateLimiter) -> {
+                return writeRateLimiters.compute(rateLimiterKey(projectName, repoName), (key, rateLimiter) -> {
                     if (rateLimiter == null) {
                         rateLimiter = RateLimiter.create(permitsPerSecond);
                     } else {
@@ -281,6 +282,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             }
             return null;
         });
+    }
+
+    private static String rateLimiterKey(String projectName, String repoName) {
+        return projectName + '/' + repoName;
     }
 
     private Repository repo(RepositoryCommand<?> c) {

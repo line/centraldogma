@@ -204,8 +204,8 @@ Core properties
 
 -  ``writeQuotaPerRepository``
 
-  - the maximum allowed write quota per repository. If ``requestQuota`` is set to 10 and
-    ``timeWindowSeconds`` is set to 1, :ref:`pushing-a-commit`` cannot exceeds 10 QPS; if exceeded,
+  - the maximum allowed write quota per repository. If ``requestQuota`` is set to 5 and
+    ``timeWindowSeconds`` is set to 1, :ref:`pushing-a-commit`` cannot exceed 5 QPS; if exceeded,
     `429 Too Many Requests <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429>`_ will be returned.
     If ``null``, no limit is enforced.
 
