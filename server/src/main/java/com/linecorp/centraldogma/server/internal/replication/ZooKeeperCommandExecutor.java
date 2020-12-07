@@ -101,6 +101,7 @@ import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.PushCommand;
+import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -729,6 +730,9 @@ public final class ZooKeeperCommandExecutor
                                 ": " + actualResult + " (expected: " + expectedResult +
                                 ", command: " + command + ')');
                     }
+                    if (command instanceof RemoveRepositoryCommand) {
+                        clearWriteQuota((RemoveRepositoryCommand) command);
+                    }
                 } else {
                     // same replicaId. skip
                 }
@@ -779,6 +783,8 @@ public final class ZooKeeperCommandExecutor
             mtx.acquire();
             if (command instanceof PushCommand) {
                 writeLock = acquireWriteLock((PushCommand) command);
+            } else if (command instanceof RemoveRepositoryCommand) {
+                clearWriteQuota((RemoveRepositoryCommand) command);
             }
         } catch (Exception e) {
             logger.error("Failed to acquire a lock for {}; entering read-only mode", executionPath, e);
@@ -791,6 +797,12 @@ public final class ZooKeeperCommandExecutor
         }
 
         return () -> safeRelease(mtx);
+    }
+
+    private void clearWriteQuota(RemoveRepositoryCommand command) {
+        final String cacheKey = rateLimiterKey(command.projectName(), command.repositoryName());
+        semaphoreMap.remove(cacheKey);
+        writeQuotaCache.invalidate(cacheKey);
     }
 
     private static void safeRelease(InterProcessMutex mtx) {

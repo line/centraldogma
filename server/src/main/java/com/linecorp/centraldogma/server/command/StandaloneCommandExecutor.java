@@ -56,6 +56,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private final Executor repositoryWorker;
     @Nullable
     private final SessionManager sessionManager;
+    // if permitsPerSecond is -1, a quota is checked by ZooKeeperCommandExecutor.
     private final double permitsPerSecond;
     private final MetadataService metadataService;
 
@@ -225,7 +226,9 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<Void> removeRepository(RemoveRepositoryCommand c) {
-        writeRateLimiters.remove(rateLimiterKey(c.projectName(), c.repositoryName()));
+        if (writeQuotaEnabled()) {
+            writeRateLimiters.remove(rateLimiterKey(c.projectName(), c.repositoryName()));
+        }
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().remove(c.repositoryName());
             return null;
@@ -248,7 +251,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private CompletableFuture<Revision> push(PushCommand c) {
         if (c.projectName().equals(INTERNAL_PROJ) || c.repositoryName().equals(Project.REPO_DOGMA) ||
-            Double.compare(permitsPerSecond, -1) == 0) {
+            !writeQuotaEnabled()) {
             return push0(c);
         }
 
@@ -303,6 +306,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     private static String rateLimiterKey(String projectName, String repoName) {
         return projectName + '/' + repoName;
+    }
+
+    private boolean writeQuotaEnabled() {
+        return Double.compare(permitsPerSecond, -1) > 0;
     }
 
     private Repository repo(RepositoryCommand<?> c) {
