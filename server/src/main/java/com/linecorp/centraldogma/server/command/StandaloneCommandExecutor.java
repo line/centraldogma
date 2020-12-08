@@ -287,6 +287,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
 
     @Override
     public final void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota) {
+        if (!writeQuotaEnabled()) {
+            // This method should be called only when a write quota is enabled.
+            return;
+        }
         final double permitsForRepo = writeQuota != null ? writeQuota.permitsPerSecond() : 0;
         final double permitsPerSecond = permitsForRepo != 0 ? permitsForRepo : this.permitsPerSecond;
 
