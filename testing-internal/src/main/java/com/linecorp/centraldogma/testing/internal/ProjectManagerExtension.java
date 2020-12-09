@@ -140,6 +140,6 @@ public class ProjectManagerExtension extends AbstractAllOrEachExtension {
      * Override this method to customize a {@link CommandExecutor}.
      */
     protected CommandExecutor newCommandExecutor(ProjectManager projectManager, Executor worker) {
-        return new StandaloneCommandExecutor(projectManager, worker, null, null, null);
+        return new StandaloneCommandExecutor(projectManager, worker, null, null, null, null);
     }
 }
