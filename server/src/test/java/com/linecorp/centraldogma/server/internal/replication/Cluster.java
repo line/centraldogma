@@ -50,7 +50,7 @@ final class Cluster extends ForwardingList<Replica> implements SafeCloseable {
     @Override
     public void close() {
         for (Replica replica : this) {
-            replica.commandExecutor().stop();
+            replica.commandExecutor().stop().join();
         }
     }
 }
