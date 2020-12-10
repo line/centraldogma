@@ -268,6 +268,8 @@ retrieve the result of JSON path evaluation of the :api:`MergedEntry`.
 Central Dogma server will apply the JSON path expression ``$.someValue`` to the content of the
 :api:`MergedEntry`, and return the query result to the client.
 
+.. _pushing-a-commit:
+
 Pushing a commit
 ----------------
 You can also push a commit into a repository programmatically:

@@ -18,6 +18,10 @@ package com.linecorp.centraldogma.server.command;
 
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
+import com.linecorp.centraldogma.server.QuotaConfig;
+
 /**
  * An executor interface which executes {@link Command}s.
  */
@@ -55,6 +59,12 @@ public interface CommandExecutor {
      *                 read-only mode
      */
     void setWritable(boolean writable);
+
+    /**
+     * Sets the specified {@linkplain QuotaConfig write quota} to the specified {@code repoName} in the
+     * specified {@code projectName}.
+     */
+    void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota);
 
     /**
      * Executes the specified {@link Command}.

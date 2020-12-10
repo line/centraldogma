@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.server.QuotaConfig;
 
 /**
  * A {@link CommandExecutor} which forwards all its method calls to another {@link CommandExecutor}.
@@ -65,6 +66,11 @@ public class ForwardingCommandExecutor implements CommandExecutor {
     @Override
     public void setWritable(boolean writable) {
         delegate().setWritable(writable);
+    }
+
+    @Override
+    public void setWriteQuota(String projectName, String repoName, QuotaConfig writeQuota) {
+        delegate().setWriteQuota(projectName, repoName, writeQuota);
     }
 
     @Override

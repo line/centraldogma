@@ -51,6 +51,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.RemoveIfExistsOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.RemoveOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
+import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -81,12 +82,14 @@ public class MetadataService {
     private final ProjectManager projectManager;
     private final RepositorySupport<ProjectMetadata> metadataRepo;
     private final RepositorySupport<Tokens> tokenRepo;
+    private final CommandExecutor executor;
 
     /**
      * Creates a new instance.
      */
     public MetadataService(ProjectManager projectManager, CommandExecutor executor) {
         this.projectManager = requireNonNull(projectManager, "projectManager");
+        this.executor = requireNonNull(executor, "executor");
         metadataRepo = new RepositorySupport<>(projectManager, executor,
                                                entry -> convertWithJackson(entry, ProjectMetadata.class));
         tokenRepo = new RepositorySupport<>(projectManager, executor,
@@ -602,6 +605,26 @@ public class MetadataService {
                                           perTokenPermissionPointer(repoName, appId), permission,
                                           "Update permission of the token '" + appId +
                                           "' as '" + permission + "' for the project '" + projectName + '\'');
+    }
+
+    /**
+     * Updates the {@linkplain QuotaConfig write quota} for the specified {@code repoName}
+     * in the specified {@code projectName}.
+     */
+    public CompletableFuture<Revision> updateWriteQuota(
+            Author author, String projectName, String repoName, QuotaConfig writeQuota) {
+        requireNonNull(author, "author");
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repoName, "repoName");
+        requireNonNull(writeQuota, "writeQuota");
+
+        final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) + "/writeQuota");
+        final Change<JsonNode> change =
+                Change.ofJsonPatch(METADATA_JSON,
+                                   new AddOperation(path, Jackson.valueToTree(writeQuota)).toJsonNode());
+        final String commitSummary = "Update a write quota for the repository '" + repoName + '\'';
+        executor.setWriteQuota(projectName, repoName, writeQuota);
+        return metadataRepo.push(projectName, Project.REPO_DOGMA, author, commitSummary, change);
     }
 
     /**

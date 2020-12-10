@@ -47,6 +47,10 @@ defaults:
       "numMirroringThreads": null,
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
+      "writeQuotaPerRepository": {
+        "requestQuota" : 5,
+        "timeWindowSeconds": 1
+      },
       "accessLogFormat": "common",
       "authentication": null
     }
@@ -198,6 +202,21 @@ Core properties
     this, Central Dogma will reject to mirror the Git repository. If ``null``, the default value of
     '33554432 bytes' (32 MiB) is used.
 
+-  ``writeQuotaPerRepository``
+
+  - the maximum allowed write quota per repository. If ``requestQuota`` is set to 5 and
+    ``timeWindowSeconds`` is set to 1, :ref:`pushing-a-commit`` cannot exceed 5 QPS; if exceeded,
+    `429 Too Many Requests <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429>`_ will be returned.
+    If ``null``, no limit is enforced.
+
+  - ``requestQuota`` (integer)
+
+     - a maximum number of acceptable requests.
+
+  - ``timeWindowSeconds`` (integer)
+
+     - a time windows in seconds.
+
 - ``accessLogFormat`` (string)
 
   - the format to be used for writing an access log. ``common`` and ``combined`` are pre-defined for NCSA
@@ -303,7 +322,7 @@ example shows the configuration of the first replica in a 3-replica cluster:
 
       - the group ID which is used by ZooKeeper for
         `hierarchical quorums <https://zookeeper.apache.org/doc/r3.5.8/zookeeperHierarchicalQuorums.html>`_
-         If ``null`` or unspecified, hierarchical quorums are disabled.
+        If ``null`` or unspecified, hierarchical quorums are disabled.
 
     - ``weight`` (integer)
 

@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.server.internal.replication;
 
-import static com.google.common.base.Preconditions.checkState;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,90 +27,61 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.ServerSocket;
-import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.function.ToIntBiFunction;
 
-import javax.annotation.Nullable;
-
-import org.apache.curator.test.InstanceSpec;
+import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableList;
+import com.github.benmanes.caffeine.cache.Cache;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
-import com.linecorp.armeria.common.metric.PrometheusMeterRegistries;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
-import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
-import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
+import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
-import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
-
-import io.micrometer.core.instrument.MeterRegistry;
 
 class ZooKeeperCommandExecutorTest {
 
     private static final Logger logger = LoggerFactory.getLogger(ZooKeeperCommandExecutorTest.class);
 
-    private static final int NUM_REPLICAS = 5;
-
-    @RegisterExtension
-    final TemporaryFolderExtension testFolder = new TemporaryFolderExtension() {
-        @Override
-        protected boolean runForEachTest() {
-            return true;
-        }
-    };
-
     @Test
     void testLogWatch() throws Exception {
         // The 5th replica is used for ensuring the quorum.
-        final List<Replica> cluster = buildCluster(5, true /* start */,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
-        final Replica replica1 = cluster.get(0);
-        final Replica replica2 = cluster.get(1);
-        final Replica replica3 = cluster.get(2);
-        final Replica replica4 = cluster.get(3);
-        replica4.rm.stop().join();
+        try (Cluster cluster = Cluster.of(ZooKeeperCommandExecutorTest::newMockDelegate)) {
 
-        try {
+            final Replica replica1 = cluster.get(0);
+            final Replica replica2 = cluster.get(1);
+            final Replica replica3 = cluster.get(2);
+            final Replica replica4 = cluster.get(3);
+            replica4.commandExecutor().stop().join();
+
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
-            replica1.rm.execute(command1).join();
+            replica1.commandExecutor().execute(command1).join();
 
-            final Optional<ReplicationLog<?>> commandResult2 = replica1.rm.loadLog(0, false);
+            final Optional<ReplicationLog<?>> commandResult2 = replica1.commandExecutor().loadLog(0, false);
             assertThat(commandResult2).isPresent();
             assertThat(commandResult2.get().command()).isEqualTo(command1);
             assertThat(commandResult2.get().result()).isNull();
 
-            await().untilAsserted(() -> verify(replica1.delegate).apply(eq(command1)));
-            await().untilAsserted(() -> verify(replica2.delegate).apply(eq(command1)));
-            await().untilAsserted(() -> verify(replica3.delegate).apply(eq(command1)));
+            await().untilAsserted(() -> verify(replica1.delegate()).apply(eq(command1)));
+            await().untilAsserted(() -> verify(replica2.delegate()).apply(eq(command1)));
+            await().untilAsserted(() -> verify(replica3.delegate()).apply(eq(command1)));
 
             await().until(replica1::existsLocalRevision);
             await().until(replica2::existsLocalRevision);
@@ -122,25 +92,21 @@ class ZooKeeperCommandExecutorTest {
             assertThat(replica3.localRevision()).isEqualTo(0L);
 
             // Stop the 3rd replica and check if the 1st and 2nd replicas still replay the logs.
-            replica3.rm.stop().join();
+            replica3.commandExecutor().stop().join();
 
             final Command<?> command2 = Command.createProject(Author.SYSTEM, "foo");
-            replica1.rm.execute(command2).join();
-            await().untilAsserted(() -> verify(replica1.delegate).apply(eq(command2)));
-            await().untilAsserted(() -> verify(replica2.delegate).apply(eq(command2)));
-            await().untilAsserted(() -> verify(replica3.delegate, times(0)).apply(eq(command2)));
+            replica1.commandExecutor().execute(command2).join();
+            await().untilAsserted(() -> verify(replica1.delegate()).apply(eq(command2)));
+            await().untilAsserted(() -> verify(replica2.delegate()).apply(eq(command2)));
+            await().untilAsserted(() -> verify(replica3.delegate(), times(0)).apply(eq(command2)));
 
             // Start the 3rd replica back again and check if it catches up.
-            replica3.rm.start().join();
+            replica3.commandExecutor().start().join();
             verifyTwoIndependentCommands(replica3, command1, command2);
 
             // Start the 4th replica and check if it catches up even if it started from scratch.
-            replica4.rm.start().join();
+            replica4.commandExecutor().start().join();
             verifyTwoIndependentCommands(replica4, command1, command2);
-        } finally {
-            for (Replica r : cluster) {
-                r.rm.stop();
-            }
         }
     }
 
@@ -152,7 +118,7 @@ class ZooKeeperCommandExecutorTest {
                                                      Command<?> command1,
                                                      Command<?> command2) {
         final AtomicReference<Command<?>> lastCommand = new AtomicReference<>();
-        verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
+        verify(replica.delegate(), timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
             if (lastCommand.get() != null) {
                 return c.equals(lastCommand.get());
             }
@@ -166,7 +132,7 @@ class ZooKeeperCommandExecutorTest {
         }));
 
         final Command<?> expected = lastCommand.get().equals(command1) ? command2 : command1;
-        verify(replica.delegate, timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
+        verify(replica.delegate(), timeout(TimeUnit.SECONDS.toMillis(2)).times(1)).apply(argThat(c -> {
             return c.equals(expected);
         }));
     }
@@ -201,22 +167,21 @@ class ZooKeeperCommandExecutorTest {
     void testRace() throws Exception {
         // Each replica has its own AtomicInteger which counts the number of commands
         // it executed/replayed so far.
-        final List<Replica> replicas = buildCluster(NUM_REPLICAS, true /* start */, () -> {
+
+        try (Cluster cluster = Cluster.of(() -> {
             final AtomicInteger counter = new AtomicInteger();
             return command -> completedFuture(new Revision(counter.incrementAndGet()));
-        });
-
-        try {
+        })) {
             final Command<Revision> command =
                     Command.push(Author.SYSTEM, "foo", "bar", Revision.HEAD, "", "", Markup.PLAINTEXT);
 
             final int COMMANDS_PER_REPLICA = 7;
             final List<CompletableFuture<Void>> futures = new ArrayList<>();
-            for (final Replica r : replicas) {
+            for (final Replica r : cluster) {
                 futures.add(CompletableFuture.runAsync(() -> {
                     for (int j = 0; j < COMMANDS_PER_REPLICA; j++) {
                         try {
-                            r.rm.execute(command).join();
+                            r.commandExecutor().execute(command).join();
                         } catch (Exception e) {
                             throw new Error(e);
                         }
@@ -228,17 +193,15 @@ class ZooKeeperCommandExecutorTest {
                 f.get();
             }
 
-            for (Replica r : replicas) {
-                for (int i = 0; i < COMMANDS_PER_REPLICA * replicas.size(); i++) {
+            for (Replica r : cluster) {
+                for (int i = 0; i < COMMANDS_PER_REPLICA * cluster.size(); i++) {
                     @SuppressWarnings("unchecked")
                     final ReplicationLog<Revision> log =
-                            (ReplicationLog<Revision>) r.rm.loadLog(i, false).get();
+                            (ReplicationLog<Revision>) r.commandExecutor().loadLog(i, false).get();
 
                     assertThat(log.result().major()).isEqualTo(i + 1);
                 }
             }
-        } finally {
-            replicas.forEach(r -> r.rm.stop());
         }
     }
 
@@ -247,199 +210,173 @@ class ZooKeeperCommandExecutorTest {
      */
     @Test
     void stopWhileWaitingForInitialQuorum() throws Exception {
-        final List<Replica> cluster = buildCluster(2, false /* start */,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(2)
+                                      .autoStart(false)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final CompletableFuture<Void> startFuture = cluster.get(0).commandExecutor().start();
+            cluster.get(0).commandExecutor().stop().join();
 
-        final CompletableFuture<Void> startFuture = cluster.get(0).rm.start();
-        cluster.get(0).rm.stop().join();
-
-        assertThat(startFuture).hasFailedWithThrowableThat()
-                               .isInstanceOf(InterruptedException.class)
-                               .hasMessageContaining("before joining");
+            assertThat(startFuture).hasFailedWithThrowableThat()
+                                   .isInstanceOf(InterruptedException.class)
+                                   .hasMessageContaining("before joining");
+        }
     }
 
     @Test
     void hierarchicalQuorums() throws Throwable {
-        final List<Replica> cluster = buildCluster(9, true /* start */, 3,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate,
-                                                   (groupId, serverId) -> 1);
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(9)
+                                      .numGroup(3)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
 
-        for (int i = 0; i < cluster.size(); i++) {
-            final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(i).meterRegistry);
-            assertThat(meters).containsEntry("replica.groupId#value", (i / 3) + 1.0);
-        }
-        final Replica replica1 = cluster.get(0);
+            for (int i = 0; i < cluster.size(); i++) {
+                final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(i).meterRegistry());
+                assertThat(meters).containsEntry("replica.groupId#value", (i / 3) + 1.0);
+            }
+            final Replica replica1 = cluster.get(0);
 
-        try {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
-            replica1.rm.execute(command1).join();
+            replica1.commandExecutor().execute(command1).join();
 
-            final Optional<ReplicationLog<?>> commandResult2 = replica1.rm.loadLog(0, false);
+            final Optional<ReplicationLog<?>> commandResult2 = replica1.commandExecutor().loadLog(0, false);
             assertThat(commandResult2).isPresent();
             assertThat(commandResult2.get().command()).isEqualTo(command1);
             assertThat(commandResult2.get().result()).isNull();
 
             withReplica(cluster, replica -> {
-                await().untilAsserted(() -> verify(replica.delegate).apply(eq(command1)));
+                await().untilAsserted(() -> verify(replica.delegate()).apply(eq(command1)));
             });
 
             withReplica(cluster, replica -> await().until(replica::existsLocalRevision));
             withReplica(cluster, replica -> assertThat(replica.localRevision()).isEqualTo(0L));
-        } finally {
-            for (Replica r : cluster) {
-                r.rm.stop();
-            }
         }
     }
 
     @Test
     void hierarchicalQuorumsWithFailOver() throws Throwable {
-        final List<Replica> cluster = buildCluster(9, true /* start */, 3,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate,
-                                                   (groupId, serverId) -> 1);
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(9)
+                                      .numGroup(3)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
 
-        final Replica replica1 = cluster.get(0);
-
-        try {
+            final Replica replica1 = cluster.get(0);
             // Stop Group 3, but we can have a majority of votes from Group 1 and Group 2.
             for (int i = 0; i < cluster.size(); i++) {
                 final Replica replica = cluster.get(i);
                 if (i / 3 == 2) {
-                    replica.rm.stop().join();
+                    replica.commandExecutor().stop().join();
                 }
             }
 
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
-            replica1.rm.execute(command1).join();
+            replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.rm.loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
 
             for (int i = 0; i < cluster.size(); i++) {
                 final Replica replica = cluster.get(i);
                 if (i / 3 != 2) {
-                    await().untilAsserted(() -> verify(replica.delegate).apply(eq(command1)));
+                    await().untilAsserted(() -> verify(replica.delegate()).apply(eq(command1)));
                 }
             }
 
             // Stop one instance each in Group 1 and Group 2. Normal quorums need 5 instances for a majority of
             // votes if the number of participant is 9.
             // However, hierarchical quorums only need a 4 instances for a majority of votes.
-            cluster.get(1).rm.stop().join();
-            cluster.get(4).rm.stop().join();
+            cluster.get(1).commandExecutor().stop().join();
+            cluster.get(4).commandExecutor().stop().join();
 
             final Command<Revision> command2 =
                     Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "summary", "detail",
                                  Markup.PLAINTEXT, Change.ofTextUpsert("/foo", "bar"));
 
-            replica1.rm.execute(command2).get(10, TimeUnit.SECONDS);
-            final ReplicationLog<?> commandResult2 = replica1.rm.loadLog(1, false).get();
+            replica1.commandExecutor().execute(command2).join();
+            final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
             assertThat(commandResult2.command()).isEqualTo(command2);
             assertThat(commandResult2.result()).isInstanceOf(Revision.class);
 
-            await().untilAsserted(() -> verify(cluster.get(0).delegate).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(2).delegate).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(3).delegate).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(5).delegate).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(0).delegate()).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(2).delegate()).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(5).delegate()).apply(eq(command2)));
 
             // Stop one instance in Group 1. The hierarchical quorums is not working anymore.
-            cluster.get(2).rm.stop().join();
+            cluster.get(2).commandExecutor().stop().join();
 
             final Command<Void> command3 = Command.createRepository(Author.SYSTEM, "project", "repo3");
-            assertThatThrownBy(() -> replica1.rm.execute(command3).get(10, TimeUnit.SECONDS))
+            assertThatThrownBy(() -> replica1.commandExecutor().execute(command3).get(10, TimeUnit.SECONDS))
                     .isInstanceOf(TimeoutException.class);
 
             // Restart two instances in Group 3, so the hierarchical quorums should be working again.
-            final CompletableFuture<Void> replica7Start = cluster.get(7).rm.start();
-            final CompletableFuture<Void> replica8Start = cluster.get(8).rm.start();
+            final CompletableFuture<Void> replica7Start = cluster.get(7).commandExecutor().start();
+            final CompletableFuture<Void> replica8Start = cluster.get(8).commandExecutor().start();
             replica7Start.join();
             replica8Start.join();
 
             // The command executed while the Group 3 was down should be relayed.
-            await().untilAsserted(() -> verify(cluster.get(7).delegate).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(8).delegate).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(7).delegate()).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(8).delegate()).apply(eq(command2)));
 
-            await().untilAsserted(() -> verify(cluster.get(0).delegate).apply(eq(command3)));
-            await().untilAsserted(() -> verify(cluster.get(3).delegate).apply(eq(command3)));
-            await().untilAsserted(() -> verify(cluster.get(5).delegate).apply(eq(command3)));
-            await().untilAsserted(() -> verify(cluster.get(7).delegate).apply(eq(command3)));
-            await().untilAsserted(() -> verify(cluster.get(8).delegate).apply(eq(command3)));
-        } finally {
-            for (Replica r : cluster) {
-                r.rm.stop();
-            }
+            await().untilAsserted(() -> verify(cluster.get(0).delegate()).apply(eq(command3)));
+            await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(command3)));
+            await().untilAsserted(() -> verify(cluster.get(5).delegate()).apply(eq(command3)));
+            await().untilAsserted(() -> verify(cluster.get(7).delegate()).apply(eq(command3)));
+            await().untilAsserted(() -> verify(cluster.get(8).delegate()).apply(eq(command3)));
         }
     }
 
     @Test
     void hierarchicalQuorums_writingOnZeroWeightReplica() throws Throwable {
-        final List<Replica> cluster = buildCluster(9, true /* start */, 3,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate,
-                                                   (groupId, serverId) -> {
-                                                       if (serverId == 1) {
-                                                           return 0;
-                                                       } else {
-                                                           return 1;
-                                                       }
-                                                   });
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(9)
+                                      .numGroup(3)
+                                      .weightMappingFunction((groupId, serverId) -> serverId == 1 ? 0 : 1)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
 
-        // The replica1, which has zero-weight, should be excluded from the hierarchical quorums.
-        // However the communication with ZooKeeper cluster should work correctly.
-        final Replica replica1 = cluster.get(0);
+            // The replica1, which has zero-weight, should be excluded from the hierarchical quorums.
+            // However the communication with ZooKeeper cluster should work correctly.
+            final Replica replica1 = cluster.get(0);
 
-        try {
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
-            replica1.rm.execute(command1).join();
+            replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.rm.loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
 
             for (Replica replica : cluster) {
-                await().untilAsserted(() -> verify(replica.delegate).apply(eq(command1)));
-            }
-        } finally {
-            for (Replica r : cluster) {
-                r.rm.stop();
+                await().untilAsserted(() -> verify(replica.delegate()).apply(eq(command1)));
             }
         }
     }
 
     @Test
     void hierarchicalQuorums_replayingOnZeroWeightReplica() throws Throwable {
-        final List<Replica> cluster = buildCluster(9, true /* start */, 3,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate,
-                                                   (groupId, serverId) -> {
-                                                       if (serverId == 2) {
-                                                           return 0;
-                                                       } else {
-                                                           return 1;
-                                                       }
-                                                   });
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(9)
+                                      .numGroup(3)
+                                      .weightMappingFunction((groupId, serverId) -> serverId == 2 ? 0 : 1)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
 
-        final Replica replica1 = cluster.get(0);
-
-        try {
+            final Replica replica1 = cluster.get(0);
             final Command<Void> command1 = Command.createRepository(Author.SYSTEM, "project", "repo1");
-            replica1.rm.execute(command1).join();
+            replica1.commandExecutor().execute(command1).join();
 
-            final ReplicationLog<?> commandResult1 = replica1.rm.loadLog(0, false).get();
+            final ReplicationLog<?> commandResult1 = replica1.commandExecutor().loadLog(0, false).get();
             assertThat(commandResult1.command()).isEqualTo(command1);
             assertThat(commandResult1.result()).isNull();
 
             // The ReplicationLog should be relayed to replica2 which has zero-weight.
             for (Replica replica : cluster) {
-                await().untilAsserted(() -> verify(replica.delegate).apply(eq(command1)));
-            }
-        } finally {
-            for (Replica r : cluster) {
-                r.rm.stop();
+                await().untilAsserted(() -> verify(replica.delegate()).apply(eq(command1)));
             }
         }
     }
 
-    private static void withReplica(List<Replica> cluster, ThrowingConsumer<Replica> consumer)
+    private static void withReplica(Cluster cluster, ThrowingConsumer<Replica> consumer)
             throws Throwable {
         for (Replica replica : cluster) {
             consumer.accept(replica);
@@ -448,17 +385,20 @@ class ZooKeeperCommandExecutorTest {
 
     @Test
     void metrics() throws Exception {
-        final List<Replica> cluster = buildCluster(1, true /* start */,
-                                                   ZooKeeperCommandExecutorTest::newMockDelegate);
-        try {
-            final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(0).meterRegistry);
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(1)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+
+            final Map<String, Double> meters = MoreMeters.measureAll(cluster.get(0).meterRegistry());
             meters.forEach((k, v) -> logger.debug("{}={}", k, v));
             assertThat(meters).containsKeys("executor#total{name=zkCommandExecutor}",
                                             "executor#total{name=zkLeaderSelector}",
                                             "executor#total{name=zkLogWatcher}",
+                                            "executor#total{name=quotaExecutor}",
                                             "executor.pool.size#value{name=zkCommandExecutor}",
                                             "executor.pool.size#value{name=zkLeaderSelector}",
                                             "executor.pool.size#value{name=zkLogWatcher}",
+                                            "executor.pool.size#value{name=quotaExecutor}",
                                             "replica.has.leadership#value",
                                             "replica.id#value",
                                             "replica.last.replayed.revision#value",
@@ -479,84 +419,58 @@ class ZooKeeperCommandExecutorTest {
                                             "replica.zk.packets.received#count",
                                             "replica.zk.packets.sent#count",
                                             "replica.zk.watches#value");
-        } finally {
-            cluster.forEach(r -> r.rm.stop());
         }
     }
 
-    private List<Replica> buildCluster(
-            int numReplicas, boolean start,
-            Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier) throws Exception {
-        return buildCluster(numReplicas, start, 1, delegateSupplier, null);
-    }
+    @Test
+    void setWriteQuota() throws Exception {
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(1)
+                                      .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
+            final String project = "test_prj";
+            final String repo = "test_repo";
+            final String key = project + '/' + repo;
+            final Replica replica = cluster.get(0);
+            final ZooKeeperCommandExecutor executor = replica.commandExecutor();
+            final Cache<String, QuotaConfig> quotaCache = executor.writeQuotaCache;
+            final ConcurrentMap<String, Entry<InterProcessSemaphoreV2, SettableSharedCount>> semaphoreMap =
+                    executor.semaphoreMap;
 
-    private List<Replica> buildCluster(
-            int numReplicas, boolean start, int numGroup,
-            Supplier<Function<Command<?>, CompletableFuture<?>>> delegateSupplier,
-            @Nullable ToIntBiFunction<Integer, Integer> weightMappingFunction) throws Exception {
+            // Initial state
+            QuotaConfig writeQuota = quotaCache.getIfPresent(key);
+            Entry<InterProcessSemaphoreV2, SettableSharedCount> entry = semaphoreMap.get(key);
+            assertThat(writeQuota).isNull();
+            assertThat(entry).isNull();
 
-        // Each replica requires 3 ports, for client, quorum and election.
-        final List<ServerSocket> quorumPorts = new ArrayList<>();
-        final List<ServerSocket> electionPorts = new ArrayList<>();
-        for (int i = 0; i < numReplicas; i++) {
-            quorumPorts.add(new ServerSocket(0));
-            electionPorts.add(new ServerSocket(0));
+            // Unlimited quota
+            executor.setWriteQuota(project, repo, null);
+            writeQuota = quotaCache.getIfPresent(key);
+            entry = semaphoreMap.get(key);
+            assertThat(writeQuota.requestQuota()).isEqualTo(Integer.MAX_VALUE);
+            assertThat(entry.getKey()).isNull();
+            assertThat(entry.getValue()).isNull();
+
+            // Set a new quota
+            QuotaConfig newQuota = new QuotaConfig(5, 1);
+            executor.setWriteQuota(project, repo, newQuota);
+            writeQuota = quotaCache.getIfPresent(key);
+            entry = semaphoreMap.get(key);
+            assertThat(writeQuota).isSameAs(newQuota);
+            assertThat(entry.getValue().getCount()).isEqualTo(5);
+
+            // Update the existing quota
+            newQuota = new QuotaConfig(10, 1);
+            executor.setWriteQuota(project, repo, newQuota);
+            writeQuota = quotaCache.getIfPresent(key);
+            final Entry<InterProcessSemaphoreV2, SettableSharedCount> entry2 = semaphoreMap.get(key);
+            assertThat(writeQuota).isSameAs(newQuota);
+            assertThat(entry2).isSameAs(entry);
+            assertThat(entry2.getValue().getCount()).isEqualTo(10);
         }
-
-        final List<InstanceSpec> specs = new ArrayList<>();
-        final Map<Integer, ZooKeeperServerConfig> servers = new HashMap<>();
-        final int groupSize = numReplicas / numGroup;
-        for (int i = 0; i < numReplicas; i++) {
-            final int serverId = i + 1;
-            final InstanceSpec spec = new InstanceSpec(
-                    testFolder.newFolder().toFile(),
-                    0,
-                    electionPorts.get(i).getLocalPort(),
-                    quorumPorts.get(i).getLocalPort(),
-                    false,
-                    serverId);
-
-            specs.add(spec);
-            final Integer groupId;
-            if (numGroup == 1) {
-                groupId = null;
-            } else {
-                groupId = (i / groupSize) + 1;
-            }
-
-            final int weight;
-            if (weightMappingFunction != null) {
-                weight = weightMappingFunction.applyAsInt(groupId, serverId);
-            } else {
-                weight = 1;
-            }
-            servers.put(spec.getServerId(),
-                        new ZooKeeperServerConfig("127.0.0.1", spec.getQuorumPort(), spec.getElectionPort(), 0,
-                                                  groupId, weight));
-        }
-
-        logger.debug("Creating a cluster: {}", servers);
-
-        for (int i = 0; i < numReplicas; i++) {
-            quorumPorts.get(i).close();
-            electionPorts.get(i).close();
-        }
-
-        final ImmutableList.Builder<Replica> builder = ImmutableList.builder();
-        for (InstanceSpec spec : specs) {
-            final Replica r = new Replica(spec, servers, delegateSupplier.get(), start);
-            builder.add(r);
-        }
-
-        final List<Replica> replicas = builder.build();
-        if (start) {
-            replicas.forEach(Replica::awaitStartup);
-        }
-        return replicas;
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> Function<Command<?>, CompletableFuture<?>> newMockDelegate() {
+    static <T> Function<Command<?>, CompletableFuture<?>> newMockDelegate() {
         final Function<Command<T>, CompletableFuture<T>> delegate = mock(Function.class);
         lenient().when(delegate.apply(argThat(x -> x == null || x.type().resultType() == Void.class)))
                  .thenReturn(completedFuture(null));
@@ -565,65 +479,5 @@ class ZooKeeperCommandExecutorTest {
                  .thenReturn((CompletableFuture<T>) completedFuture(Revision.HEAD));
 
         return (Function<Command<?>, CompletableFuture<?>>) (Function<?, ?>)delegate;
-    }
-
-    private static final class Replica {
-
-        private final ZooKeeperCommandExecutor rm;
-        private final Function<Command<?>, CompletableFuture<?>> delegate;
-        private final File dataDir;
-        private final MeterRegistry meterRegistry;
-        private final CompletableFuture<Void> startFuture;
-
-        Replica(InstanceSpec spec, Map<Integer, ZooKeeperServerConfig> servers,
-                Function<Command<?>, CompletableFuture<?>> delegate, boolean start) throws Exception {
-            this.delegate = delegate;
-
-            dataDir = spec.getDataDirectory();
-            meterRegistry = PrometheusMeterRegistries.newRegistry();
-
-            final int id = spec.getServerId();
-            final ZooKeeperReplicationConfig zkCfg = new ZooKeeperReplicationConfig(id, servers);
-
-            rm = new ZooKeeperCommandExecutor(zkCfg, dataDir, new AbstractCommandExecutor(null, null) {
-                @Override
-                public int replicaId() {
-                    return id;
-                }
-
-                @Override
-                protected void doStart(@Nullable Runnable onTakeLeadership,
-                                       @Nullable Runnable onReleaseLeadership) {}
-
-                @Override
-                protected void doStop(@Nullable Runnable onReleaseLeadership) {}
-
-                @Override
-                @SuppressWarnings("unchecked")
-                protected <T> CompletableFuture<T> doExecute(Command<T> command) {
-                    return (CompletableFuture<T>) delegate.apply(command);
-                }
-            }, meterRegistry, null, null);
-
-            startFuture = start ? rm.start() : null;
-        }
-
-        void awaitStartup() {
-            checkState(startFuture != null);
-            startFuture.join();
-        }
-
-        long localRevision() throws IOException {
-            return await().ignoreExceptions().until(() -> {
-                try (BufferedReader br = new BufferedReader(new InputStreamReader(
-                        new FileInputStream(new File(dataDir, "last_revision"))))) {
-                    return Long.parseLong(br.readLine());
-                }
-            }, Objects::nonNull);
-        }
-
-        boolean existsLocalRevision() {
-            return Files.isReadable(new File(dataDir, "last_revision").toPath());
-        }
     }
 }

@@ -16,7 +16,9 @@
 
 package com.linecorp.centraldogma.server.internal.replication;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
@@ -26,6 +28,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,10 +42,12 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -60,6 +65,8 @@ import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.curator.framework.recipes.leader.LeaderSelector;
 import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
 import org.apache.curator.framework.recipes.locks.InterProcessMutex;
+import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
+import org.apache.curator.framework.recipes.locks.Lease;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.RetryForever;
 import org.apache.zookeeper.CreateMode;
@@ -73,6 +80,8 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -81,12 +90,22 @@ import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import com.linecorp.armeria.common.util.SafeCloseable;
+import com.linecorp.centraldogma.common.CentralDogmaException;
+import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.PushCommand;
+import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
+import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -119,10 +138,26 @@ public final class ZooKeeperCommandExecutor
     static final String LOCK_PATH = "lock";
 
     @VisibleForTesting
+    static final String QUOTA_PATH = "quota";
+
+    @VisibleForTesting
     static final String LEADER_PATH = "leader";
 
     private static final RetryPolicy RETRY_POLICY_ALWAYS = new RetryForever(500);
     private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
+
+    private static final QuotaConfig UNLIMITED_QUOTA = new QuotaConfig(Integer.MAX_VALUE, 1);
+    private static final Entry<InterProcessSemaphoreV2, SettableSharedCount> UNLIMITED_SEMAPHORE =
+            new SimpleImmutableEntry<>(null, null);
+
+    private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
+
+    @VisibleForTesting
+    final ConcurrentMap<String, Entry<InterProcessSemaphoreV2, SettableSharedCount>> semaphoreMap =
+            new ConcurrentHashMap<>();
+
+    @VisibleForTesting
+    final Cache<String, QuotaConfig> writeQuotaCache = Caffeine.newBuilder().maximumSize(2000).build();
 
     private final ZooKeeperReplicationConfig cfg;
     private final File revisionFile;
@@ -131,6 +166,11 @@ public final class ZooKeeperCommandExecutor
     private final File zkLogDir;
     private final CommandExecutor delegate;
     private final MeterRegistry meterRegistry;
+
+    @Nullable
+    private final QuotaConfig writeQuota;
+
+    private MetadataService metadataService;
 
     private volatile EmbeddedZooKeeper quorumPeer;
     private volatile CuratorFramework curator;
@@ -141,6 +181,7 @@ public final class ZooKeeperCommandExecutor
     private volatile OldLogRemover oldLogRemover;
     private volatile ExecutorService leaderSelectorExecutor;
     private volatile LeaderSelector leaderSelector;
+    private volatile ScheduledExecutorService quotaExecutor;
     private volatile boolean createdParentNodes;
 
     private class OldLogRemover implements LeaderSelectorListener {
@@ -257,6 +298,8 @@ public final class ZooKeeperCommandExecutor
     public ZooKeeperCommandExecutor(ZooKeeperReplicationConfig cfg,
                                     File dataDir, CommandExecutor delegate,
                                     MeterRegistry meterRegistry,
+                                    ProjectManager projectManager,
+                                    @Nullable QuotaConfig writeQuota,
                                     @Nullable Consumer<CommandExecutor> onTakeLeadership,
                                     @Nullable Consumer<CommandExecutor> onReleaseLeadership) {
         super(onTakeLeadership, onReleaseLeadership);
@@ -273,6 +316,8 @@ public final class ZooKeeperCommandExecutor
 
         this.delegate = requireNonNull(delegate, "delegate");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+        this.writeQuota = writeQuota;
+        metadataService = new MetadataService(projectManager, this);
 
         // Register the metrics which are accessible even before started.
         Gauge.builder("replica.id", this, self -> replicaId()).register(meterRegistry);
@@ -365,6 +410,12 @@ public final class ZooKeeperCommandExecutor
             executor.allowCoreThreadTimeOut(true);
 
             this.executor = ExecutorServiceMetrics.monitor(meterRegistry, executor, "zkCommandExecutor");
+
+            quotaExecutor = ExecutorServiceMetrics.monitor(
+                    meterRegistry,
+                    Executors.newSingleThreadScheduledExecutor(
+                            new DefaultThreadFactory("zookeeper-quota-executor", true)),
+                    "quotaExecutor");
         } catch (InterruptedException | ReplicationException e) {
             throw e;
         } catch (Exception e) {
@@ -542,6 +593,11 @@ public final class ZooKeeperCommandExecutor
         boolean interrupted = shutdown(executor);
         logger.info("Stopped the worker threads");
 
+        logger.info("Stopping the quota worker threads");
+        interrupted |= shutdown(quotaExecutor);
+        logger.info("Stopped the quota worker threads");
+        semaphoreMap.clear();
+
         try {
             logger.info("Stopping the delegate command executor");
             delegate.stop();
@@ -674,6 +730,9 @@ public final class ZooKeeperCommandExecutor
                                 ": " + actualResult + " (expected: " + expectedResult +
                                 ", command: " + command + ')');
                     }
+                    if (command instanceof RemoveRepositoryCommand) {
+                        clearWriteQuota((RemoveRepositoryCommand) command);
+                    }
                 } else {
                     // same replicaId. skip
                 }
@@ -714,37 +773,133 @@ public final class ZooKeeperCommandExecutor
         oldLogRemover.touch();
     }
 
-    @FunctionalInterface
-    private interface SafeLock extends AutoCloseable {
-        @Override
-        void close();
-    }
-
-    private final ConcurrentMap<String, InterProcessMutex> mutexMap = new ConcurrentHashMap<>();
-
-    private SafeLock safeLock(String executionPath) {
+    private SafeCloseable safeLock(Command<?> command) {
+        final String executionPath = command.executionPath();
         final InterProcessMutex mtx = mutexMap.computeIfAbsent(
-                executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, executionPath)));
+                executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, k)));
 
+        WriteLock writeLock = null;
         try {
             mtx.acquire();
+            if (command instanceof PushCommand) {
+                writeLock = acquireWriteLock((PushCommand) command);
+            } else if (command instanceof RemoveRepositoryCommand) {
+                clearWriteQuota((RemoveRepositoryCommand) command);
+            }
         } catch (Exception e) {
             logger.error("Failed to acquire a lock for {}; entering read-only mode", executionPath, e);
             stopLater();
             throw new ReplicationException("failed to acquire a lock for " + executionPath, e);
         }
 
-        return () -> {
-            try {
-                mtx.release();
-            } catch (Exception ignored) {
-                // Ignore.
-            }
-        };
+        if (writeLock != null) {
+            scheduleWriteLockRelease(writeLock, mtx, executionPath);
+        }
+
+        return () -> safeRelease(mtx);
     }
 
-    @VisibleForTesting
-    static String path(String... pathElements) {
+    private void clearWriteQuota(RemoveRepositoryCommand command) {
+        final String cacheKey = rateLimiterKey(command.projectName(), command.repositoryName());
+        semaphoreMap.remove(cacheKey);
+        writeQuotaCache.invalidate(cacheKey);
+    }
+
+    private static void safeRelease(InterProcessMutex mtx) {
+        try {
+            mtx.release();
+        } catch (Exception ignored) {
+            // Ignore.
+        }
+    }
+
+    @Nullable
+    private WriteLock acquireWriteLock(PushCommand command) throws Exception {
+        if (command.projectName().equals(INTERNAL_PROJ) ||
+            command.repositoryName().equals(Project.REPO_DOGMA)) {
+            // Do not check quota for internal project and repository.
+            return null;
+        }
+
+        QuotaConfig writeQuota = writeQuotaCache.getIfPresent(command.executionPath());
+        if (writeQuota == UNLIMITED_QUOTA) {
+            return null;
+        }
+
+        if (writeQuota == null) {
+            // Cache miss, load a write quota
+            final RepositoryMetadata meta;
+            try {
+                meta = metadataService.getRepo(command.projectName(), command.repositoryName()).get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new CentralDogmaException("Unexpected exception caught while retrieving " +
+                                                RepositoryMetadata.class.getSimpleName(), e);
+            }
+
+            writeQuota = meta.writeQuota();
+        }
+
+        if (writeQuota == null) {
+            // Fallback to the global quota
+            writeQuota = this.writeQuota;
+        }
+
+        setWriteQuota(command.projectName(), command.repositoryName(), writeQuota);
+        final Entry<InterProcessSemaphoreV2, SettableSharedCount> entry =
+                semaphoreMap.get(rateLimiterKey(command.projectName(), command.repositoryName()));
+        if (entry == UNLIMITED_SEMAPHORE) {
+            // No quota is set
+            return null;
+        }
+
+        assert writeQuota != null;
+        final InterProcessSemaphoreV2 semaphore = entry.getKey();
+        final Lease lease = semaphore.acquire(200, TimeUnit.MILLISECONDS);
+        return new WriteLock(semaphore, lease, writeQuota);
+    }
+
+    @Override
+    public void setWriteQuota(String projectName, String repoName, @Nullable QuotaConfig writeQuota) {
+        final QuotaConfig quota = firstNonNull(writeQuota, UNLIMITED_QUOTA);
+        writeQuotaCache.put(rateLimiterKey(projectName, repoName), quota);
+
+        semaphoreMap.compute(rateLimiterKey(projectName, repoName), (k, v) -> {
+            if (quota == UNLIMITED_QUOTA) {
+                return UNLIMITED_SEMAPHORE;
+            }
+
+            final int requestQuota = quota.requestQuota();
+            if (v == null || v == UNLIMITED_SEMAPHORE) {
+                final SettableSharedCount cnt = new SettableSharedCount(requestQuota);
+                return new SimpleImmutableEntry<>(
+                        new InterProcessSemaphoreV2(curator, absolutePath(QUOTA_PATH, k), cnt), cnt);
+            }
+
+            final SettableSharedCount count = v.getValue();
+            if (count.getCount() != requestQuota) {
+                count.setCount(requestQuota);
+            }
+            return v;
+        });
+    }
+
+    private static String rateLimiterKey(String projectName, String repoName) {
+        return projectName + '/' + repoName;
+    }
+
+    private void scheduleWriteLockRelease(WriteLock writeLock, InterProcessMutex mtx, String executionPath) {
+        final Lease lease = writeLock.lease;
+        final QuotaConfig writeQuota = writeLock.writeQuota;
+        if (lease == null) {
+            safeRelease(mtx);
+            throw new TooManyRequestsException("commits", executionPath, writeQuota.requestQuota());
+        } else {
+            quotaExecutor.schedule(() -> writeLock.semaphore.returnLease(lease),
+                                   writeQuota.timeWindowSeconds(), TimeUnit.SECONDS);
+        }
+    }
+
+    private static String path(String... pathElements) {
         final StringBuilder sb = new StringBuilder();
         for (String path : pathElements) {
             if (path.startsWith("/")) { //remove starting "/"
@@ -902,7 +1057,7 @@ public final class ZooKeeperCommandExecutor
     private <T> T blockingExecute(Command<T> command) throws Exception {
         createParentNodes();
 
-        try (SafeLock ignored = safeLock(command.executionPath())) {
+        try (SafeCloseable ignored = safeLock(command)) {
 
             // NB: We are sure no other replicas will append the conflicting logs (the commands with the
             //     same execution path) while we hold the lock for the command's execution path.
@@ -946,6 +1101,23 @@ public final class ZooKeeperCommandExecutor
             curator.create().forPath(zkPath);
         } catch (KeeperException.NodeExistsException ignored) {
             // Ignore.
+        }
+    }
+
+    @VisibleForTesting
+    void setMetadataService(MetadataService metadataService) {
+        this.metadataService = metadataService;
+    }
+
+    private static final class WriteLock {
+        private final InterProcessSemaphoreV2 semaphore;
+        private final Lease lease;
+        private final QuotaConfig writeQuota;
+
+        private WriteLock(InterProcessSemaphoreV2 semaphore, Lease lease, QuotaConfig writeQuota) {
+            this.semaphore = semaphore;
+            this.lease = lease;
+            this.writeQuota = writeQuota;
         }
     }
 }

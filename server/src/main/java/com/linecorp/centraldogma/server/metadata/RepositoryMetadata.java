@@ -31,6 +31,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -72,10 +73,17 @@ public class RepositoryMetadata implements Identifiable {
     private final UserAndTimestamp removal;
 
     /**
+     * A write quota of this repository.
+     */
+    @Nullable
+    private final QuotaConfig writeQuota;
+
+    /**
      * Creates a new instance with default properties.
      */
     public RepositoryMetadata(String name, UserAndTimestamp creation, PerRolePermissions perRolePermissions) {
-        this(name, perRolePermissions, ImmutableMap.of(), ImmutableMap.of(), creation, null);
+        this(name, perRolePermissions, ImmutableMap.of(), ImmutableMap.of(),
+             creation, /* removal */ null, /* writeQuota */ null);
     }
 
     /**
@@ -89,7 +97,8 @@ public class RepositoryMetadata implements Identifiable {
                               @JsonProperty("perTokenPermissions")
                                       Map<String, Collection<Permission>> perTokenPermissions,
                               @JsonProperty("creation") UserAndTimestamp creation,
-                              @JsonProperty("removal") @Nullable UserAndTimestamp removal) {
+                              @JsonProperty("removal") @Nullable UserAndTimestamp removal,
+                              @JsonProperty("writeQuota") @Nullable QuotaConfig writeQuota) {
         this.name = requireNonNull(name, "name");
         this.perRolePermissions = requireNonNull(perRolePermissions, "perRolePermissions");
         this.perUserPermissions = ImmutableMap.copyOf(requireNonNull(perUserPermissions,
@@ -98,6 +107,7 @@ public class RepositoryMetadata implements Identifiable {
                                                                       "perTokenPermissions"));
         this.creation = requireNonNull(creation, "creation");
         this.removal = removal;
+        this.writeQuota = writeQuota;
     }
 
     @Override
@@ -154,15 +164,26 @@ public class RepositoryMetadata implements Identifiable {
         return removal;
     }
 
+    /**
+     * Returns the maximum allowed write quota.
+     */
+    @Nullable
+    @JsonProperty("writeQuota")
+    public QuotaConfig writeQuota() {
+        return writeQuota;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                          .omitNullValues()
                           .add("name", name())
                           .add("perRolePermissions", perRolePermissions())
                           .add("perUserPermissions", perUserPermissions())
                           .add("perTokenPermissions", perTokenPermissions())
                           .add("creation", creation())
                           .add("removal", removal())
+                          .add("writeQuota", writeQuota())
                           .toString();
     }
 }
