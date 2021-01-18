@@ -56,7 +56,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     private ClientFactory clientFactory = ClientFactory.ofDefault();
     private ArmeriaClientConfigurator clientConfigurator = cb -> {};
     private Duration healthCheckInterval = Duration.ofMillis(DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS);
-    private Consumer<DnsAddressEndpointGroupBuilder> dnsAddressEndpointGroupCustomizer = b -> {};
+    private DnsAddressEndpointGroupConfigurator dnsAddressEndpointGroupConfigurator = b -> {};
 
     /**
      * Returns the {@link ClientFactory} that will create an underlying
@@ -84,10 +84,14 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
         return self();
     }
 
-    public final B dnsAddressEndpointGroupCustomizer(
-            Consumer<DnsAddressEndpointGroupBuilder> dnsAddressEndpointGroupCustomizer) {
-        this.dnsAddressEndpointGroupCustomizer = requireNonNull(
-                dnsAddressEndpointGroupCustomizer, "dnsAddressEndpointGroupCustomizer");
+    /**
+     * Sets the {@link DnsAddressEndpointGroupConfigurator} that will configure the DNS lookup
+     * done by the <a href="https://line.github.io/armeria/">Armeria</a> client.
+     */
+    public final B dnsAddressEndpointGroupConfigurator(
+            DnsAddressEndpointGroupConfigurator dnsAddressEndpointGroupConfigurator) {
+        this.dnsAddressEndpointGroupConfigurator = requireNonNull(
+                dnsAddressEndpointGroupConfigurator, "dnsAddressEndpointGroupConfigurator");
         return self();
     }
 
@@ -142,7 +146,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
                         .builder(addr.getHostString())
                         .eventLoop(clientFactory.eventLoopGroup().next())
                         .port(addr.getPort());
-                dnsAddressEndpointGroupCustomizer.accept(dnsAddressEndpointGroup);
+                dnsAddressEndpointGroupConfigurator.configure(dnsAddressEndpointGroup);
                 groups.add(dnsAddressEndpointGroup.build());
             } else {
                 staticEndpoints.add(toResolvedHostEndpoint(addr));

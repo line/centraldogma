@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 import javax.inject.Inject;
 
@@ -31,14 +30,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroupBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationWithDnsEndpointGroupCustomizerTest.TestConfiguration;
+import com.linecorp.centraldogma.client.armeria.DnsAddressEndpointGroupConfigurator;
+import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationWithDnsEndpointGroupConfiguratorTest.TestConfiguration;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestConfiguration.class)
 @ActiveProfiles({ "local", "confTest" })
-class CentralDogmaClientAutoConfigurationWithDnsEndpointGroupCustomizerTest {
+class CentralDogmaClientAutoConfigurationWithDnsEndpointGroupConfiguratorTest {
     @SpringBootApplication
     static class TestConfiguration {
         @Bean
@@ -47,7 +46,7 @@ class CentralDogmaClientAutoConfigurationWithDnsEndpointGroupCustomizerTest {
         }
 
         @Bean
-        Consumer<DnsAddressEndpointGroupBuilder> dnsAddressEndpointGroupCustomizer(
+        DnsAddressEndpointGroupConfigurator dnsAddressEndpointGroupConfigurator(
                 AtomicBoolean customizationDone) {
             return b -> customizationDone.set(true);
         }
