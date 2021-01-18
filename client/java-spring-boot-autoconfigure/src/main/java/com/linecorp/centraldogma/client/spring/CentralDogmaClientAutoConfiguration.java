@@ -20,6 +20,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import javax.inject.Qualifier;
 
@@ -46,6 +47,7 @@ import org.springframework.core.type.MethodMetadata;
 import com.google.common.net.HostAndPort;
 
 import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroupBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
@@ -87,13 +89,15 @@ public class CentralDogmaClientAutoConfiguration {
             Environment env,
             CentralDogmaSettings settings,
             @ForCentralDogma ClientFactory clientFactory,
-            Optional<ArmeriaClientConfigurator> armeriaClientConfigurator) throws UnknownHostException {
+            Optional<ArmeriaClientConfigurator> armeriaClientConfigurator,
+            Optional<Consumer<DnsAddressEndpointGroupBuilder>> dnsAddressEndpointGroupCustomizer) throws UnknownHostException {
 
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
 
         builder.clientFactory(clientFactory);
         builder.clientConfigurator(cb -> armeriaClientConfigurator.ifPresent(
                 configurator -> configurator.configure(cb)));
+        dnsAddressEndpointGroupCustomizer.ifPresent(builder::dnsAddressEndpointGroupCustomizer);
 
         // Set health check interval.
         final Long healthCheckIntervalMillis = settings.getHealthCheckIntervalMillis();

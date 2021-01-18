@@ -38,6 +38,7 @@ import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
+import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroupBuilder;
 import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
@@ -55,6 +56,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     private ClientFactory clientFactory = ClientFactory.ofDefault();
     private ArmeriaClientConfigurator clientConfigurator = cb -> {};
     private Duration healthCheckInterval = Duration.ofMillis(DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS);
+    private Consumer<DnsAddressEndpointGroupBuilder> dnsAddressEndpointGroupCustomizer = b -> {};
 
     /**
      * Returns the {@link ClientFactory} that will create an underlying
@@ -79,6 +81,13 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
      */
     public final B clientConfigurator(ArmeriaClientConfigurator clientConfigurator) {
         this.clientConfigurator = requireNonNull(clientConfigurator, "clientConfigurator");
+        return self();
+    }
+
+    public final B dnsAddressEndpointGroupCustomizer(
+            Consumer<DnsAddressEndpointGroupBuilder> dnsAddressEndpointGroupCustomizer) {
+        this.dnsAddressEndpointGroupCustomizer = requireNonNull(
+                dnsAddressEndpointGroupCustomizer, "dnsAddressEndpointGroupCustomizer");
         return self();
     }
 
@@ -129,10 +138,12 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
         final List<EndpointGroup> groups = new ArrayList<>();
         for (final InetSocketAddress addr : hosts) {
             if (addr.isUnresolved()) {
-                groups.add(DnsAddressEndpointGroup.builder(addr.getHostString())
-                                                  .eventLoop(clientFactory.eventLoopGroup().next())
-                                                  .port(addr.getPort())
-                                                  .build());
+                final DnsAddressEndpointGroupBuilder dnsAddressEndpointGroup = DnsAddressEndpointGroup
+                        .builder(addr.getHostString())
+                        .eventLoop(clientFactory.eventLoopGroup().next())
+                        .port(addr.getPort());
+                dnsAddressEndpointGroupCustomizer.accept(dnsAddressEndpointGroup);
+                groups.add(dnsAddressEndpointGroup.build());
             } else {
                 staticEndpoints.add(toResolvedHostEndpoint(addr));
             }
