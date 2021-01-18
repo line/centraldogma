@@ -59,7 +59,6 @@ class NonRandomTokenTest {
         final WebClient adminClient = WebClient.builder(client.uri())
                                                .auth(OAuth2Token.of(sessionId)).build();
 
-
         final HttpRequest request = HttpRequest.builder()
                                                .post("/api/v1/tokens")
                                                .content(MediaType.FORM_DATA,

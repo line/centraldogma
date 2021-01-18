@@ -46,7 +46,6 @@ class TokenServiceTest {
         }
     };
 
-
     private static final Author adminAuthor = new Author("admin@localhost.com");
     private static final Author guestAuthor = new Author("guest@localhost.com");
     private static final User admin = new User("admin@localhost.com", User.LEVEL_ADMIN);
