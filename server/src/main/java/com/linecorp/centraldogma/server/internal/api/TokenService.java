@@ -22,6 +22,8 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -42,6 +44,7 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
@@ -104,10 +107,21 @@ public class TokenService extends AbstractService {
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<HttpResult<Token>> createToken(@Param String appId,
                                                             @Param boolean isAdmin,
-                                                            Author author, User loginUser) {
+                                                            Author author, User loginUser,
+                                                            @Nullable String secret) {
         checkArgument(!isAdmin || loginUser.isAdmin(),
                       "Only administrators are allowed to create an admin-level token.");
-        return mds.createToken(author, appId, isAdmin)
+
+        checkArgument(secret == null || loginUser.isAdmin(),
+                      "Only administrators are allowed to create a new token from the given secret string");
+
+        final CompletableFuture<Revision> tokenFuture;
+        if (secret != null) {
+            tokenFuture = mds.createToken(author, appId, secret, isAdmin);
+        } else {
+            tokenFuture = mds.createToken(author, appId, isAdmin);
+        }
+        return tokenFuture
                   .thenCompose(unused -> mds.findTokenByAppId(appId))
                   .thenApply(token -> {
                       final ResponseHeaders headers = ResponseHeaders.of(HttpStatus.CREATED,
