@@ -144,10 +144,9 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             if (addr.isUnresolved()) {
                 final DnsAddressEndpointGroupBuilder dnsAddressEndpointGroup = DnsAddressEndpointGroup
                         .builder(addr.getHostString())
-                        .eventLoop(clientFactory.eventLoopGroup().next())
-                        .port(addr.getPort());
+                        .eventLoop(clientFactory.eventLoopGroup().next());
                 dnsAddressEndpointGroupConfigurator.configure(dnsAddressEndpointGroup);
-                groups.add(dnsAddressEndpointGroup.build());
+                groups.add(dnsAddressEndpointGroup.port(addr.getPort()).build());
             } else {
                 staticEndpoints.add(toResolvedHostEndpoint(addr));
             }
