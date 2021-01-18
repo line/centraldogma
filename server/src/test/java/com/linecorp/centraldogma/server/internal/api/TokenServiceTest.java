@@ -122,9 +122,10 @@ class TokenServiceTest {
         final Collection<Token> tokens = tokenService.listTokens(admin).join();
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
-        assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, "appToken-secret", guestAuthor,
+        assertThatThrownBy(() -> tokenService.createToken("forUser1", true, "appToken-secret", guestAuthor,
                                                           guest)
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
+        tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).join();
     }
 }
