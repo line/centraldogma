@@ -49,6 +49,7 @@ import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
+import com.linecorp.centraldogma.client.armeria.DnsAddressEndpointGroupConfigurator;
 
 /**
  * Spring bean configuration for {@link CentralDogma} client.
@@ -87,13 +88,16 @@ public class CentralDogmaClientAutoConfiguration {
             Environment env,
             CentralDogmaSettings settings,
             @ForCentralDogma ClientFactory clientFactory,
-            Optional<ArmeriaClientConfigurator> armeriaClientConfigurator) throws UnknownHostException {
+            Optional<ArmeriaClientConfigurator> armeriaClientConfigurator,
+            Optional<DnsAddressEndpointGroupConfigurator> dnsAddressEndpointGroupConfigurator)
+            throws UnknownHostException {
 
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
 
         builder.clientFactory(clientFactory);
         builder.clientConfigurator(cb -> armeriaClientConfigurator.ifPresent(
                 configurator -> configurator.configure(cb)));
+        dnsAddressEndpointGroupConfigurator.ifPresent(builder::dnsAddressEndpointGroupConfigurator);
 
         // Set health check interval.
         final Long healthCheckIntervalMillis = settings.getHealthCheckIntervalMillis();
