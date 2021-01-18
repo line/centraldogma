@@ -89,7 +89,8 @@ public class CentralDogmaClientAutoConfiguration {
             CentralDogmaSettings settings,
             @ForCentralDogma ClientFactory clientFactory,
             Optional<ArmeriaClientConfigurator> armeriaClientConfigurator,
-            Optional<DnsAddressEndpointGroupConfigurator> dnsAddressEndpointGroupConfigurator) throws UnknownHostException {
+            Optional<DnsAddressEndpointGroupConfigurator> dnsAddressEndpointGroupConfigurator)
+            throws UnknownHostException {
 
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
 
