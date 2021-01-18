@@ -46,6 +46,7 @@ class TokenServiceTest {
         }
     };
 
+
     private static final Author adminAuthor = new Author("admin@localhost.com");
     private static final Author guestAuthor = new Author("guest@localhost.com");
     private static final User admin = new User("admin@localhost.com", User.LEVEL_ADMIN);
@@ -63,10 +64,10 @@ class TokenServiceTest {
 
     @Test
     void adminToken() {
-        final Token token = tokenService.createToken("forAdmin1", true, adminAuthor, admin, null).join()
+        final Token token = tokenService.createToken("forAdmin1", true, null, adminAuthor, admin).join()
                                         .content();
         assertThat(token.isActive()).isTrue();
-        assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, guestAuthor, guest, null)
+        assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, null, guestAuthor, guest)
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
@@ -87,9 +88,9 @@ class TokenServiceTest {
 
     @Test
     void userToken() {
-        final Token userToken1 = tokenService.createToken("forUser1", false, adminAuthor, admin, null)
+        final Token userToken1 = tokenService.createToken("forUser1", false, null, adminAuthor, admin)
                                              .join().content();
-        final Token userToken2 = tokenService.createToken("forUser2", false, guestAuthor, guest, null)
+        final Token userToken2 = tokenService.createToken("forUser2", false, null, guestAuthor, guest)
                                              .join().content();
         assertThat(userToken1.isActive()).isTrue();
         assertThat(userToken2.isActive()).isTrue();
@@ -114,16 +115,16 @@ class TokenServiceTest {
 
     @Test
     void nonRandomToken() {
-        final Token token = tokenService.createToken("forAdmin1", true, adminAuthor,
-                                                     admin, "appToken-secret")
+        final Token token = tokenService.createToken("forAdmin1", true, "appToken-secret", adminAuthor,
+                                                     admin)
                                         .join().content();
         assertThat(token.isActive()).isTrue();
 
         final Collection<Token> tokens = tokenService.listTokens(admin).join();
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
-        assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, guestAuthor,
-                                                          guest, "appToken-secret")
+        assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, "appToken-secret", guestAuthor,
+                                                          guest)
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
     }

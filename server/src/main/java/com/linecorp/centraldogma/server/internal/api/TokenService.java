@@ -107,8 +107,8 @@ public class TokenService extends AbstractService {
     @ResponseConverter(CreateApiResponseConverter.class)
     public CompletableFuture<HttpResult<Token>> createToken(@Param String appId,
                                                             @Param boolean isAdmin,
-                                                            Author author, User loginUser,
-                                                            @Nullable String secret) {
+                                                            @Param @Nullable String secret,
+                                                            Author author, User loginUser) {
         checkArgument(!isAdmin || loginUser.isAdmin(),
                       "Only administrators are allowed to create an admin-level token.");
 
