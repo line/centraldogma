@@ -42,6 +42,7 @@ import java.util.function.Function;
 
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -254,6 +255,7 @@ class ZooKeeperCommandExecutorTest {
     }
 
     @Test
+    @Timeout(120)
     void hierarchicalQuorumsWithFailOver() throws Throwable {
         try (Cluster cluster = Cluster.builder()
                                       .numReplicas(9)
