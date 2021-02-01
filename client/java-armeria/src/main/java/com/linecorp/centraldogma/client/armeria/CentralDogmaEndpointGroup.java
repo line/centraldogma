@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
+import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Query;
@@ -70,7 +71,8 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
      */
     public static <T> CentralDogmaEndpointGroup<T> ofWatcher(Watcher<T> watcher,
                                                              EndpointListDecoder<T> endpointListDecoder) {
-        return new CentralDogmaEndpointGroup<>(watcher, endpointListDecoder);
+        return new CentralDogmaEndpointGroup<>(EndpointSelectionStrategy.weightedRoundRobin(),
+                                               watcher, endpointListDecoder);
     }
 
     /**
@@ -89,8 +91,25 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
         return ofWatcher(centralDogma.fileWatcher(projectName, repositoryName, query), endpointListDecoder);
     }
 
-    private CentralDogmaEndpointGroup(Watcher<T> instanceListWatcher,
-                                      EndpointListDecoder<T> endpointListDecoder) {
+    /**
+     * Returns a new {@link CentralDogmaEndpointGroupBuilder} with the {@link Watcher}
+     * and {@link EndpointListDecoder}. You can create a {@link Watcher} using {@link CentralDogma}:
+     *
+     * <pre>{@code
+     * CentralDogma centralDogma = ...
+     * Query<T> query = ... // The query to the entry that contains the list of endpoints.
+     * Watcher watcher = centralDogma.fileWatcher(projectName, repositoryName, query);
+     * }</pre>
+     */
+    public static <T> CentralDogmaEndpointGroupBuilder<T> builder(Watcher<T> watcher,
+                                                                  EndpointListDecoder<T> endpointListDecoder) {
+        return new CentralDogmaEndpointGroupBuilder<>(watcher, endpointListDecoder);
+    }
+
+    CentralDogmaEndpointGroup(EndpointSelectionStrategy strategy,
+                              Watcher<T> instanceListWatcher,
+                              EndpointListDecoder<T> endpointListDecoder) {
+        super(strategy);
         this.instanceListWatcher = requireNonNull(instanceListWatcher, "instanceListWatcher");
         this.endpointListDecoder = requireNonNull(endpointListDecoder, "endpointListDecoder");
         registerWatcher();

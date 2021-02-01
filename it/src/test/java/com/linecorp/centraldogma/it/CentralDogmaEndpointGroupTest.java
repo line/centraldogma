@@ -90,8 +90,8 @@ class CentralDogmaEndpointGroupTest {
     void json() throws Exception {
         try (Watcher<JsonNode> watcher = dogma.client().fileWatcher("directory", "my-service",
                                                                     Query.ofJson("/endpoint.json"))) {
-            final CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
-                    watcher, EndpointListDecoder.JSON);
+            final CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.builder(
+                    watcher, EndpointListDecoder.JSON).build();
             endpointGroup.whenReady().get();
             assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
         }
