@@ -24,7 +24,6 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 /**
  * A merge query on files.
@@ -78,9 +77,6 @@ public interface MergeQuery<T> {
      */
     static MergeQuery<JsonNode> ofJsonPath(Iterable<MergeSource> mergeSources,
                                            Iterable<String> jsonPaths) {
-        if (Iterables.isEmpty(jsonPaths)) {
-            return ofJson(mergeSources);
-        }
         return new JsonMergeQuery(JSON_PATH, mergeSources, jsonPaths);
     }
 
