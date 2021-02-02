@@ -34,6 +34,7 @@ import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.MergedEntry;
+import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -71,6 +72,20 @@ class MergeFileTest  {
         assertThat(merged.paths()).containsExactly("/foo.json", "/foo1.json","/foo2.json");
         assertThat(merged.revision()).isEqualTo(new Revision(2));
         assertThatJson(merged.content()).isEqualTo("{ \"a\": \"new_bar\", \"b\": \"baz\" }");
+
+        // Check again to see if the original files are changed.
+        assertThatJson(client.getFile("myPro", "myRepo", Revision.HEAD, Query.ofJson("/foo.json"))
+                             .join()
+                             .content())
+                .isEqualTo("{ \"a\": \"bar\" }");
+        assertThatJson(client.getFile("myPro", "myRepo", Revision.HEAD, Query.ofJson("/foo1.json"))
+                             .join()
+                             .content())
+                .isEqualTo("{ \"b\": \"baz\" }");
+        assertThatJson(client.getFile("myPro", "myRepo", Revision.HEAD, Query.ofJson("/foo2.json"))
+                             .join()
+                             .content())
+                .isEqualTo("{ \"a\": \"new_bar\" }");
 
         assertThatThrownBy(() -> client.mergeFiles("myPro", "myRepo", Revision.HEAD,
                                                    MergeSource.ofRequired("/foo.json"),
