@@ -346,8 +346,11 @@ public final class Jackson {
                 // Append the filed name and traverse the child.
                 fieldNameAppender.append(fieldName);
                 fieldNameAppender.append('/');
-                baseObject.set(fieldName,
-                               traverse(baseValue, updateValue, fieldNameAppender, isMerging, false));
+                final JsonNode traversed =
+                        traverse(baseValue, updateValue, fieldNameAppender, isMerging, false);
+                if (isMerging) {
+                    baseObject.set(fieldName, traversed);
+                }
                 // Remove the appended filed name above.
                 fieldNameAppender.delete(length, fieldNameAppender.length());
             }
