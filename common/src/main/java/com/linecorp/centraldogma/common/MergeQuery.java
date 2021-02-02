@@ -78,7 +78,7 @@ public interface MergeQuery<T> {
      */
     static MergeQuery<JsonNode> ofJsonPath(Iterable<MergeSource> mergeSources,
                                            Iterable<String> jsonPaths) {
-        if (Iterables.isEmpty(jsonPaths)) {
+        if (Iterables.isEmpty(requireNonNull(jsonPaths, "jsonPaths"))) {
             return ofJson(mergeSources);
         }
         return new JsonMergeQuery(JSON_PATH, mergeSources, jsonPaths);
