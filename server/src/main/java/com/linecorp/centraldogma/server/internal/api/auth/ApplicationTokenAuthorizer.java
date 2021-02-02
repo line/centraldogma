@@ -82,8 +82,8 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
                        .exceptionally(voidFunction(cause -> {
                            cause = Exceptions.peel(cause);
                            if (!(cause instanceof IllegalArgumentException)) {
-                               logger.warn("Application token authorization failed: {}",
-                                           token.accessToken(), cause);
+                               logger.warn("Application token authorization failed: token={}, addr={}",
+                                           token.accessToken(), ctx.clientAddress(), cause);
                            }
                            res.complete(false);
                        }));
