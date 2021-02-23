@@ -1,0 +1,50 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: -Xmx1280m
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [8, 11, 14]
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up JDK ${{ matrix.java }}
+      uses: actions/setup-java@v1
+      with:
+        java-version: ${{ matrix.java }}
+
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.gradle/wrapper/dists
+          ~/.gradle/caches/jars-3
+          ~/.gradle/caches/modules-2
+          ~/.gradle/caches/package-lists
+          ~/.gradle/caches/sphinx-binary
+          ~/.gradle/go/binary
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle
+      run: ./gradlew --no-daemon --stacktrace -Pcoverage checkstyle check build
+
+    - name: Cleanup Gradle Cache
+      # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
+      # Restoring these files from a GitHub Actions cache might cause problems for future builds.
+      run: |
+        rm -f ~/.gradle/caches/modules-2/modules-2.lock
+        rm -f ~/.gradle/caches/modules-2/gc.properties
+    - if: ${{ matrix.java == '11' }}
+      uses: codecov/codecov-action@v1
+      with:
+        fail_ci_if_error: false
