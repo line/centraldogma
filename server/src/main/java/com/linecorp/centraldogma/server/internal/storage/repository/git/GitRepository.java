@@ -168,8 +168,7 @@ class GitRepository implements Repository {
     @VisibleForTesting
     final RepositoryCache cache;
     private final String name;
-    @VisibleForTesting
-    final org.eclipse.jgit.lib.Repository jGitRepository;
+    private final org.eclipse.jgit.lib.Repository jGitRepository;
     private final GitRepositoryFormat format;
     private final CommitIdDatabase commitIdDatabase;
     @VisibleForTesting
@@ -177,7 +176,6 @@ class GitRepository implements Repository {
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
     private final GC garbageCollector;
-
 
     /**
      * The current head revision. Initialized by the constructor and updated by commit().

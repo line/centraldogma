@@ -50,5 +50,4 @@ class GarbageCollectingServicePluginTest {
         verify(repo1).gc();
         verify(repo2).gc();
     }
-
 }
