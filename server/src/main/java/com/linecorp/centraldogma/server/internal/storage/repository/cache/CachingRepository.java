@@ -276,6 +276,11 @@ final class CachingRepository implements Repository {
     }
 
     @Override
+    public void gc() throws Exception {
+        repo.gc();
+    }
+
+    @Override
     public String toString() {
         return toStringHelper(this)
                 .add("repo", repo)

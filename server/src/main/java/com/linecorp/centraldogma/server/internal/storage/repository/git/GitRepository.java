@@ -66,6 +66,8 @@ import org.eclipse.jgit.dircache.DirCacheEditor.DeleteTree;
 import org.eclipse.jgit.dircache.DirCacheEditor.PathEdit;
 import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.dircache.DirCacheIterator;
+import org.eclipse.jgit.internal.storage.file.FileRepository;
+import org.eclipse.jgit.internal.storage.file.GC;
 import org.eclipse.jgit.internal.storage.file.RefDirectory;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
@@ -166,13 +168,16 @@ class GitRepository implements Repository {
     @VisibleForTesting
     final RepositoryCache cache;
     private final String name;
-    private final org.eclipse.jgit.lib.Repository jGitRepository;
+    @VisibleForTesting
+    final org.eclipse.jgit.lib.Repository jGitRepository;
     private final GitRepositoryFormat format;
     private final CommitIdDatabase commitIdDatabase;
     @VisibleForTesting
     final CommitWatchers commitWatchers = new CommitWatchers();
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+    private final GC garbageCollector;
+
 
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
@@ -254,6 +259,8 @@ class GitRepository implements Repository {
 
             // Re-open the repository with the updated settings and format version.
             jGitRepository = new RepositoryBuilder().setGitDir(repoDir).build();
+            assert jGitRepository instanceof FileRepository;
+            garbageCollector = new GC((FileRepository) jGitRepository);
 
             // Initialize the master branch.
             final RefUpdate head = jGitRepository.updateRef(Constants.HEAD);
@@ -298,6 +305,9 @@ class GitRepository implements Repository {
         final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
         try {
             jGitRepository = repositoryBuilder.build();
+            assert jGitRepository instanceof FileRepository;
+            garbageCollector = new GC((FileRepository) jGitRepository);
+
             if (!exist(repoDir)) {
                 throw new RepositoryNotFoundException(repoDir.toString());
             }
@@ -1457,6 +1467,16 @@ class GitRepository implements Repository {
         });
 
         return future;
+    }
+
+    @Override
+    public void gc() throws Exception {
+        rwLock.writeLock().lock();
+        try {
+            garbageCollector.gc();
+        } finally {
+           rwLock.writeLock().unlock();
+        }
     }
 
     private void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {

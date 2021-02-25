@@ -482,4 +482,9 @@ public interface Repository {
 
         return future;
     }
+
+    /**
+     * Cleanup unnecessary files and optimize this {@link Repository}.
+     */
+    void gc() throws Exception;
 }

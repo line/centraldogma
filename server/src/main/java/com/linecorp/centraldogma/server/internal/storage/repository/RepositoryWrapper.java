@@ -195,6 +195,11 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
+    public void gc() throws Exception {
+        unwrap().gc();
+    }
+
+    @Override
     public String toString() {
         return Util.simpleTypeName(this) + '(' + unwrap() + ')';
     }
