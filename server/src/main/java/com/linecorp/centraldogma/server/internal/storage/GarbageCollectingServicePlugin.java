@@ -56,6 +56,8 @@ public final class GarbageCollectingServicePlugin implements Plugin {
     @Nullable
     private ListenableScheduledFuture<?> scheduledFuture;
 
+    private volatile boolean stopping;
+
     @Override
     public PluginTarget target() {
         return PluginTarget.ALL_REPLICAS;
@@ -79,7 +81,9 @@ public final class GarbageCollectingServicePlugin implements Plugin {
 
             @Override
             public void onFailure(Throwable cause) {
-                logger.warn("Repository gc scheduler stopped due to an unexpected exception:", cause);
+                if (!stopping) {
+                    logger.warn("Repository gc scheduler stopped due to an unexpected exception:", cause);
+                }
             }
         }, gcWorker);
 
@@ -88,6 +92,7 @@ public final class GarbageCollectingServicePlugin implements Plugin {
 
     @Override
     public synchronized CompletionStage<Void> stop(PluginContext context) {
+        stopping = true;
         if (scheduledFuture != null) {
             scheduledFuture.cancel(false);
         }
