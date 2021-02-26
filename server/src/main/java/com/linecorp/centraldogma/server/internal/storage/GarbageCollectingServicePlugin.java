@@ -129,14 +129,14 @@ public final class GarbageCollectingServicePlugin implements Plugin {
         for (Project project : pm.list().values()) {
             for (Repository repo : project.repos().list().values()) {
                 try {
-                    logger.info("Starting git gc on {}/{} ..", project.name(), repo.name());
+                    logger.info("Starting repository gc on {}/{} ..", project.name(), repo.name());
                     stopwatch.reset();
                     repo.gc();
                     final long elapsedNanos = stopwatch.elapsed(TimeUnit.NANOSECONDS);
-                    logger.info("Finished git gc on {}/{} - took {}", project.name(), repo.name(),
+                    logger.info("Finished repository gc on {}/{} - took {}", project.name(), repo.name(),
                                 TextFormatter.elapsed(elapsedNanos));
                 } catch (Exception e) {
-                    logger.warn("Failed to run git gc on {}/{}", project.name(), repo.name(), e);
+                    logger.warn("Failed to run repository gc on {}/{}", project.name(), repo.name(), e);
                 }
             }
         }
