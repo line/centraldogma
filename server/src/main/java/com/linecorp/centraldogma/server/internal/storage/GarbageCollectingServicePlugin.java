@@ -52,6 +52,8 @@ public final class GarbageCollectingServicePlugin implements Plugin {
     private static final Logger logger = LoggerFactory.getLogger(GarbageCollectingServicePlugin.class);
 
     @Nullable
+    private ScheduledExecutorService gcWorker;
+    @Nullable
     private ListenableScheduledFuture<?> scheduledFuture;
 
     @Override
@@ -63,9 +65,8 @@ public final class GarbageCollectingServicePlugin implements Plugin {
     public synchronized CompletionStage<Void> start(PluginContext context) {
         requireNonNull(context, "context");
 
-        final ScheduledExecutorService gcWorker =
-                Executors.newSingleThreadScheduledExecutor(
-                        new DefaultThreadFactory("git-gc-worker", true));
+        gcWorker = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("repository-gc-worker", true));
         final ListeningScheduledExecutorService scheduler = MoreExecutors.listeningDecorator(gcWorker);
 
         // Run gc every day.
@@ -89,6 +90,29 @@ public final class GarbageCollectingServicePlugin implements Plugin {
     public synchronized CompletionStage<Void> stop(PluginContext context) {
         if (scheduledFuture != null) {
             scheduledFuture.cancel(false);
+        }
+
+        try {
+            if (gcWorker != null && !gcWorker.isTerminated()) {
+                logger.info("Stopping the repository gc worker ..");
+                boolean interruptLater = false;
+                while (!gcWorker.isTerminated()) {
+                    gcWorker.shutdownNow();
+                    try {
+                        gcWorker.awaitTermination(1, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        // Interrupt later.
+                        interruptLater = true;
+                    }
+                }
+                logger.info("Stopped the repository gc worker.");
+
+                if (interruptLater) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        } catch (Throwable t) {
+            logger.warn("Failed to stop the repository gc worker:", t);
         }
         return CompletableFuture.completedFuture(null);
     }
