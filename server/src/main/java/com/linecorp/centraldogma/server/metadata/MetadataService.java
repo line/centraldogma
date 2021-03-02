@@ -26,9 +26,11 @@ import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,6 +86,8 @@ public class MetadataService {
     private final RepositorySupport<Tokens> tokenRepo;
     private final CommandExecutor executor;
 
+    private final Map<String, CompletableFuture<Revision>> reposInAddingMetadata = new ConcurrentHashMap<>();
+
     /**
      * Creates a new instance.
      */
@@ -119,8 +123,26 @@ public class MetadataService {
                     continue;
                 }
 
+                final CompletableFuture<Revision> future = new CompletableFuture<>();
+                final CompletableFuture<Revision> futureInMap =
+                        reposInAddingMetadata.computeIfAbsent(repo, key -> future);
+                if (futureInMap != future) { // The metadata is already in adding.
+                    builder.add(futureInMap);
+                    continue;
+                }
+
                 logger.warn("Adding missing repository metadata: {}/{}", projectName, repo);
-                builder.add(addRepo(Author.SYSTEM, projectName, repo));
+                final CompletableFuture<Revision> addRepoFuture = addRepo(Author.SYSTEM, projectName, repo);
+                addRepoFuture.handle((revision, cause) -> {
+                    if (cause != null) {
+                        future.completeExceptionally(cause);
+                    } else {
+                        future.complete(revision);
+                    }
+                    reposInAddingMetadata.remove(repo);
+                    return null;
+                });
+                builder.add(future);
             }
 
             final ImmutableList<CompletableFuture<Revision>> futures = builder.build();
