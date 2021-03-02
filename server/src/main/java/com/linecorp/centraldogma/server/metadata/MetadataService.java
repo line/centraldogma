@@ -123,9 +123,10 @@ public class MetadataService {
                     continue;
                 }
 
+                final String projectAndRepositoryName = projectName + '/' + repo;
                 final CompletableFuture<Revision> future = new CompletableFuture<>();
                 final CompletableFuture<Revision> futureInMap =
-                        reposInAddingMetadata.computeIfAbsent(repo, key -> future);
+                        reposInAddingMetadata.computeIfAbsent(projectAndRepositoryName, key -> future);
                 if (futureInMap != future) { // The metadata is already in adding.
                     builder.add(futureInMap);
                     continue;
@@ -139,7 +140,7 @@ public class MetadataService {
                     } else {
                         future.complete(revision);
                     }
-                    reposInAddingMetadata.remove(repo);
+                    reposInAddingMetadata.remove(projectAndRepositoryName);
                     return null;
                 });
                 builder.add(future);
