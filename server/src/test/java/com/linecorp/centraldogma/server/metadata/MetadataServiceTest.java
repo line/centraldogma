@@ -23,8 +23,14 @@ import static com.linecorp.centraldogma.server.storage.project.Project.REPO_META
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList.Builder;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.ChangeConflictException;
@@ -54,6 +60,7 @@ class MetadataServiceTest {
 
     private static final String project1 = "foo";
     private static final String repo1 = "apple";
+    private static final String repo2 = "facebook";
     private static final String app1 = "app-1";
     private static final String app2 = "app-2";
     private static final Author author = Author.DEFAULT;
@@ -137,6 +144,22 @@ class MetadataServiceTest {
         // Recreate the purged repository.
         mds.addRepo(author, project1, repo1, PerRolePermissions.ofPublic()).join();
         assertThat(getProject(mds, project1).repos().get(repo1).name()).isEqualTo(repo1);
+    }
+
+    @Test
+    void missingMetadataJsonIsAddedOnlyOnce() {
+        final MetadataService mds = newMetadataService(manager);
+
+        final ProjectMetadata metadata = mds.getProject(project1).join();
+        assertThat(metadata).isNotNull();
+
+        manager.executor().execute(Command.createRepository(author, project1, repo2)).join();
+        final Builder<CompletableFuture<?>> builder = ImmutableList.builder();
+        for (int i = 0; i < 10; i++) {
+            builder.add(mds.getProject(project1));
+        }
+        // Do not throw RedundantChangeException when the same metadata are added multiple times.
+        CompletableFutures.allAsList(builder.build()).join();
     }
 
     @Test
