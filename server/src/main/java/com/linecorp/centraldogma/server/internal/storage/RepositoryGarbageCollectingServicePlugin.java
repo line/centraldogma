@@ -56,7 +56,8 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
             LoggerFactory.getLogger(RepositoryGarbageCollectingServicePlugin.class);
 
     // TODO(ikhoon): Need to configure the number of pushes since the last gc?
-    private static final int PUSHES_SINCE_GC = 200;
+    private static final int PUSHES_SINCE_GC = 500;
+    private static final int MIN_NUM_COMMITS_FOR_GC = 1000;
 
     private final Map<String, Revision> gcRevisions = new HashMap<>();
 
@@ -170,6 +171,11 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
 
     private boolean needsGc(Repository repo, String key) {
         final Revision endRevision = repo.normalizeNow(Revision.HEAD);
+        if (endRevision.major() < MIN_NUM_COMMITS_FOR_GC) {
+            // The repository has a small number of commits. Do need to run gc now.
+            return false;
+        }
+
         final Revision previousRevision = gcRevisions.get(key);
         if (previousRevision == null) {
             // gc is not run after the server started.
