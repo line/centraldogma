@@ -1,3 +1,3 @@
 com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin
 com.linecorp.centraldogma.server.internal.storage.PurgeSchedulingServicePlugin
-com.linecorp.centraldogma.server.internal.storage.GarbageCollectingServicePlugin
+com.linecorp.centraldogma.server.internal.storage.RepositoryGarbageCollectingServicePlugin

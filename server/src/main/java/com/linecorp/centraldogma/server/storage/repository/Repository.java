@@ -485,6 +485,7 @@ public interface Repository {
 
     /**
      * Cleanup unnecessary files and optimize this {@link Repository}.
+     * Returns the head revision when garbage collection was running.
      */
-    void gc() throws Exception;
+    Revision gc() throws Exception;
 }

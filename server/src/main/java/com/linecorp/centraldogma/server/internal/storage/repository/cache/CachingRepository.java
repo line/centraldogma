@@ -276,8 +276,8 @@ final class CachingRepository implements Repository {
     }
 
     @Override
-    public void gc() throws Exception {
-        repo.gc();
+    public Revision gc() throws Exception {
+        return repo.gc();
     }
 
     @Override

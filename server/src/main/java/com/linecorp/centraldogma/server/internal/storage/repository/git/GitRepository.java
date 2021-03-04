@@ -1468,10 +1468,11 @@ class GitRepository implements Repository {
     }
 
     @Override
-    public void gc() throws Exception {
+    public Revision gc() throws Exception {
         rwLock.writeLock().lock();
         try {
             garbageCollector.gc();
+            return headRevision;
         } finally {
            rwLock.writeLock().unlock();
         }

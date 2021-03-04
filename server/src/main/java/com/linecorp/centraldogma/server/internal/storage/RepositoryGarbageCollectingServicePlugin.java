@@ -17,6 +17,8 @@ package com.linecorp.centraldogma.server.internal.storage;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
@@ -38,6 +40,7 @@ import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.armeria.common.util.TextFormatter;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
@@ -47,9 +50,15 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-public final class GarbageCollectingServicePlugin implements Plugin {
+public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
 
-    private static final Logger logger = LoggerFactory.getLogger(GarbageCollectingServicePlugin.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(RepositoryGarbageCollectingServicePlugin.class);
+
+    // TODO(ikhoon): Need to configure the number of pushes since the last gc?
+    private static final int PUSHES_SINCE_GC = 200;
+
+    private final Map<String, Revision> gcRevisions = new HashMap<>();
 
     @Nullable
     private ScheduledExecutorService gcWorker;
@@ -123,23 +132,47 @@ public final class GarbageCollectingServicePlugin implements Plugin {
     }
 
     @VisibleForTesting
-    static void gc(PluginContext context) {
+    void gc(PluginContext context) {
         final ProjectManager pm = context.projectManager();
         final Stopwatch stopwatch = Stopwatch.createUnstarted();
         for (Project project : pm.list().values()) {
             for (Repository repo : project.repos().list().values()) {
-                try {
-                    logger.info("Starting repository gc on {}/{} ..", project.name(), repo.name());
-                    stopwatch.reset();
-                    repo.gc();
-                    final long elapsedNanos = stopwatch.elapsed(TimeUnit.NANOSECONDS);
-                    logger.info("Finished repository gc on {}/{} - took {}", project.name(), repo.name(),
-                                TextFormatter.elapsed(elapsedNanos));
-                } catch (Exception e) {
-                    logger.warn("Failed to run repository gc on {}/{}", project.name(), repo.name(), e);
-                }
+                runGc(project, repo, stopwatch);
             }
+
+            runGc(project, project.metaRepo(), stopwatch);
         }
+    }
+
+    private void runGc(Project project, Repository repo, Stopwatch stopwatch) {
+        try {
+            final String cacheKey = project.name() + '/' + repo.name();
+            if (!needsGc(repo, cacheKey)) {
+                return;
+            }
+
+            logger.info("Starting repository gc on {}/{} ..", project.name(), repo.name());
+            stopwatch.reset();
+            final Revision gcRevision = repo.gc();
+            gcRevisions.put(cacheKey, gcRevision);
+            final long elapsedNanos = stopwatch.elapsed(TimeUnit.NANOSECONDS);
+            logger.info("Finished repository gc on {}/{} - took {}", project.name(), repo.name(),
+                        TextFormatter.elapsed(elapsedNanos));
+        } catch (Exception e) {
+            logger.warn("Failed to run repository gc on {}/{}", project.name(), repo.name(), e);
+        }
+    }
+
+    private boolean needsGc(Repository repo, String key) {
+        final Revision endRevision = repo.normalizeNow(Revision.HEAD);
+        final Revision previousRevision = gcRevisions.get(key);
+        if (previousRevision == null) {
+            // gc is not run after the server started.
+            return true;
+        }
+
+        final int newPushes = endRevision.major() - previousRevision.major();
+        return newPushes >= PUSHES_SINCE_GC;
     }
 
     @Override

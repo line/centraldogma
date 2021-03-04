@@ -195,8 +195,8 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public void gc() throws Exception {
-        unwrap().gc();
+    public Revision gc() throws Exception {
+        return unwrap().gc();
     }
 
     @Override
