@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.storage;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -55,15 +56,13 @@ class RepositoryGarbageCollectingServicePluginTest {
         when(metaRepo.name()).thenReturn("dogma");
 
         Revision repo1Rev = new Revision(10);
-        Revision repo2Rev = new Revision(10);
+        Revision repo2Rev = new Revision(1000);
         final Revision metaRev = new Revision(10);
         when(repo1.normalizeNow(Revision.HEAD)).thenReturn(repo1Rev);
         when(repo2.normalizeNow(Revision.HEAD)).thenReturn(repo2Rev);
         when(metaRepo.normalizeNow(Revision.HEAD)).thenReturn(metaRev);
 
-        when(repo1.gc()).thenReturn(repo1Rev);
         when(repo2.gc()).thenReturn(repo2Rev);
-        when(metaRepo.gc()).thenReturn(metaRev);
 
         when(ctx.projectManager()).thenReturn(pm);
         when(pm.list()).thenReturn(ImmutableMap.of("foo", project1));
@@ -72,17 +71,29 @@ class RepositoryGarbageCollectingServicePluginTest {
         final RepositoryGarbageCollectingServicePlugin gc = new RepositoryGarbageCollectingServicePlugin();
         gc.gc(ctx);
 
-        // gc will run after a server is started.
-        verify(repo1).gc();
+        verify(repo1, never()).gc();
+        // gc will run only for a large repo.
         verify(repo2).gc();
-        verify(metaRepo).gc();
+        verify(metaRepo, never()).gc();
 
-        repo1Rev = new Revision(209); // Insufficient pushes
-        repo2Rev = new Revision(210); // Sufficient pushes
+        // Insufficient pushes
+        repo1Rev = new Revision(510);
+        repo2Rev = new Revision(1499);
         when(repo1.normalizeNow(Revision.HEAD)).thenReturn(repo1Rev);
         when(repo2.normalizeNow(Revision.HEAD)).thenReturn(repo2Rev);
-
         when(repo2.gc()).thenReturn(repo2Rev);
+
+        gc.gc(ctx);
+
+        // The invocation count should not be changed
+        verify(repo1, never()).gc();
+        verify(repo2).gc();
+        verify(metaRepo, never()).gc();
+
+        // Sufficient pushes
+        repo2Rev = new Revision(1500);
+        when(repo2.normalizeNow(Revision.HEAD)).thenReturn(repo2Rev);
+
         gc.gc(ctx);
 
         verifyNoMoreInteractions(repo1, metaRepo);
