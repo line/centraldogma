@@ -141,6 +141,11 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
             }
 
             runGc(project, project.metaRepo(), stopwatch);
+
+            // Clean up the revision caches of repositories removed.
+            for (final String removed : project.repos().listRemoved().keySet()) {
+                gcRevisions.remove(project.name() + '/' + removed);
+            }
         }
     }
 
