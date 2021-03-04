@@ -172,13 +172,13 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
     private boolean needsGc(Repository repo, String key) {
         final Revision endRevision = repo.normalizeNow(Revision.HEAD);
         if (endRevision.major() < MIN_NUM_COMMITS_FOR_GC) {
-            // The repository has a small number of commits. Do need to run gc now.
+            // The repository has a small number of commits. Don't need to run gc now.
             return false;
         }
 
         final Revision previousRevision = gcRevisions.get(key);
         if (previousRevision == null) {
-            // gc is not run after the server started.
+            // gc was not run after the server started.
             return true;
         }
 
