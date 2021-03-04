@@ -192,6 +192,8 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
                           .omitNullValues()
                           .add("target", target())
                           .add("scheduledFuture", scheduledFuture)
+                          .add("stopping", stopping)
+                          .add("gcRevisions", gcRevisions)
                           .toString();
     }
 }
