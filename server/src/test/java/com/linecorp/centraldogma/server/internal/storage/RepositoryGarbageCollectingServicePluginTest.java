@@ -56,7 +56,7 @@ class RepositoryGarbageCollectingServicePluginTest {
 
         Revision repo1Rev = new Revision(10);
         Revision repo2Rev = new Revision(10);
-        Revision metaRev = new Revision(10);
+        final Revision metaRev = new Revision(10);
         when(repo1.normalizeNow(Revision.HEAD)).thenReturn(repo1Rev);
         when(repo2.normalizeNow(Revision.HEAD)).thenReturn(repo2Rev);
         when(metaRepo.normalizeNow(Revision.HEAD)).thenReturn(metaRev);
