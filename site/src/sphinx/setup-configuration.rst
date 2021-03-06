@@ -48,9 +48,13 @@ defaults:
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
       "writeQuotaPerRepository": {
-        "requestQuota" : 5,
+        "requestQuota": 5,
         "timeWindowSeconds": 1
       },
+      "repositoryGarbageCollection": {
+        "minNumNewCommits": 1000,
+        "schedule": "0 0 * * * ?"
+      }
       "accessLogFormat": "common",
       "authentication": null
     }
@@ -216,6 +220,19 @@ Core properties
   - ``timeWindowSeconds`` (integer)
 
      - a time windows in seconds.
+
+-  ``repositoryGarbageCollection``
+
+  -  the garbage collection configuration to cleanup unnecessary files and optimize repositories.
+
+  - ``minNumNewCommits`` (integer)
+
+     - the minimum required number of commits newly added to run a garbage collection.
+
+  - ``schedule`` (integer)
+
+     - a `Quartz cron expression <https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html>`_
+       when garbage collections is suppose to be triggered.
 
 - ``accessLogFormat`` (string)
 

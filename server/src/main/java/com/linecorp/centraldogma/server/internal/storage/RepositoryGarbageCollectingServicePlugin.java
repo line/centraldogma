@@ -17,12 +17,13 @@ package com.linecorp.centraldogma.server.internal.storage;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
@@ -30,6 +31,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.cronutils.model.time.ExecutionTime;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Stopwatch;
@@ -41,6 +43,8 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.armeria.common.util.TextFormatter;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.RepositoryGarbageCollectionConfig;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
@@ -55,14 +59,12 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
     private static final Logger logger =
             LoggerFactory.getLogger(RepositoryGarbageCollectingServicePlugin.class);
 
-    // TODO(ikhoon): Need to configure the number of pushes since the last gc?
-    private static final int PUSHES_SINCE_GC = 500;
-    private static final int MIN_NUM_COMMITS_FOR_GC = 1000;
-
     private final Map<String, Revision> gcRevisions = new HashMap<>();
 
     @Nullable
-    private ScheduledExecutorService gcWorker;
+    private RepositoryGarbageCollectionConfig gcConfig;
+    @Nullable
+    private ListeningScheduledExecutorService gcWorker;
     @Nullable
     private ListenableScheduledFuture<?> scheduledFuture;
 
@@ -74,16 +76,35 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
     }
 
     @Override
+    public boolean isEnabled(CentralDogmaConfig config) {
+        return config.repositoryGarbageCollection() != null;
+    }
+
+    @Override
     public synchronized CompletionStage<Void> start(PluginContext context) {
         requireNonNull(context, "context");
 
-        gcWorker = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("repository-gc-worker", true));
-        final ListeningScheduledExecutorService scheduler = MoreExecutors.listeningDecorator(gcWorker);
+        initialize(context);
+        scheduleGc(context);
 
-        // Run gc every day.
-        // TODO(ikhoon): Need to configure gc interval?
-        scheduledFuture = scheduler.scheduleAtFixedRate(() -> gc(context), 0, 1, TimeUnit.DAYS);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @VisibleForTesting
+    void initialize(PluginContext context) {
+        gcConfig = context.config().repositoryGarbageCollection();
+        gcWorker = MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("repository-gc-worker", true)));
+    }
+
+    private void scheduleGc(PluginContext context) {
+        if (stopping) {
+            return;
+        }
+
+        final Duration nextExecution = ExecutionTime.forCron(gcConfig.schedule())
+                                                    .timeToNextExecution(ZonedDateTime.now());
+        scheduledFuture = gcWorker.schedule(() -> gc(context), nextExecution);
 
         Futures.addCallback(scheduledFuture, new FutureCallback<Object>() {
             @Override
@@ -96,8 +117,6 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
                 }
             }
         }, gcWorker);
-
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -134,6 +153,10 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
 
     @VisibleForTesting
     void gc(PluginContext context) {
+        if (stopping) {
+            return;
+        }
+
         final ProjectManager pm = context.projectManager();
         final Stopwatch stopwatch = Stopwatch.createUnstarted();
         for (Project project : pm.list().values()) {
@@ -148,6 +171,8 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
                 gcRevisions.remove(project.name() + '/' + removed);
             }
         }
+
+        scheduleGc(context);
     }
 
     private void runGc(Project project, Repository repo, Stopwatch stopwatch) {
@@ -171,7 +196,8 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
 
     private boolean needsGc(Repository repo, String key) {
         final Revision endRevision = repo.normalizeNow(Revision.HEAD);
-        if (endRevision.major() < MIN_NUM_COMMITS_FOR_GC) {
+        final int minNumNewCommits = gcConfig.minNumNewCommits();
+        if (endRevision.major() < minNumNewCommits) {
             // The repository has a small number of commits. Don't need to run gc now.
             return false;
         }
@@ -183,7 +209,7 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
         }
 
         final int newPushes = endRevision.major() - previousRevision.major();
-        return newPushes >= PUSHES_SINCE_GC;
+        return newPushes >= minNumNewCommits;
     }
 
     @Override

@@ -28,6 +28,8 @@ import org.junit.jupiter.api.Test;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
+import com.linecorp.centraldogma.server.RepositoryGarbageCollectionConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -38,14 +40,20 @@ import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 class RepositoryGarbageCollectingServicePluginTest {
 
     @Test
-    void gcAllRepository() throws Exception {
+    void gcWithConfiguration() throws Exception {
         final PluginContext ctx = mock(PluginContext.class);
+        final CentralDogmaConfig config = mock(CentralDogmaConfig.class);
         final ProjectManager pm = mock(ProjectManager.class);
         final Project project1 = mock(Project.class);
         final RepositoryManager rm = mock(RepositoryManager.class);
         final Repository repo1 = mock(Repository.class);
         final Repository repo2 = mock(Repository.class);
         final MetaRepository metaRepo = mock(MetaRepository.class);
+        final RepositoryGarbageCollectionConfig gcConfig =
+                new RepositoryGarbageCollectionConfig(500, "* * * * * ?");
+
+        when(ctx.config()).thenReturn(config);
+        when(config.repositoryGarbageCollection()).thenReturn(gcConfig);
 
         when(project1.name()).thenReturn("project1");
         when(project1.metaRepo()).thenReturn(metaRepo);
@@ -55,7 +63,7 @@ class RepositoryGarbageCollectingServicePluginTest {
         when(repo2.name()).thenReturn("repo2");
         when(metaRepo.name()).thenReturn("dogma");
 
-        Revision repo1Rev = new Revision(10);
+        Revision repo1Rev = new Revision(1);
         Revision repo2Rev = new Revision(1000);
         final Revision metaRev = new Revision(10);
         when(repo1.normalizeNow(Revision.HEAD)).thenReturn(repo1Rev);
@@ -69,15 +77,16 @@ class RepositoryGarbageCollectingServicePluginTest {
         when(rm.list()).thenReturn(ImmutableMap.of("repo1", repo1, "repo2", repo2));
 
         final RepositoryGarbageCollectingServicePlugin gc = new RepositoryGarbageCollectingServicePlugin();
-        gc.gc(ctx);
+        gc.initialize(ctx);
 
+        gc.gc(ctx);
         verify(repo1, never()).gc();
         // gc will run only for a large repo.
         verify(repo2).gc();
         verify(metaRepo, never()).gc();
 
-        // Insufficient pushes
-        repo1Rev = new Revision(510);
+        // Insufficient commits
+        repo1Rev = new Revision(499);
         repo2Rev = new Revision(1499);
         when(repo1.normalizeNow(Revision.HEAD)).thenReturn(repo1Rev);
         when(repo2.normalizeNow(Revision.HEAD)).thenReturn(repo2Rev);
