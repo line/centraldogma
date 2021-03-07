@@ -19,9 +19,9 @@ package com.linecorp.centraldogma.server.command;
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Collections;
-
 import org.junit.jupiter.api.Test;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -29,17 +29,17 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 
-class PushCommandTest {
+class ReplicationPushCommandTest {
 
     @Test
     void testJsonConversion() {
         assertJsonConversion(
-                new PushCommand(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
-                                "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
-                                Collections.singletonList(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
+                Command.replicationPush(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
+                                        "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
+                                        ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
                 Command.class,
                 '{' +
-                "  \"type\": \"PUSH\"," +
+                "  \"type\": \"REPLICATION_PUSH\"," +
                 "  \"timestamp\": 1234," +
                 "  \"author\": {" +
                 "    \"name\": \"Marge Simpson\"," +

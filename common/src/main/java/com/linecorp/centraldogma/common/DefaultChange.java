@@ -92,6 +92,8 @@ final class DefaultChange<T> implements Change<T> {
     private final ChangeType type;
     @Nullable
     private final T content;
+    @Nullable
+    private String contentAsText;
 
     DefaultChange(String path, ChangeType type, @Nullable T content) {
         this.type = requireNonNull(type, "type");
@@ -124,17 +126,20 @@ final class DefaultChange<T> implements Change<T> {
     @Override
     @Nullable
     public String contentAsText() {
+        if (contentAsText != null) {
+            return contentAsText;
+        }
         if (content == null) {
             return null;
         }
 
         if (content instanceof CharSequence) {
-            return content.toString();
+            return contentAsText = content.toString();
         }
 
         if (content instanceof JsonNode) {
             try {
-                return Jackson.writeValueAsString(content);
+                return contentAsText = Jackson.writeValueAsString(content);
             } catch (JsonProcessingException e) {
                 // Should never reach here.
                 throw new Error(e);
@@ -175,6 +180,7 @@ final class DefaultChange<T> implements Change<T> {
         return MoreObjects.toStringHelper(Change.class)
                           .add("type", type)
                           .add("path", path)
+                          .add("content", content)
                           .toString();
     }
 }

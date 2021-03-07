@@ -153,7 +153,14 @@ public class MetadataService {
             }
 
             // Some repository did not have metadata and thus will add the missing ones.
-            return CompletableFutures.allAsList(futures).thenCompose(unused -> {
+            return CompletableFutures.successfulAsList(futures, cause -> {
+                final Throwable peeled = Exceptions.peel(cause);
+                // The metadata of the repository is added by another worker, so we can ignore the exception.
+                if (peeled instanceof RepositoryExistsException) {
+                    return null;
+                }
+                return Exceptions.throwUnsafely(cause);
+            }).thenCompose(unused -> {
                 logger.info("Fetching {}/{}{} again",
                             projectName, Project.REPO_DOGMA, METADATA_JSON);
                 return fetchMetadata0(projectName);

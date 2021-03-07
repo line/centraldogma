@@ -19,7 +19,6 @@ package com.linecorp.centraldogma.server.metadata;
 import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static java.util.Objects.requireNonNull;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -39,6 +38,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -73,13 +73,14 @@ final class RepositorySupport<T> {
         return fetch(projectManager().get(projectName).repos().get(repoName), path, revision);
     }
 
-    CompletableFuture<HolderWithRevision<T>> fetch(Repository repository, String path) {
+    private CompletableFuture<HolderWithRevision<T>> fetch(Repository repository, String path) {
         requireNonNull(path, "path");
         final Revision revision = normalize(repository);
         return fetch(repository, path, revision);
     }
 
-    CompletableFuture<HolderWithRevision<T>> fetch(Repository repository, String path, Revision revision) {
+    private CompletableFuture<HolderWithRevision<T>> fetch(Repository repository, String path,
+                                                           Revision revision) {
         requireNonNull(repository, "repository");
         requireNonNull(path, "path");
         requireNonNull(revision, "revision");
@@ -93,20 +94,18 @@ final class RepositorySupport<T> {
         return push(projectName, repoName, author, commitSummary, change, Revision.HEAD);
     }
 
-    CompletableFuture<Revision> push(String projectName, String repoName,
-                                     Author author, String commitSummary, Change<?> change, Revision revision) {
+    private CompletableFuture<Revision> push(String projectName, String repoName, Author author,
+                                             String commitSummary, Change<?> change, Revision revision) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(author, "author");
         requireNonNull(commitSummary, "commitSummary");
         requireNonNull(change, "change");
 
-        final CompletableFuture<Map<String, Change<?>>> f =
-                projectManager().get(projectName).repos().get(repoName)
-                                .previewDiff(revision, ImmutableList.of(change));
-        return f.thenCompose(changes -> executor.execute(
+        return executor.execute(
                 Command.push(author, projectName, repoName, revision, commitSummary, "",
-                             Markup.PLAINTEXT, changes.values())));
+                             Markup.PLAINTEXT, ImmutableList.of(change)))
+                       .thenApply(CommitResult::revision);
     }
 
     CompletableFuture<Revision> push(String projectName, String repoName, Author author, String commitSummary,

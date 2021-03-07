@@ -33,6 +33,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommitResult;
 
 class ZooKeeperQuotaTest {
 
@@ -48,7 +49,7 @@ class ZooKeeperQuotaTest {
                     ImmutableList.builderWithExpectedSize(iteration);
             final Replica replica = cluster.get(0);
             for (int i = 0; i < iteration; i++) {
-                final Command<Revision> command =
+                final Command<CommitResult> command =
                         Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "", "", Markup.PLAINTEXT,
                                      Change.ofTextUpsert("/foo", "foo " + i));
                 resultsBuilder.add(replica.commandExecutor().doExecute(command));
@@ -84,7 +85,7 @@ class ZooKeeperQuotaTest {
                     ImmutableList.builderWithExpectedSize(MAX_QUOTA);
             final Replica replica = cluster.get(0);
             for (int i = 0; i < MAX_QUOTA; i++) {
-                final Command<Revision> command =
+                final Command<CommitResult> command =
                         Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "", "", Markup.PLAINTEXT,
                                      Change.ofTextUpsert("/foo", "foo " + i));
                 resultsBuilder.add(replica.commandExecutor().doExecute(command));
@@ -96,7 +97,7 @@ class ZooKeeperQuotaTest {
 
             resultsBuilder = ImmutableList.builderWithExpectedSize(MAX_QUOTA);
             for (int i = 0; i < MAX_QUOTA; i++) {
-                final Command<Revision> command =
+                final Command<CommitResult> command =
                         Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "", "", Markup.PLAINTEXT,
                                      Change.ofTextUpsert("/foo", "foo " + i));
                 resultsBuilder.add(replica.commandExecutor().doExecute(command));

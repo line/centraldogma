@@ -20,11 +20,14 @@ import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConv
 
 import org.junit.jupiter.api.Test;
 
+import com.google.common.collect.ImmutableList;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.PushCommand;
 
 class ReplicationLogTest {
 
@@ -47,9 +50,40 @@ class ReplicationLogTest {
                              "  \"result\": null" +
                              '}');
 
-        final Command<Revision> pushCommand = Command.push(
+        final Command<Revision> replicationPushCommand = Command.replicationPush(
                 1234L, new Author("Sedol Lee", "sedol@lee.com"), "foo", "bar", Revision.HEAD,
-                "4:1", "L-L-L-W-L", Markup.PLAINTEXT, Change.ofTextUpsert("/result.txt", "too soon to tell"));
+                "4:1", "L-L-L-W-L", Markup.PLAINTEXT,
+                ImmutableList.of(Change.ofTextUpsert("/result.txt", "too soon to tell")));
+
+        assertJsonConversion(new ReplicationLog<>(2, replicationPushCommand, new Revision(43)),
+                             '{' +
+                             "  \"replicaId\": 2," +
+                             "  \"command\": {" +
+                             "    \"type\": \"REPLICATION_PUSH\"," +
+                             "    \"projectName\": \"foo\"," +
+                             "    \"repositoryName\": \"bar\"," +
+                             "    \"baseRevision\": -1," +
+                             "    \"timestamp\": 1234," +
+                             "    \"author\": {" +
+                             "      \"name\": \"Sedol Lee\"," +
+                             "      \"email\": \"sedol@lee.com\"" +
+                             "    }," +
+                             "    \"summary\": \"4:1\"," +
+                             "    \"detail\": \"L-L-L-W-L\"," +
+                             "    \"markup\": \"PLAINTEXT\"," +
+                             "    \"changes\": [{" +
+                             "      \"type\": \"UPSERT_TEXT\"," +
+                             "      \"path\": \"/result.txt\"," +
+                             "      \"content\": \"too soon to tell\"" +
+                             "    }]" +
+                             "  }," +
+                             "  \"result\": 43" +
+                             '}');
+
+        final Command<Revision> pushCommand = new PushCommand(
+                1234L, new Author("Sedol Lee", "sedol@lee.com"), "foo", "bar", Revision.HEAD,
+                "4:1", "L-L-L-W-L", Markup.PLAINTEXT,
+                ImmutableList.of(Change.ofTextUpsert("/result.txt", "too soon to tell")));
 
         assertJsonConversion(new ReplicationLog<>(2, pushCommand, new Revision(43)),
                              '{' +

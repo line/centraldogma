@@ -48,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.common.Author;
@@ -56,6 +57,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommitResult;
 
 class ZooKeeperCommandExecutorTest {
 
@@ -173,8 +175,9 @@ class ZooKeeperCommandExecutorTest {
             final AtomicInteger counter = new AtomicInteger();
             return command -> completedFuture(new Revision(counter.incrementAndGet()));
         })) {
-            final Command<Revision> command =
-                    Command.push(Author.SYSTEM, "foo", "bar", Revision.HEAD, "", "", Markup.PLAINTEXT);
+            final Command<Revision> command = Command.replicationPush(null, Author.SYSTEM, "foo", "bar",
+                                                                      Revision.HEAD, "", "", Markup.PLAINTEXT,
+                                                                      ImmutableList.of());
 
             final int COMMANDS_PER_REPLICA = 7;
             final List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -291,19 +294,27 @@ class ZooKeeperCommandExecutorTest {
             cluster.get(1).commandExecutor().stop().join();
             cluster.get(4).commandExecutor().stop().join();
 
-            final Command<Revision> command2 =
-                    Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "summary", "detail",
-                                 Markup.PLAINTEXT, Change.ofTextUpsert("/foo", "bar"));
+            final Command<CommitResult> pushCommand =
+                    Command.push(null, Author.SYSTEM, "project", "repo1", Revision.HEAD,
+                                 "summary", "detail",
+                                 Markup.PLAINTEXT,
+                                 ImmutableList.of(Change.ofTextUpsert("/foo", "bar")));
 
-            replica1.commandExecutor().execute(command2).join();
+            final Command<Revision> replicationPush =
+                    Command.replicationPush(null, Author.SYSTEM, "project", "repo1", Revision.HEAD,
+                                            "summary", "detail",
+                                            Markup.PLAINTEXT,
+                                            ImmutableList.of(Change.ofTextUpsert("/foo", "bar")));
+
+            replica1.commandExecutor().execute(pushCommand).join();
             final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
-            assertThat(commandResult2.command()).isEqualTo(command2);
+            assertThat(commandResult2.command()).isEqualTo(replicationPush);
             assertThat(commandResult2.result()).isInstanceOf(Revision.class);
 
-            await().untilAsserted(() -> verify(cluster.get(0).delegate()).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(2).delegate()).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(5).delegate()).apply(eq(command2)));
+            // replicationPush is applied for other replicas.
+            await().untilAsserted(() -> verify(cluster.get(2).delegate()).apply(eq(replicationPush)));
+            await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(replicationPush)));
+            await().untilAsserted(() -> verify(cluster.get(5).delegate()).apply(eq(replicationPush)));
 
             // Stop one instance in Group 1. The hierarchical quorums is not working anymore.
             cluster.get(2).commandExecutor().stop().join();
@@ -319,8 +330,8 @@ class ZooKeeperCommandExecutorTest {
             replica8Start.join();
 
             // The command executed while the Group 3 was down should be relayed.
-            await().untilAsserted(() -> verify(cluster.get(7).delegate()).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(8).delegate()).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(7).delegate()).apply(eq(replicationPush)));
+            await().untilAsserted(() -> verify(cluster.get(8).delegate()).apply(eq(replicationPush)));
 
             await().untilAsserted(() -> verify(cluster.get(0).delegate()).apply(eq(command3)));
             await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(command3)));
@@ -477,9 +488,13 @@ class ZooKeeperCommandExecutorTest {
         lenient().when(delegate.apply(argThat(x -> x == null || x.type().resultType() == Void.class)))
                  .thenReturn(completedFuture(null));
 
-        lenient().when(delegate.apply(argThat(x -> x.type().resultType() == Revision.class)))
+        lenient().when(delegate.apply(argThat(x -> x != null && x.type().resultType() == Revision.class)))
                  .thenReturn((CompletableFuture<T>) completedFuture(Revision.HEAD));
 
-        return (Function<Command<?>, CompletableFuture<?>>) (Function<?, ?>)delegate;
+        lenient().when(delegate.apply(argThat(x -> x != null && x.type().resultType() == CommitResult.class)))
+                 .thenReturn((CompletableFuture<T>) completedFuture(
+                         CommitResult.of(Revision.HEAD, ImmutableList.of())));
+
+        return (Function<Command<?>, CompletableFuture<?>>) (Function<?, ?>) delegate;
     }
 }

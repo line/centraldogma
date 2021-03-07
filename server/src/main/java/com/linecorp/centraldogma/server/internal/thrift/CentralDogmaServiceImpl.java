@@ -293,8 +293,11 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
         handle(executor.execute(Command.push(convert(author), projectName, repositoryName,
                                              convert(baseRevision), summary, detail.getContent(),
                                              convert(detail.getMarkup()), convert(changes, Converter::convert)))
-                       .thenCompose(newRev -> projectManager.get(projectName).repos().get(repositoryName)
-                                                            .history(newRev, newRev, "/**"))
+                       .thenCompose(commitResult -> {
+                           final com.linecorp.centraldogma.common.Revision newRev = commitResult.revision();
+                           return projectManager.get(projectName).repos().get(repositoryName)
+                                                .history(newRev, newRev, "/**");
+                       })
                        .thenApply(commits -> convert(commits.get(0))),
                resultHandler);
     }

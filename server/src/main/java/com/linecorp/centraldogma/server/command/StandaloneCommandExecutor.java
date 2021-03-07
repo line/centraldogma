@@ -68,7 +68,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      *
      * @param projectManager the project manager for accessing the storage
      * @param repositoryWorker the executor which is used for performing storage operations
-     * @param writeQuota the write quota for limiting {@link PushCommand}
+     * @param writeQuota the write quota for limiting {@link ReplicationPushCommand}
      * @param sessionManager the session manager for creating/removing a session
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
      * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
@@ -171,8 +171,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) purgeRepository((PurgeRepositoryCommand) command);
         }
 
-        if (command instanceof PushCommand) {
-            return (CompletableFuture<T>) push((PushCommand) command);
+        if (command instanceof PreviewDiffApplyingPushCommand) {
+            return (CompletableFuture<T>) push((PreviewDiffApplyingPushCommand) command, true);
+        }
+
+        if (command instanceof ReplicationPushCommand || command instanceof PushCommand) {
+            return (CompletableFuture<T>) push((AbstractPushCommand<Revision>) command, false)
+                    .thenApply(CommitResult::revision);
         }
 
         if (command instanceof CreateSessionCommand) {
@@ -249,33 +254,35 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }, repositoryWorker);
     }
 
-    private CompletableFuture<Revision> push(PushCommand c) {
+    private CompletableFuture<CommitResult> push(AbstractPushCommand<?> c, boolean applyPreviewDiff) {
         if (c.projectName().equals(INTERNAL_PROJ) || c.repositoryName().equals(Project.REPO_DOGMA) ||
             !writeQuotaEnabled()) {
-            return push0(c);
+            return push0(c, applyPreviewDiff);
         }
 
         final RateLimiter rateLimiter =
                 writeRateLimiters.get(rateLimiterKey(c.projectName(), c.repositoryName()));
         if (rateLimiter != null) {
-            return tryPush(c, rateLimiter);
+            return tryPush(c, applyPreviewDiff, rateLimiter);
         }
 
-        return getRateLimiter(c.projectName(), c.repositoryName()).thenCompose(limiter -> tryPush(c, limiter));
+        return getRateLimiter(c.projectName(), c.repositoryName()).thenCompose(
+                limiter -> tryPush(c, applyPreviewDiff, limiter));
     }
 
-    private CompletableFuture<Revision> tryPush(PushCommand c, @Nullable RateLimiter rateLimiter) {
+    private CompletableFuture<CommitResult> tryPush(
+            AbstractPushCommand<?> c, boolean applyPreviewDiff, @Nullable RateLimiter rateLimiter) {
         if (rateLimiter == null || rateLimiter == UNLIMITED || rateLimiter.tryAcquire()) {
-            return push0(c);
+            return push0(c, applyPreviewDiff);
         } else {
             return CompletableFutures.exceptionallyCompletedFuture(
                     new TooManyRequestsException("commits", c.executionPath(), rateLimiter.getRate()));
         }
     }
 
-    private CompletableFuture<Revision> push0(PushCommand c) {
-        return repo(c).commit(c.baseRevision(), c.timestamp(),
-                              c.author(), c.summary(), c.detail(), c.markup(), c.changes());
+    private CompletableFuture<CommitResult> push0(AbstractPushCommand<?> c, boolean applyPreviewDiff) {
+        return repo(c).commit(c.baseRevision(), c.timestamp(), c.author(), c.summary(), c.detail(), c.markup(),
+                              c.changes(), applyPreviewDiff);
     }
 
     private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {

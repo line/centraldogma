@@ -92,6 +92,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.CentralDogmaException;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.QuotaConfig;
@@ -100,7 +101,9 @@ import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.command.PushCommand;
+import com.linecorp.centraldogma.server.command.CommandType;
+import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.PreviewDiffApplyingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
@@ -128,20 +131,15 @@ public final class ZooKeeperCommandExecutor
     // zk 3.4.x or later version, because deleting a log node in an older version will break consistency as
     // well.
 
-    @VisibleForTesting
-    static final String LOG_PATH = "logs";
+    private static final String LOG_PATH = "logs";
 
-    @VisibleForTesting
-    static final String LOG_BLOCK_PATH = "log_blocks";
+    private static final String LOG_BLOCK_PATH = "log_blocks";
 
-    @VisibleForTesting
-    static final String LOCK_PATH = "lock";
+    private static final String LOCK_PATH = "lock";
 
-    @VisibleForTesting
-    static final String QUOTA_PATH = "quota";
+    private static final String QUOTA_PATH = "quota";
 
-    @VisibleForTesting
-    static final String LEADER_PATH = "leader";
+    private static final String LEADER_PATH = "leader";
 
     private static final RetryPolicy RETRY_POLICY_ALWAYS = new RetryForever(500);
     private static final RetryPolicy RETRY_POLICY_NEVER = (retryCount, elapsedTimeMs, sleeper) -> false;
@@ -781,8 +779,8 @@ public final class ZooKeeperCommandExecutor
         WriteLock writeLock = null;
         try {
             mtx.acquire();
-            if (command instanceof PushCommand) {
-                writeLock = acquireWriteLock((PushCommand) command);
+            if (command instanceof PreviewDiffApplyingPushCommand) {
+                writeLock = acquireWriteLock((PreviewDiffApplyingPushCommand) command);
             } else if (command instanceof RemoveRepositoryCommand) {
                 clearWriteQuota((RemoveRepositoryCommand) command);
             }
@@ -814,7 +812,7 @@ public final class ZooKeeperCommandExecutor
     }
 
     @Nullable
-    private WriteLock acquireWriteLock(PushCommand command) throws Exception {
+    private WriteLock acquireWriteLock(PreviewDiffApplyingPushCommand command) throws Exception {
         if (command.projectName().equals(INTERNAL_PROJ) ||
             command.repositoryName().equals(Project.REPO_DOGMA)) {
             // Do not check quota for internal project and repository.
@@ -1072,7 +1070,19 @@ public final class ZooKeeperCommandExecutor
             }
 
             final T result = delegate.execute(command).get();
-            final ReplicationLog<T> log = new ReplicationLog<>(replicaId(), command, result);
+            final ReplicationLog<?> log;
+            if (command.type() == CommandType.PREVIEW_DIFF_APPLYING_PUSH) {
+                final PreviewDiffApplyingPushCommand pushCommand = (PreviewDiffApplyingPushCommand) command;
+                assert result instanceof CommitResult : result;
+                final CommitResult commitResult = (CommitResult) result;
+                final Command<Revision> replicationPushCommand = Command.replicationPush(
+                        pushCommand.timestamp(), pushCommand.author(), pushCommand.projectName(),
+                        pushCommand.repositoryName(), pushCommand.baseRevision(), pushCommand.summary(),
+                        pushCommand.detail(), pushCommand.markup(), pushCommand.changes());
+                log = new ReplicationLog<>(replicaId(), replicationPushCommand, commitResult.revision());
+            } else {
+                log = new ReplicationLog<>(replicaId(), command, result);
+            }
 
             // Store the command execution log to ZooKeeper.
             final long revision = storeLog(log);

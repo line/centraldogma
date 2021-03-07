@@ -34,6 +34,7 @@ import java.util.concurrent.CompletionException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.spotify.futures.CompletableFutures;
 
@@ -53,6 +54,7 @@ import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -339,8 +341,19 @@ public interface Repository {
      *
      * @return the {@link Revision} of the new {@link Commit}
      */
-    default CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
-                                               Author author, String summary, Iterable<Change<?>> changes) {
+    default CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                                   Author author, String summary, Iterable<Change<?>> changes) {
+        return commit(baseRevision, commitTimeMillis, author, summary, "", Markup.PLAINTEXT, changes,
+                      true);
+    }
+
+    /**
+     * Adds the specified changes to this {@link Repository}.
+     *
+     * @return the {@link Revision} of the new {@link Commit}
+     */
+    default CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                                   Author author, String summary, Change<?>... changes) {
         return commit(baseRevision, commitTimeMillis, author, summary, "", Markup.PLAINTEXT, changes);
     }
 
@@ -349,21 +362,12 @@ public interface Repository {
      *
      * @return the {@link Revision} of the new {@link Commit}
      */
-    default CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
-                                               Author author, String summary, Change<?>... changes) {
-        return commit(baseRevision, commitTimeMillis, author, summary, "", Markup.PLAINTEXT, changes);
-    }
-
-    /**
-     * Adds the specified changes to this {@link Repository}.
-     *
-     * @return the {@link Revision} of the new {@link Commit}
-     */
-    default CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
-                                               Author author, String summary, String detail, Markup markup,
-                                               Change<?>... changes) {
+    default CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                                   Author author, String summary, String detail, Markup markup,
+                                                   Change<?>... changes) {
         requireNonNull(changes, "changes");
-        return commit(baseRevision, commitTimeMillis, author, summary, detail, markup, Arrays.asList(changes));
+        return commit(baseRevision, commitTimeMillis, author, summary, detail, markup,
+                      ImmutableList.copyOf(changes), true);
     }
 
     /**
@@ -371,9 +375,9 @@ public interface Repository {
      *
      * @return the {@link Revision} of the new {@link Commit}
      */
-    CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
-                                       Author author, String summary, String detail, Markup markup,
-                                       Iterable<Change<?>> changes);
+    CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                           Author author, String summary, String detail, Markup markup,
+                                           Iterable<Change<?>> changes, boolean applyPreviewDiff);
 
     /**
      * Get a list of {@link Commit} for given pathPattern.

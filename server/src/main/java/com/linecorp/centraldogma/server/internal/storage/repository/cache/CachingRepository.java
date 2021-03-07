@@ -41,6 +41,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -249,11 +250,12 @@ final class CachingRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
-                                              Author author, String summary, String detail, Markup markup,
-                                              Iterable<Change<?>> changes) {
+    public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                                  Author author, String summary, String detail, Markup markup,
+                                                  Iterable<Change<?>> changes, boolean applyPreviewDiff) {
 
-        return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes);
+        return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,
+                           applyPreviewDiff);
     }
 
     @Override

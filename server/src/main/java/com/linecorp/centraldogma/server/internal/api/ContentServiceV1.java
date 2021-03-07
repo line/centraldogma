@@ -66,6 +66,7 @@ import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresReadPermission;
 import com.linecorp.centraldogma.server.internal.api.auth.RequiresWritePermission;
 import com.linecorp.centraldogma.server.internal.api.converter.ChangesRequestConverter;
@@ -191,7 +192,7 @@ public class ContentServiceV1 extends AbstractService {
 
         return execute(Command.push(
                 commitTimeMills, author, repository.parent().name(), repository.name(),
-                revision, summary, detail, markup, changes));
+                revision, summary, detail, markup, changes)).thenApply(CommitResult::revision);
     }
 
     /**
