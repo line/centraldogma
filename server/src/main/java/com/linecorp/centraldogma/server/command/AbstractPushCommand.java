@@ -127,6 +127,8 @@ class AbstractPushCommand<T> extends RepositoryCommand<T> {
         return super.toStringHelper()
                     .add("baseRevision", baseRevision)
                     .add("summary", summary)
-                    .add("markup", markup);
+                    .add("detail", detail)
+                    .add("markup", markup)
+                    .add("changes", changes);
     }
 }

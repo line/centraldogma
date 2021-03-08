@@ -99,11 +99,11 @@ import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
-import com.linecorp.centraldogma.server.command.ApplyingDiffPushCommand;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
@@ -779,8 +779,8 @@ public final class ZooKeeperCommandExecutor
         WriteLock writeLock = null;
         try {
             mtx.acquire();
-            if (command instanceof ApplyingDiffPushCommand) {
-                writeLock = acquireWriteLock((ApplyingDiffPushCommand) command);
+            if (command instanceof NormalizingPushCommand) {
+                writeLock = acquireWriteLock((NormalizingPushCommand) command);
             } else if (command instanceof RemoveRepositoryCommand) {
                 clearWriteQuota((RemoveRepositoryCommand) command);
             }
@@ -812,7 +812,7 @@ public final class ZooKeeperCommandExecutor
     }
 
     @Nullable
-    private WriteLock acquireWriteLock(ApplyingDiffPushCommand command) throws Exception {
+    private WriteLock acquireWriteLock(NormalizingPushCommand command) throws Exception {
         if (command.projectName().equals(INTERNAL_PROJ) ||
             command.repositoryName().equals(Project.REPO_DOGMA)) {
             // Do not check quota for internal project and repository.
@@ -1071,15 +1071,19 @@ public final class ZooKeeperCommandExecutor
 
             final T result = delegate.execute(command).get();
             final ReplicationLog<?> log;
-            if (command.type() == CommandType.APPLYING_DIFF_PUSH) {
-                final ApplyingDiffPushCommand pushCommand = (ApplyingDiffPushCommand) command;
+            if (command.type() == CommandType.NORMALIZING_PUSH) {
+                final NormalizingPushCommand normalizingPushCommand = (NormalizingPushCommand) command;
                 assert result instanceof CommitResult : result;
                 final CommitResult commitResult = (CommitResult) result;
-                final Command<Revision> replicationPushCommand = Command.replicationPush(
-                        pushCommand.timestamp(), pushCommand.author(), pushCommand.projectName(),
-                        pushCommand.repositoryName(), pushCommand.baseRevision(), pushCommand.summary(),
-                        pushCommand.detail(), pushCommand.markup(), pushCommand.changes());
-                log = new ReplicationLog<>(replicaId(), replicationPushCommand, commitResult.revision());
+                final Revision commitResultRevision = commitResult.revision();
+                final Command<Revision> pushAsIsCommand = Command.pushAsIs(
+                        normalizingPushCommand.timestamp(), normalizingPushCommand.author(),
+                        normalizingPushCommand.projectName(), normalizingPushCommand.repositoryName(),
+                        commitResultRevision.backward(1),
+                        normalizingPushCommand.summary(), normalizingPushCommand.detail(),
+                        normalizingPushCommand.markup(),
+                        commitResult.changes());
+                log = new ReplicationLog<>(replicaId(), pushAsIsCommand, commitResultRevision);
             } else {
                 log = new ReplicationLog<>(replicaId(), command, result);
             }

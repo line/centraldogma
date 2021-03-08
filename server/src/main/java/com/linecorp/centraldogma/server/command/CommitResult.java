@@ -27,7 +27,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * Result of an {@link ApplyingDiffPushCommand} commit.
+ * Result of a {@link NormalizingPushCommand} commit.
  */
 public final class CommitResult {
 

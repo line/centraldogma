@@ -29,17 +29,17 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 
-class ReplicationPushCommandTest {
+class PushAsIsCommandTest {
 
     @Test
     void testJsonConversion() {
         assertJsonConversion(
-                Command.replicationPush(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
-                                        "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
-                                        ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
+                Command.pushAsIs(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
+                                 "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
+                                 ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
                 Command.class,
                 '{' +
-                "  \"type\": \"REPLICATION_PUSH\"," +
+                "  \"type\": \"PUSH\"," +
                 "  \"timestamp\": 1234," +
                 "  \"author\": {" +
                 "    \"name\": \"Marge Simpson\"," +
@@ -61,7 +61,7 @@ class ReplicationPushCommandTest {
 
     @Test
     void backwardCompatibility() throws Exception {
-        final PushCommand c = (PushCommand) Jackson.readValue(
+        final PushAsIsCommand c = (PushAsIsCommand) Jackson.readValue(
                 '{' +
                 "  \"type\": \"PUSH\"," +
                 "  \"projectName\": \"foo\"," +

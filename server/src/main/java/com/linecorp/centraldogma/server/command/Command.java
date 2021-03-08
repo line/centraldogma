@@ -48,10 +48,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = RemoveRepositoryCommand.class, name = "REMOVE_REPOSITORY"),
         @Type(value = PurgeRepositoryCommand.class, name = "PURGE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
-        @Type(value = ApplyingDiffPushCommand.class, name = "APPLYING_DIFF_PUSH"),
-        @Type(value = ReplicationPushCommand.class, name = "REPLICATION_PUSH"),
-        // Deprecated. Should use OriginalPushCommand or ReplicationPushCommand.
-        @Type(value = PushCommand.class, name = "PUSH"),
+        @Type(value = NormalizingPushCommand.class, name = "NORMALIZING_PUSH"),
+        @Type(value = PushAsIsCommand.class, name = "PUSH"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
 })
@@ -335,13 +333,13 @@ public interface Command<T> {
                                       String projectName, String repositoryName,
                                       Revision baseRevision, String summary, String detail,
                                       Markup markup, Iterable<Change<?>> changes) {
-        return new ApplyingDiffPushCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                                           summary, detail, markup, changes);
+        return new NormalizingPushCommand(timestamp, author, projectName, repositoryName, baseRevision,
+                                          summary, detail, markup, changes);
     }
 
     /**
-     * Returns a new {@link Command} which is used to replicate an {@link ApplyingDiffPushCommand} to
-     * other replicas. Unlike the {@link ApplyingDiffPushCommand}, the changes of this {@link Command}
+     * Returns a new {@link Command} which is used to replicate a {@link NormalizingPushCommand} to
+     * other replicas. Unlike the {@link NormalizingPushCommand}, the changes of this {@link Command}
      * are not normalized and applied as they are.
      *
      * @param timestamp the time when pushing the changes, in milliseconds
@@ -354,12 +352,12 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<Revision> replicationPush(@Nullable Long timestamp, Author author,
-                                             String projectName, String repositoryName,
-                                             Revision baseRevision, String summary, String detail,
-                                             Markup markup, Iterable<Change<?>> changes) {
-        return new ReplicationPushCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                                          summary, detail, markup, changes);
+    static Command<Revision> pushAsIs(@Nullable Long timestamp, Author author,
+                                      String projectName, String repositoryName,
+                                      Revision baseRevision, String summary, String detail,
+                                      Markup markup, Iterable<Change<?>> changes) {
+        return new PushAsIsCommand(timestamp, author, projectName, repositoryName, baseRevision,
+                                   summary, detail, markup, changes);
     }
 
     /**

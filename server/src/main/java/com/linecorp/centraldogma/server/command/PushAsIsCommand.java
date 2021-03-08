@@ -26,26 +26,26 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * A {@link Command} which is used replicate an {@link ApplyingDiffPushCommand} to other replicas.
- * Unlike other the {@link ApplyingDiffPushCommand} the changes of this {@link Command}
+ * A {@link Command} which is used replicate a {@link NormalizingPushCommand} to other replicas.
+ * Unlike {@link NormalizingPushCommand}, the changes of this {@link Command}
  * are not normalized and applied as they are.
  */
-public final class ReplicationPushCommand extends AbstractPushCommand<Revision> {
+public final class PushAsIsCommand extends AbstractPushCommand<Revision> {
 
     /**
      * Creates a new instance.
      */
     @JsonCreator
-    ReplicationPushCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
-                           @JsonProperty("author") @Nullable Author author,
-                           @JsonProperty("projectName") String projectName,
-                           @JsonProperty("repositoryName") String repositoryName,
-                           @JsonProperty("baseRevision") Revision baseRevision,
-                           @JsonProperty("summary") String summary,
-                           @JsonProperty("detail") String detail,
-                           @JsonProperty("markup") Markup markup,
-                           @JsonProperty("changes") Iterable<Change<?>> changes) {
-        super(CommandType.REPLICATION_PUSH, timestamp, author, projectName, repositoryName,
+    PushAsIsCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                    @JsonProperty("author") @Nullable Author author,
+                    @JsonProperty("projectName") String projectName,
+                    @JsonProperty("repositoryName") String repositoryName,
+                    @JsonProperty("baseRevision") Revision baseRevision,
+                    @JsonProperty("summary") String summary,
+                    @JsonProperty("detail") String detail,
+                    @JsonProperty("markup") Markup markup,
+                    @JsonProperty("changes") Iterable<Change<?>> changes) {
+        super(CommandType.PUSH, timestamp, author, projectName, repositoryName,
               baseRevision, summary, detail, markup, changes);
     }
 }

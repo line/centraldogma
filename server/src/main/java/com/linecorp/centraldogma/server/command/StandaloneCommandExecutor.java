@@ -68,7 +68,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      *
      * @param projectManager the project manager for accessing the storage
      * @param repositoryWorker the executor which is used for performing storage operations
-     * @param writeQuota the write quota for limiting {@link ReplicationPushCommand}
+     * @param writeQuota the write quota for limiting {@link NormalizingPushCommand}
      * @param sessionManager the session manager for creating/removing a session
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
      * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
@@ -171,17 +171,12 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) purgeRepository((PurgeRepositoryCommand) command);
         }
 
-        if (command instanceof ApplyingDiffPushCommand) {
-            return (CompletableFuture<T>) push((ApplyingDiffPushCommand) command, true);
+        if (command instanceof NormalizingPushCommand) {
+            return (CompletableFuture<T>) push((NormalizingPushCommand) command, true);
         }
 
-        if (command instanceof ReplicationPushCommand) {
+        if (command instanceof PushAsIsCommand) {
             return (CompletableFuture<T>) push((AbstractPushCommand<Revision>) command, false)
-                    .thenApply(CommitResult::revision);
-        }
-
-        if (command instanceof PushCommand) {
-            return (CompletableFuture<T>) push((AbstractPushCommand<Revision>) command, true)
                     .thenApply(CommitResult::revision);
         }
 

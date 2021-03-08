@@ -105,11 +105,10 @@ class StandaloneCommandExecutorTest {
                 "]");
 
         change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"d\"}");
-        // Replication push just uses the json upsert.
+        // PushAsIs just uses the json upsert.
         final Revision revision = executor.execute(
-                Command.replicationPush(0L, Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD,
-                                        "", "", Markup.PLAINTEXT, ImmutableList.of(change)))
-                                          .join();
+                Command.pushAsIs(0L, Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD,
+                                 "", "", Markup.PLAINTEXT, ImmutableList.of(change))).join();
         assertThat(revision).isEqualTo(new Revision(4));
     }
 }
