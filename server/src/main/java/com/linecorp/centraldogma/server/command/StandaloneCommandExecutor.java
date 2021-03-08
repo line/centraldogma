@@ -175,8 +175,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) push((PreviewDiffApplyingPushCommand) command, true);
         }
 
-        if (command instanceof ReplicationPushCommand || command instanceof PushCommand) {
+        if (command instanceof ReplicationPushCommand) {
             return (CompletableFuture<T>) push((AbstractPushCommand<Revision>) command, false)
+                    .thenApply(CommitResult::revision);
+        }
+
+        if (command instanceof PushCommand) {
+            return (CompletableFuture<T>) push((AbstractPushCommand<Revision>) command, true)
                     .thenApply(CommitResult::revision);
         }
 
