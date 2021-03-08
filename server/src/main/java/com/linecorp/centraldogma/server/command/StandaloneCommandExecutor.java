@@ -171,8 +171,8 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) purgeRepository((PurgeRepositoryCommand) command);
         }
 
-        if (command instanceof PreviewDiffApplyingPushCommand) {
-            return (CompletableFuture<T>) push((PreviewDiffApplyingPushCommand) command, true);
+        if (command instanceof ApplyingDiffPushCommand) {
+            return (CompletableFuture<T>) push((ApplyingDiffPushCommand) command, true);
         }
 
         if (command instanceof ReplicationPushCommand) {

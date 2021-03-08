@@ -99,11 +99,11 @@ import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.command.AbstractCommandExecutor;
+import com.linecorp.centraldogma.server.command.ApplyingDiffPushCommand;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommandType;
 import com.linecorp.centraldogma.server.command.CommitResult;
-import com.linecorp.centraldogma.server.command.PreviewDiffApplyingPushCommand;
 import com.linecorp.centraldogma.server.command.RemoveRepositoryCommand;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.RepositoryMetadata;
@@ -779,8 +779,8 @@ public final class ZooKeeperCommandExecutor
         WriteLock writeLock = null;
         try {
             mtx.acquire();
-            if (command instanceof PreviewDiffApplyingPushCommand) {
-                writeLock = acquireWriteLock((PreviewDiffApplyingPushCommand) command);
+            if (command instanceof ApplyingDiffPushCommand) {
+                writeLock = acquireWriteLock((ApplyingDiffPushCommand) command);
             } else if (command instanceof RemoveRepositoryCommand) {
                 clearWriteQuota((RemoveRepositoryCommand) command);
             }
@@ -812,7 +812,7 @@ public final class ZooKeeperCommandExecutor
     }
 
     @Nullable
-    private WriteLock acquireWriteLock(PreviewDiffApplyingPushCommand command) throws Exception {
+    private WriteLock acquireWriteLock(ApplyingDiffPushCommand command) throws Exception {
         if (command.projectName().equals(INTERNAL_PROJ) ||
             command.repositoryName().equals(Project.REPO_DOGMA)) {
             // Do not check quota for internal project and repository.
@@ -1071,8 +1071,8 @@ public final class ZooKeeperCommandExecutor
 
             final T result = delegate.execute(command).get();
             final ReplicationLog<?> log;
-            if (command.type() == CommandType.PREVIEW_DIFF_APPLYING_PUSH) {
-                final PreviewDiffApplyingPushCommand pushCommand = (PreviewDiffApplyingPushCommand) command;
+            if (command.type() == CommandType.APPLYING_DIFF_PUSH) {
+                final ApplyingDiffPushCommand pushCommand = (ApplyingDiffPushCommand) command;
                 assert result instanceof CommitResult : result;
                 final CommitResult commitResult = (CommitResult) result;
                 final Command<Revision> replicationPushCommand = Command.replicationPush(

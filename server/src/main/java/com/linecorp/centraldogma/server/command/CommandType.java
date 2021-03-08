@@ -28,7 +28,7 @@ public enum CommandType {
     CREATE_REPOSITORY(Void.class),
     REMOVE_REPOSITORY(Void.class),
     UNREMOVE_REPOSITORY(Void.class),
-    PREVIEW_DIFF_APPLYING_PUSH(CommitResult.class),
+    APPLYING_DIFF_PUSH(CommitResult.class),
     REPLICATION_PUSH(Revision.class),
     PUSH(Revision.class),
     SAVE_NAMED_QUERY(Void.class),

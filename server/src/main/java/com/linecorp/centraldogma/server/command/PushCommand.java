@@ -29,7 +29,7 @@ import com.linecorp.centraldogma.common.Revision;
 /**
  * A {@link Command} which is used for pushing changes to the repository.
  *
- * @deprecated Use {@link PreviewDiffApplyingPushCommand} or {@link ReplicationPushCommand}.
+ * @deprecated Use {@link ApplyingDiffPushCommand} or {@link ReplicationPushCommand}.
  */
 @Deprecated
 public final class PushCommand extends AbstractPushCommand<Revision> {
@@ -37,7 +37,7 @@ public final class PushCommand extends AbstractPushCommand<Revision> {
     /**
      * Creates a new instance.
      *
-     * @deprecated Use {@link PreviewDiffApplyingPushCommand} or {@link ReplicationPushCommand}.
+     * @deprecated Use {@link ApplyingDiffPushCommand} or {@link ReplicationPushCommand}.
      */
     @Deprecated
     @JsonCreator

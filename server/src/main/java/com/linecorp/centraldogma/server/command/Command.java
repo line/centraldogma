@@ -48,7 +48,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = RemoveRepositoryCommand.class, name = "REMOVE_REPOSITORY"),
         @Type(value = PurgeRepositoryCommand.class, name = "PURGE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
-        @Type(value = PreviewDiffApplyingPushCommand.class, name = "PREVIEW_DIFF_APPLYING_PUSH"),
+        @Type(value = ApplyingDiffPushCommand.class, name = "APPLYING_DIFF_PUSH"),
         @Type(value = ReplicationPushCommand.class, name = "REPLICATION_PUSH"),
         // Deprecated. Should use OriginalPushCommand or ReplicationPushCommand.
         @Type(value = PushCommand.class, name = "PUSH"),
@@ -335,13 +335,13 @@ public interface Command<T> {
                                       String projectName, String repositoryName,
                                       Revision baseRevision, String summary, String detail,
                                       Markup markup, Iterable<Change<?>> changes) {
-        return new PreviewDiffApplyingPushCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                                                  summary, detail, markup, changes);
+        return new ApplyingDiffPushCommand(timestamp, author, projectName, repositoryName, baseRevision,
+                                           summary, detail, markup, changes);
     }
 
     /**
-     * Returns a new {@link Command} which is used to replicate a {@link PreviewDiffApplyingPushCommand} to
-     * other replicas. Unlike the {@link PreviewDiffApplyingPushCommand}, the changes of this {@link Command}
+     * Returns a new {@link Command} which is used to replicate an {@link ApplyingDiffPushCommand} to
+     * other replicas. Unlike the {@link ApplyingDiffPushCommand}, the changes of this {@link Command}
      * are not normalized and applied as they are.
      *
      * @param timestamp the time when pushing the changes, in milliseconds

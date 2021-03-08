@@ -26,8 +26,8 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * A {@link Command} which is used replicate a {@link PreviewDiffApplyingPushCommand} to other replicas.
- * Unlike other the {@link PreviewDiffApplyingPushCommand} the changes of this {@link Command}
+ * A {@link Command} which is used replicate an {@link ApplyingDiffPushCommand} to other replicas.
+ * Unlike other the {@link ApplyingDiffPushCommand} the changes of this {@link Command}
  * are not normalized and applied as they are.
  */
 public final class ReplicationPushCommand extends AbstractPushCommand<Revision> {

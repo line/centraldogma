@@ -32,19 +32,19 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
  * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
  * {@link CommandExecutor#execute(Command)}.
  */
-public final class PreviewDiffApplyingPushCommand extends AbstractPushCommand<CommitResult> {
+public final class ApplyingDiffPushCommand extends AbstractPushCommand<CommitResult> {
 
     @JsonCreator
-    PreviewDiffApplyingPushCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
-                                   @JsonProperty("author") @Nullable Author author,
-                                   @JsonProperty("projectName") String projectName,
-                                   @JsonProperty("repositoryName") String repositoryName,
-                                   @JsonProperty("baseRevision") Revision baseRevision,
-                                   @JsonProperty("summary") String summary,
-                                   @JsonProperty("detail") String detail,
-                                   @JsonProperty("markup") Markup markup,
-                                   @JsonProperty("changes") Iterable<Change<?>> changes) {
-        super(CommandType.PREVIEW_DIFF_APPLYING_PUSH, timestamp, author, projectName, repositoryName,
+    ApplyingDiffPushCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
+                            @JsonProperty("author") @Nullable Author author,
+                            @JsonProperty("projectName") String projectName,
+                            @JsonProperty("repositoryName") String repositoryName,
+                            @JsonProperty("baseRevision") Revision baseRevision,
+                            @JsonProperty("summary") String summary,
+                            @JsonProperty("detail") String detail,
+                            @JsonProperty("markup") Markup markup,
+                            @JsonProperty("changes") Iterable<Change<?>> changes) {
+        super(CommandType.APPLYING_DIFF_PUSH, timestamp, author, projectName, repositoryName,
               baseRevision, summary, detail, markup, changes);
     }
 }
