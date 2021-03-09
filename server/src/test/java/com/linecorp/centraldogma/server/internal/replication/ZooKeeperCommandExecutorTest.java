@@ -59,6 +59,7 @@ import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
+import com.linecorp.centraldogma.server.command.PushAsIsCommand;
 
 class ZooKeeperCommandExecutorTest {
 
@@ -179,9 +180,12 @@ class ZooKeeperCommandExecutorTest {
             final AtomicInteger counter = new AtomicInteger();
             return command -> completedFuture(new Revision(counter.incrementAndGet()));
         })) {
-            final Command<Revision> command = Command.pushAsIs(null, Author.SYSTEM, "foo", "bar",
-                                                               Revision.HEAD, "", "", Markup.PLAINTEXT,
+            final Command<CommitResult> command = Command.push(null, Author.SYSTEM, "foo", "bar",
+                                                               new Revision(42), "", "", Markup.PLAINTEXT,
                                                                ImmutableList.of());
+            assert command instanceof NormalizingPushCommand;
+            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) command).asIs(
+                    CommitResult.of(new Revision(43), ImmutableList.of()));
 
             final int COMMANDS_PER_REPLICA = 7;
             final List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -189,7 +193,7 @@ class ZooKeeperCommandExecutorTest {
                 futures.add(CompletableFuture.runAsync(() -> {
                     for (int j = 0; j < COMMANDS_PER_REPLICA; j++) {
                         try {
-                            r.commandExecutor().execute(command).join();
+                            r.commandExecutor().execute(asIsCommand).join();
                         } catch (Exception e) {
                             throw new Error(e);
                         }
@@ -304,22 +308,20 @@ class ZooKeeperCommandExecutorTest {
                                  Markup.PLAINTEXT,
                                  ImmutableList.of(pushChange));
 
-            final Command<Revision> pushAsIsCommand =
-                    Command.pushAsIs(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
-                                     "summary", "detail",
-                                     Markup.PLAINTEXT,
-                                     ImmutableList.of(normalizedChange));
+            assert normalizingPushCommand instanceof NormalizingPushCommand;
+            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) normalizingPushCommand).asIs(
+                    CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
 
             assertThat(replica1.commandExecutor().execute(normalizingPushCommand).join().revision())
                     .isEqualTo(new Revision(2));
             final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
-            assertThat(commandResult2.command()).isEqualTo(pushAsIsCommand);
+            assertThat(commandResult2.command()).isEqualTo(asIsCommand);
             assertThat(commandResult2.result()).isInstanceOf(Revision.class);
 
             // pushAsIs is applied for other replicas.
-            await().untilAsserted(() -> verify(cluster.get(2).delegate()).apply(eq(pushAsIsCommand)));
-            await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(pushAsIsCommand)));
-            await().untilAsserted(() -> verify(cluster.get(5).delegate()).apply(eq(pushAsIsCommand)));
+            await().untilAsserted(() -> verify(cluster.get(2).delegate()).apply(eq(asIsCommand)));
+            await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(asIsCommand)));
+            await().untilAsserted(() -> verify(cluster.get(5).delegate()).apply(eq(asIsCommand)));
 
             // Stop one instance in Group 1. The hierarchical quorums is not working anymore.
             cluster.get(2).commandExecutor().stop().join();
@@ -335,8 +337,8 @@ class ZooKeeperCommandExecutorTest {
             replica8Start.join();
 
             // The command executed while the Group 3 was down should be relayed.
-            await().untilAsserted(() -> verify(cluster.get(7).delegate()).apply(eq(pushAsIsCommand)));
-            await().untilAsserted(() -> verify(cluster.get(8).delegate()).apply(eq(pushAsIsCommand)));
+            await().untilAsserted(() -> verify(cluster.get(7).delegate()).apply(eq(asIsCommand)));
+            await().untilAsserted(() -> verify(cluster.get(8).delegate()).apply(eq(asIsCommand)));
 
             await().untilAsserted(() -> verify(cluster.get(0).delegate()).apply(eq(command3)));
             await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(command3)));

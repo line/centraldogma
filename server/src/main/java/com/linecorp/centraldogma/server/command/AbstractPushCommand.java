@@ -22,7 +22,6 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
@@ -35,7 +34,7 @@ import com.linecorp.centraldogma.common.Revision;
 /**
  * A {@link Command} which is used for pushing changes to the repository.
  */
-class AbstractPushCommand<T> extends RepositoryCommand<T> {
+abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
 
     private final Revision baseRevision;
     private final String summary;
@@ -43,7 +42,6 @@ class AbstractPushCommand<T> extends RepositoryCommand<T> {
     private final Markup markup;
     private final List<Change<?>> changes;
 
-    @JsonCreator
     AbstractPushCommand(CommandType type, @Nullable Long timestamp, @Nullable Author author,
                         String projectName, String repositoryName, Revision baseRevision,
                         String summary, String detail, Markup markup, Iterable<Change<?>> changes) {

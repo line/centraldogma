@@ -377,7 +377,7 @@ public interface Repository {
      */
     CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
                                            Author author, String summary, String detail, Markup markup,
-                                           Iterable<Change<?>> changes, boolean applyPreviewDiff);
+                                           Iterable<Change<?>> changes, boolean normalizing);
 
     /**
      * Get a list of {@link Commit} for given pathPattern.

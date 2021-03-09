@@ -338,29 +338,6 @@ public interface Command<T> {
     }
 
     /**
-     * Returns a new {@link Command} which is used to replicate a {@link NormalizingPushCommand} to
-     * other replicas. Unlike the {@link NormalizingPushCommand}, the changes of this {@link Command}
-     * are not normalized and applied as they are.
-     *
-     * @param timestamp the time when pushing the changes, in milliseconds
-     * @param author the author who is pushing the changes
-     * @param projectName the name of the project
-     * @param repositoryName the name of the repository which is supposed to be restored
-     * @param baseRevision the revision which is supposed to apply the changes
-     * @param summary the summary of the changes
-     * @param detail the detail message of the changes
-     * @param markup the markup for the detail message
-     * @param changes the changes to be applied
-     */
-    static Command<Revision> pushAsIs(@Nullable Long timestamp, Author author,
-                                      String projectName, String repositoryName,
-                                      Revision baseRevision, String summary, String detail,
-                                      Markup markup, Iterable<Change<?>> changes) {
-        return new PushAsIsCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                                   summary, detail, markup, changes);
-    }
-
-    /**
      * Returns a new {@link Command} which is used to create a new session.
      *
      * @param session the session supposed to be created

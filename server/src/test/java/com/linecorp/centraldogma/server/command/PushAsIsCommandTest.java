@@ -34,9 +34,9 @@ class PushAsIsCommandTest {
     @Test
     void testJsonConversion() {
         assertJsonConversion(
-                Command.pushAsIs(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
-                                 "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
-                                 ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
+                new PushAsIsCommand(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
+                                    "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
+                                    ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
                 Command.class,
                 '{' +
                 "  \"type\": \"PUSH\"," +

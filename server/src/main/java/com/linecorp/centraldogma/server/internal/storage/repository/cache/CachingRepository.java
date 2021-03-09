@@ -252,10 +252,10 @@ final class CachingRepository implements Repository {
     @Override
     public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
                                                   Author author, String summary, String detail, Markup markup,
-                                                  Iterable<Change<?>> changes, boolean applyPreviewDiff) {
+                                                  Iterable<Change<?>> changes, boolean normalizing) {
 
         return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,
-                           applyPreviewDiff);
+                           normalizing);
     }
 
     @Override

@@ -1075,15 +1075,8 @@ public final class ZooKeeperCommandExecutor
                 final NormalizingPushCommand normalizingPushCommand = (NormalizingPushCommand) command;
                 assert result instanceof CommitResult : result;
                 final CommitResult commitResult = (CommitResult) result;
-                final Revision commitResultRevision = commitResult.revision();
-                final Command<Revision> pushAsIsCommand = Command.pushAsIs(
-                        normalizingPushCommand.timestamp(), normalizingPushCommand.author(),
-                        normalizingPushCommand.projectName(), normalizingPushCommand.repositoryName(),
-                        commitResultRevision.backward(1),
-                        normalizingPushCommand.summary(), normalizingPushCommand.detail(),
-                        normalizingPushCommand.markup(),
-                        commitResult.changes());
-                log = new ReplicationLog<>(replicaId(), pushAsIsCommand, commitResultRevision);
+                final Command<Revision> pushAsIsCommand = normalizingPushCommand.asIs(commitResult);
+                log = new ReplicationLog<>(replicaId(), pushAsIsCommand, commitResult.revision());
             } else {
                 log = new ReplicationLog<>(replicaId(), command, result);
             }

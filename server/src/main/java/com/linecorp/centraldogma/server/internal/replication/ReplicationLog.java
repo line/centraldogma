@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 
 public final class ReplicationLog<T> {
 
@@ -71,8 +72,9 @@ public final class ReplicationLog<T> {
     }
 
     ReplicationLog(int replicaId, Command<T> command, @Nullable T result) {
-
         this.replicaId = replicaId;
+        assert !(command instanceof NormalizingPushCommand)
+                : NormalizingPushCommand.class.getSimpleName() + " cannot be replicated.";
         this.command = requireNonNull(command, "command");
 
         final Class<?> resultType = command.type().resultType();

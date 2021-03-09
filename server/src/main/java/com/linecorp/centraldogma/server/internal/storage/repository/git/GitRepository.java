@@ -866,7 +866,7 @@ class GitRepository implements Repository {
     @Override
     public CompletableFuture<CommitResult> commit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
-            String detail, Markup markup, Iterable<Change<?>> changes, boolean applyPreviewDiff) {
+            String detail, Markup markup, Iterable<Change<?>> changes, boolean normalizing) {
         requireNonNull(baseRevision, "baseRevision");
         requireNonNull(author, "author");
         requireNonNull(summary, "summary");
@@ -878,14 +878,14 @@ class GitRepository implements Repository {
         return CompletableFuture.supplyAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "commit", baseRevision, author, summary);
             return blockingCommit(baseRevision, commitTimeMillis,
-                                  author, summary, detail, markup, changes, false, applyPreviewDiff);
+                                  author, summary, detail, markup, changes, false, normalizing);
         }, repositoryWorker);
     }
 
     private CommitResult blockingCommit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
             String detail, Markup markup, Iterable<Change<?>> changes, boolean allowEmptyCommit,
-            boolean applyPreviewDiff) {
+            boolean normalizing) {
 
         requireNonNull(baseRevision, "baseRevision");
 
@@ -905,7 +905,7 @@ class GitRepository implements Repository {
                         " or equivalent)");
             }
 
-            if (applyPreviewDiff) {
+            if (normalizing) {
                 applyingChanges = blockingPreviewDiff(normBaseRevision, changes).values();
             } else {
                 applyingChanges = changes;

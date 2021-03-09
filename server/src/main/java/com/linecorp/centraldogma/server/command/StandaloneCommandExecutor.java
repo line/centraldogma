@@ -33,7 +33,6 @@ import com.cronutils.utils.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import com.spotify.futures.CompletableFutures;
 
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -176,7 +175,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }
 
         if (command instanceof PushAsIsCommand) {
-            return (CompletableFuture<T>) push((AbstractPushCommand<Revision>) command, false)
+            return (CompletableFuture<T>) push((PushAsIsCommand) command, false)
                     .thenApply(CommitResult::revision);
         }
 
@@ -254,35 +253,35 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }, repositoryWorker);
     }
 
-    private CompletableFuture<CommitResult> push(AbstractPushCommand<?> c, boolean applyPreviewDiff) {
+    private CompletableFuture<CommitResult> push(AbstractPushCommand<?> c, boolean normalizing) {
         if (c.projectName().equals(INTERNAL_PROJ) || c.repositoryName().equals(Project.REPO_DOGMA) ||
             !writeQuotaEnabled()) {
-            return push0(c, applyPreviewDiff);
+            return push0(c, normalizing);
         }
 
         final RateLimiter rateLimiter =
                 writeRateLimiters.get(rateLimiterKey(c.projectName(), c.repositoryName()));
         if (rateLimiter != null) {
-            return tryPush(c, applyPreviewDiff, rateLimiter);
+            return tryPush(c, normalizing, rateLimiter);
         }
 
         return getRateLimiter(c.projectName(), c.repositoryName()).thenCompose(
-                limiter -> tryPush(c, applyPreviewDiff, limiter));
+                limiter -> tryPush(c, normalizing, limiter));
     }
 
     private CompletableFuture<CommitResult> tryPush(
-            AbstractPushCommand<?> c, boolean applyPreviewDiff, @Nullable RateLimiter rateLimiter) {
+            AbstractPushCommand<?> c, boolean normalizing, @Nullable RateLimiter rateLimiter) {
         if (rateLimiter == null || rateLimiter == UNLIMITED || rateLimiter.tryAcquire()) {
-            return push0(c, applyPreviewDiff);
+            return push0(c, normalizing);
         } else {
             return CompletableFutures.exceptionallyCompletedFuture(
                     new TooManyRequestsException("commits", c.executionPath(), rateLimiter.getRate()));
         }
     }
 
-    private CompletableFuture<CommitResult> push0(AbstractPushCommand<?> c, boolean applyPreviewDiff) {
+    private CompletableFuture<CommitResult> push0(AbstractPushCommand<?> c, boolean normalizing) {
         return repo(c).commit(c.baseRevision(), c.timestamp(), c.author(), c.summary(), c.detail(), c.markup(),
-                              c.changes(), applyPreviewDiff);
+                              c.changes(), normalizing);
     }
 
     private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {

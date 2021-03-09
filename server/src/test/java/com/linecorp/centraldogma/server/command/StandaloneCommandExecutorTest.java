@@ -107,8 +107,8 @@ class StandaloneCommandExecutorTest {
         change = Change.ofJsonUpsert("/foo.json", "{\"a\": \"d\"}");
         // PushAsIs just uses the json upsert.
         final Revision revision = executor.execute(
-                Command.pushAsIs(0L, Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD,
-                                 "", "", Markup.PLAINTEXT, ImmutableList.of(change))).join();
+                new PushAsIsCommand(0L, Author.SYSTEM, TEST_PRJ, TEST_REPO2, Revision.HEAD,
+                                    "", "", Markup.PLAINTEXT, ImmutableList.of(change))).join();
         assertThat(revision).isEqualTo(new Revision(4));
     }
 }

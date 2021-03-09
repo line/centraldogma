@@ -15,6 +15,8 @@
  */
 package com.linecorp.centraldogma.server.command;
 
+import static java.util.Objects.requireNonNull;
+
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -46,5 +48,17 @@ public final class NormalizingPushCommand extends AbstractPushCommand<CommitResu
                            @JsonProperty("changes") Iterable<Change<?>> changes) {
         super(CommandType.NORMALIZING_PUSH, timestamp, author, projectName, repositoryName,
               baseRevision, summary, detail, markup, changes);
+    }
+
+    /**
+     * Returns a new {@link PushAsIsCommand} which is converted from this {@link NormalizingPushCommand}
+     * for replicating to other replicas. Unlike the {@link NormalizingPushCommand},
+     * the changes of this {@link Command} are not normalized and applied as they are.
+     */
+    public PushAsIsCommand asIs(CommitResult commitResult) {
+        requireNonNull(commitResult, "commitResult");
+        return new PushAsIsCommand(timestamp(), author(), projectName(), repositoryName(),
+                                   commitResult.revision().backward(1), summary(), detail(),
+                                   markup(), commitResult.changes());
     }
 }
