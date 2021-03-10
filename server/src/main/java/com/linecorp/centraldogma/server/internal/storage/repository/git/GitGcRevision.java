@@ -41,7 +41,7 @@ final class GitGcRevision implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(GitGcRevision.class);
 
-    private static final int REVISION_LEN = 4; // 32-bit integer + 160-bit SHA1 hash
+    private static final int REVISION_LEN = 4; // 32-bit integer
 
     private static final ThreadLocal<ByteBuffer> threadLocalBuffer =
             ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(REVISION_LEN));
@@ -51,18 +51,11 @@ final class GitGcRevision implements AutoCloseable {
     private volatile Revision lastRevision;
 
     GitGcRevision(Repository repo) {
-        // NB: We enable fsync only when our Git repository has been configured so,
-        //     because there's no point of doing fsync only on this file when the
-        //     Git repository does not.
         this(repo.getDirectory());
     }
 
     @VisibleForTesting
     GitGcRevision(File rootDir) {
-        this(rootDir, false);
-    }
-
-    private GitGcRevision(File rootDir, boolean fsync) {
         path = new File(rootDir, "git-gc.revision").toPath();
         try {
             channel = FileChannel.open(path,
@@ -73,7 +66,6 @@ final class GitGcRevision implements AutoCloseable {
             throw new StorageException("failed to open the last git revision: " + path, e);
         }
 
-        this.fsync = fsync;
         boolean success = false;
         try {
             final long size;
