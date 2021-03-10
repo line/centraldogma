@@ -77,7 +77,7 @@ final class GitGcRevision implements AutoCloseable {
 
             if (size == 0) {
                 lastRevision = null;
-            } else if (size == REVISION_LEN){
+            } else if (size == REVISION_LEN) {
                 lastRevision = read();
             } else {
                 throw new StorageException("incorrect revision length: " + path + " (" + size + " bytes)");
