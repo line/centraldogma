@@ -308,7 +308,6 @@ class GitRepository implements Repository {
             jGitRepository = repositoryBuilder.build();
             assert jGitRepository instanceof FileRepository;
             garbageCollector = new GC((FileRepository) jGitRepository);
-            gcRevision = new GitGcRevision(jGitRepository);
 
             if (!exist(repoDir)) {
                 throw new RepositoryNotFoundException(repoDir.toString());
@@ -335,6 +334,7 @@ class GitRepository implements Repository {
         try {
             headRevision = uncachedHeadRevision();
             commitIdDatabase = new CommitIdDatabase(jGitRepository);
+            gcRevision = new GitGcRevision(jGitRepository);
             if (!headRevision.equals(commitIdDatabase.headRevision())) {
                 commitIdDatabase.rebuild(jGitRepository);
                 assert headRevision.equals(commitIdDatabase.headRevision());
@@ -377,6 +377,14 @@ class GitRepository implements Repository {
                             commitIdDatabase.close();
                         } catch (Exception e) {
                             logger.warn("Failed to close a commitId database:", e);
+                        }
+                    }
+
+                    if (gcRevision != null) {
+                        try {
+                            gcRevision.close();
+                        } catch (Exception e) {
+                            logger.warn("Failed to close a gc revision:", e);
                         }
                     }
 
