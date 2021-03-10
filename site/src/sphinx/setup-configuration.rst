@@ -224,6 +224,7 @@ Core properties
 -  ``repositoryGarbageCollection``
 
   -  the garbage collection configuration to cleanup unnecessary files and optimize repositories.
+     If ``null`` or unspecified, the garbage collection is disabled.
 
   - ``minNumNewCommits`` (integer)
 
