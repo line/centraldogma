@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2021 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -25,7 +25,6 @@ import java.nio.file.StandardOpenOption;
 
 import javax.annotation.Nullable;
 
-import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,24 +35,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.storage.StorageException;
 
 /**
- * Simple file-based database of {@link Revision}-to-{@link ObjectId} mappings.
- *
- * <h3>File layout</h3>
- *
- * <pre>{@code
- * database = record*
- * record = revision commitId (24 bytes)
- * revision = 32-bit signed big-endian integer (4 bytes)
- * commitId = 160-bit SHA1 hash (20 bytes)
- * }</pre>
- *
- * {@link GitGcRevision} makes use of the invariant where:
- * <ul>
- *   <li>A {@link Revision} in a repository always starts from 1 and monotonically increases by 1.</li>
- *   <li>A record has fixed length of 24 bytes.</li>
- * </ul>
- * Therefore, {@link #put(Revision, ObjectId)} is always appending at the end of the database file and
- * {@link #get(Revision)} is always reading a record at the offset {@code (revision - 1) * 24}.
+ * A file-based database that reads and writes the last {@link Revision} when git gc was run.
  */
 final class GitGcRevision implements AutoCloseable {
 
@@ -66,7 +48,6 @@ final class GitGcRevision implements AutoCloseable {
 
     private final Path path;
     private final FileChannel channel;
-    private final boolean fsync;
     private volatile Revision lastRevision;
 
     GitGcRevision(Repository repo) {

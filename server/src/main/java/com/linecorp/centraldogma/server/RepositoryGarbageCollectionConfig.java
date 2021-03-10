@@ -62,7 +62,7 @@ public final class RepositoryGarbageCollectionConfig {
     }
 
     /**
-     * Returns the schedule when garbage collections is suppose to be triggered.
+     * Returns the schedule when garbage collections is supposed to be triggered.
      */
     public Cron schedule() {
         return schedule;
