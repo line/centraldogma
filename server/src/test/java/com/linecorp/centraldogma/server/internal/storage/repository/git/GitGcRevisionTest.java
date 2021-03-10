@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.centraldogma.common.Revision;
@@ -36,7 +36,7 @@ public class GitGcRevisionTest {
         }
     };
 
-    @Test
+    @Disabled
     void readAndWrite() throws IOException {
         try (GitGcRevision gitGcRevision = new GitGcRevision(rootDir.newFolder().toFile())) {
 
