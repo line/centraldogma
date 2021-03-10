@@ -19,8 +19,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
@@ -54,12 +52,10 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
+public final class RepositoryGarbageCollectionPlugin implements Plugin {
 
     private static final Logger logger =
-            LoggerFactory.getLogger(RepositoryGarbageCollectingServicePlugin.class);
-
-    private final Map<String, Revision> gcRevisions = new HashMap<>();
+            LoggerFactory.getLogger(RepositoryGarbageCollectionPlugin.class);
 
     @Nullable
     private RepositoryGarbageCollectionConfig gcConfig;
@@ -163,13 +159,6 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
             for (Repository repo : project.repos().list().values()) {
                 runGc(project, repo, stopwatch);
             }
-
-            runGc(project, project.metaRepo(), stopwatch);
-
-            // Clean up the revision caches of repositories removed.
-            for (final String removed : project.repos().listRemoved().keySet()) {
-                gcRevisions.remove(project.name() + '/' + removed);
-            }
         }
 
         scheduleGc(context);
@@ -177,15 +166,13 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
 
     private void runGc(Project project, Repository repo, Stopwatch stopwatch) {
         try {
-            final String cacheKey = project.name() + '/' + repo.name();
-            if (!needsGc(repo, cacheKey)) {
+            if (!needsGc(repo)) {
                 return;
             }
 
             logger.info("Starting repository gc on {}/{} ..", project.name(), repo.name());
             stopwatch.reset();
-            final Revision gcRevision = repo.gc();
-            gcRevisions.put(cacheKey, gcRevision);
+            repo.gc();
             final long elapsedNanos = stopwatch.elapsed(TimeUnit.NANOSECONDS);
             logger.info("Finished repository gc on {}/{} - took {}", project.name(), repo.name(),
                         TextFormatter.elapsed(elapsedNanos));
@@ -194,22 +181,17 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
         }
     }
 
-    private boolean needsGc(Repository repo, String key) {
+    private boolean needsGc(Repository repo) {
         final Revision endRevision = repo.normalizeNow(Revision.HEAD);
-        final int minNumNewCommits = gcConfig.minNumNewCommits();
-        if (endRevision.major() < minNumNewCommits) {
-            // The repository has a small number of commits. Don't need to run gc now.
-            return false;
+        final Revision gcRevision = repo.lastGcRevision();
+        final int newCommitsSinceLastGc;
+        if (gcRevision == null) {
+            newCommitsSinceLastGc = endRevision.major();
+        } else {
+            newCommitsSinceLastGc = endRevision.major() - gcRevision.major();
         }
 
-        final Revision previousRevision = gcRevisions.get(key);
-        if (previousRevision == null) {
-            // gc was not run after the server started.
-            return true;
-        }
-
-        final int newPushes = endRevision.major() - previousRevision.major();
-        return newPushes >= minNumNewCommits;
+        return newCommitsSinceLastGc >= gcConfig.minNumNewCommits();
     }
 
     @Override
@@ -219,7 +201,6 @@ public final class RepositoryGarbageCollectingServicePlugin implements Plugin {
                           .add("target", target())
                           .add("scheduledFuture", scheduledFuture)
                           .add("stopping", stopping)
-                          .add("gcRevisions", gcRevisions)
                           .toString();
     }
 }

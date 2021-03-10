@@ -20,7 +20,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
@@ -37,7 +36,7 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
-class RepositoryGarbageCollectingServicePluginTest {
+class RepositoryGarbageCollectionPluginTest {
 
     @Test
     void gcWithConfiguration() throws Exception {
@@ -56,19 +55,14 @@ class RepositoryGarbageCollectingServicePluginTest {
         when(config.repositoryGarbageCollection()).thenReturn(gcConfig);
 
         when(project1.name()).thenReturn("project1");
-        when(project1.metaRepo()).thenReturn(metaRepo);
         when(project1.repos()).thenReturn(rm);
 
-        when(repo1.name()).thenReturn("repo1");
         when(repo2.name()).thenReturn("repo2");
-        when(metaRepo.name()).thenReturn("dogma");
 
         Revision repo1Rev = new Revision(1);
         Revision repo2Rev = new Revision(1000);
-        final Revision metaRev = new Revision(10);
         when(repo1.normalizeNow(Revision.HEAD)).thenReturn(repo1Rev);
         when(repo2.normalizeNow(Revision.HEAD)).thenReturn(repo2Rev);
-        when(metaRepo.normalizeNow(Revision.HEAD)).thenReturn(metaRev);
 
         when(repo2.gc()).thenReturn(repo2Rev);
 
@@ -76,28 +70,28 @@ class RepositoryGarbageCollectingServicePluginTest {
         when(pm.list()).thenReturn(ImmutableMap.of("foo", project1));
         when(rm.list()).thenReturn(ImmutableMap.of("repo1", repo1, "repo2", repo2));
 
-        final RepositoryGarbageCollectingServicePlugin gc = new RepositoryGarbageCollectingServicePlugin();
+        final RepositoryGarbageCollectionPlugin gc = new RepositoryGarbageCollectionPlugin();
         gc.initialize(ctx);
 
         gc.gc(ctx);
         verify(repo1, never()).gc();
         // gc will run only for a large repo.
         verify(repo2).gc();
-        verify(metaRepo, never()).gc();
 
-        // Insufficient commits
+        // Update the last gc revision
+        when(repo2.lastGcRevision()).thenReturn(repo2Rev);
+
+        // Insufficient new commits
         repo1Rev = new Revision(499);
         repo2Rev = new Revision(1499);
         when(repo1.normalizeNow(Revision.HEAD)).thenReturn(repo1Rev);
         when(repo2.normalizeNow(Revision.HEAD)).thenReturn(repo2Rev);
-        when(repo2.gc()).thenReturn(repo2Rev);
 
         gc.gc(ctx);
 
         // The invocation count should not be changed
         verify(repo1, never()).gc();
         verify(repo2).gc();
-        verify(metaRepo, never()).gc();
 
         // Sufficient pushes
         repo2Rev = new Revision(1500);
@@ -105,7 +99,7 @@ class RepositoryGarbageCollectingServicePluginTest {
 
         gc.gc(ctx);
 
-        verifyNoMoreInteractions(repo1, metaRepo);
+        verify(repo1, never()).gc();
         verify(repo2, times(2)).gc();
     }
 }

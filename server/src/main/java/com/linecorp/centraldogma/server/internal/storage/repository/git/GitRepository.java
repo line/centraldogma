@@ -175,7 +175,9 @@ class GitRepository implements Repository {
     final CommitWatchers commitWatchers = new CommitWatchers();
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+
     private final GC garbageCollector;
+    private final GitGcRevision gcRevision;
 
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
@@ -259,6 +261,7 @@ class GitRepository implements Repository {
             jGitRepository = new RepositoryBuilder().setGitDir(repoDir).build();
             assert jGitRepository instanceof FileRepository;
             garbageCollector = new GC((FileRepository) jGitRepository);
+            gcRevision = new GitGcRevision(jGitRepository);
 
             // Initialize the master branch.
             final RefUpdate head = jGitRepository.updateRef(Constants.HEAD);
@@ -305,6 +308,7 @@ class GitRepository implements Repository {
             jGitRepository = repositoryBuilder.build();
             assert jGitRepository instanceof FileRepository;
             garbageCollector = new GC((FileRepository) jGitRepository);
+            gcRevision = new GitGcRevision(jGitRepository);
 
             if (!exist(repoDir)) {
                 throw new RepositoryNotFoundException(repoDir.toString());
@@ -1472,10 +1476,17 @@ class GitRepository implements Repository {
         rwLock.writeLock().lock();
         try {
             garbageCollector.gc();
+            final Revision headRevision = this.headRevision;
+            gcRevision.write(headRevision);
             return headRevision;
         } finally {
            rwLock.writeLock().unlock();
         }
+    }
+
+    @Override
+    public Revision lastGcRevision() {
+        return gcRevision.lastRevision();
     }
 
     private void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {

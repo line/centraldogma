@@ -200,6 +200,11 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
+    public Revision lastGcRevision() {
+        return unwrap().lastGcRevision();
+    }
+
+    @Override
     public String toString() {
         return Util.simpleTypeName(this) + '(' + unwrap() + ')';
     }
