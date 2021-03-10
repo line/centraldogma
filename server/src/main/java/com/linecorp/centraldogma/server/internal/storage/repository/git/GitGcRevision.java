@@ -149,7 +149,7 @@ final class GitGcRevision implements AutoCloseable {
         try {
             channel.close();
         } catch (IOException e) {
-            logger.warn("Failed to close the commit ID database: {}", path, e);
+            logger.warn("Failed to close the git gc revision database: {}", path, e);
         }
     }
 }
