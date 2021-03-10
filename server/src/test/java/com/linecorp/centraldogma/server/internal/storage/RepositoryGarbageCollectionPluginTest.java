@@ -32,7 +32,6 @@ import com.linecorp.centraldogma.server.RepositoryGarbageCollectionConfig;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
-import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
@@ -47,7 +46,6 @@ class RepositoryGarbageCollectionPluginTest {
         final RepositoryManager rm = mock(RepositoryManager.class);
         final Repository repo1 = mock(Repository.class);
         final Repository repo2 = mock(Repository.class);
-        final MetaRepository metaRepo = mock(MetaRepository.class);
         final RepositoryGarbageCollectionConfig gcConfig =
                 new RepositoryGarbageCollectionConfig(500, "* * * * * ?");
 

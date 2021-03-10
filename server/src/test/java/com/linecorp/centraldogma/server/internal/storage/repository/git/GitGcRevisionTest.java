@@ -38,21 +38,22 @@ public class GitGcRevisionTest {
 
     @Test
     void readAndWrite() throws IOException {
-        final GitGcRevision gitGcRevision = new GitGcRevision(rootDir.newFolder().toFile());
+        try (final GitGcRevision gitGcRevision = new GitGcRevision(rootDir.newFolder().toFile())) {
 
-        assertThat(gitGcRevision.lastRevision()).isNull();
-        final Revision revision = new Revision(10);
-        gitGcRevision.write(revision);
-        assertThat(gitGcRevision.lastRevision()).isSameAs(revision);
+            assertThat(gitGcRevision.lastRevision()).isNull();
+            final Revision revision = new Revision(10);
+            gitGcRevision.write(revision);
+            assertThat(gitGcRevision.lastRevision()).isSameAs(revision);
 
-        // Should not overwrite the last revision with the old one
-        final Revision oldRevision = new Revision(9);
-        gitGcRevision.write(oldRevision);
-        assertThat(gitGcRevision.lastRevision()).isSameAs(revision);
+            // Should not overwrite the last revision with the old one
+            final Revision oldRevision = new Revision(9);
+            gitGcRevision.write(oldRevision);
+            assertThat(gitGcRevision.lastRevision()).isSameAs(revision);
 
-        // Should not overwrite with the new revision
-        final Revision newRevision = new Revision(11);
-        gitGcRevision.write(newRevision);
-        assertThat(gitGcRevision.lastRevision()).isSameAs(newRevision);
+            // Should not overwrite with the new revision
+            final Revision newRevision = new Revision(11);
+            gitGcRevision.write(newRevision);
+            assertThat(gitGcRevision.lastRevision()).isSameAs(newRevision);
+        }
     }
 }
