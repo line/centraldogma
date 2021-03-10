@@ -38,7 +38,7 @@ public class GitGcRevisionTest {
 
     @Test
     void readAndWrite() throws IOException {
-        try (final GitGcRevision gitGcRevision = new GitGcRevision(rootDir.newFolder().toFile())) {
+        try (GitGcRevision gitGcRevision = new GitGcRevision(rootDir.newFolder().toFile())) {
 
             assertThat(gitGcRevision.lastRevision()).isNull();
             final Revision revision = new Revision(10);
