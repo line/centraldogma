@@ -138,6 +138,9 @@ public final class CentralDogmaConfig {
     @Nullable
     private final QuotaConfig writeQuotaPerRepository;
 
+    @Nullable
+    private final RepositoryGarbageCollectionConfig repositoryGarbageCollection;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -165,7 +168,9 @@ public final class CentralDogmaConfig {
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
-            @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository) {
+            @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
+            @JsonProperty("repositoryGarbageCollection")
+            @Nullable RepositoryGarbageCollectionConfig repositoryGarbageCollection) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -219,6 +224,7 @@ public final class CentralDogmaConfig {
                                           ports.stream().anyMatch(ServerPort::hasProxyProtocol));
 
         this.writeQuotaPerRepository = writeQuotaPerRepository;
+        this.repositoryGarbageCollection = repositoryGarbageCollection;
     }
 
     /**
@@ -454,6 +460,16 @@ public final class CentralDogmaConfig {
     @JsonProperty("writeQuotaPerRepository")
     public QuotaConfig writeQuotaPerRepository() {
         return writeQuotaPerRepository;
+    }
+
+    /**
+     * Returns the {@link RepositoryGarbageCollectionConfig} for
+     * cleanuping unnecessary files and optimizing {@link Repository}s.
+     */
+    @Nullable
+    @JsonProperty("repositoryGarbageCollection")
+    public RepositoryGarbageCollectionConfig repositoryGarbageCollection() {
+        return repositoryGarbageCollection;
     }
 
     @Override

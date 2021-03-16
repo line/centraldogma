@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -482,4 +484,17 @@ public interface Repository {
 
         return future;
     }
+
+    /**
+     * Cleanup unnecessary files and optimize this {@link Repository}.
+     * Returns the head revision when garbage collection was running.
+     */
+    Revision gc() throws Exception;
+
+    /**
+     * Returns the last revision when garbage collection was running.
+     * {@code null} if no garbage collection was performed.
+     */
+    @Nullable
+    Revision lastGcRevision();
 }

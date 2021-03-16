@@ -119,8 +119,12 @@ public final class CentralDogmaBuilder {
     private String sessionValidationSchedule = DEFAULT_SESSION_VALIDATION_SCHEDULE;
     @Nullable
     private Object authProviderProperties;
+
     private int writeQuota;
     private int timeWindowSeconds;
+
+    @Nullable
+    private RepositoryGarbageCollectionConfig repositoryGarbageCollection;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -521,6 +525,18 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the minimum required number of commits newly added to run a garbage collection and the
+     * <a href="https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html">
+     * Quartz cron expression</a> when garbage collections is suppose to be triggered.
+     */
+    public CentralDogmaBuilder repositoryGarbageCollection(int minNumNewCommits, String schedule) {
+        checkArgument(minNumNewCommits > 0, "minNumNewCommits: %s (expected: > 0)", minNumNewCommits);
+        requireNonNull(schedule, "schedule");
+        repositoryGarbageCollection = new RepositoryGarbageCollectionConfig(minNumNewCommits, schedule);
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -553,6 +569,6 @@ public final class CentralDogmaBuilder {
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      null, accessLogFormat, authCfg, quotaConfig);
+                                      null, accessLogFormat, authCfg, quotaConfig, repositoryGarbageCollection);
     }
 }
