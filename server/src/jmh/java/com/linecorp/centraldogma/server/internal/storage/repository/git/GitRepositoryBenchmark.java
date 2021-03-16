@@ -81,7 +81,7 @@ public class GitRepositoryBenchmark {
                 repo.commit(new Revision(currentRevision), currentRevision * 1000, AUTHOR,
                             "Summary", "Detail", Markup.PLAINTEXT,
                             Change.ofTextUpsert("/file_" + rnd() + ".txt",
-                                                String.valueOf(currentRevision))).join();
+                                                String.valueOf(currentRevision))).join().revision();
         currentRevision++;
         return revision;
     }

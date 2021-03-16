@@ -19,9 +19,9 @@ package com.linecorp.centraldogma.server.command;
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Collections;
-
 import org.junit.jupiter.api.Test;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -29,14 +29,14 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 
-class PushCommandTest {
+class PushAsIsCommandTest {
 
     @Test
     void testJsonConversion() {
         assertJsonConversion(
-                new PushCommand(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
-                                "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
-                                Collections.singletonList(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
+                new PushAsIsCommand(1234L, new Author("Marge Simpson", "marge@simpsonsworld.com"),
+                                    "foo", "bar", new Revision(42), "baz", "qux", Markup.MARKDOWN,
+                                    ImmutableList.of(Change.ofTextUpsert("/memo.txt", "Bon voyage!"))),
                 Command.class,
                 '{' +
                 "  \"type\": \"PUSH\"," +
@@ -61,7 +61,7 @@ class PushCommandTest {
 
     @Test
     void backwardCompatibility() throws Exception {
-        final PushCommand c = (PushCommand) Jackson.readValue(
+        final PushAsIsCommand c = (PushAsIsCommand) Jackson.readValue(
                 '{' +
                 "  \"type\": \"PUSH\"," +
                 "  \"projectName\": \"foo\"," +

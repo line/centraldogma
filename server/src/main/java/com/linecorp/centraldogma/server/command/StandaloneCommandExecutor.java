@@ -33,7 +33,6 @@ import com.cronutils.utils.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import com.spotify.futures.CompletableFutures;
 
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -68,7 +67,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
      *
      * @param projectManager the project manager for accessing the storage
      * @param repositoryWorker the executor which is used for performing storage operations
-     * @param writeQuota the write quota for limiting {@link PushCommand}
+     * @param writeQuota the write quota for limiting {@link NormalizingPushCommand}
      * @param sessionManager the session manager for creating/removing a session
      * @param onTakeLeadership the callback to be invoked after the replica has taken the leadership
      * @param onReleaseLeadership the callback to be invoked before the replica releases the leadership
@@ -171,8 +170,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) purgeRepository((PurgeRepositoryCommand) command);
         }
 
-        if (command instanceof PushCommand) {
-            return (CompletableFuture<T>) push((PushCommand) command);
+        if (command instanceof NormalizingPushCommand) {
+            return (CompletableFuture<T>) push((NormalizingPushCommand) command, true);
+        }
+
+        if (command instanceof PushAsIsCommand) {
+            return (CompletableFuture<T>) push((PushAsIsCommand) command, false)
+                    .thenApply(CommitResult::revision);
         }
 
         if (command instanceof CreateSessionCommand) {
@@ -249,33 +253,35 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
         }, repositoryWorker);
     }
 
-    private CompletableFuture<Revision> push(PushCommand c) {
+    private CompletableFuture<CommitResult> push(AbstractPushCommand<?> c, boolean normalizing) {
         if (c.projectName().equals(INTERNAL_PROJ) || c.repositoryName().equals(Project.REPO_DOGMA) ||
             !writeQuotaEnabled()) {
-            return push0(c);
+            return push0(c, normalizing);
         }
 
         final RateLimiter rateLimiter =
                 writeRateLimiters.get(rateLimiterKey(c.projectName(), c.repositoryName()));
         if (rateLimiter != null) {
-            return tryPush(c, rateLimiter);
+            return tryPush(c, normalizing, rateLimiter);
         }
 
-        return getRateLimiter(c.projectName(), c.repositoryName()).thenCompose(limiter -> tryPush(c, limiter));
+        return getRateLimiter(c.projectName(), c.repositoryName()).thenCompose(
+                limiter -> tryPush(c, normalizing, limiter));
     }
 
-    private CompletableFuture<Revision> tryPush(PushCommand c, @Nullable RateLimiter rateLimiter) {
+    private CompletableFuture<CommitResult> tryPush(
+            AbstractPushCommand<?> c, boolean normalizing, @Nullable RateLimiter rateLimiter) {
         if (rateLimiter == null || rateLimiter == UNLIMITED || rateLimiter.tryAcquire()) {
-            return push0(c);
+            return push0(c, normalizing);
         } else {
             return CompletableFutures.exceptionallyCompletedFuture(
                     new TooManyRequestsException("commits", c.executionPath(), rateLimiter.getRate()));
         }
     }
 
-    private CompletableFuture<Revision> push0(PushCommand c) {
-        return repo(c).commit(c.baseRevision(), c.timestamp(),
-                              c.author(), c.summary(), c.detail(), c.markup(), c.changes());
+    private CompletableFuture<CommitResult> push0(AbstractPushCommand<?> c, boolean normalizing) {
+        return repo(c).commit(c.baseRevision(), c.timestamp(), c.author(), c.summary(), c.detail(), c.markup(),
+                              c.changes(), normalizing);
     }
 
     private CompletableFuture<RateLimiter> getRateLimiter(String projectName, String repoName) {

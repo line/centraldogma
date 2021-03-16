@@ -48,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.common.Author;
@@ -56,10 +57,16 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
+import com.linecorp.centraldogma.server.command.PushAsIsCommand;
 
 class ZooKeeperCommandExecutorTest {
 
     private static final Logger logger = LoggerFactory.getLogger(ZooKeeperCommandExecutorTest.class);
+
+    private static final Change<String> pushChange = Change.ofTextUpsert("/foo", "bar");
+    private static final Change<String> normalizedChange = Change.ofTextUpsert("/foo", "bar_normalized");
 
     @Test
     void testLogWatch() throws Exception {
@@ -173,8 +180,12 @@ class ZooKeeperCommandExecutorTest {
             final AtomicInteger counter = new AtomicInteger();
             return command -> completedFuture(new Revision(counter.incrementAndGet()));
         })) {
-            final Command<Revision> command =
-                    Command.push(Author.SYSTEM, "foo", "bar", Revision.HEAD, "", "", Markup.PLAINTEXT);
+            final Command<CommitResult> command = Command.push(null, Author.SYSTEM, "foo", "bar",
+                                                               new Revision(42), "", "", Markup.PLAINTEXT,
+                                                               ImmutableList.of());
+            assert command instanceof NormalizingPushCommand;
+            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) command).asIs(
+                    CommitResult.of(new Revision(43), ImmutableList.of()));
 
             final int COMMANDS_PER_REPLICA = 7;
             final List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -182,7 +193,7 @@ class ZooKeeperCommandExecutorTest {
                 futures.add(CompletableFuture.runAsync(() -> {
                     for (int j = 0; j < COMMANDS_PER_REPLICA; j++) {
                         try {
-                            r.commandExecutor().execute(command).join();
+                            r.commandExecutor().execute(asIsCommand).join();
                         } catch (Exception e) {
                             throw new Error(e);
                         }
@@ -291,19 +302,26 @@ class ZooKeeperCommandExecutorTest {
             cluster.get(1).commandExecutor().stop().join();
             cluster.get(4).commandExecutor().stop().join();
 
-            final Command<Revision> command2 =
-                    Command.push(Author.SYSTEM, "project", "repo1", Revision.HEAD, "summary", "detail",
-                                 Markup.PLAINTEXT, Change.ofTextUpsert("/foo", "bar"));
+            final Command<CommitResult> normalizingPushCommand =
+                    Command.push(0L, Author.SYSTEM, "project", "repo1", new Revision(1),
+                                 "summary", "detail",
+                                 Markup.PLAINTEXT,
+                                 ImmutableList.of(pushChange));
 
-            replica1.commandExecutor().execute(command2).join();
+            assert normalizingPushCommand instanceof NormalizingPushCommand;
+            final PushAsIsCommand asIsCommand = ((NormalizingPushCommand) normalizingPushCommand).asIs(
+                    CommitResult.of(new Revision(2), ImmutableList.of(normalizedChange)));
+
+            assertThat(replica1.commandExecutor().execute(normalizingPushCommand).join().revision())
+                    .isEqualTo(new Revision(2));
             final ReplicationLog<?> commandResult2 = replica1.commandExecutor().loadLog(1, false).get();
-            assertThat(commandResult2.command()).isEqualTo(command2);
+            assertThat(commandResult2.command()).isEqualTo(asIsCommand);
             assertThat(commandResult2.result()).isInstanceOf(Revision.class);
 
-            await().untilAsserted(() -> verify(cluster.get(0).delegate()).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(2).delegate()).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(5).delegate()).apply(eq(command2)));
+            // pushAsIs is applied for other replicas.
+            await().untilAsserted(() -> verify(cluster.get(2).delegate()).apply(eq(asIsCommand)));
+            await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(asIsCommand)));
+            await().untilAsserted(() -> verify(cluster.get(5).delegate()).apply(eq(asIsCommand)));
 
             // Stop one instance in Group 1. The hierarchical quorums is not working anymore.
             cluster.get(2).commandExecutor().stop().join();
@@ -319,8 +337,8 @@ class ZooKeeperCommandExecutorTest {
             replica8Start.join();
 
             // The command executed while the Group 3 was down should be relayed.
-            await().untilAsserted(() -> verify(cluster.get(7).delegate()).apply(eq(command2)));
-            await().untilAsserted(() -> verify(cluster.get(8).delegate()).apply(eq(command2)));
+            await().untilAsserted(() -> verify(cluster.get(7).delegate()).apply(eq(asIsCommand)));
+            await().untilAsserted(() -> verify(cluster.get(8).delegate()).apply(eq(asIsCommand)));
 
             await().untilAsserted(() -> verify(cluster.get(0).delegate()).apply(eq(command3)));
             await().untilAsserted(() -> verify(cluster.get(3).delegate()).apply(eq(command3)));
@@ -474,12 +492,27 @@ class ZooKeeperCommandExecutorTest {
     @SuppressWarnings("unchecked")
     static <T> Function<Command<?>, CompletableFuture<?>> newMockDelegate() {
         final Function<Command<T>, CompletableFuture<T>> delegate = mock(Function.class);
+        final AtomicInteger revisionCounter = new AtomicInteger(1);
         lenient().when(delegate.apply(argThat(x -> x == null || x.type().resultType() == Void.class)))
                  .thenReturn(completedFuture(null));
 
-        lenient().when(delegate.apply(argThat(x -> x.type().resultType() == Revision.class)))
-                 .thenReturn((CompletableFuture<T>) completedFuture(Revision.HEAD));
+        lenient().when(delegate.apply(argThat(x -> x != null && x.type().resultType() == Revision.class)))
+                 .then(invocation -> completedFuture(new Revision(revisionCounter.incrementAndGet())));
 
-        return (Function<Command<?>, CompletableFuture<?>>) (Function<?, ?>)delegate;
+        lenient().when(delegate.apply(argThat(x -> x != null && x.type().resultType() == CommitResult.class)))
+                 .then(invocation -> {
+                     final Revision revision = new Revision(revisionCounter.incrementAndGet());
+                     final Object argument = invocation.getArgument(0);
+                     if (argument instanceof NormalizingPushCommand) {
+                         if (((NormalizingPushCommand) argument).changes().equals(
+                                 ImmutableList.of(pushChange))) {
+                            return completedFuture(
+                                    CommitResult.of(revision, ImmutableList.of(normalizedChange)));
+                         }
+                     }
+                     return completedFuture(CommitResult.of(revision, ImmutableList.of()));
+                 });
+
+        return (Function<Command<?>, CompletableFuture<?>>) (Function<?, ?>) delegate;
     }
 }

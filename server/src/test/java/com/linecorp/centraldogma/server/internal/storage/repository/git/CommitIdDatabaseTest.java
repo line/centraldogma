@@ -144,7 +144,7 @@ class CommitIdDatabaseTest {
         try {
             for (int i = 1; i <= numCommits; i++) {
                 headRevision = repo.commit(new Revision(i), 0, Author.SYSTEM, "",
-                                           Change.ofTextUpsert("/" + i + ".txt", "")).join();
+                                           Change.ofTextUpsert("/" + i + ".txt", "")).join().revision();
             }
         } finally {
             repo.internalClose();

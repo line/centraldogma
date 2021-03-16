@@ -33,6 +33,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -149,28 +150,29 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
-                                              Author author, String summary, Iterable<Change<?>> changes) {
+    public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                                  Author author, String summary, Iterable<Change<?>> changes) {
         return unwrap().commit(baseRevision, commitTimeMillis, author, summary, changes);
     }
 
     @Override
-    public CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
-                                              Author author, String summary, Change<?>... changes) {
+    public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                                  Author author, String summary, Change<?>... changes) {
         return unwrap().commit(baseRevision, commitTimeMillis, author, summary, changes);
     }
 
     @Override
-    public CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
-                                              Author author, String summary, String detail, Markup markup,
-                                              Iterable<Change<?>> changes) {
-        return unwrap().commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes);
+    public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                                  Author author, String summary, String detail, Markup markup,
+                                                  Iterable<Change<?>> changes, boolean normalizing) {
+        return unwrap().commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,
+                               normalizing);
     }
 
     @Override
-    public CompletableFuture<Revision> commit(Revision baseRevision, long commitTimeMillis,
-                                              Author author, String summary, String detail, Markup markup,
-                                              Change<?>... changes) {
+    public CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
+                                                  Author author, String summary, String detail, Markup markup,
+                                                  Change<?>... changes) {
         return unwrap().commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes);
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2021 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,22 +13,18 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.server.command;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -38,7 +34,7 @@ import com.linecorp.centraldogma.common.Revision;
 /**
  * A {@link Command} which is used for pushing changes to the repository.
  */
-public final class PushCommand extends RepositoryCommand<Revision> {
+abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
 
     private final Revision baseRevision;
     private final String summary;
@@ -46,18 +42,10 @@ public final class PushCommand extends RepositoryCommand<Revision> {
     private final Markup markup;
     private final List<Change<?>> changes;
 
-    @JsonCreator
-    PushCommand(@JsonProperty("timestamp") @Nullable Long timestamp,
-                @JsonProperty("author") @Nullable Author author,
-                @JsonProperty("projectName") String projectName,
-                @JsonProperty("repositoryName") String repositoryName,
-                @JsonProperty("baseRevision") Revision baseRevision,
-                @JsonProperty("summary") String summary,
-                @JsonProperty("detail") String detail,
-                @JsonProperty("markup") Markup markup,
-                @JsonProperty("changes") Iterable<Change<?>> changes) {
-
-        super(CommandType.PUSH, timestamp, author, projectName, repositoryName);
+    AbstractPushCommand(CommandType type, @Nullable Long timestamp, @Nullable Author author,
+                        String projectName, String repositoryName, Revision baseRevision,
+                        String summary, String detail, Markup markup, Iterable<Change<?>> changes) {
+        super(type, timestamp, author, projectName, repositoryName);
 
         this.baseRevision = requireNonNull(baseRevision, "baseRevision");
         this.summary = requireNonNull(summary, "summary");
@@ -65,8 +53,7 @@ public final class PushCommand extends RepositoryCommand<Revision> {
         this.markup = requireNonNull(markup, "markup");
 
         requireNonNull(changes, "changes");
-        this.changes = Collections.unmodifiableList(
-                StreamSupport.stream(changes.spliterator(), false).collect(Collectors.toList()));
+        this.changes = ImmutableList.copyOf(changes);
     }
 
     /**
@@ -115,11 +102,11 @@ public final class PushCommand extends RepositoryCommand<Revision> {
             return true;
         }
 
-        if (!(obj instanceof PushCommand)) {
+        if (!(obj instanceof AbstractPushCommand)) {
             return false;
         }
 
-        final PushCommand that = (PushCommand) obj;
+        final AbstractPushCommand that = (AbstractPushCommand) obj;
         return super.equals(that) &&
                baseRevision.equals(that.baseRevision) &&
                summary.equals(that.summary) &&
@@ -138,6 +125,8 @@ public final class PushCommand extends RepositoryCommand<Revision> {
         return super.toStringHelper()
                     .add("baseRevision", baseRevision)
                     .add("summary", summary)
-                    .add("markup", markup);
+                    .add("detail", detail)
+                    .add("markup", markup)
+                    .add("changes", changes);
     }
 }

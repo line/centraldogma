@@ -21,7 +21,6 @@ import static java.util.stream.Collectors.toList;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -231,12 +230,8 @@ public class RepositoryService extends AbstractService {
                                        Revision normalizedRev, Author author,
                                        String commitSummary, String commitDetail, Markup commitMarkup,
                                        Change<?> change) {
-        final CompletableFuture<Map<String, Change<?>>> f = normalizeChanges(
-                projectManager(), projectName, repoName, normalizedRev, ImmutableList.of(change));
-
-        return f.thenCompose(
-                changes -> execute(Command.push(author, projectName, repoName, normalizedRev,
-                                                commitSummary, commitDetail, commitMarkup, changes.values())));
+        return execute(Command.push(author, projectName, repoName, normalizedRev,
+                                    commitSummary, commitDetail, commitMarkup, ImmutableList.of(change)));
     }
 
     private static Entry<CommitMessageDto, Change<?>> commitMessageAndChange(AggregatedHttpRequest request) {
@@ -261,13 +256,6 @@ public class RepositoryService extends AbstractService {
         } catch (IOException e) {
             throw new IllegalArgumentException("invalid data to be parsed", e);
         }
-    }
-
-    private static CompletableFuture<Map<String, Change<?>>> normalizeChanges(
-            ProjectManager projectManager, String projectName, String repoName, Revision baseRevision,
-            Iterable<Change<?>> changes) {
-        return projectManager.get(projectName).repos().get(repoName)
-                             .previewDiff(baseRevision, changes);
     }
 
     private static String normalizeSearchTerm(final String term) {

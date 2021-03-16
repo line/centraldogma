@@ -18,20 +18,20 @@ package com.linecorp.centraldogma.server.command;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Arrays;
-
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.auth.Session;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
  * A Central Dogma command which is used to mutate projects and repositories.
@@ -48,7 +48,8 @@ import com.linecorp.centraldogma.server.auth.Session;
         @Type(value = RemoveRepositoryCommand.class, name = "REMOVE_REPOSITORY"),
         @Type(value = PurgeRepositoryCommand.class, name = "PURGE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
-        @Type(value = PushCommand.class, name = "PUSH"),
+        @Type(value = NormalizingPushCommand.class, name = "NORMALIZING_PUSH"),
+        @Type(value = PushAsIsCommand.class, name = "PUSH"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
         @Type(value = RemoveSessionCommand.class, name = "REMOVE_SESSIONS"),
 })
@@ -240,13 +241,16 @@ public interface Command<T> {
      * @param repositoryName the name of the repository which is supposed to be purged
      */
     static Command<Void> purgeRepository(@Nullable Long timestamp, Author author,
-                                          String projectName, String repositoryName) {
+                                         String projectName, String repositoryName) {
         requireNonNull(author, "author");
         return new PurgeRepositoryCommand(timestamp, author, projectName, repositoryName);
     }
 
     /**
-     * Returns a new {@link Command} which is used to push the changes.
+     * Returns a new {@link Command} which is used to push the changes. The changes are normalized via
+     * {@link Repository#previewDiff(Revision, Iterable)} before they are applied.
+     * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
+     * {@link CommandExecutor#execute(Command)}.
      *
      * @param author the author who is pushing the changes
      * @param projectName the name of the project
@@ -257,15 +261,18 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<Revision> push(Author author, String projectName, String repositoryName,
-                                  Revision baseRevision, String summary, String detail,
-                                  Markup markup, Change<?>... changes) {
+    static Command<CommitResult> push(Author author, String projectName, String repositoryName,
+                                      Revision baseRevision, String summary, String detail,
+                                      Markup markup, Change<?>... changes) {
 
         return push(null, author, projectName, repositoryName, baseRevision, summary, detail, markup, changes);
     }
 
     /**
-     * Returns a new {@link Command} which is used to push the changes.
+     * Returns a new {@link Command} which is used to push the changes. The changes are normalized via
+     * {@link Repository#previewDiff(Revision, Iterable)} before they are applied.
+     * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
+     * {@link CommandExecutor#execute(Command)}.
      *
      * @param timestamp the time when pushing the changes, in milliseconds
      * @param author the author who is pushing the changes
@@ -277,19 +284,19 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<Revision> push(@Nullable Long timestamp, Author author,
-                                  String projectName, String repositoryName,
-                                  Revision baseRevision, String summary, String detail,
-                                  Markup markup, Change<?>... changes) {
-
-        requireNonNull(author, "author");
-        requireNonNull(changes, "changes");
-        return new PushCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                               summary, detail, markup, Arrays.asList(changes));
+    static Command<CommitResult> push(@Nullable Long timestamp, Author author,
+                                      String projectName, String repositoryName,
+                                      Revision baseRevision, String summary, String detail,
+                                      Markup markup, Change<?>... changes) {
+        return push(timestamp, author, projectName, repositoryName, baseRevision,
+                    summary, detail, markup, ImmutableList.copyOf(changes));
     }
 
     /**
-     * Returns a new {@link Command} which is used to push the changes.
+     * Returns a new {@link Command} which is used to push the changes. The changes are normalized via
+     * {@link Repository#previewDiff(Revision, Iterable)} before they are applied.
+     * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
+     * {@link CommandExecutor#execute(Command)}.
      *
      * @param author the author who is pushing the changes
      * @param projectName the name of the project
@@ -300,15 +307,17 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<Revision> push(Author author, String projectName, String repositoryName,
-                                  Revision baseRevision, String summary, String detail,
-                                  Markup markup, Iterable<Change<?>> changes) {
-
+    static Command<CommitResult> push(Author author, String projectName, String repositoryName,
+                                      Revision baseRevision, String summary, String detail,
+                                      Markup markup, Iterable<Change<?>> changes) {
         return push(null, author, projectName, repositoryName, baseRevision, summary, detail, markup, changes);
     }
 
     /**
-     * Returns a new {@link Command} which is used to push the changes.
+     * Returns a new {@link Command} which is used to push the changes. The changes are normalized via
+     * {@link Repository#previewDiff(Revision, Iterable)} before they are applied.
+     * You can find the normalized changes from the {@link CommitResult#changes()} that is the result of
+     * {@link CommandExecutor#execute(Command)}.
      *
      * @param timestamp the time when pushing the changes, in milliseconds
      * @param author the author who is pushing the changes
@@ -320,14 +329,12 @@ public interface Command<T> {
      * @param markup the markup for the detail message
      * @param changes the changes to be applied
      */
-    static Command<Revision> push(@Nullable Long timestamp, Author author,
-                                  String projectName, String repositoryName,
-                                  Revision baseRevision, String summary, String detail,
-                                  Markup markup, Iterable<Change<?>> changes) {
-
-        requireNonNull(author, "author");
-        return new PushCommand(timestamp, author, projectName, repositoryName, baseRevision,
-                               summary, detail, markup, changes);
+    static Command<CommitResult> push(@Nullable Long timestamp, Author author,
+                                      String projectName, String repositoryName,
+                                      Revision baseRevision, String summary, String detail,
+                                      Markup markup, Iterable<Change<?>> changes) {
+        return new NormalizingPushCommand(timestamp, author, projectName, repositoryName, baseRevision,
+                                          summary, detail, markup, changes);
     }
 
     /**

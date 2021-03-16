@@ -120,6 +120,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
+import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -883,24 +884,33 @@ class GitRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> commit(
+    public CompletableFuture<CommitResult> commit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
-            String detail, Markup markup, Iterable<Change<?>> changes) {
+            String detail, Markup markup, Iterable<Change<?>> changes, boolean normalizing) {
+        requireNonNull(baseRevision, "baseRevision");
+        requireNonNull(author, "author");
+        requireNonNull(summary, "summary");
+        requireNonNull(detail, "detail");
+        requireNonNull(markup, "markup");
+        requireNonNull(changes, "changes");
+
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "commit", baseRevision, author, summary);
             return blockingCommit(baseRevision, commitTimeMillis,
-                                  author, summary, detail, markup, changes, false);
+                                  author, summary, detail, markup, changes, false, normalizing);
         }, repositoryWorker);
     }
 
-    private Revision blockingCommit(
+    private CommitResult blockingCommit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
-            String detail, Markup markup, Iterable<Change<?>> changes, boolean allowEmptyCommit) {
+            String detail, Markup markup, Iterable<Change<?>> changes, boolean allowEmptyCommit,
+            boolean normalizing) {
 
         requireNonNull(baseRevision, "baseRevision");
 
-        final CommitResult res;
+        final RevisionAndEntries res;
+        final Iterable<Change<?>> applyingChanges;
         rwLock.writeLock().lock();
         try {
             if (closePending.get() != null) {
@@ -915,8 +925,13 @@ class GitRepository implements Repository {
                         " or equivalent)");
             }
 
+            if (normalizing) {
+                applyingChanges = blockingPreviewDiff(normBaseRevision, changes).values();
+            } else {
+                applyingChanges = changes;
+            }
             res = commit0(headRevision, headRevision.forward(1), commitTimeMillis,
-                          author, summary, detail, markup, changes, allowEmptyCommit);
+                          author, summary, detail, markup, applyingChanges, allowEmptyCommit);
 
             this.headRevision = res.revision;
         } finally {
@@ -925,12 +940,13 @@ class GitRepository implements Repository {
 
         // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
         notifyWatchers(res.revision, res.diffEntries);
-        return res.revision;
+        return CommitResult.of(res.revision, applyingChanges);
     }
 
-    private CommitResult commit0(@Nullable Revision prevRevision, Revision nextRevision, long commitTimeMillis,
-                                 Author author, String summary, String detail, Markup markup,
-                                 Iterable<Change<?>> changes, boolean allowEmpty) {
+    private RevisionAndEntries commit0(@Nullable Revision prevRevision, Revision nextRevision,
+                                       long commitTimeMillis, Author author, String summary,
+                                       String detail, Markup markup,
+                                       Iterable<Change<?>> changes, boolean allowEmpty) {
 
         requireNonNull(author, "author");
         requireNonNull(summary, "summary");
@@ -1007,7 +1023,7 @@ class GitRepository implements Repository {
             commitIdDatabase.put(nextRevision, nextCommitId);
             doRefUpdate(revWalk, R_HEADS_MASTER, nextCommitId);
 
-            return new CommitResult(nextRevision, diffEntries);
+            return new RevisionAndEntries(nextRevision, diffEntries);
         } catch (CentralDogmaException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
@@ -1641,14 +1657,14 @@ class GitRepository implements Repository {
                     try {
                         newRepo.blockingCommit(
                                 baseRevision, c.when(), c.author(), c.summary(), c.detail(), c.markup(),
-                                changes, /* allowEmptyCommit */ false);
+                                changes, /* allowEmptyCommit */ false, false);
                         previousNonEmptyRevision = revision;
                     } catch (RedundantChangeException e) {
                         // NB: We allow an empty commit here because an old version of Central Dogma had a bug
                         //     which allowed the creation of an empty commit.
                         newRepo.blockingCommit(
                                 baseRevision, c.when(), c.author(), c.summary(), c.detail(), c.markup(),
-                                changes, /* allowEmptyCommit */ true);
+                                changes, /* allowEmptyCommit */ true, false);
                     }
 
                     progressListener.accept(i, endRevision.major());
@@ -1681,11 +1697,11 @@ class GitRepository implements Repository {
                           .toString();
     }
 
-    private static final class CommitResult {
+    private static final class RevisionAndEntries {
         final Revision revision;
         final List<DiffEntry> diffEntries;
 
-        CommitResult(Revision revision, List<DiffEntry> diffEntries) {
+        RevisionAndEntries(Revision revision, List<DiffEntry> diffEntries) {
             this.revision = revision;
             this.diffEntries = diffEntries;
         }
