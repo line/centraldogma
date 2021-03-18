@@ -18,9 +18,11 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -94,5 +96,7 @@ class GitGcTest {
         // Make sure that a gc is still running.
         // This is flaky. But a gc for 10k commits usually takes about more than 15 seconds.
         assertThat(completed).isFalse();
+
+        await().timeout(Duration.ofMinutes(3)).untilTrue(completed);
     }
 }
