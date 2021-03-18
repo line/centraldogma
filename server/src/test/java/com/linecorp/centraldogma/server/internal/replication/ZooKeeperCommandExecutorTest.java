@@ -423,7 +423,6 @@ class ZooKeeperCommandExecutorTest {
             }
         };
 
-
         try (Cluster cluster = Cluster.builder()
                                       .numReplicas(1)
                                       .build(mockDelegate)) {

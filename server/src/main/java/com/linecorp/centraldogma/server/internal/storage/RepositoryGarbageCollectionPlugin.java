@@ -39,6 +39,7 @@ import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.armeria.common.util.TextFormatter;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
@@ -50,6 +51,9 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public final class RepositoryGarbageCollectionPlugin implements Plugin {
@@ -63,6 +67,8 @@ public final class RepositoryGarbageCollectionPlugin implements Plugin {
     private ListeningScheduledExecutorService gcWorker;
     @Nullable
     private ListenableScheduledFuture<?> scheduledFuture;
+    @Nullable
+    private MeterRegistry meterRegistry;
 
     private volatile boolean stopping;
 
@@ -91,6 +97,7 @@ public final class RepositoryGarbageCollectionPlugin implements Plugin {
         gcConfig = context.config().repositoryGarbageCollection();
         gcWorker = MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("repository-gc-worker", true)));
+        meterRegistry = context.meterRegistry();
     }
 
     private void scheduleGc(PluginContext context) {
@@ -165,19 +172,24 @@ public final class RepositoryGarbageCollectionPlugin implements Plugin {
     }
 
     private void runGc(Project project, Repository repo, Stopwatch stopwatch) {
+        final String projectName = project.name();
+        final String repoName = repo.name();
         try {
             if (!needsGc(repo)) {
                 return;
             }
 
-            logger.info("Starting repository gc on {}/{} ..", project.name(), repo.name());
+            logger.info("Starting repository gc on {}/{} ..", projectName, repoName);
+            final Timer timer = MoreMeters.newTimer(meterRegistry, "plugins.gc.duration",
+                                                    Tags.of(projectName, repoName));
             stopwatch.reset();
             repo.gc();
             final long elapsedNanos = stopwatch.elapsed(TimeUnit.NANOSECONDS);
-            logger.info("Finished repository gc on {}/{} - took {}", project.name(), repo.name(),
+            timer.record(elapsedNanos, TimeUnit.NANOSECONDS);
+            logger.info("Finished repository gc on {}/{} - took {}", projectName, repoName,
                         TextFormatter.elapsed(elapsedNanos));
         } catch (Exception e) {
-            logger.warn("Failed to run repository gc on {}/{}", project.name(), repo.name(), e);
+            logger.warn("Failed to run repository gc on {}/{}", projectName, repoName, e);
         }
     }
 
