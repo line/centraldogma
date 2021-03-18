@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.replication;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -27,20 +28,25 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.function.ThrowingConsumer;
@@ -400,6 +406,46 @@ class ZooKeeperCommandExecutorTest {
             throws Throwable {
         for (Replica replica : cluster) {
             consumer.accept(replica);
+        }
+    }
+
+    @Test
+    void lockTimeout() throws Exception {
+        final AtomicBoolean neverEnding = new AtomicBoolean();
+        final AtomicReference<CompletableFuture<?>> pendingFuture = new AtomicReference<>();
+        final Supplier<Function<Command<?>, CompletableFuture<?>>> mockDelegate = () -> command -> {
+            if (neverEnding.get()) {
+                final CompletableFuture<Object> future = new CompletableFuture<>();
+                pendingFuture.set(future);
+                return future;
+            } else {
+                return newMockDelegate().apply(command);
+            }
+        };
+
+
+        try (Cluster cluster = Cluster.builder()
+                                      .numReplicas(1)
+                                      .build(mockDelegate)) {
+
+            final Replica replica = cluster.get(0);
+            final ZooKeeperCommandExecutor executor = replica.commandExecutor();
+
+            neverEnding.set(true);
+            final Command<Void> command = Command.createRepository(Author.SYSTEM, "project", "repo1");
+            executor.execute(command);
+            // Await until the first command is executed.
+            await().untilAtomic(pendingFuture, Matchers.notNullValue());
+
+            final CompletableFuture<Void> result = executor.execute(command);
+            await().between(Duration.ofSeconds(9), Duration.ofSeconds(15)).untilAsserted(() -> {
+                assertThat(result.isCompletedExceptionally()).isTrue();
+                final Throwable cause = catchThrowable(result::join);
+                assertThat(cause).isInstanceOf(CompletionException.class);
+                assertThat(cause.getCause()).isInstanceOf(ReplicationException.class)
+                        .hasMessageContaining("Failed to acquire a lock for /project in 10 seconds");
+            });
+            pendingFuture.get().complete(null);
         }
     }
 

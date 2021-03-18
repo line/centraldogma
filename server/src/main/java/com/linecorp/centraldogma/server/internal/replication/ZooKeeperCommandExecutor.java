@@ -90,6 +90,7 @@ import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
@@ -777,14 +778,24 @@ public final class ZooKeeperCommandExecutor
                 executionPath, k -> new InterProcessMutex(curator, absolutePath(LOCK_PATH, k)));
 
         WriteLock writeLock = null;
+        boolean lockTimeout = false;
         try {
-            mtx.acquire();
+            // Align with the default request timeout
+            if (!mtx.acquire(10, TimeUnit.SECONDS)) {
+                lockTimeout = true;
+                throw new ReplicationException(
+                        "Failed to acquire a lock for " + executionPath + " in 10 seconds");
+            }
             if (command instanceof NormalizingPushCommand) {
                 writeLock = acquireWriteLock((NormalizingPushCommand) command);
             } else if (command instanceof RemoveRepositoryCommand) {
                 clearWriteQuota((RemoveRepositoryCommand) command);
             }
         } catch (Exception e) {
+            if (lockTimeout) {
+                return Exceptions.throwUnsafely(e);
+            }
+
             logger.error("Failed to acquire a lock for {}; entering read-only mode", executionPath, e);
             stopLater();
             throw new ReplicationException("failed to acquire a lock for " + executionPath, e);
