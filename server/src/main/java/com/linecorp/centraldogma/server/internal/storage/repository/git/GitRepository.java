@@ -1497,15 +1497,11 @@ class GitRepository implements Repository {
 
     @Override
     public Revision gc() throws Exception {
-        rwLock.writeLock().lock();
-        try {
-            garbageCollector.gc();
-            final Revision headRevision = this.headRevision;
-            gcRevision.write(headRevision);
-            return headRevision;
-        } finally {
-           rwLock.writeLock().unlock();
-        }
+        // A git gc can run without a write lock.
+        garbageCollector.gc();
+        final Revision headRevision = this.headRevision;
+        gcRevision.write(headRevision);
+        return headRevision;
     }
 
     @Override

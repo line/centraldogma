@@ -171,7 +171,7 @@ public final class RepositoryGarbageCollectionPlugin implements Plugin {
             }
 
             logger.info("Starting repository gc on {}/{} ..", project.name(), repo.name());
-            stopwatch.reset();
+            stopwatch.reset().start();
             repo.gc();
             final long elapsedNanos = stopwatch.elapsed(TimeUnit.NANOSECONDS);
             logger.info("Finished repository gc on {}/{} - took {}", project.name(), repo.name(),
