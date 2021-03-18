@@ -182,7 +182,7 @@ public final class RepositoryGarbageCollectionPlugin implements Plugin {
             logger.info("Starting repository gc on {}/{} ..", projectName, repoName);
             final Timer timer = MoreMeters.newTimer(meterRegistry, "plugins.gc.duration",
                                                     Tags.of(projectName, repoName));
-            stopwatch.reset();
+            stopwatch.reset().start();
             repo.gc();
             final long elapsedNanos = stopwatch.elapsed(TimeUnit.NANOSECONDS);
             timer.record(elapsedNanos, TimeUnit.NANOSECONDS);
