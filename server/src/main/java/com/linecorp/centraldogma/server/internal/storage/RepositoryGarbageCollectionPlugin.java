@@ -67,8 +67,6 @@ public final class RepositoryGarbageCollectionPlugin implements Plugin {
     private ListeningScheduledExecutorService gcWorker;
     @Nullable
     private ListenableScheduledFuture<?> scheduledFuture;
-    @Nullable
-    private MeterRegistry meterRegistry;
 
     private volatile boolean stopping;
 
@@ -97,7 +95,6 @@ public final class RepositoryGarbageCollectionPlugin implements Plugin {
         gcConfig = context.config().repositoryGarbageCollection();
         gcWorker = MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("repository-gc-worker", true)));
-        meterRegistry = context.meterRegistry();
     }
 
     private void scheduleGc(PluginContext context) {
@@ -161,17 +158,18 @@ public final class RepositoryGarbageCollectionPlugin implements Plugin {
         }
 
         final ProjectManager pm = context.projectManager();
+        final MeterRegistry meterRegistry = context.meterRegistry();
         final Stopwatch stopwatch = Stopwatch.createUnstarted();
         for (Project project : pm.list().values()) {
             for (Repository repo : project.repos().list().values()) {
-                runGc(project, repo, stopwatch);
+                runGc(project, repo, stopwatch, meterRegistry);
             }
         }
 
         scheduleGc(context);
     }
 
-    private void runGc(Project project, Repository repo, Stopwatch stopwatch) {
+    private void runGc(Project project, Repository repo, Stopwatch stopwatch, MeterRegistry meterRegistry) {
         final String projectName = project.name();
         final String repoName = repo.name();
         try {

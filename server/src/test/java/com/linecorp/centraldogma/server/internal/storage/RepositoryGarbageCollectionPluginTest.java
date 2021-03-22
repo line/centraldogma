@@ -35,6 +35,8 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
+import io.micrometer.core.instrument.Metrics;
+
 class RepositoryGarbageCollectionPluginTest {
 
     @Test
@@ -51,6 +53,7 @@ class RepositoryGarbageCollectionPluginTest {
 
         when(ctx.config()).thenReturn(config);
         when(config.repositoryGarbageCollection()).thenReturn(gcConfig);
+        when(ctx.meterRegistry()).thenReturn(Metrics.globalRegistry);
 
         when(project1.name()).thenReturn("project1");
         when(project1.repos()).thenReturn(rm);
