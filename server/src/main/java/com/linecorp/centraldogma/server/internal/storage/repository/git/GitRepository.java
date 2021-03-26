@@ -917,8 +917,9 @@ class GitRepository implements Repository {
 
         final RevisionAndEntries res;
         final Iterable<Change<?>> applyingChanges;
+        boolean hasLock = false;
         try {
-            final boolean hasLock = writeLock(directExecution);
+            hasLock = writeLock(directExecution);
             if (!hasLock) {
                 throw new StorageException(
                         "failed to acquire a write lock for " + parent().name() + '/' + name());
@@ -942,7 +943,9 @@ class GitRepository implements Repository {
 
             this.headRevision = res.revision;
         } finally {
-            writeUnLock();
+            if (hasLock) {
+                writeUnLock();
+            }
         }
 
         // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
@@ -1625,7 +1628,7 @@ class GitRepository implements Repository {
             }
         }
 
-        return hasGcLock;
+        return false;
     }
 
     private void writeUnLock() {
