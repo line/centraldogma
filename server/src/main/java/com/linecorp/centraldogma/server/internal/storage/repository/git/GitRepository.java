@@ -376,6 +376,7 @@ class GitRepository implements Repository {
         if (closePending.compareAndSet(null, failureCauseSupplier)) {
             repositoryWorker.execute(() -> {
                 rwLock.writeLock().lock();
+                gcLock.lock();
                 try {
                     if (commitIdDatabase != null) {
                         try {
@@ -403,6 +404,7 @@ class GitRepository implements Repository {
                     }
                 } finally {
                     rwLock.writeLock().unlock();
+                    gcLock.unlock();
                     commitWatchers.close(failureCauseSupplier);
                     closeFuture.complete(null);
                 }
@@ -1604,7 +1606,7 @@ class GitRepository implements Repository {
             try {
                 // Waits only 10 seconds the gc lock to prevent a command worker queue from filing up
                 // due to a long gc, if the command was directly submitted to this server.
-                hasGcLock = gcLock.tryLock() || gcLock.tryLock(10, TimeUnit.SECONDS);
+                hasGcLock = gcLock.tryLock(10, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 hasGcLock = false;
             }
