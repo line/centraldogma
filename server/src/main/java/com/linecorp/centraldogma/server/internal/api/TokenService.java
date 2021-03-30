@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -86,15 +87,14 @@ public class TokenService extends AbstractService {
      * <p>Returns the list of the tokens generated before.
      */
     @Get("/tokens")
-    public CompletableFuture<Collection<Token>> listTokens(User loginUser) {
+    public CompletableFuture<Collection<Token>> listTokens(ServiceRequestContext ctx, User loginUser) {
+        final CompletableFuture<Tokens> future;
         if (loginUser.isAdmin()) {
-            return mds.getTokens()
-                      .thenApply(tokens -> tokens.appIds().values());
+            future = mds.getTokens();
         } else {
-            return mds.getTokens()
-                      .thenApply(Tokens::withoutSecret)
-                      .thenApply(tokens -> tokens.appIds().values());
+            future = mds.getTokens().thenApply(Tokens::withoutSecret);
         }
+        return future.handleAsync(returnOrThrow((Tokens tokens) -> tokens.appIds().values()), ctx.eventLoop());
     }
 
     /**

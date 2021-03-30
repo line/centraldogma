@@ -25,6 +25,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
@@ -70,7 +72,7 @@ class TokenServiceTest {
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
-        final Collection<Token> tokens = tokenService.listTokens(admin).join();
+        final Collection<Token> tokens = tokenService.listTokens(ctx(), admin).join();
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
         assertThatThrownBy(() -> tokenService.deleteToken(ctx, "forAdmin1", guestAuthor, guest)
@@ -94,7 +96,7 @@ class TokenServiceTest {
         assertThat(userToken1.isActive()).isTrue();
         assertThat(userToken2.isActive()).isTrue();
 
-        final Collection<Token> tokens = tokenService.listTokens(guest).join();
+        final Collection<Token> tokens = tokenService.listTokens(ctx(), guest).join();
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
 
@@ -119,7 +121,7 @@ class TokenServiceTest {
                                         .join().content();
         assertThat(token.isActive()).isTrue();
 
-        final Collection<Token> tokens = tokenService.listTokens(admin).join();
+        final Collection<Token> tokens = tokenService.listTokens(ctx(), admin).join();
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
 
         assertThatThrownBy(() -> tokenService.createToken("forUser1", true, "appToken-secret", guestAuthor,
@@ -127,5 +129,9 @@ class TokenServiceTest {
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
         tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).join();
+    }
+
+    private static ServiceRequestContext ctx() {
+        return ServiceRequestContext.of(HttpRequest.of(HttpMethod.GET, "/"));
     }
 }
