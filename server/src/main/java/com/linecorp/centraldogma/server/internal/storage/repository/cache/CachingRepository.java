@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
+import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwUnsafelyIfNonNull;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
 import static java.util.Objects.requireNonNull;
 
@@ -26,9 +27,12 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 
 import com.google.common.base.Throwables;
 
+import com.linecorp.armeria.common.CommonPools;
+import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -99,7 +103,10 @@ final class CachingRepository implements Repository {
 
         final CompletableFuture<Object> future =
                 cache.get(new CacheableQueryCall(repo, normalizedRevision, query))
-                     .thenApply(result -> result != CacheableQueryCall.EMPTY ? result : null);
+                     .handleAsync((result, cause) -> {
+                         throwUnsafelyIfNonNull(cause);
+                         return result != CacheableQueryCall.EMPTY ? result : null;
+                     }, executor());
         return unsafeCast(future);
     }
 
@@ -111,7 +118,11 @@ final class CachingRepository implements Repository {
         requireNonNull(options, "options");
 
         final Revision normalizedRevision = normalizeNow(revision);
-        return cache.get(new CacheableFindCall(repo, normalizedRevision, pathPattern, options));
+        return cache.get(new CacheableFindCall(repo, normalizedRevision, pathPattern, options))
+                    .handleAsync((unused, cause) -> {
+                        throwUnsafelyIfNonNull(cause);
+                        return unused;
+                    }, executor());
     }
 
     @Override
@@ -131,7 +142,11 @@ final class CachingRepository implements Repository {
         final int actualMaxCommits = Math.min(
                 maxCommits, Math.abs(range.from().major() - range.to().major()) + 1);
         return cache.get(new CacheableHistoryCall(repo, range.from(), range.to(),
-                                                  pathPattern, actualMaxCommits));
+                                                  pathPattern, actualMaxCommits))
+                    .handleAsync((unused, cause) -> {
+                        throwUnsafelyIfNonNull(cause);
+                        return unused;
+                    }, executor());
     }
 
     @Override
@@ -141,7 +156,11 @@ final class CachingRepository implements Repository {
         requireNonNull(query, "query");
 
         final RevisionRange range = normalizeNow(from, to).toAscending();
-        return cache.get(new CacheableSingleDiffCall(repo, range.from(), range.to(), query));
+        return cache.get(new CacheableSingleDiffCall(repo, range.from(), range.to(), query))
+                    .handleAsync((unused, cause) -> {
+                        throwUnsafelyIfNonNull(cause);
+                        return unused;
+                    }, executor());
     }
 
     @Override
@@ -151,7 +170,11 @@ final class CachingRepository implements Repository {
         requireNonNull(pathPattern, "pathPattern");
 
         final RevisionRange range = normalizeNow(from, to).toAscending();
-        return cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(), pathPattern));
+        return cache.get(new CacheableMultiDiffCall(repo, range.from(), range.to(), pathPattern))
+                    .handleAsync((unused, cause) -> {
+                        throwUnsafelyIfNonNull(cause);
+                        return unused;
+                    }, executor());
     }
 
     @Override
@@ -166,7 +189,10 @@ final class CachingRepository implements Repository {
         }
 
         return cache.get(new CacheableFindLatestRevCall(repo, range.from(), range.to(), pathPattern))
-                    .thenApply(result -> result != CacheableFindLatestRevCall.EMPTY ? result : null);
+                    .handleAsync((result, cause) -> {
+                        throwUnsafelyIfNonNull(cause);
+                        return result != CacheableFindLatestRevCall.EMPTY ? result : null;
+                    }, executor());
     }
 
     @Override
@@ -220,6 +246,32 @@ final class CachingRepository implements Repository {
         return future;
     }
 
+    @Override
+    public <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
+        requireNonNull(revision, "revision");
+        requireNonNull(query, "query");
+
+        final Revision normalizedRevision = normalizeNow(revision);
+        final CacheableMergeQueryCall key = new CacheableMergeQueryCall(repo, normalizedRevision, query);
+        final CompletableFuture<MergedEntry<?>> value = cache.getIfPresent(key);
+        if (value != null) {
+            return unsafeCast(value.handleAsync((unused, cause) -> {
+                throwUnsafelyIfNonNull(cause);
+                return unused;
+            }, executor()));
+        }
+
+        return Repository.super.mergeFiles(normalizedRevision, query).thenApply(mergedEntry -> {
+            key.computedValue(mergedEntry);
+            cache.get(key);
+            return mergedEntry;
+        });
+    }
+
+    private static Executor executor() {
+        return RequestContext.mapCurrent((RequestContext::eventLoop), CommonPools.workerGroup()::next);
+    }
+
     // Simple delegations
 
     @Override
@@ -256,25 +308,6 @@ final class CachingRepository implements Repository {
 
         return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,
                            normalizing);
-    }
-
-    @Override
-    public <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
-        requireNonNull(revision, "revision");
-        requireNonNull(query, "query");
-
-        final Revision normalizedRevision = normalizeNow(revision);
-        final CacheableMergeQueryCall key = new CacheableMergeQueryCall(repo, normalizedRevision, query);
-        final CompletableFuture<MergedEntry<?>> value = cache.getIfPresent(key);
-        if (value != null) {
-            return unsafeCast(value);
-        }
-
-        return Repository.super.mergeFiles(normalizedRevision, query).thenApply(mergedEntry -> {
-            key.computedValue(mergedEntry);
-            cache.get(key);
-            return mergedEntry;
-        });
     }
 
     @Override

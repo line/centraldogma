@@ -62,6 +62,7 @@ import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
+import com.linecorp.centraldogma.internal.api.v1.MergedEntryDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
@@ -384,7 +385,7 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns a merged entry of files which are specified in the query string.
      */
     @Get("/projects/{projectName}/repos/{repoName}/merge")
-    public <T> CompletableFuture<?> mergeFiles(
+    public <T> CompletableFuture<MergedEntryDto<T>> mergeFiles(
             @Param @Default("-1") String revision, Repository repository,
             @RequestConverter(MergeQueryRequestConverter.class) MergeQuery<T> query) {
         return repository.mergeFiles(new Revision(revision), query).thenApply(DtoConverter::convert);
