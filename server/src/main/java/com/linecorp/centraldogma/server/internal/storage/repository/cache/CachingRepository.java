@@ -220,25 +220,6 @@ final class CachingRepository implements Repository {
         return future;
     }
 
-    @Override
-    public <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
-        requireNonNull(revision, "revision");
-        requireNonNull(query, "query");
-
-        final Revision normalizedRevision = normalizeNow(revision);
-        final CacheableMergeQueryCall key = new CacheableMergeQueryCall(repo, normalizedRevision, query);
-        final CompletableFuture<MergedEntry<?>> value = cache.getIfPresent(key);
-        if (value != null) {
-            return unsafeCast(value);
-        }
-
-        return Repository.super.mergeFiles(normalizedRevision, query).thenApply(mergedEntry -> {
-            key.computedValue(mergedEntry);
-            cache.get(key);
-            return mergedEntry;
-        });
-    }
-
     // Simple delegations
 
     @Override
@@ -275,6 +256,25 @@ final class CachingRepository implements Repository {
 
         return repo.commit(baseRevision, commitTimeMillis, author, summary, detail, markup, changes,
                            normalizing);
+    }
+
+    @Override
+    public <T> CompletableFuture<MergedEntry<T>> mergeFiles(Revision revision, MergeQuery<T> query) {
+        requireNonNull(revision, "revision");
+        requireNonNull(query, "query");
+
+        final Revision normalizedRevision = normalizeNow(revision);
+        final CacheableMergeQueryCall key = new CacheableMergeQueryCall(repo, normalizedRevision, query);
+        final CompletableFuture<MergedEntry<?>> value = cache.getIfPresent(key);
+        if (value != null) {
+            return unsafeCast(value);
+        }
+
+        return Repository.super.mergeFiles(normalizedRevision, query).thenApply(mergedEntry -> {
+            key.computedValue(mergedEntry);
+            cache.get(key);
+            return mergedEntry;
+        });
     }
 
     @Override

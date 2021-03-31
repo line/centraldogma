@@ -36,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.util.Exceptions;
-import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.internal.thrift.Author;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaConstants;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaException;
@@ -87,38 +86,33 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     }
 
     private static void handle(CompletableFuture<?> future, AsyncMethodCallback resultHandler) {
-        final ServiceRequestContext ctx = ServiceRequestContext.current();
-        future.handleAsync((res, cause) -> {
+        future.handle((res, cause) -> {
             if (cause != null) {
                 resultHandler.onError(convert(cause));
             } else {
                 resultHandler.onComplete(res);
             }
             return null;
-        }, ctx.eventLoop());
-    }
-
-    private static void handle(Callable<?> task, AsyncMethodCallback resultHandler) {
-        final ServiceRequestContext ctx = ServiceRequestContext.current();
-        ctx.eventLoop().execute(() -> {
-            try {
-                resultHandler.onComplete(task.call());
-            } catch (Throwable cause) {
-                resultHandler.onError(convert(cause));
-            }
         });
     }
 
+    private static void handle(Callable<?> task, AsyncMethodCallback resultHandler) {
+        try {
+            resultHandler.onComplete(task.call());
+        } catch (Throwable cause) {
+            resultHandler.onError(convert(cause));
+        }
+    }
+
     private static void handleAsVoidResult(CompletableFuture<?> future, AsyncMethodCallback resultHandler) {
-        final ServiceRequestContext ctx = ServiceRequestContext.current();
-        future.handleAsync((res, cause) -> {
+        future.handle((res, cause) -> {
             if (cause != null) {
                 resultHandler.onError(convert(cause));
             } else {
                 resultHandler.onComplete(null);
             }
             return null;
-        }, ctx.eventLoop());
+        });
     }
 
     @Override
@@ -361,8 +355,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     private static void handleWatchRepositoryResult(
             CompletableFuture<com.linecorp.centraldogma.common.Revision> future,
             AsyncMethodCallback resultHandler) {
-        final ServiceRequestContext ctx = ServiceRequestContext.current();
-        future.handleAsync((res, cause) -> {
+        future.handle((res, cause) -> {
             if (cause == null) {
                 final WatchRepositoryResult wrr = new WatchRepositoryResult();
                 wrr.setRevision(convert(res));
@@ -375,7 +368,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 logAndInvokeOnError("watchRepository", resultHandler, cause);
             }
             return null;
-        }, ctx.eventLoop());
+        });
     }
 
     @Override
@@ -404,8 +397,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     private static void handleWatchFileResult(
             CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future,
             AsyncMethodCallback resultHandler) {
-        final ServiceRequestContext ctx = ServiceRequestContext.current();
-        future.handleAsync((res, cause) -> {
+        future.handle((res, cause) -> {
             if (cause == null) {
                 final WatchFileResult wfr = new WatchFileResult();
                 wfr.setRevision(convert(res.revision()));
@@ -420,7 +412,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 logAndInvokeOnError("watchFile", resultHandler, cause);
             }
             return null;
-        }, ctx.eventLoop());
+        });
     }
 
     private static void logAndInvokeOnError(

@@ -16,17 +16,14 @@
 
 package com.linecorp.centraldogma.server.internal.admin.service;
 
-import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITH_CONTENT;
 import static java.util.stream.Collectors.toList;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Splitter;
@@ -47,7 +44,6 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.Put;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
@@ -101,20 +97,17 @@ public class RepositoryService extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/files/revisions/(?<revision>[^/]+)(?<path>/.*$)")
-    public CompletionStage<EntryDto> getFile(ServiceRequestContext ctx,
-                                             @Param String projectName,
+    public CompletionStage<EntryDto> getFile(@Param String projectName,
                                              @Param String repoName,
                                              @Param String revision,
                                              @Param String path,
                                              @Param @Default("IDENTITY") QueryType queryType,
                                              @Param @Default("") String expression) {
 
-        final Query<?> query = Query.of(queryType, path, expression);
+        final Query<?> query = Query.of(queryType,path, expression);
         final Repository repo = projectManager().get(projectName).repos().get(repoName);
         return repo.get(repo.normalizeNow(new Revision(revision)), query)
-                   .handleAsync(returnOrThrow(
-                           (Function<com.linecorp.centraldogma.common.Entry, EntryDto>) DtoConverter::convert),
-                                ctx.eventLoop());
+                   .thenApply(DtoConverter::convert);
     }
 
     /**
@@ -176,8 +169,7 @@ public class RepositoryService extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/history(?<path>/.*$)")
-    public CompletionStage<List<CommitDto>> getHistory(ServiceRequestContext ctx,
-                                                       @Param String projectName,
+    public CompletionStage<List<CommitDto>> getHistory(@Param String projectName,
                                                        @Param String repoName,
                                                        @Param String path,
                                                        @Param @Default("-1") String from,
@@ -186,11 +178,9 @@ public class RepositoryService extends AbstractService {
                                .history(new Revision(from),
                                         new Revision(to),
                                         path + "**")
-                               .handleAsync(returnOrThrow(
-                                       (List<Commit> commits) -> commits.stream()
-                                                                        .map(DtoConverter::convert)
-                                                                        .collect(toList())),
-                                            ctx.eventLoop());
+                               .thenApply(commits -> commits.stream()
+                                                            .map(DtoConverter::convert)
+                                                            .collect(toList()));
     }
 
     /**
@@ -198,20 +188,15 @@ public class RepositoryService extends AbstractService {
      * Finds the files matched by {@code term}.
      */
     @Get("/projects/{projectName}/repositories/{repoName}/search/revisions/{revision}")
-    public CompletionStage<List<EntryDto>> search(ServiceRequestContext ctx,
-                                                  @Param String projectName,
+    public CompletionStage<List<EntryDto>> search(@Param String projectName,
                                                   @Param String repoName,
                                                   @Param String revision,
                                                   @Param String term) {
         return projectManager().get(projectName).repos().get(repoName)
                                .find(new Revision(revision), normalizeSearchTerm(term), FIND_ALL_WITH_CONTENT)
-                               .handleAsync(returnOrThrow(
-                                       (Map<String, com.linecorp.centraldogma.common.Entry<?>> entries) ->
-                                               entries.values()
-                                                      .stream()
-                                                      .map(DtoConverter::convert)
-                                                      .collect(toList())),
-                                            ctx.eventLoop());
+                               .thenApply(entries -> entries.values().stream()
+                                                            .map(DtoConverter::convert)
+                                                            .collect(toList()));
     }
 
     /**
@@ -220,19 +205,16 @@ public class RepositoryService extends AbstractService {
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repositories/(?<repoName>[^/]+)" +
          "/diff(?<path>/.*$)")
-    public CompletionStage<List<ChangeDto>> getDiff(ServiceRequestContext ctx,
-                                                    @Param String projectName,
+    public CompletionStage<List<ChangeDto>> getDiff(@Param String projectName,
                                                     @Param String repoName,
                                                     @Param String path,
                                                     @Param String from,
                                                     @Param String to) {
         return projectManager().get(projectName).repos().get(repoName)
                                .diff(new Revision(from), new Revision(to), path)
-                               .handleAsync(returnOrThrow((Map<String, Change<?>> changeMap) ->
-                                                                  changeMap.values().stream()
-                                                                           .map(DtoConverter::convert)
-                                                                           .collect(toList())),
-                                            ctx.eventLoop());
+                               .thenApply(changeMap -> changeMap.values().stream()
+                                                                .map(DtoConverter::convert)
+                                                                .collect(toList()));
     }
 
     private CompletableFuture<?> push(String projectName, String repoName,

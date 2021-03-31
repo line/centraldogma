@@ -53,18 +53,15 @@ import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
-import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
-import com.linecorp.centraldogma.internal.api.v1.MergedEntryDto;
 import com.linecorp.centraldogma.internal.api.v1.PushResultDto;
 import com.linecorp.centraldogma.internal.api.v1.WatchResultDto;
 import com.linecorp.centraldogma.server.command.Command;
@@ -106,24 +103,22 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns the list of files in the path.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/list(?<path>(|/.*))$")
-    public CompletableFuture<List<EntryDto<?>>> listFiles(ServiceRequestContext ctx,
-                                                          @Param String path,
+    public CompletableFuture<List<EntryDto<?>>> listFiles(@Param String path,
                                                           @Param @Default("-1") String revision,
                                                           Repository repository) {
         final String normalizedPath = normalizePath(path);
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(ctx, repository, normalizedPath, normalizedRev, false, future);
+        listFiles(repository, normalizedPath, normalizedRev, false, future);
         return future;
     }
 
-    private static void listFiles(ServiceRequestContext ctx, Repository repository, String pathPattern,
-                                  Revision normalizedRev, boolean withContent,
-                                  CompletableFuture<List<EntryDto<?>>> result) {
+    private static void listFiles(Repository repository, String pathPattern, Revision normalizedRev,
+                                  boolean withContent, CompletableFuture<List<EntryDto<?>>> result) {
         final Map<FindOption<?>, ?> options = withContent ? FindOptions.FIND_ALL_WITH_CONTENT
                                                           : FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
-        repository.find(normalizedRev, pathPattern, options).handleAsync((entries, thrown) -> {
+        repository.find(normalizedRev, pathPattern, options).handle((entries, thrown) -> {
             if (thrown != null) {
                 result.completeExceptionally(thrown);
                 return null;
@@ -133,14 +128,14 @@ public class ContentServiceV1 extends AbstractService {
             // This is called once at most, because the pathPattern is not a valid file path anymore.
             if (isValidFilePath(pathPattern) && entries.size() == 1 &&
                 entries.values().iterator().next().type() == DIRECTORY) {
-                listFiles(ctx, repository, pathPattern + "/*", normalizedRev, withContent, result);
+                listFiles(repository, pathPattern + "/*", normalizedRev, withContent, result);
             } else {
                 result.complete(entries.values().stream()
                                        .map(entry -> convert(repository, normalizedRev, entry, withContent))
                                        .collect(toImmutableList()));
             }
             return null;
-        }, ctx.eventLoop());
+        });
     }
 
     /**
@@ -224,8 +219,7 @@ public class ContentServiceV1 extends AbstractService {
      * jsonpath={jsonpath}
      *
      * <p>Returns the entry of files in the path. This is same with
-     * {@link #listFiles(ServiceRequestContext, String, String, Repository)} except that containing the content
-     * of the files.
+     * {@link #listFiles(String, String, Repository)} except that containing the content of the files.
      * Note that if the {@link HttpHeaderNames#IF_NONE_MATCH} in which has a revision is sent with,
      * this will await for the time specified in {@link HttpHeaderNames#PREFER}.
      * During the time if the specified revision becomes different with the latest revision, this will
@@ -256,14 +250,13 @@ public class ContentServiceV1 extends AbstractService {
         if (query != null) {
             // get a file
             return repository.get(normalizedRev, query)
-                             .handleAsync(returnOrThrow(
-                                     (Entry<?> result) -> convert(repository, normalizedRev, result, true)),
-                                          ctx.eventLoop());
+                             .handle(returnOrThrow((Entry<?> result) -> convert(repository, normalizedRev,
+                                                                                result, true)));
         }
 
         // get files
         final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
-        listFiles(ctx, repository, normalizedPath, normalizedRev, true, future);
+        listFiles(repository, normalizedPath, normalizedRev, true, future);
         return future;
     }
 
@@ -277,14 +270,11 @@ public class ContentServiceV1 extends AbstractService {
             ctx.log().whenComplete().thenRun(() -> future.cancel(false));
         }
 
-        return future.handleAsync((entry, cause) -> {
-            if (cause != null) {
-                return handleWatchFailure(cause);
-            }
+        return future.thenApply(entry -> {
             final Revision revision = entry.revision();
             final EntryDto<?> entryDto = convert(repository, revision, entry, true);
-            return new WatchResultDto(revision, entryDto);
-        }, ctx.eventLoop());
+            return (Object) new WatchResultDto(revision, entryDto);
+        }).exceptionally(ContentServiceV1::handleWatchFailure);
     }
 
     private CompletableFuture<?> watchRepository(ServiceRequestContext ctx,
@@ -297,12 +287,8 @@ public class ContentServiceV1 extends AbstractService {
             ctx.log().whenComplete().thenRun(() -> future.cancel(false));
         }
 
-        return future.handleAsync((revision, cause) -> {
-            if (cause != null) {
-                return handleWatchFailure(cause);
-            }
-            return new WatchResultDto(revision, null);
-        }, ctx.eventLoop());
+        return future.thenApply(revision -> (Object) new WatchResultDto(revision, null))
+                     .exceptionally(ContentServiceV1::handleWatchFailure);
     }
 
     private static Object handleWatchFailure(Throwable thrown) {
@@ -322,8 +308,7 @@ public class ContentServiceV1 extends AbstractService {
      * specify {@code to}, this will return the list of commits.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/commits(?<revision>(|/.*))$")
-    public CompletableFuture<?> listCommits(ServiceRequestContext ctx,
-                                            @Param String revision,
+    public CompletableFuture<?> listCommits(@Param String revision,
                                             @Param @Default("/**") String path,
                                             @Param @Nullable String to,
                                             @Param @Nullable Integer maxCommits,
@@ -347,12 +332,12 @@ public class ContentServiceV1 extends AbstractService {
         final int maxCommits0 = firstNonNull(maxCommits, Repository.DEFAULT_MAX_COMMITS);
         return repository
                 .history(range.from(), range.to(), normalizePath(path), maxCommits0)
-                .handleAsync(returnOrThrow((List<Commit> commits) -> {
+                .thenApply(commits -> {
                     final boolean toList = to != null ||
                                            isNullOrEmpty(revision) ||
                                            "/".equalsIgnoreCase(revision);
                     return objectOrList(commits, toList, DtoConverter::convert);
-                }), ctx.eventLoop());
+                });
     }
 
     /**
@@ -366,24 +351,19 @@ public class ContentServiceV1 extends AbstractService {
      */
     @Get("/projects/{projectName}/repos/{repoName}/compare")
     public CompletableFuture<?> getDiff(
-            ServiceRequestContext ctx, @Param @Default("/**") String pathPattern,
+            @Param @Default("/**") String pathPattern,
             @Param @Default("1") String from, @Param @Default("head") String to,
             Repository repository,
             @RequestConverter(QueryRequestConverter.class) @Nullable Query<?> query) {
 
         if (query != null) {
             return repository.diff(new Revision(from), new Revision(to), query)
-                             .handleAsync(returnOrThrow((Function<Change, ChangeDto>) DtoConverter::convert),
-                                          ctx.eventLoop());
+                             .thenApply(DtoConverter::convert);
         } else {
             return repository
                     .diff(new Revision(from), new Revision(to), normalizePath(pathPattern))
-                    .handleAsync(returnOrThrow((Map<String, Change<?>> changeMap) ->
-                                                       changeMap.values()
-                                                                .stream()
-                                                                .map(DtoConverter::convert)
-                                                                .collect(toImmutableList())),
-                                 ctx.eventLoop());
+                    .thenApply(changeMap -> changeMap.values().stream()
+                                                     .map(DtoConverter::convert).collect(toImmutableList()));
         }
     }
 
@@ -404,12 +384,9 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns a merged entry of files which are specified in the query string.
      */
     @Get("/projects/{projectName}/repos/{repoName}/merge")
-    public <T> CompletableFuture<MergedEntryDto<T>> mergeFiles(
-            ServiceRequestContext ctx, @Param @Default("-1") String revision, Repository repository,
+    public <T> CompletableFuture<?> mergeFiles(
+            @Param @Default("-1") String revision, Repository repository,
             @RequestConverter(MergeQueryRequestConverter.class) MergeQuery<T> query) {
-        return repository.mergeFiles(new Revision(revision), query)
-                         .handleAsync(returnOrThrow(
-                                 (Function<MergedEntry<T>, MergedEntryDto<T>>) DtoConverter::convert),
-                                      ctx.eventLoop());
+        return repository.mergeFiles(new Revision(revision), query).thenApply(DtoConverter::convert);
     }
 }
