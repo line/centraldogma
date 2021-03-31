@@ -1612,6 +1612,7 @@ class GitRepository implements Repository {
                 hasGcLock = gcLock.tryLock(10, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 hasGcLock = false;
+                Thread.currentThread().interrupt();
             }
         } else {
             // Should not fail replaying a log due to a long gc.
@@ -1626,6 +1627,7 @@ class GitRepository implements Repository {
                 writeUnLock();
                 throw closePending.get().get();
             }
+            return true;
         }
 
         return false;
