@@ -269,7 +269,7 @@ final class CachingRepository implements Repository {
     }
 
     private static Executor executor() {
-        return RequestContext.mapCurrent((RequestContext::eventLoop), CommonPools.workerGroup()::next);
+        return RequestContext.mapCurrent(RequestContext::eventLoop, CommonPools.workerGroup()::next);
     }
 
     // Simple delegations
