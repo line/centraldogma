@@ -46,6 +46,7 @@ import org.springframework.core.type.MethodMetadata;
 import com.google.common.net.HostAndPort;
 
 import com.linecorp.armeria.client.ClientFactory;
+import com.linecorp.armeria.client.ClientFactoryBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
@@ -64,9 +65,12 @@ public class CentralDogmaClientAutoConfiguration {
     /**
      * A {@link Qualifier} annotation that tells {@link CentralDogmaClientAutoConfiguration} to use a specific
      * {@link ClientFactory} bean when creating a {@link CentralDogma} client.
+     *
+     * @deprecated Use {@link CentralDogmaClientFactoryConfigurator}.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Qualifier
+    @Deprecated
     public @interface ForCentralDogma {}
 
     /**
@@ -87,14 +91,24 @@ public class CentralDogmaClientAutoConfiguration {
     public CentralDogma dogmaClient(
             Environment env,
             CentralDogmaSettings settings,
-            @ForCentralDogma ClientFactory clientFactory,
+            @ForCentralDogma Optional<ClientFactory> clientFactory,
+            Optional<List<CentralDogmaClientFactoryConfigurator>> factoryConfigurators,
             Optional<ArmeriaClientConfigurator> armeriaClientConfigurator,
             Optional<DnsAddressEndpointGroupConfigurator> dnsAddressEndpointGroupConfigurator)
             throws UnknownHostException {
 
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
 
-        builder.clientFactory(clientFactory);
+        final ClientFactory factory;
+        if (factoryConfigurators.isPresent()) {
+            final ClientFactoryBuilder clientFactoryBuilder = ClientFactory.builder();
+            factoryConfigurators.get().forEach(configurator -> configurator.configure(clientFactoryBuilder));
+            factory = clientFactoryBuilder.build();
+        } else {
+            factory = clientFactory.orElseGet(ClientFactory::ofDefault);
+        }
+
+        builder.clientFactory(factory);
         builder.clientConfigurator(cb -> armeriaClientConfigurator.ifPresent(
                 configurator -> configurator.configure(cb)));
         dnsAddressEndpointGroupConfigurator.ifPresent(builder::dnsAddressEndpointGroupConfigurator);
@@ -158,8 +172,9 @@ public class CentralDogmaClientAutoConfiguration {
     }
 
     /**
-     * A {@link Condition} that matches only when there are no {@link ClientFactory} beans annotated with
-     * the {@link ForCentralDogma} qualifier.
+     * A {@link Condition} that matches only when there are:
+     * - no {@link ClientFactory} beans annotated with the {@link ForCentralDogma} qualifier.
+     * - no beans for {@link CentralDogmaClientFactoryConfigurator}.
      */
     private static class MissingCentralDogmaClientFactory implements Condition {
 
@@ -170,11 +185,17 @@ public class CentralDogmaClientAutoConfiguration {
                 return true;
             }
 
+            final String[] configuratorBeans = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
+                    beanFactory, CentralDogmaClientFactoryConfigurator.class);
+            if (configuratorBeans.length > 0) {
+                return false;
+            }
+
             final String[] beanNames =
                     BeanFactoryUtils.beanNamesForTypeIncludingAncestors(beanFactory, ClientFactory.class);
 
             for (String beanName : beanNames) {
-                if (hasQualifier(beanFactory, beanName)) {
+                if (hasForCentralDogmaQualifier(beanFactory, beanName)) {
                     return false;
                 }
             }
@@ -182,7 +203,8 @@ public class CentralDogmaClientAutoConfiguration {
             return true;
         }
 
-        private static boolean hasQualifier(ConfigurableListableBeanFactory beanFactory, String beanName) {
+        private static boolean hasForCentralDogmaQualifier(
+                ConfigurableListableBeanFactory beanFactory, String beanName) {
             try {
                 final BeanDefinition beanDef = beanFactory.getMergedBeanDefinition(beanName);
 

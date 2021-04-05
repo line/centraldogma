@@ -17,21 +17,20 @@ package com.linecorp.centraldogma.client.spring;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import javax.inject.Inject;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.SpringBootVersion;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.spring.CentralDogmaAutoConfigurationTest.TestConfiguration;
-import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfiguration.ForCentralDogma;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestConfiguration.class)
@@ -39,11 +38,11 @@ import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurati
 class CentralDogmaAutoConfigurationTest {
     @SpringBootApplication
     static class TestConfiguration {
-        static final ClientFactory clientFactoryNotForCentralDogma = ClientFactory.builder().build();
+        static CentralDogmaClientFactoryConfigurator factoryConfigurator = builder -> {};
 
         @Bean
-        ClientFactory clientFactory() {
-            return clientFactoryNotForCentralDogma;
+        CentralDogmaClientFactoryConfigurator configurator() {
+            return factoryConfigurator;
         }
     }
 
@@ -51,26 +50,15 @@ class CentralDogmaAutoConfigurationTest {
     private CentralDogma client;
 
     @Inject
-    @ForCentralDogma
-    private ClientFactory clientFactory;
+    List<CentralDogmaClientFactoryConfigurator> configurators;
 
     /**
      * When there are no `ClientFactory`s with `ForCentralDogma` qualifier,
      * the default `ClientFactory` must be used.
      */
     @Test
-    void centralDogmaClient() throws Exception {
+    void centralDogmaClient() {
         assertThat(client).isNotNull();
-
-        if (SpringBootVersion.getVersion().startsWith("1.")) {
-            // JUnit 5 extension for Spring Boot 1.x has a bug which pulls in a bean from other tests,
-            // so we can't test this properly.
-            final ClientFactory expectedClientFactory =
-                    new CentralDogmaClientAutoConfigurationWithClientFactoryTest.TestConfiguration()
-                            .dogmaClientFactory();
-            assertThat(clientFactory).isSameAs(expectedClientFactory);
-        } else {
-            assertThat(clientFactory).isSameAs(ClientFactory.ofDefault());
-        }
+        assertThat(configurators).containsExactly(TestConfiguration.factoryConfigurator);
     }
 }

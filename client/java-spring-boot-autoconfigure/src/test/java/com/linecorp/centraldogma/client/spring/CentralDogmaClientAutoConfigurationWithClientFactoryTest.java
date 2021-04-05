@@ -77,9 +77,8 @@ class CentralDogmaClientAutoConfigurationWithClientFactoryTest {
     private ClientFactory clientFactoryForCentralDogma;
 
     @Test
-    void centralDogmaClient() throws Exception {
+    void centralDogmaClient() {
         assertThat(client).isNotNull();
-        assertThat(clientFactoryForCentralDogma).isNotSameAs(ClientFactory.ofDefault());
         assertThat(clientFactoryForCentralDogma).isSameAs(TestConfiguration.dogmaClientFactory);
         assertThat(clientFactoryForTest).isSameAs(TestConfiguration.otherClientFactory);
         assertThat(testBean).isNotNull();
