@@ -15,33 +15,17 @@
  */
 package com.linecorp.centraldogma.client.spring;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Optional;
 
-import javax.inject.Qualifier;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.BeanFactoryUtils;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
-import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Condition;
-import org.springframework.context.annotation.ConditionContext;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.env.Environment;
-import org.springframework.core.type.AnnotatedTypeMetadata;
-import org.springframework.core.type.MethodMetadata;
 
 import com.google.common.net.HostAndPort;
 
@@ -63,35 +47,12 @@ public class CentralDogmaClientAutoConfiguration {
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaClientAutoConfiguration.class);
 
     /**
-     * A {@link Qualifier} annotation that tells {@link CentralDogmaClientAutoConfiguration} to use a specific
-     * {@link ClientFactory} bean when creating a {@link CentralDogma} client.
-     *
-     * @deprecated Use {@link CentralDogmaClientFactoryConfigurator}.
-     */
-    @Retention(RetentionPolicy.RUNTIME)
-    @Qualifier
-    @Deprecated
-    public @interface ForCentralDogma {}
-
-    /**
-     * Returns {@link ClientFactory#ofDefault()} which is used as the default {@link ClientFactory} of a
-     * {@link CentralDogma} client.
-     */
-    @Bean
-    @Conditional(MissingCentralDogmaClientFactory.class)
-    @ForCentralDogma
-    public ClientFactory dogmaClientFactory() {
-        return ClientFactory.ofDefault();
-    }
-
-    /**
      * Returns a newly created {@link CentralDogma} client.
      */
     @Bean
     public CentralDogma dogmaClient(
             Environment env,
             CentralDogmaSettings settings,
-            @ForCentralDogma Optional<ClientFactory> clientFactory,
             Optional<List<CentralDogmaClientFactoryConfigurator>> factoryConfigurators,
             Optional<ArmeriaClientConfigurator> armeriaClientConfigurator,
             Optional<DnsAddressEndpointGroupConfigurator> dnsAddressEndpointGroupConfigurator)
@@ -99,16 +60,12 @@ public class CentralDogmaClientAutoConfiguration {
 
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
 
-        final ClientFactory factory;
         if (factoryConfigurators.isPresent()) {
             final ClientFactoryBuilder clientFactoryBuilder = ClientFactory.builder();
             factoryConfigurators.get().forEach(configurator -> configurator.configure(clientFactoryBuilder));
-            factory = clientFactoryBuilder.build();
-        } else {
-            factory = clientFactory.orElseGet(ClientFactory::ofDefault);
+            builder.clientFactory(clientFactoryBuilder.build());
         }
 
-        builder.clientFactory(factory);
         builder.clientConfigurator(cb -> armeriaClientConfigurator.ifPresent(
                 configurator -> configurator.configure(cb)));
         dnsAddressEndpointGroupConfigurator.ifPresent(builder::dnsAddressEndpointGroupConfigurator);
@@ -169,73 +126,5 @@ public class CentralDogmaClientAutoConfiguration {
         }
 
         return builder.build();
-    }
-
-    /**
-     * A {@link Condition} that matches only when there are:
-     * - no {@link ClientFactory} beans annotated with the {@link ForCentralDogma} qualifier.
-     * - no beans for {@link CentralDogmaClientFactoryConfigurator}.
-     */
-    private static class MissingCentralDogmaClientFactory implements Condition {
-
-        @Override
-        public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-            final ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-            if (beanFactory == null) {
-                return true;
-            }
-
-            final String[] configuratorBeans = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
-                    beanFactory, CentralDogmaClientFactoryConfigurator.class);
-            if (configuratorBeans.length > 0) {
-                return false;
-            }
-
-            final String[] beanNames =
-                    BeanFactoryUtils.beanNamesForTypeIncludingAncestors(beanFactory, ClientFactory.class);
-
-            for (String beanName : beanNames) {
-                if (hasForCentralDogmaQualifier(beanFactory, beanName)) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private static boolean hasForCentralDogmaQualifier(
-                ConfigurableListableBeanFactory beanFactory, String beanName) {
-            try {
-                final BeanDefinition beanDef = beanFactory.getMergedBeanDefinition(beanName);
-
-                // Case 1: Factory method
-                if (beanDef instanceof AnnotatedBeanDefinition) {
-                    final AnnotatedBeanDefinition abd = (AnnotatedBeanDefinition) beanDef;
-                    final MethodMetadata fmm = abd.getFactoryMethodMetadata();
-                    if (fmm != null && fmm.isAnnotated(ForCentralDogma.class.getName())) {
-                        return true;
-                    }
-                }
-
-                // Case 2: XML definition
-                if (beanDef instanceof AbstractBeanDefinition) {
-                    final AbstractBeanDefinition abd = (AbstractBeanDefinition) beanDef;
-                    if (abd.hasQualifier(ForCentralDogma.class.getName())) {
-                        return true;
-                    }
-                }
-
-                // Case 3: A class annotated with ForCentralDogma
-                final Class<?> beanType = beanFactory.getType(beanName);
-                if (beanType != null) {
-                    if (AnnotationUtils.getAnnotation(beanType, ForCentralDogma.class) != null) {
-                        return true;
-                    }
-                }
-            } catch (NoSuchBeanDefinitionException ignored) {
-                // A bean without definition (manually registered?)
-            }
-            return false;
-        }
     }
 }

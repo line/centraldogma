@@ -52,10 +52,6 @@ class CentralDogmaAutoConfigurationTest {
     @Inject
     List<CentralDogmaClientFactoryConfigurator> configurators;
 
-    /**
-     * When there are no `ClientFactory`s with `ForCentralDogma` qualifier,
-     * the default `ClientFactory` must be used.
-     */
     @Test
     void centralDogmaClient() {
         assertThat(client).isNotNull();
