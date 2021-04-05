@@ -412,6 +412,16 @@ class GitRepository implements Repository {
         close(() -> new CentralDogmaException("should never reach here"));
     }
 
+    @VisibleForTesting
+    org.eclipse.jgit.lib.Repository jGitRepository() {
+        return jGitRepository;
+    }
+
+    @VisibleForTesting
+    CommitIdDatabase commitIdDatabase() {
+        return commitIdDatabase;
+    }
+
     @Override
     public Project parent() {
         return parent;
@@ -725,27 +735,34 @@ class GitRepository implements Repository {
 
             failFastIfTimedOut(this, logger, ctx, "diff", from, to, pathPattern);
 
-            final RevisionRange range = normalizeNow(from, to).toAscending();
-            readLock();
-            try (RevWalk rw = newRevWalk()) {
-                final RevTree treeA = rw.parseTree(commitIdDatabase.get(range.from()));
-                final RevTree treeB = rw.parseTree(commitIdDatabase.get(range.to()));
-
-                // Compare the two Git trees.
-                // Note that we do not cache here because CachingRepository caches the final result already.
-                return toChangeMap(blockingCompareTreesUncached(treeA, treeB,
-                                                                pathPatternFilterOrTreeFilter(pathPattern)));
-            } catch (StorageException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new StorageException("failed to parse two trees: range=" + range, e);
-            } finally {
-                readUnlock();
-            }
+            return toChangeMap(diffEntries(from, to, pathPattern));
         }, repositoryWorker);
     }
 
-    private static TreeFilter pathPatternFilterOrTreeFilter(@Nullable String pathPattern) {
+    @VisibleForTesting
+    List<DiffEntry> diffEntries(Revision from, Revision to, String pathPattern) {
+        final List<DiffEntry> diffEntries;
+        final RevisionRange range = normalizeNow(from, to).toAscending();
+        readLock();
+        try (RevWalk rw = newRevWalk()) {
+            final RevTree treeA = rw.parseTree(commitIdDatabase.get(range.from()));
+            final RevTree treeB = rw.parseTree(commitIdDatabase.get(range.to()));
+
+            // Compare the two Git trees.
+            // Note that we do not cache here because CachingRepository caches the final result already.
+            diffEntries = blockingCompareTreesUncached(
+                    treeA, treeB, pathPatternFilterOrTreeFilter(pathPattern));
+        } catch (StorageException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new StorageException("failed to parse two trees: range=" + range, e);
+        } finally {
+            readUnlock();
+        }
+        return diffEntries;
+    }
+
+    static TreeFilter pathPatternFilterOrTreeFilter(@Nullable String pathPattern) {
         if (pathPattern == null) {
             return TreeFilter.ALL;
         }

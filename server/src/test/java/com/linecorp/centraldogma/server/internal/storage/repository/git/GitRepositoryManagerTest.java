@@ -22,12 +22,14 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -37,19 +39,17 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
-import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 
 class GitRepositoryManagerTest {
 
     private static final String TEST_REPO = "test_repo";
 
-    @RegisterExtension
-    final TemporaryFolderExtension rootDir = new TemporaryFolderExtension() {
-        @Override
-        protected boolean runForEachTest() {
-            return true;
-        }
-    };
+    static Path tempDir;
+
+    @BeforeEach
+    void setUp(@TempDir Path temp) {
+        tempDir = temp;
+    }
 
     @Test
     void testCreate() {
@@ -120,7 +120,7 @@ class GitRepositoryManagerTest {
 
         final int numDummyFiles = 1;
         for (int i = 0; i < numDummyFiles; i++) {
-            final File file = Paths.get(rootDir.toString(), String.format("dummyDir%d", i)).toFile();
+            final File file = Paths.get(tempDir.toString(), String.format("dummyDir%d", i)).toFile();
             if (!file.mkdirs()) {
                 fail("failed to test on testList");
             }
@@ -141,7 +141,7 @@ class GitRepositoryManagerTest {
     }
 
     private GitRepositoryManager newRepositoryManager() {
-        return new GitRepositoryManager(mock(Project.class), rootDir.getRoot().toFile(),
+        return new GitRepositoryManager(mock(Project.class), tempDir.toFile(),
                                         ForkJoinPool.commonPool(), MoreExecutors.directExecutor(),
                                         mock(RepositoryCache.class));
     }
