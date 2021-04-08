@@ -262,7 +262,7 @@ public final class HttpApiUtil {
     /**
      * Throws the specified {@link Throwable} if it is not {@code null}.
      */
-    static void throwUnsafelyIfNonNull(@Nullable Throwable cause) {
+    public static void throwUnsafelyIfNonNull(@Nullable Throwable cause) {
         if (cause != null) {
             Exceptions.throwUnsafely(cause);
         }
