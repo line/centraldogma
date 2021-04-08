@@ -535,7 +535,7 @@ public interface CentralDogma {
      * that contains the changes for the files matched by the given {@code pathPattern}. e.g:
      * <pre>{@code
      * Watcher<Map<String, Entry<?>> watcher = client.repositoryWatcher(
-     *         "foo", "bar", "/*.json", revision -> client.getFiles(revision).get());
+     *         "foo", "bar", "/*.json", revision -> client.getFiles("foo", "bar", revision, "/*.json").get());
      *
      * watcher.watch((revision, contents) -> {
      *     ...
