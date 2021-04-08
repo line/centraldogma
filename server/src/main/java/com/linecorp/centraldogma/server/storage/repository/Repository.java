@@ -57,6 +57,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.internal.replication.ReplicationLog;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -375,11 +376,22 @@ public interface Repository {
     /**
      * Adds the specified changes to this {@link Repository}.
      *
+     * @param baseRevision the base {@link Revision} of this {@link Commit}
+     * @param commitTimeMillis the time and date of this {@link Commit}, represented as the number of
+     *                         milliseconds since the epoch (midnight, January 1, 1970 UTC)
+     * @param author the {@link Author} of this {@link Commit}
+     * @param summary the human-readable summary of this {@link Commit}
+     * @param detail the human-readable detailed description of this {@link Commit}
+     * @param markup the {@link Markup} language of {@code summary} and {@code detail}
+     * @param changes the changes to be applied
+     * @param directExecution whether this {@link Commit} is received by this server and executed directly.
+     *                        {@code false} if this commit is delivered by a {@link ReplicationLog}.
+     *
      * @return the {@link Revision} of the new {@link Commit}
      */
     CompletableFuture<CommitResult> commit(Revision baseRevision, long commitTimeMillis,
                                            Author author, String summary, String detail, Markup markup,
-                                           Iterable<Change<?>> changes, boolean normalizing);
+                                           Iterable<Change<?>> changes, boolean directExecution);
 
     /**
      * Get a list of {@link Commit} for given pathPattern.
