@@ -182,6 +182,16 @@ org.apache.curator:
     exclusions:
     - org.apache.zookeeper:zookeeper
 
+# Ensure that we use the same Snappy version as what Curator depends on.
+# See: https://github.com/apache/curator/blob/master/pom.xml
+org.xerial.snappy:
+  snappy-java: { version: '1.1.7' }
+
+# Ensure that we use the same Dropwizard version as what Curator depends on.
+# See: https://github.com/apache/curator/blob/master/pom.xml
+io.dropwizard.metrics:
+  metrics-core: { version: '3.2.5' }
+
 org.apache.shiro:
   # Don't update `shiro` version
   shiro-core:
