@@ -29,10 +29,6 @@ dependencies {
     implementation 'org.apache.zookeeper:zookeeper'
     testImplementation 'org.apache.curator:curator-test'
 
-    // Missing dependencies in ZooKeeper
-    implementation 'org.xerial.snappy:snappy-java'
-    implementation 'io.dropwizard.metrics:metrics-core'
-
     // DiffUtils
     implementation 'com.googlecode.java-diff-utils:diffutils'
 
