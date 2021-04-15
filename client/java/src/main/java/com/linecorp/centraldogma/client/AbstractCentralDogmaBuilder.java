@@ -420,6 +420,9 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
         return retryIntervalOnReplicationLagMillis;
     }
 
+    /**
+     * Sets the {@link MeterRegistry} used to collect metrics.
+     */
     public final B meterRegistry(MeterRegistry meterRegistry) {
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
         return self();

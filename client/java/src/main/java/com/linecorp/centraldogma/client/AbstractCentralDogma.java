@@ -65,7 +65,8 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      * @param blockingTaskExecutor the {@link ScheduledExecutorService} which will be used for scheduling the
      *                             tasks related with automatic retries and invoking the callbacks for
      *                             watched changes.
-     * @param meterRegistry the {@link MeterRegistry} which collects metrics for this {@link CentralDogma} instance.
+     * @param meterRegistry the {@link MeterRegistry} which collects metrics for
+     *                      this {@link CentralDogma} instance.
      */
     protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor,
                                    MeterRegistry meterRegistry) {

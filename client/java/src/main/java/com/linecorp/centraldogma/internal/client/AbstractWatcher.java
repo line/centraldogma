@@ -134,8 +134,10 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
 
         final Iterable<Tag> tags = ImmutableList.of(
-                Tag.of("project", projectName), Tag.of("repository", repositoryName), Tag.of("path", pathPattern));
-        revisionGauge = client.meterRegistry().gauge("centraldogma.client.watcher.revision", tags, new AtomicLong());
+                Tag.of("project", projectName), Tag.of("repository", repositoryName),
+                Tag.of("path", pathPattern));
+        revisionGauge = client.meterRegistry().gauge("centraldogma.client.watcher.revision",
+                                                     tags, new AtomicLong());
 
         updateListeners = new CopyOnWriteArrayList<>();
         state = new AtomicReference<>(State.INIT);
