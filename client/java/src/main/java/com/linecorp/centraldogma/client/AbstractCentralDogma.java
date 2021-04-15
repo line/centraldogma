@@ -38,6 +38,7 @@ import com.linecorp.centraldogma.internal.client.FileWatcher;
 import com.linecorp.centraldogma.internal.client.RepositoryWatcher;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
 
 /**
  * A skeletal {@link CentralDogma} implementation.
@@ -53,6 +54,18 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      * @param blockingTaskExecutor the {@link ScheduledExecutorService} which will be used for scheduling the
      *                             tasks related with automatic retries and invoking the callbacks for
      *                             watched changes.
+     */
+    protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor) {
+        this(blockingTaskExecutor, Metrics.globalRegistry);
+    }
+
+    /**
+     * Creates a new instance.
+     *
+     * @param blockingTaskExecutor the {@link ScheduledExecutorService} which will be used for scheduling the
+     *                             tasks related with automatic retries and invoking the callbacks for
+     *                             watched changes.
+     * @param meterRegistry the {@link MeterRegistry} which collects metrics for this {@link CentralDogma} instance.
      */
     protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor,
                                    MeterRegistry meterRegistry) {
@@ -222,7 +235,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     }
 
     @Override
-    public MeterRegistry meterRegistry() {
+    public final MeterRegistry meterRegistry() {
         return meterRegistry;
     }
 }

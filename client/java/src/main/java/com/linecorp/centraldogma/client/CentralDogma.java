@@ -594,5 +594,10 @@ public interface CentralDogma {
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                      Function<Revision, ? extends T> function, Executor executor);
 
+    /**
+     * The {@link MeterRegistry} which collects metrics for this {@link CentralDogma} instance.
+     *
+     * @return the {@link MeterRegistry}
+     */
     MeterRegistry meterRegistry();
 }
