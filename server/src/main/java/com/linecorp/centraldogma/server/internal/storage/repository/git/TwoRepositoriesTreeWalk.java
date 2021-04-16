@@ -372,7 +372,6 @@ final class TwoRepositoriesTreeWalk implements AutoCloseable {
         public void next(int delta) {
             if (delta == 1) {
                 // Moving forward one is the most common case.
-                //
                 prevPtr = currPtr;
                 currPtr = nextPtr;
                 if (!eof()) {
@@ -382,7 +381,6 @@ final class TwoRepositoriesTreeWalk implements AutoCloseable {
             }
 
             // Fast skip over records, then parse the last one.
-            //
             final int end = raw.length;
             int ptr = nextPtr;
             while (--delta > 0 && ptr != end) {
@@ -406,7 +404,6 @@ final class TwoRepositoriesTreeWalk implements AutoCloseable {
             if (delta == 1 && 0 <= prevPtr) {
                 // Moving back one is common in NameTreeWalk, as the average tree
                 // won't have D/F type conflicts to study.
-                //
                 currPtr = prevPtr;
                 prevPtr = -1;
                 if (!eof()) {
@@ -421,7 +418,6 @@ final class TwoRepositoriesTreeWalk implements AutoCloseable {
             // There is no reliable way to read the tree backwards, so we must
             // parse all over again from the beginning. We hold the last "delta"
             // positions in a buffer, so we can find the correct position later.
-            //
             final int[] trace = new int[delta + 1];
             Arrays.fill(trace, -1);
             int ptr = 0;
