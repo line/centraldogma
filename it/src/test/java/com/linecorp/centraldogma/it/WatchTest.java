@@ -23,6 +23,7 @@ import static org.awaitility.Awaitility.await;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -42,6 +43,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
 import com.linecorp.armeria.common.util.ThreadFactories;
+import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
@@ -52,6 +54,8 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 class WatchTest {
 
@@ -455,6 +459,49 @@ class WatchTest {
         await().untilAtomic(threadName, Matchers.startsWith(threadNamePrefix));
     }
 
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchFileMetrics(ClientType clientType) throws Exception {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final MeterRegistry registry = client.meterRegistry();
+
+        final String filePath = "/test/test2.json";
+        final Watcher<JsonNode> jsonWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
+                                                                 Query.ofJson(filePath));
+
+        // wait for initial value
+        final Revision rev0 = jsonWatcher.initialValueFuture().join().revision();
+        await().untilAsserted(() -> assertThat(jsonWatcher.latestValue().at("/a").asText())
+                .isEqualTo("apple"));
+        final double initialWatcherRev = getWatcherRevisionMetric(registry, dogma.project(),
+                                                                  dogma.repo1(), filePath);
+
+        // update the json
+        final Change<JsonNode> update = Change.ofJsonUpsert(filePath, "{ \"a\": \"air\" }");
+        final PushResult res1 = client.push(dogma.project(), dogma.repo1(), rev0, "Modify /a", update).join();
+
+        // the notify complete revision is incremented
+        await().untilAsserted(() -> assertThat(jsonWatcher.latestValue().at("/a").asText())
+                .isEqualTo("air"));
+        assertThat(getWatcherRevisionMetric(registry, dogma.project(), dogma.repo1(), filePath))
+                .isEqualTo(initialWatcherRev + 1);
+
+        jsonWatcher.watch(node -> {
+            throw new IllegalArgumentException();
+        });
+
+        final Change<JsonNode> update2 = Change.ofJsonUpsert(filePath, "{ \"a\": \"ant\" }");
+        client.push(dogma.project(), dogma.repo1(), res1.revision(), "Modify /a", update2).join();
+
+        // the notify complete revision isn't incremented
+        await().untilAsserted(() -> assertThat(jsonWatcher.latestValue().at("/a").asText())
+                .isEqualTo("ant"));
+        assertThat(getWatcherRevisionMetric(registry, dogma.project(), dogma.repo1(), filePath))
+                .isEqualTo(initialWatcherRev + 1);
+    }
+
     private static void revertTestFiles(ClientType clientType) {
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test1.json", "[ 1, 2, 3 ]");
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test2.json", "{ \"a\": \"apple\" }");
@@ -467,5 +514,15 @@ class WatchTest {
             client.push(dogma.project(), dogma.repo1(), Revision.HEAD,
                         "Revert test files", changes).join();
         }
+    }
+
+    private static Double getWatcherRevisionMetric(MeterRegistry registry, String project,
+                                                   String repo, String path) {
+        final String name = "centraldogma.client.watcher.revision#value{path=" + path +
+                            ",project=" + project + ",repository=" + repo + '}';
+        return MoreMeters.measureAll(registry).entrySet().stream()
+                         .filter(e -> e.getKey().equals(name))
+                         .map(Map.Entry::getValue).findFirst()
+                         .get();
     }
 }

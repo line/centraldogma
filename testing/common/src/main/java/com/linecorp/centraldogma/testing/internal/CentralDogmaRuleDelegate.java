@@ -39,6 +39,7 @@ import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.TlsConfig;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.util.NetUtil;
 
@@ -261,6 +262,8 @@ public class CentralDogmaRuleDelegate {
         final InetSocketAddress serverAddress = this.serverAddress;
         assert serverAddress != null;
         builder.host(serverAddress.getHostString(), serverAddress.getPort());
+
+        builder.meterRegistry(new SimpleMeterRegistry());
 
         if (useTls) {
             builder.useTls();

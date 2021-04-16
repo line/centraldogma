@@ -20,6 +20,7 @@ import static com.google.common.math.LongMath.saturatedAdd;
 import static java.util.Objects.requireNonNull;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -33,14 +34,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.AtomicDouble;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
@@ -52,7 +52,7 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 
-import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Gauge;
 
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
@@ -119,7 +119,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners;
     private final AtomicReference<State> state;
     private final CompletableFuture<Latest<T>> initialValueFuture;
-    private final AtomicLong revisionGauge;
+    private final AtomicDouble latestNotifiedRevision = new AtomicDouble();
 
     private volatile Latest<T> latest;
     private volatile ScheduledFuture<?> currentScheduleFuture;
@@ -133,11 +133,12 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
 
-        final Iterable<Tag> tags = ImmutableList.of(
-                Tag.of("project", projectName), Tag.of("repository", repositoryName),
-                Tag.of("path", pathPattern));
-        revisionGauge = client.meterRegistry().gauge("centraldogma.client.watcher.revision",
-                                                     tags, new AtomicLong());
+        Gauge.builder("centraldogma.client.watcher.revision",
+                      this, watcher -> watcher.latestNotifiedRevision.get())
+             .tag("project", projectName)
+             .tag("repository", repositoryName)
+             .tag("path", pathPattern)
+             .register(client.meterRegistry());
 
         updateListeners = new CopyOnWriteArrayList<>();
         state = new AtomicReference<>(State.INIT);
@@ -256,7 +257,6 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  if (oldLatest == null) {
                      initialValueFuture.complete(newLatest);
                  }
-                 revisionGauge.set(latest.revision().major());
              }
 
              // Watch again for the next change.
@@ -309,18 +309,29 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         final Latest<T> latest = this.latest;
+        final List<CompletableFuture<Boolean>> futures = new ArrayList<>();
         for (Map.Entry<BiConsumer<? super Revision, ? super T>, Executor> entry : updateListeners) {
             final BiConsumer<? super Revision, ? super T> listener = entry.getKey();
             final Executor executor = entry.getValue();
-            executor.execute(() -> {
+            final CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
                 try {
                     listener.accept(latest.revision(), latest.value());
+                    return true;
                 } catch (Exception e) {
                     logger.warn("Exception thrown for watcher ({}/{}{}): rev={}",
                                 projectName, repositoryName, pathPattern, latest.revision(), e);
+                    return false;
                 }
-            });
+            }, executor);
+            futures.add(future);
         }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenAccept(ignored -> {
+            final boolean result = futures.stream().allMatch(CompletableFuture::join);
+            if (result) {
+                latestNotifiedRevision.set(latest.revision().major());
+            }
+        });
+
     }
 
     private void handleExecutorShutdown(Executor executor, RejectedExecutionException e) {
