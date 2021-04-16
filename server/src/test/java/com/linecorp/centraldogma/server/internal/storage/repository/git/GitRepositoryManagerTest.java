@@ -61,6 +61,9 @@ class GitRepositoryManagerTest {
         // Must disallow creating a duplicate.
         assertThatThrownBy(() -> gitRepositoryManager.create(TEST_REPO, Author.SYSTEM))
                 .isInstanceOf(RepositoryExistsException.class);
+
+        gitRepositoryManager.remove(TEST_REPO);
+        gitRepositoryManager.purgeMarked();
     }
 
     @Test
@@ -75,6 +78,9 @@ class GitRepositoryManagerTest {
         final Repository repository = gitRepositoryManager.get(TEST_REPO);
         assertThat(repository).isInstanceOf(GitRepository.class);
         assertThat(((GitRepository) repository).cache).isNotNull();
+
+        gitRepositoryManager.remove(TEST_REPO);
+        gitRepositoryManager.purgeMarked();
     }
 
     @Test
@@ -85,7 +91,9 @@ class GitRepositoryManagerTest {
         final Repository repository = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(repository).isInstanceOf(GitRepository.class);
         assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repository);
-        assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repository);
+
+        gitRepositoryManager.remove(TEST_REPO);
+        gitRepositoryManager.purgeMarked();
     }
 
     @Test
@@ -95,6 +103,9 @@ class GitRepositoryManagerTest {
         final Repository repo = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isTrue();
         assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repo);
+
+        gitRepositoryManager.remove(TEST_REPO);
+        gitRepositoryManager.purgeMarked();
     }
 
     @Test
@@ -106,19 +117,21 @@ class GitRepositoryManagerTest {
         assertThatThrownBy(() -> gitRepositoryManager.remove(TEST_REPO))
                 .isInstanceOf(RepositoryNotFoundException.class);
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
+
+        gitRepositoryManager.purgeMarked();
     }
 
     @Test
     void testList() {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
-        final int numRepoFiles = 1;
+        final int numRepoFiles = 3;
         final String repoNamePattern = "repo%d";
         for (int i = 0; i < numRepoFiles; i++) {
             final String targetRepoName = String.format(repoNamePattern, i);
             gitRepositoryManager.create(targetRepoName, Author.SYSTEM);
         }
 
-        final int numDummyFiles = 1;
+        final int numDummyFiles = 3;
         for (int i = 0; i < numDummyFiles; i++) {
             final File file = Paths.get(tempDir.toString(), String.format("dummyDir%d", i)).toFile();
             if (!file.mkdirs()) {
@@ -129,6 +142,12 @@ class GitRepositoryManagerTest {
 
         final Map<String, Repository> repoNameList = gitRepositoryManager.list();
         assertThat(repoNameList).hasSize(numRepoFiles);
+
+        for (int i = 0; i < numRepoFiles; i++) {
+            final String targetRepoName = String.format(repoNamePattern, i);
+            gitRepositoryManager.remove(targetRepoName);
+        }
+        gitRepositoryManager.purgeMarked();
     }
 
     @Test
@@ -137,7 +156,9 @@ class GitRepositoryManagerTest {
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
         gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isTrue();
+
         gitRepositoryManager.remove(TEST_REPO);
+        gitRepositoryManager.purgeMarked();
     }
 
     private GitRepositoryManager newRepositoryManager() {
