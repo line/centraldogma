@@ -54,11 +54,21 @@ public interface Change<T> {
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_TEXT}.
      *
+     * <p>Note that you should use {@link #ofJsonUpsert(String, String)} if the specified {@code path} ends with
+     * {@code ".json"}. The {@link #ofJsonUpsert(String, String)} will check that the given {@code text} is a
+     * valid JSON.
+     *
      * @param path the path of the file
      * @param text the content of the file
+     * @throws ChangeFormatException if the path ends with {@code ".json"}
      */
     static Change<String> ofTextUpsert(String path, String text) {
         requireNonNull(text, "text");
+        validateFilePath(path, "path");
+        if (EntryType.guessFromPath(path) == EntryType.JSON) {
+            throw new ChangeFormatException("invalid file type: " + path +
+                                            " (expected: a non-JSON file). Use Change.ofJsonUpsert() instead");
+        }
         return new DefaultChange<>(path, ChangeType.UPSERT_TEXT, text);
     }
 
@@ -118,13 +128,22 @@ public interface Change<T> {
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_TEXT_PATCH}.
      *
+     * <p>Note that you should use {@link #ofJsonPatch(String, String, String)} if the specified {@code path}
+     * ends with {@code ".json"}. The {@link #ofJsonUpsert(String, String)} will check that
+     * the given {@code oldText} and {@code newText} are valid JSONs.
+     *
      * @param path the path of the file
      * @param oldText the old content of the file
      * @param newText the new content of the file
+     * @throws ChangeFormatException if the path ends with {@code ".json"}
      */
     static Change<String> ofTextPatch(String path, @Nullable String oldText, String newText) {
         validateFilePath(path, "path");
         requireNonNull(newText, "newText");
+        if (EntryType.guessFromPath(path) == EntryType.JSON) {
+            throw new ChangeFormatException("invalid file type: " + path +
+                                            " (expected: a non-JSON file). Use Change.ofJsonPatch() instead");
+        }
 
         final List<String> oldLineList = oldText == null ? Collections.emptyList()
                                                          : Util.stringToLines(oldText);
@@ -139,12 +158,22 @@ public interface Change<T> {
     /**
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_TEXT_PATCH}.
      *
+     * <p>Note that you should use {@link #ofJsonPatch(String, String)} if the specified {@code path}
+     * ends with {@code ".json"}. The {@link #ofJsonUpsert(String, String)} will check that
+     * the given {@code textPatch} is a valid JSON.
+     *
      * @param path the path of the file
      * @param textPatch the patch in
      *                  <a href="https://en.wikipedia.org/wiki/Diff_utility#Unified_format">unified format</a>
+     * @throws ChangeFormatException if the path ends with {@code ".json"}
      */
     static Change<String> ofTextPatch(String path, String textPatch) {
+        validateFilePath(path, "path");
         requireNonNull(textPatch, "textPatch");
+        if (EntryType.guessFromPath(path) == EntryType.JSON) {
+            throw new ChangeFormatException("invalid file type: " + path +
+                                            " (expected: a non-JSON file). Use Change.ofJsonPatch() instead");
+        }
 
         return new DefaultChange<>(path, ChangeType.APPLY_TEXT_PATCH, textPatch);
     }

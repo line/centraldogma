@@ -17,8 +17,14 @@
 package com.linecorp.centraldogma.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
+
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
@@ -109,5 +115,20 @@ class ChangeTest {
                              "  \"path\": \"/6\"," +
                              "  \"content\": \"/7\"" +
                              '}');
+    }
+
+    @Test
+    void shouldNotAllowJsonFileWith_OfText() {
+
+        final List<ThrowingCallable> changes =
+                ImmutableList.of(() -> Change.ofTextUpsert("/foo.json", "abc"),
+                                 () -> Change.ofTextPatch("/foo.json", "abc"),
+                                 () -> Change.ofTextPatch("/foo.json", "foo", "bar"));
+
+        for (final ThrowingCallable change : changes) {
+            assertThatThrownBy(change)
+                    .isInstanceOf(ChangeFormatException.class)
+                    .hasMessageContaining("invalid file type: /foo.json (expected: a non-JSON file)");
+        }
     }
 }
