@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -40,6 +41,7 @@ import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroupBuilder;
 import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
+import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -57,6 +59,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     private ArmeriaClientConfigurator clientConfigurator = cb -> {};
     private Duration healthCheckInterval = Duration.ofMillis(DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS);
     private DnsAddressEndpointGroupConfigurator dnsAddressEndpointGroupConfigurator = b -> {};
+    private ScheduledExecutorService blockingTaskExecutor = CommonPools.blockingTaskExecutor();
 
     /**
      * Returns the {@link ClientFactory} that will create an underlying
@@ -190,6 +193,25 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     private static Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {
         return Endpoint.of(addr.getHostString(), addr.getPort())
                        .withIpAddr(addr.getAddress().getHostAddress());
+    }
+
+    /**
+     * Returns the {@link ScheduledExecutorService} dedicated to the execution of blocking tasks or invocations.
+     */
+    protected final ScheduledExecutorService blockingTaskExecutor() {
+        return blockingTaskExecutor;
+    }
+
+    /**
+     * Sets the {@link ScheduledExecutorService} dedicated to the execution of blocking tasks or invocations.
+     * If not set, {@linkplain CommonPools#blockingTaskExecutor() the common pool} is used.
+     * The {@link ScheduledExecutorService} which will be used for scheduling the tasks related with
+     * automatic retries and invoking the callbacks for watched changes.
+     */
+    public final B blockingTaskExecutor(ScheduledExecutorService blockingTaskExecutor) {
+        requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
+        this.blockingTaskExecutor = blockingTaskExecutor;
+        return self();
     }
 
     /**

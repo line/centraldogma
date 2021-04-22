@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.client.armeria.legacy;
 
 import java.net.UnknownHostException;
+import java.util.concurrent.ScheduledExecutorService;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
@@ -28,8 +29,6 @@ import com.linecorp.centraldogma.client.armeria.AbstractArmeriaCentralDogmaBuild
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.AsyncIface;
-
-import io.netty.channel.EventLoopGroup;
 
 /**
  * Builds a legacy {@link CentralDogma} client based on Thrift.
@@ -65,14 +64,17 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
             return delegate.execute(ctx, req);
         });
 
-        final EventLoopGroup executor = clientFactory().eventLoopGroup();
+        final ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
+
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
-        final CentralDogma dogma = new LegacyCentralDogma(executor, builder.build(AsyncIface.class));
+        final CentralDogma dogma = new LegacyCentralDogma(blockingTaskExecutor,
+                                                          builder.build(AsyncIface.class));
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
             return new ReplicationLagTolerantCentralDogma(
-                    executor, dogma, maxRetriesOnReplicationLag, retryIntervalOnReplicationLagMillis(),
+                    blockingTaskExecutor(), dogma, maxRetriesOnReplicationLag,
+                    retryIntervalOnReplicationLagMillis(),
                     () -> {
                         // FIXME(trustin): Note that this will always return `null` due to a known limitation
                         //                 in Armeria: https://github.com/line/armeria/issues/760

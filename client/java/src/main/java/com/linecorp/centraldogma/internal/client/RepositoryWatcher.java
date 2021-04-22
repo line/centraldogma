@@ -32,10 +32,10 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
     /**
      * Creates a new instance.
      */
-    public RepositoryWatcher(CentralDogma client, ScheduledExecutorService executor,
+    public RepositoryWatcher(CentralDogma client, ScheduledExecutorService blockingTaskExecutor,
                       String projectName, String repositoryName,
                       String pathPattern, Function<Revision, ? extends T> function) {
-        super(client, executor, projectName, repositoryName, pathPattern);
+        super(client, blockingTaskExecutor, projectName, repositoryName, pathPattern);
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.function = requireNonNull(function, "function");
     }
@@ -44,11 +44,11 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
     protected CompletableFuture<Latest<T>> doWatch(CentralDogma client, String projectName,
                                                    String repositoryName, Revision lastKnownRevision) {
         return client.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern)
-                     .thenApply(revision -> {
+                     .thenApplyAsync(revision -> {
                          if (revision == null) {
                              return null;
                          }
                          return new Latest<>(revision, function.apply(revision));
-                     });
+                     }, blockingTaskExecutor());
     }
 }

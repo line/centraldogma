@@ -80,7 +80,7 @@ class LegacyCentralDogmaTest {
 
     @BeforeEach
     void setUp() {
-        client = new LegacyCentralDogma(CommonPools.workerGroup(), iface);
+        client = new LegacyCentralDogma(CommonPools.blockingTaskExecutor(), iface);
     }
 
     @Test

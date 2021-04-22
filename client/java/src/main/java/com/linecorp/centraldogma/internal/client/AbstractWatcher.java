@@ -102,7 +102,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     }
 
     private final CentralDogma client;
-    private final ScheduledExecutorService executor;
+    private final ScheduledExecutorService blockingTaskExecutor;
     private final String projectName;
     private final String repositoryName;
     private final String pathPattern;
@@ -115,10 +115,10 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private volatile ScheduledFuture<?> currentScheduleFuture;
     private volatile CompletableFuture<?> currentWatchFuture;
 
-    protected AbstractWatcher(CentralDogma client, ScheduledExecutorService executor,
+    protected AbstractWatcher(CentralDogma client, ScheduledExecutorService blockingTaskExecutor,
                               String projectName, String repositoryName, String pathPattern) {
         this.client = requireNonNull(client, "client");
-        this.executor = requireNonNull(executor, "executor");
+        this.blockingTaskExecutor = requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
         this.projectName = requireNonNull(projectName, "projectName");
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
@@ -183,12 +183,12 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         if (latest != null) {
             // Perform initial notification so that the listener always gets the initial value.
             try {
-                executor.execute(() -> {
+                blockingTaskExecutor.execute(() -> {
                     final Latest<T> latest = this.latest;
                     listener.accept(latest.revision(), latest.value());
                 });
             } catch (RejectedExecutionException e) {
-                handleEventLoopShutdown(e);
+                handleBlockingTaskExecutorShutdown(e);
             }
         }
     }
@@ -206,12 +206,12 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         try {
-            currentScheduleFuture = executor.schedule(() -> {
+            currentScheduleFuture = blockingTaskExecutor.schedule(() -> {
                 currentScheduleFuture = null;
                 doWatch(numAttemptsSoFar);
             }, delay, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException e) {
-            handleEventLoopShutdown(e);
+            handleBlockingTaskExecutorShutdown(e);
         }
     }
 
@@ -297,13 +297,17 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
     }
 
-    private void handleEventLoopShutdown(RejectedExecutionException e) {
+    private void handleBlockingTaskExecutorShutdown(RejectedExecutionException e) {
         if (logger.isTraceEnabled()) {
-            logger.trace("Stopping to watch since the event loop is shut down:", e);
+            logger.trace("Stopping to watch since the blocking task executor is shut down:", e);
         } else {
-            logger.debug("Stopping to watch since the event loop is shut down.");
+            logger.debug("Stopping to watch since the blocking task executor is shut down.");
         }
 
         close();
+    }
+
+    final ScheduledExecutorService blockingTaskExecutor() {
+        return blockingTaskExecutor;
     }
 }

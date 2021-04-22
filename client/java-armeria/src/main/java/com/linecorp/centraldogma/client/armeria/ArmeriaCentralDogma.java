@@ -118,24 +118,24 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static final Map<String, Function<String, CentralDogmaException>> EXCEPTION_FACTORIES =
             ImmutableMap.<String, Function<String, CentralDogmaException>>builder()
-                    .put(ProjectExistsException.class.getName(), ProjectExistsException::new)
-                    .put(ProjectNotFoundException.class.getName(), ProjectNotFoundException::new)
-                    .put(QueryExecutionException.class.getName(), QueryExecutionException::new)
-                    .put(RedundantChangeException.class.getName(), RedundantChangeException::new)
-                    .put(RevisionNotFoundException.class.getName(), RevisionNotFoundException::new)
-                    .put(EntryNotFoundException.class.getName(), EntryNotFoundException::new)
-                    .put(ChangeConflictException.class.getName(), ChangeConflictException::new)
-                    .put(RepositoryNotFoundException.class.getName(), RepositoryNotFoundException::new)
-                    .put(AuthorizationException.class.getName(), AuthorizationException::new)
-                    .put(ShuttingDownException.class.getName(), ShuttingDownException::new)
-                    .put(RepositoryExistsException.class.getName(), RepositoryExistsException::new)
-                    .build();
+                        .put(ProjectExistsException.class.getName(), ProjectExistsException::new)
+                        .put(ProjectNotFoundException.class.getName(), ProjectNotFoundException::new)
+                        .put(QueryExecutionException.class.getName(), QueryExecutionException::new)
+                        .put(RedundantChangeException.class.getName(), RedundantChangeException::new)
+                        .put(RevisionNotFoundException.class.getName(), RevisionNotFoundException::new)
+                        .put(EntryNotFoundException.class.getName(), EntryNotFoundException::new)
+                        .put(ChangeConflictException.class.getName(), ChangeConflictException::new)
+                        .put(RepositoryNotFoundException.class.getName(), RepositoryNotFoundException::new)
+                        .put(AuthorizationException.class.getName(), AuthorizationException::new)
+                        .put(ShuttingDownException.class.getName(), ShuttingDownException::new)
+                        .put(RepositoryExistsException.class.getName(), RepositoryExistsException::new)
+                        .build();
 
     private final WebClient client;
     private final String authorization;
 
-    ArmeriaCentralDogma(ScheduledExecutorService executor, WebClient client, String accessToken) {
-        super(executor);
+    ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor, WebClient client, String accessToken) {
+        super(blockingTaskExecutor);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
     }

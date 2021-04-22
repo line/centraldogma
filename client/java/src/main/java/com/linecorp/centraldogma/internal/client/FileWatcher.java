@@ -34,11 +34,11 @@ public final class FileWatcher<T> extends AbstractWatcher<T> {
     /**
      * Creates a new instance.
      */
-    public <U> FileWatcher(CentralDogma client, ScheduledExecutorService executor,
+    public <U> FileWatcher(CentralDogma client, ScheduledExecutorService blockingTaskExecutor,
                            String projectName, String repositoryName,
                            Query<U> query, Function<? super U, ? extends T> function) {
 
-        super(client, executor, projectName, repositoryName, requireNonNull(query, "query").path());
+        super(client, blockingTaskExecutor, projectName, repositoryName, requireNonNull(query, "query").path());
         this.query = query;
         this.function = unsafeCast(requireNonNull(function, "function"));
     }
@@ -47,11 +47,11 @@ public final class FileWatcher<T> extends AbstractWatcher<T> {
     protected CompletableFuture<Latest<T>> doWatch(CentralDogma client, String projectName,
                                                    String repositoryName, Revision lastKnownRevision) {
         return client.watchFile(projectName, repositoryName, lastKnownRevision, query)
-                     .thenApply(result -> {
+                     .thenApplyAsync(result -> {
                          if (result == null) {
                              return null;
                          }
                          return new Latest<>(result.revision(), function.apply(result.content()));
-                     });
+                     }, blockingTaskExecutor());
     }
 }

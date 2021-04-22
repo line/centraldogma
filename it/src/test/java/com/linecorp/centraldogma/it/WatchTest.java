@@ -24,12 +24,16 @@ import static org.awaitility.Awaitility.await;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -37,9 +41,12 @@ import org.junit.jupiter.params.provider.EnumSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
+import com.linecorp.armeria.common.util.ThreadFactories;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
+import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PushResult;
@@ -48,8 +55,28 @@ import com.linecorp.centraldogma.common.Revision;
 
 class WatchTest {
 
+    private static final String THREAD_NAME_PREFIX = "blocking-thread";
+    private static final ScheduledExecutorService blockingTaskExecutor =
+            Executors.newSingleThreadScheduledExecutor(
+                    ThreadFactories.newThreadFactory(THREAD_NAME_PREFIX, true));
+
     @RegisterExtension
-    static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding();
+    static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding() {
+        @Override
+        protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
+            builder.blockingTaskExecutor(blockingTaskExecutor);
+        }
+
+        @Override
+        protected void configureClient(LegacyCentralDogmaBuilder builder) {
+            builder.blockingTaskExecutor(blockingTaskExecutor);
+        }
+    };
+
+    @AfterAll
+    static void shutdownExecutor() {
+        blockingTaskExecutor.shutdown();
+    }
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
@@ -354,6 +381,40 @@ class WatchTest {
         assertThat(triggeredCount.get()).isEqualTo(2);
         assertThat(heavyWatcher.latestValue().at("/a")).isEqualTo(new TextNode("apricot"));
         assertThat(heavyWatcher.latest().revision()).isEqualTo(rev3);
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void transformingThread(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String filePath = "/test/test.txt";
+        final Watcher<String> watcher =
+                client.fileWatcher(dogma.project(), dogma.repo1(),
+                                   Query.ofText(filePath),
+                                   text -> {
+                                       assertThat(Thread.currentThread().getName())
+                                               .startsWith(THREAD_NAME_PREFIX);
+                                       return text;
+                                   });
+
+        final AtomicReference<String> threadName = new AtomicReference<>();
+        watcher.watch(watched -> threadName.set(Thread.currentThread().getName()));
+        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "test",
+                    Change.ofTextUpsert("/test/test.txt", "foo"));
+
+        await().untilAtomic(threadName, Matchers.startsWith(THREAD_NAME_PREFIX));
+        threadName.set(null);
+
+        final Watcher<Revision> watcher2 =
+                client.repositoryWatcher(dogma.project(), dogma.repo1(),
+                                   filePath,
+                                   revision -> {
+                                       assertThat(Thread.currentThread().getName())
+                                               .startsWith(THREAD_NAME_PREFIX);
+                                       return revision;
+                                   });
+        watcher2.watch((revision1, revision2) -> threadName.set(Thread.currentThread().getName()));
+        await().untilAtomic(threadName, Matchers.startsWith(THREAD_NAME_PREFIX));
     }
 
     private static void revertTestFiles(ClientType clientType) {
