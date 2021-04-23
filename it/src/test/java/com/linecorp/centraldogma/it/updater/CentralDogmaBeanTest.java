@@ -42,7 +42,6 @@ import com.linecorp.centraldogma.client.updater.CentralDogmaBean;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanConfigBuilder;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanFactory;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -89,13 +88,13 @@ class CentralDogmaBeanTest {
         final CentralDogma client = dogma.client();
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class, listener);
 
-        final PushResult res = client.push("a", "b", Revision.HEAD, "Add c.json",
-                                           Change.ofJsonUpsert("/c.json",
-                                                               '{' +
-                                                               "  \"foo\": 20," +
-                                                               "  \"bar\": \"Y\"," +
-                                                               "  \"qux\": [\"0\", \"1\"]" +
-                                                               '}')).join();
+        client.push("a", "b", Revision.HEAD, "Add c.json",
+                    Change.ofJsonUpsert("/c.json",
+                                        '{' +
+                                        "  \"foo\": 20," +
+                                        "  \"bar\": \"Y\"," +
+                                        "  \"qux\": [\"0\", \"1\"]" +
+                                        '}')).join();
 
         // Wait until the changes are handled.
         await().atMost(5000, TimeUnit.SECONDS).until(() -> property.getFoo() == 20);
@@ -186,7 +185,7 @@ class CentralDogmaBeanTest {
                                         "  \"qux\": [\"0\", \"1\"]" +
                                         '}')).join();
 
-        final TestProperty property = factory.get(new TestProperty(), TestProperty.class, x -> update.set(x));
+        final TestProperty property = factory.get(new TestProperty(), TestProperty.class, update::set);
         await().untilAtomic(update, Matchers.notNullValue());
 
         assertThat(property.getFoo()).isEqualTo(21);
