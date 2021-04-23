@@ -27,6 +27,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -140,6 +141,11 @@ class PermissionTest {
             }, decorator, new HttpApiExceptionHandler());
         }
     };
+
+    @AfterAll
+    static void tearDown() {
+        server.stop().join();
+    }
 
     @ParameterizedTest
     @MethodSource("arguments")
