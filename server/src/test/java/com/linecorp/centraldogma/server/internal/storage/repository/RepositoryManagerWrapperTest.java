@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -31,7 +32,7 @@ import java.util.concurrent.ForkJoinPool;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
@@ -41,7 +42,6 @@ import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepos
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
-import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 
 class RepositoryManagerWrapperTest {
@@ -50,14 +50,14 @@ class RepositoryManagerWrapperTest {
 
     private Executor purgeWorker;
 
-    @RegisterExtension
-    static final TemporaryFolderExtension rootDir = new TemporaryFolderExtension();
+    @TempDir
+    static Path tempDir;
 
     @BeforeEach
     void setUp() {
         purgeWorker = mock(Executor.class);
         m = new RepositoryManagerWrapper(new GitRepositoryManager(mock(Project.class),
-                                                                  rootDir.getRoot().toFile(),
+                                                                  tempDir.toFile(),
                                                                   ForkJoinPool.commonPool(),
                                                                   purgeWorker, null),
                                          RepositoryWrapper::new);

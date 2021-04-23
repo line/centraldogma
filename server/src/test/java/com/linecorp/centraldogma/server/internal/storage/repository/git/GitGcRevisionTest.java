@@ -18,28 +18,31 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 
 public class GitGcRevisionTest {
 
-    @RegisterExtension
-    final TemporaryFolderExtension rootDir = new TemporaryFolderExtension() {
-        @Override
-        protected boolean runForEachTest() {
-            return true;
-        }
-    };
+    private Path tempDir;
+
+    @BeforeEach
+    void setUp(@TempDir Path tempDir) {
+        this.tempDir = tempDir;
+    }
 
     @Test
     void readAndWrite() throws IOException {
-        try (GitGcRevision gitGcRevision = new GitGcRevision(rootDir.newFolder().toFile())) {
+        final File rootDir = Files.createTempDirectory(tempDir, null).toFile();
 
+        try (GitGcRevision gitGcRevision = new GitGcRevision(rootDir)) {
             assertThat(gitGcRevision.lastRevision()).isNull();
             final Revision revision = new Revision(10);
             gitGcRevision.write(revision);
