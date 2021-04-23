@@ -40,7 +40,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
-import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.armeria.common.util.ThreadFactories;
 import com.linecorp.centraldogma.client.CentralDogma;
