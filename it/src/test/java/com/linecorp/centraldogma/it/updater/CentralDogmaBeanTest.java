@@ -29,6 +29,7 @@ import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 import org.awaitility.core.ConditionTimeoutException;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -185,8 +186,8 @@ class CentralDogmaBeanTest {
                                         "  \"qux\": [\"0\", \"1\"]" +
                                         '}')).join();
 
-        final TestProperty property = factory.get(new TestProperty(), TestProperty.class, update::set);
-        await().atMost(5, TimeUnit.SECONDS).until(() -> update.get() != null);
+        final TestProperty property = factory.get(new TestProperty(), TestProperty.class, x -> update.set(x));
+        await().untilAtomic(update, Matchers.notNullValue());
 
         assertThat(property.getFoo()).isEqualTo(21);
         assertThat(property.getBar()).isEqualTo("Y");

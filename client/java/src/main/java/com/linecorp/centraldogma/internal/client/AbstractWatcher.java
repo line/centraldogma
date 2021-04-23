@@ -33,7 +33,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
@@ -241,9 +240,9 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  latest = newLatest;
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
-                 final CompletableFuture<Void> notificationFuture = notifyListeners();
+                 notifyListeners();
                  if (oldLatest == null) {
-                     notificationFuture.thenAccept(unused -> initialValueFuture.complete(newLatest));
+                     initialValueFuture.complete(newLatest);
                  }
              }
 
@@ -290,15 +289,13 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     protected abstract CompletableFuture<Latest<T>> doWatch(
             CentralDogma client, String projectName, String repositoryName, Revision lastKnownRevision);
 
-    private CompletableFuture<Void> notifyListeners() {
+    private void notifyListeners() {
         if (isStopped()) {
             // Do not notify after stopped.
-            return COMPLETED_FUTURE;
+            return;
         }
 
-        final CompletableFuture<Void> notificationFuture = new CompletableFuture<>();
         final Latest<T> latest = this.latest;
-        final AtomicInteger counter = new AtomicInteger(updateListeners.size());
         for (Map.Entry<BiConsumer<? super Revision, ? super T>, Executor> entry : updateListeners) {
             final BiConsumer<? super Revision, ? super T> listener = entry.getKey();
             final Executor executor = entry.getValue();
@@ -308,14 +305,9 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                 } catch (Exception e) {
                     logger.warn("Exception thrown for watcher ({}/{}{}): rev={}",
                                 projectName, repositoryName, pathPattern, latest.revision(), e);
-                } finally {
-                    if (counter.decrementAndGet() == 0) {
-                        notificationFuture.complete(null);
-                    }
                 }
             });
         }
-        return notificationFuture;
     }
 
     private void handleExecutorShutdown(Executor executor, RejectedExecutionException e) {

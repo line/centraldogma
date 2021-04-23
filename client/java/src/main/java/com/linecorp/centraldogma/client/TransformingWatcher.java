@@ -35,6 +35,7 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
     @Nullable
     private volatile Latest<U> transformedLatest;
     private volatile boolean closed;
+    private volatile boolean firstWatch = true;
 
     TransformingWatcher(Watcher<T> parent, Function<T, U> transformer) {
         this.parent = parent;
@@ -82,7 +83,8 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
             }
             final U transformedValue = transformer.apply(value);
             final boolean changed;
-            if (transformedLatest == null) {
+            if (firstWatch) {
+                firstWatch = false;
                 changed = true;
             } else {
                 changed = !transformedLatest.value().equals(transformedValue);
@@ -100,6 +102,7 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
                 .add("parent", parent)
                 .add("transformer", transformer)
                 .add("closed", closed)
+                .add("firstWatch", firstWatch)
                 .toString();
     }
 }
