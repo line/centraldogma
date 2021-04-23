@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -512,9 +513,30 @@ public interface CentralDogma {
      *     assert myValue instanceof MyType;
      *     ...
      * });}</pre>
+     *
+     * <p>Note that {@link Function} by default is executed by a blocking task executor so that you can
+     * safely call a blocking operation.
      */
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
                                   Query<T> query, Function<? super T, ? extends U> function);
+
+    /**
+     * Returns a {@link Watcher} which notifies its listeners after applying the specified
+     * {@link Function} when the result of the given {@link Query} becomes available or changes. e.g:
+     * <pre>{@code
+     * Watcher<MyType> watcher = client.fileWatcher(
+     *         "foo", "bar", Query.ofJson("/baz.json"),
+     *         content -> new ObjectMapper().treeToValue(content, MyType.class));
+     *
+     * watcher.watch((revision, myValue) -> {
+     *     assert myValue instanceof MyType;
+     *     ...
+     * });}</pre>
+     *
+     * @param executor the {@link Executor} that executes the {@link Function}
+     */
+    <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
+                                  Query<T> query, Function<? super T, ? extends U> function, Executor executor);
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
@@ -540,10 +562,32 @@ public interface CentralDogma {
      * watcher.watch((revision, contents) -> {
      *     ...
      * });}</pre>
-     * Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and
+     * {@link Function} by default is executed by a blocking task executor so that you can safely call a
+     * blocking operation.
+     *
+     * <p>Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and
      * may have to retry in the above example due to
      * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
      */
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                      Function<Revision, ? extends T> function);
+
+    /**
+     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
+     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:
+     * <pre>{@code
+     * Watcher<Map<String, Entry<?>> watcher = client.repositoryWatcher(
+     *         "foo", "bar", "/*.json", revision -> client.getFiles("foo", "bar", revision, "/*.json").get());
+     *
+     * watcher.watch((revision, contents) -> {
+     *     ...
+     * });}</pre>
+     * Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and
+     * may have to retry in the above example due to
+     * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
+     *
+     * @param executor the {@link Executor} that executes the {@link Function}
+     */
+    <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
+                                     Function<Revision, ? extends T> function, Executor executor);
 }

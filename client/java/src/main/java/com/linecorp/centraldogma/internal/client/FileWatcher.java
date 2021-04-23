@@ -19,6 +19,7 @@ import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
@@ -30,17 +31,20 @@ import com.linecorp.centraldogma.common.Revision;
 public final class FileWatcher<T> extends AbstractWatcher<T> {
     private final Query<?> query;
     private final Function<Object, ? extends T> function;
+    private final Executor callbackExecutor;
 
     /**
      * Creates a new instance.
      */
-    public <U> FileWatcher(CentralDogma client, ScheduledExecutorService blockingTaskExecutor,
+    public <U> FileWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
+                           Executor callbackExecutor,
                            String projectName, String repositoryName,
                            Query<U> query, Function<? super U, ? extends T> function) {
 
-        super(client, blockingTaskExecutor, projectName, repositoryName, requireNonNull(query, "query").path());
+        super(client, watchScheduler, projectName, repositoryName, requireNonNull(query, "query").path());
         this.query = query;
         this.function = unsafeCast(requireNonNull(function, "function"));
+        this.callbackExecutor = requireNonNull(callbackExecutor, "callbackExecutor");
     }
 
     @Override
@@ -52,6 +56,6 @@ public final class FileWatcher<T> extends AbstractWatcher<T> {
                              return null;
                          }
                          return new Latest<>(result.revision(), function.apply(result.content()));
-                     }, blockingTaskExecutor());
+                     }, callbackExecutor);
     }
 }

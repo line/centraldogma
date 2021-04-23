@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.internal.client;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
@@ -28,16 +29,19 @@ import com.linecorp.centraldogma.common.Revision;
 public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
     private final String pathPattern;
     private final Function<Revision, ? extends T> function;
+    private final Executor callbackExecutor;
 
     /**
      * Creates a new instance.
      */
-    public RepositoryWatcher(CentralDogma client, ScheduledExecutorService blockingTaskExecutor,
+    public RepositoryWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
+                      Executor callbackExecutor,
                       String projectName, String repositoryName,
                       String pathPattern, Function<Revision, ? extends T> function) {
-        super(client, blockingTaskExecutor, projectName, repositoryName, pathPattern);
+        super(client, watchScheduler, projectName, repositoryName, pathPattern);
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.function = requireNonNull(function, "function");
+        this.callbackExecutor = requireNonNull(callbackExecutor, "callbackExecutor");
     }
 
     @Override
@@ -49,6 +53,6 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
                              return null;
                          }
                          return new Latest<>(revision, function.apply(revision));
-                     }, blockingTaskExecutor());
+                     }, callbackExecutor);
     }
 }

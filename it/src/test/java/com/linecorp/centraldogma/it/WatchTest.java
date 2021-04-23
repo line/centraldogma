@@ -40,6 +40,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.armeria.common.util.ThreadFactories;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -333,6 +334,7 @@ class WatchTest {
 
         // After the initial value is fetched, `latest` points to the specified JSON path
         final Latest<JsonNode> initialValue = forExisting.awaitInitialValue();
+        await().untilAtomic(triggeredCount, Matchers.is(1));
 
         final Revision rev0 = client
                 .normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD)
@@ -340,7 +342,6 @@ class WatchTest {
         assertThat(initialValue.revision()).isEqualTo(rev0);
         assertThat(initialValue.value()).isEqualTo(new TextNode("apple"));
         assertThat(forExisting.latest()).isEqualTo(initialValue);
-        assertThat(triggeredCount.get()).isEqualTo(1);
         assertThat(watchResult.get()).isEqualTo(initialValue);
 
         // An irrelevant change should not trigger a notification.
@@ -385,7 +386,7 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void transformingThread(ClientType clientType) {
+    void transformingThread_withDefault(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test.txt";
         final Watcher<String> watcher =
@@ -415,6 +416,44 @@ class WatchTest {
                                    });
         watcher2.watch((revision1, revision2) -> threadName.set(Thread.currentThread().getName()));
         await().untilAtomic(threadName, Matchers.startsWith(THREAD_NAME_PREFIX));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void transformingThread_withCustom(ClientType clientType) {
+        final String threadNamePrefix = "custom-executor";
+        final ScheduledExecutorService executor =
+                Executors.newSingleThreadScheduledExecutor(
+                        ThreadFactories.newThreadFactory(threadNamePrefix, true));
+        final CentralDogma client = clientType.client(dogma);
+        final String filePath = "/test/test.txt";
+        final Watcher<String> watcher =
+                client.fileWatcher(dogma.project(), dogma.repo1(),
+                                   Query.ofText(filePath),
+                                   text -> {
+                                       assertThat(Thread.currentThread().getName())
+                                               .startsWith(threadNamePrefix);
+                                       return text;
+                                   }, executor);
+
+        final AtomicReference<String> threadName = new AtomicReference<>();
+        watcher.watch(watched -> threadName.set(Thread.currentThread().getName()), executor);
+        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "test",
+                    Change.ofTextUpsert("/test/test.txt", "foo"));
+
+        await().untilAtomic(threadName, Matchers.startsWith(threadNamePrefix));
+        threadName.set(null);
+
+        final Watcher<Revision> watcher2 =
+                client.repositoryWatcher(dogma.project(), dogma.repo1(),
+                                         filePath,
+                                         revision -> {
+                                             assertThat(Thread.currentThread().getName())
+                                                     .startsWith(threadNamePrefix);
+                                             return revision;
+                                         }, executor);
+        watcher2.watch((revision1, revision2) -> threadName.set(Thread.currentThread().getName()), executor);
+        await().untilAtomic(threadName, Matchers.startsWith(threadNamePrefix));
     }
 
     private static void revertTestFiles(ClientType clientType) {

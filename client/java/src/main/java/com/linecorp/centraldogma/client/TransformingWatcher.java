@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -31,6 +32,7 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
 
     private final Watcher<T> parent;
     private final Function<T, U> transformer;
+
     @Nullable
     private volatile Latest<U> transformedLatest;
     private volatile boolean closed;
@@ -64,20 +66,33 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
     @Override
     public void watch(BiConsumer<? super Revision, ? super U> listener) {
         requireNonNull(listener, "listener");
-        parent.watch((rev, parentValue) -> {
+        parent.watch(transform(listener));
+    }
+
+    @Override
+    public void watch(BiConsumer<? super Revision, ? super U> listener, Executor executor) {
+        requireNonNull(listener, "listener");
+        requireNonNull(executor, "executor");
+        parent.watch(transform(listener), executor);
+    }
+
+    private BiConsumer<Revision, T> transform(BiConsumer<? super Revision, ? super U> listener) {
+        return (revision, value) -> {
             if (closed) {
                 return;
             }
-            final U transformedValue = transformer.apply(parentValue);
-            final Optional<U> unchanged = Optional
-                    .ofNullable(transformedLatest)
-                    .map(Latest::value)
-                    .filter(transformedValue::equals);
-            if (!unchanged.isPresent()) {
-                transformedLatest = new Latest<>(rev, transformedValue);
-                listener.accept(rev, transformedValue);
+            final U transformedValue = transformer.apply(value);
+            final boolean changed;
+            if (transformedLatest == null) {
+                changed = true;
+            } else {
+                changed = !transformedLatest.value().equals(transformedValue);
+            }
+            if (changed) {
+                transformedLatest = new Latest<>(revision, transformedValue);
+                listener.accept(revision, transformedValue);
             } // else, transformed value has not changed
-        });
+        };
     }
 
     @Override
