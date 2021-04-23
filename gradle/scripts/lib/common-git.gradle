@@ -27,7 +27,13 @@ private def getGitPath() {
     // Find the location of the 'git' command.
     try {
         if (current() == WINDOWS) {
-            return executeCommand('where.exe', 'git.exe')
+            def commands = executeCommand('where.exe', 'git.exe')
+            // Several git.exe could be installed based on CI environment
+            def index = commands.indexOf("git.exe")
+            if (index < 0) {
+                throw new IllegalStateException("Invalid git command: " + commands)
+            }
+            return commands.substring(0, index + "git.exe".length())
         } else {
             return executeCommand('which', 'git')
         }
