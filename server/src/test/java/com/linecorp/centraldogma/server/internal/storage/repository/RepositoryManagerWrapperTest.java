@@ -29,12 +29,14 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -61,6 +63,16 @@ class RepositoryManagerWrapperTest {
                                                                   ForkJoinPool.commonPool(),
                                                                   purgeWorker, null),
                                          RepositoryWrapper::new);
+    }
+
+    @AfterEach
+    void tearDown() {
+        try {
+            m.list().keySet().forEach(name -> m.remove(name));
+            m.purgeMarked();
+        } catch (CentralDogmaException e) {
+            // Manager has already been closed.
+        }
     }
 
     @Test
