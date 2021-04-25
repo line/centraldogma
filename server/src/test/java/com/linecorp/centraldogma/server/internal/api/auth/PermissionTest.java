@@ -21,16 +21,13 @@ import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_
 import static com.linecorp.centraldogma.server.metadata.PerRolePermissions.READ_WRITE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.nio.file.Path;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -65,6 +62,7 @@ import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.Permission;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 
 class PermissionTest {
 
@@ -75,15 +73,15 @@ class PermissionTest {
     private static final String secret3 = "appToken-3";
 
     @Order(1)
-    @TempDir
-    static Path tempDir;
+    @RegisterExtension
+    static final TemporaryFolderExtension rootDir = new TemporaryFolderExtension();
 
     @RegisterExtension
     static final ServerExtension server = new ServerExtension() {
         @Override
         protected void configure(ServerBuilder sb) throws Exception {
             final ProjectManager pm = new DefaultProjectManager(
-                    tempDir.toFile(), ForkJoinPool.commonPool(),
+                    rootDir.getRoot().toFile(), ForkJoinPool.commonPool(),
                     MoreExecutors.directExecutor(), NoopMeterRegistry.get(), null);
             final CommandExecutor executor = new StandaloneCommandExecutor(
                     pm, ForkJoinPool.commonPool(), null, null, null);
@@ -141,11 +139,6 @@ class PermissionTest {
             }, decorator, new HttpApiExceptionHandler());
         }
     };
-
-    @AfterAll
-    static void tearDown() {
-        server.stop().join();
-    }
 
     @ParameterizedTest
     @MethodSource("arguments")
