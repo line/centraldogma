@@ -37,7 +37,7 @@ jobs:
       uses: burrunan/gradle-cache-action@v1.10
       with:
         remote-build-cache-proxy-enabled: false
-        arguments: --no-daemon --stacktrace -i checkstyle check build ${{ matrix.coverage && '-Pcoverage' || '' }}
+        arguments: --no-daemon --stacktrace checkstyle check build ${{ matrix.coverage && '-Pcoverage' || '' }}
         gradle-dependencies-cache-key: |
           ~/.gradle/go/binary
 
