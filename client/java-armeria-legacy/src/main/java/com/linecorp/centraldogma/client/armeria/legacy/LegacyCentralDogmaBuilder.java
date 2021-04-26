@@ -18,6 +18,9 @@ package com.linecorp.centraldogma.client.armeria.legacy;
 import java.net.UnknownHostException;
 import java.util.concurrent.ScheduledExecutorService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.encoding.DecodingClient;
@@ -39,6 +42,8 @@ import io.micrometer.core.instrument.MeterRegistry;
  */
 @Deprecated
 public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilder<LegacyCentralDogmaBuilder> {
+    private static final Logger logger = LoggerFactory.getLogger(LegacyCentralDogmaBuilder.class);
+
     /**
      * Returns a newly-created {@link CentralDogma} instance.
      *
@@ -69,7 +74,12 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         final ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
 
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
+
         final MeterRegistry meterRegistry = meterRegistry().orElse(clientFactory().meterRegistry());
+        if (meterRegistry != clientFactory().meterRegistry()) {
+            logger.warn("The specified meterRegistry differs from the meterRegistry from clientFactory.");
+        }
+
         final CentralDogma dogma = new LegacyCentralDogma(blockingTaskExecutor,
                                                           builder.build(AsyncIface.class), meterRegistry);
         if (maxRetriesOnReplicationLag <= 0) {

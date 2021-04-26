@@ -18,6 +18,9 @@ package com.linecorp.centraldogma.client.armeria;
 import java.net.UnknownHostException;
 import java.util.concurrent.ScheduledExecutorService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.WebClient;
@@ -34,6 +37,8 @@ import io.micrometer.core.instrument.MeterRegistry;
  */
 public final class ArmeriaCentralDogmaBuilder
         extends AbstractArmeriaCentralDogmaBuilder<ArmeriaCentralDogmaBuilder> {
+    private static final Logger logger = LoggerFactory.getLogger(ArmeriaCentralDogmaBuilder.class);
+
     /**
      * Returns a newly-created {@link CentralDogma} instance.
      *
@@ -45,7 +50,11 @@ public final class ArmeriaCentralDogmaBuilder
         final ClientBuilder builder =
                 newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()), "/");
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
+
         final MeterRegistry meterRegistry = meterRegistry().orElse(clientFactory().meterRegistry());
+        if (meterRegistry != clientFactory().meterRegistry()) {
+            logger.warn("The specified meterRegistry differs from the meterRegistry from clientFactory.");
+        }
         // TODO(ikhoon): Apply ExecutorServiceMetrics for the 'blockingTaskExecutor' once
         //               https://github.com/line/centraldogma/pull/542 is merged.
         final ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
