@@ -30,6 +30,8 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.AsyncIface;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Builds a legacy {@link CentralDogma} client based on Thrift.
  *
@@ -67,8 +69,9 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         final ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
 
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
+        final MeterRegistry meterRegistry = meterRegistry().orElse(clientFactory().meterRegistry());
         final CentralDogma dogma = new LegacyCentralDogma(blockingTaskExecutor,
-                                                          builder.build(AsyncIface.class), meterRegistry());
+                                                          builder.build(AsyncIface.class), meterRegistry);
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
@@ -80,7 +83,7 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
                         //                 in Armeria: https://github.com/line/armeria/issues/760
                         final ClientRequestContext ctx = ClientRequestContext.currentOrNull();
                         return ctx != null ? ctx.remoteAddress() : null;
-                    }, meterRegistry());
+                    }, meterRegistry);
         }
     }
 }

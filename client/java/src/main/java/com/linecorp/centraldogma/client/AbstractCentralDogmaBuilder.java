@@ -31,6 +31,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -73,7 +74,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     private int maxNumRetriesOnReplicationLag = DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG;
     private long retryIntervalOnReplicationLagMillis =
             TimeUnit.SECONDS.toMillis(DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS);
-    private MeterRegistry meterRegistry = Metrics.globalRegistry;
+    private Optional<MeterRegistry> meterRegistry = Optional.empty();
 
     /**
      * Returns {@code this}.
@@ -424,11 +425,11 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      * Sets the {@link MeterRegistry} used to collect metrics.
      */
     public final B meterRegistry(MeterRegistry meterRegistry) {
-        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+        this.meterRegistry = Optional.of(requireNonNull(meterRegistry, "meterRegistry"));
         return self();
     }
 
-    protected MeterRegistry meterRegistry() {
+    protected Optional<MeterRegistry> meterRegistry() {
         return meterRegistry;
     }
 }
