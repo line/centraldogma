@@ -49,7 +49,7 @@ import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
 import org.eclipse.jgit.util.RawParseUtils;
 
-final class TwoRepositoriesTreeWalk implements AutoCloseable {
+final class CrossRepositoryTreeWalk implements AutoCloseable {
 
     // Forked minimum features from jGit v5.11.0.202103091610-r
     // https://github.com/eclipse/jgit/blob/v5.11.0.202103091610-r/org.eclipse.jgit/src/org/eclipse/jgit/treewalk/TreeWalk.java
@@ -63,12 +63,13 @@ final class TwoRepositoriesTreeWalk implements AutoCloseable {
 
     private boolean advance;
 
+    @Nullable
     private CanonicalTreeParser currentHead;
 
     private final ObjectReader oldReader;
     private final ObjectReader newReader;
 
-    TwoRepositoriesTreeWalk(Repository oldRepo, ObjectId oldObjectId, Repository newRepo, ObjectId newObjectId,
+    CrossRepositoryTreeWalk(Repository oldRepo, ObjectId oldObjectId, Repository newRepo, ObjectId newObjectId,
                             TreeFilter filter) throws IOException {
         this.filter = filter;
         oldReader = oldRepo.newObjectReader();
@@ -88,7 +89,8 @@ final class TwoRepositoriesTreeWalk implements AutoCloseable {
         return revWalk;
     }
 
-    private CanonicalTreeParser canonicalTreeParser(ObjectReader reader, RevTree revTree) throws IOException {
+    private static CanonicalTreeParser canonicalTreeParser(
+            ObjectReader reader, RevTree revTree) throws IOException {
         final CanonicalTreeParser parser = new CanonicalTreeParser(reader, revTree);
         parser.reset();
         return parser;
@@ -437,6 +439,13 @@ final class TwoRepositoriesTreeWalk implements AutoCloseable {
             parseEntry();
         }
 
+        /**
+         * The format of each entry having references to other trees and blobs:
+         * <pre>{@code
+         *   [mode] [file/folder name]\0[SHA-1 of referencing blob or tree]
+         * }</pre>
+         * See https://stackoverflow.com/a/21599232/12105655.
+         */
         private void parseEntry() {
             int ptr = currPtr;
             byte c = raw[ptr++];

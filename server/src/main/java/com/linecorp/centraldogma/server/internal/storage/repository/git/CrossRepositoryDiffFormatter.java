@@ -38,14 +38,14 @@ import org.eclipse.jgit.lib.ObjectId;
 
 import com.google.common.collect.ImmutableList;
 
-final class TwoRepositoriesDiffFormatter {
+final class CrossRepositoryDiffFormatter {
 
     // Forked minimum features from jGit v5.11.0.202103091610-r
     // https://github.com/eclipse/jgit/blob/v5.11.0.202103091610-r/org.eclipse.jgit/src/org/eclipse/jgit/diff/DiffFormatter.java
 
     private static final AbbreviatedObjectId A_ZERO = AbbreviatedObjectId.fromObjectId(ObjectId.zeroId());
 
-    static List<DiffEntry> scan(TwoRepositoriesTreeWalk walk) throws IOException {
+    static List<DiffEntry> scan(CrossRepositoryTreeWalk walk) throws IOException {
         final ImmutableList.Builder<DiffEntry> builder = ImmutableList.builder();
         final MutableObjectId idBuf = new MutableObjectId();
         while (walk.next()) {
@@ -147,7 +147,7 @@ final class TwoRepositoriesDiffFormatter {
             this.changeType = changeType;
         }
 
-        Object oldId() {
+        AbbreviatedObjectId oldId() {
             return oldId;
         }
 
@@ -155,7 +155,7 @@ final class TwoRepositoriesDiffFormatter {
             this.oldId = oldId;
         }
 
-        Object newId() {
+        AbbreviatedObjectId newId() {
             return newId;
         }
 
@@ -164,5 +164,5 @@ final class TwoRepositoriesDiffFormatter {
         }
     }
 
-    private TwoRepositoriesDiffFormatter() {}
+    private CrossRepositoryDiffFormatter() {}
 }

@@ -17,8 +17,8 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.linecorp.centraldogma.common.Revision.HEAD;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.CrossRepositoryDiffFormatter.scan;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepository.pathPatternFilterOrTreeFilter;
-import static com.linecorp.centraldogma.server.internal.storage.repository.git.TwoRepositoriesDiffFormatter.scan;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -126,12 +126,12 @@ class DiffFormatterTest {
         final ObjectId newObjectId = newRepo.commitIdDatabase()
                                             .get(new Revision(convertedNewRevision(newRevision)));
 
-        try (TwoRepositoriesTreeWalk walk =
-                     new TwoRepositoriesTreeWalk(oldJGitRepo, oldObjectId, newJGitRepo,
+        try (CrossRepositoryTreeWalk walk =
+                     new CrossRepositoryTreeWalk(oldJGitRepo, oldObjectId, newJGitRepo,
                                                  newObjectId, pathPatternFilterOrTreeFilter(pathPattern))) {
-            final List<DiffEntry> twoRepoDiffEntries = scan(walk);
+            final List<DiffEntry> crossRepoDiffEntries = scan(walk);
             assertThat(singleRepoDiffEntries).usingElementComparator(new DiffEntryComparator())
-                                             .containsExactlyElementsOf(twoRepoDiffEntries);
+                                             .containsExactlyElementsOf(crossRepoDiffEntries);
         }
     }
 
