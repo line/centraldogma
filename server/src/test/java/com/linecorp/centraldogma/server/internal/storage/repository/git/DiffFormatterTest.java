@@ -78,34 +78,42 @@ class DiffFormatterTest {
     })
     void testDiff(String pathPattern) throws IOException {
         //  Single repo:
-        //  Revision     1           2           3              4              5           6              7
-        //  initial commit  Add /a.json              Modify /a.json                           Rename to /aa.json
-        //  initial commit  Add /a.txt
-        //  initial commit              Add /b/b.json
-        //  initial commit              Add /b/b.txt              Remove /b/b.txt
-        //  initial commit                                                         Add /c.json
-        //  initial commit                                                         Add /c.txt
+        //  ----------------------------------------------------------------------------------------------------
+        //  Revision     1|           2|             3|              4|               5|           6|         7|
+        //  initial commit| Add /a.json|              | Modify /a.json|                |            | Rename to|
+        //  initial commit| Add /a.txt |              |               |                |            | /aa.json |
+        //  initial commit|            | Add /b/b.json|               |                |            |          |
+        //  initial commit|            | Add /b/b.txt |               | Remove /b/b.txt|            |          |
+        //  initial commit|            |              |               |                | Add /c.json|          |
+        //  initial commit|            |              |               |                | Add /c.txt |          |
+        //  ----------------------------------------------------------------------------------------------------
 
         //  Old repo contains up to the revision 3 commits of Single repo.
 
         //  Old repo:
-        //  Revision     1           2           3
-        //  initial commit  Add /a.json
-        //  initial commit  Add /a.txt
-        //  initial commit              Add /b/b.json
-        //  initial commit              Add /b/b.txt
+        //  -------------------------------------------
+        //  Revision     1|           2|             3|
+        //  initial commit| Add /a.json|              |
+        //  initial commit| Add /a.txt |              |
+        //  initial commit|            | Add /b/b.json|
+        //  initial commit|            | Add /b/b.txt |
+        //  initial commit|            |              |
+        //  initial commit|            |              |
+        //  -------------------------------------------
 
         //  New repo is created with the revision 3 of old repo and contains 4 ~ 7 commits of Single repo.
         //  The revision number - 1 of Single repo is the corresponding revision of New repo.
 
         //  New repo:
-        //  Revision     1            2                          3              4           5             6
-        //  initial commit  Add /a.json              Modify /a.json                           Rename to /aa.json
-        //  initial commit  Add /a.txt
-        //  initial commit  Add /b/b.json
-        //  initial commit  Add /b/b.txt                           Remove /b/b.txt
-        //  initial commit                                                         Add /c.json
-        //  initial commit                                                         Add /c.txt
+        //  ----------------------------------------------------------------------------------------------------
+        //  Revision     1|           2               |              3|               4|           5|         6|
+        //  initial commit| Add /a.json               | Modify /a.json|                |            | Rename to|
+        //  initial commit| Add /a.txt                |               |                |            | /aa.json |
+        //  initial commit| Add /b/b.json             |               |                |            |          |
+        //  initial commit| Add /b/b.txt              |               | Remove /b/b.txt|            |          |
+        //  initial commit|                           |               |                | Add /c.json|          |
+        //  initial commit|                           |               |                | Add /c.txt |          |
+        //  ----------------------------------------------------------------------------------------------------
 
         for (int oldRevision = 2; oldRevision <= 3; oldRevision++) {
             for (int newRevision = 4; newRevision <= 7; newRevision++) {
