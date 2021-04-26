@@ -76,7 +76,7 @@ abstract class WriteQuotaTestBase {
         assertThat(CompletableFutures.allAsList(futures2).join()).hasSize(4);
 
         // Exceed the quota
-        final List<CompletableFuture<PushResult>> futures3 = parallelPush(dogmaClient(), repositoryName, 4);
+        final List<CompletableFuture<PushResult>> futures3 = parallelPush(dogmaClient(), repositoryName, 6);
         assertThatThrownBy(() -> CompletableFutures.allAsList(futures3).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(CentralDogmaException.class)
