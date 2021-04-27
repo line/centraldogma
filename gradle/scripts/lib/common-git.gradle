@@ -28,7 +28,7 @@ private def getGitPath() {
     try {
         if (current() == WINDOWS) {
             def commands = executeCommand('where.exe', 'git.exe')
-            // Several git.exe could be installed based on CI environment
+            // "where.exe" returns all available commands, so select the first git.exe.
             return commands.split('\r\n')[0]
         } else {
             return executeCommand('which', 'git')
