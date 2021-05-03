@@ -4,6 +4,7 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       GRADLE_OPTS: -Xmx1280m
     strategy:
@@ -48,3 +49,9 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         fail_ci_if_error: false
+
+    - if: always()
+      name: Dump stuck threads
+      run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs kill -3
+      shell: bash
+
