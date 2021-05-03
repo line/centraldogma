@@ -16,9 +16,6 @@
 
 package com.linecorp.centraldogma.client.armeria;
 
-import static io.netty.handler.codec.dns.DnsRecordType.A;
-import static io.netty.handler.codec.dns.DnsRecordType.AAAA;
-import static io.netty.handler.codec.dns.DnsSection.ANSWER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,17 +29,12 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
-import com.google.common.collect.ImmutableMap;
-
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
-
-import io.netty.handler.codec.dns.DefaultDnsQuestion;
-import io.netty.handler.codec.dns.DefaultDnsResponse;
 
 class ArmeriaCentralDogmaBuilderTest {
 
