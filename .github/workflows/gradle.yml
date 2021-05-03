@@ -52,6 +52,6 @@ jobs:
 
     - if: always()
       name: Dump stuck threads
-      run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs kill -3
+      run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs -I'{}' jstack -l {}
       shell: bash
 
