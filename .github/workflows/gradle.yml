@@ -45,13 +45,14 @@ jobs:
       run: |
         rm -f ~/.gradle/caches/modules-2/modules-2.lock
         rm -f ~/.gradle/caches/modules-2/gc.properties
+
     - if: ${{ matrix.java == '11' }}
       uses: codecov/codecov-action@v1
       with:
         fail_ci_if_error: false
 
-    - if: always()
-      name: Dump stuck threads
+    - name: Dump stuck threads
+      if: always()
       run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
       shell: bash
 
