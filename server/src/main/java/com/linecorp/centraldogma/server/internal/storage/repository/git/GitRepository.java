@@ -375,8 +375,9 @@ class GitRepository implements Repository {
         requireNonNull(failureCauseSupplier, "failureCauseSupplier");
         if (closePending.compareAndSet(null, failureCauseSupplier)) {
             repositoryWorker.execute(() -> {
-                rwLock.writeLock().lock();
+                // MUST acquire gcLock first to prevent a dead lock
                 gcLock.lock();
+                rwLock.writeLock().lock();
                 try {
                     if (commitIdDatabase != null) {
                         try {
@@ -403,10 +404,16 @@ class GitRepository implements Repository {
                         }
                     }
                 } finally {
-                    rwLock.writeLock().unlock();
-                    gcLock.unlock();
-                    commitWatchers.close(failureCauseSupplier);
-                    closeFuture.complete(null);
+                    try {
+                        rwLock.writeLock().unlock();
+                    } finally {
+                        try {
+                            gcLock.unlock();
+                        } finally {
+                            commitWatchers.close(failureCauseSupplier);
+                            closeFuture.complete(null);
+                        }
+                    }
                 }
             });
         }

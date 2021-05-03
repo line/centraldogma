@@ -4,6 +4,7 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       GRADLE_OPTS: -Xmx1280m
     strategy:
@@ -44,7 +45,14 @@ jobs:
       run: |
         rm -f ~/.gradle/caches/modules-2/modules-2.lock
         rm -f ~/.gradle/caches/modules-2/gc.properties
+
     - if: ${{ matrix.java == '11' }}
       uses: codecov/codecov-action@v1
       with:
         fail_ci_if_error: false
+
+    - name: Dump stuck threads
+      if: always()
+      run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
+      shell: bash
+
