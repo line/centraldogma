@@ -49,9 +49,9 @@ com.fasterxml.jackson.core:
 
 com.github.ben-manes.caffeine:
   caffeine:
-    version: '3.0.1'
+    version: '2.9.0'
     javadocs:
-    - https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/3.0.1/
+    - https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.9.0/
 
 com.github.jengelman.gradle.plugins:
   shadow: { version: '6.1.0' }
