@@ -16,6 +16,9 @@
 
 package com.linecorp.centraldogma.client.armeria;
 
+import static io.netty.handler.codec.dns.DnsRecordType.A;
+import static io.netty.handler.codec.dns.DnsRecordType.AAAA;
+import static io.netty.handler.codec.dns.DnsSection.ANSWER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +32,8 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
+import com.google.common.collect.ImmutableMap;
+
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.Endpoint;
@@ -36,15 +41,18 @@ import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
 
+import io.netty.handler.codec.dns.DefaultDnsQuestion;
+import io.netty.handler.codec.dns.DefaultDnsResponse;
+
 class ArmeriaCentralDogmaBuilderTest {
 
-    // Note: This test case relies on http://xip.io/
+    // Note: This test case relies on https://sslip.io/
 
     @Test
     void buildingWithProfile() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.healthCheckIntervalMillis(0);
-        b.profile("xip");
+        b.profile("sslip");
         final EndpointGroup group = b.endpointGroup();
 
         assertThat(group).isNotNull();
@@ -59,8 +67,8 @@ class ArmeriaCentralDogmaBuilderTest {
             final List<Endpoint> endpoints = group.endpoints();
             assertThat(endpoints).isNotNull();
             assertThat(endpoints).containsExactlyInAnyOrder(
-                    Endpoint.of("1.2.3.4.xip.io", 36462).withIpAddr("1.2.3.4"),
-                    Endpoint.of("5.6.7.8.xip.io", 8080).withIpAddr("5.6.7.8"));
+                    Endpoint.of("1.2.3.4.sslip.io", 36462).withIpAddr("1.2.3.4"),
+                    Endpoint.of("5.6.7.8.sslip.io", 8080).withIpAddr("5.6.7.8"));
         });
     }
 
@@ -75,18 +83,18 @@ class ArmeriaCentralDogmaBuilderTest {
     void buildingWithSingleUnresolvedHost() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.healthCheckIntervalMillis(0);
-        b.host("1.2.3.4.xip.io");
+        b.host("1.2.3.4.sslip.io");
         assertThat(b.endpointGroup()).isInstanceOf(DnsAddressEndpointGroup.class);
         assertThat(b.endpointGroup().endpoints().size()).isEqualTo(1);
-        assertThat(b.endpointGroup().endpoints().get(0).host()).isEqualTo("1.2.3.4.xip.io");
+        assertThat(b.endpointGroup().endpoints().get(0).host()).isEqualTo("1.2.3.4.sslip.io");
     }
 
     @Test
     void buildingWithMultipleHosts() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.healthCheckIntervalMillis(0);
-        b.host("1.2.3.4.xip.io", 1); // Unresolved host
-        b.host("5.6.7.8.xip.io", 2); // Another unresolved host
+        b.host("1.2.3.4.sslip.io", 1); // Unresolved host
+        b.host("5.6.7.8.sslip.io", 2); // Another unresolved host
         b.host("4.3.2.1", 3); // Resolved host
         b.host("8.7.6.5", 4); // Another resolved host
 
@@ -104,8 +112,8 @@ class ArmeriaCentralDogmaBuilderTest {
             final List<Endpoint> endpoints = endpointGroup.endpoints();
             assertThat(endpoints).isNotNull();
             assertThat(endpoints).containsExactlyInAnyOrder(
-                    Endpoint.of("1.2.3.4.xip.io", 1).withIpAddr("1.2.3.4"),
-                    Endpoint.of("5.6.7.8.xip.io", 2).withIpAddr("5.6.7.8"),
+                    Endpoint.of("1.2.3.4.sslip.io", 1).withIpAddr("1.2.3.4"),
+                    Endpoint.of("5.6.7.8.sslip.io", 2).withIpAddr("5.6.7.8"),
                     Endpoint.of("4.3.2.1", 3),
                     Endpoint.of("8.7.6.5", 4));
         });
