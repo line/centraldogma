@@ -35,9 +35,9 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
      * Creates a new instance.
      */
     public RepositoryWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
-                      Executor callbackExecutor,
-                      String projectName, String repositoryName,
-                      String pathPattern, Function<Revision, ? extends T> function) {
+                             Executor callbackExecutor,
+                             String projectName, String repositoryName,
+                             String pathPattern, Function<Revision, ? extends T> function) {
         super(client, watchScheduler, projectName, repositoryName, pathPattern);
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.function = requireNonNull(function, "function");

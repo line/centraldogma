@@ -526,7 +526,7 @@ public interface CentralDogma {
      * <pre>{@code
      * Watcher<MyType> watcher = client.fileWatcher(
      *         "foo", "bar", Query.ofJson("/baz.json"),
-     *         content -> new ObjectMapper().treeToValue(content, MyType.class));
+     *         content -> new ObjectMapper().treeToValue(content, MyType.class), executor);
      *
      * watcher.watch((revision, myValue) -> {
      *     assert myValue instanceof MyType;
@@ -557,7 +557,7 @@ public interface CentralDogma {
      * that contains the changes for the files matched by the given {@code pathPattern}. e.g:
      * <pre>{@code
      * Watcher<Map<String, Entry<?>> watcher = client.repositoryWatcher(
-     *         "foo", "bar", "/*.json", revision -> client.getFiles("foo", "bar", revision, "/*.json").get());
+     *         "foo", "bar", "/*.json", revision -> client.getFiles("foo", "bar", revision, "/*.json").join());
      *
      * watcher.watch((revision, contents) -> {
      *     ...
@@ -577,7 +577,8 @@ public interface CentralDogma {
      * that contains the changes for the files matched by the given {@code pathPattern}. e.g:
      * <pre>{@code
      * Watcher<Map<String, Entry<?>> watcher = client.repositoryWatcher(
-     *         "foo", "bar", "/*.json", revision -> client.getFiles("foo", "bar", revision, "/*.json").get());
+     *         "foo", "bar", "/*.json",
+     *         revision -> client.getFiles("foo", "bar", revision, "/*.json").join(), executor);
      *
      * watcher.watch((revision, contents) -> {
      *     ...

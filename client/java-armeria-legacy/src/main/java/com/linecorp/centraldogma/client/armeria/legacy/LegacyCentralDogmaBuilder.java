@@ -73,7 +73,7 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
             return dogma;
         } else {
             return new ReplicationLagTolerantCentralDogma(
-                    blockingTaskExecutor(), dogma, maxRetriesOnReplicationLag,
+                    blockingTaskExecutor, dogma, maxRetriesOnReplicationLag,
                     retryIntervalOnReplicationLagMillis(),
                     () -> {
                         // FIXME(trustin): Note that this will always return `null` due to a known limitation
