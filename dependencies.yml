@@ -22,8 +22,9 @@ com.beust:
 com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
 
+# Don't update `gradle-docker-plugin` to '7.x' that requires Java 11
 com.bmuschko:
-  gradle-docker-plugin: { version: '7.0.0' }
+  gradle-docker-plugin: { version: '6.7.0' }
 
 com.craigburke.gradle:
   client-dependencies: { version: '1.4.1' }
