@@ -53,7 +53,7 @@ tasks.assemble.dependsOn tasks.buildWebApp
 tasks.clean.dependsOn tasks.cleanNodeModules
 
 node {
-    version = '10.19.0'
-    yarnVersion = '1.17.3'
+    version = '16.1.0'
+    yarnVersion = '1.22.10'
     download = true
 }
