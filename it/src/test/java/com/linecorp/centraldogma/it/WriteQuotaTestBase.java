@@ -76,7 +76,7 @@ abstract class WriteQuotaTestBase {
         assertThat(CompletableFutures.allAsList(futures2).join()).hasSize(4);
 
         // Exceed the quota
-        final List<CompletableFuture<PushResult>> futures3 = parallelPush(dogmaClient(), repositoryName, 4);
+        final List<CompletableFuture<PushResult>> futures3 = parallelPush(dogmaClient(), repositoryName, 6);
         assertThatThrownBy(() -> CompletableFutures.allAsList(futures3).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(CentralDogmaException.class)
@@ -91,8 +91,8 @@ abstract class WriteQuotaTestBase {
         updated = updateWriteQuota(webClient(), repositoryName, writeQuota);
         assertThat(updated).isEqualTo(writeQuota);
 
-        final List<CompletableFuture<PushResult>> futures4 = parallelPush(dogmaClient(), repositoryName, 5);
-        assertThat(CompletableFutures.allAsList(futures4).join()).hasSize(10);
+        final List<CompletableFuture<PushResult>> futures4 = parallelPush(dogmaClient(), repositoryName, 4);
+        assertThat(CompletableFutures.allAsList(futures4).join()).hasSize(8);
     }
 
     private static QuotaConfig updateWriteQuota(WebClient adminClient, String repoName, QuotaConfig writeQuota)
