@@ -33,13 +33,29 @@ jobs:
         distribution: 'adopt'
         java-version: ${{ matrix.java }}
 
-    - name: Build with Gradle
-      uses: burrunan/gradle-cache-action@v1.10
+    - name: Restore Gradle Cache
+      uses: actions/cache@v2
       with:
-        remote-build-cache-proxy-enabled: false
-        arguments: --no-daemon --stacktrace checkstyle check build ${{ matrix.coverage && '-Pcoverage' || '' }}
-        gradle-dependencies-cache-key: |
+        path: |
+          ~/.gradle/wrapper/dists
+          ~/.gradle/caches/jars-3
+          ~/.gradle/caches/modules-2
+          ~/.gradle/caches/package-lists
+          ~/.gradle/caches/sphinx-binary
           ~/.gradle/go/binary
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Build with Gradle
+      run: ./gradlew --no-daemon --stacktrace -Pcoverage checkstyle check build
+
+    - name: Cleanup Gradle Cache
+      # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
+      # Restoring these files from a GitHub Actions cache might cause problems for future builds.
+      run: |
+        rm -f ~/.gradle/caches/modules-2/modules-2.lock
+        rm -f ~/.gradle/caches/modules-2/gc.properties
 
     - name: Upload coverage to Codecov
       if: ${{ matrix.coverage }}
@@ -57,3 +73,8 @@ jobs:
         name: reports-JVM-${{ matrix.java }}
         path: reports-JVM-${{ matrix.java }}.tar
         retention-days: 3
+
+    - name: Dump stuck threads
+      if: always()
+      run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
+      shell: bash

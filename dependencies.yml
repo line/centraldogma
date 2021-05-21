@@ -3,9 +3,9 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.fasterxml.jackson:jackson-bom:2.12.2
-- com.linecorp.armeria:armeria-bom:1.6.0
-- io.micrometer:micrometer-bom:1.6.5
+- com.fasterxml.jackson:jackson-bom:2.12.3
+- com.linecorp.armeria:armeria-bom:1.7.2
+- io.micrometer:micrometer-bom:1.6.6
 - org.junit:junit-bom:5.7.1
 
 ch.qos.logback:
@@ -49,9 +49,9 @@ com.fasterxml.jackson.core:
 
 com.github.ben-manes.caffeine:
   caffeine:
-    version: '2.8.8'
+    version: '2.9.0'
     javadocs:
-    - https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.8.8/
+    - https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.9.0/
 
 com.github.jengelman.gradle.plugins:
   shadow: { version: '6.1.0' }
@@ -113,7 +113,7 @@ com.linecorp.armeria:
     - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.6.0/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.41.1' }
+  checkstyle: { version: '8.42' }
 
 com.spotify:
   completable-futures:
@@ -224,7 +224,7 @@ org.javassist:
   javassist: { version: '3.27.0-GA' }
 
 org.mockito:
-  mockito-core: { version: &MOCKITO_VERSION '3.8.0' }
+  mockito-core: { version: &MOCKITO_VERSION '3.9.0' }
   mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
@@ -245,7 +245,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.4.4'
+    version: &SPRING_BOOT_VERSION '2.4.5'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
