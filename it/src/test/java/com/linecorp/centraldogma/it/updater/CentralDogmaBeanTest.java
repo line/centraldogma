@@ -29,6 +29,7 @@ import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 import org.awaitility.core.ConditionTimeoutException;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -41,7 +42,6 @@ import com.linecorp.centraldogma.client.updater.CentralDogmaBean;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanConfigBuilder;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanFactory;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -88,13 +88,13 @@ class CentralDogmaBeanTest {
         final CentralDogma client = dogma.client();
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class, listener);
 
-        final PushResult res = client.push("a", "b", Revision.HEAD, "Add c.json",
-                                           Change.ofJsonUpsert("/c.json",
-                                                               '{' +
-                                                               "  \"foo\": 20," +
-                                                               "  \"bar\": \"Y\"," +
-                                                               "  \"qux\": [\"0\", \"1\"]" +
-                                                               '}')).join();
+        client.push("a", "b", Revision.HEAD, "Add c.json",
+                    Change.ofJsonUpsert("/c.json",
+                                        '{' +
+                                        "  \"foo\": 20," +
+                                        "  \"bar\": \"Y\"," +
+                                        "  \"qux\": [\"0\", \"1\"]" +
+                                        '}')).join();
 
         // Wait until the changes are handled.
         await().atMost(5000, TimeUnit.SECONDS).until(() -> property.getFoo() == 20);
@@ -186,7 +186,7 @@ class CentralDogmaBeanTest {
                                         '}')).join();
 
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class, update::set);
-        await().atMost(5, TimeUnit.SECONDS).until(() -> update.get() != null);
+        await().untilAtomic(update, Matchers.notNullValue());
 
         assertThat(property.getFoo()).isEqualTo(21);
         assertThat(property.getBar()).isEqualTo("Y");

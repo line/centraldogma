@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
@@ -41,24 +42,25 @@ import com.linecorp.centraldogma.internal.client.RepositoryWatcher;
  */
 public abstract class AbstractCentralDogma implements CentralDogma {
 
-    private final ScheduledExecutorService executor;
+    private final ScheduledExecutorService blockingTaskExecutor;
 
     /**
      * Creates a new instance.
      *
-     * @param executor the {@link ScheduledExecutorService} which will be used for scheduling the tasks
-     *                 related with automatic retries.
+     * @param blockingTaskExecutor the {@link ScheduledExecutorService} which will be used for scheduling the
+     *                             tasks related with automatic retries and invoking the callbacks for
+     *                             watched changes.
      */
-    protected AbstractCentralDogma(ScheduledExecutorService executor) {
-        this.executor = requireNonNull(executor, "executor");
+    protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor) {
+        this.blockingTaskExecutor = requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
     }
 
     /**
      * Returns the {@link ScheduledExecutorService} which is used for scheduling the tasks related with
-     * automatic retries.
+     * automatic retries and invoking the callbacks for watched changes.
      */
     protected final ScheduledExecutorService executor() {
-        return executor;
+        return blockingTaskExecutor;
     }
 
     @Override
@@ -162,9 +164,15 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     public <T, U> Watcher<U> fileWatcher(
             String projectName, String repositoryName, Query<T> query,
             Function<? super T, ? extends U> function) {
+        return fileWatcher(projectName, repositoryName, query, function, blockingTaskExecutor);
+    }
 
+    @Override
+    public <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
+                                         Function<? super T, ? extends U> function, Executor executor) {
         final FileWatcher<U> watcher =
-                new FileWatcher<>(this, executor, projectName, repositoryName, query, function);
+                new FileWatcher<>(this, blockingTaskExecutor, executor, projectName, repositoryName, query,
+                                  function);
         watcher.start();
         return watcher;
     }
@@ -179,9 +187,15 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     public <T> Watcher<T> repositoryWatcher(
             String projectName, String repositoryName, String pathPattern,
             Function<Revision, ? extends T> function) {
+        return repositoryWatcher(projectName, repositoryName, pathPattern, function, blockingTaskExecutor);
+    }
+
+    @Override
+    public <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
+                                            Function<Revision, ? extends T> function, Executor executor) {
 
         final RepositoryWatcher<T> watcher =
-                new RepositoryWatcher<>(this, executor,
+                new RepositoryWatcher<>(this, blockingTaskExecutor, executor,
                                         projectName, repositoryName, pathPattern, function);
         watcher.start();
         return watcher;

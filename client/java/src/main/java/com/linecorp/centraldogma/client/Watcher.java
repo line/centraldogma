@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
@@ -203,12 +204,30 @@ public interface Watcher<T> extends AutoCloseable {
     void watch(BiConsumer<? super Revision, ? super T> listener);
 
     /**
+     * Registers a {@link BiConsumer} that will be invoked when the value of the watched entry becomes
+     * available or changes.
+     *
+     * @param executor the {@link Executor} that executes the {@link BiConsumer}
+     */
+    void watch(BiConsumer<? super Revision, ? super T> listener, Executor executor);
+
+    /**
      * Registers a {@link Consumer} that will be invoked when the value of the watched entry becomes available
      * or changes.
      */
     default void watch(Consumer<? super T> listener) {
         requireNonNull(listener, "listener");
         watch((revision, value) -> listener.accept(value));
+    }
+
+    /**
+     * Registers a {@link Consumer} that will be invoked when the value of the watched entry becomes available
+     * or changes.
+     */
+    default void watch(Consumer<? super T> listener, Executor executor) {
+        requireNonNull(listener, "listener");
+        requireNonNull(executor, "executor");
+        watch((revision, value) -> listener.accept(value), executor);
     }
 
     /**

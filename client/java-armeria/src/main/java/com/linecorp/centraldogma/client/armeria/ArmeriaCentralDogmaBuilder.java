@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.client.armeria;
 
 import java.net.UnknownHostException;
+import java.util.concurrent.ScheduledExecutorService;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
@@ -24,8 +25,6 @@ import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
-
-import io.netty.channel.EventLoopGroup;
 
 /**
  * Builds a {@link CentralDogma} client based on an <a href="https://line.github.io/armeria/">Armeria</a>
@@ -43,16 +42,21 @@ public final class ArmeriaCentralDogmaBuilder
         final String scheme = "none+" + (isUseTls() ? "https" : "http");
         final ClientBuilder builder =
                 newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()), "/");
-        final EventLoopGroup executor = clientFactory().eventLoopGroup();
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
-        final CentralDogma dogma = new ArmeriaCentralDogma(executor,
+
+        // TODO(ikhoon): Apply ExecutorServiceMetrics for the 'blockingTaskExecutor' once
+        //               https://github.com/line/centraldogma/pull/542 is merged.
+        final ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
+
+        final CentralDogma dogma = new ArmeriaCentralDogma(blockingTaskExecutor,
                                                            builder.build(WebClient.class),
                                                            accessToken());
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
             return new ReplicationLagTolerantCentralDogma(
-                    executor, dogma, maxRetriesOnReplicationLag, retryIntervalOnReplicationLagMillis(),
+                    blockingTaskExecutor, dogma, maxRetriesOnReplicationLag,
+                    retryIntervalOnReplicationLagMillis(),
                     () -> {
                         // FIXME(trustin): Note that this will always return `null` due to a known limitation
                         //                 in Armeria: https://github.com/line/armeria/issues/760

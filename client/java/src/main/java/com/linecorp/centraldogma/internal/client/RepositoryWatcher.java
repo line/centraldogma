@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.internal.client;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
@@ -28,27 +29,30 @@ import com.linecorp.centraldogma.common.Revision;
 public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
     private final String pathPattern;
     private final Function<Revision, ? extends T> function;
+    private final Executor callbackExecutor;
 
     /**
      * Creates a new instance.
      */
-    public RepositoryWatcher(CentralDogma client, ScheduledExecutorService executor,
-                      String projectName, String repositoryName,
-                      String pathPattern, Function<Revision, ? extends T> function) {
-        super(client, executor, projectName, repositoryName, pathPattern);
+    public RepositoryWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
+                             Executor callbackExecutor,
+                             String projectName, String repositoryName,
+                             String pathPattern, Function<Revision, ? extends T> function) {
+        super(client, watchScheduler, projectName, repositoryName, pathPattern);
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.function = requireNonNull(function, "function");
+        this.callbackExecutor = requireNonNull(callbackExecutor, "callbackExecutor");
     }
 
     @Override
     protected CompletableFuture<Latest<T>> doWatch(CentralDogma client, String projectName,
                                                    String repositoryName, Revision lastKnownRevision) {
         return client.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern)
-                     .thenApply(revision -> {
+                     .thenApplyAsync(revision -> {
                          if (revision == null) {
                              return null;
                          }
                          return new Latest<>(revision, function.apply(revision));
-                     });
+                     }, callbackExecutor);
     }
 }

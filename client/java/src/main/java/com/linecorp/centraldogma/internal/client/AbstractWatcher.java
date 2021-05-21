@@ -19,12 +19,15 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.math.LongMath.saturatedAdd;
 import static java.util.Objects.requireNonNull;
 
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -49,6 +52,7 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractWatcher.class);
+    private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
     private static final long DELAY_ON_SUCCESS_MILLIS = TimeUnit.SECONDS.toMillis(1);
     private static final long MIN_INTERVAL_MILLIS = DELAY_ON_SUCCESS_MILLIS * 2;
@@ -102,12 +106,12 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     }
 
     private final CentralDogma client;
-    private final ScheduledExecutorService executor;
+    private final ScheduledExecutorService watchScheduler;
     private final String projectName;
     private final String repositoryName;
     private final String pathPattern;
 
-    private final List<BiConsumer<? super Revision, ? super T>> updateListeners;
+    private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners;
     private final AtomicReference<State> state;
     private final CompletableFuture<Latest<T>> initialValueFuture;
 
@@ -115,10 +119,10 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private volatile ScheduledFuture<?> currentScheduleFuture;
     private volatile CompletableFuture<?> currentWatchFuture;
 
-    protected AbstractWatcher(CentralDogma client, ScheduledExecutorService executor,
+    protected AbstractWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
                               String projectName, String repositoryName, String pathPattern) {
         this.client = requireNonNull(client, "client");
-        this.executor = requireNonNull(executor, "executor");
+        this.watchScheduler = requireNonNull(watchScheduler, "watchScheduler");
         this.projectName = requireNonNull(projectName, "projectName");
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
@@ -176,9 +180,14 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
 
     @Override
     public void watch(BiConsumer<? super Revision, ? super T> listener) {
+        watch(listener, watchScheduler);
+    }
+
+    @Override
+    public void watch(BiConsumer<? super Revision, ? super T> listener, Executor executor) {
         requireNonNull(listener, "listener");
         checkState(!isStopped(), "watcher closed");
-        updateListeners.add(listener);
+        updateListeners.add(new SimpleImmutableEntry<>(listener, executor));
 
         if (latest != null) {
             // Perform initial notification so that the listener always gets the initial value.
@@ -188,7 +197,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                     listener.accept(latest.revision(), latest.value());
                 });
             } catch (RejectedExecutionException e) {
-                handleEventLoopShutdown(e);
+                handleExecutorShutdown(executor, e);
             }
         }
     }
@@ -206,12 +215,12 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         try {
-            currentScheduleFuture = executor.schedule(() -> {
+            currentScheduleFuture = watchScheduler.schedule(() -> {
                 currentScheduleFuture = null;
                 doWatch(numAttemptsSoFar);
             }, delay, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException e) {
-            handleEventLoopShutdown(e);
+            handleExecutorShutdown(watchScheduler, e);
         }
     }
 
@@ -287,21 +296,25 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         final Latest<T> latest = this.latest;
-        for (BiConsumer<? super Revision, ? super T> listener : updateListeners) {
-            try {
-                listener.accept(latest.revision(), latest.value());
-            } catch (Exception e) {
-                logger.warn("Exception thrown for watcher ({}/{}{}): rev={}",
-                            projectName, repositoryName, pathPattern, latest.revision(), e);
-            }
+        for (Map.Entry<BiConsumer<? super Revision, ? super T>, Executor> entry : updateListeners) {
+            final BiConsumer<? super Revision, ? super T> listener = entry.getKey();
+            final Executor executor = entry.getValue();
+            executor.execute(() -> {
+                try {
+                    listener.accept(latest.revision(), latest.value());
+                } catch (Exception e) {
+                    logger.warn("Exception thrown for watcher ({}/{}{}): rev={}",
+                                projectName, repositoryName, pathPattern, latest.revision(), e);
+                }
+            });
         }
     }
 
-    private void handleEventLoopShutdown(RejectedExecutionException e) {
+    private void handleExecutorShutdown(Executor executor, RejectedExecutionException e) {
         if (logger.isTraceEnabled()) {
-            logger.trace("Stopping to watch since the event loop is shut down:", e);
+            logger.trace("Stopping to watch since the executor is shut down. executor: {}", executor, e);
         } else {
-            logger.debug("Stopping to watch since the event loop is shut down.");
+            logger.debug("Stopping to watch since the executor is shut down. executor: {}", executor);
         }
 
         close();
