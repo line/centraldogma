@@ -49,6 +49,7 @@ jobs:
 
     - name: Build with Gradle
       run: ./gradlew --no-daemon --stacktrace -Pcoverage checkstyle check build
+      shell: bash
 
     - name: Cleanup Gradle Cache
       # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
@@ -56,6 +57,7 @@ jobs:
       run: |
         rm -f ~/.gradle/caches/modules-2/modules-2.lock
         rm -f ~/.gradle/caches/modules-2/gc.properties
+      shell: bash
 
     - name: Upload coverage to Codecov
       if: ${{ matrix.coverage }}

@@ -91,7 +91,7 @@ abstract class WriteQuotaTestBase {
         updated = updateWriteQuota(webClient(), repositoryName, writeQuota);
         assertThat(updated).isEqualTo(writeQuota);
 
-        final List<CompletableFuture<PushResult>> futures4 = parallelPush(dogmaClient(), repositoryName, 5);
+        final List<CompletableFuture<PushResult>> futures4 = parallelPush(dogmaClient(), repositoryName, 4);
         assertThat(CompletableFutures.allAsList(futures4).join()).hasSize(10);
     }
 
