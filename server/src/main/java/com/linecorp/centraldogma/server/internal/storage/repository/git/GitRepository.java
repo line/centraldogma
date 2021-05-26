@@ -46,9 +46,11 @@ import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
@@ -164,6 +166,8 @@ class GitRepository implements Repository {
     }
 
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    @VisibleForTesting
+    final ReentrantLock gcLock = new ReentrantLock();
     private final Project parent;
     private final Executor repositoryWorker;
     @VisibleForTesting
@@ -371,6 +375,8 @@ class GitRepository implements Repository {
         requireNonNull(failureCauseSupplier, "failureCauseSupplier");
         if (closePending.compareAndSet(null, failureCauseSupplier)) {
             repositoryWorker.execute(() -> {
+                // MUST acquire gcLock first to prevent a dead lock
+                gcLock.lock();
                 rwLock.writeLock().lock();
                 try {
                     if (commitIdDatabase != null) {
@@ -398,9 +404,16 @@ class GitRepository implements Repository {
                         }
                     }
                 } finally {
-                    rwLock.writeLock().unlock();
-                    commitWatchers.close(failureCauseSupplier);
-                    closeFuture.complete(null);
+                    try {
+                        rwLock.writeLock().unlock();
+                    } finally {
+                        try {
+                            gcLock.unlock();
+                        } finally {
+                            commitWatchers.close(failureCauseSupplier);
+                            closeFuture.complete(null);
+                        }
+                    }
                 }
             });
         }
@@ -903,7 +916,7 @@ class GitRepository implements Repository {
     @Override
     public CompletableFuture<CommitResult> commit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
-            String detail, Markup markup, Iterable<Change<?>> changes, boolean normalizing) {
+            String detail, Markup markup, Iterable<Change<?>> changes, boolean directExecution) {
         requireNonNull(baseRevision, "baseRevision");
         requireNonNull(author, "author");
         requireNonNull(summary, "summary");
@@ -915,23 +928,25 @@ class GitRepository implements Repository {
         return CompletableFuture.supplyAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "commit", baseRevision, author, summary);
             return blockingCommit(baseRevision, commitTimeMillis,
-                                  author, summary, detail, markup, changes, false, normalizing);
+                                  author, summary, detail, markup, changes, false, directExecution);
         }, repositoryWorker);
     }
 
     private CommitResult blockingCommit(
             Revision baseRevision, long commitTimeMillis, Author author, String summary,
             String detail, Markup markup, Iterable<Change<?>> changes, boolean allowEmptyCommit,
-            boolean normalizing) {
+            boolean directExecution) {
 
         requireNonNull(baseRevision, "baseRevision");
 
         final RevisionAndEntries res;
         final Iterable<Change<?>> applyingChanges;
-        rwLock.writeLock().lock();
+        boolean hasLock = false;
         try {
-            if (closePending.get() != null) {
-                throw closePending.get().get();
+            hasLock = writeLock(directExecution);
+            if (!hasLock) {
+                throw new StorageException(
+                        "failed to acquire a write lock for " + parent().name() + '/' + name());
             }
 
             final Revision normBaseRevision = normalizeNow(baseRevision);
@@ -942,7 +957,7 @@ class GitRepository implements Repository {
                         " or equivalent)");
             }
 
-            if (normalizing) {
+            if (directExecution) {
                 applyingChanges = blockingPreviewDiff(normBaseRevision, changes).values();
             } else {
                 applyingChanges = changes;
@@ -952,7 +967,9 @@ class GitRepository implements Repository {
 
             this.headRevision = res.revision;
         } finally {
-            rwLock.writeLock().unlock();
+            if (hasLock) {
+                writeUnLock();
+            }
         }
 
         // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
@@ -1514,14 +1531,15 @@ class GitRepository implements Repository {
 
     @Override
     public Revision gc() throws Exception {
-        rwLock.writeLock().lock();
+        // Should not acquire `writeLock()` which prevents reading commits from this repository.
+        gcLock.lock();
         try {
             garbageCollector.gc();
             final Revision headRevision = this.headRevision;
             gcRevision.write(headRevision);
             return headRevision;
         } finally {
-           rwLock.writeLock().unlock();
+            gcLock.unlock();
         }
     }
 
@@ -1605,6 +1623,46 @@ class GitRepository implements Repository {
 
     private void readUnlock() {
         rwLock.readLock().unlock();
+    }
+
+    @VisibleForTesting
+    boolean writeLock(boolean directExecution) {
+        // Should not commit changes if gc is running
+        boolean hasGcLock;
+        if (directExecution) {
+            try {
+                // Waits only 10 seconds the gc lock to prevent a command worker queue from filing up
+                // due to a long gc, if the command was directly submitted to this server.
+                hasGcLock = gcLock.tryLock(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                hasGcLock = false;
+                Thread.currentThread().interrupt();
+            }
+        } else {
+            // Should not fail replaying a log due to a long gc.
+            // Because if a log is failed to replay, this replica will enter read-only mode.
+            gcLock.lock();
+            hasGcLock = true;
+        }
+
+        if (hasGcLock) {
+            rwLock.writeLock().lock();
+            if (closePending.get() != null) {
+                writeUnLock();
+                throw closePending.get().get();
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private void writeUnLock() {
+        try {
+            rwLock.writeLock().unlock();
+        } finally {
+            gcLock.unlock();
+        }
     }
 
     /**

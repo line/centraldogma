@@ -166,6 +166,7 @@ public abstract class AbstractCommandExecutor implements CommandExecutor {
                     future.completeExceptionally(cause);
                 }
             }, threadName);
+            thread.setContextClassLoader(CommandExecutorStartStop.class.getClassLoader());
             thread.start();
             return future;
         }

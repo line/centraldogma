@@ -135,3 +135,6 @@ typings/
 
 # next.js build output
 .next
+
+# macOS folder meta-data
+.DS_Store

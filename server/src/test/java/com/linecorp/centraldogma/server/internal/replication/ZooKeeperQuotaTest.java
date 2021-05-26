@@ -37,14 +37,14 @@ import com.linecorp.centraldogma.server.command.CommitResult;
 
 class ZooKeeperQuotaTest {
 
-    private static final int MAX_QUOTA = 5;
+    private static final int MAX_QUOTA = 3;
 
     @Test
     void testLimitation() throws Exception {
         try (Cluster cluster = Cluster.builder()
                                       .writeQuota(new QuotaConfig(MAX_QUOTA, 1))
                                       .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
-            final int iteration = MAX_QUOTA * 3;
+            final int iteration = MAX_QUOTA * 5;
             final ImmutableList.Builder<CompletableFuture<?>> resultsBuilder =
                     ImmutableList.builderWithExpectedSize(iteration);
             final Replica replica = cluster.get(0);
@@ -57,6 +57,7 @@ class ZooKeeperQuotaTest {
             final ImmutableList<CompletableFuture<?>> results = resultsBuilder.build();
             int limited = 0;
             int succeeded = 0;
+            final String expectedMessage = String.format("'/project/repo1' (quota limit: %d.0/sec)", MAX_QUOTA);
             for (int i = 0; i < iteration; i++) {
                 try {
                     results.get(i).join();
@@ -64,7 +65,7 @@ class ZooKeeperQuotaTest {
                 } catch (CompletionException e) {
                     final Throwable cause = e.getCause();
                     if (cause instanceof TooManyRequestsException &&
-                        cause.getMessage().contains("'/project/repo1' (quota limit: 5.0/sec)")) {
+                        cause.getMessage().contains(expectedMessage)) {
                         limited++;
                     } else {
                         throw e;

@@ -23,7 +23,6 @@ import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 
@@ -44,11 +43,11 @@ class GitRepositoryManagerTest {
 
     private static final String TEST_REPO = "test_repo";
 
-    static Path tempDir;
+    private Path tempDir;
 
     @BeforeEach
-    void setUp(@TempDir Path temp) {
-        tempDir = temp;
+    void setUp(@TempDir Path tempDir) {
+        this.tempDir = tempDir;
     }
 
     @Test
@@ -133,7 +132,7 @@ class GitRepositoryManagerTest {
 
         final int numDummyFiles = 3;
         for (int i = 0; i < numDummyFiles; i++) {
-            final File file = Paths.get(tempDir.toString(), String.format("dummyDir%d", i)).toFile();
+            final File file = tempDir.resolve(String.format("dummyDir%d", i)).toFile();
             if (!file.mkdirs()) {
                 fail("failed to test on testList");
             }

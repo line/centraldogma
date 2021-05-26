@@ -1,24 +1,39 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     env:
       GRADLE_OPTS: -Xmx1280m
     strategy:
       fail-fast: false
       matrix:
-        java: [8, 11, 14]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        java: [11]
+        include:
+          - java: 11
+            os: ubuntu-latest
+            coverage: true
+          - java: 8
+            os: ubuntu-latest
+          - java: 14
+            os: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
 
     - name: Set up JDK ${{ matrix.java }}
-      uses: actions/setup-java@v1
+      uses: actions/setup-java@v2
       with:
+        distribution: 'adopt'
         java-version: ${{ matrix.java }}
 
-    - name: Cache
+    - name: Restore Gradle Cache
       uses: actions/cache@v2
       with:
         path: |
@@ -32,11 +47,9 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-
     - name: Build with Gradle
       run: ./gradlew --no-daemon --stacktrace -Pcoverage checkstyle check build
+      shell: bash
 
     - name: Cleanup Gradle Cache
       # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
@@ -44,7 +57,26 @@ jobs:
       run: |
         rm -f ~/.gradle/caches/modules-2/modules-2.lock
         rm -f ~/.gradle/caches/modules-2/gc.properties
-    - if: ${{ matrix.java == '11' }}
+      shell: bash
+
+    - name: Upload coverage to Codecov
+      if: ${{ matrix.coverage }}
       uses: codecov/codecov-action@v1
+
+    - name: Collecting the test reports ..
+      if: failure()
+      run: find . '(' -name 'hs_err_*.log' -or -path '*/build/reports/tests' ')' -exec tar rf "reports-JVM-${{ matrix.java }}.tar" {} ';'
+      shell: bash
+
+    - name: Upload Artifact
+      if: failure()
+      uses: actions/upload-artifact@v2
       with:
-        fail_ci_if_error: false
+        name: reports-JVM-${{ matrix.java }}
+        path: reports-JVM-${{ matrix.java }}.tar
+        retention-days: 3
+
+    - name: Dump stuck threads
+      if: always()
+      run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
+      shell: bash
