@@ -25,6 +25,10 @@ import org.slf4j.LoggerFactory;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.micrometer.prometheus.PrometheusMeterRegistry;
@@ -35,17 +39,31 @@ class MetricsTest {
     private static final Logger logger = LoggerFactory.getLogger(MetricsTest.class);
 
     @RegisterExtension
-    static CentralDogmaExtension dogma = new CentralDogmaExtension();
+    static CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected void scaffold(CentralDogma client) {
+            client.createProject("foo").join();
+            client.createRepository("foo", "bar").join();
+            client.push("foo", "bar", Revision.HEAD, "Initial file",
+                        Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }")).join();
+        }
+    };
 
     @Test
     void metrics() {
         assertThat(dogma.dogma().meterRegistry()).containsInstanceOf(PrometheusMeterRegistry.class);
 
-        final AggregatedHttpResponse res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
-        logger.debug("Prometheus metrics:\n{}", res.contentUtf8());
-
+        AggregatedHttpResponse res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
+        String content = res.contentUtf8();
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThat(res.contentType()).isEqualTo(MediaType.parse(TextFormat.CONTENT_TYPE_004));
-        assertThat(res.contentUtf8()).isNotEmpty();
+        assertThat(content).isNotEmpty();
+        assertThat(content).doesNotContain(
+                "com.linecorp.centraldogma.server.internal.api.WatchContentServiceV1");
+
+        dogma.client().watchFile("foo", "bar", Revision.HEAD, Query.ofJson("/foo.json"), 100).join();
+        res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
+        content = res.contentUtf8();
+        assertThat(content).contains("com.linecorp.centraldogma.server.internal.api.WatchContentServiceV1");
     }
 }
