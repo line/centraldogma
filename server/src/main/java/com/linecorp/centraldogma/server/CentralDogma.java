@@ -86,6 +86,7 @@ import com.linecorp.armeria.server.Route;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServerPort;
+import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
@@ -685,9 +686,25 @@ public class CentralDogma implements AutoCloseable {
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new RepositoryServiceV1(safePm, executor, mds), decorator,
                             v1RequestConverter, v1ResponseConverter);
-        sb.annotatedService(API_V1_PATH_PREFIX,
-                            new ContentServiceV1(safePm, executor, watchService), decorator,
-                            v1RequestConverter, v1ResponseConverter);
+        sb.annotatedService()
+          .pathPrefix(API_V1_PATH_PREFIX)
+          .defaultServiceNaming(new ServiceNaming() {
+              private final String serviceName = ContentServiceV1.class.getName();
+              private final String watchServiceName =
+                      serviceName.replace("ContentServiceV1", "WatchContentServiceV1");
+
+              @Override
+              public String serviceName(ServiceRequestContext ctx) {
+                  if (ctx.request().headers().contains(HttpHeaderNames.IF_NONE_MATCH)) {
+                      return watchServiceName;
+                  }
+                  return serviceName;
+              }
+          })
+          .decorator(decorator)
+          .requestConverters(v1RequestConverter)
+          .responseConverters(v1ResponseConverter)
+          .build(new ContentServiceV1(safePm, executor, watchService));
 
         if (authProvider != null) {
             final AuthConfig authCfg = cfg.authConfig();
