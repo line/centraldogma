@@ -161,8 +161,8 @@ org.junit.jupiter:
 kr.motd.gradle:
   sphinx-gradle-plugin: { version: '2.10.1' }
 
-me.champeau.jmh:
-  jmh-gradle-plugin: { version: '0.6.4' }
+me.champeau.gradle:
+  jmh-gradle-plugin: { version: '0.5.3' }
 
 net.javacrumbs.json-unit:
   json-unit: { version: &JSON_UNIT_VERSION '2.25.0' }
