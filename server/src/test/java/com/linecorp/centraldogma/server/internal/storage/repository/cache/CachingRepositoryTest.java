@@ -23,6 +23,7 @@ import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FI
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
@@ -308,15 +309,16 @@ class CachingRepositoryTest {
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
         // Uncached
-        when(delegateRepo.findLatestRevision(any(), any())).thenReturn(completedFuture(new Revision(2)));
-        assertThat(repo.findLatestRevision(INIT, "/**").join()).isEqualTo(new Revision(2));
-        verify(delegateRepo).findLatestRevision(INIT, "/**");
+        when(delegateRepo.findLatestRevision(any(), any(), anyBoolean())).thenReturn(
+                completedFuture(new Revision(2)));
+        assertThat(repo.findLatestRevision(INIT, "/**", false).join()).isEqualTo(new Revision(2));
+        verify(delegateRepo).findLatestRevision(INIT, "/**", false);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
-        assertThat(repo.findLatestRevision(INIT, "/**").join()).isEqualTo(new Revision(2));
-        verify(delegateRepo, never()).findLatestRevision(any(), any());
+        assertThat(repo.findLatestRevision(INIT, "/**", false).join()).isEqualTo(new Revision(2));
+        verify(delegateRepo, never()).findLatestRevision(any(), any(), anyBoolean());
         verifyNoMoreInteractions(delegateRepo);
     }
 
@@ -326,15 +328,15 @@ class CachingRepositoryTest {
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
         // Uncached
-        when(delegateRepo.findLatestRevision(any(), any())).thenReturn(completedFuture(null));
-        assertThat(repo.findLatestRevision(INIT, "/**").join()).isNull();
-        verify(delegateRepo).findLatestRevision(INIT, "/**");
+        when(delegateRepo.findLatestRevision(any(), any(), anyBoolean())).thenReturn(completedFuture(null));
+        assertThat(repo.findLatestRevision(INIT, "/**", false).join()).isNull();
+        verify(delegateRepo).findLatestRevision(INIT, "/**", false);
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
-        assertThat(repo.findLatestRevision(INIT, "/**").join()).isNull();
-        verify(delegateRepo, never()).findLatestRevision(any(), any());
+        assertThat(repo.findLatestRevision(INIT, "/**", false).join()).isNull();
+        verify(delegateRepo, never()).findLatestRevision(any(), any(), anyBoolean());
         verifyNoMoreInteractions(delegateRepo);
     }
 
@@ -345,8 +347,8 @@ class CachingRepositoryTest {
         doReturn(new RevisionRange(actualHeadRev, actualHeadRev))
                 .when(delegateRepo).normalizeNow(HEAD, HEAD);
 
-        assertThat(repo.findLatestRevision(HEAD, "/**").join()).isNull();
-        verify(delegateRepo, never()).findLatestRevision(any(), any());
+        assertThat(repo.findLatestRevision(HEAD, "/**", false).join()).isNull();
+        verify(delegateRepo, never()).findLatestRevision(any(), any(), anyBoolean());
         verifyNoMoreInteractions(delegateRepo);
     }
 
@@ -356,17 +358,18 @@ class CachingRepositoryTest {
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
         // Uncached
-        when(delegateRepo.findLatestRevision(any(), any())).thenReturn(completedFuture(new Revision(2)));
-        assertThat(repo.watch(INIT, "/**").join()).isEqualTo(new Revision(2));
-        verify(delegateRepo).findLatestRevision(INIT, "/**");
-        verify(delegateRepo, never()).watch(any(), any(String.class));
+        when(delegateRepo.findLatestRevision(any(), any(), anyBoolean())).thenReturn(
+                completedFuture(new Revision(2)));
+        assertThat(repo.watch(INIT, "/**", false).join()).isEqualTo(new Revision(2));
+        verify(delegateRepo).findLatestRevision(INIT, "/**", false);
+        verify(delegateRepo, never()).watch(any(), any(String.class), anyBoolean());
         verifyNoMoreInteractions(delegateRepo);
 
         // Cached
         clearInvocations(delegateRepo);
-        assertThat(repo.watch(INIT, "/**").join()).isEqualTo(new Revision(2));
-        verify(delegateRepo, never()).findLatestRevision(any(), any());
-        verify(delegateRepo, never()).watch(any(), any(String.class));
+        assertThat(repo.watch(INIT, "/**", false).join()).isEqualTo(new Revision(2));
+        verify(delegateRepo, never()).findLatestRevision(any(), any(), anyBoolean());
+        verify(delegateRepo, never()).watch(any(), any(String.class), anyBoolean());
         verifyNoMoreInteractions(delegateRepo);
     }
 
@@ -376,18 +379,18 @@ class CachingRepositoryTest {
         doReturn(new RevisionRange(INIT, new Revision(2))).when(delegateRepo).normalizeNow(INIT, HEAD);
 
         final CompletableFuture<Revision> delegateWatchFuture = new CompletableFuture<>();
-        when(delegateRepo.findLatestRevision(any(), any())).thenReturn(completedFuture(null));
-        when(delegateRepo.watch(any(), any(String.class))).thenReturn(delegateWatchFuture);
+        when(delegateRepo.findLatestRevision(any(), any(), anyBoolean())).thenReturn(completedFuture(null));
+        when(delegateRepo.watch(any(), any(String.class), anyBoolean())).thenReturn(delegateWatchFuture);
 
         // Make sure the future returned by CachingRepository.watch() depends on
         // the future returned by delegateRepo.watch().
-        final CompletableFuture<Revision> watchFuture = repo.watch(INIT, "/**");
+        final CompletableFuture<Revision> watchFuture = repo.watch(INIT, "/**", false);
         assertThat(watchFuture).isNotDone();
         delegateWatchFuture.complete(new Revision(3));
         assertThat(watchFuture.join()).isSameAs(delegateWatchFuture.join());
 
-        verify(delegateRepo).findLatestRevision(INIT, "/**");
-        verify(delegateRepo).watch(INIT, "/**");
+        verify(delegateRepo).findLatestRevision(INIT, "/**", false);
+        verify(delegateRepo).watch(INIT, "/**", false);
         verifyNoMoreInteractions(delegateRepo);
     }
 

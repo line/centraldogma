@@ -19,10 +19,13 @@ package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 
+import com.linecorp.armeria.common.util.Exceptions;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.storage.repository.CacheableCall;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -30,21 +33,25 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 final class CacheableFindLatestRevCall extends CacheableCall<Revision> {
 
     static final Revision EMPTY = new Revision(Integer.MIN_VALUE);
+    static final Revision ENTRY_NOT_FOUND = new Revision(Integer.MIN_VALUE);
 
-    final Revision lastKnownRevision;
-    final Revision headRevision;
-    final String pathPattern;
+    private final Revision lastKnownRevision;
+    private final Revision headRevision;
+    private final String pathPattern;
+    private final boolean errorOnEntryNotFound;
     private final int hashCode;
 
     CacheableFindLatestRevCall(Repository repo, Revision lastKnownRevision, Revision headRevision,
-                               String pathPattern) {
+                               String pathPattern, boolean errorOnEntryNotFound) {
         super(repo);
 
         this.lastKnownRevision = requireNonNull(lastKnownRevision, "lastKnownRevision");
         this.headRevision = requireNonNull(headRevision, "headRevision");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
+        this.errorOnEntryNotFound = errorOnEntryNotFound;
 
-        hashCode = pathPattern.hashCode() * 31 + System.identityHashCode(repo);
+        hashCode = Objects.hash(lastKnownRevision, headRevision, pathPattern, errorOnEntryNotFound) +
+                   System.identityHashCode(repo);
 
         assert !lastKnownRevision.isRelative();
     }
@@ -56,7 +63,17 @@ final class CacheableFindLatestRevCall extends CacheableCall<Revision> {
 
     @Override
     public CompletableFuture<Revision> execute() {
-        return repo().findLatestRevision(lastKnownRevision, pathPattern).thenApply(e -> firstNonNull(e, EMPTY));
+        return repo().findLatestRevision(lastKnownRevision, pathPattern, errorOnEntryNotFound)
+                     .handle((revision, cause) -> {
+                         if (cause != null) {
+                             cause = Exceptions.peel(cause);
+                             if (cause instanceof EntryNotFoundException) {
+                                 return ENTRY_NOT_FOUND;
+                             }
+                             return Exceptions.throwUnsafely(cause);
+                         }
+                         return firstNonNull(revision, EMPTY);
+                     });
     }
 
     @Override
@@ -73,13 +90,15 @@ final class CacheableFindLatestRevCall extends CacheableCall<Revision> {
         final CacheableFindLatestRevCall that = (CacheableFindLatestRevCall) o;
         return lastKnownRevision.equals(that.lastKnownRevision) &&
                headRevision.equals(that.headRevision) &&
-               pathPattern.equals(that.pathPattern);
+               pathPattern.equals(that.pathPattern) &&
+               errorOnEntryNotFound == that.errorOnEntryNotFound;
     }
 
     @Override
     protected void toString(ToStringHelper helper) {
         helper.add("lastKnownRevision", lastKnownRevision)
               .add("headRevision", headRevision)
-              .add("pathPattern", pathPattern);
+              .add("pathPattern", pathPattern)
+              .add("errorOnEntryNotFound", errorOnEntryNotFound);
     }
 }
