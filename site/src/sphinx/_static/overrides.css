@@ -74,12 +74,6 @@ html, body, .wy-grid-for-nav {
   background: inherit;
 }
 
-.wy-menu.wy-menu-vertical .project-badges img {
-  display: inline;
-  padding: 0;
-  height: 1.45em;
-}
-
 .wy-breadcrumbs-aside {
   margin-top: 0.225em;
 }

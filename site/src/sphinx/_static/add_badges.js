@@ -1,7 +1,13 @@
 // Append the project badges at the end of the menu (sidenav).
 function addBadge(parent, src, href) {
-  var obj = document.createElement('object');
-  obj.data = src;
+
+  var obj;
+  if(typeof src === 'string') {
+    obj = document.createElement('object');
+    obj.data = src;
+  } else {
+    obj = src
+  }
 
   if (typeof href === 'string') {
     obj.style.pointerEvents = 'none';
@@ -26,10 +32,6 @@ function addBadges(parent) {
   addBadge(div, 'https://img.shields.io/github/stars/line/centraldogma.svg?style=social');
   addBadge(div, 'https://img.shields.io/badge/chat-on%20slack-brightgreen.svg?style=social',
     'https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ');
-  addBadge(div, 'https://img.shields.io/travis/line/centraldogma/master.svg?style=flat-square',
-    'https://travis-ci.org/line/centraldogma');
-  addBadge(div, 'https://img.shields.io/appveyor/ci/line/centraldogma/master.svg?label=appveyor&style=flat-square',
-    'https://ci.appveyor.com/project/line/centraldogma/branch/master');
   addBadge(div, 'https://img.shields.io/maven-central/v/com.linecorp.centraldogma/centraldogma-common.svg?style=flat-square',
     'https://search.maven.org/search?q=g:com.linecorp.centraldogma');
   addBadge(div, 'https://img.shields.io/github/commit-activity/m/line/centraldogma.svg?style=flat-square',
@@ -38,6 +40,12 @@ function addBadges(parent) {
     'https://github.com/line/centraldogma/labels/good%20first%20issue');
   addBadge(div, 'https://img.shields.io/codecov/c/github/line/centraldogma/master.svg?style=flat-square',
     'https://codecov.io/gh/line/centraldogma');
+
+  var ciImg = new Image();
+  ciImg.src = 'https://github.com/line/centraldogma/actions/workflows/gradle.yml/badge.svg';
+  addBadge(div, ciImg,
+    'https://github.com/line/centraldogma/actions/workflows/gradle.yml');
+
   li.appendChild(div);
   parent.appendChild(li);
 }
