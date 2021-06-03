@@ -331,7 +331,6 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                 latestNotifiedRevision.set(latest.revision().major());
             }
         });
-
     }
 
     private void handleExecutorShutdown(Executor executor, RejectedExecutionException e) {

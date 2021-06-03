@@ -42,8 +42,8 @@ import org.junit.jupiter.params.provider.EnumSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
-import com.linecorp.armeria.common.util.ThreadFactories;
 import com.linecorp.armeria.common.metric.MoreMeters;
+import com.linecorp.armeria.common.util.ThreadFactories;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
