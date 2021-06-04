@@ -3,6 +3,14 @@
 
   <hr />
 
+  <div class="row" style="margin-bottom: 10px">
+    <div class="pull-right" has-role="LEVEL_USER">
+      <a type="button" class="btn btn-primary" ng-href="#/metadata/{{project.name}}">
+        <span class="glyphicon glyphicon-cog"></span> {{ 'entities.button_go_to_metadata' | translate }}
+      </a>
+    </div>
+  </div >
+
   <table class="table table-hover table-responsive">
     <tbody>
     <tr ng-repeat="repository in repositories">
