@@ -6,7 +6,7 @@
 <suppressions>
   <!-- Suppress Javadoc-related checks in non-public code. -->
   <suppress checks="MissingJavadocPackage|MissingJavadocType|MissingJavadocMethod" files="[\\/](examples|internal|it|jmh|test)[\\/]" />
-  <suppress checks="JavadocPackage" files="[\\/](examples|test)[\\/]" />
+  <suppress checks="JavadocPackage" files="[\\/](examples|it|jmh|test)[\\/]" />
   <!-- Suppress all checks in generated sources. -->
   <suppress checks=".*" files="[\\/]gen-src[\\/]" />
   <!-- Suppress UncommentedMain for the server entry point -->
