@@ -81,7 +81,8 @@ class LegacyCentralDogmaTest {
 
     @BeforeEach
     void setUp() {
-        client = new LegacyCentralDogma(CommonPools.blockingTaskExecutor(), iface, NoopMeterRegistry.get());
+        client = new LegacyCentralDogma(CommonPools.blockingTaskExecutor(), iface,
+                                        NoopMeterRegistry.get(), true);
     }
 
     @Test

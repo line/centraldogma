@@ -601,4 +601,11 @@ public interface CentralDogma {
     default MeterRegistry meterRegistry() {
         return Metrics.globalRegistry;
     }
+
+    /**
+     * Returns whether metric collection is enabled for this {@link CentralDogma} instance.
+     */
+    default boolean metricsEnabled() {
+        return true;
+    }
 }

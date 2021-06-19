@@ -47,6 +47,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
 
     private final ScheduledExecutorService blockingTaskExecutor;
     private final MeterRegistry meterRegistry;
+    private final boolean metricsEnabled;
 
     /**
      * Creates a new instance.
@@ -56,7 +57,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      *                             watched changes.
      */
     protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor) {
-        this(blockingTaskExecutor, Metrics.globalRegistry);
+        this(blockingTaskExecutor, Metrics.globalRegistry, true);
     }
 
     /**
@@ -67,11 +68,13 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      *                             watched changes.
      * @param meterRegistry the {@link MeterRegistry} which collects metrics for
      *                      this {@link CentralDogma} instance.
+     * @param metricsEnabled specify true to enable {@link CentralDogma} specific metric collection.
      */
     protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor,
-                                   MeterRegistry meterRegistry) {
+                                   MeterRegistry meterRegistry, boolean metricsEnabled) {
         this.blockingTaskExecutor = requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
         this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+        this.metricsEnabled = metricsEnabled;
     }
 
     /**
@@ -238,5 +241,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     @Override
     public final MeterRegistry meterRegistry() {
         return meterRegistry;
+    }
+
+    @Override
+    public boolean metricsEnabled() {
+        return metricsEnabled;
     }
 }

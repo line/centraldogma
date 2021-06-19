@@ -58,7 +58,6 @@ import io.micrometer.core.instrument.Gauge;
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractWatcher.class);
-    private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
     private static final long DELAY_ON_SUCCESS_MILLIS = TimeUnit.SECONDS.toMillis(1);
     private static final long MIN_INTERVAL_MILLIS = DELAY_ON_SUCCESS_MILLIS * 2;
@@ -134,12 +133,14 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
 
-        Gauge.builder("centraldogma.client.watcher.revision",
-                      this, watcher -> watcher.latestNotifiedRevision.get())
-             .tag("project", projectName)
-             .tag("repository", repositoryName)
-             .tag("path", pathPattern)
-             .register(client.meterRegistry());
+        if (client.metricsEnabled()) {
+            Gauge.builder("centraldogma.client.watcher.revision",
+                          this, watcher -> watcher.latestNotifiedRevision.get())
+                 .tag("project", projectName)
+                 .tag("repository", repositoryName)
+                 .tag("path", pathPattern)
+                 .register(client.meterRegistry());
+        }
 
         updateListeners = new CopyOnWriteArrayList<>();
         state = new AtomicReference<>(State.INIT);
