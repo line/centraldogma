@@ -32,7 +32,6 @@ import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDo
  */
 public final class ArmeriaCentralDogmaBuilder
         extends AbstractArmeriaCentralDogmaBuilder<ArmeriaCentralDogmaBuilder> {
-
     /**
      * Returns a newly-created {@link CentralDogma} instance.
      *

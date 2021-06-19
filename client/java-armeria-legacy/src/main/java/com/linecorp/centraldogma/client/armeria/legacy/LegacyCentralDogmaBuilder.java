@@ -37,7 +37,6 @@ import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.AsyncIface;
  */
 @Deprecated
 public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilder<LegacyCentralDogmaBuilder> {
-
     /**
      * Returns a newly-created {@link CentralDogma} instance.
      *
@@ -68,7 +67,6 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         final ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
 
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
-
         final CentralDogma dogma = new LegacyCentralDogma(blockingTaskExecutor,
                                                           builder.build(AsyncIface.class),
                                                           clientFactory().meterRegistry());

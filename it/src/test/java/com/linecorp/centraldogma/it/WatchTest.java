@@ -42,6 +42,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
+import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.armeria.common.util.ThreadFactories;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -56,6 +57,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 class WatchTest {
 
@@ -68,11 +70,17 @@ class WatchTest {
     static final CentralDogmaExtensionWithScaffolding dogma = new CentralDogmaExtensionWithScaffolding() {
         @Override
         protected void configureClient(ArmeriaCentralDogmaBuilder builder) {
+            final ClientFactory clientFactory =
+                    ClientFactory.builder().meterRegistry(new SimpleMeterRegistry()).build();
+            builder.clientFactory(clientFactory);
             builder.blockingTaskExecutor(blockingTaskExecutor);
         }
 
         @Override
         protected void configureClient(LegacyCentralDogmaBuilder builder) {
+            final ClientFactory clientFactory =
+                    ClientFactory.builder().meterRegistry(new SimpleMeterRegistry()).build();
+            builder.clientFactory(clientFactory);
             builder.blockingTaskExecutor(blockingTaskExecutor);
         }
     };
@@ -498,8 +506,11 @@ class WatchTest {
         // the notify complete revision isn't incremented
         await().untilAsserted(() -> assertThat(jsonWatcher.latestValue().at("/a").asText())
                 .isEqualTo("ant"));
-        assertThat(getWatcherRevisionMetric(registry, dogma.project(), dogma.repo1(), filePath))
-                .isEqualTo(initialWatcherRev + 1);
+        // ensure that the blocking executor doesn't update the revision for 1 second
+        await().during(1, TimeUnit.SECONDS)
+               .untilAsserted(() -> assertThat(getWatcherRevisionMetric(registry, dogma.project(),
+                                                                        dogma.repo1(), filePath))
+                       .isEqualTo(initialWatcherRev + 1));
     }
 
     private static void revertTestFiles(ClientType clientType) {

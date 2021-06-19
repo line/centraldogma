@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
@@ -325,8 +326,9 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
             }, executor);
             futures.add(future);
         }
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenAccept(ignored -> {
-            final boolean result = futures.stream().allMatch(CompletableFuture::join);
+
+        CompletableFutures.allAsList(futures).thenAccept(results -> {
+            final boolean result = results.stream().allMatch(x -> x);
             if (result) {
                 latestNotifiedRevision.set(latest.revision().major());
             }

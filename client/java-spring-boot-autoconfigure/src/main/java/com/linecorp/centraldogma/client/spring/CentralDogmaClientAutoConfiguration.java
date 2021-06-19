@@ -36,8 +36,6 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.ArmeriaClientConfigurator;
 import com.linecorp.centraldogma.client.armeria.DnsAddressEndpointGroupConfigurator;
 
-import io.micrometer.core.instrument.MeterRegistry;
-
 /**
  * Spring bean configuration for {@link CentralDogma} client.
  */

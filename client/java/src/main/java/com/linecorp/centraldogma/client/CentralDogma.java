@@ -596,9 +596,7 @@ public interface CentralDogma {
                                      Function<Revision, ? extends T> function, Executor executor);
 
     /**
-     * The {@link MeterRegistry} which collects metrics for this {@link CentralDogma} instance.
-     *
-     * @return the {@link MeterRegistry}
+     * Returns the {@link MeterRegistry} which collects metrics for this {@link CentralDogma} instance.
      */
     default MeterRegistry meterRegistry() {
         return Metrics.globalRegistry;
