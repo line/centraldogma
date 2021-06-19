@@ -67,6 +67,7 @@ class ReplicationLagTolerantCentralDogmaTest {
     void setUp() {
         dogma = new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0,
                                                        currentReplicaHintSupplier);
+        verify(delegate, times(1)).meterRegistry();
     }
 
     @AfterAll
