@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.client.armeria;
 import java.net.UnknownHostException;
 import java.util.concurrent.ScheduledExecutorService;
 
-import javax.annotation.Nullable;
-
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.WebClient;

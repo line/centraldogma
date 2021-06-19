@@ -40,7 +40,6 @@ import com.linecorp.centraldogma.internal.client.FileWatcher;
 import com.linecorp.centraldogma.internal.client.RepositoryWatcher;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Metrics;
 
 /**
  * A skeletal {@link CentralDogma} implementation.
@@ -69,7 +68,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      *                             tasks related with automatic retries and invoking the callbacks for
      *                             watched changes.
      * @param meterRegistry the {@link MeterRegistry} which collects metrics {@link CentralDogma} specific
-     *                             metrics. Metrics aren't collected if this value is null.
+     *                      metrics. Metrics aren't collected if this value is null.
      */
     protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor,
                                    @Nullable MeterRegistry meterRegistry) {
