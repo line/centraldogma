@@ -18,9 +18,6 @@ package com.linecorp.centraldogma.client.armeria;
 import java.net.UnknownHostException;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.WebClient;
@@ -29,15 +26,12 @@ import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
 
-import io.micrometer.core.instrument.MeterRegistry;
-
 /**
  * Builds a {@link CentralDogma} client based on an <a href="https://line.github.io/armeria/">Armeria</a>
  * HTTP client.
  */
 public final class ArmeriaCentralDogmaBuilder
         extends AbstractArmeriaCentralDogmaBuilder<ArmeriaCentralDogmaBuilder> {
-    private static final Logger logger = LoggerFactory.getLogger(ArmeriaCentralDogmaBuilder.class);
 
     /**
      * Returns a newly-created {@link CentralDogma} instance.
@@ -51,17 +45,13 @@ public final class ArmeriaCentralDogmaBuilder
                 newClientBuilder(scheme, endpointGroup, cb -> cb.decorator(DecodingClient.newDecorator()), "/");
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
 
-        final MeterRegistry meterRegistry = meterRegistry().orElse(clientFactory().meterRegistry());
-        if (meterRegistry != clientFactory().meterRegistry()) {
-            logger.warn("The specified meterRegistry differs from the meterRegistry from clientFactory.");
-        }
         // TODO(ikhoon): Apply ExecutorServiceMetrics for the 'blockingTaskExecutor' once
         //               https://github.com/line/centraldogma/pull/542 is merged.
         final ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
 
         final CentralDogma dogma = new ArmeriaCentralDogma(blockingTaskExecutor,
                                                            builder.build(WebClient.class),
-                                                           accessToken(), meterRegistry);
+                                                           accessToken(), clientFactory().meterRegistry());
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
@@ -73,7 +63,7 @@ public final class ArmeriaCentralDogmaBuilder
                         //                 in Armeria: https://github.com/line/armeria/issues/760
                         final ClientRequestContext ctx = ClientRequestContext.currentOrNull();
                         return ctx != null ? ctx.remoteAddress() : null;
-                    }, meterRegistry);
+                    });
         }
     }
 }

@@ -67,7 +67,7 @@ class ReplicationLagTolerantCentralDogmaTest {
     @BeforeEach
     void setUp() {
         dogma = new ReplicationLagTolerantCentralDogma(executor, delegate, 3, 0,
-                                                       currentReplicaHintSupplier, NoopMeterRegistry.get());
+                                                       currentReplicaHintSupplier);
     }
 
     @AfterAll

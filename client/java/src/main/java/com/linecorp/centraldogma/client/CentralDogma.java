@@ -43,6 +43,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
 
 /**
  * Central Dogma client.
@@ -599,5 +600,7 @@ public interface CentralDogma {
      *
      * @return the {@link MeterRegistry}
      */
-    MeterRegistry meterRegistry();
+    default MeterRegistry meterRegistry() {
+        return Metrics.globalRegistry;
+    }
 }

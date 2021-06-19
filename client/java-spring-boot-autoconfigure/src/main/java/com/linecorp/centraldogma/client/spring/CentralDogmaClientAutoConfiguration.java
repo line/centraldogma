@@ -57,8 +57,8 @@ public class CentralDogmaClientAutoConfiguration {
             CentralDogmaSettings settings,
             Optional<List<CentralDogmaClientFactoryConfigurator>> factoryConfigurators,
             Optional<ArmeriaClientConfigurator> armeriaClientConfigurator,
-            Optional<DnsAddressEndpointGroupConfigurator> dnsAddressEndpointGroupConfigurator,
-            Optional<MeterRegistry> meterRegistry) throws UnknownHostException {
+            Optional<DnsAddressEndpointGroupConfigurator> dnsAddressEndpointGroupConfigurator)
+            throws UnknownHostException {
 
         final ArmeriaCentralDogmaBuilder builder = new ArmeriaCentralDogmaBuilder();
 
@@ -125,10 +125,6 @@ public class CentralDogmaClientAutoConfiguration {
         final Long retryIntervalOnReplicationLagMillis = settings.getRetryIntervalOnReplicationLagMillis();
         if (retryIntervalOnReplicationLagMillis != null) {
             builder.retryIntervalOnReplicationLagMillis(retryIntervalOnReplicationLagMillis);
-        }
-
-        if (meterRegistry.isPresent()) {
-            builder.meterRegistry(meterRegistry.get());
         }
 
         return builder.build();

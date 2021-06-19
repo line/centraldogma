@@ -263,8 +263,6 @@ public class CentralDogmaRuleDelegate {
         assert serverAddress != null;
         builder.host(serverAddress.getHostString(), serverAddress.getPort());
 
-        builder.meterRegistry(new SimpleMeterRegistry());
-
         if (useTls) {
             builder.useTls();
             builder.clientFactory(ClientFactory.insecure());

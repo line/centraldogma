@@ -47,8 +47,6 @@ import com.google.common.net.InetAddresses;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.internal.CsrfToken;
 
-import io.micrometer.core.instrument.MeterRegistry;
-
 /**
  * Builds a {@link CentralDogma} client.
  */
@@ -73,7 +71,6 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     private int maxNumRetriesOnReplicationLag = DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG;
     private long retryIntervalOnReplicationLagMillis =
             TimeUnit.SECONDS.toMillis(DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS);
-    private Optional<MeterRegistry> meterRegistry = Optional.empty();
 
     /**
      * Returns {@code this}.
@@ -418,17 +415,5 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      */
     protected long retryIntervalOnReplicationLagMillis() {
         return retryIntervalOnReplicationLagMillis;
-    }
-
-    /**
-     * Sets the {@link MeterRegistry} used to collect metrics.
-     */
-    public final B meterRegistry(MeterRegistry meterRegistry) {
-        this.meterRegistry = Optional.of(requireNonNull(meterRegistry, "meterRegistry"));
-        return self();
-    }
-
-    protected Optional<MeterRegistry> meterRegistry() {
-        return meterRegistry;
     }
 }
