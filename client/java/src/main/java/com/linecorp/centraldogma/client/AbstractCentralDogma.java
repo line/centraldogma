@@ -24,6 +24,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -46,8 +48,8 @@ import io.micrometer.core.instrument.Metrics;
 public abstract class AbstractCentralDogma implements CentralDogma {
 
     private final ScheduledExecutorService blockingTaskExecutor;
+    @Nullable
     private final MeterRegistry meterRegistry;
-    private final boolean metricsEnabled;
 
     /**
      * Creates a new instance.
@@ -57,7 +59,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      *                             watched changes.
      */
     protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor) {
-        this(blockingTaskExecutor, Metrics.globalRegistry, true);
+        this(blockingTaskExecutor, null);
     }
 
     /**
@@ -66,15 +68,13 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      * @param blockingTaskExecutor the {@link ScheduledExecutorService} which will be used for scheduling the
      *                             tasks related with automatic retries and invoking the callbacks for
      *                             watched changes.
-     * @param meterRegistry the {@link MeterRegistry} which collects metrics for
-     *                      this {@link CentralDogma} instance.
-     * @param metricsEnabled specify true to enable {@link CentralDogma} specific metric collection.
+     * @param meterRegistry the {@link MeterRegistry} which collects metrics {@link CentralDogma} specific
+     *                             metrics. Metrics aren't collected if this value is null.
      */
     protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor,
-                                   MeterRegistry meterRegistry, boolean metricsEnabled) {
+                                   @Nullable MeterRegistry meterRegistry) {
         this.blockingTaskExecutor = requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
-        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
-        this.metricsEnabled = metricsEnabled;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -241,10 +241,5 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     @Override
     public final MeterRegistry meterRegistry() {
         return meterRegistry;
-    }
-
-    @Override
-    public boolean metricsEnabled() {
-        return metricsEnabled;
     }
 }

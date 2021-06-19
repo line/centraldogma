@@ -30,6 +30,8 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.AsyncIface;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Builds a legacy {@link CentralDogma} client based on Thrift.
  *
@@ -67,10 +69,10 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
         final ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
 
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
+        final MeterRegistry meterRegistry = metricsEnabled() ? clientFactory().meterRegistry() : null;
         final CentralDogma dogma = new LegacyCentralDogma(blockingTaskExecutor,
                                                           builder.build(AsyncIface.class),
-                                                          clientFactory().meterRegistry(),
-                                                          metricsEnabled());
+                                                          meterRegistry);
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {

@@ -54,6 +54,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 
 import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
@@ -133,13 +134,14 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
 
-        if (client.metricsEnabled()) {
+        final MeterRegistry meterRegistry = client.meterRegistry();
+        if (meterRegistry != null) {
             Gauge.builder("centraldogma.client.watcher.revision",
                           this, watcher -> watcher.latestNotifiedRevision.get())
                  .tag("project", projectName)
                  .tag("repository", repositoryName)
                  .tag("path", pathPattern)
-                 .register(client.meterRegistry());
+                 .register(meterRegistry);
         }
 
         updateListeners = new CopyOnWriteArrayList<>();

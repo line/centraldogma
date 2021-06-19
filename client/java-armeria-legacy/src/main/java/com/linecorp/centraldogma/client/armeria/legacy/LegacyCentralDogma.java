@@ -97,8 +97,8 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     private final CentralDogmaService.AsyncIface client;
 
     LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, CentralDogmaService.AsyncIface client,
-                       MeterRegistry meterRegistry, boolean metricsEnabled) {
-        super(blockingTaskExecutor, meterRegistry, metricsEnabled);
+                       MeterRegistry meterRegistry) {
+        super(blockingTaskExecutor, meterRegistry);
         this.client = requireNonNull(client, "client");
     }
 

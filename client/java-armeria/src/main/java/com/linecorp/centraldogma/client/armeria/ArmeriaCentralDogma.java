@@ -137,8 +137,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     private final String authorization;
 
     ArmeriaCentralDogma(ScheduledExecutorService blockingTaskExecutor, WebClient client, String accessToken,
-                        MeterRegistry meterRegistry, boolean metricsEnabled) {
-        super(blockingTaskExecutor, meterRegistry, metricsEnabled);
+                        @Nullable MeterRegistry meterRegistry) {
+        super(blockingTaskExecutor, meterRegistry);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
     }

@@ -86,7 +86,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     public ReplicationLagTolerantCentralDogma(ScheduledExecutorService blockingTaskExecutor,
                                               CentralDogma delegate, int maxRetries, long retryIntervalMillis,
                                               Supplier<?> currentReplicaHintSupplier) {
-        super(blockingTaskExecutor, delegate.meterRegistry(), delegate.metricsEnabled());
+        super(blockingTaskExecutor, delegate.meterRegistry());
 
         requireNonNull(delegate, "delegate");
         checkArgument(maxRetries > 0, "maxRetries: %s (expected: > 0)", maxRetries);
