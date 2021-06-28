@@ -1,6 +1,6 @@
 plugins {
     id 'com.google.osdetector' version '1.6.2' apply false
-    id 'me.champeau.gradle.jmh' version '0.5.3' apply false
+    id 'me.champeau.jmh' version '0.6.5' apply false
 }
 
 allprojects {
@@ -33,7 +33,7 @@ apply from: "${rootDir}/gradle/scripts/build-flags.gradle"
 configure(projectsWithFlags('java')) {
 
     // Apply common plugins.
-    apply plugin: 'me.champeau.gradle.jmh'
+    apply plugin: 'me.champeau.jmh'
 
     // Common properties and functions.
     ext {

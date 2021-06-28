@@ -79,6 +79,22 @@ task copyClientBinaries(group: 'Build',
     into "${project.ext.distDir}/bin/native"
 }
 
+task distDirWithoutClientBinaries(group: 'Build',
+        description: "Builds a distribution directory without client binaries (${project.ext.relativeDistDir})",
+        dependsOn: [tasks.copyLicenses, tasks.copyLib])
+
+// Create the tasks that copy each directory excluding client binaries under src/ into dist/
+['bin', 'conf'].each { dirName ->
+    def taskName = "copy${CaseFormat.LOWER_HYPHEN.to(CaseFormat.UPPER_CAMEL, dirName)}WithoutClientBinaries"
+    tasks.distDirWithoutClientBinaries.dependsOn(tasks.create(taskName, Copy) {
+        group = 'Build'
+        description = "Copies src/$dirName into ${project.ext.relativeDistDir}/$dirName"
+        from "${project.projectDir}/src/$dirName"
+        into "${project.ext.distDir}/$dirName"
+        exclude '**/dogma*'
+    })
+}
+
 task distDir(group: 'Build',
              description: "Builds a distribution directory (${project.ext.relativeDistDir})",
              dependsOn: [tasks.copyLicenses, tasks.copyLib, tasks.copyClientBinaries])
