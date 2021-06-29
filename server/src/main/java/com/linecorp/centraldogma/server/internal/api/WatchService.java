@@ -86,10 +86,12 @@ public final class WatchService {
      * exceptionally completed with the {@link CancellationException}.
      */
     public CompletableFuture<Revision> watchRepository(Repository repo, Revision lastKnownRevision,
-                                                       String pathPattern, long timeoutMillis) {
+                                                       String pathPattern, long timeoutMillis,
+                                                       boolean errorOnEntryNotFound) {
         final ServiceRequestContext ctx = RequestContext.current();
         updateRequestTimeout(ctx, timeoutMillis);
-        final CompletableFuture<Revision> result = repo.watch(lastKnownRevision, pathPattern);
+        final CompletableFuture<Revision> result = repo.watch(lastKnownRevision, pathPattern,
+                                                              errorOnEntryNotFound);
         if (result.isDone()) {
             return result;
         }
@@ -110,10 +112,11 @@ public final class WatchService {
      * exceptionally completed with the {@link CancellationException}.
      */
     public <T> CompletableFuture<Entry<T>> watchFile(Repository repo, Revision lastKnownRevision,
-                                                     Query<T> query, long timeoutMillis) {
+                                                     Query<T> query, long timeoutMillis,
+                                                     boolean errorOnEntryNotFound) {
         final ServiceRequestContext ctx = RequestContext.current();
         updateRequestTimeout(ctx, timeoutMillis);
-        final CompletableFuture<Entry<T>> result = repo.watch(lastKnownRevision, query);
+        final CompletableFuture<Entry<T>> result = repo.watch(lastKnownRevision, query, errorOnEntryNotFound);
         if (result.isDone()) {
             return result;
         }

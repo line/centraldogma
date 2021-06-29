@@ -177,18 +177,21 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
-        return unwrap().findLatestRevision(lastKnownRevision, pathPattern);
+    public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern,
+                                                          boolean errorOnEntryNotFound) {
+        return unwrap().findLatestRevision(lastKnownRevision, pathPattern, errorOnEntryNotFound);
     }
 
     @Override
-    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
-        return unwrap().watch(lastKnownRevision, pathPattern);
+    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern,
+                                             boolean errorOnEntryNotFound) {
+        return unwrap().watch(lastKnownRevision, pathPattern, errorOnEntryNotFound);
     }
 
     @Override
-    public <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query) {
-        return unwrap().watch(lastKnownRevision, query);
+    public <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query,
+                                                 boolean errorOnEntryNotFound) {
+        return unwrap().watch(lastKnownRevision, query, errorOnEntryNotFound);
     }
 
     @Override

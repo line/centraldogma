@@ -148,8 +148,8 @@ final class RepositoryUtil {
         }
     }
 
-    static <T> CompletableFuture<Entry<T>> watch(Repository repo, Revision lastKnownRev, Query<T> query) {
-
+    static <T> CompletableFuture<Entry<T>> watch(Repository repo, Revision lastKnownRev, Query<T> query,
+                                                 boolean errorOnEntryNotFound) {
         requireNonNull(repo, "repo");
         requireNonNull(lastKnownRev, "lastKnownRev");
         requireNonNull(query, "query");
@@ -157,7 +157,8 @@ final class RepositoryUtil {
         final Query<Object> castQuery = unsafeCast(query);
         final CompletableFuture<Entry<Object>> parentFuture = new CompletableFuture<>();
         repo.getOrNull(lastKnownRev, castQuery)
-            .thenAccept(oldResult -> watch(repo, castQuery, lastKnownRev, oldResult, parentFuture))
+            .thenAccept(oldResult -> watch(repo, castQuery, lastKnownRev, oldResult,
+                                           parentFuture, errorOnEntryNotFound))
             .exceptionally(voidFunction(parentFuture::completeExceptionally));
 
         return unsafeCast(parentFuture);
@@ -165,18 +166,24 @@ final class RepositoryUtil {
 
     private static void watch(Repository repo, Query<Object> query,
                               Revision lastKnownRev, @Nullable Entry<Object> oldResult,
-                              CompletableFuture<Entry<Object>> parentFuture) {
+                              CompletableFuture<Entry<Object>> parentFuture, boolean errorOnEntryNotFound) {
 
-        final CompletableFuture<Revision> future = repo.watch(lastKnownRev, query.path());
+        final CompletableFuture<Revision> future = repo.watch(lastKnownRev, query.path(), errorOnEntryNotFound);
         parentFuture.whenComplete((res, cause) -> future.completeExceptionally(CANCELLATION_EXCEPTION));
 
         future.thenCompose(newRev -> repo.getOrNull(newRev, query).thenAccept(newResult -> {
+            if (errorOnEntryNotFound && newResult == null) {
+                // The entry is removed.
+                parentFuture.completeExceptionally(new EntryNotFoundException(newRev, query.path()));
+                return;
+            }
+
             if (newResult == null ||
                 oldResult != null && Objects.equals(oldResult.content(), newResult.content())) {
                 // Entry does not exist or did not change; watch again for more changes.
                 if (!parentFuture.isDone()) {
                     // ... only when the parent future has not been cancelled.
-                    watch(repo, query, newRev, oldResult, parentFuture);
+                    watch(repo, query, newRev, oldResult, parentFuture, errorOnEntryNotFound);
                 }
             } else {
                 parentFuture.complete(newResult);

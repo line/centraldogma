@@ -95,7 +95,7 @@ class GitGcTimeoutTest {
         change = Change.ofTextUpsert("/foo.txt", "qux");
         final Revision revision2 = repo.commit(HEAD, 0L, Author.UNKNOWN, "summary", change).join().revision();
         repo.gcLock.lock();
-        final Revision latestRevision = repo.findLatestRevision(revision1, "/foo.txt").join();
+        final Revision latestRevision = repo.findLatestRevision(revision1, "/foo.txt", false).join();
         assertThat(latestRevision).isEqualTo(revision2);
         repo.gcLock.unlock();
     }
