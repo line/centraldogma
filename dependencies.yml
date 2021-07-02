@@ -4,7 +4,7 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.12.3
-- com.linecorp.armeria:armeria-bom:1.9.1
+- com.linecorp.armeria:armeria-bom:1.9.2
 - io.micrometer:micrometer-bom:1.7.1
 - org.junit:junit-bom:5.7.2
 
@@ -169,7 +169,7 @@ net.javacrumbs.json-unit:
   json-unit-fluent: { version: *JSON_UNIT_VERSION }
 
 com.guardsquare:
-  proguard-gradle: { version: '7.0.1' }
+  proguard-gradle: { version: '7.1.0' }
 
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
@@ -246,7 +246,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.5.1'
+    version: &SPRING_BOOT_VERSION '2.5.2'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
