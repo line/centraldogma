@@ -497,9 +497,11 @@ class WatchTest {
         // revision is incremented
         await().untilAsserted(() -> assertThat(jsonWatcher.latestValue().at("/a").asText())
                 .isEqualTo("air"));
-        assertThat(getWatcherRevisionMetric(notifiedMeterName, registry, dogma.project(), dogma.repo1(), filePath))
+        assertThat(getWatcherRevisionMetric(notifiedMeterName, registry,
+                                            dogma.project(), dogma.repo1(), filePath))
                 .isEqualTo(initialNotifiedRev + 1);
-        assertThat(getWatcherRevisionMetric(revisionMeterName, registry, dogma.project(), dogma.repo1(), filePath))
+        assertThat(getWatcherRevisionMetric(revisionMeterName, registry, dogma.project(),
+                                            dogma.repo1(), filePath))
                 .isEqualTo(initialWatcherRev + 1);
 
         jsonWatcher.watch(node -> {
@@ -536,8 +538,7 @@ class WatchTest {
 
     private static Double getWatcherRevisionMetric(String meterName, MeterRegistry registry, String project,
                                                    String repo, String path) {
-        final String name = meterName + "{path=" + path +
-                            ",project=" + project + ",repository=" + repo + '}';
+        final String name = meterName + "{path=" + path + ",project=" + project + ",repository=" + repo + '}';
         return MoreMeters.measureAll(registry).entrySet().stream()
                          .filter(e -> e.getKey().equals(name))
                          .map(Map.Entry::getValue).findFirst()
