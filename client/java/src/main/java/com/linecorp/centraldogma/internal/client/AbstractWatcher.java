@@ -40,6 +40,7 @@ import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.spotify.futures.CompletableFutures;
 
@@ -53,8 +54,8 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 
-import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
@@ -136,12 +137,11 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
 
         final MeterRegistry meterRegistry = client.meterRegistry();
         if (meterRegistry != null) {
-            Gauge.builder("centraldogma.client.watcher.revision",
-                          this, watcher -> watcher.latestNotifiedRevision.get())
-                 .tag("project", projectName)
-                 .tag("repository", repositoryName)
-                 .tag("path", pathPattern)
-                 .register(meterRegistry);
+            final Iterable<Tag> tags = ImmutableList.of(Tag.of("project", projectName),
+                                                        Tag.of("repository", repositoryName),
+                                                        Tag.of("path", pathPattern));
+            meterRegistry.more().counter("centraldogma.client.watcher.notified.revision", tags, this,
+                                         ignored -> latestNotifiedRevision.get());
         }
 
         updateListeners = new CopyOnWriteArrayList<>();

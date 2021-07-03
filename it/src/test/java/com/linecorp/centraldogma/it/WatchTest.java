@@ -529,7 +529,7 @@ class WatchTest {
 
     private static Double getWatcherRevisionMetric(MeterRegistry registry, String project,
                                                    String repo, String path) {
-        final String name = "centraldogma.client.watcher.revision#value{path=" + path +
+        final String name = "centraldogma.client.watcher.notified.revision#count{path=" + path +
                             ",project=" + project + ",repository=" + repo + '}';
         return MoreMeters.measureAll(registry).entrySet().stream()
                          .filter(e -> e.getKey().equals(name))

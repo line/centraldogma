@@ -598,7 +598,7 @@ public interface CentralDogma {
 
     /**
      * Returns the {@link MeterRegistry} which collects {@link CentralDogma} specific metrics.
-     * If this value is null, metric collection is disabled.
+     * If this value is {@code null}, metric collection is disabled.
      */
     @Nullable
     default MeterRegistry meterRegistry() {
