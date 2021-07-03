@@ -122,6 +122,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private final AtomicReference<State> state;
     private final CompletableFuture<Latest<T>> initialValueFuture;
     private final AtomicDouble latestNotifiedRevision = new AtomicDouble();
+    private final AtomicDouble latestRevision = new AtomicDouble();
 
     private volatile Latest<T> latest;
     private volatile ScheduledFuture<?> currentScheduleFuture;
@@ -142,6 +143,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                                                         Tag.of("path", pathPattern));
             meterRegistry.more().counter("centraldogma.client.watcher.notified.revision", tags, this,
                                          ignored -> latestNotifiedRevision.get());
+            meterRegistry.more().counter("centraldogma.client.watcher.revision", tags, this,
+                                         ignored -> latestRevision.get());
         }
 
         updateListeners = new CopyOnWriteArrayList<>();
@@ -257,6 +260,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  latest = newLatest;
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
+                 latestRevision.set(latest.revision().major());
                  notifyListeners();
                  if (oldLatest == null) {
                      initialValueFuture.complete(newLatest);

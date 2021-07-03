@@ -471,6 +471,8 @@ class WatchTest {
     @EnumSource(ClientType.class)
     void watchFileMetrics(ClientType clientType) throws Exception {
         revertTestFiles(clientType);
+        final String notifiedMeterName = "centraldogma.client.watcher.notified.revision#count";
+        final String revisionMeterName = "centraldogma.client.watcher.revision#count";
 
         final CentralDogma client = clientType.client(dogma);
         final MeterRegistry registry = client.meterRegistry();
@@ -483,17 +485,21 @@ class WatchTest {
         final Revision rev0 = jsonWatcher.initialValueFuture().join().revision();
         await().untilAsserted(() -> assertThat(jsonWatcher.latestValue().at("/a").asText())
                 .isEqualTo("apple"));
-        final double initialWatcherRev = getWatcherRevisionMetric(registry, dogma.project(),
+        final double initialNotifiedRev = getWatcherRevisionMetric(notifiedMeterName, registry, dogma.project(),
+                                                                   dogma.repo1(), filePath);
+        final double initialWatcherRev = getWatcherRevisionMetric(revisionMeterName, registry, dogma.project(),
                                                                   dogma.repo1(), filePath);
 
         // update the json
         final Change<JsonNode> update = Change.ofJsonUpsert(filePath, "{ \"a\": \"air\" }");
         final PushResult res1 = client.push(dogma.project(), dogma.repo1(), rev0, "Modify /a", update).join();
 
-        // the notify complete revision is incremented
+        // revision is incremented
         await().untilAsserted(() -> assertThat(jsonWatcher.latestValue().at("/a").asText())
                 .isEqualTo("air"));
-        assertThat(getWatcherRevisionMetric(registry, dogma.project(), dogma.repo1(), filePath))
+        assertThat(getWatcherRevisionMetric(notifiedMeterName, registry, dogma.project(), dogma.repo1(), filePath))
+                .isEqualTo(initialNotifiedRev + 1);
+        assertThat(getWatcherRevisionMetric(revisionMeterName, registry, dogma.project(), dogma.repo1(), filePath))
                 .isEqualTo(initialWatcherRev + 1);
 
         jsonWatcher.watch(node -> {
@@ -503,14 +509,15 @@ class WatchTest {
         final Change<JsonNode> update2 = Change.ofJsonUpsert(filePath, "{ \"a\": \"ant\" }");
         client.push(dogma.project(), dogma.repo1(), res1.revision(), "Modify /a", update2).join();
 
-        // the notify complete revision isn't incremented
+        // watcher rev is incremented, but notified rev isn't incremented
         await().untilAsserted(() -> assertThat(jsonWatcher.latestValue().at("/a").asText())
                 .isEqualTo("ant"));
-        // ensure that the blocking executor doesn't update the revision for 1 second
-        await().during(1, TimeUnit.SECONDS)
-               .untilAsserted(() -> assertThat(getWatcherRevisionMetric(registry, dogma.project(),
-                                                                        dogma.repo1(), filePath))
-                       .isEqualTo(initialWatcherRev + 1));
+        assertThat(getWatcherRevisionMetric(revisionMeterName, registry, dogma.project(),
+                                            dogma.repo1(), filePath))
+                .isEqualTo(initialWatcherRev + 2);
+        assertThat(getWatcherRevisionMetric(notifiedMeterName, registry, dogma.project(),
+                                            dogma.repo1(), filePath))
+                       .isEqualTo(initialNotifiedRev + 1);
     }
 
     private static void revertTestFiles(ClientType clientType) {
@@ -527,13 +534,13 @@ class WatchTest {
         }
     }
 
-    private static Double getWatcherRevisionMetric(MeterRegistry registry, String project,
+    private static Double getWatcherRevisionMetric(String meterName, MeterRegistry registry, String project,
                                                    String repo, String path) {
-        final String name = "centraldogma.client.watcher.notified.revision#count{path=" + path +
+        final String name = meterName + "{path=" + path +
                             ",project=" + project + ",repository=" + repo + '}';
         return MoreMeters.measureAll(registry).entrySet().stream()
                          .filter(e -> e.getKey().equals(name))
                          .map(Map.Entry::getValue).findFirst()
-                         .get();
+                         .orElseThrow(() -> new RuntimeException("meter not found"));
     }
 }
