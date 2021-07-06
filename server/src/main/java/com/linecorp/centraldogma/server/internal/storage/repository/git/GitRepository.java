@@ -135,7 +135,7 @@ class GitRepository implements Repository {
 
     private static final Logger logger = LoggerFactory.getLogger(GitRepository.class);
 
-    static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
+    private static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
 
     private static final byte[] EMPTY_BYTE = new byte[0];
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
@@ -390,6 +390,16 @@ class GitRepository implements Repository {
     @Override
     public String name() {
         return name;
+    }
+
+    @Override
+    public long creationTimeMillis() {
+        return 0;
+    }
+
+    @Override
+    public Author author() {
+        return null;
     }
 
     @Override
@@ -1603,6 +1613,11 @@ class GitRepository implements Repository {
         } catch (IOException e) {
             logger.error("Failed to delete a half-created repository at: {}", repoDir, e);
         }
+    }
+
+    @Override
+    public void removeOldCommits(int minRetentionCommits, int minRetentionDays) {
+        // Not supported.
     }
 
     @Override

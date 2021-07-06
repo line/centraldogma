@@ -69,7 +69,7 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
 
     @Override
     protected Repository openChild(File childDir) throws Exception {
-        return new GitRepository(parent, childDir, repositoryWorker, cache);
+        return GitRepositoryV2.open(parent, childDir, repositoryWorker, cache);
     }
 
     private static void deleteCruft(File dir) throws IOException {
@@ -80,14 +80,14 @@ public class GitRepositoryManager extends DirectoryBasedStorageManager<Repositor
 
     @Override
     protected Repository createChild(File childDir, Author author, long creationTimeMillis) throws Exception {
-        return new GitRepository(parent, childDir, repositoryWorker,
-                                 creationTimeMillis, author, cache);
+        return new GitRepositoryV2(parent, childDir, repositoryWorker,
+                                   creationTimeMillis, author, cache);
     }
 
     @Override
     protected void closeChild(File childDir, Repository child,
                               Supplier<CentralDogmaException> failureCauseSupplier) {
-        ((GitRepository) child).close(failureCauseSupplier);
+        ((GitRepositoryV2) child).close(failureCauseSupplier);
     }
 
     @Override

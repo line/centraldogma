@@ -21,7 +21,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -32,6 +31,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -65,11 +66,12 @@ class CommitIdDatabaseTest {
         assertThatThrownBy(() -> db.get(Revision.INIT)).isInstanceOf(IllegalStateException.class);
     }
 
-    @Test
-    void simpleAccess() {
+    @ValueSource(ints = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 })
+    @ParameterizedTest
+    void simpleAccess(int startRevision) {
         final int numCommits = 10;
-        final ObjectId[] expectedCommitIds = new ObjectId[numCommits + 1];
-        for (int i = 1; i <= numCommits; i++) {
+        final ObjectId[] expectedCommitIds = new ObjectId[numCommits + startRevision];
+        for (int i = startRevision; i < startRevision + numCommits; i++) {
             final Revision revision = new Revision(i);
             final ObjectId commitId = randomCommitId();
             expectedCommitIds[i] = commitId;
@@ -77,15 +79,20 @@ class CommitIdDatabaseTest {
             assertThat(db.headRevision()).isEqualTo(revision);
         }
 
-        for (int i = 1; i <= numCommits; i++) {
+        for (int i = startRevision; i < startRevision + numCommits; i++) {
             assertThat(db.get(new Revision(i))).isEqualTo(expectedCommitIds[i]);
         }
 
         assertThatThrownBy(() -> db.get(Revision.HEAD))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("absolute revision");
-        assertThatThrownBy(() -> db.get(new Revision(numCommits + 1)))
+        assertThatThrownBy(() -> db.get(new Revision(numCommits + startRevision)))
                 .isInstanceOf(RevisionNotFoundException.class);
+        if (startRevision > 1) {
+            assertThatThrownBy(() -> db.get(new Revision(startRevision - 1)))
+                    .isInstanceOf(RevisionNotFoundException.class);
+        }
+        assertThat(db.firstRevision()).isEqualTo(new Revision(startRevision));
     }
 
     @Test
@@ -95,7 +102,7 @@ class CommitIdDatabaseTest {
 
         // Truncate the database file.
         try (FileChannel f = FileChannel.open(new File(tempDir, "commit_ids.dat").toPath(),
-                         StandardOpenOption.APPEND)) {
+                                              StandardOpenOption.APPEND)) {
 
             assertThat(f.size()).isEqualTo(24);
             f.truncate(23);
@@ -106,50 +113,25 @@ class CommitIdDatabaseTest {
                 .hasMessageContaining("incorrect file length");
     }
 
-    @Test
-    void mismatchingRevision() throws Exception {
-        db.close();
-
-        // Append a record with incorrect revision number.
-        try (FileChannel f = FileChannel.open(new File(tempDir, "commit_ids.dat").toPath(),
-                                              StandardOpenOption.APPEND)) {
-
-            final ByteBuffer buf = ByteBuffer.allocate(24);
-            buf.putInt(42); // Expected to be 1.
-            randomCommitId().copyRawTo(buf);
-            buf.flip();
-            do {
-                f.write(buf);
-            } while (buf.hasRemaining());
-
-            assertThat(f.size()).isEqualTo(buf.capacity());
-        }
-
-        // Reopen the database and see if it fails to resolve the revision 1.
-        db = new CommitIdDatabase(tempDir);
-        assertThatThrownBy(() -> db.get(Revision.INIT))
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("incorrect revision number");
-    }
-
-    @Test
-    void rebuildingBadDatabase() throws Exception {
+    @ValueSource(ints = { 1, 3, 5, 7, 9 })
+    @ParameterizedTest
+    void rebuildingBadDatabase(int startRevision) throws Exception {
         final int numCommits = 10;
         final File repoDir = tempDir;
-        final File commitIdDatabaseFile = new File(repoDir, "commit_ids.dat");
 
-        // Create a repository which contains some commits.
-        GitRepository repo = new GitRepository(mock(Project.class), repoDir, commonPool(), 0, Author.SYSTEM);
+        GitRepositoryV2 repo = createRepoWithFirstRevision(repoDir, startRevision);
         Revision headRevision = null;
         try {
-            for (int i = 1; i <= numCommits; i++) {
-                headRevision = repo.commit(new Revision(i), 0, Author.SYSTEM, "",
-                                           Change.ofTextUpsert("/" + i + ".txt", "")).join().revision();
+            // We already add 2 commits in createRepoWithFirstRevision so let's start with startRevision + 2.
+            for (int i = startRevision + 2; i < startRevision + numCommits; i++) {
+                headRevision = addCommit(repo, i);
             }
         } finally {
             repo.internalClose();
         }
 
+        final File primaryRepoDir = repo.primaryRepo.repoDir();
+        final File commitIdDatabaseFile = new File(primaryRepoDir, "commit_ids.dat");
         // Wipe out the commit ID database.
         assertThat(commitIdDatabaseFile).exists();
         try (FileChannel ch = FileChannel.open(commitIdDatabaseFile.toPath(), StandardOpenOption.WRITE)) {
@@ -157,17 +139,52 @@ class CommitIdDatabaseTest {
         }
 
         // Open the repository again to see if the commit ID database is regenerated automatically.
-        repo = new GitRepository(mock(Project.class), repoDir, commonPool(), null);
+        repo = GitRepositoryV2.open(mock(Project.class), repoDir, commonPool(), null);
         try {
             assertThat(repo.normalizeNow(Revision.HEAD)).isEqualTo(headRevision);
-            for (int i = 1; i <= numCommits; i++) {
+            for (int i = startRevision; i < startRevision + numCommits; i++) {
                 assertThat(repo.find(new Revision(i + 1), "/" + i + ".txt").join()).hasSize(1);
             }
         } finally {
             repo.internalClose();
         }
 
+        assertThat(commitIdDatabaseFile).exists();
         assertThat(Files.size(commitIdDatabaseFile.toPath())).isEqualTo((numCommits + 1) * 24L);
+    }
+
+    private GitRepositoryV2 createRepoWithFirstRevision(File repoDir, int startRevision) {
+        final GitRepositoryV2 repo = new GitRepositoryV2(mock(Project.class), repoDir,
+                                                         commonPool(),
+                                                         0, Author.SYSTEM, null);
+        if (startRevision == 1) {
+            addCommit(repo, startRevision);
+            addCommit(repo, startRevision + 1);
+            return repo;
+        }
+
+        for (int i = 1; i < startRevision; i++) {
+            addCommit(repo, i);
+        }
+        repo.removeOldCommits(1, 0);
+        // Now the first revision of secondary repository is startRevision;
+        final InternalRepository secondaryRepo = repo.secondaryRepo;
+        assertThat(secondaryRepo.commitIdDatabase().firstRevision().major()).isEqualTo(startRevision);
+
+        addCommit(repo, startRevision);
+        addCommit(repo, startRevision + 1);
+        repo.removeOldCommits(1, 0);
+        // The secondary repo is promoted.
+        assertThat(repo.primaryRepo).isSameAs(secondaryRepo);
+        assertThat(repo.primaryRepo.commitIdDatabase().firstRevision().major()).isEqualTo(startRevision);
+        assertThat(repo.primaryRepo.commitIdDatabase().headRevision().major()).isEqualTo(startRevision + 2);
+        return repo;
+    }
+
+    private Revision addCommit(GitRepositoryV2 repo, int i) {
+        return repo.commit(Revision.HEAD, 0, Author.SYSTEM, "", Change.ofTextUpsert("/" + i + ".txt", ""))
+                   .join()
+                   .revision();
     }
 
     private static ObjectId randomCommitId() {

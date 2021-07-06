@@ -122,6 +122,9 @@ public final class CentralDogmaBuilder {
     private int writeQuota;
     private int timeWindowSeconds;
 
+    @Nullable
+    private CommitRetentionConfig commitRetentionConfig;
+
     /**
      * Creates a new builder with the specified data directory.
      */
@@ -521,6 +524,22 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the configuration for retaining commits in a {@link Repository}.
+     * The {@link Repository} retains at least the number of {@code minRetentionCommits} when more than
+     * {@code minRetentionCommits} are made.
+     * The {@link Repository} also retains commits at least {@code minRetentionDays}. If both conditions are
+     * not satisfied, the commits are not removed.
+     * For example, when {@code minRetentionCommits} is set to 2000 and {@code minRetentionDays} is set to 14,
+     * the commits that are created more than 2000 are not removed until 14 days have passed. Set 0 to retain
+     * all commits.
+     */
+    public CentralDogmaBuilder commitRetention(int minRetentionCommits, int minRetentionDays,
+                                               @Nullable String schedule) {
+        commitRetentionConfig = new CommitRetentionConfig(minRetentionCommits, minRetentionDays, schedule);
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -553,6 +572,7 @@ public final class CentralDogmaBuilder {
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      null, accessLogFormat, authCfg, quotaConfig);
+                                      null, accessLogFormat, authCfg, quotaConfig,
+                                      commitRetentionConfig);
     }
 }

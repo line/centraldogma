@@ -54,8 +54,8 @@ class GitRepositoryManagerTest {
     void testCreate() {
         final GitRepositoryManager gitRepositoryManager = newRepositoryManager();
         final Repository repository = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
-        assertThat(repository).isInstanceOf(GitRepository.class);
-        assertThat(((GitRepository) repository).cache).isNotNull();
+        assertThat(repository).isInstanceOf(GitRepositoryV2.class);
+        assertThat(((GitRepositoryV2) repository).cache).isNotNull();
 
         // Must disallow creating a duplicate.
         assertThatThrownBy(() -> gitRepositoryManager.create(TEST_REPO, Author.SYSTEM))
@@ -75,8 +75,8 @@ class GitRepositoryManagerTest {
         // Create a new manager so that it loads the repository we created above.
         gitRepositoryManager = newRepositoryManager();
         final Repository repository = gitRepositoryManager.get(TEST_REPO);
-        assertThat(repository).isInstanceOf(GitRepository.class);
-        assertThat(((GitRepository) repository).cache).isNotNull();
+        assertThat(repository).isInstanceOf(GitRepositoryV2.class);
+        assertThat(((GitRepositoryV2) repository).cache).isNotNull();
 
         gitRepositoryManager.remove(TEST_REPO);
         gitRepositoryManager.purgeMarked();
@@ -88,7 +88,7 @@ class GitRepositoryManagerTest {
         assertThat(gitRepositoryManager.exists(TEST_REPO)).isFalse();
 
         final Repository repository = gitRepositoryManager.create(TEST_REPO, Author.SYSTEM);
-        assertThat(repository).isInstanceOf(GitRepository.class);
+        assertThat(repository).isInstanceOf(GitRepositoryV2.class);
         assertThat(gitRepositoryManager.get(TEST_REPO)).isSameAs(repository);
 
         gitRepositoryManager.remove(TEST_REPO);

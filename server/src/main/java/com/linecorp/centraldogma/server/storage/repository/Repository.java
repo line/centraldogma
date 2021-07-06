@@ -30,10 +30,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.spotify.futures.CompletableFutures;
@@ -82,30 +80,12 @@ public interface Repository {
     /**
      * Returns the creation time of this {@link Repository}.
      */
-    default long creationTimeMillis() {
-        try {
-            final List<Commit> history = history(Revision.INIT, Revision.INIT, ALL_PATH, 1).join();
-            return history.get(0).when();
-        } catch (CompletionException e) {
-            final Throwable cause = Throwables.getRootCause(e);
-            Throwables.throwIfUnchecked(cause);
-            throw new StorageException("failed to retrieve the initial commit", cause);
-        }
-    }
+    long creationTimeMillis();
 
     /**
      * Returns the author who created this {@link Repository}.
      */
-    default Author author() {
-        try {
-            final List<Commit> history = history(Revision.INIT, Revision.INIT, ALL_PATH, 1).join();
-            return history.get(0).author();
-        } catch (CompletionException e) {
-            final Throwable cause = Throwables.getRootCause(e);
-            Throwables.throwIfUnchecked(cause);
-            throw new StorageException("failed to retrieve the initial commit", cause);
-        }
-    }
+    Author author();
 
     /**
      * Returns the {@link CompletableFuture} whose value is the absolute {@link Revision} of the
@@ -498,4 +478,10 @@ public interface Repository {
 
         return future;
     }
+
+    /**
+     * Removes the old commits that are passed more than the {@code minRetentionDays} and are exceeded the
+     * number of {@code minRetentionCommits}.
+     */
+    void removeOldCommits(int minRetentionCommits, int minRetentionDays);
 }

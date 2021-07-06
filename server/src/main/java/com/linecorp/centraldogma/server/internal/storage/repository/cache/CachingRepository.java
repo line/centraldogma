@@ -26,10 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-
-import com.google.common.base.Throwables;
 
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.RequestContext;
@@ -47,7 +44,6 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
-import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -59,30 +55,20 @@ final class CachingRepository implements Repository {
 
     private final Repository repo;
     private final RepositoryCache cache;
-    private final Commit firstCommit;
 
     CachingRepository(Repository repo, RepositoryCache cache) {
         this.repo = requireNonNull(repo, "repo");
         this.cache = requireNonNull(cache, "cache");
-
-        try {
-            final List<Commit> history = repo.history(Revision.INIT, Revision.INIT, ALL_PATH, 1).join();
-            firstCommit = history.get(0);
-        } catch (CompletionException e) {
-            final Throwable cause = Exceptions.peel(e);
-            Throwables.throwIfUnchecked(cause);
-            throw new StorageException("failed to retrieve the initial commit", cause);
-        }
     }
 
     @Override
     public long creationTimeMillis() {
-        return firstCommit.when();
+        return repo.creationTimeMillis();
     }
 
     @Override
     public Author author() {
-        return firstCommit.author();
+        return repo.author();
     }
 
     @Override
@@ -311,10 +297,14 @@ final class CachingRepository implements Repository {
     }
 
     @Override
+    public void removeOldCommits(int minRetentionCommits, int minRetentionDays) {
+        repo.removeOldCommits(minRetentionCommits, minRetentionDays);
+    }
+
+    @Override
     public String toString() {
         return toStringHelper(this)
                 .add("repo", repo)
-                .add("firstCommit", firstCommit)
                 .toString();
     }
 }

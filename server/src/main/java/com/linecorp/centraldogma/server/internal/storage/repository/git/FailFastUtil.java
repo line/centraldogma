@@ -79,5 +79,46 @@ final class FailFastUtil {
         }
     }
 
+    @SuppressWarnings("MethodParameterNamingConvention")
+    static void failFastIfTimedOut(GitRepositoryV2 repo, Logger logger, @Nullable ServiceRequestContext ctx,
+                                   String methodName, Object arg1) {
+        if (ctx != null && ctx.isTimedOut()) {
+            logger.info("{} Rejecting a request timed out already: repo={}/{}, method={}, args={}",
+                        ctx, repo.parent().name(), repo.name(), methodName, arg1);
+            throw REQUEST_ALREADY_TIMED_OUT;
+        }
+    }
+
+    @SuppressWarnings("MethodParameterNamingConvention")
+    static void failFastIfTimedOut(GitRepositoryV2 repo, Logger logger, @Nullable ServiceRequestContext ctx,
+                                   String methodName, Object arg1, Object arg2) {
+        if (ctx != null && ctx.isTimedOut()) {
+            logger.info("{} Rejecting a request timed out already: repo={}/{}, method={}, args=[{}, {}]",
+                        ctx, repo.parent().name(), repo.name(), methodName, arg1, arg2);
+            throw REQUEST_ALREADY_TIMED_OUT;
+        }
+    }
+
+    @SuppressWarnings("MethodParameterNamingConvention")
+    static void failFastIfTimedOut(GitRepositoryV2 repo, Logger logger, @Nullable ServiceRequestContext ctx,
+                                   String methodName, Object arg1, Object arg2, Object arg3) {
+        if (ctx != null && ctx.isTimedOut()) {
+            logger.info("{} Rejecting a request timed out already: repo={}/{}, method={}, args=[{}, {}, {}]",
+                        ctx, repo.parent().name(), repo.name(), methodName, arg1, arg2, arg3);
+            throw REQUEST_ALREADY_TIMED_OUT;
+        }
+    }
+
+    @SuppressWarnings("MethodParameterNamingConvention")
+    static void failFastIfTimedOut(GitRepositoryV2 repo, Logger logger, @Nullable ServiceRequestContext ctx,
+                                   String methodName, Object arg1, Object arg2, Object arg3, int arg4) {
+        if (ctx != null && ctx.isTimedOut()) {
+            logger.info(
+                    "{} Rejecting a request timed out already: repo={}/{}, method={}, args=[{}, {}, {}, {}]",
+                    ctx, repo.parent().name(), repo.name(), methodName, arg1, arg2, arg3, arg4);
+            throw REQUEST_ALREADY_TIMED_OUT;
+        }
+    }
+
     private FailFastUtil() {}
 }

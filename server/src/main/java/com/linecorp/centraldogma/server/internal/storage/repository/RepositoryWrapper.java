@@ -197,6 +197,11 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
+    public void removeOldCommits(int minRetentionCommits, int minRetentionDays) {
+        unwrap().removeOldCommits(minRetentionCommits, minRetentionDays);
+    }
+
+    @Override
     public String toString() {
         return Util.simpleTypeName(this) + '(' + unwrap() + ')';
     }

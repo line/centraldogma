@@ -78,7 +78,7 @@ final class CacheableCompareTreesCall extends CacheableCall<List<DiffEntry>> {
     }
 
     /**
-     * Never invoked because {@link GitRepository} produces the value of this call.
+     * Never invoked because {@link GitRepositoryV2} produces the value of this call.
      */
     @Override
     public CompletableFuture<List<DiffEntry>> execute() {

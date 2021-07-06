@@ -138,6 +138,9 @@ public final class CentralDogmaConfig {
     @Nullable
     private final QuotaConfig writeQuotaPerRepository;
 
+    @Nullable
+    private final CommitRetentionConfig commitRetentionConfig;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -165,7 +168,9 @@ public final class CentralDogmaConfig {
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
-            @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository) {
+            @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
+            @JsonProperty("commitRetention") @Nullable
+                    CommitRetentionConfig commitRetentionConfig) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -219,6 +224,7 @@ public final class CentralDogmaConfig {
                                           ports.stream().anyMatch(ServerPort::hasProxyProtocol));
 
         this.writeQuotaPerRepository = writeQuotaPerRepository;
+        this.commitRetentionConfig = commitRetentionConfig;
     }
 
     /**
@@ -451,9 +457,18 @@ public final class CentralDogmaConfig {
      * Returns the maximum allowed write quota per {@link Repository}.
      */
     @Nullable
-    @JsonProperty("writeQuotaPerRepository")
+    @JsonProperty
     public QuotaConfig writeQuotaPerRepository() {
         return writeQuotaPerRepository;
+    }
+
+    /**
+     * Returns the {@link CommitRetentionConfig}.
+     */
+    @Nullable
+    @JsonProperty("commitRetention")
+    public CommitRetentionConfig commitRetentionConfig() {
+        return commitRetentionConfig;
     }
 
     @Override

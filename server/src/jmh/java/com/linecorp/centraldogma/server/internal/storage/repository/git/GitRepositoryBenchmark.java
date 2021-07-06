@@ -47,14 +47,14 @@ public class GitRepositoryBenchmark {
     private int previousCommits;
 
     private File repoDir;
-    private GitRepository repo;
+    private GitRepositoryV2 repo;
     private int currentRevision;
 
     @Setup
     public void init() throws Exception {
         repoDir = Files.createTempDirectory("jmh-gitrepository.").toFile();
-        repo = new GitRepository(mock(Project.class), repoDir, ForkJoinPool.commonPool(),
-                                 System.currentTimeMillis(), AUTHOR, null);
+        repo = new GitRepositoryV2(mock(Project.class), repoDir, ForkJoinPool.commonPool(),
+                                   System.currentTimeMillis(), AUTHOR, null);
         currentRevision = 1;
 
         for (int i = 0; i < previousCommits; i++) {

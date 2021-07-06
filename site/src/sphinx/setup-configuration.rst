@@ -47,6 +47,11 @@ defaults:
       "numMirroringThreads": null,
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
+      "commitRetentionConfig": {
+        "minRetentionCommits" : 2000,
+        "minRetentionDays": 14,
+        "schedule": "0 0 * * * ?"
+      },
       "writeQuotaPerRepository": {
         "requestQuota" : 5,
         "timeWindowSeconds": 1
@@ -216,6 +221,29 @@ Core properties
   - ``timeWindowSeconds`` (integer)
 
      - a time windows in seconds.
+
+-  ``commitRetention``
+
+  - the configuration for retaining commits in a repository. The repository retains at least the number of
+    ``minRetentionCommits`` when more than ``minRetentionCommits`` are made. The repository also retains
+    commits at least ``minRetentionDays``. If both conditions are not satisfied, the commits are not removed.
+    For example, when ``minRetentionCommits`` is set to 2000 and ``minRetentionDays`` is set to 14,
+    the commits that are created more than 2000 are not removed until 14 days have passed. Set 0 to retain
+    all commits.
+
+  - ``minRetentionCommits`` (integer)
+
+     - a minimum number of commits that a repository should retain. The number should be greater than or
+       equal to 1000. Specify 0 to disable it.
+
+  - ``minRetentionDays`` (integer)
+
+     - a minimum number of days of a commit that a repository should retain. Specify 0 to disable it.
+
+  - ``schedule`` (string)
+
+     - a `Quartz cron expression <https://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html>`_
+       that schedules the job of removing old commits.
 
 - ``accessLogFormat`` (string)
 
