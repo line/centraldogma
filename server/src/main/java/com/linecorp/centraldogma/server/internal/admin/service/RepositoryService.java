@@ -245,6 +245,9 @@ public class RepositoryService extends AbstractService {
                 case "JSON":
                     change = Change.ofJsonUpsert(file.getPath(), file.getContent());
                     break;
+                case "YAML":
+                    change = Change.ofYamlUpsert(file.getPath(), file.getContent());
+                    break;
                 case "TEXT":
                     change = Change.ofTextUpsert(file.getPath(), file.getContent());
                     break;
