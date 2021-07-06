@@ -197,16 +197,6 @@ public class RepositoryWrapper implements Repository {
     }
 
     @Override
-    public Revision gc() throws Exception {
-        return unwrap().gc();
-    }
-
-    @Override
-    public Revision lastGcRevision() {
-        return unwrap().lastGcRevision();
-    }
-
-    @Override
     public String toString() {
         return Util.simpleTypeName(this) + '(' + unwrap() + ')';
     }
