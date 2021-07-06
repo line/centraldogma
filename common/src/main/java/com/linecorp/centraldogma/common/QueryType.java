@@ -27,7 +27,7 @@ public enum QueryType {
     /**
      * Retrieves the content as it is.
      */
-    IDENTITY(EnumSet.of(EntryType.TEXT, EntryType.JSON)),
+    IDENTITY(EnumSet.of(EntryType.TEXT, EntryType.JSON, EntryType.YAML)),
 
     /**
      * Retrieves the textual content as it is.

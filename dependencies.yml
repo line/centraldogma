@@ -48,6 +48,9 @@ com.fasterxml.jackson.core:
     javadocs:
     - https://fasterxml.github.io/jackson-databind/javadoc/2.12/
 
+org.yaml:
+  snakeyaml: { version: '1.29' }
+
 com.github.ben-manes.caffeine:
   caffeine:
     version: '2.9.1'

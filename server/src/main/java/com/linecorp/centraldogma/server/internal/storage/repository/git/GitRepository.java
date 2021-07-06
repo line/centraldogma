@@ -92,6 +92,7 @@ import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.nodes.Node;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -115,6 +116,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.SnakeYaml;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
@@ -500,6 +502,10 @@ class GitRepository implements Repository {
                             final JsonNode jsonNode = Jackson.readTree(content);
                             entry = Entry.ofJson(normRevision, path, jsonNode);
                             break;
+                        case YAML:
+                            final Node yamlNode = SnakeYaml.readTree(content);
+                            entry = Entry.ofYaml(normRevision, path, yamlNode);
+                            break;
                         case TEXT:
                             final String strVal = sanitizeText(new String(content, UTF_8));
                             entry = Entry.ofText(normRevision, path, strVal);
@@ -511,6 +517,9 @@ class GitRepository implements Repository {
                     switch (entryType) {
                         case JSON:
                             entry = Entry.ofJson(normRevision, path, Jackson.nullNode);
+                            break;
+                        case YAML:
+                            entry = Entry.ofYaml(normRevision, path, SnakeYaml.nullNode);
                             break;
                         case TEXT:
                             entry = Entry.ofText(normRevision, path, "");
@@ -802,6 +811,13 @@ class GitRepository implements Repository {
                                 putChange(changeMap, newPath, Change.ofJsonUpsert(newPath, jsonNode));
                                 break;
                             }
+                            case YAML: {
+                                final Node yamlNode = SnakeYaml.readTree(
+                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes());
+
+                                putChange(changeMap, newPath, Change.ofYamlUpsert(newPath, yamlNode));
+                                break;
+                            }
                             case TEXT: {
                                 final String text = sanitizeText(new String(
                                         reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8));
@@ -1008,6 +1024,16 @@ class GitRepository implements Repository {
                         // Upsert only when the contents are really different.
                         if (!Objects.equals(newJsonNode, oldJsonNode)) {
                             applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                            numEdits++;
+                        }
+                        break;
+                    }
+                    case UPSERT_YAML: {
+                        final Node oldYamlNode = oldContent != null ? SnakeYaml.readTree(oldContent) : null;
+                        final Node newYamlNode = firstNonNull((Node) change.content(), null);
+
+                        if (!Objects.equals(oldYamlNode, newYamlNode)) {
+                            applyPathEdit(dirCache, new InsertYaml(changePath, inserter, newYamlNode));
                             numEdits++;
                         }
                         break;
@@ -1692,6 +1718,27 @@ class GitRepository implements Repository {
                 ent.setFileMode(FileMode.REGULAR_FILE);
             } catch (IOException e) {
                 throw new StorageException("failed to create a new JSON blob", e);
+            }
+        }
+    }
+
+    private static final class InsertYaml extends PathEdit {
+        private final ObjectInserter inserter;
+        private final Node yamlNode;
+
+        InsertYaml(String entryPath, ObjectInserter inserter, Node yamlNode) {
+            super(entryPath);
+            this.inserter = inserter;
+            this.yamlNode = yamlNode;
+        }
+
+        @Override
+        public void apply(DirCacheEntry ent) {
+            try {
+                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, SnakeYaml.serialize(yamlNode).getBytes()));
+                ent.setFileMode(FileMode.REGULAR_FILE);
+            } catch (IOException e) {
+                throw new StorageException("failed to create a new YAML blob", e);
             }
         }
     }

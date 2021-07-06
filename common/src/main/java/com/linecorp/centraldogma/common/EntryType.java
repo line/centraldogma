@@ -18,6 +18,8 @@ package com.linecorp.centraldogma.common;
 
 import static java.util.Objects.requireNonNull;
 
+import org.yaml.snakeyaml.nodes.Node;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Ascii;
 
@@ -29,6 +31,10 @@ public enum EntryType {
      * A UTF-8 encoded JSON file.
      */
     JSON(JsonNode.class),
+    /**
+     * A UTF-8 encoded YAML file.
+     */
+    YAML(Node.class),
     /**
      * A UTF-8 encoded text file.
      */
@@ -53,6 +59,10 @@ public enum EntryType {
 
         if (Ascii.toLowerCase(path).endsWith(".json")) {
             return JSON;
+        }
+
+        if (Ascii.toLowerCase(path).endsWith(".yml") || Ascii.toLowerCase(path).endsWith(".yaml")) {
+            return YAML;
         }
 
         return TEXT;

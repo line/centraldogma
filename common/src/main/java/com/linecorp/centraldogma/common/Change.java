@@ -33,11 +33,14 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
+import org.yaml.snakeyaml.nodes.Node;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.SnakeYaml;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
@@ -102,6 +105,32 @@ public interface Change<T> {
     static Change<JsonNode> ofJsonUpsert(String path, JsonNode jsonNode) {
         requireNonNull(jsonNode, "jsonNode");
         return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_YAML}.
+     *
+     * @param path the path of the file
+     * @param yamlText the content of the file
+     */
+    static Change<Node> ofYamlUpsert(String path, String yamlText) {
+        requireNonNull(yamlText, "yamlText");
+
+        final Node yamlNode;
+        yamlNode = SnakeYaml.readTree(yamlText);
+
+        return new DefaultChange<>(path, ChangeType.UPSERT_YAML, yamlNode);
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_YAML}.
+     *
+     * @param path the path of the file
+     * @param yamlNode the content of the file
+     */
+    static Change<Node> ofYamlUpsert(String path, Node yamlNode) {
+        requireNonNull(yamlNode, "yamlNode");
+        return new DefaultChange<>(path, ChangeType.UPSERT_YAML, yamlNode);
     }
 
     /**

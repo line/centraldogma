@@ -1037,6 +1037,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 switch (receivedEntryType) {
                     case JSON:
                         return entryAsJson(revision, node, entryPath);
+                    case YAML:
+                        return entryAsYaml(revision, node, entryPath);
                     case TEXT:
                         return entryAsText(revision, node, entryPath);
                     case DIRECTORY:
@@ -1059,6 +1061,17 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static <T> Entry<T> entryAsJson(Revision revision, JsonNode node, String entryPath) {
         return unsafeCast(Entry.ofJson(revision, entryPath, getField(node, "content")));
+    }
+
+    private static <T> Entry<T> entryAsYaml(Revision revision, JsonNode node, String entryPath) {
+        final JsonNode content = getField(node, "content");
+        final String content0;
+        if (content.isContainerNode()) {
+            content0 = content.toString();
+        } else {
+            content0 = content.asText();
+        }
+        return unsafeCast(Entry.ofYaml(revision, entryPath, content0));
     }
 
     private static Commit toCommit(JsonNode node) {
