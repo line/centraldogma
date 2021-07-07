@@ -70,6 +70,7 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
     private int maxNumRetriesOnReplicationLag = DEFAULT_MAX_NUM_RETRIES_ON_REPLICATION_LAG;
     private long retryIntervalOnReplicationLagMillis =
             TimeUnit.SECONDS.toMillis(DEFAULT_RETRY_INTERVAL_ON_REPLICATION_LAG_SECONDS);
+    private boolean metricsEnabled = true;
 
     /**
      * Returns {@code this}.
@@ -414,5 +415,17 @@ public abstract class AbstractCentralDogmaBuilder<B extends AbstractCentralDogma
      */
     protected long retryIntervalOnReplicationLagMillis() {
         return retryIntervalOnReplicationLagMillis;
+    }
+
+    /**
+     * Disables {@link CentralDogma} specific metric collection. Metric collection is enabled by default.
+     */
+    public final B disableMetrics() {
+        metricsEnabled = false;
+        return self();
+    }
+
+    protected boolean metricsEnabled() {
+        return metricsEnabled;
     }
 }

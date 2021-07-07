@@ -24,6 +24,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -37,12 +39,16 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.client.FileWatcher;
 import com.linecorp.centraldogma.internal.client.RepositoryWatcher;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * A skeletal {@link CentralDogma} implementation.
  */
 public abstract class AbstractCentralDogma implements CentralDogma {
 
     private final ScheduledExecutorService blockingTaskExecutor;
+    @Nullable
+    private final MeterRegistry meterRegistry;
 
     /**
      * Creates a new instance.
@@ -52,7 +58,22 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      *                             watched changes.
      */
     protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor) {
+        this(blockingTaskExecutor, null);
+    }
+
+    /**
+     * Creates a new instance.
+     *
+     * @param blockingTaskExecutor the {@link ScheduledExecutorService} which will be used for scheduling the
+     *                             tasks related with automatic retries and invoking the callbacks for
+     *                             watched changes.
+     * @param meterRegistry the {@link MeterRegistry} which collects metrics {@link CentralDogma} specific
+     *                      metrics. Metrics aren't collected if this value is {@code null}.
+     */
+    protected AbstractCentralDogma(ScheduledExecutorService blockingTaskExecutor,
+                                   @Nullable MeterRegistry meterRegistry) {
         this.blockingTaskExecutor = requireNonNull(blockingTaskExecutor, "blockingTaskExecutor");
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -214,5 +235,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
         } else {
             return CompletableFuture.completedFuture(revision);
         }
+    }
+
+    @Override
+    public final MeterRegistry meterRegistry() {
+        return meterRegistry;
     }
 }

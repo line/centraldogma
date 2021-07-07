@@ -26,6 +26,8 @@ import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Builds a {@link CentralDogma} client based on an <a href="https://line.github.io/armeria/">Armeria</a>
  * HTTP client.
@@ -47,10 +49,10 @@ public final class ArmeriaCentralDogmaBuilder
         // TODO(ikhoon): Apply ExecutorServiceMetrics for the 'blockingTaskExecutor' once
         //               https://github.com/line/centraldogma/pull/542 is merged.
         final ScheduledExecutorService blockingTaskExecutor = blockingTaskExecutor();
-
+        final MeterRegistry meterRegistry = metricsEnabled() ? clientFactory().meterRegistry() : null;
         final CentralDogma dogma = new ArmeriaCentralDogma(blockingTaskExecutor,
                                                            builder.build(WebClient.class),
-                                                           accessToken());
+                                                           accessToken(), meterRegistry);
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
