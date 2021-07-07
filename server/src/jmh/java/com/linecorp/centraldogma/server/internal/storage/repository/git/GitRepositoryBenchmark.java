@@ -46,9 +46,6 @@ public class GitRepositoryBenchmark {
     @Param({ "0", "2000", "4000", "6000", "8000" })
     private int previousCommits;
 
-    @Param
-    private GitRepositoryFormat format;
-
     private File repoDir;
     private GitRepository repo;
     private int currentRevision;
@@ -56,7 +53,7 @@ public class GitRepositoryBenchmark {
     @Setup
     public void init() throws Exception {
         repoDir = Files.createTempDirectory("jmh-gitrepository.").toFile();
-        repo = new GitRepository(mock(Project.class), repoDir, format, ForkJoinPool.commonPool(),
+        repo = new GitRepository(mock(Project.class), repoDir, ForkJoinPool.commonPool(),
                                  System.currentTimeMillis(), AUTHOR, null);
         currentRevision = 1;
 
