@@ -44,6 +44,8 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import org.yaml.snakeyaml.nodes.Node;
+
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -103,6 +105,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.SnakeYaml;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
@@ -980,6 +983,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             final Class<?> contentType = c.type().contentType();
             if (contentType == JsonNode.class) {
                 changeNode.set("content", (JsonNode) c.content());
+            } else if (contentType == Node.class) {
+                changeNode.put("content", SnakeYaml.serialize((Node) c.content()));
             } else if (contentType == String.class) {
                 changeNode.put("content", (String) c.content());
             }
@@ -1033,6 +1038,12 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                                                     " (expected: " + queryType + ')');
                 }
                 return entryAsJson(revision, node, entryPath);
+            case IDENTITY_YAML:
+                if (receivedEntryType != EntryType.YAML) {
+                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
+                                                    " (expected: " + queryType + ')');
+                }
+                return entryAsYaml(revision, node, entryPath);
             case IDENTITY:
                 switch (receivedEntryType) {
                     case JSON:
@@ -1065,13 +1076,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static <T> Entry<T> entryAsYaml(Revision revision, JsonNode node, String entryPath) {
         final JsonNode content = getField(node, "content");
-        final String content0;
-        if (content.isContainerNode()) {
-            content0 = content.toString();
-        } else {
-            content0 = content.asText();
+        if (content.getNodeType() != JsonNodeType.STRING) {
+            throw new CentralDogmaException("Found invalid content for YAML entry");
         }
-        return unsafeCast(Entry.ofYaml(revision, entryPath, content0));
+        return unsafeCast(Entry.ofYaml(revision, entryPath, SnakeYaml.readTree(content.asText())));
     }
 
     private static Commit toCommit(JsonNode node) {
@@ -1094,6 +1102,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         switch (type) {
             case UPSERT_JSON:
                 return unsafeCast(Change.ofJsonUpsert(actualPath, getField(node, "content")));
+            case UPSERT_YAML:
+                return unsafeCast(Change.ofYamlUpsert(actualPath, getField(node, "content").asText()));
             case UPSERT_TEXT:
                 return unsafeCast(Change.ofTextUpsert(actualPath, getField(node, "content").asText()));
             case REMOVE:

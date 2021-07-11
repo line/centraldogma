@@ -246,6 +246,12 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                                     " (expected: " + queryType + ')');
                 }
                 return entryAsJson(query, normRev, content);
+            case IDENTITY_YAML:
+                if (receivedEntryType != com.linecorp.centraldogma.internal.thrift.EntryType.YAML) {
+                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
+                                                    " (expected: " + queryType + ')');
+                }
+                return entryAsYaml(query, normRev, content);
             case IDENTITY:
                 switch (receivedEntryType) {
                     case JSON:
@@ -254,6 +260,8 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                         return entryAsText(query, normRev, content);
                     case DIRECTORY:
                         return unsafeCast(Entry.ofDirectory(normRev, query.path()));
+                    case YAML:
+                        return entryAsYaml(query, normRev, content);
                 }
         }
         throw new Error(); // Should never reach here.
@@ -269,6 +277,10 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     private static <T> Entry<T> entryAsText(Query<T> query, Revision normRev, String content) {
         return unsafeCast(Entry.ofText(normRev, query.path(), content));
+    }
+
+    private static <T> Entry<T> entryAsYaml(Query<T> query, Revision normRev, String content) {
+        return unsafeCast(Entry.ofYaml(normRev, query.path(), content));
     }
 
     @Override

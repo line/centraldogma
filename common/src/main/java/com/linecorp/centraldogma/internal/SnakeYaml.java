@@ -47,5 +47,9 @@ public final class SnakeYaml {
         return stringWriter.toString();
     }
 
+    public static String dump(Object o) {
+        return yaml.dump(o);
+    }
+
     private SnakeYaml() {}
 }

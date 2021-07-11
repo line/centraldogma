@@ -86,6 +86,8 @@ public final class EntryConverter {
         switch (type) {
             case JSON:
                 return EntryType.JSON;
+            case YAML:
+                return EntryType.YAML;
             case TEXT:
                 return EntryType.TEXT;
             case DIRECTORY:

@@ -44,6 +44,8 @@ public final class QueryConverter extends Converter<com.linecorp.centraldogma.co
                 return new Query(query.path(), QueryType.IDENTITY_JSON, Collections.emptyList());
             case JSON_PATH:
                 return new Query(query.path(), QueryType.JSON_PATH, query.expressions());
+            case IDENTITY_YAML:
+                return new Query(query.path(), QueryType.IDENTITY_YAML, Collections.emptyList());
         }
 
         throw new Error();
@@ -59,6 +61,8 @@ public final class QueryConverter extends Converter<com.linecorp.centraldogma.co
                 return com.linecorp.centraldogma.common.Query.ofText(query.getPath());
             case IDENTITY_JSON:
                 return com.linecorp.centraldogma.common.Query.ofJson(query.getPath());
+            case IDENTITY_YAML:
+                return com.linecorp.centraldogma.common.Query.ofYaml(query.getPath());
             case JSON_PATH:
                 return com.linecorp.centraldogma.common.Query.ofJsonPath(query.getPath(),
                                                                          query.getExpressions());
