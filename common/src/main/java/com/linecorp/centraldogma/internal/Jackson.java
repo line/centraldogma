@@ -28,9 +28,12 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.Set;
 
+import org.yaml.snakeyaml.nodes.Node;
+
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.core.io.JsonStringEncoder;
@@ -38,11 +41,15 @@ import com.fasterxml.jackson.core.io.SegmentedStringWriter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
@@ -78,7 +85,9 @@ public final class Jackson {
         prettyMapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
 
         registerModules(new SimpleModule().addSerializer(Instant.class, InstantSerializer.INSTANCE)
-                                          .addDeserializer(Instant.class, InstantDeserializer.INSTANT));
+                                          .addDeserializer(Instant.class, InstantDeserializer.INSTANT)
+                                          .addSerializer(Node.class, new YamlSerializer())
+                                          .addDeserializer(Node.class, new YamlDeserializer()));
     }
 
     private static final JsonFactory compactFactory = new JsonFactory(compactMapper);
@@ -380,6 +389,24 @@ public final class Jackson {
         PrettyPrinterImpl() {
             _objectFieldValueSeparatorWithSpaces = ": ";
             _objectIndenter = objectIndenter;
+        }
+    }
+
+    private static class YamlSerializer extends JsonSerializer<Node> {
+
+        @Override
+        public void serialize(Node value, JsonGenerator gen, SerializerProvider serializers)
+                throws IOException {
+            gen.writeString(SnakeYaml.serialize(value));
+        }
+    }
+
+    private static class YamlDeserializer extends JsonDeserializer<Node> {
+
+        @Override
+        public Node deserialize(JsonParser p, DeserializationContext ctxt)
+                throws IOException, JsonProcessingException {
+            return SnakeYaml.readTree(p.getValueAsString());
         }
     }
 }

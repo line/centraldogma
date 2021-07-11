@@ -91,6 +91,9 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
         if (changeType == ChangeType.UPSERT_JSON) {
             return Change.ofJsonUpsert(path, node.get("content"));
         }
+        if (changeType == ChangeType.UPSERT_YAML) {
+            return Change.ofYamlUpsert(path, node.get("content").textValue());
+        }
         if (changeType == ChangeType.REMOVE) {
             return Change.ofRemoval(path);
         }
