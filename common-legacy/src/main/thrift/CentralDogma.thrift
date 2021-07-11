@@ -47,6 +47,7 @@ enum EntryType {
     JSON = 1,
     TEXT = 2,
     DIRECTORY = 3,
+    YAML = 4,
 }
 
 enum ChangeType {
@@ -56,6 +57,7 @@ enum ChangeType {
     RENAME = 4,
     APPLY_JSON_PATCH = 5,
     APPLY_TEXT_PATCH = 6,
+    UPSERT_YAML = 7,
 }
 
 enum PropertyType {
@@ -192,6 +194,7 @@ enum QueryType {
     JSON_PATH = 2,
     IDENTITY_TEXT = 3,
     IDENTITY_JSON = 4,
+    IDENTITY_YAML = 5,
 }
 
 struct Query {

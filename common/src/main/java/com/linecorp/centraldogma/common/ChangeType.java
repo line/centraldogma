@@ -19,6 +19,8 @@ package com.linecorp.centraldogma.common;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+import org.yaml.snakeyaml.nodes.Node;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Ascii;
 
@@ -31,6 +33,12 @@ public enum ChangeType {
      * the {@link JsonNode} that represents the content of the file.
      */
     UPSERT_JSON(JsonNode.class),
+
+    /**
+     * Adds a new YAML file or replaces an existing file. {@link Change#content()} will return
+     * the {@link Node} that represents the content of the file.
+     */
+    UPSERT_YAML(Node.class),
 
     /**
      * Adds a new text file or replaces an existing file. {@link Change#content()} will return

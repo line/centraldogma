@@ -18,11 +18,14 @@ package com.linecorp.centraldogma.common;
 
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateYamlFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 
 import javax.annotation.Nullable;
+
+import org.yaml.snakeyaml.nodes.Node;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -100,6 +103,8 @@ final class DefaultChange<T> implements Change<T> {
 
         if (type.contentType() == JsonNode.class) {
             validateJsonFilePath(path, "path");
+        } else if (type.contentType() == Node.class) {
+            validateYamlFilePath(path, "path");
         } else {
             validateFilePath(path, "path");
         }
