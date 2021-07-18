@@ -23,8 +23,6 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import org.yaml.snakeyaml.nodes.Node;
-
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
@@ -93,7 +91,7 @@ public interface Query<T> extends Function<T, T> {
      *
      * @param path the path of a file being queried on
      */
-    static Query<Node> ofYaml(String path) {
+    static Query<JsonNode> ofYaml(String path) {
         return new IdentityQuery<>(path, QueryType.IDENTITY_YAML);
     }
 

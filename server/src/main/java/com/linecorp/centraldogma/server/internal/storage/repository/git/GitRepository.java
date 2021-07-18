@@ -92,7 +92,6 @@ import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.nodes.Node;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -116,7 +115,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.SnakeYaml;
+import com.linecorp.centraldogma.internal.JacksonYaml;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
@@ -503,7 +502,7 @@ class GitRepository implements Repository {
                             entry = Entry.ofJson(normRevision, path, jsonNode);
                             break;
                         case YAML:
-                            final Node yamlNode = SnakeYaml.readTree(content);
+                            final JsonNode yamlNode = JacksonYaml.readTree(content);
                             entry = Entry.ofYaml(normRevision, path, yamlNode);
                             break;
                         case TEXT:
@@ -519,7 +518,7 @@ class GitRepository implements Repository {
                             entry = Entry.ofJson(normRevision, path, Jackson.nullNode);
                             break;
                         case YAML:
-                            entry = Entry.ofYaml(normRevision, path, SnakeYaml.nullNode);
+                            entry = Entry.ofYaml(normRevision, path, JacksonYaml.nullNode);
                             break;
                         case TEXT:
                             entry = Entry.ofText(normRevision, path, "");
@@ -812,7 +811,7 @@ class GitRepository implements Repository {
                                 break;
                             }
                             case YAML: {
-                                final Node yamlNode = SnakeYaml.readTree(
+                                final JsonNode yamlNode = JacksonYaml.readTree(
                                         reader.open(diffEntry.getNewId().toObjectId()).getBytes());
 
                                 putChange(changeMap, newPath, Change.ofYamlUpsert(newPath, yamlNode));
@@ -1029,8 +1028,9 @@ class GitRepository implements Repository {
                         break;
                     }
                     case UPSERT_YAML: {
-                        final Node oldYamlNode = oldContent != null ? SnakeYaml.readTree(oldContent) : null;
-                        final Node newYamlNode = firstNonNull((Node) change.content(), null);
+                        final JsonNode oldYamlNode = oldContent != null ? JacksonYaml.readTree(oldContent)
+                                                                        : null;
+                        final JsonNode newYamlNode = firstNonNull((JsonNode) change.content(), null);
 
                         if (!Objects.equals(oldYamlNode, newYamlNode)) {
                             applyPathEdit(dirCache, new InsertYaml(changePath, inserter, newYamlNode));
@@ -1724,9 +1724,9 @@ class GitRepository implements Repository {
 
     private static final class InsertYaml extends PathEdit {
         private final ObjectInserter inserter;
-        private final Node yamlNode;
+        private final JsonNode yamlNode;
 
-        InsertYaml(String entryPath, ObjectInserter inserter, Node yamlNode) {
+        InsertYaml(String entryPath, ObjectInserter inserter, JsonNode yamlNode) {
             super(entryPath);
             this.inserter = inserter;
             this.yamlNode = yamlNode;
@@ -1735,7 +1735,7 @@ class GitRepository implements Repository {
         @Override
         public void apply(DirCacheEntry ent) {
             try {
-                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, SnakeYaml.serialize(yamlNode).getBytes()));
+                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, JacksonYaml.writeValueAsBytes(yamlNode)));
                 ent.setFileMode(FileMode.REGULAR_FILE);
             } catch (IOException e) {
                 throw new StorageException("failed to create a new YAML blob", e);

@@ -63,9 +63,6 @@ configure(projectsWithFlags('java')) {
             implementation "com.fasterxml.jackson.core:jackson-$it"
         }
 
-        // SnakeYAML
-        implementation 'org.yaml:snakeyaml'
-
         // javax.inject
         api 'javax.inject:javax.inject'
 

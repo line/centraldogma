@@ -33,14 +33,12 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import org.yaml.snakeyaml.nodes.Node;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.SnakeYaml;
+import com.linecorp.centraldogma.internal.JacksonYaml;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
@@ -113,11 +111,15 @@ public interface Change<T> {
      * @param path the path of the file
      * @param yamlText the content of the file
      */
-    static Change<Node> ofYamlUpsert(String path, String yamlText) {
+    static Change<JsonNode> ofYamlUpsert(String path, String yamlText) {
         requireNonNull(yamlText, "yamlText");
 
-        final Node yamlNode;
-        yamlNode = SnakeYaml.readTree(yamlText);
+        final JsonNode yamlNode;
+        try {
+            yamlNode = JacksonYaml.readTree(yamlText);
+        } catch (IOException e) {
+            throw new ChangeFormatException("failed to read a value as a YAML tree", e);
+        }
 
         return new DefaultChange<>(path, ChangeType.UPSERT_YAML, yamlNode);
     }
@@ -128,7 +130,7 @@ public interface Change<T> {
      * @param path the path of the file
      * @param yamlNode the content of the file
      */
-    static Change<Node> ofYamlUpsert(String path, Node yamlNode) {
+    static Change<JsonNode> ofYamlUpsert(String path, JsonNode yamlNode) {
         requireNonNull(yamlNode, "yamlNode");
         return new DefaultChange<>(path, ChangeType.UPSERT_YAML, yamlNode);
     }

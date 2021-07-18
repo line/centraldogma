@@ -24,14 +24,12 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
-import org.yaml.snakeyaml.nodes.Node;
-
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.SnakeYaml;
+import com.linecorp.centraldogma.internal.JacksonYaml;
 
 /**
  * A file or a directory in a repository.
@@ -82,7 +80,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param path the path of the YAML file
      * @param content the content of the YAML file
      */
-    public static Entry<Node> ofYaml(Revision revision, String path, Node content) {
+    public static Entry<JsonNode> ofYaml(Revision revision, String path, JsonNode content) {
         return new Entry<>(revision, path, EntryType.YAML, content);
     }
 
@@ -93,8 +91,9 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param path the path of the YAML file
      * @param content the content of the YAML file
      */
-    public static Entry<Node> ofYaml(Revision revision, String path, String content) {
-        return ofYaml(revision, path, SnakeYaml.readTree(content));
+    public static Entry<JsonNode> ofYaml(Revision revision, String path, String content)
+            throws JsonParseException {
+        return ofYaml(revision, path, JacksonYaml.readTree(content));
     }
 
     /**

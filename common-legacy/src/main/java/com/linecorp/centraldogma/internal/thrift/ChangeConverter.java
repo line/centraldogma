@@ -18,14 +18,12 @@ package com.linecorp.centraldogma.internal.thrift;
 
 import javax.annotation.Nullable;
 
-import org.yaml.snakeyaml.nodes.Node;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Converter;
 
 import com.linecorp.centraldogma.common.ChangeFormatException;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.SnakeYaml;
+import com.linecorp.centraldogma.internal.JacksonYaml;
 
 /**
  * Provides a function converting back and forth between {@link Change} and
@@ -60,7 +58,11 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
             case REMOVE:
                 break;
             case UPSERT_YAML:
-                change.setContent(SnakeYaml.serialize((Node) value.content()));
+                try {
+                    change.setContent(JacksonYaml.writeValueAsString(value.content()));
+                } catch (JsonProcessingException e) {
+                    throw new ChangeFormatException("failed to read a YAML tree", e);
+                }
                 break;
         }
         return change;

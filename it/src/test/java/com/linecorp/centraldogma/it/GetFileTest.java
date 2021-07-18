@@ -26,7 +26,6 @@ import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.yaml.snakeyaml.nodes.Node;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -39,7 +38,6 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.SnakeYaml;
 
 class GetFileTest {
 
@@ -70,15 +68,14 @@ class GetFileTest {
     void getYamlAsText(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
         client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add a file",
-                    Change.ofYamlUpsert("/test/foo.yaml", "a.b: \"c\"")).join();
-        final Entry<Node> yaml = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
-                                                Query.ofYaml("/test/foo.yaml")).join();
-        assertThat(SnakeYaml.serialize(yaml.content()))
-                .isEqualTo(SnakeYaml.serialize(SnakeYaml.readTree("a.b: \"c\"")));
+                    Change.ofYamlUpsert("/test/foo.yaml", "a: b")).join();
+        final Entry<JsonNode> yaml = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                    Query.ofYaml("/test/foo.yaml")).join();
+        assertThatJson(yaml.content()).isEqualTo("{\"a\":\"b\"}");
 
         final Entry<String> text = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                   Query.ofText("/test/foo.yaml")).join();
-        assertThat(text.content()).isEqualTo(SnakeYaml.serialize(SnakeYaml.readTree("a.b: \"c\"")));
+        assertThat(text.content()).isEqualTo("{\"a\":\"b\"}");
         client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Remove a file",
                     Change.ofRemoval("/test/foo.yaml")).join();
     }

@@ -16,6 +16,9 @@ dependencies {
     // Jackson JSR310
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
+    // Jackson YAML
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'
+
     // Guava
     implementation 'com.google.guava:guava'
 

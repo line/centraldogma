@@ -44,8 +44,6 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import org.yaml.snakeyaml.nodes.Node;
-
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -105,7 +103,6 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.SnakeYaml;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
 
@@ -983,8 +980,6 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             final Class<?> contentType = c.type().contentType();
             if (contentType == JsonNode.class) {
                 changeNode.set("content", (JsonNode) c.content());
-            } else if (contentType == Node.class) {
-                changeNode.put("content", SnakeYaml.serialize((Node) c.content()));
             } else if (contentType == String.class) {
                 changeNode.put("content", (String) c.content());
             }
@@ -1075,11 +1070,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     private static <T> Entry<T> entryAsYaml(Revision revision, JsonNode node, String entryPath) {
-        final JsonNode content = getField(node, "content");
-        if (content.getNodeType() != JsonNodeType.STRING) {
-            throw new CentralDogmaException("Found invalid content for YAML entry");
-        }
-        return unsafeCast(Entry.ofYaml(revision, entryPath, SnakeYaml.readTree(content.asText())));
+        return unsafeCast(Entry.ofYaml(revision, entryPath, getField(node, "content")));
     }
 
     private static Commit toCommit(JsonNode node) {

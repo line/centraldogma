@@ -16,8 +16,6 @@
 
 package com.linecorp.centraldogma.common;
 
-import org.yaml.snakeyaml.nodes.Node;
-
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
@@ -25,7 +23,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.SnakeYaml;
 
 /**
  * A holder which has the content and its {@link EntryType}.
@@ -60,8 +57,6 @@ public interface ContentHolder<T> {
                 // Should never happen because it's a JSON tree already.
                 throw new Error(e);
             }
-        } else if (content instanceof Node) {
-            return SnakeYaml.serialize((Node) content);
         } else {
             return content.toString();
         }

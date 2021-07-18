@@ -92,7 +92,7 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
             return Change.ofJsonUpsert(path, node.get("content"));
         }
         if (changeType == ChangeType.UPSERT_YAML) {
-            return Change.ofYamlUpsert(path, node.get("content").textValue());
+            return Change.ofYamlUpsert(path, node.get("content"));
         }
         if (changeType == ChangeType.REMOVE) {
             return Change.ofRemoval(path);

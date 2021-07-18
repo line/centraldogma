@@ -348,6 +348,21 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
+    void watchYamlAsText(ClientType clientType) throws InterruptedException {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Watcher<JsonNode> yamlWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
+                                                                 Query.ofYaml("/test/test1.yml"));
+        assertThatJson(yamlWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":{\"b\":\"c\"}}");
+
+        final Watcher<String> stringWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
+                                                                 Query.ofText("/test/test1.yml"));
+        assertThat(stringWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":{\"b\":\"c\"}}");
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
     void watcherThrowsException(ClientType clientType) throws InterruptedException {
         revertTestFiles(clientType);
 
@@ -749,8 +764,10 @@ class WatchTest {
     private static void revertTestFiles(ClientType clientType) {
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test1.json", "[ 1, 2, 3 ]");
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test2.json", "{ \"a\": \"apple\" }");
+        final Change<JsonNode> change3 = Change.ofYamlUpsert("/test/test1.yml", "a:\n  b: c");
+        final Change<JsonNode> change4 = Change.ofYamlUpsert("/test/test2.yml", "num:\n- 1\n- 2");
 
-        final List<Change<JsonNode>> changes = Arrays.asList(change1, change2);
+        final List<Change<?>> changes = Arrays.asList(change1, change2, change3, change4);
         final CentralDogma client = clientType.client(dogma);
 
         if (!client.getPreviewDiffs(dogma.project(), dogma.repo1(), Revision.HEAD, changes)

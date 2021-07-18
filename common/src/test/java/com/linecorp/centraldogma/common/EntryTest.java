@@ -55,6 +55,11 @@ class EntryTest {
         final Entry<JsonNode> e4 = Entry.ofJson(new Revision(1), "/a.json", "{ \"foo\": \"bar\" }");
         assertThat(e).isNotEqualTo(e4);
         assertThat(e.hashCode()).isNotEqualTo(e4.hashCode());
+
+        // directory vs. YAML file
+        final Entry<JsonNode> e5 = Entry.ofYaml(new Revision(1), "/z.yml", "foo: bar");
+        assertThat(e).isNotEqualTo(e5);
+        assertThat(e.hashCode()).isNotEqualTo(e5.hashCode());
     }
 
     @Test
@@ -92,6 +97,11 @@ class EntryTest {
         final Entry<Void> e4 = Entry.ofDirectory(new Revision(1), "/foo");
         assertThat(e).isNotEqualTo(e4);
         assertThat(e.hashCode()).isNotEqualTo(e4.hashCode());
+
+        // text file vs. YAML file
+        final Entry<JsonNode> e5 = Entry.ofYaml(new Revision(1), "/z.yml", "foo: bar");
+        assertThat(e).isNotEqualTo(e5);
+        assertThat(e.hashCode()).isNotEqualTo(e5.hashCode());
     }
 
     @Test
@@ -123,6 +133,45 @@ class EntryTest {
         final Entry<Void> e4 = Entry.ofDirectory(new Revision(1), "/foo");
         assertThat(e).isNotEqualTo(e4);
         assertThat(e.hashCode()).isNotEqualTo(e4.hashCode());
+
+        // JSON file vs. YAML file
+        final Entry<JsonNode> e5 = Entry.ofYaml(new Revision(1), "/z.yml", "foo: bar");
+        assertThat(e).isNotEqualTo(e5);
+        assertThat(e.hashCode()).isNotEqualTo(e5.hashCode());
+    }
+
+    @Test
+    void ofYaml() throws Exception {
+        final Entry<JsonNode> e = Entry.ofYaml(new Revision(1), "/z.yml", "a:\n  b: 1\n  c: 2");
+        assertThat(e.revision()).isEqualTo(new Revision(1));
+        assertThat(e.hasContent()).isTrue();
+        e.ifHasContent(content -> assertThatJson(content).isEqualTo("{ \"a\": { \"b\": 1, \"c\": 2 } }"));
+        assertThat(e.contentAsText()).isEqualTo("{\"a\":{\"b\":1,\"c\":2}}");
+        assertThat(e.content()).isSameAs(e.contentAsJson());
+        assertThat(e.content()).isEqualTo(e.contentAsJson(JsonNode.class));
+
+        // YAML file vs. YAML file
+        final Entry<JsonNode> e2 = Entry.ofYaml(new Revision(1), "/z.yml", "a:\n  b: 1\n  c: 2");
+        assertThat(e).isEqualTo(e2);
+        assertThat(e.hashCode()).isEqualTo(e2.hashCode());
+        assertThat(e).isNotEqualTo(Entry.ofYaml(new Revision(2), "/z.yml", "a:\n  b: 1\n  c: 2"));
+        assertThat(e).isNotEqualTo(Entry.ofYaml(new Revision(1), "/y.yml", "a:\n  b: 1\n  c: 2"));
+        assertThat(e).isNotEqualTo(Entry.ofYaml(new Revision(1), "/z.yml", "null"));
+
+        // YAML file vs. JSON file
+        final Entry<JsonNode> e3 = Entry.ofJson(new Revision(1), "/a.json", "{\"a\":{\"b\":1,\"c\":2}}");
+        assertThat(e).isNotEqualTo(e3);
+        assertThat(e.hashCode()).isNotEqualTo(e3.hashCode());
+
+        // YAML file vs. text file
+        final Entry<String> e4 = Entry.ofText(new Revision(1), "/a.json", "{\"a\":{\"b\":1,\"c\":2}}");
+        assertThat(e).isNotEqualTo(e4);
+        assertThat(e.hashCode()).isNotEqualTo(e4.hashCode());
+
+        // YAML file vs. directory
+        final Entry<Void> e5 = Entry.ofDirectory(new Revision(1), "/foo");
+        assertThat(e).isNotEqualTo(e5);
+        assertThat(e.hashCode()).isNotEqualTo(e5.hashCode());
     }
 
     @Test
