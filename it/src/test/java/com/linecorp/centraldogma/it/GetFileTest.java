@@ -75,7 +75,7 @@ class GetFileTest {
 
         final Entry<String> text = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                   Query.ofText("/test/foo.yaml")).join();
-        assertThat(text.content()).isEqualTo("{\"a\":\"b\"}");
+        assertThat(text.content()).isEqualTo("a: \"b\"\n");
         client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Remove a file",
                     Change.ofRemoval("/test/foo.yaml")).join();
     }

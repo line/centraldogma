@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.JacksonYaml;
 
 /**
  * A holder which has the content and its {@link EntryType}.
@@ -50,6 +51,7 @@ public interface ContentHolder<T> {
      */
     default String contentAsText() {
         final T content = content();
+        // TODO: Distinguish JSON/YAML and format each type. Both are stored as JsonNode now
         if (content instanceof JsonNode) {
             try {
                 return Jackson.writeValueAsString(content);

@@ -127,10 +127,13 @@ class GitRepositoryTest {
     private String prefix;
     private String allPattern;
     private final String[] jsonPaths = new String[NUM_ITERATIONS];
+    private final String[] yamlPaths = new String[NUM_ITERATIONS];
     private final String[] textPaths = new String[NUM_ITERATIONS];
     private final Change<JsonNode>[] jsonUpserts = Util.unsafeCast(new Change[NUM_ITERATIONS]);
+    private final Change<JsonNode>[] yamlUpserts = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<String>[] textUpserts = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<JsonNode>[] jsonPatches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
+    private final Change<JsonNode>[] yamlPatches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<String>[] textPatches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
 
     @BeforeEach
@@ -140,20 +143,26 @@ class GitRepositoryTest {
 
         for (int i = 0; i < NUM_ITERATIONS; i++) {
             final String jsonPath = prefix + i + ".json";
+            final String yamlPath = prefix + i + ".yaml";
             final String textPath = prefix + i + ".txt";
 
             jsonPaths[i] = jsonPath;
+            yamlPaths[i] = yamlPath;
             textPaths[i] = textPath;
             jsonUpserts[i] = Change.ofJsonUpsert(jsonPath, "{ \"" + i + "\": " + i + " }");
+            yamlUpserts[i] = Change.ofYamlUpsert(yamlPath, i + ": " + i);
             textUpserts[i] = Change.ofTextUpsert(textPath, "value:\n" + i);
         }
 
         jsonPatches[0] = Change.ofJsonPatch(jsonPaths[0], null, jsonUpserts[0].content());
+        yamlPatches[0] = Change.ofYamlPatch(yamlPaths[0], null, yamlUpserts[0].content());
         textPatches[0] = Change.ofTextPatch(textPaths[0], null, textUpserts[0].content());
 
         for (int i = 1; i < NUM_ITERATIONS; i++) {
             jsonPatches[i] = Change.ofJsonPatch(jsonPaths[0], jsonUpserts[i - 1].content(),
                                                 jsonUpserts[i].content());
+            yamlPatches[i] = Change.ofYamlPatch(yamlPaths[0], yamlUpserts[i - 1].content(),
+                                                yamlUpserts[i].content());
             textPatches[i] = Change.ofTextPatch(textPaths[0], textUpserts[i - 1].content(),
                                                 textUpserts[i].content());
         }
@@ -164,6 +173,11 @@ class GitRepositoryTest {
     @Test
     void testJsonUpsert() {
         testUpsert(jsonUpserts, EntryType.JSON);
+    }
+
+    @Test
+    void testYamlUpsert() {
+        testUpsert(yamlUpserts, EntryType.YAML);
     }
 
     @Test
@@ -222,6 +236,11 @@ class GitRepositoryTest {
     @Test
     void testJsonPatch() {
         testPatch(jsonPatches, jsonUpserts);
+    }
+
+    @Test
+    void testYamlPatch() {
+        testPatch(yamlPatches, yamlUpserts);
     }
 
     @Test
@@ -605,20 +624,22 @@ class GitRepositoryTest {
     @Test
     void testDiff_add() {
         final String jsonPath = jsonUpserts[0].path();
+        final String yamlPath = yamlUpserts[0].path();
         final String textPath = textUpserts[0].path();
 
-        Revision prevRevison = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                           jsonUpserts[0], textUpserts[0]).join().revision();
+        Revision prevRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                            jsonUpserts[0], textUpserts[0]).join().revision();
 
         for (int i = 1; i < NUM_ITERATIONS; i++) {
             final Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
                                                       jsonPatches[i], textPatches[i]).join().revision();
 
-            final Map<String, Change<?>> diff = repo.diff(prevRevison, currRevision,
+            final Map<String, Change<?>> diff = repo.diff(prevRevision, currRevision,
                                                           Repository.ALL_PATH).join();
 
-            assertThat(diff).hasSize(2)
+            assertThat(diff).hasSize(3)
                             .containsEntry(jsonPath, jsonPatches[i])
+                            .containsEntry(yamlPath, yamlPatches[i])
                             .containsEntry(textPath, textPatches[i]);
 
             final Map<String, Change<?>> diff2 =
@@ -626,7 +647,7 @@ class GitRepositoryTest {
 
             assertThat(diff2).isEqualTo(diff);
 
-            prevRevison = currRevision;
+            prevRevision = currRevision;
         }
     }
 
@@ -645,18 +666,21 @@ class GitRepositoryTest {
         Revision prevRevison = lastRevision;
         for (int i = 1; i < NUM_ITERATIONS; i++) {
             final String jsonPath = jsonUpserts[i].path();
+            final String yamlPath = yamlUpserts[i].path();
             final String textPath = textUpserts[i].path();
 
             final Change<Void> jsonRemoval = Change.ofRemoval(jsonPath);
+            final Change<Void> yamlRemoval = Change.ofRemoval(yamlPath);
             final Change<Void> textRemoval = Change.ofRemoval(textPath);
 
             final Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                                      jsonRemoval, textRemoval).join().revision();
+                                                      jsonRemoval, yamlRemoval, textRemoval).join().revision();
             final Map<String, Change<?>> changes = repo.diff(prevRevison, currRevision,
                                                              Repository.ALL_PATH).join();
 
-            assertThat(changes).hasSize(2)
+            assertThat(changes).hasSize(3)
                                .containsEntry(jsonPath, jsonRemoval)
+                               .containsEntry(yamlPath, yamlRemoval)
                                .containsEntry(textPath, textRemoval);
 
             final Map<String, Change<?>> changesRelative =
@@ -674,20 +698,23 @@ class GitRepositoryTest {
     @Test
     void testDiff_modify() {
         final String jsonNodePath = jsonPatches[0].path();
+        final String yamlNodePath = yamlPatches[0].path();
         final String textNodePath = textPatches[0].path();
 
         // initial commit
         Revision prevRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                            jsonPatches[0], textPatches[0]).join().revision();
+                                            jsonPatches[0], yamlPatches[0], textPatches[0]).join().revision();
 
         for (int i = 1; i < NUM_ITERATIONS; i++) {
             final Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                                      jsonPatches[i], textPatches[i]).join().revision();
+                                                      jsonPatches[i], yamlPatches[i], textPatches[i])
+                                              .join().revision();
 
             final Map<String, Change<?>> changes = repo.diff(prevRevision, currRevision, allPattern).join();
 
-            assertThat(changes).hasSize(2)
+            assertThat(changes).hasSize(3)
                                .containsEntry(jsonNodePath, jsonPatches[i])
+                               .containsEntry(yamlNodePath, yamlPatches[i])
                                .containsEntry(textNodePath, textPatches[i]);
 
             final Map<String, Change<?>> changesRelative =
@@ -746,6 +773,7 @@ class GitRepositoryTest {
     void testHistory_correctRangeOfResult() {
 
         final String jsonPath = jsonPatches[0].path();
+        final String yamlPath = yamlPatches[0].path();
         final String textPath = textPatches[0].path();
 
         final Revision firstJsonCommit = repo.normalizeNow(HEAD).forward(1);
@@ -754,19 +782,30 @@ class GitRepositoryTest {
             lastJsonCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, c).join().revision();
         }
 
-        final Revision firstTextCommit = lastJsonCommit.forward(1);
+        final Revision firstYamlCommit = lastJsonCommit.forward(1);
+        Revision lastYamlCommit = null;
+        for (Change<JsonNode> c : yamlPatches) {
+            lastYamlCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, c).join().revision();
+        }
+
+        final Revision firstTextCommit = lastYamlCommit.forward(1);
         Revision lastTextCommit = null;
         for (Change<String> c : textPatches) {
             lastTextCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, c).join().revision();
         }
 
-        final Revision firstJsonCommitRel = new Revision(-(jsonPatches.length + textPatches.length));
-        final Revision lastJsonCommitRel = new Revision(-(textPatches.length + 1));
+        final Revision firstJsonCommitRel = new Revision(-(jsonPatches.length + yamlPatches.length +
+                                                           textPatches.length));
+        final Revision lastJsonCommitRel = new Revision(-(yamlPatches.length + textPatches.length + 1));
+        final Revision firstYamlCommitRel = new Revision(-(yamlPatches.length + textPatches.length));
+        final Revision lastYamlCommitRel = new Revision(-(textPatches.length + 1));
         final Revision firstTextCommitRel = new Revision(-textPatches.length);
         final Revision lastTextCommitRel = HEAD;
 
         assertThat(repo.normalizeNow(firstJsonCommitRel)).isEqualTo(firstJsonCommit);
         assertThat(repo.normalizeNow(lastJsonCommitRel)).isEqualTo(lastJsonCommit);
+        assertThat(repo.normalizeNow(firstYamlCommitRel)).isEqualTo(firstYamlCommit);
+        assertThat(repo.normalizeNow(lastYamlCommitRel)).isEqualTo(lastYamlCommit);
         assertThat(repo.normalizeNow(firstTextCommitRel)).isEqualTo(firstTextCommit);
         assertThat(repo.normalizeNow(lastTextCommitRel)).isEqualTo(lastTextCommit);
 
@@ -791,6 +830,31 @@ class GitRepositoryTest {
         commits = repo.history(new Revision(1), lastTextCommit, jsonPath).join();
         commitsRel = repo.history(new Revision(1), lastTextCommitRel, jsonPath).join();
         assertThat(commits).hasSize(jsonPatches.length) // # of JSON patches
+                           .isEqualTo(commitsRel);
+
+        commits = repo.history(firstYamlCommit, lastYamlCommit, yamlPath).join();
+        commitsRel = repo.history(firstYamlCommitRel, lastYamlCommitRel, yamlPath).join();
+        assertThat(commits).hasSize(yamlPatches.length)
+                           .isEqualTo(commitsRel);
+
+        commits = repo.history(firstJsonCommit, lastTextCommit, yamlPath).join();
+        commitsRel = repo.history(firstJsonCommitRel, lastTextCommitRel, yamlPath).join();
+        assertThat(commits).hasSize(yamlPatches.length)
+                           .isEqualTo(commitsRel);
+
+        commits = repo.history(firstJsonCommit, lastJsonCommit, yamlPath).join();
+        commitsRel = repo.history(firstJsonCommitRel, lastJsonCommitRel, yamlPath).join();
+        assertThat(commits).isEmpty();
+        assertThat(commitsRel).isEmpty();
+
+        commits = repo.history(firstTextCommit, lastTextCommit, yamlPath).join();
+        commitsRel = repo.history(firstTextCommitRel, lastTextCommitRel, yamlPath).join();
+        assertThat(commits).isEmpty();
+        assertThat(commitsRel).isEmpty();
+
+        commits = repo.history(new Revision(1), lastTextCommit, yamlPath).join();
+        commitsRel = repo.history(new Revision(1), lastTextCommitRel, yamlPath).join();
+        assertThat(commits).hasSize(yamlPatches.length) // # of YAML patches
                            .isEqualTo(commitsRel);
 
         commits = repo.history(firstTextCommit, lastTextCommit, textPath).join();
@@ -820,12 +884,15 @@ class GitRepositoryTest {
     @Test
     void testHistory_returnOnlyAffectedRevisions() {
         final String jsonPath = jsonPatches[0].path();
+        final String yamlPath = yamlPatches[0].path();
         final String textPath = textPatches[0].path();
 
         Revision lastJsonCommit = null;
+        Revision lastYamlCommit = null;
         Revision lastTextCommit = null;
         for (int i = 0; i < NUM_ITERATIONS; i++) {
             lastJsonCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, jsonPatches[i]).join().revision();
+            lastYamlCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, yamlPatches[i]).join().revision();
             lastTextCommit = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, textPatches[i]).join().revision();
         }
 
@@ -837,6 +904,17 @@ class GitRepositoryTest {
             if (c.revision().major() > 1) {
                 assertThat(c.revision()).isEqualTo(lastJsonCommit);
                 lastJsonCommit = lastJsonCommit.backward(2);
+            }
+        }
+
+        final List<Commit> yamlCommits = repo.history(HEAD, new Revision(1), yamlPath).join();
+        // # of YAML commits
+        assertThat(yamlCommits).hasSize(yamlPatches.length);
+
+        for (Commit c : yamlCommits) {
+            if (c.revision().major() > 1) {
+                assertThat(c.revision()).isEqualTo(lastYamlCommit);
+                lastYamlCommit = lastYamlCommit.backward(2);
             }
         }
 
@@ -897,28 +975,34 @@ class GitRepositoryTest {
 
         final String name = TestUtil.normalizedDisplayName(testInfo);
         final String jsonNodePath = String.format("/node_%s.json", name);
+        final String yamlNodePath = String.format("/yaml_%s.yml", name);
         final String textNodePath = String.format("/text_%s.txt", name);
 
         final String jsonStringPattern = "{\"key\":\"%d\"}";
+        final String yamlStringPattern = "key: %d";
         final String textStringPattern = "a\n%d\nc";
 
         Revision revision = null;
         String oldJsonString = null;
+        String oldYamlString = null;
         String oldTextString = null;
 
         for (int i = 0; i < numIterations; i++) {
             if (i != 0) {
                 oldJsonString = String.format(jsonStringPattern, i - 1);
+                oldYamlString = String.format(yamlStringPattern, i - 1);
                 oldTextString = String.format(textStringPattern, i - 1);
             }
             final String newJsonString = String.format(jsonStringPattern, i);
+            final String newYamlString = String.format(yamlStringPattern, i);
             final String newTextString = String.format(textStringPattern, i);
 
             final Change<JsonNode> jsonChange = Change.ofJsonPatch(jsonNodePath, oldJsonString, newJsonString);
+            final Change<JsonNode> yamlChange = Change.ofYamlPatch(yamlNodePath, oldYamlString, newYamlString);
             final Change<String> textChange = Change.ofTextPatch(textNodePath, oldTextString, newTextString);
 
             revision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                   Arrays.asList(jsonChange, textChange)).join().revision();
+                                   Arrays.asList(jsonChange, yamlChange, textChange)).join().revision();
         }
 
         if (revision == null) {
@@ -929,6 +1013,8 @@ class GitRepositoryTest {
             final Map<String, Entry<?>> entryMap = repo.find(new Revision(i), Repository.ALL_PATH).join();
             assertThatJson(entryMap.get(jsonNodePath).content()).isEqualTo(
                     String.format(jsonStringPattern, numIterations + i));
+            assertThat(entryMap.get(yamlNodePath).content()).isEqualTo(
+                    String.format(yamlStringPattern, numIterations + i));
             assertThat(entryMap.get(textNodePath).content()).isEqualTo(
                     String.format(textStringPattern + '\n', numIterations + i));
         }

@@ -288,6 +288,63 @@ public interface Change<T> {
     }
 
     /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_YAML_PATCH}.
+     *
+     * @param path the path of the file
+     * @param oldYamlText the old content of the file
+     * @param newYamlText the new content of the file
+     *
+     * @throws ChangeFormatException if the specified {@code oldYamlText} or {@code newYamlText} is
+     *                               not a valid YAML
+     */
+    static Change<JsonNode> ofYamlPatch(String path, @Nullable String oldYamlText, String newYamlText) {
+        requireNonNull(newYamlText, "newYamlText");
+
+        final JsonNode oldYamlNode;
+        final JsonNode newYamlNode;
+        try {
+            oldYamlNode = oldYamlText == null ? JacksonYaml.nullNode
+                                              : JacksonYaml.readTree(oldYamlText);
+            newYamlNode = JacksonYaml.readTree(oldYamlText);
+        } catch (IOException e) {
+            throw new ChangeFormatException("failed to read a value as a YAML tree", e);
+        }
+
+        return new DefaultChange<>(path, ChangeType.APPLY_YAML_PATCH,
+                                   JsonPatch.generate(oldYamlNode, newYamlNode, ReplaceMode.SAFE).toJson());
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_YAML_PATCH}.
+     *
+     * @param path the path of the file
+     * @param oldYamlNode the old content of the file
+     * @param newYamlNode the new content of the file
+     */
+    static Change<JsonNode> ofYamlPatch(String path, @Nullable JsonNode oldYamlNode, JsonNode newYamlNode) {
+        requireNonNull(newYamlNode, "newYamlNode");
+
+        if (oldYamlNode == null) {
+            oldYamlNode = JacksonYaml.nullNode;
+        }
+
+        return new DefaultChange<>(path, ChangeType.APPLY_YAML_PATCH,
+                                   JsonPatch.generate(oldYamlNode, newYamlNode, ReplaceMode.SAFE).toJson());
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_YAML_PATCH}.
+     *
+     * @param path the path of the file
+     * @param yamlPatchNode the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     */
+    static Change<JsonNode> ofYamlPatch(String path, JsonNode yamlPatchNode) {
+        requireNonNull(yamlPatchNode, "yamlPatchNode");
+
+        return new DefaultChange<>(path, ChangeType.APPLY_YAML_PATCH, yamlPatchNode);
+    }
+
+    /**
      * Creates a {@link List} of upsert {@link Change}s from all files under the specified directory
      * recursively.
      *

@@ -24,11 +24,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 public final class JacksonYaml {
 
-    private static final ObjectMapper yamlMapper = new YAMLMapper();
+    private static final ObjectMapper yamlMapper = new YAMLMapper().disable(Feature.WRITE_DOC_START_MARKER);
 
     public static final NullNode nullNode = NullNode.instance;
 

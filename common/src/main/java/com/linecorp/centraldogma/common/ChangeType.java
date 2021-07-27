@@ -61,6 +61,13 @@ public enum ChangeType {
     APPLY_JSON_PATCH(JsonNode.class),
 
     /**
+     * Applies a JSON patch to a YAML file. The {@link Change#content()} of this type is a JSON patch object,
+     * as defined in <a href="https://tools.ietf.org/html/rfc6902">RFC 6902</a>.
+     * Because YAML files are stored internally in JSON format, JSON patch is used in YAML patch.
+     */
+    APPLY_YAML_PATCH(JsonNode.class),
+
+    /**
      * Applies a textual patch to a text file. The {@link Change#content()} of this type is a
      * <a href="https://en.wikipedia.org/wiki/Diff_utility#Unified_format">unified format</a> string.
      */

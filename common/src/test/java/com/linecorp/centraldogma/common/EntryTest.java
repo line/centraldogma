@@ -146,7 +146,9 @@ class EntryTest {
         assertThat(e.revision()).isEqualTo(new Revision(1));
         assertThat(e.hasContent()).isTrue();
         e.ifHasContent(content -> assertThatJson(content).isEqualTo("{ \"a\": { \"b\": 1, \"c\": 2 } }"));
-        assertThat(e.contentAsText()).isEqualTo("{\"a\":{\"b\":1,\"c\":2}}");
+        assertThat(e.contentAsText()).isEqualTo("a:\n" +
+                                                "  b: 1\n" +
+                                                "  c: 2\n");
         assertThat(e.content()).isSameAs(e.contentAsJson());
         assertThat(e.content()).isEqualTo(e.contentAsJson(JsonNode.class));
 

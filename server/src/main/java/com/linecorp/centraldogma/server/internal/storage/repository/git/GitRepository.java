@@ -760,6 +760,7 @@ class GitRepository implements Repository {
                 switch (diffEntry.getChangeType()) {
                     case MODIFY:
                         final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
+                        final JsonPatch patch;
                         switch (oldEntryType) {
                             case JSON:
                                 if (!oldPath.equals(newPath)) {
@@ -772,12 +773,29 @@ class GitRepository implements Repository {
                                 final JsonNode newJsonNode =
                                         Jackson.readTree(
                                                 reader.open(diffEntry.getNewId().toObjectId()).getBytes());
-                                final JsonPatch patch =
-                                        JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
+                                patch = JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
 
                                 if (!patch.isEmpty()) {
                                     putChange(changeMap, newPath,
                                               Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
+                                }
+                                break;
+                            case YAML:
+                                if (!oldPath.equals(newPath)) {
+                                    putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
+                                }
+
+                                final JsonNode oldYamlNode =
+                                        JacksonYaml.readTree(
+                                                reader.open(diffEntry.getOldId().toObjectId()).getBytes());
+                                final JsonNode newYamlNode =
+                                        JacksonYaml.readTree(
+                                                reader.open(diffEntry.getNewId().toObjectId()).getBytes());
+                                patch = JsonPatch.generate(oldYamlNode, newYamlNode, ReplaceMode.SAFE);
+
+                                if (!patch.isEmpty()) {
+                                    putChange(changeMap, newPath,
+                                              Change.ofYamlPatch(newPath, Jackson.valueToTree(patch)));
                                 }
                                 break;
                             case TEXT:
@@ -1120,6 +1138,28 @@ class GitRepository implements Repository {
                         // Apply only when the contents are really different.
                         if (!newJsonNode.equals(oldJsonNode)) {
                             applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                            numEdits++;
+                        }
+                        break;
+                    }
+                    case APPLY_YAML_PATCH: {
+                        final JsonNode oldYamlNode;
+                        if (oldContent != null) {
+                            oldYamlNode = JacksonYaml.readTree(oldContent);
+                        } else {
+                            oldYamlNode = JacksonYaml.nullNode;
+                        }
+
+                        final JsonNode newYamlNode;
+                        try {
+                            newYamlNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldYamlNode);
+                        } catch (Exception e) {
+                            throw new ChangeConflictException("failed to apply YAML patch: " + change, e);
+                        }
+
+                        // Apply only when the contents are really different.
+                        if (!newYamlNode.equals(oldYamlNode)) {
+                            applyPathEdit(dirCache, new InsertYaml(changePath, inserter, newYamlNode));
                             numEdits++;
                         }
                         break;
