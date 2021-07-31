@@ -111,6 +111,8 @@ public interface Query<T> extends Function<T, T> {
                 return new IdentityQuery<>(path, QueryType.IDENTITY_TEXT);
             case IDENTITY_JSON:
                 return new IdentityQuery<>(path, QueryType.IDENTITY_JSON);
+            case IDENTITY_YAML:
+                return new IdentityQuery<>(path, QueryType.IDENTITY_YAML);
             case JSON_PATH:
                 requireNonNull(expressions, "expressions");
                 return ofJsonPath(path, expressions);

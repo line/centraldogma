@@ -52,11 +52,18 @@ public interface ContentHolder<T> {
     default String contentAsText() {
         final T content = content();
         // TODO: Distinguish JSON/YAML and format each type. Both are stored as JsonNode now
-        if (content instanceof JsonNode) {
+        if (type() == EntryType.JSON) {
             try {
                 return Jackson.writeValueAsString(content);
             } catch (JsonProcessingException e) {
                 // Should never happen because it's a JSON tree already.
+                throw new Error(e);
+            }
+        } else if (type() == EntryType.YAML) {
+            try {
+                return JacksonYaml.writeValueAsString(content);
+            } catch (JsonProcessingException e) {
+                // Should never happen because it's a YAML tree already.
                 throw new Error(e);
             }
         } else {
@@ -72,11 +79,18 @@ public interface ContentHolder<T> {
      */
     default String contentAsPrettyText() {
         final T content = content();
-        if (content instanceof TreeNode) {
+        if (type() == EntryType.JSON && content instanceof TreeNode) {
             try {
                 return Jackson.writeValueAsPrettyString(content);
             } catch (JsonProcessingException e) {
                 // Should never happen because it's a JSON tree already.
+                throw new Error(e);
+            }
+        } else if (type() == EntryType.YAML) {
+            try {
+                return JacksonYaml.writeValueAsString(content);
+            } catch (JsonProcessingException e) {
+                // Should never happen because it's a YAML tree already.
                 throw new Error(e);
             }
         } else {

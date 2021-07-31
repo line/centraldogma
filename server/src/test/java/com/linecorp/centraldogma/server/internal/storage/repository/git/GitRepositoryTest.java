@@ -276,7 +276,7 @@ class GitRepositoryTest {
 
             // Ensure the entry has been patched as expected.
             final Entry<?> e = repo.get(HEAD, path).join();
-            if (e.type() == EntryType.JSON) {
+            if (e.type() == EntryType.JSON || e.type() == EntryType.YAML) {
                 assertThatJson(e.content()).isEqualTo(upserts[i].content());
             } else {
                 // Text must be sanitized so that the last line ends with \n.
@@ -628,11 +628,12 @@ class GitRepositoryTest {
         final String textPath = textUpserts[0].path();
 
         Revision prevRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                            jsonUpserts[0], textUpserts[0]).join().revision();
+                                            jsonUpserts[0], yamlUpserts[0], textUpserts[0]).join().revision();
 
         for (int i = 1; i < NUM_ITERATIONS; i++) {
             final Revision currRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                                      jsonPatches[i], textPatches[i]).join().revision();
+                                                      jsonPatches[i], yamlPatches[i], textPatches[i])
+                                              .join().revision();
 
             final Map<String, Change<?>> diff = repo.diff(prevRevision, currRevision,
                                                           Repository.ALL_PATH).join();
@@ -660,7 +661,7 @@ class GitRepositoryTest {
         Revision lastRevision = null;
         for (int i = 0; i < NUM_ITERATIONS; i++) {
             lastRevision = repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                       jsonUpserts[i], textUpserts[i]).join().revision();
+                                       jsonUpserts[i], yamlUpserts[i], textUpserts[i]).join().revision();
         }
 
         Revision prevRevison = lastRevision;
@@ -903,7 +904,7 @@ class GitRepositoryTest {
         for (Commit c : jsonCommits) {
             if (c.revision().major() > 1) {
                 assertThat(c.revision()).isEqualTo(lastJsonCommit);
-                lastJsonCommit = lastJsonCommit.backward(2);
+                lastJsonCommit = lastJsonCommit.backward(3);
             }
         }
 
@@ -914,7 +915,7 @@ class GitRepositoryTest {
         for (Commit c : yamlCommits) {
             if (c.revision().major() > 1) {
                 assertThat(c.revision()).isEqualTo(lastYamlCommit);
-                lastYamlCommit = lastYamlCommit.backward(2);
+                lastYamlCommit = lastYamlCommit.backward(3);
             }
         }
 
@@ -925,7 +926,7 @@ class GitRepositoryTest {
         for (Commit c : textCommits) {
             if (c.revision().major() > 1) {
                 assertThat(c.revision()).isEqualTo(lastTextCommit);
-                lastTextCommit = lastTextCommit.backward(2);
+                lastTextCommit = lastTextCommit.backward(3);
             }
         }
     }
@@ -979,7 +980,7 @@ class GitRepositoryTest {
         final String textNodePath = String.format("/text_%s.txt", name);
 
         final String jsonStringPattern = "{\"key\":\"%d\"}";
-        final String yamlStringPattern = "key: %d";
+        final String yamlStringPattern = "key: %d\n";
         final String textStringPattern = "a\n%d\nc";
 
         Revision revision = null;
@@ -1013,7 +1014,7 @@ class GitRepositoryTest {
             final Map<String, Entry<?>> entryMap = repo.find(new Revision(i), Repository.ALL_PATH).join();
             assertThatJson(entryMap.get(jsonNodePath).content()).isEqualTo(
                     String.format(jsonStringPattern, numIterations + i));
-            assertThat(entryMap.get(yamlNodePath).content()).isEqualTo(
+            assertThat(entryMap.get(yamlNodePath).contentAsText()).isEqualTo(
                     String.format(yamlStringPattern, numIterations + i));
             assertThat(entryMap.get(textNodePath).content()).isEqualTo(
                     String.format(textStringPattern + '\n', numIterations + i));

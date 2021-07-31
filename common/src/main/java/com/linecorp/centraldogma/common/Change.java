@@ -305,7 +305,7 @@ public interface Change<T> {
         try {
             oldYamlNode = oldYamlText == null ? JacksonYaml.nullNode
                                               : JacksonYaml.readTree(oldYamlText);
-            newYamlNode = JacksonYaml.readTree(oldYamlText);
+            newYamlNode = JacksonYaml.readTree(newYamlText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a YAML tree", e);
         }

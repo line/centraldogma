@@ -104,7 +104,7 @@ public class RepositoryService extends AbstractService {
                                              @Param @Default("IDENTITY") QueryType queryType,
                                              @Param @Default("") String expression) {
 
-        final Query<?> query = Query.of(queryType,path, expression);
+        final Query<?> query = Query.of(queryType, path, expression);
         final Repository repo = projectManager().get(projectName).repos().get(repoName);
         return repo.get(repo.normalizeNow(new Revision(revision)), query)
                    .thenApply(DtoConverter::convert);
