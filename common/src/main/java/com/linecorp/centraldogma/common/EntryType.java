@@ -55,11 +55,12 @@ public enum EntryType {
             return DIRECTORY;
         }
 
-        if (Ascii.toLowerCase(path).endsWith(".json")) {
+        final String normalizedPath = Ascii.toLowerCase(path);
+        if (normalizedPath.endsWith(".json")) {
             return JSON;
         }
 
-        if (Ascii.toLowerCase(path).endsWith(".yml") || Ascii.toLowerCase(path).endsWith(".yaml")) {
+        if (normalizedPath.endsWith(".yml") || normalizedPath.endsWith(".yaml")) {
             return YAML;
         }
 

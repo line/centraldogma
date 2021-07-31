@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.storage.repository;
 
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateJsonOrYamlFilePath;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITHOUT_CONTENT;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ONE_WITH_CONTENT;
 import static com.linecorp.centraldogma.server.storage.repository.RepositoryUtil.applyQuery;
@@ -506,7 +506,7 @@ public interface Repository {
 
         final List<MergeSource> mergeSources = query.mergeSources();
         // Only JSON files can currently be merged.
-        mergeSources.forEach(path -> validateJsonFilePath(path.path(), "path"));
+        mergeSources.forEach(path -> validateJsonOrYamlFilePath(path.path(), "path"));
 
         final Revision normalizedRevision;
         try {

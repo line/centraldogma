@@ -41,7 +41,7 @@ public final class Util {
             "^(?:[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
     private static final Pattern FILE_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
-    private static final Pattern JSON_FILE_PATH_PATTERN = Pattern.compile(
+    private static final Pattern JSON_OR_YAML_FILE_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+\\.(?i)(json|ya?ml)$");
     private static final Pattern DIR_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$");
@@ -84,17 +84,17 @@ public final class Util {
                FILE_PATH_PATTERN.matcher(path).matches();
     }
 
-    public static String validateJsonFilePath(String path, String paramName) {
+    public static String validateJsonOrYamlFilePath(String path, String paramName) {
         requireNonNull(path, paramName);
         checkArgument(isValidJsonFilePath(path),
-                      "%s: %s (expected: %s)", paramName, path, JSON_FILE_PATH_PATTERN);
+                      "%s: %s (expected: %s)", paramName, path, JSON_OR_YAML_FILE_PATH_PATTERN);
         return path;
     }
 
     public static boolean isValidJsonFilePath(String path) {
         requireNonNull(path, "path");
         return !path.isEmpty() && path.charAt(0) == '/' &&
-               JSON_FILE_PATH_PATTERN.matcher(path).matches();
+               JSON_OR_YAML_FILE_PATH_PATTERN.matcher(path).matches();
     }
 
     public static String validateJsonPath(String jsonPath, String paramName) {
