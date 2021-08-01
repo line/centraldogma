@@ -29,7 +29,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.JacksonYaml;
 
 /**
  * A file or a directory in a repository.
@@ -70,7 +69,7 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, String content)
             throws JsonParseException {
-        return ofJson(revision, path, Jackson.readTree(content));
+        return ofJson(revision, path, Jackson.readTree(content, EntryType.JSON));
     }
 
     /**
@@ -93,7 +92,7 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public static Entry<JsonNode> ofYaml(Revision revision, String path, String content)
             throws JsonParseException {
-        return ofYaml(revision, path, JacksonYaml.readTree(content));
+        return ofYaml(revision, path, Jackson.readTree(content, EntryType.YAML));
     }
 
     /**

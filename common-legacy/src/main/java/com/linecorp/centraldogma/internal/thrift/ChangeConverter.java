@@ -22,8 +22,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Converter;
 
 import com.linecorp.centraldogma.common.ChangeFormatException;
+import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.JacksonYaml;
 
 /**
  * Provides a function converting back and forth between {@link Change} and
@@ -45,7 +45,7 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
             case UPSERT_JSON:
             case APPLY_JSON_PATCH:
                 try {
-                    change.setContent(Jackson.writeValueAsString(value.content()));
+                    change.setContent(Jackson.writeValueAsString(value.content(), EntryType.JSON));
                 } catch (JsonProcessingException e) {
                     throw new ChangeFormatException("failed to read a JSON tree", e);
                 }
@@ -59,7 +59,7 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
                 break;
             case UPSERT_YAML:
                 try {
-                    change.setContent(JacksonYaml.writeValueAsString(value.content()));
+                    change.setContent(Jackson.writeValueAsString(value.content(), EntryType.YAML));
                 } catch (JsonProcessingException e) {
                     throw new ChangeFormatException("failed to read a YAML tree", e);
                 }

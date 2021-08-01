@@ -139,7 +139,7 @@ final class DefaultChange<T> implements Change<T> {
 
         if (content instanceof JsonNode) {
             try {
-                return contentAsText = Jackson.writeValueAsString(content);
+                return contentAsText = Jackson.writeValueAsString(content, EntryType.guessFromPath(path()));
             } catch (JsonProcessingException e) {
                 // Should never reach here.
                 throw new Error(e);

@@ -72,7 +72,6 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.JacksonYaml;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.thrift.AuthorConverter;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
@@ -270,7 +269,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     private static <T> Entry<T> entryAsJson(Query<T> query, Revision normRev, String content) {
         try {
-            return unsafeCast(Entry.ofJson(normRev, query.path(), Jackson.readTree(content)));
+            return unsafeCast(Entry.ofJson(normRev, query.path(), Jackson.readTree(content, EntryType.JSON)));
         } catch (IOException e) {
             throw new CentralDogmaException("failed to parse the query result: " + query, e);
         }
@@ -278,7 +277,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     private static <T> Entry<T> entryAsYaml(Query<T> query, Revision normRev, String content) {
         try {
-            return unsafeCast(Entry.ofYaml(normRev, query.path(), JacksonYaml.readTree(content)));
+            return unsafeCast(Entry.ofYaml(normRev, query.path(), Jackson.readTree(content, EntryType.YAML)));
         } catch (IOException e) {
             throw new CentralDogmaException("failed to parse the query result: " + query, e);
         }
@@ -322,11 +321,12 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
             assert entryType != null;
             switch (entryType) {
                 case JSON:
+                case YAML:
                     try {
                         @SuppressWarnings("unchecked")
                         final MergedEntry<T> converted = (MergedEntry<T>) MergedEntry.of(
                                 RevisionConverter.TO_MODEL.convert(entry.revision),
-                                entryType, Jackson.readTree(entry.content), entry.paths);
+                                entryType, Jackson.readTree(entry.content, entryType), entry.paths);
                         return converted;
                     } catch (IOException e) {
                         throw new CentralDogmaException(

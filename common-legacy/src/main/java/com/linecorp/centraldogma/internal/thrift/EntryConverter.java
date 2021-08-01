@@ -36,9 +36,10 @@ public final class EntryConverter {
         final Entry file = new Entry(entry.path(), convertEntryType(entry.type()));
         switch (entry.type()) {
             case JSON:
+            case YAML:
                 // FIXME(trustin): Inefficiency
                 try {
-                    file.setContent(Jackson.writeValueAsString(entry.content()));
+                    file.setContent(Jackson.writeValueAsString(entry.content(), entry.type()));
                 } catch (JsonProcessingException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -59,7 +60,8 @@ public final class EntryConverter {
         switch (entry.getType()) {
             case JSON:
                 try {
-                    final JsonNode value = Jackson.readTree(entry.getContent());
+                    final JsonNode value = Jackson.readTree(entry.getContent(),
+                                                            com.linecorp.centraldogma.common.EntryType.JSON);
                     return com.linecorp.centraldogma.common.Entry.ofJson(revision, entry.getPath(), value);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
@@ -69,6 +71,14 @@ public final class EntryConverter {
                                                                      entry.getContent());
             case DIRECTORY:
                 return com.linecorp.centraldogma.common.Entry.ofDirectory(revision, entry.getPath());
+            case YAML:
+                try {
+                    final JsonNode value = Jackson.readTree(entry.getContent(),
+                                                            com.linecorp.centraldogma.common.EntryType.YAML);
+                    return com.linecorp.centraldogma.common.Entry.ofYaml(revision, entry.getPath(), value);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
             default:
                 throw new IllegalArgumentException("unsupported entry type: " + entry.getType());
         }

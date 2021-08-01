@@ -1028,16 +1028,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 return entryAsText(revision, node, entryPath);
             case IDENTITY_JSON:
             case JSON_PATH:
-                if (receivedEntryType != EntryType.JSON) {
-                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
-                                                    " (expected: " + queryType + ')');
-                }
+                validateEntryType(receivedEntryType, EntryType.JSON);
                 return entryAsJson(revision, node, entryPath);
             case IDENTITY_YAML:
-                if (receivedEntryType != EntryType.YAML) {
-                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
-                                                    " (expected: " + queryType + ')');
-                }
+                validateEntryType(receivedEntryType, EntryType.YAML);
                 return entryAsYaml(revision, node, entryPath);
             case IDENTITY:
                 switch (receivedEntryType) {
@@ -1058,7 +1052,12 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         final JsonNode content = getField(node, "content");
         final String content0;
         if (content.isContainerNode()) {
-            content0 = content.toString();
+            try {
+                content0 = Jackson.writeValueAsString(content, EntryType.guessFromPath(entryPath));
+            } catch (JsonProcessingException e) {
+                // Should never happen because it's a JSON or YAML tree already.
+                throw new Error(e);
+            }
         } else {
             content0 = content.asText();
         }
@@ -1151,5 +1150,12 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
 
         throw new CentralDogmaException("unexpected response: " + res.headers() + ", " + res.contentUtf8());
+    }
+
+    private static void validateEntryType(EntryType actual, EntryType expected) {
+        if (actual != expected) {
+            throw new CentralDogmaException("invalid entry type. entry type: " + actual +
+                                            " (expected: " + expected + ')');
+        }
     }
 }

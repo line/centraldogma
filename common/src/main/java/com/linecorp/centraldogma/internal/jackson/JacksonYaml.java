@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.internal;
+package com.linecorp.centraldogma.internal.jackson;
 
 import java.io.IOError;
 import java.io.IOException;
@@ -22,18 +22,17 @@ import java.io.IOException;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 public final class JacksonYaml {
 
-    private static final ObjectMapper yamlMapper = new YAMLMapper().disable(Feature.WRITE_DOC_START_MARKER);
+    private final YAMLMapper yamlMapper;
 
-    public static final NullNode nullNode = NullNode.instance;
+    public JacksonYaml(YAMLMapper yamlMapper) {
+        this.yamlMapper = yamlMapper;
+    }
 
-    public static JsonNode readTree(String data) throws JsonParseException {
+    public JsonNode readTree(String data) throws JsonParseException {
         try {
             return yamlMapper.readTree(data);
         } catch (JsonParseException e) {
@@ -43,7 +42,7 @@ public final class JacksonYaml {
         }
     }
 
-    public static JsonNode readTree(byte[] data) throws JsonParseException {
+    public JsonNode readTree(byte[] data) throws JsonParseException {
         try {
             return yamlMapper.readTree(data);
         } catch (JsonParseException e) {
@@ -53,13 +52,11 @@ public final class JacksonYaml {
         }
     }
 
-    public static byte[] writeValueAsBytes(Object value) throws JsonProcessingException {
+    public byte[] writeValueAsBytes(Object value) throws JsonProcessingException {
         return yamlMapper.writeValueAsBytes(value);
     }
 
-    public static String writeValueAsString(Object value) throws JsonProcessingException {
+    public String writeValueAsString(Object value) throws JsonProcessingException {
         return yamlMapper.writeValueAsString(value);
     }
-
-    private JacksonYaml() {}
 }

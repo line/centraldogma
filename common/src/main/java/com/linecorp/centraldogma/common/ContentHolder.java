@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.internal.Jackson;
-import com.linecorp.centraldogma.internal.JacksonYaml;
 
 /**
  * A holder which has the content and its {@link EntryType}.
@@ -51,19 +50,11 @@ public interface ContentHolder<T> {
      */
     default String contentAsText() {
         final T content = content();
-        // TODO: Distinguish JSON/YAML and format each type. Both are stored as JsonNode now
-        if (type() == EntryType.JSON) {
+        if (type() == EntryType.JSON || type() == EntryType.YAML) {
             try {
-                return Jackson.writeValueAsString(content);
+                return Jackson.writeValueAsString(content, type());
             } catch (JsonProcessingException e) {
-                // Should never happen because it's a JSON tree already.
-                throw new Error(e);
-            }
-        } else if (type() == EntryType.YAML) {
-            try {
-                return JacksonYaml.writeValueAsString(content);
-            } catch (JsonProcessingException e) {
-                // Should never happen because it's a YAML tree already.
+                // Should never happen because it's a JSON or YAML tree already.
                 throw new Error(e);
             }
         } else {
@@ -79,18 +70,11 @@ public interface ContentHolder<T> {
      */
     default String contentAsPrettyText() {
         final T content = content();
-        if (type() == EntryType.JSON && content instanceof TreeNode) {
+        if (content instanceof TreeNode) {
             try {
-                return Jackson.writeValueAsPrettyString(content);
+                return Jackson.writeValueAsPrettyString(content, type());
             } catch (JsonProcessingException e) {
                 // Should never happen because it's a JSON tree already.
-                throw new Error(e);
-            }
-        } else if (type() == EntryType.YAML) {
-            try {
-                return JacksonYaml.writeValueAsString(content);
-            } catch (JsonProcessingException e) {
-                // Should never happen because it's a YAML tree already.
                 throw new Error(e);
             }
         } else {
