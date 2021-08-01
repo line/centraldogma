@@ -241,16 +241,10 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 return entryAsText(query, normRev, content);
             case IDENTITY_JSON:
             case JSON_PATH:
-                if (receivedEntryType != com.linecorp.centraldogma.internal.thrift.EntryType.JSON) {
-                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
-                                                    " (expected: " + queryType + ')');
-                }
+                validateEntryType(receivedEntryType, com.linecorp.centraldogma.internal.thrift.EntryType.JSON);
                 return entryAsJson(query, normRev, content);
             case IDENTITY_YAML:
-                if (receivedEntryType != com.linecorp.centraldogma.internal.thrift.EntryType.YAML) {
-                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
-                                                    " (expected: " + queryType + ')');
-                }
+                validateEntryType(receivedEntryType, com.linecorp.centraldogma.internal.thrift.EntryType.YAML);
                 return entryAsYaml(query, normRev, content);
             case IDENTITY:
                 switch (receivedEntryType) {
@@ -265,6 +259,14 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 }
         }
         throw new Error(); // Should never reach here.
+    }
+
+    private static void validateEntryType(com.linecorp.centraldogma.internal.thrift.EntryType actual,
+                                          com.linecorp.centraldogma.internal.thrift.EntryType expected) {
+        if (actual != expected) {
+            throw new CentralDogmaException("invalid entry type. entry type: " + actual +
+                                            " (expected: " + expected + ')');
+        }
     }
 
     private static <T> Entry<T> entryAsJson(Query<T> query, Revision normRev, String content) {
