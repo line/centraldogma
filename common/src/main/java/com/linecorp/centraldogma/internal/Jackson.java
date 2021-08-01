@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.Writer;
 import java.time.Instant;
@@ -35,7 +36,10 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.core.io.JsonStringEncoder;
+import com.fasterxml.jackson.core.io.SegmentedStringWriter;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.util.DefaultIndenter;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
@@ -46,7 +50,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
@@ -65,8 +68,6 @@ import com.jayway.jsonpath.spi.mapper.MappingProvider;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.QuerySyntaxException;
-import com.linecorp.centraldogma.internal.jackson.JacksonJson;
-import com.linecorp.centraldogma.internal.jackson.JacksonYaml;
 
 public final class Jackson {
 
@@ -90,7 +91,6 @@ public final class Jackson {
 
     private static final JsonFactory compactFactory = new JsonFactory(compactMapper);
     private static final JsonFactory prettyFactory = new JsonFactory(prettyMapper);
-    private static final YAMLFactory yamlFactory = new YAMLFactory(yamlMapper);
     private static final Configuration jsonPathCfg =
             Configuration.builder()
                          .jsonProvider(new JacksonJsonNodeJsonProvider())
@@ -122,9 +122,6 @@ public final class Jackson {
 
     public static final NullNode nullNode = NullNode.instance;
 
-    private static final JacksonJson jacksonJson = new JacksonJson(compactMapper, prettyMapper);
-    private static final JacksonYaml jacksonYaml = new JacksonYaml(yamlMapper);
-
     public static void registerModules(Module... modules) {
         compactMapper.registerModules(modules);
         prettyMapper.registerModules(modules);
@@ -143,102 +140,186 @@ public final class Jackson {
         yamlMapper.registerSubtypes(subtypes);
     }
 
-    public static <T> T readValue(String data, Class<T> type)
-            throws JsonParseException, JsonMappingException {
-        return jacksonJson.readValue(data, type);
+    public static <T> T readValue(String data, Class<T> type) throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.readValue(data, type);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
     }
 
-    public static <T> T readValue(byte[] data, Class<T> type)
-            throws JsonParseException, JsonMappingException {
-        return jacksonJson.readValue(data, type);
+    public static <T> T readValue(byte[] data, Class<T> type) throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.readValue(data, type);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
     }
 
-    public static <T> T readValue(File file, Class<T> type)
-            throws JsonParseException, JsonMappingException {
-        return jacksonJson.readValue(file, type);
+    public static <T> T readValue(File file, Class<T> type) throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.readValue(file, type);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
     }
 
     public static <T> T readValue(String data, TypeReference<T> typeReference)
             throws JsonParseException, JsonMappingException {
-        return jacksonJson.readValue(data, typeReference);
+        try {
+            return compactMapper.readValue(data, typeReference);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
     }
 
     public static <T> T readValue(byte[] data, TypeReference<T> typeReference)
             throws JsonParseException, JsonMappingException {
-        return jacksonJson.readValue(data, typeReference);
+        try {
+            return compactMapper.readValue(data, typeReference);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
     }
 
-    public static <T> T readValue(File file, TypeReference<T> typeReference)
-            throws IOException {
-        return jacksonJson.readValue(file, typeReference);
+    public static <T> T readValue(File file, TypeReference<T> typeReference) throws IOException {
+        return compactMapper.readValue(file, typeReference);
     }
 
     public static JsonNode readTree(@Nullable String data) throws JsonParseException {
         if (data == null) {
             return nullNode;
         }
-        return jacksonJson.readTree(data);
+        try {
+            return compactMapper.readTree(data);
+        } catch (JsonParseException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
     }
 
     public static JsonNode readTree(@Nullable byte[] data) throws JsonParseException {
         if (data == null) {
             return nullNode;
         }
-        return jacksonJson.readTree(data);
+        try {
+            return compactMapper.readTree(data);
+        } catch (JsonParseException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
     }
 
     public static JsonNode readTree(@Nullable String data, EntryType entryType) throws JsonParseException {
         if (data == null) {
             return nullNode;
         }
-        if (entryType == EntryType.YAML) {
-            return jacksonYaml.readTree(data);
+        try {
+            if (entryType == EntryType.JSON) {
+                return compactMapper.readTree(data);
+            }
+            if (entryType == EntryType.YAML) {
+                return yamlMapper.readTree(data);
+            }
+        } catch (JsonParseException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
         }
-        return jacksonJson.readTree(data);
+        // Should never reach here.
+        throw new Error();
     }
 
     public static JsonNode readTree(@Nullable byte[] data, EntryType entryType) throws JsonParseException {
         if (data == null) {
             return nullNode;
         }
-        if (entryType == EntryType.YAML) {
-            return jacksonYaml.readTree(data);
+        try {
+            if (entryType == EntryType.JSON) {
+                return compactMapper.readTree(data);
+            }
+            if (entryType == EntryType.YAML) {
+                return yamlMapper.readTree(data);
+            }
+        } catch (JsonParseException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
         }
-        return jacksonJson.readTree(data);
+        // Should never reach here.
+        throw new Error();
     }
 
     public static byte[] writeValueAsBytes(Object value) throws JsonProcessingException {
-        return jacksonJson.writeValueAsBytes(value);
+        return compactMapper.writeValueAsBytes(value);
     }
 
     public static byte[] writeValueAsBytes(Object value, EntryType entryType) throws JsonProcessingException {
-        if (entryType == EntryType.YAML) {
-            return jacksonYaml.writeValueAsBytes(value);
+        if (entryType == EntryType.JSON) {
+            return compactMapper.writeValueAsBytes(value);
         }
-        return jacksonJson.writeValueAsBytes(value);
+        if (entryType == EntryType.YAML) {
+            return yamlMapper.writeValueAsBytes(value);
+        }
+        // Should never reach here.
+        throw new Error();
     }
 
     public static String writeValueAsString(Object value) throws JsonProcessingException {
-        return jacksonJson.writeValueAsString(value);
+        return compactMapper.writeValueAsString(value);
     }
 
     public static String writeValueAsString(Object value, EntryType entryType) throws JsonProcessingException {
-        if (entryType == EntryType.YAML) {
-            return jacksonYaml.writeValueAsString(value);
+        if (entryType == EntryType.JSON) {
+            return compactMapper.writeValueAsString(value);
         }
-        return jacksonJson.writeValueAsString(value);
+        if (entryType == EntryType.YAML) {
+            return yamlMapper.writeValueAsString(value);
+        }
+        // Should never reach here.
+        throw new Error();
     }
 
     public static String writeValueAsPrettyString(Object value) throws JsonProcessingException {
-        return jacksonJson.writeValueAsPrettyString(value);
+        // XXX(trustin): prettyMapper.writeValueAsString() does not respect the custom pretty printer
+        //               set via ObjectMapper.setDefaultPrettyPrinter() for an unknown reason, so we
+        //               create a generator manually and set the pretty printer explicitly.
+        final JsonFactory factory = prettyMapper.getFactory();
+        final SegmentedStringWriter sw = new SegmentedStringWriter(factory._getBufferRecycler());
+        try {
+            final JsonGenerator g = prettyMapper.getFactory().createGenerator(sw);
+            g.setPrettyPrinter(new PrettyPrinterImpl());
+            prettyMapper.writeValue(g, value);
+        } catch (JsonProcessingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+        return sw.getAndClear();
     }
 
     public static String writeValueAsPrettyString(Object value, EntryType entryType)
             throws JsonProcessingException {
-        if (entryType == EntryType.YAML) {
-            return jacksonYaml.writeValueAsString(value);
+        if (entryType == EntryType.JSON) {
+            return writeValueAsPrettyString(value);
         }
-        return jacksonJson.writeValueAsPrettyString(value);
+        if (entryType == EntryType.YAML) {
+            return yamlMapper.writeValueAsString(value);
+        }
+        // Should never reach here.
+        throw new Error();
     }
 
     public static <T extends JsonNode> T valueToTree(Object value) {
@@ -378,4 +459,18 @@ public final class Jackson {
     }
 
     private Jackson() {}
+
+    private static class PrettyPrinterImpl extends DefaultPrettyPrinter {
+        private static final long serialVersionUID = 8408886209309852098L;
+
+        // The default object indenter uses platform-dependent line separator, so we define one
+        // with a fixed separator (\n).
+        private static final Indenter objectIndenter = new DefaultIndenter("  ", "\n");
+
+        @SuppressWarnings("AssignmentToSuperclassField")
+        PrettyPrinterImpl() {
+            _objectFieldValueSeparatorWithSpaces = ": ";
+            _objectIndenter = objectIndenter;
+        }
+    }
 }
