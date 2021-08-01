@@ -758,46 +758,33 @@ class GitRepository implements Repository {
                 switch (diffEntry.getChangeType()) {
                     case MODIFY:
                         final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
-                        final JsonPatch patch;
                         switch (oldEntryType) {
                             case JSON:
-                                if (!oldPath.equals(newPath)) {
-                                    putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
-                                }
-
-                                final JsonNode oldJsonNode =
-                                        Jackson.readTree(
-                                                reader.open(diffEntry.getOldId().toObjectId()).getBytes(),
-                                                EntryType.JSON);
-                                final JsonNode newJsonNode =
-                                        Jackson.readTree(
-                                                reader.open(diffEntry.getNewId().toObjectId()).getBytes(),
-                                                EntryType.JSON);
-                                patch = JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
-
-                                if (!patch.isEmpty()) {
-                                    putChange(changeMap, newPath,
-                                              Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
-                                }
-                                break;
                             case YAML:
+                                final JsonPatch patch;
                                 if (!oldPath.equals(newPath)) {
                                     putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
                                 }
 
-                                final JsonNode oldYamlNode =
+                                final JsonNode oldJsonOrYamlNode =
                                         Jackson.readTree(
                                                 reader.open(diffEntry.getOldId().toObjectId()).getBytes(),
-                                                EntryType.YAML);
-                                final JsonNode newYamlNode =
+                                                oldEntryType);
+                                final JsonNode newJsonOrYamlNode =
                                         Jackson.readTree(
                                                 reader.open(diffEntry.getNewId().toObjectId()).getBytes(),
-                                                EntryType.YAML);
-                                patch = JsonPatch.generate(oldYamlNode, newYamlNode, ReplaceMode.SAFE);
+                                                oldEntryType);
+                                patch = JsonPatch.generate(oldJsonOrYamlNode, newJsonOrYamlNode,
+                                                           ReplaceMode.SAFE);
 
                                 if (!patch.isEmpty()) {
-                                    putChange(changeMap, newPath,
-                                              Change.ofYamlPatch(newPath, Jackson.valueToTree(patch)));
+                                    final Change<JsonNode> change;
+                                    if (oldEntryType == EntryType.JSON) {
+                                        change = Change.ofJsonPatch(newPath, Jackson.valueToTree(patch));
+                                    } else {
+                                        change = Change.ofYamlPatch(newPath, Jackson.valueToTree(patch));
+                                    }
+                                    putChange(changeMap, newPath, change);
                                 }
                                 break;
                             case TEXT:
@@ -823,20 +810,18 @@ class GitRepository implements Repository {
                     case ADD:
                         final EntryType newEntryType = EntryType.guessFromPath(newPath);
                         switch (newEntryType) {
-                            case JSON: {
-                                final JsonNode jsonNode = Jackson.readTree(
-                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes(),
-                                        EntryType.JSON);
-
-                                putChange(changeMap, newPath, Change.ofJsonUpsert(newPath, jsonNode));
-                                break;
-                            }
+                            case JSON:
                             case YAML: {
-                                final JsonNode yamlNode = Jackson.readTree(
+                                final JsonNode jsonOrYamlNode = Jackson.readTree(
                                         reader.open(diffEntry.getNewId().toObjectId()).getBytes(),
-                                        EntryType.YAML);
-
-                                putChange(changeMap, newPath, Change.ofYamlUpsert(newPath, yamlNode));
+                                        newEntryType);
+                                final Change<JsonNode> change;
+                                if (newEntryType == EntryType.JSON) {
+                                    change = Change.ofJsonUpsert(newPath, jsonOrYamlNode);
+                                } else {
+                                    change = Change.ofYamlUpsert(newPath, jsonOrYamlNode);
+                                }
+                                putChange(changeMap, newPath, change);
                                 break;
                             }
                             case TEXT: {
