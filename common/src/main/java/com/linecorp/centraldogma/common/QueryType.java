@@ -42,7 +42,7 @@ public enum QueryType {
      * Applies a series of <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path
      * expressions</a> to the content.
      */
-    JSON_PATH(EnumSet.of(EntryType.JSON)),
+    JSON_PATH(EnumSet.of(EntryType.JSON, EntryType.YAML)),
 
     /**
      * Retrieves the YAML content as it is.

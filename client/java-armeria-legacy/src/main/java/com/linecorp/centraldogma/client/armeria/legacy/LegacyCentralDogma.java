@@ -394,6 +394,12 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 case APPLY_TEXT_PATCH:
                     converted = unsafeCast(Change.ofTextPatch(query.path(), r.getContent()));
                     break;
+                case UPSERT_YAML:
+                    converted = unsafeCast(Change.ofYamlUpsert(query.path(), r.getContent()));
+                    break;
+                case APPLY_YAML_PATCH:
+                    converted = unsafeCast(Change.ofYamlPatch(query.path(), r.getContent()));
+                    break;
                 default:
                     throw new Error("unknown change type: " + r.getType());
             }

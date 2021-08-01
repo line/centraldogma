@@ -58,6 +58,7 @@ enum ChangeType {
     APPLY_JSON_PATCH = 5,
     APPLY_TEXT_PATCH = 6,
     UPSERT_YAML = 7,
+    APPLY_YAML_PATCH = 8,
 }
 
 enum PropertyType {

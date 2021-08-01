@@ -333,6 +333,27 @@ public interface Change<T> {
      * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_YAML_PATCH}.
      *
      * @param path the path of the file
+     * @param yamlPatchText the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     *
+     * @throws ChangeFormatException if the specified {@code yamlPatchText} is not a valid JSON
+     */
+    static Change<JsonNode> ofYamlPatch(String path, String yamlPatchText) {
+        requireNonNull(yamlPatchText, "yamlPatchText");
+
+        final JsonNode yamlPatchNode;
+        try {
+            yamlPatchNode = Jackson.readTree(yamlPatchText);
+        } catch (IOException e) {
+            throw new ChangeFormatException("failed to read a value as a JSON tree", e);
+        }
+
+        return ofYamlPatch(path, yamlPatchNode);
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_YAML_PATCH}.
+     *
+     * @param path the path of the file
      * @param yamlPatchNode the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
      */
     static Change<JsonNode> ofYamlPatch(String path, JsonNode yamlPatchNode) {
@@ -408,6 +429,8 @@ public interface Change<T> {
         switch (entryType) {
             case JSON:
                 return ofJsonUpsert(targetPath, content);
+            case YAML:
+                return ofYamlUpsert(targetPath, content);
             case TEXT:
                 return ofTextUpsert(targetPath, content);
             default:

@@ -137,6 +137,16 @@ final class DefaultChange<T> implements Change<T> {
             return contentAsText = content.toString();
         }
 
+        if ((type == ChangeType.APPLY_JSON_PATCH || type == ChangeType.APPLY_YAML_PATCH) &&
+            content instanceof JsonNode) {
+            try {
+                return contentAsText = Jackson.writeValueAsString(content);
+            } catch (JsonProcessingException e) {
+                // Should never reach here.
+                throw new Error(e);
+            }
+        }
+
         if (content instanceof JsonNode) {
             try {
                 return contentAsText = Jackson.writeValueAsString(content, EntryType.guessFromPath(path()));

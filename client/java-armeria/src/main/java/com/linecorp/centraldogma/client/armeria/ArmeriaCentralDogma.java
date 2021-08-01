@@ -1102,6 +1102,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 return unsafeCast(Change.ofRename(actualPath, getField(node, "content").asText()));
             case APPLY_JSON_PATCH:
                 return unsafeCast(Change.ofJsonPatch(actualPath, getField(node, "content")));
+            case APPLY_YAML_PATCH:
+                return unsafeCast(Change.ofYamlPatch(actualPath, getField(node, "content")));
             case APPLY_TEXT_PATCH:
                 return unsafeCast(Change.ofTextPatch(actualPath, getField(node, "content").asText()));
         }

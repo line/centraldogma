@@ -282,6 +282,8 @@ public interface Repository {
                         switch (toEntryType) {
                             case JSON:
                                 return Change.ofJsonUpsert(path, (JsonNode) toContent);
+                            case YAML:
+                                return Change.ofYamlUpsert(path, (JsonNode) toContent);
                             case TEXT:
                                 return Change.ofTextUpsert(path, (String) toContent);
                             default:
@@ -308,6 +310,8 @@ public interface Repository {
                     switch (entryType) {
                         case JSON:
                             return Change.ofJsonPatch(path, (JsonNode) fromContent, (JsonNode) toContent);
+                        case YAML:
+                            return Change.ofYamlPatch(path, (JsonNode) fromContent, (JsonNode) toContent);
                         case TEXT:
                             return Change.ofTextPatch(path, (String) fromContent, (String) toContent);
                         default:

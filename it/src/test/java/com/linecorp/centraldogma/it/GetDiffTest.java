@@ -38,7 +38,7 @@ class GetDiffTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void queryByRange(ClientType clientType) {
+    void queryJsonByRange(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
         final String path = "/test_json_file.json";
         for (int i = 0; i < 5; i++) {
@@ -61,6 +61,34 @@ class GetDiffTest {
                 "  \"path\": \"\"," +
                 "  \"oldValue\": \"1\"," +
                 "  \"value\": \"4\"" +
+                "}]");
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void queryYamlByRange(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final String path = "/test_yaml_file.yml";
+        for (int i = 0; i < 5; i++) {
+            final Change<JsonNode> change = Change.ofYamlUpsert(path, String.format("key: %d\n", i));
+            client.push(
+                    dogma.project(), dogma.repo1(), HEAD,
+                    TestConstants.randomText(), change).join();
+        }
+
+        final Change<JsonNode> res = client.getDiff(
+                dogma.project(), dogma.repo1(),
+                new Revision(-4), new Revision(-1),
+                Query.ofJsonPath(path, "$.key")).join();
+
+        assertThat(res.type()).isEqualTo(ChangeType.APPLY_YAML_PATCH);
+
+        assertThatJson(res.content()).isEqualTo(
+                "[{" +
+                "  \"op\": \"safeReplace\"," +
+                "  \"path\": \"\"," +
+                "  \"oldValue\": 1," +
+                "  \"value\": 4" +
                 "}]");
     }
 
