@@ -460,8 +460,10 @@ class GitRepositoryTest {
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/redundant_upsert_2.json",
                                                              "{ \"foo\": 0, \"bar\": 1 }");
         final Change<String> change2 = Change.ofTextUpsert("/redundant_upsert_2.txt", "foo");
+        final Change<JsonNode> change3 = Change.ofYamlUpsert("/redundant_upsert_3.yml", "foo: 12\nbar: 34");
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change1).join();
         repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change2).join();
+        repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change3).join();
 
         // Ensure redundant changes do not count as a valid change.
         assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change1).join())
@@ -470,11 +472,18 @@ class GitRepositoryTest {
         assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change2).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change3).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RedundantChangeException.class);
 
         // Ensure a change only whose serialized form is different does not count.
         final Change<JsonNode> change1a = Change.ofJsonUpsert("/redundant_upsert_2.json",
                                                               "{ \"bar\": 1, \"foo\": 0 }");
         assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change1a).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RedundantChangeException.class);
+        final Change<JsonNode> change3a = Change.ofYamlUpsert("/redundant_upsert_3.yml", "bar: 34\nfoo: 12\n");
+        assertThatThrownBy(() -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY, change3a).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(RedundantChangeException.class);
     }

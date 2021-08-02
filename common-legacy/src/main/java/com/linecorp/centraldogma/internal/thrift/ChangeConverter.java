@@ -44,6 +44,7 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
         switch (change.getType()) {
             case UPSERT_JSON:
             case APPLY_JSON_PATCH:
+            case APPLY_YAML_PATCH:
                 try {
                     change.setContent(Jackson.writeValueAsString(value.content(), EntryType.JSON));
                 } catch (JsonProcessingException e) {
@@ -89,6 +90,9 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
             case UPSERT_YAML:
                 return com.linecorp.centraldogma.common.Change.ofYamlUpsert(c.getPath(),
                                                                             c.getContent());
+            case APPLY_YAML_PATCH:
+                return com.linecorp.centraldogma.common.Change.ofYamlPatch(c.getPath(),
+                                                                           c.getContent());
         }
 
         throw new Error();

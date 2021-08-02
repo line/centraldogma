@@ -24,8 +24,11 @@ import java.io.IOException;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.dataformat.yaml.JacksonYAMLParseException;
 
+import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 
 class JacksonTest {
@@ -155,5 +158,12 @@ class JacksonTest {
         assertThatThrownBy(() -> Jackson.mergeTree(baseJson, nullJson, numberJson))
                 .isExactlyInstanceOf(QueryExecutionException.class)
                 .hasMessageContaining("/a/b/ type: NUMBER (expected: STRING)");
+    }
+
+    @Test
+    void readTreeFailsOnWrongEntryType() throws JsonParseException {
+        assertThatThrownBy(() -> readTree("foo: 123", EntryType.JSON))
+                .isExactlyInstanceOf(JsonParseException.class);
+        // Please add JSON string which is not interpreted as YAML
     }
 }

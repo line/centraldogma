@@ -252,7 +252,7 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void watchFileWithIdentityQuery(ClientType clientType) throws Exception {
+    void watchJsonFileWithIdentityQuery(ClientType clientType) throws Exception {
         revertTestFiles(clientType);
 
         final CentralDogma client = clientType.client(dogma);
@@ -291,6 +291,45 @@ class WatchTest {
         assertThat(rev2).isEqualTo(rev0.forward(2));
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
                 Entry.ofJson(rev2, "/test/test1.json", "[-1,-2,-3]"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchYamlFileWithIdentityQuery(ClientType clientType) throws Exception {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Revision rev0 = client
+                .normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD)
+                .join();
+
+        final CompletableFuture<Entry<JsonNode>> future = client.watchFile(
+                dogma.project(), dogma.repo1(), rev0,
+                Query.ofYaml("/test/test1.yml"), 3000);
+
+        assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+
+        // An irrelevant change should not trigger a notification.
+        final Change<JsonNode> change1 = Change.ofYamlUpsert("/test/test2.yml", "num: 3");
+
+        final PushResult res1 = client.push(
+                dogma.project(), dogma.repo1(), rev0, "Add test2.yml", change1).join();
+
+        final Revision rev1 = res1.revision();
+
+        assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+
+        // Make a relevant change now.
+        final Change<JsonNode> change2 = Change.ofYamlUpsert("/test/test1.yml", "foo: \"bar\"");
+
+        final PushResult res2 = client.push(
+                dogma.project(), dogma.repo1(), rev1, "Update test1.yml", change2).join();
+
+        final Revision rev2 = res2.revision();
+
+        assertThat(rev2).isEqualTo(rev0.forward(2));
+        assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
+                Entry.ofYaml(rev2, "/test/test1.yml", "foo: \"bar\""));
     }
 
     @ParameterizedTest
