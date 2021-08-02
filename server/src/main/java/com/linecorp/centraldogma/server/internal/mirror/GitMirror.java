@@ -240,8 +240,12 @@ public final class GitMirror extends AbstractMirror {
                     final byte[] content = reader.open(objectId).getBytes();
                     switch (EntryType.guessFromPath(localPath)) {
                         case JSON:
-                            final JsonNode jsonNode = Jackson.readTree(content);
+                            final JsonNode jsonNode = Jackson.readTree(content, EntryType.JSON);
                             changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, jsonNode));
+                            break;
+                        case YAML:
+                            final JsonNode yamlNode = Jackson.readTree(content, EntryType.YAML);
+                            changes.putIfAbsent(localPath, Change.ofYamlUpsert(localPath, yamlNode));
                             break;
                         case TEXT:
                             final String strVal = new String(content, StandardCharsets.UTF_8);
