@@ -40,7 +40,7 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.PushResult;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
 
@@ -102,7 +102,7 @@ abstract class WriteQuotaTestBase {
         assertThat(adminClient.execute(req).aggregate().join().status()).isEqualTo(HttpStatus.OK);
 
         final AggregatedHttpResponse res = adminClient.get("/api/v1/projects/test_prj").aggregate().join();
-        final ProjectMetadata meta = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
+        final ProjectMetadata meta = Jackson.ofJson().readValue(res.contentUtf8(), ProjectMetadata.class);
         return meta.repo(repoName).writeQuota();
     }
 

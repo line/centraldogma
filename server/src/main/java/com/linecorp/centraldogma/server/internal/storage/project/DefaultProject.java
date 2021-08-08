@@ -39,8 +39,8 @@ import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
@@ -165,7 +165,7 @@ public class DefaultProject implements Project {
 
             dogmaRepo.commit(headRev, creationTimeMillis, Author.SYSTEM,
                              "Initialize metadata", "", Markup.PLAINTEXT,
-                             Change.ofJsonUpsert(METADATA_JSON, Jackson.valueToTree(metadata))).join();
+                             Change.ofJsonUpsert(METADATA_JSON, Jackson.ofJson().valueToTree(metadata))).join();
         }
     }
 

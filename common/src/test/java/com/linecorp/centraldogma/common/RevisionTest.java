@@ -16,13 +16,14 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.linecorp.centraldogma.internal.Jackson.readValue;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 
 import org.junit.jupiter.api.Test;
+
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 class RevisionTest {
 
@@ -57,6 +58,6 @@ class RevisionTest {
     }
 
     private static Revision toRevision(String text) throws IOException {
-        return readValue(text, Revision.class);
+        return Jackson.ofJson().readValue(text, Revision.class);
     }
 }

@@ -58,7 +58,7 @@ import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 import com.linecorp.centraldogma.internal.thrift.ChangeType;
 import com.linecorp.centraldogma.internal.thrift.Comment;
@@ -375,7 +375,7 @@ class LegacyCentralDogmaTest {
                                                                         MergeSource.ofRequired("/b.json"))))
                          .get())
                 .isEqualTo(com.linecorp.centraldogma.common.MergedEntry.of(
-                        new Revision(1), EntryType.JSON, Jackson.readTree("{\"foo\": \"bar\"}"),
+                        new Revision(1), EntryType.JSON, Jackson.ofJson().readTree("{\"foo\": \"bar\"}"),
                         ImmutableList.of("/a.json", "/b.json")));
         verify(iface).mergeFiles(eq("project"), eq("repo"), any(), any(), any());
     }

@@ -102,7 +102,7 @@ import com.linecorp.armeria.server.thrift.THttpService;
 import com.linecorp.armeria.server.thrift.ThriftCallService;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 import com.linecorp.centraldogma.internal.CsrfToken;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
@@ -179,7 +179,7 @@ public class CentralDogma implements AutoCloseable {
      */
     public static CentralDogma forConfig(File configFile) throws IOException {
         requireNonNull(configFile, "configFile");
-        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class));
+        return new CentralDogma(Jackson.ofJson().readValue(configFile, CentralDogmaConfig.class));
     }
 
     private final CentralDogmaStartStop startStop;
@@ -558,7 +558,7 @@ public class CentralDogma implements AutoCloseable {
                 "hostname", hostname);
 
         try {
-            final HttpData data = HttpData.ofUtf8(Jackson.writeValueAsString(titleAndHostname));
+            final HttpData data = HttpData.ofUtf8(Jackson.ofJson().writeValueAsString(titleAndHostname));
             return HttpFile.builder(data)
                            .contentType(MediaType.JSON_UTF_8)
                            .cacheControl(ServerCacheControl.REVALIDATED)

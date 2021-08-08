@@ -37,8 +37,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 
@@ -85,7 +85,7 @@ public interface Change<T> {
 
         final JsonNode jsonNode;
         try {
-            jsonNode = Jackson.readTree(jsonText, EntryType.JSON);
+            jsonNode = Jackson.ofJson().readTree(jsonText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
@@ -115,7 +115,7 @@ public interface Change<T> {
 
         final JsonNode yamlNode;
         try {
-            yamlNode = Jackson.readTree(yamlText, EntryType.YAML);
+            yamlNode = Jackson.ofYaml().readTree(yamlText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a YAML tree", e);
         }
@@ -224,8 +224,8 @@ public interface Change<T> {
         final JsonNode oldJsonNode;
         final JsonNode newJsonNode;
         try {
-            oldJsonNode = Jackson.readTree(oldJsonText, EntryType.JSON);
-            newJsonNode = Jackson.readTree(newJsonText, EntryType.JSON);
+            oldJsonNode = Jackson.ofJson().readTree(oldJsonText);
+            newJsonNode = Jackson.ofJson().readTree(newJsonText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
@@ -265,7 +265,7 @@ public interface Change<T> {
 
         final JsonNode jsonPatchNode;
         try {
-            jsonPatchNode = Jackson.readTree(jsonPatchText);
+            jsonPatchNode = Jackson.ofJson().readTree(jsonPatchText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
@@ -301,8 +301,8 @@ public interface Change<T> {
         final JsonNode oldYamlNode;
         final JsonNode newYamlNode;
         try {
-            oldYamlNode = Jackson.readTree(oldYamlText, EntryType.YAML);
-            newYamlNode = Jackson.readTree(newYamlText, EntryType.YAML);
+            oldYamlNode = Jackson.ofYaml().readTree(oldYamlText);
+            newYamlNode = Jackson.ofYaml().readTree(newYamlText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a YAML tree", e);
         }
@@ -342,7 +342,8 @@ public interface Change<T> {
 
         final JsonNode yamlPatchNode;
         try {
-            yamlPatchNode = Jackson.readTree(yamlPatchText);
+            // YAML patch is in JSON format
+            yamlPatchNode = Jackson.ofJson().readTree(yamlPatchText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }

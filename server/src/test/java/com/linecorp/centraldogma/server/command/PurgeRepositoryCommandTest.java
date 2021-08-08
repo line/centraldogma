@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 class PurgeRepositoryCommandTest {
 
@@ -44,7 +44,7 @@ class PurgeRepositoryCommandTest {
 
     @Test
     void backwardCompatibility() throws Exception {
-        final PurgeRepositoryCommand c = (PurgeRepositoryCommand) Jackson.readValue(
+        final PurgeRepositoryCommand c = (PurgeRepositoryCommand) Jackson.ofJson().readValue(
                 '{' +
                 "  \"type\": \"PURGE_REPOSITORY\"," +
                 "  \"projectName\": \"foo\"," +

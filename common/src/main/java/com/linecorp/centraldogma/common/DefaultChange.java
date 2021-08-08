@@ -30,7 +30,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 final class DefaultChange<T> implements Change<T> {
 
@@ -140,7 +140,7 @@ final class DefaultChange<T> implements Change<T> {
         if ((type == ChangeType.APPLY_JSON_PATCH || type == ChangeType.APPLY_YAML_PATCH) &&
             content instanceof JsonNode) {
             try {
-                return contentAsText = Jackson.writeValueAsString(content);
+                return contentAsText = Jackson.ofJson().writeValueAsString(content);
             } catch (JsonProcessingException e) {
                 // Should never reach here.
                 throw new Error(e);
@@ -149,7 +149,7 @@ final class DefaultChange<T> implements Change<T> {
 
         if (content instanceof JsonNode) {
             try {
-                return contentAsText = Jackson.writeValueAsString(content, EntryType.guessFromPath(path()));
+                return contentAsText = Jackson.of(EntryType.guessFromPath(path())).writeValueAsString(content);
             } catch (JsonProcessingException e) {
                 // Should never reach here.
                 throw new Error(e);

@@ -21,7 +21,7 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.server.annotation.Get;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
 import com.linecorp.centraldogma.server.internal.api.AbstractService;
@@ -46,6 +46,6 @@ public class UserService extends AbstractService {
     public HttpResponse usersMe() throws Exception {
         final User user = AuthUtil.currentUser();
         return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
-                               HttpData.wrap(Jackson.writeValueAsBytes(user)));
+                               HttpData.wrap(Jackson.ofJson().writeValueAsBytes(user)));
     }
 }

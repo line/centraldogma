@@ -818,12 +818,12 @@ class WatchTest {
                   .join();
         }
 
-        final Change<Void> change3 = Change.ofRemoval("/test_not_found/test.json");
+        final Change<Void> change5 = Change.ofRemoval("/test_not_found/test.json");
         final Map<String, EntryType> files = client.listFiles(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                               PathPattern.of("/test_not_found/**")).join();
-        if (files.containsKey(change3.path())) {
+        if (files.containsKey(change5.path())) {
             client.forRepo(dogma.project(), dogma.repo1())
-                  .commit("Remove test files", change3)
+                  .commit("Remove test files", change5)
                   .push()
                   .join();
         }

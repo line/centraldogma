@@ -27,7 +27,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 class PushAsIsCommandTest {
 
@@ -61,7 +61,7 @@ class PushAsIsCommandTest {
 
     @Test
     void backwardCompatibility() throws Exception {
-        final PushAsIsCommand c = (PushAsIsCommand) Jackson.readValue(
+        final PushAsIsCommand c = (PushAsIsCommand) Jackson.ofJson().readValue(
                 '{' +
                 "  \"type\": \"PUSH\"," +
                 "  \"projectName\": \"foo\"," +

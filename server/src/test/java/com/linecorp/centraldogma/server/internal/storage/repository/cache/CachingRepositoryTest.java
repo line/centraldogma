@@ -59,7 +59,7 @@ import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
@@ -126,7 +126,7 @@ class CachingRepositoryTest {
         final MergeQuery<JsonNode> query = MergeQuery.ofJson(MergeSource.ofRequired("/foo.json"),
                                                              MergeSource.ofRequired("/bar.json"));
         final MergedEntry<JsonNode> queryResult = MergedEntry.of(new Revision(10), JSON,
-                                                                 Jackson.readTree("{\"a\": \"bar\"}"),
+                                                                 Jackson.ofJson().readTree("{\"a\": \"bar\"}"),
                                                                  "/foo.json", "/bar.json");
 
         doReturn(new Revision(10)).when(delegateRepo).normalizeNow(new Revision(10));

@@ -95,7 +95,7 @@ import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
@@ -247,7 +247,8 @@ public final class ZooKeeperCommandExecutor
             try {
                 for (int i = 0; i < targetCount; ++i) {
                     final String logPath = absolutePath(LOG_PATH, children.get(i));
-                    final LogMeta meta = Jackson.readValue(curator.getData().forPath(logPath), LogMeta.class);
+                    final LogMeta meta = Jackson.ofJson()
+                                                .readValue(curator.getData().forPath(logPath), LogMeta.class);
 
                     if (meta.timestamp() >= minAllowedTimestamp) {
                         // Do not delete the logs that are not old enough.
@@ -979,7 +980,7 @@ public final class ZooKeeperCommandExecutor
 
     private long storeLog(ReplicationLog<?> log) {
         try {
-            final byte[] bytes = Jackson.writeValueAsBytes(log);
+            final byte[] bytes = Jackson.ofJson().writeValueAsBytes(log);
             assert bytes.length > 0;
 
             final LogMeta logMeta = new LogMeta(log.replicaId(), System.currentTimeMillis(), bytes.length);
@@ -998,7 +999,8 @@ public final class ZooKeeperCommandExecutor
 
             final String logPath =
                     curator.create().withMode(CreateMode.PERSISTENT_SEQUENTIAL)
-                           .forPath(absolutePath(LOG_PATH) + '/', Jackson.writeValueAsBytes(logMeta));
+                           .forPath(absolutePath(LOG_PATH) + '/', Jackson.ofJson()
+                                                                         .writeValueAsBytes(logMeta));
 
             return revisionFromPath(logPath);
         } catch (Exception e) {
@@ -1015,7 +1017,8 @@ public final class ZooKeeperCommandExecutor
 
             final String logPath = absolutePath(LOG_PATH) + '/' + pathFromRevision(revision);
 
-            final LogMeta logMeta = Jackson.readValue(curator.getData().forPath(logPath), LogMeta.class);
+            final LogMeta logMeta = Jackson.ofJson()
+                                           .readValue(curator.getData().forPath(logPath), LogMeta.class);
 
             if (skipIfSameReplica && replicaId() == logMeta.replicaId()) {
                 return Optional.empty();
@@ -1031,7 +1034,7 @@ public final class ZooKeeperCommandExecutor
             }
             assert logMeta.size() == offset;
 
-            final ReplicationLog<?> log = Jackson.readValue(bytes, ReplicationLog.class);
+            final ReplicationLog<?> log = Jackson.ofJson().readValue(bytes, ReplicationLog.class);
             return Optional.of(log);
         } catch (Exception e) {
             logger.error("Failed to load a log at revision {}; entering read-only mode", revision, e);

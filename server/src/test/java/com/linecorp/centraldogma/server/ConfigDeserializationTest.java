@@ -26,7 +26,7 @@ import org.junit.jupiter.api.io.TempDir;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 class ConfigDeserializationTest {
 
@@ -43,7 +43,7 @@ class ConfigDeserializationTest {
                                                 "\"keyFile\": \"%s\", " +
                                                 "\"keyPassword\": null " +
                                                 "}}", cert, key);
-        final ParentConfig parentConfig = Jackson.readValue(jsonConfig, ParentConfig.class);
+        final ParentConfig parentConfig = Jackson.ofJson().readValue(jsonConfig, ParentConfig.class);
         final TlsConfig tlsConfig = parentConfig.tlsConfig;
 
         assertThat(tlsConfig.keyCertChainFile()).isNotNull();

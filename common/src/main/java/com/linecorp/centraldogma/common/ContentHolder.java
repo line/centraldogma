@@ -22,7 +22,7 @@ import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * A holder which has the content and its {@link EntryType}.
@@ -52,7 +52,7 @@ public interface ContentHolder<T> {
         final T content = content();
         if (type() == EntryType.JSON || type() == EntryType.YAML) {
             try {
-                return Jackson.writeValueAsString(content, type());
+                return Jackson.of(type()).writeValueAsString(content);
             } catch (JsonProcessingException e) {
                 // Should never happen because it's a JSON or YAML tree already.
                 throw new Error(e);
@@ -72,7 +72,7 @@ public interface ContentHolder<T> {
         final T content = content();
         if (content instanceof TreeNode) {
             try {
-                return Jackson.writeValueAsPrettyString(content, type());
+                return Jackson.of(type()).writeValueAsPrettyString(content);
             } catch (JsonProcessingException e) {
                 // Should never happen because it's a JSON tree already.
                 throw new Error(e);
@@ -96,7 +96,7 @@ public interface ContentHolder<T> {
             return (JsonNode) content;
         }
 
-        return Jackson.readTree(contentAsText());
+        return Jackson.ofJson().readTree(contentAsText());
     }
 
     /**
@@ -111,9 +111,9 @@ public interface ContentHolder<T> {
     default <U> U contentAsJson(Class<U> valueType) throws JsonParseException, JsonMappingException {
         final T content = content();
         if (content instanceof TreeNode) {
-            return Jackson.treeToValue((TreeNode) content, valueType);
+            return Jackson.ofJson().treeToValue((TreeNode) content, valueType);
         }
 
-        return Jackson.readValue(contentAsText(), valueType);
+        return Jackson.ofJson().readValue(contentAsText(), valueType);
     }
 }

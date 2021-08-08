@@ -46,7 +46,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializable;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * Base abstract class for one patch operation.
@@ -81,7 +81,7 @@ public abstract class JsonPatchOperation implements JsonSerializable {
      */
     public static JsonNode asJsonArray(JsonPatchOperation... jsonPatchOperations) {
         requireNonNull(jsonPatchOperations, "jsonPatchOperations");
-        return Jackson.valueToTree(jsonPatchOperations);
+        return Jackson.ofJson().valueToTree(jsonPatchOperations);
     }
 
     final String op;
@@ -125,7 +125,7 @@ public abstract class JsonPatchOperation implements JsonSerializable {
      * Converts this {@link JsonPatchOperation} to a {@link JsonNode}.
      */
     public JsonNode toJsonNode() {
-        return JsonNodeFactory.instance.arrayNode().add(Jackson.valueToTree(this));
+        return JsonNodeFactory.instance.arrayNode().add(Jackson.ofJson().valueToTree(this));
     }
 
     JsonNode ensureExistence(JsonNode node) {

@@ -33,7 +33,7 @@ import com.google.common.collect.ImmutableMap.Builder;
 import com.linecorp.armeria.server.saml.SamlBindingProtocol;
 import com.linecorp.armeria.server.saml.SamlEndpoint;
 import com.linecorp.armeria.server.saml.SamlNameIdFormat;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * Properties which are used to configure SAML authentication for Central Dogma server.
@@ -160,7 +160,7 @@ final class SamlAuthProperties {
     @Override
     public String toString() {
         try {
-            return Jackson.writeValueAsPrettyString(this);
+            return Jackson.ofJson().writeValueAsPrettyString(this);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }

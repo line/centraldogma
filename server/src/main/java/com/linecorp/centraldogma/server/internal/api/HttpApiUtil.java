@@ -46,7 +46,7 @@ import com.linecorp.armeria.common.logging.LogLevel;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * A utility class which provides common functions for HTTP API.
@@ -57,7 +57,7 @@ public final class HttpApiUtil {
     private static final Logger logger = LoggerFactory.getLogger(HttpApiUtil.class);
     private static final String ERROR_MESSAGE_FORMAT = "{} Returning a {} response: {}";
 
-    static final JsonNode unremoveRequest = Jackson.valueToTree(
+    static final JsonNode unremoveRequest = Jackson.ofJson().valueToTree(
             ImmutableList.of(
                     ImmutableMap.of("op", "replace",
                                     "path", "/status",
@@ -219,7 +219,7 @@ public final class HttpApiUtil {
         // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return
         //                 the stack trace of the cause to the trusted client.
         try {
-            return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.writeValueAsBytes(node));
+            return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.ofJson().writeValueAsBytes(node));
         } catch (JsonProcessingException e) {
             // should not reach here
             throw new Error(e);

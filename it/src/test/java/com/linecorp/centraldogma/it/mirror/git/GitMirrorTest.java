@@ -177,7 +177,7 @@ class GitMirrorTest {
         addToGitIndex(".gitkeep", "");
         addToGitIndex("first/light.txt", "26-Aug-2014");
         addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}");
-        addToGitIndex("festival/of-blood.yaml", "release_date: \"25-Oct-2011\"}");
+        addToGitIndex("festival/of-blood.yaml", "release_date: \"25-Oct-2011\"");
         git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
 
         mirroringService.mirror().join();
@@ -196,8 +196,8 @@ class GitMirrorTest {
                                            Entry.ofJson(rev3, "/second/son.json",
                                                         "{\"release_date\": \"21-Mar-2014\"}"),
                                            Entry.ofDirectory(rev3, "/festival"),
-                                           Entry.ofYaml(rev3, "festival/of-blood.yaml",
-                                                        "release_date: \"25-Oct-2011\"}"));
+                                           Entry.ofYaml(rev3, "/festival/of-blood.yaml",
+                                                        "release_date: \"25-Oct-2011\""));
 
         // Rewrite the history of the git repository and mirror.
         git.reset().setMode(ResetType.HARD).setRef("HEAD^").call();

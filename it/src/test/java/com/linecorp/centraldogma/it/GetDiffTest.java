@@ -71,9 +71,9 @@ class GetDiffTest {
         final String path = "/test_yaml_file.yml";
         for (int i = 0; i < 5; i++) {
             final Change<JsonNode> change = Change.ofYamlUpsert(path, String.format("key: %d\n", i));
-            client.push(
-                    dogma.project(), dogma.repo1(), HEAD,
-                    TestConstants.randomText(), change).join();
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit(TestConstants.randomText(), change)
+                  .push().join();
         }
 
         final Change<JsonNode> res = client.getDiff(

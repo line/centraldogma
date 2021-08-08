@@ -39,8 +39,8 @@ import com.linecorp.armeria.common.auth.BasicToken;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -100,7 +100,7 @@ public class TestAuthProvider implements AuthProvider {
                     final AccessToken accessToken = new AccessToken(sessionId, 60);
                     try {
                         return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
-                                               Jackson.writeValueAsBytes(accessToken));
+                                               Jackson.ofJson().writeValueAsBytes(accessToken));
                     } catch (JsonProcessingException e) {
                         throw new Error(e);
                     }

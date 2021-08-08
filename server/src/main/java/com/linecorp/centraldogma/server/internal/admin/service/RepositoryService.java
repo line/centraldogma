@@ -48,7 +48,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil;
@@ -149,8 +149,8 @@ public class RepositoryService extends AbstractService {
                                    ServiceRequestContext ctx) {
         final CommitMessageDto commitMessage;
         try {
-            final JsonNode node = Jackson.readTree(request.contentUtf8());
-            commitMessage = Jackson.convertValue(node.get("commitMessage"), CommitMessageDto.class);
+            final JsonNode node = Jackson.ofJson().readTree(request.contentUtf8());
+            commitMessage = Jackson.ofJson().convertValue(node.get("commitMessage"), CommitMessageDto.class);
         } catch (IOException e) {
             throw new IllegalArgumentException("invalid data to be parsed", e);
         }
@@ -236,10 +236,10 @@ public class RepositoryService extends AbstractService {
 
     private static Entry<CommitMessageDto, Change<?>> commitMessageAndChange(AggregatedHttpRequest request) {
         try {
-            final JsonNode node = Jackson.readTree(request.contentUtf8());
+            final JsonNode node = Jackson.ofJson().readTree(request.contentUtf8());
             final CommitMessageDto commitMessage =
-                    Jackson.convertValue(node.get("commitMessage"), CommitMessageDto.class);
-            final EntryDto file = Jackson.convertValue(node.get("file"), EntryDto.class);
+                    Jackson.ofJson().convertValue(node.get("commitMessage"), CommitMessageDto.class);
+            final EntryDto file = Jackson.ofJson().convertValue(node.get("file"), EntryDto.class);
             final Change<?> change;
             switch (file.getType()) {
                 case "JSON":

@@ -53,7 +53,7 @@ import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.QuerySyntaxException;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * Utility methods that are useful when implementing a {@link Repository} implementation.
@@ -102,7 +102,7 @@ final class RepositoryUtil {
                 result = Jackson.mergeTree(jsonNodes);
                 final List<String> expressions = query.expressions();
                 if (!Iterables.isEmpty(expressions)) {
-                    result = Jackson.extractTree(result, expressions);
+                    result = Jackson.ofJson().extractTree(result, expressions);
                 }
             } catch (Exception e) {
                 future.completeExceptionally(e);

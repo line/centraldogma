@@ -50,8 +50,8 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
@@ -115,7 +115,7 @@ final class LoginService extends AbstractHttpService {
                                        new AccessToken(sessionId, sessionValidDuration.getSeconds());
                                try {
                                    return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
-                                                          Jackson.writeValueAsBytes(accessToken));
+                                                          Jackson.ofJson().writeValueAsBytes(accessToken));
                                } catch (JsonProcessingException e) {
                                    return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
                                }

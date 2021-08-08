@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 class PasswordMirrorCredentialTest {
@@ -52,23 +52,23 @@ class PasswordMirrorCredentialTest {
     @Test
     void testDeserialization() throws Exception {
         // With hostnamePatterns
-        assertThat(Jackson.readValue('{' +
-                                     "  \"type\": \"password\"," +
-                                     "  \"hostnamePatterns\": [" +
-                                     "    \"^foo\\\\.com$\"" +
-                                     "  ]," +
-                                     "  \"username\": \"trustin\"," +
-                                     "  \"password\": \"sesame\"" +
-                                     '}', MirrorCredential.class))
+        assertThat(Jackson.ofJson().readValue('{' +
+                                              "  \"type\": \"password\"," +
+                                              "  \"hostnamePatterns\": [" +
+                                              "    \"^foo\\\\.com$\"" +
+                                              "  ]," +
+                                              "  \"username\": \"trustin\"," +
+                                              "  \"password\": \"sesame\"" +
+                                              '}', MirrorCredential.class))
                 .isEqualTo(new PasswordMirrorCredential(null, HOSTNAME_PATTERNS,
                                                         "trustin", "sesame"));
         // With ID
-        assertThat(Jackson.readValue('{' +
-                                     "  \"type\": \"password\"," +
-                                     "  \"id\": \"foo\"," +
-                                     "  \"username\": \"trustin\"," +
-                                     "  \"password\": \"sesame\"" +
-                                     '}', MirrorCredential.class))
+        assertThat(Jackson.ofJson().readValue('{' +
+                                              "  \"type\": \"password\"," +
+                                              "  \"id\": \"foo\"," +
+                                              "  \"username\": \"trustin\"," +
+                                              "  \"password\": \"sesame\"" +
+                                              '}', MirrorCredential.class))
                 .isEqualTo(new PasswordMirrorCredential("foo", null, "trustin", "sesame"));
     }
 }

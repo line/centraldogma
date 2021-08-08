@@ -45,7 +45,7 @@ import com.linecorp.armeria.server.annotation.ResponseConverter;
 import com.linecorp.armeria.server.annotation.StatusCode;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -61,12 +61,12 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class TokenService extends AbstractService {
 
-    private static final JsonNode activation = Jackson.valueToTree(
+    private static final JsonNode activation = Jackson.ofJson().valueToTree(
             ImmutableList.of(
                     ImmutableMap.of("op", "replace",
                                     "path", "/status",
                                     "value", "active")));
-    private static final JsonNode deactivation = Jackson.valueToTree(
+    private static final JsonNode deactivation = Jackson.ofJson().valueToTree(
             ImmutableList.of(
                     ImmutableMap.of("op", "replace",
                                     "path", "/status",

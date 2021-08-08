@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 class UnremoveRepositoryCommandTest {
 
@@ -44,7 +44,7 @@ class UnremoveRepositoryCommandTest {
 
     @Test
     void backwardCompatibility() throws Exception {
-        final UnremoveRepositoryCommand c = (UnremoveRepositoryCommand) Jackson.readValue(
+        final UnremoveRepositoryCommand c = (UnremoveRepositoryCommand) Jackson.ofJson().readValue(
                 '{' +
                 "  \"type\": \"UNREMOVE_REPOSITORY\"," +
                 "  \"projectName\": \"foo\"," +

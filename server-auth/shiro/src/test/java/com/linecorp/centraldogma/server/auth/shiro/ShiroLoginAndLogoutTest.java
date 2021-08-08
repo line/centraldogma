@@ -36,8 +36,8 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -78,7 +78,7 @@ class ShiroLoginAndLogoutTest {
         assertThat(loginRes.status()).isEqualTo(HttpStatus.OK);
 
         // Ensure authorization works.
-        final AccessToken accessToken = Jackson.readValue(loginRes.contentUtf8(), AccessToken.class);
+        final AccessToken accessToken = Jackson.ofJson().readValue(loginRes.contentUtf8(), AccessToken.class);
         final String sessionId = accessToken.accessToken();
 
         assertThat(usersMe(client, sessionId).status()).isEqualTo(HttpStatus.OK);

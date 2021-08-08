@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.auth.Session;
 
 class CreateSessionCommandTest {
@@ -45,7 +45,7 @@ class CreateSessionCommandTest {
 
         // Convert the object with Jackson because a serializer and deserializer for Instant type are
         // added to Jackson.
-        final JsonNode node = Jackson.valueToTree(
+        final JsonNode node = Jackson.ofJson().valueToTree(
                 new CreateSessionCommand(1234L,
                                          new Author("foo", "bar@baz.com"),
                                          session));

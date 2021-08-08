@@ -31,7 +31,7 @@ import com.linecorp.armeria.server.annotation.Consumes;
 import com.linecorp.armeria.server.annotation.Get;
 import com.linecorp.armeria.server.annotation.Patch;
 import com.linecorp.armeria.server.annotation.ProducesJson;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -69,7 +69,7 @@ public final class AdministrativeService extends AbstractService {
                                                         JsonNode patch) throws Exception {
         // TODO(trustin): Consider extracting this into common utility or Armeria.
         final ServerStatus oldStatus = status();
-        final JsonNode oldValue = Jackson.valueToTree(oldStatus);
+        final JsonNode oldValue = Jackson.ofJson().valueToTree(oldStatus);
         final JsonNode newValue;
         try {
             newValue = JsonPatch.fromJson(patch).apply(oldValue);

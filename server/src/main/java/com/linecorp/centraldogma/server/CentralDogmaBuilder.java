@@ -43,7 +43,7 @@ import com.google.common.collect.ImmutableSet.Builder;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
@@ -536,7 +536,8 @@ public final class CentralDogmaBuilder {
             authCfg = new AuthConfig(
                     authProviderFactory, adminSet, caseSensitiveLoginNames,
                     sessionCacheSpec, sessionTimeoutMillis, sessionValidationSchedule,
-                    authProviderProperties != null ? Jackson.valueToTree(authProviderProperties) : null);
+                    authProviderProperties != null ? Jackson.ofJson().valueToTree(authProviderProperties)
+                                                   : null);
         } else {
             authCfg = null;
             logger.info("{} is not specified, so {} will not be configured.",

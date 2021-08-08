@@ -46,7 +46,7 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -299,7 +299,7 @@ class ContentServiceV1Test {
             // check whether the change is right
             final AggregatedHttpResponse res1 = client
                     .get("/api/v1/projects/myPro/repos/myRepo/compare?from=2&to=3").aggregate().join();
-            final JsonNode content1 = Jackson.readTree(res1.contentUtf8()).get(0).get("content");
+            final JsonNode content1 = Jackson.ofJson().readTree(res1.contentUtf8()).get(0).get("content");
             assertThat(content1.size()).isOne();
             assertThat(content1.get(0).toString()).isEqualToIgnoringCase(
                     "{\"op\":\"safeReplace\",\"path\":\"/a\",\"oldValue\":\"bar\",\"value\":\"baz\"}");
@@ -323,7 +323,7 @@ class ContentServiceV1Test {
             // check whether the change is right
             final AggregatedHttpResponse res2 = client
                     .get("/api/v1/projects/myPro/repos/myRepo/compare?from=4&to=5").aggregate().join();
-            final JsonNode content2 = Jackson.readTree(res2.contentUtf8()).get(0).get("content");
+            final JsonNode content2 = Jackson.ofJson().readTree(res2.contentUtf8()).get(0).get("content");
             assertThat(content2.textValue()).isEqualToIgnoringCase("--- /a/bar.txt\n" +
                                                                    "+++ /a/bar.txt\n" +
                                                                    "@@ -1,1 +1,1 @@\n" +
@@ -576,7 +576,7 @@ class ContentServiceV1Test {
 
             final AggregatedHttpResponse res2 = client.get(CONTENTS_PREFIX + "/**").aggregate().join();
             // /a directory and /a/bar.txt file are left
-            assertThat(Jackson.readTree(res2.contentUtf8()).size()).isEqualTo(2);
+            assertThat(Jackson.ofJson().readTree(res2.contentUtf8()).size()).isEqualTo(2);
         }
 
         @Test
@@ -617,7 +617,7 @@ class ContentServiceV1Test {
             assertThatJson(actualJson).isEqualTo(expectedJson);
 
             final AggregatedHttpResponse res2 = client.get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
-            assertThat(Jackson.readTree(res2.contentUtf8()).get("content").get("a").textValue())
+            assertThat(Jackson.ofJson().readTree(res2.contentUtf8()).get("content").get("a").textValue())
                     .isEqualToIgnoringCase("baz");
         }
 
@@ -653,7 +653,7 @@ class ContentServiceV1Test {
             assertThatJson(actualJson).isEqualTo(expectedJson);
 
             final AggregatedHttpResponse res2 = client.get(CONTENTS_PREFIX + "/a/bar.txt").aggregate().join();
-            assertThat(Jackson.readTree(res2.contentUtf8()).get("content").textValue())
+            assertThat(Jackson.ofJson().readTree(res2.contentUtf8()).get("content").textValue())
                     .isEqualTo("text in some file.\n");
         }
 

@@ -102,9 +102,9 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
@@ -961,7 +961,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
      */
     private static byte[] toBytes(JsonNode content) {
         try {
-            return Jackson.writeValueAsBytes(content);
+            return Jackson.ofJson().writeValueAsBytes(content);
         } catch (JsonProcessingException e) {
             // Should never reach here.
             throw new Error(e);
@@ -995,7 +995,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         final String content = toString(res);
         final JsonNode node;
         try {
-            node = Jackson.readTree(content);
+            node = Jackson.ofJson().readTree(content);
         } catch (JsonParseException e) {
             throw new CentralDogmaException("failed to parse the response JSON", e);
         }
@@ -1053,7 +1053,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         final String content0;
         if (content.isContainerNode()) {
             try {
-                content0 = Jackson.writeValueAsString(content, EntryType.guessFromPath(entryPath));
+                content0 = Jackson.of(EntryType.guessFromPath(entryPath)).writeValueAsString(content);
             } catch (JsonProcessingException e) {
                 // Should never happen because it's a JSON or YAML tree already.
                 throw new Error(e);

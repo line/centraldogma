@@ -59,8 +59,8 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
@@ -142,8 +142,8 @@ public final class GitMirror extends AbstractMirror {
                 if (mirrorState == null || mirrorState.type() != EntryType.JSON) {
                     localSourceRevision = null;
                 } else {
-                    localSourceRevision = Jackson.treeToValue((TreeNode) mirrorState.content(),
-                                                              MirrorState.class).sourceRevision();
+                    localSourceRevision = Jackson.ofJson().treeToValue((TreeNode) mirrorState.content(),
+                                                                       MirrorState.class).sourceRevision();
                 }
 
                 final String abbrId = reader.abbreviate(id).name();
@@ -240,11 +240,11 @@ public final class GitMirror extends AbstractMirror {
                     final byte[] content = reader.open(objectId).getBytes();
                     switch (EntryType.guessFromPath(localPath)) {
                         case JSON:
-                            final JsonNode jsonNode = Jackson.readTree(content, EntryType.JSON);
+                            final JsonNode jsonNode = Jackson.ofJson().readTree(content);
                             changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, jsonNode));
                             break;
                         case YAML:
-                            final JsonNode yamlNode = Jackson.readTree(content, EntryType.YAML);
+                            final JsonNode yamlNode = Jackson.ofYaml().readTree(content);
                             changes.putIfAbsent(localPath, Change.ofYamlUpsert(localPath, yamlNode));
                             break;
                         case TEXT:

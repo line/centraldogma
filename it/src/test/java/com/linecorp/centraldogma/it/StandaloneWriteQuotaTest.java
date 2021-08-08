@@ -32,8 +32,8 @@ import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.auth.OAuth2Token;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
@@ -84,6 +84,6 @@ class StandaloneWriteQuotaTest extends WriteQuotaTestBase {
                 TestAuthMessageUtil.login(dogma.httpClient(), username, password);
 
         assertThat(response.status()).isEqualTo(HttpStatus.OK);
-        return Jackson.readValue(response.content().array(), AccessToken.class).accessToken();
+        return Jackson.ofJson().readValue(response.content().array(), AccessToken.class).accessToken();
     }
 }

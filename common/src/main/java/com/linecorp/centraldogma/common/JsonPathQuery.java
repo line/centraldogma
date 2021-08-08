@@ -27,8 +27,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 final class JsonPathQuery implements Query<JsonNode> {
 
@@ -92,7 +92,7 @@ final class JsonPathQuery implements Query<JsonNode> {
     @Override
     public JsonNode apply(JsonNode input) {
         requireNonNull(input, "input");
-        return Jackson.extractTree(input, jsonPaths);
+        return Jackson.ofJson().extractTree(input, jsonPaths);
     }
 
     @Override

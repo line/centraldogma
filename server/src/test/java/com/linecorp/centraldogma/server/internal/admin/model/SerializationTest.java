@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.metadata.Member;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
@@ -52,8 +52,8 @@ class SerializationTest {
                                          "    \"timestamp\" : \"2017-01-01T00:00:00Z\"\n" +
                                          "  }\n" +
                                          '}');
-        final Member obj = Jackson.readValue(Jackson.writeValueAsString(member),
-                                             Member.class);
+        final Member obj = Jackson.ofJson().readValue(Jackson.ofJson().writeValueAsString(member),
+                                                      Member.class);
         assertThat(obj.login()).isEqualTo("armeria@dogma.org");
         assertThat(obj.role()).isEqualTo(ProjectRole.MEMBER);
         assertThat(obj.creation()).isNotNull();
@@ -122,8 +122,8 @@ class SerializationTest {
                                            "  }\n" +
                                            '}');
 
-        final ProjectMetadata obj = Jackson.readValue(Jackson.writeValueAsString(metadata),
-                                                      ProjectMetadata.class);
+        final ProjectMetadata obj = Jackson.ofJson().readValue(Jackson.ofJson().writeValueAsString(metadata),
+                                                               ProjectMetadata.class);
         assertThat(obj.name()).isEqualTo("test");
         assertThat(obj.repos().size()).isOne();
         assertThat(obj.members().size()).isOne();
@@ -201,13 +201,13 @@ class SerializationTest {
                                            "  }\n" +
                                            '}');
 
-        final ProjectMetadata obj = Jackson.readValue(Jackson.writeValueAsString(metadata),
-                                                      ProjectMetadata.class);
+        final ProjectMetadata obj = Jackson.ofJson().readValue(Jackson.ofJson().writeValueAsString(metadata),
+                                                               ProjectMetadata.class);
         assertThat(obj.name()).isEqualTo("test");
         assertThat(obj.repos().size()).isOne();
         assertThat(obj.members().size()).isOne();
-        assertThatJson(Jackson.writeValueAsString(obj.members().get("armeria@dogma.org")))
-                .isEqualTo(Jackson.writeValueAsString(member));
+        assertThatJson(Jackson.ofJson().writeValueAsString(obj.members().get("armeria@dogma.org")))
+                .isEqualTo(Jackson.ofJson().writeValueAsString(member));
         assertThat(obj.tokens().size()).isOne();
         assertThat(obj.creation()).isNotNull();
         assertThat(obj.creation().user()).isEqualTo("editor@dogma.org");

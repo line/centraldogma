@@ -28,7 +28,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.storage.StorageException;
 
 final class CommitUtil {
@@ -41,7 +41,7 @@ final class CommitUtil {
     static String toJsonString(String summary, String detail, Markup markup, Revision nextRevision) {
         try {
             final StringWriter stringWriter = new StringWriter();
-            final JsonGenerator jsonGenerator = Jackson.createPrettyGenerator(stringWriter);
+            final JsonGenerator jsonGenerator = Jackson.ofJson().createPrettyGenerator(stringWriter);
             jsonGenerator.writeStartObject();
             jsonGenerator.writeStringField(FIELD_NAME_SUMMARY, summary);
             jsonGenerator.writeStringField(FIELD_NAME_DETAIL, detail);
@@ -57,8 +57,8 @@ final class CommitUtil {
 
     static Revision extractRevision(String jsonString) {
         try {
-            final JsonNode jsonNode = Jackson.readTree(jsonString);
-            return new Revision(Jackson.textValue(jsonNode.get(FIELD_NAME_REVISION), ""));
+            final JsonNode jsonNode = Jackson.ofJson().readTree(jsonString);
+            return new Revision(Jackson.ofJson().textValue(jsonNode.get(FIELD_NAME_REVISION), ""));
         } catch (Exception e) {
             throw new StorageException("failed to extract revision from " + jsonString, e);
         }
@@ -68,24 +68,25 @@ final class CommitUtil {
         requireNonNull(author, "author");
         when = when / 1000L * 1000L; // Drop the milliseconds
         try {
-            final JsonNode jsonNode = Jackson.readTree(jsonString);
+            final JsonNode jsonNode = Jackson.ofJson().readTree(jsonString);
 
-            final String summary = Jackson.textValue(jsonNode.get(FIELD_NAME_SUMMARY), "");
-            final String detail = Jackson.textValue(jsonNode.get(FIELD_NAME_DETAIL), "");
+            final String summary = Jackson.ofJson().textValue(jsonNode.get(FIELD_NAME_SUMMARY), "");
+            final String detail = Jackson.ofJson().textValue(jsonNode.get(FIELD_NAME_DETAIL), "");
 
             final Markup markup;
-            switch (Jackson.textValue(jsonNode.get(FIELD_NAME_MARKUP), "")) {
-            case "plaintext":
-                markup = Markup.PLAINTEXT;
-                break;
-            case "markdown":
-                markup = Markup.MARKDOWN;
-                break;
-            default:
-                markup = Markup.UNKNOWN;
+            switch (Jackson.ofJson().textValue(jsonNode.get(FIELD_NAME_MARKUP), "")) {
+                case "plaintext":
+                    markup = Markup.PLAINTEXT;
+                    break;
+                case "markdown":
+                    markup = Markup.MARKDOWN;
+                    break;
+                default:
+                    markup = Markup.UNKNOWN;
             }
 
-            final Revision revision = new Revision(Jackson.textValue(jsonNode.get(FIELD_NAME_REVISION), ""));
+            final Revision revision = new Revision(Jackson.ofJson()
+                                                          .textValue(jsonNode.get(FIELD_NAME_REVISION), ""));
 
             return new Commit(revision, author, when, summary, detail, markup);
         } catch (Exception e) {
