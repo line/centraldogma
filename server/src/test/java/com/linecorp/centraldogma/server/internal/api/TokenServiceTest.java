@@ -29,7 +29,6 @@ import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
-import com.linecorp.centraldogma.server.metadata.MigrationUtil;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
@@ -39,12 +38,7 @@ import io.netty.util.internal.StringUtil;
 class TokenServiceTest {
 
     @RegisterExtension
-    static final ProjectManagerExtension manager = new ProjectManagerExtension() {
-        @Override
-        protected void afterExecutorStarted() {
-            MigrationUtil.migrate(projectManager(), executor());
-        }
-    };
+    static final ProjectManagerExtension manager = new ProjectManagerExtension();
 
     private static final Author adminAuthor = new Author("admin@localhost.com");
     private static final Author guestAuthor = new Author("guest@localhost.com");

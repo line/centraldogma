@@ -141,7 +141,6 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutSched
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
-import com.linecorp.centraldogma.server.metadata.MigrationUtil;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -354,9 +353,6 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("Started the command executor.");
 
                 initializeInternalProject(executor);
-
-                // Migrate tokens and create metadata files if it does not exist.
-                MigrationUtil.migrate(pm, executor);
             }
 
             logger.info("Starting the RPC server.");

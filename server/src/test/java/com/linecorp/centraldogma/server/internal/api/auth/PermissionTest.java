@@ -57,7 +57,6 @@ import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectM
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
-import com.linecorp.centraldogma.server.metadata.MigrationUtil;
 import com.linecorp.centraldogma.server.metadata.PerRolePermissions;
 import com.linecorp.centraldogma.server.metadata.Permission;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
@@ -88,7 +87,6 @@ class PermissionTest {
             executor.start().join();
 
             ProjectInitializer.initializeInternalProject(executor);
-            MigrationUtil.migrate(pm, executor);
 
             executor.execute(Command.createProject(author, "project1")).join();
 
