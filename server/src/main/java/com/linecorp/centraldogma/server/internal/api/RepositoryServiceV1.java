@@ -94,12 +94,13 @@ public class RepositoryServiceV1 extends AbstractService {
                 }
                 return HttpApiUtil.throwResponse(
                         ctx, HttpStatus.FORBIDDEN,
-                        "You must be an owner of project '%s' to remove it.", project.name());
+                        "You must be an owner of project '%s' to retrieve removed repositories.",
+                        project.name());
             }
 
-            // Do not add internal repository to the list if the user is not an administrator.
             return project.repos().list().values().stream()
                           .filter(r -> user.isAdmin() || !Project.REPO_DOGMA.equals(r.name()))
+                          .filter(r -> hasOwnerRole || !Project.REPO_META.equals(r.name()))
                           .map(DtoConverter::convert)
                           .collect(toImmutableList());
         });

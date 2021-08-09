@@ -39,6 +39,7 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
 class MetadataServiceTest {
@@ -194,6 +195,12 @@ class MetadataServiceTest {
                 .containsExactly(Permission.READ, Permission.WRITE);
         assertThat(mds.findPermissions(project1, repo1, guest).join())
                 .containsExactlyElementsOf(NO_PERMISSION);
+
+        for (String internalRepo : Project.internalRepos()) {
+            assertThatThrownBy(() -> mds.updatePerRolePermissions(
+                    author, project1, internalRepo, PerRolePermissions.ofDefault()).join())
+                    .isInstanceOf(UnsupportedOperationException.class);
+        }
     }
 
     @Test
