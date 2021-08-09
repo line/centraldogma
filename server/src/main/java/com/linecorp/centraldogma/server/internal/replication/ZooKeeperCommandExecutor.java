@@ -741,7 +741,7 @@ public final class ZooKeeperCommandExecutor
                 if (nextRevision == targetRevision) {
                     break;
                 } else {
-                    nextRevision = info.lastReplayedRevision + 1;
+                    nextRevision++;
                 }
             }
         } catch (Throwable t) {
