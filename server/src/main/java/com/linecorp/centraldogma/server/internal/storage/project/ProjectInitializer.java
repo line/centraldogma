@@ -18,14 +18,22 @@ package com.linecorp.centraldogma.server.internal.storage.project;
 
 import static com.linecorp.centraldogma.server.command.Command.createProject;
 import static com.linecorp.centraldogma.server.command.Command.createRepository;
+import static com.linecorp.centraldogma.server.command.Command.push;
 
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
 public final class ProjectInitializer {
@@ -46,6 +54,7 @@ public final class ProjectInitializer {
                 throw new Error("failed to initialize an internal project", cause);
             }
         }
+
         // These repositories might be created when creating an internal project, but we try to create them
         // again here in order to make sure them exist because sometimes their names are changed.
         for (final String repo : ImmutableList.of(Project.REPO_META, Project.REPO_DOGMA)) {
@@ -57,6 +66,21 @@ public final class ProjectInitializer {
                 if (!(cause instanceof RepositoryExistsException)) {
                     throw new Error(cause);
                 }
+            }
+        }
+
+        try {
+            final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
+                                                        null, Jackson.valueToTree(new Tokens()));
+            final String commitSummary = "Initialize the token list file: /" + INTERNAL_PROJ + '/' +
+                                         Project.REPO_DOGMA + MetadataService.TOKEN_JSON;
+            executor.execute(push(Author.SYSTEM, INTERNAL_PROJ, Project.REPO_DOGMA, Revision.HEAD,
+                                  commitSummary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
+                    .get();
+        } catch (Throwable cause) {
+            cause = Exceptions.peel(cause);
+            if (!(cause instanceof ChangeConflictException)) {
+                throw new Error("failed to initialize the token list file", cause);
             }
         }
     }

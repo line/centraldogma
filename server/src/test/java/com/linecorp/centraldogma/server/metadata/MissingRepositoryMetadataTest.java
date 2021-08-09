@@ -40,7 +40,6 @@ class MissingRepositoryMetadataTest {
     final ProjectManagerExtension manager = new ProjectManagerExtension() {
         @Override
         protected void afterExecutorStarted() {
-            MigrationUtil.migrate(projectManager(), executor());
             // Create a project and its metadata here.
             executor().execute(Command.createProject(AUTHOR, PROJ)).join();
         }

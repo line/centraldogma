@@ -74,7 +74,7 @@ public class MetadataService {
     /**
      * A path of token list file.
      */
-    static final String TOKEN_JSON = "/tokens.json";
+    public static final String TOKEN_JSON = "/tokens.json";
 
     /**
      * A {@link JsonPointer} of project removal information.

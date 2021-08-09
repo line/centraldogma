@@ -713,9 +713,9 @@ public final class ZooKeeperCommandExecutor
             return;
         }
 
+        long nextRevision = info.lastReplayedRevision + 1;
         try {
             for (;;) {
-                final long nextRevision = info.lastReplayedRevision + 1;
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
                 if (log.isPresent()) {
                     final ReplicationLog<?> l = log.get();
@@ -725,7 +725,7 @@ public final class ZooKeeperCommandExecutor
 
                     if (!Objects.equals(expectedResult, actualResult)) {
                         throw new ReplicationException(
-                                "mismatching replay result at revision " + info.lastReplayedRevision +
+                                "mismatching replay result at revision " + nextRevision +
                                 ": " + actualResult + " (expected: " + expectedResult +
                                 ", command: " + command + ')');
                     }
@@ -736,22 +736,22 @@ public final class ZooKeeperCommandExecutor
                     // same replicaId. skip
                 }
 
-                info.lastReplayedRevision = nextRevision;
                 updateLastReplayedRevision(nextRevision);
+                info.lastReplayedRevision = nextRevision;
                 if (nextRevision == targetRevision) {
                     break;
+                } else {
+                    nextRevision++;
                 }
             }
         } catch (Throwable t) {
-            logger.error("Failed to replay a log at revision {}; entering read-only mode",
-                         info.lastReplayedRevision, t);
+            logger.error("Failed to replay a log at revision {}; entering read-only mode", nextRevision, t);
             stopLater();
 
             if (t instanceof ReplicationException) {
                 throw (ReplicationException) t;
             }
-            throw new ReplicationException("failed to replay a log at revision " +
-                                           info.lastReplayedRevision, t);
+            throw new ReplicationException("failed to replay a log at revision " + nextRevision, t);
         }
     }
 
