@@ -120,6 +120,14 @@ public class Revision implements Comparable<Revision> {
     }
 
     /**
+     * Tells whether the {@link #major()} of this {@link Revision} is lower than the {@code other}
+     * {@link Revision}.
+     */
+    public boolean isLowerThan(Revision other) {
+        return major < other.major();
+    }
+
+    /**
      * Returns {@code 0}.
      *
      * @deprecated Do not use. Minor revisions are not used anymore.

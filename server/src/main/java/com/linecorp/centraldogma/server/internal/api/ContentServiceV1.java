@@ -58,7 +58,6 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
 import com.linecorp.centraldogma.internal.api.v1.EntryDto;
@@ -329,10 +328,9 @@ public class ContentServiceV1 extends AbstractService {
             toRevision = to != null ? new Revision(to) : fromRevision;
         }
 
-        final RevisionRange range = repository.normalizeNow(fromRevision, toRevision).toDescending();
         final int maxCommits0 = firstNonNull(maxCommits, Repository.DEFAULT_MAX_COMMITS);
         return repository
-                .history(range.from(), range.to(), normalizePath(path), maxCommits0)
+                .history(fromRevision, toRevision, normalizePath(path), maxCommits0)
                 .thenApply(commits -> {
                     final boolean toList = to != null ||
                                            isNullOrEmpty(revision) ||

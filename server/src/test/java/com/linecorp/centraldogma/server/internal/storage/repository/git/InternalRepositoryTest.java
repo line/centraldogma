@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.InternalRepository.doRefUpdate;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -29,7 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.server.storage.StorageException;
 
-final class GitRepositoryUtilTest {
+class InternalRepositoryTest {
 
     @Test
     void testDoUpdateRef() throws Exception {
@@ -49,13 +50,13 @@ final class GitRepositoryUtilTest {
         lenient().when(jGitRepo.updateRef(ref)).thenReturn(refUpdate);
 
         lenient().when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.NEW);
-        GitRepositoryUtil.doRefUpdate(jGitRepo, revWalk, ref, commitId);
+        doRefUpdate(jGitRepo, revWalk, ref, commitId);
 
         when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.FAST_FORWARD);
-        GitRepositoryUtil.doRefUpdate(jGitRepo, revWalk, ref, commitId);
+        doRefUpdate(jGitRepo, revWalk, ref, commitId);
 
         when(refUpdate.update(revWalk)).thenReturn(RefUpdate.Result.LOCK_FAILURE);
-        assertThatThrownBy(() -> GitRepositoryUtil.doRefUpdate(jGitRepo, revWalk, ref, commitId))
+        assertThatThrownBy(() -> doRefUpdate(jGitRepo, revWalk, ref, commitId))
                 .isInstanceOf(StorageException.class);
     }
 

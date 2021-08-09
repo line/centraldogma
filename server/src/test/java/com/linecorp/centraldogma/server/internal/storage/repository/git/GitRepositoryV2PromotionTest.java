@@ -91,9 +91,11 @@ class GitRepositoryV2PromotionTest {
         assertThat(repo.secondaryRepo.commitIdDatabase().firstRevision().major()).isEqualTo(23);
         assertThat(repo.secondaryRepo.commitIdDatabase().headRevision().major()).isEqualTo(23);
         assertThat(repo.secondaryRepo.secondCommitCreationTimeInstant()).isNull();
+
+        repo.internalClose();
     }
 
-    private static void addCommits(GitRepositoryV2 repo, int start, int end) {
+    static void addCommits(GitRepositoryV2 repo, int start, int end) {
         for (int i = start; i <= end; i++) {
             repo.commit(Revision.HEAD, i * 1000, Author.SYSTEM,
                         "Summary" + i, "Detail", Markup.PLAINTEXT,

@@ -540,20 +540,17 @@ class GitRepositoryTest {
         assertThat(repo.diff(revision1, revision2, "non_existing_path").join()).isEmpty();
 
         assertThatThrownBy(() -> repo.diff(revision1, revision2, (String) null).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(NullPointerException.class);
+                .isInstanceOf(NullPointerException.class);
 
         assertThatThrownBy(() -> repo.diff(null, revision2, path).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(NullPointerException.class);
+                .isInstanceOf(NullPointerException.class);
 
         assertThatThrownBy(() -> repo.diff(revision1, new Revision(revision2.major() + 1), path).join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(RevisionNotFoundException.class);
+                .hasRootCauseInstanceOf(RevisionNotFoundException.class);
 
         assertThatThrownBy(() -> repo.diff(new Revision(revision2.major() + 1), revision2, path).join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(RevisionNotFoundException.class);
+                .hasRootCauseInstanceOf(RevisionNotFoundException.class);
     }
 
     @Test
@@ -873,12 +870,10 @@ class GitRepositoryTest {
                 .hasCauseInstanceOf(RevisionNotFoundException.class);
 
         assertThatThrownBy(() -> repo.history(null, HEAD, "non_existing_path").join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(NullPointerException.class);
+                .isInstanceOf(NullPointerException.class);
 
         assertThatThrownBy(() -> repo.history(HEAD, null, "non_existing_path").join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(NullPointerException.class);
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

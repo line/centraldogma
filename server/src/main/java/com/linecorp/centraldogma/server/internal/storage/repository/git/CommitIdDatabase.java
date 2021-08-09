@@ -119,7 +119,8 @@ final class CommitIdDatabase implements AutoCloseable {
 
             final int numRecords = (int) (size / RECORD_LEN);
             if (numRecords > 0) {
-                firstRevision = retrieveFirstRevision();
+                final Revision firstRevision = retrieveFirstRevision();
+                this.firstRevision = firstRevision;
                 headRevision = new Revision(numRecords + firstRevision.major() - 1);
             } else {
                 firstRevision = null;
@@ -169,11 +170,17 @@ final class CommitIdDatabase implements AutoCloseable {
     }
 
     ObjectId get(Revision revision) {
-        final Revision headRevision = this.headRevision;
-        checkState(headRevision != null, "initial commit not available yet: %s", path);
         checkArgument(!revision.isRelative(), "revision: %s (expected: an absolute revision)", revision);
+        final Revision headRevision = this.headRevision;
+        final Revision firstRevision = this.firstRevision;
+        if (headRevision == null || firstRevision == null) {
+            throw new IllegalStateException("initial commit not available yet: " + path);
+        }
+
         if (!(firstRevision.major() <= revision.major() && revision.major() <= headRevision.major())) {
-            throw new RevisionNotFoundException(revision);
+            throw new RevisionNotFoundException(
+                    "revision: " + revision +
+                    " (expected: " + firstRevision.major() + " <= revision <= " + headRevision.major() + ")");
         }
 
         final ByteBuffer buf = threadLocalBuffer.get();
