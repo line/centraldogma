@@ -29,15 +29,19 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Streams;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
@@ -76,6 +80,8 @@ import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequest
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
+import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
@@ -89,6 +95,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 @RequestConverter(CommitMessageRequestConverter.class)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class ContentServiceV1 extends AbstractService {
+
+    private static final String MIRROR_LOCAL_REPO = "localRepo";
 
     private final WatchService watchService;
 
@@ -177,6 +185,7 @@ public class ContentServiceV1 extends AbstractService {
             Author author,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
+        checkMirrorLocalRepo(repository, changes);
 
         final long commitTimeMillis = System.currentTimeMillis();
         return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
@@ -194,6 +203,44 @@ public class ContentServiceV1 extends AbstractService {
         return execute(Command.push(
                 commitTimeMills, author, repository.parent().name(), repository.name(),
                 revision, summary, detail, markup, changes)).thenApply(CommitResult::revision);
+    }
+
+    /**
+     * Checks if the commit is for mirroring setting and raises an exception if the {@code localRepo} field
+     * is one of {@code meta} and {@code dogma} which are internal repositories.
+     */
+    private void checkMirrorLocalRepo(Repository repository, Iterable<Change<?>> changes) {
+        // TODO(minwoox): Provide an internal API for mirroring setup with a better UI(?) and check this there.
+        if (Project.REPO_META.equals(repository.name())) {
+            final Optional<String> notAllowedLocalRepo =
+                    Streams.stream(changes)
+                           .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
+                           .filter(change -> change.content() != null)
+                           .map(change -> {
+                               final Object content = change.content();
+                               if (content != null && content instanceof JsonNode) {
+                                   final JsonNode node = (JsonNode) content;
+                                   if (!node.isArray()) {
+                                       return null;
+                                   }
+                                   for (JsonNode jsonNode : node) {
+                                       final JsonNode localRepoNode = jsonNode.get(MIRROR_LOCAL_REPO);
+                                       if (localRepoNode != null) {
+                                           final String localRepo = localRepoNode.textValue();
+                                           if (Project.REPO_META.equals(localRepo) ||
+                                               Project.REPO_DOGMA.equals(localRepo)) {
+                                               return localRepo;
+                                           }
+                                       }
+                                   }
+                               }
+                               return null;
+                           }).filter(Objects::nonNull).findFirst();
+            if (notAllowedLocalRepo.isPresent()) {
+                throw new IllegalArgumentException("invalid " + MIRROR_LOCAL_REPO + ": " +
+                                                   notAllowedLocalRepo.get());
+            }
+        }
     }
 
     /**
