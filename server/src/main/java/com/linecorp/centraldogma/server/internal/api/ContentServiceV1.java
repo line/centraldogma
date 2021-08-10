@@ -185,7 +185,7 @@ public class ContentServiceV1 extends AbstractService {
             Author author,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-        checkMirrorLocalRepo(repository, changes);
+        checkMirrorLocalRepo(repository.name(), changes);
 
         final long commitTimeMillis = System.currentTimeMillis();
         return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
@@ -203,43 +203,6 @@ public class ContentServiceV1 extends AbstractService {
         return execute(Command.push(
                 commitTimeMills, author, repository.parent().name(), repository.name(),
                 revision, summary, detail, markup, changes)).thenApply(CommitResult::revision);
-    }
-
-    /**
-     * Checks if the commit is for mirroring setting and raises an exception if the {@code localRepo} field
-     * is one of {@code meta} and {@code dogma} which are internal repositories.
-     */
-    private void checkMirrorLocalRepo(Repository repository, Iterable<Change<?>> changes) {
-        // TODO(minwoox): Provide an internal API for mirroring setup with a better UI(?) and check this there.
-        if (Project.REPO_META.equals(repository.name())) {
-            final Optional<String> notAllowedLocalRepo =
-                    Streams.stream(changes)
-                           .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
-                           .filter(change -> change.content() != null)
-                           .map(change -> {
-                               final Object content = change.content();
-                               if (content != null && content instanceof JsonNode) {
-                                   final JsonNode node = (JsonNode) content;
-                                   if (!node.isArray()) {
-                                       return null;
-                                   }
-                                   for (JsonNode jsonNode : node) {
-                                       final JsonNode localRepoNode = jsonNode.get(MIRROR_LOCAL_REPO);
-                                       if (localRepoNode != null) {
-                                           final String localRepo = localRepoNode.textValue();
-                                           if (Project.isReservedRepoName(localRepo)) {
-                                               return localRepo;
-                                           }
-                                       }
-                                   }
-                               }
-                               return null;
-                           }).filter(Objects::nonNull).findFirst();
-            if (notAllowedLocalRepo.isPresent()) {
-                throw new IllegalArgumentException("invalid " + MIRROR_LOCAL_REPO + ": " +
-                                                   notAllowedLocalRepo.get());
-            }
-        }
     }
 
     /**
@@ -435,5 +398,42 @@ public class ContentServiceV1 extends AbstractService {
             @Param @Default("-1") String revision, Repository repository,
             @RequestConverter(MergeQueryRequestConverter.class) MergeQuery<T> query) {
         return repository.mergeFiles(new Revision(revision), query).thenApply(DtoConverter::convert);
+    }
+
+    /**
+     * Checks if the commit is for mirroring setting and raises an exception if the {@code localRepo} field
+     * is one of {@code meta} and {@code dogma} which are internal repositories.
+     */
+    public static void checkMirrorLocalRepo(String repoName, Iterable<Change<?>> changes) {
+        // TODO(minwoox): Provide an internal API for mirroring setup with a better UI(?) and check this there.
+        if (Project.REPO_META.equals(repoName)) {
+            final Optional<String> notAllowedLocalRepo =
+                    Streams.stream(changes)
+                           .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
+                           .filter(change -> change.content() != null)
+                           .map(change -> {
+                               final Object content = change.content();
+                               if (content instanceof JsonNode) {
+                                   final JsonNode node = (JsonNode) content;
+                                   if (!node.isArray()) {
+                                       return null;
+                                   }
+                                   for (JsonNode jsonNode : node) {
+                                       final JsonNode localRepoNode = jsonNode.get(MIRROR_LOCAL_REPO);
+                                       if (localRepoNode != null) {
+                                           final String localRepo = localRepoNode.textValue();
+                                           if (Project.isReservedRepoName(localRepo)) {
+                                               return localRepo;
+                                           }
+                                       }
+                                   }
+                               }
+                               return null;
+                           }).filter(Objects::nonNull).findFirst();
+            if (notAllowedLocalRepo.isPresent()) {
+                throw new IllegalArgumentException("invalid " + MIRROR_LOCAL_REPO + ": " +
+                                                   notAllowedLocalRepo.get());
+            }
+        }
     }
 }
