@@ -405,11 +405,9 @@ public class MetadataService {
         requireNonNull(repoName, "repoName");
         requireNonNull(perRolePermissions, "perRolePermissions");
 
-        for (final String internalRepo : Project.internalRepos()) {
-            if (internalRepo.equals(repoName)) {
-                throw new UnsupportedOperationException(
-                        "can't update the per role permission for internal repository: " + repoName);
-            }
+        if (Project.isReservedRepoName(repoName)) {
+            throw new UnsupportedOperationException(
+                    "can't update the per role permission for internal repository: " + repoName);
         }
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) +
