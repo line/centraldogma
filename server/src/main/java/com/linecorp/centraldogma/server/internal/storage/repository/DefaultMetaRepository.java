@@ -63,8 +63,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
     @VisibleForTesting
     static final String PATH_CREDENTIALS = "/credentials.json";
 
-    @VisibleForTesting
-    static final String PATH_MIRRORS = "/mirrors.json";
+    public static final String PATH_MIRRORS = "/mirrors.json";
 
     private static final String PATH_CREDENTIALS_AND_MIRRORS = PATH_CREDENTIALS + ',' + PATH_MIRRORS;
 

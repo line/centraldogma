@@ -46,12 +46,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
 
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
@@ -392,13 +395,25 @@ class GitMirrorTest {
                 .hasMessageContaining("byte");
     }
 
+    @CsvSource({ "meta", "dogma" })
+    @ParameterizedTest
+    void cannotMirrorToInternalRepositories(String localRepo) {
+        assertThatThrownBy(() -> pushMirrorSettings(localRepo, "/", "/"))
+                .hasCauseInstanceOf(CentralDogmaException.class)
+                .hasMessageContaining("invalid localRepo:");
+    }
+
     private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath) {
+        pushMirrorSettings(REPO_FOO, localPath, remotePath);
+    }
+
+    private void pushMirrorSettings(String localRepo, @Nullable String localPath, @Nullable String remotePath) {
         client.push(projName, Project.REPO_META, Revision.HEAD, "Add /mirrors.json",
                     Change.ofJsonUpsert("/mirrors.json",
                                         "[{" +
                                         "  \"type\": \"single\"," +
                                         "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                                        "  \"localRepo\": \"" + REPO_FOO + "\"," +
+                                        "  \"localRepo\": \"" + localRepo + "\"," +
                                         (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
                                         "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
                                         "}]")).join();
