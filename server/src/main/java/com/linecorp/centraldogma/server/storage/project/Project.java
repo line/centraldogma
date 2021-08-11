@@ -16,7 +16,10 @@
 
 package com.linecorp.centraldogma.server.storage.project;
 
+import static com.linecorp.centraldogma.server.storage.project.ProjectUtil.internalRepos;
 import static java.util.Objects.requireNonNull;
+
+import java.util.List;
 
 import com.google.common.base.Ascii;
 
@@ -70,11 +73,18 @@ public interface Project {
     RepositoryManager repos();
 
     /**
+     * Returns the list of internal repositories which are {@link #REPO_DOGMA} and {@link #REPO_META}.
+     */
+    static List<String> internalRepos() {
+        return internalRepos;
+    }
+
+    /**
      * Returns {@code true} if the specified repository name is reserved by Central Dogma.
      */
     static boolean isReservedRepoName(String repoName) {
         requireNonNull(repoName, "repoName");
         repoName = Ascii.toLowerCase(repoName);
-        return REPO_META.equals(repoName) || REPO_DOGMA.equals(repoName);
+        return internalRepos().contains(repoName);
     }
 }

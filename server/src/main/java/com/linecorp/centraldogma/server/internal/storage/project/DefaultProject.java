@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.storage.project;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static com.linecorp.centraldogma.server.metadata.MetadataService.METADATA_JSON;
 import static java.util.Objects.requireNonNull;
 
@@ -144,7 +144,7 @@ public class DefaultProject implements Project {
 
     private void initializeMetadata(long creationTimeMillis, Author author) {
         // Do not generate a metadata file for internal projects.
-        if (name.equals(INTERNAL_PROJ)) {
+        if (name.equals(INTERNAL_PROJECT_DOGMA)) {
             return;
         }
 
@@ -155,7 +155,7 @@ public class DefaultProject implements Project {
 
             final UserAndTimestamp userAndTimestamp = UserAndTimestamp.of(author);
             final RepositoryMetadata repo = new RepositoryMetadata(REPO_META, userAndTimestamp,
-                                                                   PerRolePermissions.DEFAULT);
+                                                                   PerRolePermissions.ofInternal());
             final Member member = new Member(author, ProjectRole.OWNER, userAndTimestamp);
             final ProjectMetadata metadata = new ProjectMetadata(name,
                                                                  ImmutableMap.of(repo.id(), repo),

@@ -38,7 +38,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 
 public final class ProjectInitializer {
 
-    public static final String INTERNAL_PROJ = "dogma";
+    public static final String INTERNAL_PROJECT_DOGMA = "dogma";
 
     /**
      * Creates an internal project and repositories such as a token storage.
@@ -46,7 +46,7 @@ public final class ProjectInitializer {
     public static void initializeInternalProject(CommandExecutor executor) {
         final long creationTimeMillis = System.currentTimeMillis();
         try {
-            executor.execute(createProject(creationTimeMillis, Author.SYSTEM, INTERNAL_PROJ))
+            executor.execute(createProject(creationTimeMillis, Author.SYSTEM, INTERNAL_PROJECT_DOGMA))
                     .get();
         } catch (Throwable cause) {
             cause = Exceptions.peel(cause);
@@ -57,9 +57,10 @@ public final class ProjectInitializer {
 
         // These repositories might be created when creating an internal project, but we try to create them
         // again here in order to make sure them exist because sometimes their names are changed.
-        for (final String repo : ImmutableList.of(Project.REPO_META, Project.REPO_DOGMA)) {
+        for (final String repo : Project.internalRepos()) {
             try {
-                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM, INTERNAL_PROJ, repo))
+                executor.execute(createRepository(creationTimeMillis, Author.SYSTEM,
+                                                  INTERNAL_PROJECT_DOGMA, repo))
                         .get();
             } catch (Throwable cause) {
                 cause = Exceptions.peel(cause);
@@ -72,9 +73,9 @@ public final class ProjectInitializer {
         try {
             final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
                                                         null, Jackson.valueToTree(new Tokens()));
-            final String commitSummary = "Initialize the token list file: /" + INTERNAL_PROJ + '/' +
+            final String commitSummary = "Initialize the token list file: /" + INTERNAL_PROJECT_DOGMA + '/' +
                                          Project.REPO_DOGMA + MetadataService.TOKEN_JSON;
-            executor.execute(push(Author.SYSTEM, INTERNAL_PROJ, Project.REPO_DOGMA, Revision.HEAD,
+            executor.execute(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, Revision.HEAD,
                                   commitSummary, "", Markup.PLAINTEXT, ImmutableList.of(change)))
                     .get();
         } catch (Throwable cause) {

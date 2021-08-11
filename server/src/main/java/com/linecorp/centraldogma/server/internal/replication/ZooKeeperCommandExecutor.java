@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
@@ -824,7 +824,7 @@ public final class ZooKeeperCommandExecutor
 
     @Nullable
     private WriteLock acquireWriteLock(NormalizingPushCommand command) throws Exception {
-        if (command.projectName().equals(INTERNAL_PROJ) ||
+        if (command.projectName().equals(INTERNAL_PROJECT_DOGMA) ||
             command.repositoryName().equals(Project.REPO_DOGMA)) {
             // Do not check quota for internal project and repository.
             return null;

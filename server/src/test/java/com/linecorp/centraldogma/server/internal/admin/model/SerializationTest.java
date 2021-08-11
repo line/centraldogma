@@ -66,7 +66,7 @@ class SerializationTest {
         final String userLogin = "armeria@dogma.org";
         final Member member = new Member(userLogin, ProjectRole.MEMBER, newCreationTag());
         final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),
-                                                                             PerRolePermissions.DEFAULT);
+                                                                             PerRolePermissions.ofDefault());
         final Token token = new Token("testApp", "testSecret", false, newCreationTag(), null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
@@ -86,7 +86,7 @@ class SerializationTest {
                                            "      \"perRolePermissions\" : {\n" +
                                            "        \"owner\" : [ \"READ\", \"WRITE\" ],\n" +
                                            "        \"member\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"guest\" : [ \"READ\", \"WRITE\" ]\n" +
+                                           "        \"guest\" : []\n" +
                                            "      },\n" +
                                            "      \"perUserPermissions\" : { },\n" +
                                            "      \"perTokenPermissions\" : { },\n" +
@@ -140,7 +140,7 @@ class SerializationTest {
         final Member member = new Member("armeria@dogma.org", ProjectRole.MEMBER,
                                          newCreationTag());
         final RepositoryMetadata repositoryMetadata = new RepositoryMetadata("sample", newCreationTag(),
-                                                                             PerRolePermissions.DEFAULT);
+                                                                             PerRolePermissions.ofDefault());
         final Token token = new Token("testApp", "testSecret", false, newCreationTag(), null);
         final ProjectMetadata metadata =
                 new ProjectMetadata("test",
@@ -161,7 +161,7 @@ class SerializationTest {
                                            "      \"perRolePermissions\" : {\n" +
                                            "        \"owner\" : [ \"READ\", \"WRITE\" ],\n" +
                                            "        \"member\" : [ \"READ\", \"WRITE\" ],\n" +
-                                           "        \"guest\" : [ \"READ\", \"WRITE\" ]\n" +
+                                           "        \"guest\" : []\n" +
                                            "      },\n" +
                                            "      \"perUserPermissions\" : { },\n" +
                                            "      \"perTokenPermissions\" : { },\n" +
