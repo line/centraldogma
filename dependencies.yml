@@ -4,7 +4,7 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.12.4
-- com.linecorp.armeria:armeria-bom:1.10.0
+- com.linecorp.armeria:armeria-bom:1.11.0
 - io.micrometer:micrometer-bom:1.7.3
 - org.junit:junit-bom:5.7.2
 
@@ -165,7 +165,7 @@ me.champeau.jmh:
   jmh-gradle-plugin: { version: '0.6.5' }
 
 net.javacrumbs.json-unit:
-  json-unit: { version: &JSON_UNIT_VERSION '2.27.0' }
+  json-unit: { version: &JSON_UNIT_VERSION '2.28.0' }
   json-unit-fluent: { version: *JSON_UNIT_VERSION }
 
 com.guardsquare:
@@ -225,7 +225,7 @@ org.javassist:
   javassist: { version: '3.28.0-GA' }
 
 org.mockito:
-  mockito-core: { version: &MOCKITO_VERSION '3.11.2' }
+  mockito-core: { version: &MOCKITO_VERSION '3.12.4' }
   mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
