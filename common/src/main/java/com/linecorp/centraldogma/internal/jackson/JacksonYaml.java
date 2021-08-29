@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.internal.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
@@ -30,6 +31,7 @@ public final class JacksonYaml extends AbstractJackson {
 
     static {
         yamlMapper.disable(Feature.WRITE_DOC_START_MARKER);
+        yamlMapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
     }
 
     private static final YAMLFactory yamlFactory = yamlMapper.getFactory();
