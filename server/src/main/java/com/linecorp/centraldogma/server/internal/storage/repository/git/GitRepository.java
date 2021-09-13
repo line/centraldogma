@@ -1617,7 +1617,7 @@ class GitRepository implements Repository {
 
     @Override
     public void removeOldCommits(int minRetentionCommits, int minRetentionDays) {
-        // Not supported.
+        throw new UnsupportedOperationException();
     }
 
     @Override

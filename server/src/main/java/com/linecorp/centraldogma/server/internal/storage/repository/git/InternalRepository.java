@@ -187,10 +187,10 @@ final class InternalRepository {
     }
 
     private static void createEmptyJGitRepo(File repositoryDir) throws IOException {
-        try (org.eclipse.jgit.lib.Repository initRepository = buildJGitRepo(repositoryDir)) {
-            initRepository.create(true);
+        try (org.eclipse.jgit.lib.Repository jGitRepository = buildJGitRepo(repositoryDir)) {
+            jGitRepository.create(true);
 
-            final StoredConfig config = initRepository.getConfig();
+            final StoredConfig config = jGitRepository.getConfig();
             // Update the repository settings to upgrade to format version 1 and reftree.
             config.setInt(CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 1);
 
@@ -267,16 +267,19 @@ final class InternalRepository {
 
     private static RevWalk newRevWalk(Repository jGitRepository) {
         final RevWalk revWalk = new RevWalk(jGitRepository);
-        // Disable rewriteParents because otherwise `RevWalk` will load every commit into memory.
-        revWalk.setRewriteParents(false);
+        disableRewriteParents(revWalk);
         return revWalk;
     }
 
     private static RevWalk newRevWalk(ObjectReader reader) {
         final RevWalk revWalk = new RevWalk(reader);
+        disableRewriteParents(revWalk);
+        return revWalk;
+    }
+
+    private static void disableRewriteParents(RevWalk revWalk) {
         // Disable rewriteParents because otherwise `RevWalk` will load every commit into memory.
         revWalk.setRewriteParents(false);
-        return revWalk;
     }
 
     private static void checkGitRepositoryFormat(Repository repository) {

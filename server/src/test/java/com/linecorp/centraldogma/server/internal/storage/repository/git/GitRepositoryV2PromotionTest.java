@@ -97,9 +97,13 @@ class GitRepositoryV2PromotionTest {
 
     static void addCommits(GitRepositoryV2 repo, int start, int end) {
         for (int i = start; i <= end; i++) {
-            repo.commit(Revision.HEAD, i * 1000, Author.SYSTEM,
-                        "Summary" + i, "Detail", Markup.PLAINTEXT,
-                        Change.ofTextUpsert("/file_" + i + ".txt", String.valueOf(i))).join();
+            final Change<String> change = Change.ofTextUpsert("/file_" + i + ".txt", String.valueOf(i));
+            addCommit(repo, i, change);
         }
+    }
+
+    static void addCommit(GitRepositoryV2 repo, int index, Change<String> change) {
+        repo.commit(Revision.HEAD, index * 1000, Author.SYSTEM,
+                    "Summary" + index, "Detail", Markup.PLAINTEXT, change).join();
     }
 }

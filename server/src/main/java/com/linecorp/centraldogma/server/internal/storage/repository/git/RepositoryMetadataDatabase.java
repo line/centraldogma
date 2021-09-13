@@ -85,8 +85,8 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
         }
 
         if (create) {
-            writeSuffix(INITIAL_PRIMARY_SUFFIX);
             primarySuffix = INITIAL_PRIMARY_SUFFIX;
+            writeSuffix(primarySuffix);
         } else {
             boolean success = false;
             try {
@@ -131,7 +131,7 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
             } while (buf.hasRemaining());
             channel.force(true);
         } catch (IOException e) {
-            throw new StorageException("failed to update the suffix (" +  suffix +
+            throw new StorageException("failed to write the suffix (" +  suffix +
                                        ") of the primary repository: " + path, e);
         }
     }
@@ -159,10 +159,12 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
         return repoDir(rootDir, addOne(primarySuffix));
     }
 
-    void setPrimaryRepoDir(File newRepoDir) {
+    void setPrimaryRepoDir(File newRepoDir) { // e.g. /foo_0000123457
+        // e.g. primarySuffix: 0000123456, newPrimarySuffix: 0000123457
         final String newPrimarySuffix = addOne(primarySuffix);
+        // e.g. secondary: /foo_0000123457
         final File secondary = new File(rootDir, rootDir.getName() + '_' + newPrimarySuffix);
-        assert newRepoDir.equals(secondaryRepoDir());
+        assert newRepoDir.equals(secondary);
         primarySuffix = newPrimarySuffix;
         writeSuffix(newPrimarySuffix);
     }
@@ -176,23 +178,12 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
         }
     }
 
-    void closeAndDelete() {
-        try {
-            channel.close();
-        } catch (IOException e) {
-            logger.warn("Failed to close the commit ID database: {}", path, e);
-        }
-        if (!path.toFile().delete()) {
-            logger.warn("Failed to delete the commit ID database: {}", path);
-        }
-    }
-
     @VisibleForTesting
-    static String addOne(String suffix) {
-        final int intSuffix = Integer.parseInt(suffix);
-        final String str = String.valueOf(intSuffix + 1);
+    static String addOne(String suffix) { // e.g. "0000123456"
+        final int intSuffix = Integer.parseInt(suffix); // e.g. 123456
+        final String str = String.valueOf(intSuffix + 1); // e.g. "123457"
         if (str.length() < 10) {
-            return INITIAL_PRIMARY_SUFFIX.substring(0, 10 - str.length()) + str;
+            return INITIAL_PRIMARY_SUFFIX.substring(0, 10 - str.length()) + str; // e.g. "0000123457"
         }
         return str;
     }

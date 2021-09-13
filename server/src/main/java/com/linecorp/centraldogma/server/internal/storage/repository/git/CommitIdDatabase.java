@@ -204,6 +204,7 @@ final class CommitIdDatabase implements AutoCloseable {
 
     private synchronized void put(Revision revision, ObjectId commitId, boolean isNewHeadRevision) {
         if (isNewHeadRevision) {
+            final Revision headRevision = this.headRevision;
             if (headRevision != null) {
                 final Revision expected = headRevision.forward(1);
                 checkState(revision.equals(expected), "incorrect revision: %s (expected: %s)",
@@ -234,10 +235,11 @@ final class CommitIdDatabase implements AutoCloseable {
             throw new StorageException("failed to update the commit ID database: " + path, e);
         }
 
+        final Revision headRevision = this.headRevision;
         if (isNewHeadRevision ||
             headRevision == null ||
             headRevision.major() < revision.major()) {
-            headRevision = revision;
+            this.headRevision = revision;
         }
     }
 
@@ -292,8 +294,7 @@ final class CommitIdDatabase implements AutoCloseable {
                     currentId = revCommit.getParent(0);
                     break;
                 default:
-                    throw new StorageException("found more than one parent: " +
-                                               gitRepo.getDirectory());
+                    throw new StorageException("found more than one parent: " + gitRepo.getDirectory());
             }
 
             revCommit = revWalk.parseCommit(currentId);

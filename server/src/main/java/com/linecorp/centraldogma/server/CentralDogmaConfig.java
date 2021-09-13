@@ -169,8 +169,7 @@ public final class CentralDogmaConfig {
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
-            @JsonProperty("commitRetention") @Nullable
-                    CommitRetentionConfig commitRetentionConfig) {
+            @JsonProperty("commitRetention") @Nullable CommitRetentionConfig commitRetentionConfig) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));

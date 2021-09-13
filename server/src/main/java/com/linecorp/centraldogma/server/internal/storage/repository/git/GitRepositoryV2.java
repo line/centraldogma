@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2021 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,7 +13,6 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -83,12 +82,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
 
     private static final Logger logger = LoggerFactory.getLogger(GitRepositoryV2.class);
 
-    private static final String PRIMARY_REPOSITORY_SUFFIX = "_primary";
-    private static final String FOLLOWER_REPOSITORY_SUFFIX = "_secondary";
-
     static final String R_HEADS_MASTER = Constants.R_HEADS + Constants.MASTER;
-
-    private static final byte[] EMPTY_BYTE = new byte[0];
 
     /**
      * Opens an existing Git-backed repository.
@@ -105,8 +99,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
 
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Project parent;
-    private final File repositoryDir;
-    private final String name;
+    private final String originalRepoName;
     private final Executor repositoryWorker;
 
     private final RepositoryMetadataDatabase repoMetadata;
@@ -139,10 +132,8 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
 
     GitRepositoryV2(Project parent, File repositoryDir, Executor repositoryWorker,
                     long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
-
         this.parent = requireNonNull(parent, "parent");
-        this.repositoryDir = requireNonNull(repositoryDir, "repositoryDir");
-        name = repositoryDir.getName();
+        originalRepoName = requireNonNull(repositoryDir, "repositoryDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.cache = cache;
 
@@ -163,7 +154,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         repoMetadata = new RepositoryMetadataDatabase(repositoryDir, true);
         final File primaryRepoDir = repoMetadata.primaryRepoDir();
         try {
-            primaryRepo = InternalRepository.of(parent, name, primaryRepoDir, Revision.INIT,
+            primaryRepo = InternalRepository.of(parent, originalRepoName, primaryRepoDir, Revision.INIT,
                                                 creationTimeMillis, author, ImmutableList.of());
         } catch (Throwable t) {
             repoMetadata.close();
@@ -189,8 +180,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
     private GitRepositoryV2(Project parent, File repoDir, Executor repositoryWorker,
                             @Nullable RepositoryCache cache) {
         this.parent = requireNonNull(parent, "parent");
-        this.repositoryDir = requireNonNull(repoDir, "repoDir");
-        name = repoDir.getName();
+        originalRepoName = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
         this.cache = cache;
 
@@ -207,14 +197,15 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         this.repoMetadata = repoMetadata;
         try {
             final InternalRepository primaryRepo =
-                    InternalRepository.open(parent, name, repoMetadata.primaryRepoDir(), true);
+                    InternalRepository.open(parent, originalRepoName, repoMetadata.primaryRepoDir(), true);
             assert primaryRepo != null;
             this.primaryRepo = primaryRepo;
             headRevision = primaryRepo.headRevision();
             final Commit initialCommit = currentInitialCommit(primaryRepo);
             creationTimeMillis = initialCommit.when();
             author = initialCommit.author();
-            secondaryRepo = InternalRepository.open(parent, name, repoMetadata.secondaryRepoDir(), false);
+            secondaryRepo = InternalRepository.open(parent, originalRepoName,
+                                                    repoMetadata.secondaryRepoDir(), false);
         } catch (Throwable t) {
             repoMetadata.close();
             closeInternalRepository(primaryRepo);
@@ -283,6 +274,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
                 try {
                     closeInternalRepository(primaryRepo);
                     closeInternalRepository(secondaryRepo);
+                    repoMetadata.close();
                 } finally {
                     rwLock.writeLock().unlock();
                     commitWatchers.close(failureCauseSupplier);
@@ -308,7 +300,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
 
     @Override
     public String name() {
-        return name;
+        return originalRepoName;
     }
 
     @Override
@@ -386,11 +378,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             readLock();
             try {
                 final Revision normalizedRevision = normalizeNow(revision);
-                // Query on a non-exist revision will return empty result.
                 final Revision headRevision = this.headRevision;
-                if (normalizedRevision.compareTo(headRevision) > 0) {
-                    return Collections.emptyMap();
-                }
                 if ("/".equals(pathPattern)) {
                     return Collections.singletonMap(pathPattern, Entry.ofDirectory(normalizedRevision, "/"));
                 }
@@ -538,11 +526,10 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "history", from, to, pathPattern, maxCommits);
-            final int maxCommits0 = Math.min(maxCommits, MAX_MAX_COMMITS);
             readLock();
             try {
                 final RevisionRange range = normalizeNow(from, to);
-                return primaryRepo.listCommits(pathPattern, maxCommits0, range);
+                return primaryRepo.listCommits(pathPattern, Math.min(maxCommits, MAX_MAX_COMMITS), range);
             } finally {
                 readUnlock();
             }
@@ -589,7 +576,9 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             range = new RevisionRange(normalizeNow(lastKnownRevision, false), headRevision);
             if (range.from().isLowerThan(primaryRepo.firstRevision())) {
                 // We should return range.to() without comparing two tree. It's because:
-                // - the entry might be changed between the lastKnownRevision and first revision.
+                // - the entry might be changed between the lastKnownRevision(in the previous repository
+                //   that is removed and superseded by the current primaryRepo)
+                //   and first revision(in the current primaryRepo).
                 // - but the previous commits before the first revision is packed and committed to the
                 //   primaryRepo at once, we really don't know if there was a change.
                 // - so it's safe to return the latest revision so that the client get notified when watching.
@@ -634,7 +623,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         requireNonNull(pathPattern, "pathPattern");
 
         final ServiceRequestContext ctx = context();
-        final Revision normLastKnownRevision = normalizeNow(lastKnownRevision);
+        final Revision normLastKnownRevision = normalizeNow(lastKnownRevision, false);
         final CompletableFuture<Revision> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "watch", lastKnownRevision, pathPattern);
@@ -684,9 +673,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
     }
 
     private Commit currentInitialCommit(InternalRepository primaryRepo) {
-        final Revision firstRevision = primaryRepo.commitIdDatabase().firstRevision();
-        // This method is called when opening an existing repository so firstRevision is not null.
-        assert firstRevision != null;
+        final Revision firstRevision = primaryRepo.firstRevision();
         final RevisionRange range = new RevisionRange(firstRevision, firstRevision);
         return primaryRepo.listCommits(ALL_PATH, 1, range).get(0);
     }
@@ -709,7 +696,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         final InternalRepository secondaryRepo = this.secondaryRepo;
         if (secondaryRepo != null) {
             if (exceedsMinRetention(secondaryRepo, minRetentionCommits, minRetentionDays)) {
-                promoteSecondaryRepo();
+                promoteSecondaryRepo(secondaryRepo);
             }
         } else if (exceedsMinRetention(primaryRepo, minRetentionCommits, minRetentionDays)) {
             createSecondaryRepo();
@@ -719,11 +706,8 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
     private boolean exceedsMinRetention(InternalRepository repo,
                                         int minRetentionCommits, int minRetentionDays) {
         final CommitIdDatabase commitIdDatabase = repo.commitIdDatabase();
-        final Revision headRevision = commitIdDatabase.headRevision();
-        final Revision firstRevision = commitIdDatabase.firstRevision();
-        if (headRevision == null || firstRevision == null) {
-            return false;
-        }
+        final Revision headRevision = repo.headRevision();
+        final Revision firstRevision = repo.firstRevision();
         if (minRetentionCommits != 0) {
             if (headRevision.major() - firstRevision.major() <= minRetentionCommits) {
                 return false;
@@ -738,32 +722,29 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         return true;
     }
 
-    private void promoteSecondaryRepo() {
-        final InternalRepository secondaryRepo = this.secondaryRepo;
-        if (secondaryRepo != null) {
-            writeLock();
-            try {
-                logger.info("Promoting the secondary repository in {}/{}.", parent.name(), name);
-                repoMetadata.setPrimaryRepoDir(secondaryRepo.jGitRepo().getDirectory());
-                final InternalRepository primaryRepo = this.primaryRepo;
-                this.primaryRepo = secondaryRepo;
-                this.secondaryRepo = null;
-                repositoryWorker.execute(() -> {
-                    closeInternalRepository(primaryRepo);
-                    final File repoDir = primaryRepo.repoDir();
-                    try {
-                        if (!deleteDirectory(repoDir)) {
-                            logger.warn("Failed to delete the old primary repository: {}", repoDir);
-                        }
-                    } catch (Throwable t) {
+    private void promoteSecondaryRepo(InternalRepository secondaryRepo) {
+        writeLock();
+        try {
+            logger.info("Promoting the secondary repository in {}/{}.", parent.name(), originalRepoName);
+            repoMetadata.setPrimaryRepoDir(secondaryRepo.jGitRepo().getDirectory());
+            final InternalRepository primaryRepo = this.primaryRepo;
+            this.primaryRepo = secondaryRepo;
+            this.secondaryRepo = null;
+            repositoryWorker.execute(() -> {
+                closeInternalRepository(primaryRepo);
+                final File repoDir = primaryRepo.repoDir();
+                try {
+                    if (!deleteDirectory(repoDir)) {
                         logger.warn("Failed to delete the old primary repository: {}", repoDir);
                     }
-                });
-                logger.info("Promotion is done for {}/{}. {} is now the primary.",
-                            parent.name(), name, secondaryRepo.repoDir());
-            } finally {
-                writeUnLock();
-            }
+                } catch (Throwable t) {
+                    logger.warn("Failed to delete the old primary repository: {}", repoDir);
+                }
+            });
+            logger.info("Promotion is done for {}/{}. {} is now the primary.",
+                        parent.name(), originalRepoName, secondaryRepo.repoDir());
+        } finally {
+            writeUnLock();
         }
 
         createSecondaryRepo();
@@ -787,12 +768,12 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             writeUnLock();
 
             logger.info("Creating the secondary repository in {}/{} with the head revision: {}.",
-                        parent.name(), name, headRevision);
+                        parent.name(), originalRepoName, headRevision);
             final Map<String, Entry<?>> entries = find(headRevision, ALL_PATH, ImmutableMap.of()).join();
             final List<Change<?>> changes = toChanges(entries);
             final File secondaryRepoDir = repoMetadata.secondaryRepoDir();
             final InternalRepository secondaryRepo =
-                    InternalRepository.of(parent, name, secondaryRepoDir, headRevision,
+                    InternalRepository.of(parent, originalRepoName, secondaryRepoDir, headRevision,
                                           creationTimeMillis, author, changes);
             writeLock();
             try {
@@ -814,7 +795,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
                 writeUnLock();
             }
             logger.info("The secondary repository {} is created in {}/{}.",
-                        secondaryRepoDir.getName(), parent.name(), name, headRevision);
+                        secondaryRepoDir.getName(), parent.name(), originalRepoName, headRevision);
         } catch (Throwable t) {
             logger.warn("Failed to create the secondary repository", t);
         }
