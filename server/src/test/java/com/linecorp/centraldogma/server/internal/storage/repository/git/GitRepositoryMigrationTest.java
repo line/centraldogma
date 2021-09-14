@@ -52,6 +52,8 @@ class GitRepositoryMigrationTest {
         for (int i = 1; i < 10; i++) {
             assertThat(commits.get(i).summary()).isEqualTo("Summary" + i);
         }
+
+        migrated.internalClose();
     }
 
     private static void addCommits(GitRepository oldRepo) {
