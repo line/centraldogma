@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryV2HistoryTest.createRepository;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryV2PromotionTest.addCommit;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
@@ -62,5 +63,7 @@ class GitRepositoryV2WatchTest {
         addCommit(repo, 21, Change.ofTextUpsert("/file_2.txt", String.valueOf(2 + 2)));
 
         assertThat(future.join()).isEqualTo(new Revision(21));
+        // Make sure CommitWatchers has cleared the watch.
+        await().untilAsserted(() -> assertThat(repo.commitWatchers.watchesMap).isEmpty());
     }
 }

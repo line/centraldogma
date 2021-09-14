@@ -21,6 +21,7 @@ import static com.linecorp.centraldogma.server.internal.storage.repository.git.F
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.failFastIfTimedOut;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryUtil.closeJGitRepo;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.InternalRepository.buildJGitRepo;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -244,12 +245,14 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         if (!primaryRepoDir.mkdirs()) {
             throw new StorageException("failed to create " + primaryRepoDir + " while migrating to V2.");
         }
-        if (!tmpRepoDir.renameTo(primaryRepoDir)) {
-            // Rename it back.
+        try {
+            final Path moved = Files.move(tmpRepoDir.toPath(), primaryRepoDir.toPath(), REPLACE_EXISTING);
+            assert moved == primaryRepoDir.toPath();
+        } catch (IOException e) {
             //noinspection ResultOfMethodCallIgnored
             tmpRepoDir.renameTo(repoDir);
             throw new StorageException("failed to migrate a repository at: " + tmpRepoDir +
-                                       ", to: " + primaryRepoDir);
+                                       ", to: " + primaryRepoDir, e);
         }
         checkState(!tmpRepoDir.exists(), "%s is not renamed.", tmpRepoDir);
         logger.debug("Migrating {} is done.", repoDir);

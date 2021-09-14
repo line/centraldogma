@@ -30,6 +30,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.google.common.collect.ImmutableList;
+
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
@@ -54,9 +56,7 @@ class GitRepositoryV2DiffTest {
     @Test
     void diff() {
         Map<String, Change<?>> diffs = repo.diff(new Revision(18), new Revision(20), "/**").join();
-        assertThat(diffs.values()).containsExactly(
-                Change.ofTextUpsert("/file_19.txt", "19" + System.lineSeparator()),
-                Change.ofTextUpsert("/file_20.txt", "20" + System.lineSeparator()));
+        assertThat(paths(diffs)).containsExactly("/file_19.txt", "/file_20.txt");
 
         // It's same when the revisions are reversed.
         assertThat(repo.diff(Revision.HEAD, new Revision(18), "/**").join().values())
@@ -64,11 +64,11 @@ class GitRepositoryV2DiffTest {
 
         diffs = repo.diff(new Revision(10), new Revision(20), "/**").join();
         assertThat(diffs).hasSize(10); // from 11 to 20.
-        final List<Change<?>> expected =
+        final List<String> expected =
                 IntStream.range(11, 21)
-                         .mapToObj(i -> Change.ofTextUpsert("/file_" + i + ".txt", i + System.lineSeparator()))
+                         .mapToObj(i -> "/file_" + i + ".txt")
                          .collect(toImmutableList());
-        assertThat(diffs.values()).containsExactlyInAnyOrderElementsOf(expected);
+        assertThat(paths(diffs)).containsExactlyInAnyOrderElementsOf(expected);
 
         // If the revision is INIT, the result is same as Revision(10) which is the first revision
         // of the new primary repository.
@@ -76,6 +76,10 @@ class GitRepositoryV2DiffTest {
                 .containsExactlyInAnyOrderElementsOf(diffs.values());
 
         assertThat(repo.diff(Revision.INIT, Revision.INIT, "/**").join()).isEmpty();
+    }
+
+    private ImmutableList<String> paths(Map<String, Change<?>> diffs) {
+        return diffs.values().stream().map(Change::path).collect(toImmutableList());
     }
 
     @Test

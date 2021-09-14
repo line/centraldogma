@@ -39,12 +39,13 @@ class GitRepositoryMigrationTest {
 
     @Test
     void migrate() {
-        final GitRepository oldRepo = new GitRepository(mock(Project.class), new File(repoDir, "test_repo"),
+        final File fooDir = new File(repoDir, "foo");
+        final GitRepository oldRepo = new GitRepository(mock(Project.class), new File(fooDir, "test_repo"),
                                                         commonPool(), 0L, Author.SYSTEM);
         addCommits(oldRepo);
         oldRepo.internalClose();
         final GitRepositoryV2 migrated = GitRepositoryV2.open(mock(Project.class),
-                                                              new File(repoDir, "test_repo"), commonPool(),
+                                                              new File(fooDir, "test_repo"), commonPool(),
                                                               null);
         final List<Commit> commits = migrated.history(Revision.INIT, Revision.HEAD, "/**").join();
         assertThat(commits.get(0).summary()).contains("new repository");
