@@ -36,7 +36,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 public final class CommitRetentionConfig {
 
     // The minimum of minRetentionCommits
-    private static final int MINIMUM_MINIMUM_RETENTION_COMMITS = 1000;
+    private static final int MINIMUM_MINIMUM_RETENTION_COMMITS = 5000;
 
     private static final String DEFAULT_SCHEDULE = "0 0 * * * ?"; // Every day
     private static final CronParser cronParser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(

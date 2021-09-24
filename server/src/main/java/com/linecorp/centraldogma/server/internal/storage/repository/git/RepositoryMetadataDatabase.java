@@ -24,14 +24,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-import javax.annotation.Nullable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.cronutils.utils.VisibleForTesting;
 
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.storage.StorageException;
 
 /**
@@ -59,11 +56,6 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
     private final File rootDir;
     private final Path path;
     private final FileChannel channel;
-    @Nullable
-    private volatile Revision headRevision;
-    @Nullable
-    private volatile Revision firstRevision;
-
     private String primarySuffix;
 
     RepositoryMetadataDatabase(File rootDir, boolean create) {
@@ -156,12 +148,12 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
     }
 
     File secondaryRepoDir() {
-        return repoDir(rootDir, addOne(primarySuffix));
+        return repoDir(rootDir, increment(primarySuffix));
     }
 
     void setPrimaryRepoDir(File newRepoDir) { // e.g. /foo_0000123457
         // e.g. primarySuffix: 0000123456, newPrimarySuffix: 0000123457
-        final String newPrimarySuffix = addOne(primarySuffix);
+        final String newPrimarySuffix = increment(primarySuffix);
         // e.g. secondary: /foo_0000123457
         final File secondary = new File(rootDir, rootDir.getName() + '_' + newPrimarySuffix);
         assert newRepoDir.equals(secondary);
@@ -179,7 +171,7 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
     }
 
     @VisibleForTesting
-    static String addOne(String suffix) { // e.g. "0000123456"
+    static String increment(String suffix) { // e.g. "0000123456"
         final int intSuffix = Integer.parseInt(suffix); // e.g. 123456
         final String str = String.valueOf(intSuffix + 1); // e.g. "123457"
         if (str.length() < 10) {

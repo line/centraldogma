@@ -40,8 +40,9 @@ class GitRepositoryMigrationTest {
     @Test
     void migrate() {
         final File fooDir = new File(repoDir, "foo");
-        final GitRepository oldRepo = new GitRepository(mock(Project.class), new File(fooDir, "test_repo"),
-                                                        commonPool(), 0L, Author.SYSTEM);
+        final LegacyGitRepository oldRepo =
+                new LegacyGitRepository(mock(Project.class), new File(fooDir, "test_repo"),
+                                        commonPool(), 0L, Author.SYSTEM);
         addCommits(oldRepo);
         oldRepo.internalClose();
         final GitRepositoryV2 migrated = GitRepositoryV2.open(mock(Project.class),
@@ -56,7 +57,7 @@ class GitRepositoryMigrationTest {
         migrated.internalClose();
     }
 
-    private static void addCommits(GitRepository oldRepo) {
+    private static void addCommits(LegacyGitRepository oldRepo) {
         for (int i = 1; i < 10; i++) {
             oldRepo.commit(Revision.HEAD, 0, Author.SYSTEM,
                            "Summary" + i, "Detail", Markup.PLAINTEXT,

@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
+import static com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager.SUFFIX_REMOVED;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -79,8 +80,9 @@ class GitRepositoryV2PromotionTest {
         // The secondary repo is promoted to the primary repo.
         assertThat(repo.primaryRepo).isSameAs(secondaryRepo);
         assertThat(repo.primaryRepo).isNotSameAs(primaryRepo);
-        // The old primary repo is gone now.
+        // The old primary repo is gone and renamed.
         await().until(() -> !primaryRepo.repoDir().exists());
+        assertThat(new File(primaryRepo.repoDir() + SUFFIX_REMOVED).exists()).isTrue();
 
         final CommitIdDatabase newPrimaryDatabase = repo.primaryRepo.commitIdDatabase();
         assertThat(newPrimaryDatabase.firstRevision().major()).isEqualTo(12);

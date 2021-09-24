@@ -39,7 +39,7 @@ final class FailFastUtil {
     }
 
     @SuppressWarnings("MethodParameterNamingConvention")
-    static void failFastIfTimedOut(GitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
+    static void failFastIfTimedOut(LegacyGitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
                                    String methodName, Object arg1) {
         if (ctx != null && ctx.isTimedOut()) {
             logger.info("{} Rejecting a request timed out already: repo={}/{}, method={}, args={}",
@@ -49,7 +49,7 @@ final class FailFastUtil {
     }
 
     @SuppressWarnings("MethodParameterNamingConvention")
-    static void failFastIfTimedOut(GitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
+    static void failFastIfTimedOut(LegacyGitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
                                    String methodName, Object arg1, Object arg2) {
         if (ctx != null && ctx.isTimedOut()) {
             logger.info("{} Rejecting a request timed out already: repo={}/{}, method={}, args=[{}, {}]",
@@ -59,7 +59,7 @@ final class FailFastUtil {
     }
 
     @SuppressWarnings("MethodParameterNamingConvention")
-    static void failFastIfTimedOut(GitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
+    static void failFastIfTimedOut(LegacyGitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
                                    String methodName, Object arg1, Object arg2, Object arg3) {
         if (ctx != null && ctx.isTimedOut()) {
             logger.info("{} Rejecting a request timed out already: repo={}/{}, method={}, args=[{}, {}, {}]",
@@ -69,7 +69,7 @@ final class FailFastUtil {
     }
 
     @SuppressWarnings("MethodParameterNamingConvention")
-    static void failFastIfTimedOut(GitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
+    static void failFastIfTimedOut(LegacyGitRepository repo, Logger logger, @Nullable ServiceRequestContext ctx,
                                    String methodName, Object arg1, Object arg2, Object arg3, int arg4) {
         if (ctx != null && ctx.isTimedOut()) {
             logger.info(

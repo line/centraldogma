@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
-import static com.linecorp.centraldogma.server.internal.storage.repository.git.RepositoryMetadataDatabase.addOne;
+import static com.linecorp.centraldogma.server.internal.storage.repository.git.RepositoryMetadataDatabase.increment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -70,15 +70,15 @@ class RepositoryMetadataDatabaseTest {
     @Test
     void addOneToSuffixTest() {
         String suffix = "0000000000";
-        assertThat(addOne(suffix)).isEqualTo("0000000001");
+        assertThat(increment(suffix)).isEqualTo("0000000001");
 
         suffix = "0000000009";
-        assertThat(addOne(suffix)).isEqualTo("0000000010");
+        assertThat(increment(suffix)).isEqualTo("0000000010");
 
         suffix = "0000000099";
-        assertThat(addOne(suffix)).isEqualTo("0000000100");
+        assertThat(increment(suffix)).isEqualTo("0000000100");
 
         suffix = "1111111111";
-        assertThat(addOne(suffix)).isEqualTo("1111111112");
+        assertThat(increment(suffix)).isEqualTo("1111111112");
     }
 }

@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager.SUFFIX_REMOVED;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.context;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.failFastIfTimedOut;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryUtil.closeJGitRepo;
@@ -28,10 +29,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -381,9 +381,8 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             readLock();
             try {
                 final Revision normalizedRevision = normalizeNow(revision);
-                final Revision headRevision = this.headRevision;
                 if ("/".equals(pathPattern)) {
-                    return Collections.singletonMap(pathPattern, Entry.ofDirectory(normalizedRevision, "/"));
+                    return ImmutableMap.of(pathPattern, Entry.ofDirectory(normalizedRevision, "/"));
                 }
                 return primaryRepo.find(normalizedRevision, pathPattern, options);
             } finally {
@@ -706,9 +705,8 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         }
     }
 
-    private boolean exceedsMinRetention(InternalRepository repo,
-                                        int minRetentionCommits, int minRetentionDays) {
-        final CommitIdDatabase commitIdDatabase = repo.commitIdDatabase();
+    private static boolean exceedsMinRetention(InternalRepository repo,
+                                               int minRetentionCommits, int minRetentionDays) {
         final Revision headRevision = repo.headRevision();
         final Revision firstRevision = repo.firstRevision();
         if (minRetentionCommits != 0) {
@@ -720,7 +718,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         if (minRetentionDays != 0) {
             final Instant secondCommitCreationTime = repo.secondCommitCreationTimeInstant();
             return secondCommitCreationTime != null &&
-                   Instant.now().minus(Duration.ofDays(minRetentionDays)).isBefore(secondCommitCreationTime);
+                   secondCommitCreationTime.isBefore(Instant.now().minus(minRetentionDays, ChronoUnit.DAYS));
         }
         return true;
     }
@@ -736,12 +734,12 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             repositoryWorker.execute(() -> {
                 closeInternalRepository(primaryRepo);
                 final File repoDir = primaryRepo.repoDir();
+                final Path path = repoDir.toPath();
+                final Path newPath = path.resolveSibling(path.getFileName().toString() + SUFFIX_REMOVED);
                 try {
-                    if (!deleteDirectory(repoDir)) {
-                        logger.warn("Failed to delete the old primary repository: {}", repoDir);
-                    }
-                } catch (Throwable t) {
-                    logger.warn("Failed to delete the old primary repository: {}", repoDir);
+                    Files.move(path, newPath);
+                } catch (IOException e) {
+                    logger.warn("Failed to mark the old primary repository: {} to {}", repoDir, newPath);
                 }
             });
             logger.info("Promotion is done for {}/{}. {} is now the primary.",
@@ -753,29 +751,20 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         createSecondaryRepo();
     }
 
-    private static boolean deleteDirectory(File dir) throws IOException {
-        try (Stream<Path> walk = Files.walk(dir.toPath())) {
-            return walk.sorted(Comparator.reverseOrder())
-                       .map(Path::toFile)
-                       .map(File::delete)
-                       // Return false if it fails to delete a file.
-                       .reduce(true, (a, b) -> a && b);
-        }
-    }
-
     private void createSecondaryRepo() {
+        InternalRepository secondaryRepo = null;
         try {
             writeLock();
             final Revision headRevision = this.headRevision;
             isCreatingSecondaryRepo = true;
             writeUnLock();
 
-            logger.info("Creating the secondary repository in {}/{} with the head revision: {}.",
+            logger.info("Creating the secondary repository in {}/{}. head revision: {}.",
                         parent.name(), originalRepoName, headRevision);
             final Map<String, Entry<?>> entries = find(headRevision, ALL_PATH, ImmutableMap.of()).join();
             final List<Change<?>> changes = toChanges(entries);
             final File secondaryRepoDir = repoMetadata.secondaryRepoDir();
-            final InternalRepository secondaryRepo =
+            secondaryRepo =
                     InternalRepository.of(parent, originalRepoName, secondaryRepoDir, headRevision,
                                           creationTimeMillis, author, changes);
             writeLock();
@@ -797,10 +786,18 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             } finally {
                 writeUnLock();
             }
-            logger.info("The secondary repository {} is created in {}/{}.",
+            logger.info("The secondary repository {} is created in {}/{}. head revision: {}",
                         secondaryRepoDir.getName(), parent.name(), originalRepoName, headRevision);
         } catch (Throwable t) {
             logger.warn("Failed to create the secondary repository", t);
+            if (secondaryRepo != null) {
+                closeInternalRepository(secondaryRepo);
+                try {
+                    deleteDirectory(secondaryRepo.repoDir());
+                } catch (IOException e) {
+                    logger.warn("Failed to delete the directory: {}", secondaryRepo.repoDir());
+                }
+            }
         }
     }
 
@@ -821,6 +818,16 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             }
         }
         return builder.build();
+    }
+
+    private static boolean deleteDirectory(File dir) throws IOException {
+        try (Stream<Path> walk = Files.walk(dir.toPath())) {
+            return walk.sorted(Comparator.reverseOrder())
+                       .map(Path::toFile)
+                       .map(File::delete)
+                       // Return false if it fails to delete a file.
+                       .reduce(true, (a, b) -> a && b);
+        }
     }
 
     private static class LaggedCommit {

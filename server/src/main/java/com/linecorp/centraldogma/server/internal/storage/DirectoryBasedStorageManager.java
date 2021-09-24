@@ -56,6 +56,7 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
 
     private static final Logger logger = LoggerFactory.getLogger(DirectoryBasedStorageManager.class);
 
+    public static final String SUFFIX_REMOVED = ".removed";
     /**
      * Start with an alphanumeric character.
      * An alphanumeric character, minus, plus, underscore and dot are allowed in the middle.
@@ -63,7 +64,6 @@ public abstract class DirectoryBasedStorageManager<T> implements StorageManager<
      */
     private static final Pattern CHILD_NAME =
             Pattern.compile("^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$");
-    private static final String SUFFIX_REMOVED = ".removed";
     private static final String SUFFIX_PURGED = ".purged";
 
     private final String childTypeName;
