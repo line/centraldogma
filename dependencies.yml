@@ -4,9 +4,9 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.13.0
-- com.linecorp.armeria:armeria-bom:1.12.0
+- com.linecorp.armeria:armeria-bom:1.13.0
 - io.micrometer:micrometer-bom:1.7.4
-- org.junit:junit-bom:5.7.2
+- org.junit:junit-bom:5.8.1
 
 ch.qos.logback:
   logback-classic:
@@ -225,7 +225,7 @@ org.javassist:
   javassist: { version: '3.28.0-GA' }
 
 org.mockito:
-  mockito-core: { version: &MOCKITO_VERSION '3.12.4' }
+  mockito-core: { version: &MOCKITO_VERSION '4.0.0' }
   mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
