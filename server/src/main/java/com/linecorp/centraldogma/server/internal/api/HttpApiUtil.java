@@ -31,7 +31,6 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -218,12 +217,7 @@ public final class HttpApiUtil {
 
         // TODO(hyangtack) Need to introduce a new field such as 'stackTrace' in order to return
         //                 the stack trace of the cause to the trusted client.
-        try {
-            return HttpResponse.of(status, MediaType.JSON_UTF_8, Jackson.ofJson().writeValueAsBytes(node));
-        } catch (JsonProcessingException e) {
-            // should not reach here
-            throw new Error(e);
-        }
+        return HttpResponse.ofJson(status, MediaType.JSON_UTF_8, node);
     }
 
     /**

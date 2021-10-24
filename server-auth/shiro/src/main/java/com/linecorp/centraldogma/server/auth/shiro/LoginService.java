@@ -37,8 +37,6 @@ import org.apache.shiro.util.ThreadContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
@@ -51,7 +49,6 @@ import com.linecorp.armeria.server.AbstractHttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
-import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
@@ -113,12 +110,7 @@ final class LoginService extends AbstractHttpService {
                                // expires_in means valid seconds of the token from the creation.
                                final AccessToken accessToken =
                                        new AccessToken(sessionId, sessionValidDuration.getSeconds());
-                               try {
-                                   return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
-                                                          Jackson.ofJson().writeValueAsBytes(accessToken));
-                               } catch (JsonProcessingException e) {
-                                   return HttpApiUtil.newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, e);
-                               }
+                               return HttpResponse.ofJson(HttpStatus.OK, MediaType.JSON_UTF_8, accessToken);
                            });
                        } catch (IncorrectCredentialsException e) {
                            // Not authorized
