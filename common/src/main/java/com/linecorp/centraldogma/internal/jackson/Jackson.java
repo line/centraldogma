@@ -55,16 +55,13 @@ import com.linecorp.centraldogma.common.QueryExecutionException;
 
 public abstract class Jackson {
     private final ObjectMapper compactMapper;
-    private final ObjectMapper prettyMapper;
     private final JsonFactory compactFactory;
     private final JsonFactory prettyFactory;
 
     public static final NullNode nullNode = NullNode.instance;
 
-    protected Jackson(ObjectMapper compactMapper, ObjectMapper prettyMapper,
-                      JsonFactory compactFactory, JsonFactory prettyFactory) {
+    protected Jackson(ObjectMapper compactMapper, JsonFactory compactFactory, JsonFactory prettyFactory) {
         this.compactMapper = compactMapper;
-        this.prettyMapper = prettyMapper;
         this.compactFactory = compactFactory;
         this.prettyFactory = prettyFactory;
 

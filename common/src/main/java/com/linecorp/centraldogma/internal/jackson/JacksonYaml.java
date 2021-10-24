@@ -39,7 +39,7 @@ public final class JacksonYaml extends Jackson {
     public static final Jackson INSTANCE = new JacksonYaml();
 
     private JacksonYaml() {
-        super(yamlMapper, yamlMapper, yamlFactory, yamlFactory);
+        super(yamlMapper, yamlFactory, yamlFactory);
     }
 
     @Override

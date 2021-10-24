@@ -93,7 +93,7 @@ public final class JacksonJson extends Jackson {
     }
 
     private JacksonJson() {
-        super(compactMapper, prettyMapper, compactFactory, prettyFactory);
+        super(compactMapper, compactFactory, prettyFactory);
     }
 
     @Override
