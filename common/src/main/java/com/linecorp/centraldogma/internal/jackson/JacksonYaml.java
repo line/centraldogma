@@ -25,7 +25,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
-public final class JacksonYaml extends AbstractJackson {
+public final class JacksonYaml extends Jackson {
 
     private static final YAMLMapper yamlMapper = new YAMLMapper();
 

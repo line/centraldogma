@@ -21,12 +21,15 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.Writer;
+import java.time.Instant;
 import java.util.Iterator;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -36,28 +39,48 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 
-public interface Jackson {
+public abstract class Jackson {
+    private final ObjectMapper compactMapper;
+    private final ObjectMapper prettyMapper;
+    private final JsonFactory compactFactory;
+    private final JsonFactory prettyFactory;
 
-    NullNode nullNode = NullNode.instance;
+    public static final NullNode nullNode = NullNode.instance;
 
-    static Jackson ofJson() {
+    protected Jackson(ObjectMapper compactMapper, ObjectMapper prettyMapper,
+                      JsonFactory compactFactory, JsonFactory prettyFactory) {
+        this.compactMapper = compactMapper;
+        this.prettyMapper = prettyMapper;
+        this.compactFactory = compactFactory;
+        this.prettyFactory = prettyFactory;
+
+        registerModules1(new SimpleModule().addSerializer(Instant.class, InstantSerializer.INSTANCE)
+                                           .addDeserializer(Instant.class, InstantDeserializer.INSTANT));
+    }
+
+    public static Jackson ofJson() {
         return JacksonJson.INSTANCE;
     }
 
-    static Jackson ofYaml() {
+    public static Jackson ofYaml() {
         return JacksonYaml.INSTANCE;
     }
 
-    static Jackson of(EntryType type) {
+    public static Jackson of(EntryType type) {
         if (type == EntryType.JSON) {
             return JacksonJson.INSTANCE;
         }
@@ -68,79 +91,176 @@ public interface Jackson {
         throw new Error();
     }
 
-    static void registerModules(Module... modules) {
+    public static void registerModules(Module... modules) {
         ofJson().registerModules1(modules);
         ofYaml().registerModules1(modules);
     }
 
-    static void registerSubtypes(NamedType... subtypes) {
+    public static void registerSubtypes(NamedType... subtypes) {
         ofJson().registerSubtypes1(subtypes);
         ofYaml().registerSubtypes1(subtypes);
     }
 
-    static void registerSubtypes(Class<?>... subtypes) {
+    public static void registerSubtypes(Class<?>... subtypes) {
         ofJson().registerSubtypes1(subtypes);
         ofYaml().registerSubtypes1(subtypes);
     }
 
-    void registerModules1(Module... modules);
+    protected abstract void registerModules1(Module... modules);
 
-    void registerSubtypes1(NamedType... subtypes);
+    protected abstract void registerSubtypes1(NamedType... subtypes);
 
-    void registerSubtypes1(Class<?>... subtypes);
+    protected abstract void registerSubtypes1(Class<?>... subtypes);
 
-    <T> T readValue(String data, Class<T> type) throws JsonParseException, JsonMappingException;
+    public <T> T readValue(String data, Class<T> type) throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.readValue(data, type);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
 
-    <T> T readValue(byte[] data, Class<T> type) throws JsonParseException, JsonMappingException;
+    public <T> T readValue(byte[] data, Class<T> type) throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.readValue(data, type);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
 
-    <T> T readValue(File file, Class<T> type) throws JsonParseException, JsonMappingException;
+    public <T> T readValue(File file, Class<T> type) throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.readValue(file, type);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
 
-    <T> T readValue(String data, TypeReference<T> typeReference)
-            throws JsonParseException, JsonMappingException;
+    public <T> T readValue(String data, TypeReference<T> typeReference)
+            throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.readValue(data, typeReference);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
 
-    <T> T readValue(byte[] data, TypeReference<T> typeReference)
-            throws JsonParseException, JsonMappingException;
+    public <T> T readValue(byte[] data, TypeReference<T> typeReference)
+            throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.readValue(data, typeReference);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
 
-    <T> T readValue(File file, TypeReference<T> typeReference) throws IOException;
+    public <T> T readValue(File file, TypeReference<T> typeReference) throws IOException {
+        return compactMapper.readValue(file, typeReference);
+    }
 
-    JsonNode readTree(@Nullable String data) throws JsonParseException;
+    public JsonNode readTree(@Nullable String data) throws JsonParseException {
+        if (data == null) {
+            return nullNode;
+        }
+        try {
+            return compactMapper.readTree(data);
+        } catch (JsonParseException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
 
-    JsonNode readTree(@Nullable byte[] data) throws JsonParseException;
+    public JsonNode readTree(@Nullable byte[] data) throws JsonParseException {
+        if (data == null) {
+            return nullNode;
+        }
+        try {
+            return compactMapper.readTree(data);
+        } catch (JsonParseException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IOError(e);
+        }
+    }
 
-    byte[] writeValueAsBytes(Object value) throws JsonProcessingException;
+    public byte[] writeValueAsBytes(Object value) throws JsonProcessingException {
+        return compactMapper.writeValueAsBytes(value);
+    }
 
-    String writeValueAsString(Object value) throws JsonProcessingException;
+    public String writeValueAsString(Object value) throws JsonProcessingException {
+        return compactMapper.writeValueAsString(value);
+    }
 
-    String writeValueAsPrettyString(Object value) throws JsonProcessingException;
+    public abstract String writeValueAsPrettyString(Object value) throws JsonProcessingException;
 
-    <T extends JsonNode> T valueToTree(Object value);
+    public <T extends JsonNode> T valueToTree(Object value) {
+        return compactMapper.valueToTree(value);
+    }
 
-    <T> T treeToValue(TreeNode node, Class<T> valueType) throws JsonParseException, JsonMappingException;
+    public <T> T treeToValue(TreeNode node, Class<T> valueType)
+            throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.treeToValue(node, valueType);
+        } catch (JsonParseException | JsonMappingException e) {
+            throw e;
+        } catch (JsonProcessingException e) {
+            // Should never reach here.
+            throw new IllegalStateException(e);
+        }
+    }
 
-    <T> T convertValue(Object fromValue, Class<T> toValueType);
+    public <T> T convertValue(Object fromValue, Class<T> toValueType) {
+        return compactMapper.convertValue(fromValue, toValueType);
+    }
 
-    <T> T convertValue(Object fromValue, TypeReference<T> toValueTypeRef);
+    public <T> T convertValue(Object fromValue, TypeReference<T> toValueTypeRef) {
+        return compactMapper.convertValue(fromValue, toValueTypeRef);
+    }
 
-    JsonGenerator createGenerator(Writer writer) throws IOException;
+    public JsonGenerator createGenerator(Writer writer) throws IOException {
+        return compactFactory.createGenerator(writer);
+    }
 
-    JsonGenerator createPrettyGenerator(Writer writer) throws IOException;
+    public JsonGenerator createPrettyGenerator(Writer writer) throws IOException {
+        final JsonGenerator generator = prettyFactory.createGenerator(writer);
+        generator.useDefaultPrettyPrinter();
+        return generator;
+    }
 
-    String textValue(@Nullable JsonNode node, String defaultValue);
+    public String textValue(@Nullable JsonNode node, String defaultValue) {
+        return node != null && node.getNodeType() == JsonNodeType.STRING ? node.textValue() : defaultValue;
+    }
 
-    JsonNode extractTree(JsonNode jsonNode, Iterable<String> jsonPaths);
+    public JsonNode extractTree(JsonNode jsonNode, Iterable<String> jsonPaths) {
+        for (String jsonPath : jsonPaths) {
+            jsonNode = extractTree(jsonNode, jsonPath);
+        }
+        return jsonNode;
+    }
 
-    JsonNode extractTree(JsonNode jsonNode, String jsonPath);
+    public abstract JsonNode extractTree(JsonNode jsonNode, String jsonPath);
 
-    static String escapeText(String text) {
+    public static String escapeText(String text) {
         final JsonStringEncoder enc = JsonStringEncoder.getInstance();
         return new String(enc.quoteAsString(text));
     }
 
-    static JsonNode mergeTree(JsonNode... jsonNodes) {
+    public static JsonNode mergeTree(JsonNode... jsonNodes) {
         return mergeTree(ImmutableList.copyOf(requireNonNull(jsonNodes, "jsonNodes")));
     }
 
-    static JsonNode mergeTree(Iterable<JsonNode> jsonNodes) {
+    public static JsonNode mergeTree(Iterable<JsonNode> jsonNodes) {
         requireNonNull(jsonNodes, "jsonNodes");
         final int size = Iterables.size(jsonNodes);
         checkArgument(size > 0, "jsonNodes is empty.");
@@ -161,8 +281,8 @@ public interface Jackson {
         return merged;
     }
 
-    static JsonNode traverse(JsonNode base, JsonNode update, StringBuilder fieldNameAppender,
-                             boolean isMerging, boolean isRoot) {
+    private static JsonNode traverse(JsonNode base, JsonNode update, StringBuilder fieldNameAppender,
+                                     boolean isMerging, boolean isRoot) {
         if (base.isObject() && update.isObject()) {
             final ObjectNode baseObject = (ObjectNode) base;
             final Iterator<String> fieldNames = update.fieldNames();

@@ -45,7 +45,7 @@ import com.jayway.jsonpath.spi.mapper.MappingProvider;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.QuerySyntaxException;
 
-public final class JacksonJson extends AbstractJackson {
+public final class JacksonJson extends Jackson {
 
     private static final ObjectMapper compactMapper = new ObjectMapper();
     private static final ObjectMapper prettyMapper = new ObjectMapper();
