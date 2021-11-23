@@ -99,10 +99,12 @@ class CentralDogmaEndpointGroupTest {
 
     @Test
     void text() throws Exception {
-        try (Watcher<String> watcher = dogma.client().fileWatcher("directory", "my-service",
-                                                                  Query.ofText("/endpoints.txt"))) {
-            final CountDownLatch latch = new CountDownLatch(2);
-            watcher.watch(unused -> latch.countDown());
+        final CountDownLatch latch = new CountDownLatch(2);
+        try (Watcher<String> watcher = dogma.client().fileWatcher(
+                "directory", "my-service", Query.ofText("/endpoints.txt"), entry -> {
+                    latch.countDown();
+                    return entry;
+                })) {
             final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);
             endpointGroup.whenReady().get();
@@ -114,19 +116,20 @@ class CentralDogmaEndpointGroupTest {
                                 Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
                  .join();
 
-            await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
             await().untilAsserted(() -> assertThat(endpointGroup.endpoints())
                     .containsExactly(Endpoint.of("foo.bar", 1234)));
+            assertThat(latch.getCount()).isZero();
         }
     }
 
     @Test
     void recoverFromNotFound() throws Exception {
-        try (Watcher<String> watcher = dogma.client().fileWatcher("directory",
-                                                                  "new-service",
-                                                                  Query.ofText("/endpoints.txt"))) {
-            final CountDownLatch latch = new CountDownLatch(1);
-            watcher.watch(unused -> latch.countDown());
+        final CountDownLatch latch = new CountDownLatch(1);
+        try (Watcher<String> watcher = dogma.client().fileWatcher(
+                "directory", "new-service", Query.ofText("/endpoints.txt"), entry -> {
+                    latch.countDown();
+                    return entry;
+                })) {
 
             final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);
@@ -143,9 +146,9 @@ class CentralDogmaEndpointGroupTest {
                  .join();
             endpointGroup.whenReady().get(20, TimeUnit.SECONDS);
 
-            await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
             await().untilAsserted(() -> assertThat(endpointGroup.endpoints())
                     .containsExactly(Endpoint.of("foo.bar", 1234)));
+            assertThat(latch.getCount()).isZero();
         }
     }
 }
