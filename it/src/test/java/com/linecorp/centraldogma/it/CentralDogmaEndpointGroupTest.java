@@ -21,9 +21,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -99,17 +99,17 @@ class CentralDogmaEndpointGroupTest {
 
     @Test
     void text() throws Exception {
-        final CountDownLatch latch = new CountDownLatch(2);
+        final AtomicInteger counter = new AtomicInteger();
         try (Watcher<String> watcher = dogma.client().fileWatcher(
                 "directory", "my-service", Query.ofText("/endpoints.txt"), entry -> {
-                    latch.countDown();
+                    counter.incrementAndGet();
                     return entry;
                 })) {
             final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);
             endpointGroup.whenReady().get();
             assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
-            assertThat(latch.getCount()).isOne();
+            assertThat(counter.get()).isOne();
 
             dogma.client().push("directory", "my-service",
                                 Revision.HEAD, "commit",
@@ -118,16 +118,16 @@ class CentralDogmaEndpointGroupTest {
 
             await().untilAsserted(() -> assertThat(endpointGroup.endpoints())
                     .containsExactly(Endpoint.of("foo.bar", 1234)));
-            assertThat(latch.getCount()).isZero();
+            assertThat(counter.get()).isEqualTo(2);
         }
     }
 
     @Test
     void recoverFromNotFound() throws Exception {
-        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicInteger counter = new AtomicInteger();
         try (Watcher<String> watcher = dogma.client().fileWatcher(
                 "directory", "new-service", Query.ofText("/endpoints.txt"), entry -> {
-                    latch.countDown();
+                    counter.incrementAndGet();
                     return entry;
                 })) {
 
@@ -137,7 +137,7 @@ class CentralDogmaEndpointGroupTest {
             assertThatThrownBy(() -> endpointGroup.whenReady().get(1, TimeUnit.SECONDS))
                     .isInstanceOf(TimeoutException.class);
             assertThat(endpointGroup.endpoints()).isEmpty();
-            assertThat(latch.getCount()).isEqualTo(1);
+            assertThat(counter.get()).isZero();
 
             dogma.client().createRepository("directory", "new-service").join();
             dogma.client().push("directory", "new-service",
@@ -148,7 +148,7 @@ class CentralDogmaEndpointGroupTest {
 
             await().untilAsserted(() -> assertThat(endpointGroup.endpoints())
                     .containsExactly(Endpoint.of("foo.bar", 1234)));
-            assertThat(latch.getCount()).isZero();
+            assertThat(counter.get()).isOne();
         }
     }
 }
