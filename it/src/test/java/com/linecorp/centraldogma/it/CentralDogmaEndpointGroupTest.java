@@ -115,7 +115,8 @@ class CentralDogmaEndpointGroupTest {
                  .join();
 
             await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
-            assertThat(endpointGroup.endpoints()).containsExactly(Endpoint.of("foo.bar", 1234));
+            await().untilAsserted(() -> assertThat(endpointGroup.endpoints())
+                    .containsExactly(Endpoint.of("foo.bar", 1234)));
         }
     }
 
@@ -143,7 +144,8 @@ class CentralDogmaEndpointGroupTest {
             endpointGroup.whenReady().get(20, TimeUnit.SECONDS);
 
             await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(latch.getCount()).isZero());
-            assertThat(endpointGroup.endpoints()).containsExactly(Endpoint.of("foo.bar", 1234));
+            await().untilAsserted(() -> assertThat(endpointGroup.endpoints())
+                    .containsExactly(Endpoint.of("foo.bar", 1234)));
         }
     }
 }
