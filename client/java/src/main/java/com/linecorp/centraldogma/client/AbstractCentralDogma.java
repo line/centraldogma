@@ -144,18 +144,6 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     }
 
     @Override
-    public final CompletableFuture<Revision> watchRepository(
-            String projectName, String repositoryName, Revision lastKnownRevision, String pathPattern) {
-        return CentralDogma.super.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern);
-    }
-
-    @Override
-    public final <T> CompletableFuture<Entry<T>> watchFile(
-            String projectName, String repositoryName, Revision lastKnownRevision, Query<T> query) {
-        return CentralDogma.super.watchFile(projectName, repositoryName, lastKnownRevision, query);
-    }
-
-    @Override
     public final <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
         return CentralDogma.super.fileWatcher(projectName, repositoryName, query);
     }

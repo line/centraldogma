@@ -77,6 +77,7 @@ import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.armeria.common.util.TimeoutMode;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
+import com.linecorp.centraldogma.client.WatchOptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.AuthorizationException;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -801,12 +802,13 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                        Revision lastKnownRevision, String pathPattern,
-                                                       long timeoutMillis) {
+                                                       WatchOptions watchOptions) {
         try {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(lastKnownRevision, "lastKnownRevision");
             validatePathPattern(pathPattern, "pathPattern");
-            checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
+            checkArgument(watchOptions.getTimeoutMillis() > 0,
+                          "timeoutMillis: %s (expected: > 0)", watchOptions.getTimeoutMillis());
 
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/contents");
@@ -815,8 +817,9 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             }
             path.append(encodePathPattern(pathPattern));
 
-            return watch(lastKnownRevision, timeoutMillis, path.toString(), QueryType.IDENTITY,
-                         ArmeriaCentralDogma::watchRepository);
+            return watch(lastKnownRevision, path.toString(), QueryType.IDENTITY,
+                         ArmeriaCentralDogma::watchRepository,
+                         watchOptions);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
@@ -838,12 +841,13 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
-                                                     long timeoutMillis) {
+                                                     WatchOptions watchOptions) {
         try {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(lastKnownRevision, "lastKnownRevision");
             requireNonNull(query, "query");
-            checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
+            checkArgument(watchOptions.getTimeoutMillis() > 0,
+                          "timeoutMillis: %s (expected: > 0)", watchOptions.getTimeoutMillis());
 
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/contents").append(query.path());
@@ -856,8 +860,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 path.setLength(path.length() - 1);
             }
 
-            return watch(lastKnownRevision, timeoutMillis, path.toString(), query.type(),
-                         ArmeriaCentralDogma::watchFile);
+            return watch(lastKnownRevision,
+                         path.toString(), query.type(),
+                         ArmeriaCentralDogma::watchFile,
+                         watchOptions);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
@@ -877,12 +883,16 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return handleErrorResponse(res);
     }
 
-    private <T> CompletableFuture<T> watch(Revision lastKnownRevision, long timeoutMillis,
-                                           String path, QueryType queryType,
-                                           BiFunction<AggregatedHttpResponse, QueryType, T> func) {
+    private <T> CompletableFuture<T> watch(Revision lastKnownRevision, String path, QueryType queryType,
+                                           BiFunction<AggregatedHttpResponse, QueryType, T> func,
+                                           WatchOptions watchOptions) {
+        long timeoutMillis = watchOptions.getTimeoutMillis();
         final RequestHeadersBuilder builder = headersBuilder(HttpMethod.GET, path);
         builder.set(HttpHeaderNames.IF_NONE_MATCH, lastKnownRevision.text())
-               .set(HttpHeaderNames.PREFER, "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L);
+               .set(HttpHeaderNames.PREFER,
+                    // It is good to extract private method when this logic becomes heavier.
+                    "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L
+                    + ", notify-entry-not-found=" + watchOptions.isErrorOnEntryNotFound());
 
         try (SafeCloseable ignored = Clients.withContextCustomizer(ctx -> {
             final long responseTimeoutMillis = ctx.responseTimeoutMillis();

@@ -44,11 +44,13 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.linecorp.armeria.common.util.ThreadFactories;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
+import com.linecorp.centraldogma.client.WatchOptions;
 import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -174,6 +176,28 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
+    void watchRepositoryWithNotExist(ClientType clientType) {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Revision rev1 = client.watchRepository(
+                dogma.project(), dogma.repo1(), Revision.HEAD, "/not_exist_repo/**",
+                WatchOptions.builder().timeoutMillis(1000).errorOnEntryNotFound(false).build()).join();
+        assertThat(rev1).isNull();
+
+        //Legacy client don't support this feature
+        if (clientType == ClientType.LEGACY) {
+            return;
+        }
+
+        final CompletableFuture<Revision> future2 = client.watchRepository(
+                dogma.project(), dogma.repo1(), Revision.HEAD, "/not_exist_repo/**",
+                WatchOptions.builder().timeoutMillis(1000).errorOnEntryNotFound(true).build());
+        assertThatThrownBy(() -> future2.join()).getCause().isInstanceOf(EntryNotFoundException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
     void watchFile(ClientType clientType) throws Exception {
         revertTestFiles(clientType);
 
@@ -261,6 +285,31 @@ class WatchTest {
                 Query.ofJsonPath("/test/test1.json", "$"), 1000).join();
 
         assertThat(res).isNull();
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchFileWithNotExistFile(ClientType clientType) {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+
+        final CompletableFuture<Entry<JsonNode>> future1 = client.watchFile(
+                dogma.project(), dogma.repo1(), Revision.HEAD,
+                Query.ofJson("/test/not_exist.json"),
+                WatchOptions.builder().timeoutMillis(1000).errorOnEntryNotFound(false).build());
+        assertThat(future1.join()).isNull();
+
+        //Legacy client don't support this feature
+        if (clientType == ClientType.LEGACY) {
+            return;
+        }
+
+        final CompletableFuture<Entry<JsonNode>> future2 = client.watchFile(
+                dogma.project(), dogma.repo1(), Revision.HEAD,
+                Query.ofJson("/test/not_exist.json"),
+                WatchOptions.builder().timeoutMillis(1000).errorOnEntryNotFound(true).build());
+        assertThatThrownBy(() -> future2.join()).getCause().isInstanceOf(EntryNotFoundException.class);
     }
 
     @ParameterizedTest

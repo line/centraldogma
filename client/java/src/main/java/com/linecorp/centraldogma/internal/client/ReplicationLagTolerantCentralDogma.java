@@ -47,6 +47,7 @@ import com.spotify.futures.CompletableFutures;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
+import com.linecorp.centraldogma.client.WatchOptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -429,7 +430,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     @Override
     public CompletableFuture<Revision> watchRepository(
             String projectName, String repositoryName, Revision lastKnownRevision,
-            String pathPattern, long timeoutMillis) {
+            String pathPattern, WatchOptions watchOptions) {
 
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, lastKnownRevision,
@@ -437,7 +438,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                     @Override
                     public CompletableFuture<Revision> apply(Revision normLastKnownRevision) {
                         return delegate.watchRepository(projectName, repositoryName, normLastKnownRevision,
-                                                        pathPattern, timeoutMillis)
+                                                        pathPattern, watchOptions)
                                        .thenApply(newLastKnownRevision -> {
                                            if (newLastKnownRevision != null) {
                                                updateLatestKnownRevision(projectName, repositoryName,
@@ -450,23 +451,23 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                     @Override
                     public String toString() {
                         return "watchRepository(" + projectName + ", " + repositoryName + ", " +
-                               lastKnownRevision + ", " + pathPattern + ", " + timeoutMillis + ')';
+                               lastKnownRevision + ", " + pathPattern + ", " + watchOptions.getTimeoutMillis()
+                               + ", " + watchOptions.isErrorOnEntryNotFound() + ')';
                     }
                 });
     }
 
     @Override
-    public <T> CompletableFuture<Entry<T>> watchFile(
-            String projectName, String repositoryName, Revision lastKnownRevision,
-            Query<T> query, long timeoutMillis) {
-
+    public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
+                                                     Revision lastKnownRevision, Query<T> query,
+                                                     WatchOptions watchOptions) {
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, lastKnownRevision,
                 new Function<Revision, CompletableFuture<Entry<T>>>() {
                     @Override
                     public CompletableFuture<Entry<T>> apply(Revision normLastKnownRevision) {
                         return delegate.watchFile(projectName, repositoryName, normLastKnownRevision,
-                                                  query, timeoutMillis)
+                                                  query, watchOptions)
                                        .thenApply(entry -> {
                                            if (entry != null) {
                                                updateLatestKnownRevision(projectName, repositoryName,
@@ -479,7 +480,8 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                     @Override
                     public String toString() {
                         return "watchFile(" + projectName + ", " + repositoryName + ", " +
-                               lastKnownRevision + ", " + query + ", " + timeoutMillis + ')';
+                               lastKnownRevision + ", " + query + ", " + watchOptions.getTimeoutMillis() + ", "
+                               + watchOptions.isErrorOnEntryNotFound() + ')';
                     }
                 });
     }

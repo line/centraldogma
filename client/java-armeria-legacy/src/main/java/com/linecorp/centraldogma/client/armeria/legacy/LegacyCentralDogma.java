@@ -47,6 +47,7 @@ import com.linecorp.armeria.common.thrift.ThriftFuture;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
+import com.linecorp.centraldogma.client.WatchOptions;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
@@ -469,7 +470,10 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     public CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                        Revision lastKnownRevision,
                                                        String pathPattern,
-                                                       long timeoutMillis) {
+                                                       WatchOptions watchOptions) {
+        // Legacy client only support 'timeoutMillis' in 'WatchOptions'
+        long timeoutMillis = watchOptions.getTimeoutMillis();
+
         final CompletableFuture<WatchRepositoryResult> future = run(callback -> {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(lastKnownRevision, "lastKnownRevision");
@@ -491,7 +495,9 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
-                                                     long timeoutMillis) {
+                                                     WatchOptions watchOptions) {
+        // Legacy client only support 'timeoutMillis' in 'WatchOptions'
+        long timeoutMillis = watchOptions.getTimeoutMillis();
 
         final CompletableFuture<WatchFileResult> future = run(callback -> {
             validateProjectAndRepositoryName(projectName, repositoryName);

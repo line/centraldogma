@@ -31,6 +31,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
@@ -439,7 +440,7 @@ public interface CentralDogma {
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                         Revision lastKnownRevision, String pathPattern) {
         return watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern,
-                               WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS);
+                               WatchOptions.builder().build());
     }
 
     /**
@@ -452,10 +453,34 @@ public interface CentralDogma {
      * @return the latest known {@link Revision} which contains the changes for the matched files.
      *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
      *         since the invocation of this method.
+     *
+     */
+    default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
+                                                Revision lastKnownRevision, String pathPattern,
+                                                long timeoutMillis) {
+        return watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern,
+                               WatchOptions.builder().timeoutMillis(timeoutMillis).build());
+    }
+
+    /**
+     * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified
+     * {@code lastKnownRevision}. If the files are not exist and {@code errorOnEntryNotFound} of {@link WatchOptions}
+     * is ture, stops to wait files and throw {@link EntryNotFoundException} as the cause.
+     * If {@code errorOnEntryNotFound} of {@link WatchOptions} is false and no changes were made
+     * within the specified {@code timeoutMillis} of {@link WatchOptions}, the returned {@link CompletableFuture}
+     * will be completed with {@code null}.
+     *
+     * @return the {@link Entry} which contains the latest known {@link Query} result.
+     *         {@link EntryNotFoundException} if the file is not exist
+     *         and {@code errorOnEntryNotFound} of {@link WatchOptions} is ture.
+     *         {@code null} if the file was not changed for {@code timeoutMillis} of {@link WatchOptions} milliseconds
+     *         since the invocation of this method.
+     *
+     * Note: Legacy client don't support {@code errorOnEntryNotFound} of {@link WatchOptions}
      */
     CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                 Revision lastKnownRevision, String pathPattern,
-                                                long timeoutMillis);
+                                                WatchOptions watchOptions);
 
     /**
      * Waits for the file matched by the specified {@link Query} to be changed since the specified
@@ -468,7 +493,7 @@ public interface CentralDogma {
     default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                       Revision lastKnownRevision, Query<T> query) {
         return watchFile(projectName, repositoryName, lastKnownRevision, query,
-                         WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS);
+                         WatchOptions.builder().build());
     }
 
     /**
@@ -482,9 +507,32 @@ public interface CentralDogma {
      *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
      *         since the invocation of this method.
      */
+    default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
+                                              Revision lastKnownRevision, Query<T> query,
+                                              long timeoutMillis) {
+        return watchFile(projectName, repositoryName, lastKnownRevision, query,
+                         WatchOptions.builder().timeoutMillis(timeoutMillis).build());
+    }
+
+    /**
+     * Waits for the file matched by the specified {@link Query} to be changed since the specified
+     * {@code lastKnownRevision}. If the file is not exist and {@code errorOnEntryNotFound} of {@link WatchOptions}
+     * is ture, stops to wait a file and throw {@link EntryNotFoundException} as the cause.
+     * If {@code errorOnEntryNotFound} of {@link WatchOptions} is false and no changes were made
+     * within the specified {@code timeoutMillis} of {@link WatchOptions}, the returned {@link CompletableFuture}
+     * will be completed with {@code null}.
+     *
+     * @return the {@link Entry} which contains the latest known {@link Query} result.
+     *         {@link EntryNotFoundException} if the file is not exist
+     *         and {@code errorOnEntryNotFound} of {@link WatchOptions} is ture.
+     *         {@code null} if the file was not changed for {@code timeoutMillis} of {@link WatchOptions} milliseconds
+     *         since the invocation of this method.
+     *
+     * Note: Legacy client don't support {@code errorOnEntryNotFound} of {@link WatchOptions}
+     */
     <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                               Revision lastKnownRevision, Query<T> query,
-                                              long timeoutMillis);
+                                              WatchOptions watchOptions);
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the result of the
