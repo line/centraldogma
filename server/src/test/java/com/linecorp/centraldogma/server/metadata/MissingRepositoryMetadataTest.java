@@ -40,7 +40,6 @@ class MissingRepositoryMetadataTest {
     final ProjectManagerExtension manager = new ProjectManagerExtension() {
         @Override
         protected void afterExecutorStarted() {
-            MigrationUtil.migrate(projectManager(), executor());
             // Create a project and its metadata here.
             executor().execute(Command.createProject(AUTHOR, PROJ)).join();
         }
@@ -69,7 +68,7 @@ class MissingRepositoryMetadataTest {
         final RepositoryMetadata metadata = mds.getRepo(PROJ, "repo").join();
         assertThat(metadata.id()).isEqualTo("repo");
         assertThat(metadata.name()).isEqualTo("repo");
-        assertThat(metadata.perRolePermissions()).isEqualTo(PerRolePermissions.DEFAULT);
+        assertThat(metadata.perRolePermissions()).isEqualTo(PerRolePermissions.ofDefault());
         assertThat(metadata.perTokenPermissions()).isEmpty();
         assertThat(metadata.perUserPermissions()).isEmpty();
 

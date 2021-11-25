@@ -112,7 +112,7 @@ final class Replica {
     private static MetadataService mockMetaService() {
         final MetadataService mds = mock(MetadataService.class);
         final RepositoryMetadata repoMeta =
-                new RepositoryMetadata("", UserAndTimestamp.of(Author.SYSTEM), PerRolePermissions.DEFAULT);
+                new RepositoryMetadata("", UserAndTimestamp.of(Author.SYSTEM), PerRolePermissions.ofDefault());
         lenient().when(mds.getRepo(anyString(), anyString()))
                  .thenReturn(CompletableFuture.completedFuture(repoMeta));
         return mds;

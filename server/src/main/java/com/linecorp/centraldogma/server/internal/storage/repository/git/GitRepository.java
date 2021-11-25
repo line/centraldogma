@@ -46,11 +46,9 @@ import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
@@ -68,9 +66,6 @@ import org.eclipse.jgit.dircache.DirCacheEditor.DeleteTree;
 import org.eclipse.jgit.dircache.DirCacheEditor.PathEdit;
 import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.dircache.DirCacheIterator;
-import org.eclipse.jgit.internal.storage.file.FileRepository;
-import org.eclipse.jgit.internal.storage.file.GC;
-import org.eclipse.jgit.internal.storage.file.RefDirectory;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.CoreConfig.HideDotFiles;
@@ -167,23 +162,17 @@ class GitRepository implements Repository {
     }
 
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
-    @VisibleForTesting
-    final ReentrantLock gcLock = new ReentrantLock();
     private final Project parent;
     private final Executor repositoryWorker;
     @VisibleForTesting
     final RepositoryCache cache;
     private final String name;
     private final org.eclipse.jgit.lib.Repository jGitRepository;
-    private final GitRepositoryFormat format;
     private final CommitIdDatabase commitIdDatabase;
     @VisibleForTesting
     final CommitWatchers commitWatchers = new CommitWatchers();
     private final AtomicReference<Supplier<CentralDogmaException>> closePending = new AtomicReference<>();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-
-    private final GC garbageCollector;
-    private final GitGcRevision gcRevision;
 
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
@@ -203,27 +192,25 @@ class GitRepository implements Repository {
     @VisibleForTesting
     GitRepository(Project parent, File repoDir, Executor repositoryWorker,
                   long creationTimeMillis, Author author) {
-        this(parent, repoDir, GitRepositoryFormat.V1, repositoryWorker, creationTimeMillis, author, null);
+        this(parent, repoDir, repositoryWorker, creationTimeMillis, author, null);
     }
 
     /**
      * Creates a new Git-backed repository.
      *
      * @param repoDir the location of this repository
-     * @param format the repository format
      * @param repositoryWorker the {@link Executor} which will perform the blocking repository operations
      * @param creationTimeMillis the creation time
      * @param author the user who initiated the creation of this repository
      *
      * @throws StorageException if failed to create a new repository
      */
-    GitRepository(Project parent, File repoDir, GitRepositoryFormat format, Executor repositoryWorker,
+    GitRepository(Project parent, File repoDir, Executor repositoryWorker,
                   long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
 
         this.parent = requireNonNull(parent, "parent");
         name = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
-        this.format = requireNonNull(format, "format");
         this.cache = cache;
 
         requireNonNull(author, "author");
@@ -237,14 +224,11 @@ class GitRepository implements Repository {
                     throw new StorageException(
                             "failed to create a repository at: " + repoDir + " (exists already)");
                 }
-
                 initRepo.create(true);
 
                 final StoredConfig config = initRepo.getConfig();
-                if (format == GitRepositoryFormat.V1) {
-                    // Update the repository settings to upgrade to format version 1 and reftree.
-                    config.setInt(CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 1);
-                }
+                // Update the repository settings to upgrade to format version 1 and reftree.
+                config.setInt(CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 1);
 
                 // Disable hidden files, symlinks and file modes we do not use.
                 config.setEnum(CONFIG_CORE_SECTION, null, CONFIG_KEY_HIDEDOTFILES, HideDotFiles.FALSE);
@@ -263,11 +247,8 @@ class GitRepository implements Repository {
                 config.save();
             }
 
-            // Re-open the repository with the updated settings and format version.
+            // Re-open the repository with the updated settings.
             jGitRepository = new RepositoryBuilder().setGitDir(repoDir).build();
-            assert jGitRepository instanceof FileRepository;
-            garbageCollector = new GC((FileRepository) jGitRepository);
-            gcRevision = new GitGcRevision(jGitRepository);
 
             // Initialize the master branch.
             final RefUpdate head = jGitRepository.updateRef(Constants.HEAD);
@@ -312,9 +293,6 @@ class GitRepository implements Repository {
         final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
         try {
             jGitRepository = repositoryBuilder.build();
-            assert jGitRepository instanceof FileRepository;
-            garbageCollector = new GC((FileRepository) jGitRepository);
-
             if (!exist(repoDir)) {
                 throw new RepositoryNotFoundException(repoDir.toString());
             }
@@ -322,15 +300,8 @@ class GitRepository implements Repository {
             // Retrieve the tag format.
             final int formatVersion = jGitRepository.getConfig().getInt(
                     CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 0);
-            switch (formatVersion) {
-                case 0:
-                    format = GitRepositoryFormat.V0;
-                    break;
-                case 1:
-                    format = GitRepositoryFormat.V1;
-                    break;
-                default:
-                    throw new StorageException("unknown repository format version: " + formatVersion);
+            if (formatVersion != 1) {
+                throw new StorageException("unsupported repository format version: " + formatVersion);
             }
         } catch (IOException e) {
             throw new StorageException("failed to open a repository at: " + repoDir, e);
@@ -340,7 +311,6 @@ class GitRepository implements Repository {
         try {
             headRevision = uncachedHeadRevision();
             commitIdDatabase = new CommitIdDatabase(jGitRepository);
-            gcRevision = new GitGcRevision(jGitRepository);
             if (!headRevision.equals(commitIdDatabase.headRevision())) {
                 commitIdDatabase.rebuild(jGitRepository);
                 assert headRevision.equals(commitIdDatabase.headRevision());
@@ -377,7 +347,6 @@ class GitRepository implements Repository {
         if (closePending.compareAndSet(null, failureCauseSupplier)) {
             repositoryWorker.execute(() -> {
                 // MUST acquire gcLock first to prevent a dead lock
-                gcLock.lock();
                 rwLock.writeLock().lock();
                 try {
                     if (commitIdDatabase != null) {
@@ -385,14 +354,6 @@ class GitRepository implements Repository {
                             commitIdDatabase.close();
                         } catch (Exception e) {
                             logger.warn("Failed to close a commitId database:", e);
-                        }
-                    }
-
-                    if (gcRevision != null) {
-                        try {
-                            gcRevision.close();
-                        } catch (Exception e) {
-                            logger.warn("Failed to close a gc revision:", e);
                         }
                     }
 
@@ -408,12 +369,8 @@ class GitRepository implements Repository {
                     try {
                         rwLock.writeLock().unlock();
                     } finally {
-                        try {
-                            gcLock.unlock();
-                        } finally {
-                            commitWatchers.close(failureCauseSupplier);
-                            closeFuture.complete(null);
-                        }
+                        commitWatchers.close(failureCauseSupplier);
+                        closeFuture.complete(null);
                     }
                 }
             });
@@ -434,29 +391,6 @@ class GitRepository implements Repository {
     @Override
     public String name() {
         return name;
-    }
-
-    public GitRepositoryFormat format() {
-        return format;
-    }
-
-    public boolean needsMigration(GitRepositoryFormat preferredFormat) {
-        if (format != preferredFormat) {
-            return true;
-        }
-
-        if (!(jGitRepository.getRefDatabase() instanceof RefDirectory)) {
-            // 0.19.0 used RefTreeDatabase we do not use anymore.
-            return true;
-        }
-
-        final File oldTagFile = new File(
-                jGitRepository.getDirectory(),
-                "refs" + File.separatorChar + "tags" + File.separatorChar + "01" + File.separatorChar + "1.0");
-
-        // Some old repositories used tags to store the revision-to-commitId mappings,
-        // which has been replaced by CommitIdDatabase by https://github.com/line/centraldogma/pull/104
-        return oldTagFile.exists();
     }
 
     @Override
@@ -925,14 +859,8 @@ class GitRepository implements Repository {
 
         final RevisionAndEntries res;
         final Iterable<Change<?>> applyingChanges;
-        boolean hasLock = false;
+        writeLock();
         try {
-            hasLock = writeLock(directExecution);
-            if (!hasLock) {
-                throw new StorageException(
-                        "failed to acquire a write lock for " + parent().name() + '/' + name());
-            }
-
             final Revision normBaseRevision = normalizeNow(baseRevision);
             final Revision headRevision = cachedHeadRevision();
             if (headRevision.major() != normBaseRevision.major()) {
@@ -951,9 +879,7 @@ class GitRepository implements Repository {
 
             this.headRevision = res.revision;
         } finally {
-            if (hasLock) {
-                writeUnLock();
-            }
+            writeUnLock();
         }
 
         // Note that the notification is made while no lock is held to avoid the risk of a dead lock.
@@ -1542,25 +1468,6 @@ class GitRepository implements Repository {
         return future;
     }
 
-    @Override
-    public Revision gc() throws Exception {
-        // Should not acquire `writeLock()` which prevents reading commits from this repository.
-        gcLock.lock();
-        try {
-            garbageCollector.gc();
-            final Revision headRevision = this.headRevision;
-            gcRevision.write(headRevision);
-            return headRevision;
-        } finally {
-            gcLock.unlock();
-        }
-    }
-
-    @Override
-    public Revision lastGcRevision() {
-        return gcRevision.lastRevision();
-    }
-
     private void notifyWatchers(Revision newRevision, List<DiffEntry> diffEntries) {
         for (DiffEntry entry : diffEntries) {
             switch (entry.getChangeType()) {
@@ -1638,83 +1545,34 @@ class GitRepository implements Repository {
         rwLock.readLock().unlock();
     }
 
-    @VisibleForTesting
-    boolean writeLock(boolean directExecution) {
-        // Should not commit changes if gc is running
-        boolean hasGcLock;
-        if (directExecution) {
-            try {
-                // Waits only 10 seconds the gc lock to prevent a command worker queue from filing up
-                // due to a long gc, if the command was directly submitted to this server.
-                hasGcLock = gcLock.tryLock(10, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                hasGcLock = false;
-                Thread.currentThread().interrupt();
-            }
-        } else {
-            // Should not fail replaying a log due to a long gc.
-            // Because if a log is failed to replay, this replica will enter read-only mode.
-            gcLock.lock();
-            hasGcLock = true;
+    private void writeLock() {
+        rwLock.writeLock().lock();
+        if (closePending.get() != null) {
+            writeUnLock();
+            throw closePending.get().get();
         }
-
-        if (hasGcLock) {
-            rwLock.writeLock().lock();
-            if (closePending.get() != null) {
-                writeUnLock();
-                throw closePending.get().get();
-            }
-            return true;
-        }
-
-        return false;
     }
 
     private void writeUnLock() {
-        try {
-            rwLock.writeLock().unlock();
-        } finally {
-            gcLock.unlock();
-        }
+        rwLock.writeLock().unlock();
     }
 
     /**
      * Clones this repository into a new one.
      */
     public void cloneTo(File newRepoDir) {
-        cloneTo(newRepoDir, GitRepositoryFormat.V1);
+        cloneTo(newRepoDir, (current, total) -> { /* no-op */ });
     }
 
     /**
      * Clones this repository into a new one.
      */
     public void cloneTo(File newRepoDir, BiConsumer<Integer, Integer> progressListener) {
-        cloneTo(newRepoDir, GitRepositoryFormat.V1, progressListener);
-    }
-
-    /**
-     * Clones this repository into a new one.
-     *
-     * @param format the repository format
-     */
-    public void cloneTo(File newRepoDir, GitRepositoryFormat format) {
-        cloneTo(newRepoDir, format, (current, total) -> { /* no-op */ });
-    }
-
-    /**
-     * Clones this repository into a new one.
-     *
-     * @param format the repository format
-     */
-    public void cloneTo(File newRepoDir, GitRepositoryFormat format,
-                        BiConsumer<Integer, Integer> progressListener) {
-
         requireNonNull(newRepoDir, "newRepoDir");
-        requireNonNull(format, "format");
         requireNonNull(progressListener, "progressListener");
 
         final Revision endRevision = normalizeNow(Revision.HEAD);
-        final GitRepository newRepo = new GitRepository(parent, newRepoDir, format, repositoryWorker,
+        final GitRepository newRepo = new GitRepository(parent, newRepoDir, repositoryWorker,
                                                         creationTimeMillis(), author(), cache);
 
         progressListener.accept(1, endRevision.major());
@@ -1781,7 +1639,6 @@ class GitRepository implements Repository {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("dir", jGitRepository.getDirectory())
-                          .add("format", format)
                           .toString();
     }
 

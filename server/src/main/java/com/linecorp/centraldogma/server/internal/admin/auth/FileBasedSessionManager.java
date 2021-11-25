@@ -35,6 +35,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -288,8 +289,8 @@ public final class FileBasedSessionManager implements SessionManager {
                 logger.debug("Started {} job.", ExpiredSessionDeletingJob.class.getSimpleName());
                 final Path rootDir = (Path) context.getJobDetail().getJobDataMap().get(ROOT_DIR);
                 final Instant now = Instant.now();
-                Files.walk(rootDir, 2)
-                     .filter(FileBasedSessionManager::isSessionFile)
+                try (Stream<Path> stream = Files.walk(rootDir, 2)) {
+                     stream.filter(FileBasedSessionManager::isSessionFile)
                      .map(path -> {
                          try {
                              return Jackson.readValue(Files.readAllBytes(path), Session.class);
@@ -320,6 +321,7 @@ public final class FileBasedSessionManager implements SessionManager {
                              logger.warn("Failed to delete an expired session: {}", path, cause);
                          }
                      });
+                }
                 logger.debug("Finished {} job.", ExpiredSessionDeletingJob.class.getSimpleName());
             } catch (Throwable cause) {
                 logger.warn("Failed {} job:", ExpiredSessionDeletingJob.class.getSimpleName(), cause);

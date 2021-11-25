@@ -15,7 +15,7 @@
  */
 package com.linecorp.centraldogma.server.command;
 
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
@@ -254,7 +254,7 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     }
 
     private CompletableFuture<CommitResult> push(AbstractPushCommand<?> c, boolean normalizing) {
-        if (c.projectName().equals(INTERNAL_PROJ) || c.repositoryName().equals(Project.REPO_DOGMA) ||
+        if (c.projectName().equals(INTERNAL_PROJECT_DOGMA) || c.repositoryName().equals(Project.REPO_DOGMA) ||
             !writeQuotaEnabled()) {
             return push0(c, normalizing);
         }

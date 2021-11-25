@@ -40,6 +40,7 @@
     "button_delete": "Delete",
     "button_edit": "Edit",
     "button_fetch_again": "Fetch again",
+    "button_go_to_metadata": "Go to metadata",
     "button_history": "History",
     "button_query": "Query",
     "button_restore": "Restore",

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2021 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,10 +13,15 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+package com.linecorp.centraldogma.server.storage.project;
 
-package com.linecorp.centraldogma.server.internal.storage.repository.git;
+import java.util.List;
 
-public enum GitRepositoryFormat {
-    V0,
-    V1
+import com.google.common.collect.ImmutableList;
+
+final class ProjectUtil {
+
+    static final List<String> internalRepos = ImmutableList.of(Project.REPO_DOGMA, Project.REPO_META);
+
+    private ProjectUtil() {}
 }

@@ -3,16 +3,16 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.fasterxml.jackson:jackson-bom:2.12.3
-- com.linecorp.armeria:armeria-bom:1.8.0
-- io.micrometer:micrometer-bom:1.7.0
-- org.junit:junit-bom:5.7.2
+- com.fasterxml.jackson:jackson-bom:2.13.0
+- com.linecorp.armeria:armeria-bom:1.13.3
+- io.micrometer:micrometer-bom:1.7.4
+- org.junit:junit-bom:5.8.1
 
 ch.qos.logback:
   logback-classic:
-    version: '1.2.3'
+    version: '1.2.6'
     javadocs:
-    - https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.3/
+    - https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.6/
 
 com.beust:
   # Please check `jcommander` version of Maven Central Repository before updating
@@ -58,14 +58,14 @@ com.github.jengelman.gradle.plugins:
   shadow: { version: '6.1.0' }
 
 com.github.node-gradle:
-  gradle-node-plugin: { version: '3.0.1' }
+  gradle-node-plugin: { version: '3.1.1' }
 
 com.google.code.findbugs:
   jsr305: { version: '3.0.2' }
 
 com.google.guava:
   guava:
-    version: &GUAVA_VERSION '30.1.1-jre'
+    version: &GUAVA_VERSION '31.0.1-jre'
     exclusions:
     - com.google.errorprone:error_prone_annotations
     - com.google.j2objc:j2objc-annotations
@@ -111,14 +111,14 @@ com.jcraft:
 com.linecorp.armeria:
   armeria:
     javadocs:
-    - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.6.0/
+    - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.9.0/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.42' }
+  checkstyle: { version: '8.45.1' }
 
 com.spotify:
   completable-futures:
-    version: '0.3.4'
+    version: '0.3.5'
     relocations:
     - from: com.spotify.futures
       to:   com.linecorp.centraldogma.internal.shaded.futures
@@ -132,10 +132,10 @@ gradle.plugin.net.davidecavestro:
 io.micrometer:
   micrometer-core:
     javadocs:
-    - https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.6.5/
+    - https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.7.3/
   micrometer-registry-prometheus:
     javadocs:
-    - https://www.javadoc.io/doc/io.micrometer/micrometer-registry-prometheus/1.6.5/
+    - https://www.javadoc.io/doc/io.micrometer/micrometer-registry-prometheus/1.7.3/
 
 javax.annotation:
   javax.annotation-api: { version: '1.3.2' }
@@ -161,15 +161,15 @@ org.junit.jupiter:
 kr.motd.gradle:
   sphinx-gradle-plugin: { version: '2.10.1' }
 
-me.champeau.gradle:
-  jmh-gradle-plugin: { version: '0.5.3' }
+me.champeau.jmh:
+  jmh-gradle-plugin: { version: '0.6.6' }
 
 net.javacrumbs.json-unit:
-  json-unit: { version: &JSON_UNIT_VERSION '2.25.0' }
+  json-unit: { version: &JSON_UNIT_VERSION '2.28.0' }
   json-unit-fluent: { version: *JSON_UNIT_VERSION }
 
 com.guardsquare:
-  proguard-gradle: { version: '7.0.1' }
+  proguard-gradle: { version: '7.1.1' }
 
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
@@ -203,7 +203,7 @@ org.apache.zookeeper:
     - org.slf4j:slf4j-log4j12
 
 org.assertj:
-  assertj-core: { version: '3.19.0' }
+  assertj-core: { version: '3.21.0' }
 
 org.awaitility:
   awaitility: { version: '4.1.0' }
@@ -215,28 +215,28 @@ org.eclipse.jetty.alpn:
   alpn-api: { version: '1.1.3.v20160715' }
 
 org.eclipse.jgit:
-  org.eclipse.jgit: { version: &JGIT_VERSION '5.11.1.202105131744-r' }
+  org.eclipse.jgit: { version: &JGIT_VERSION '5.13.0.202109080827-r' }
   org.eclipse.jgit.ssh.jsch: { version: *JGIT_VERSION }
 
 org.hibernate.validator:
   hibernate-validator: { version: '6.1.6.Final' }
 
 org.javassist:
-  javassist: { version: '3.27.0-GA' }
+  javassist: { version: '3.28.0-GA' }
 
 org.mockito:
-  mockito-core: { version: &MOCKITO_VERSION '3.10.0' }
+  mockito-core: { version: &MOCKITO_VERSION '4.0.0' }
   mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
   jetty-alpn-agent: { version: '2.0.10' }
 
 org.openjdk.jmh:
-  jmh-core: { version: &JMH_VERSION '1.31' }
+  jmh-core: { version: &JMH_VERSION '1.33' }
   jmh-generator-annprocess: { version: *JMH_VERSION }
 
 org.slf4j:
-  jcl-over-slf4j: { version: &SLF4J_VERSION '1.7.30' }
+  jcl-over-slf4j: { version: &SLF4J_VERSION '1.7.32' }
   jul-to-slf4j: { version: *SLF4J_VERSION }
   log4j-over-slf4j: { version: *SLF4J_VERSION }
   slf4j-api:
@@ -246,7 +246,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.4.5'
+    version: &SPRING_BOOT_VERSION '2.5.5'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }

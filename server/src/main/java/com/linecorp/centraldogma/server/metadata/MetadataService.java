@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.server.metadata;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
@@ -74,7 +74,7 @@ public class MetadataService {
     /**
      * A path of token list file.
      */
-    static final String TOKEN_JSON = "/tokens.json";
+    public static final String TOKEN_JSON = "/tokens.json";
 
     /**
      * A {@link JsonPointer} of project removal information.
@@ -300,7 +300,7 @@ public class MetadataService {
      * with a default {@link PerRolePermissions}.
      */
     public CompletableFuture<Revision> addRepo(Author author, String projectName, String repoName) {
-        return addRepo(author, projectName, repoName, PerRolePermissions.DEFAULT);
+        return addRepo(author, projectName, repoName, PerRolePermissions.ofDefault());
     }
 
     /**
@@ -404,6 +404,11 @@ public class MetadataService {
         requireNonNull(projectName, "projectName");
         requireNonNull(repoName, "repoName");
         requireNonNull(perRolePermissions, "perRolePermissions");
+
+        if (Project.isReservedRepoName(repoName)) {
+            throw new UnsupportedOperationException(
+                    "can't update the per role permission for internal repository: " + repoName);
+        }
 
         final JsonPointer path = JsonPointer.compile("/repos" + encodeSegment(repoName) +
                                                      "/perRolePermissions");
@@ -801,7 +806,7 @@ public class MetadataService {
      * Returns a {@link Tokens}.
      */
     public CompletableFuture<Tokens> getTokens() {
-        return tokenRepo.fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
+        return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                         .thenApply(HolderWithRevision::object);
     }
 
@@ -851,7 +856,7 @@ public class MetadataService {
                                                new AddOperation(appIdPath, Jackson.valueToTree(newToken)),
                                                new AddOperation(secretPath,
                                                                 Jackson.valueToTree(newToken.id()))));
-        return tokenRepo.push(INTERNAL_PROJ, Project.REPO_DOGMA, author,
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                               "Add a token: " + newToken.id(), change);
     }
 
@@ -870,8 +875,8 @@ public class MetadataService {
             futures[i++] = removeToken(p.name(), author, appId, true).toCompletableFuture();
         }
         return CompletableFuture.allOf(futures).thenCompose(unused -> tokenRepo.push(
-                INTERNAL_PROJ, Project.REPO_DOGMA, author, "Remove the token: " + appId,
-                () -> tokenRepo.fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
+                INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, "Remove the token: " + appId,
+                () -> tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                                .thenApply(tokens -> {
                                    final Token token = tokens.object().get(appId);
                                    final JsonPointer appIdPath =
@@ -896,10 +901,10 @@ public class MetadataService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        return tokenRepo.push(INTERNAL_PROJ, Project.REPO_DOGMA, author,
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                               "Enable the token: " + appId,
                               () -> tokenRepo
-                                      .fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
+                                      .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                                       .thenApply(tokens -> {
                                           final Token token = tokens.object().get(appId);
                                           final JsonPointer removalPath =
@@ -927,10 +932,10 @@ public class MetadataService {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
-        return tokenRepo.push(INTERNAL_PROJ, Project.REPO_DOGMA, author,
+        return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author,
                               "Disable the token: " + appId,
                               () -> tokenRepo
-                                      .fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
+                                      .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                                       .thenApply(tokens -> {
                                           final Token token = tokens.object().get(appId);
                                           final JsonPointer removalPath =
@@ -956,7 +961,7 @@ public class MetadataService {
      */
     public CompletableFuture<Token> findTokenByAppId(String appId) {
         requireNonNull(appId, "appId");
-        return tokenRepo.fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
+        return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                         .thenApply(tokens -> tokens.object().get(appId));
     }
 
@@ -966,7 +971,7 @@ public class MetadataService {
     public CompletableFuture<Token> findTokenBySecret(String secret) {
         requireNonNull(secret, "secret");
         validateSecret(secret);
-        return tokenRepo.fetch(INTERNAL_PROJ, Project.REPO_DOGMA, TOKEN_JSON)
+        return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                         .thenApply(tokens -> tokens.object().findBySecret(secret));
     }
 

@@ -92,6 +92,8 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                                                      "Token '%s' does not exist.", cause.getMessage()))
                .put(QueryExecutionException.class,
                     (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
+               .put(UnsupportedOperationException.class,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause))
                .put(TooManyRequestsException.class,
                     (ctx, req, cause) -> {
                         final TooManyRequestsException cast = (TooManyRequestsException) cause;
