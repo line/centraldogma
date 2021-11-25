@@ -54,6 +54,26 @@ public interface MergeQuery<T> {
     }
 
     /**
+     * Returns a newly-created {@link MergeQuery} that merges the YAML contents as specified in the
+     * {@code mergeSources}.
+     *
+     * @param mergeSources the paths of YAML files being merged and indicates whether it is optional
+     */
+    static MergeQuery<JsonNode> ofYaml(MergeSource... mergeSources) {
+        return ofYaml(ImmutableList.copyOf(requireNonNull(mergeSources, "mergeSources")));
+    }
+
+    /**
+     * Returns a newly-created {@link MergeQuery} that merges the YAML contents as specified in the
+     * {@code mergeSources}.
+     *
+     * @param mergeSources the paths of YAML files being merged and indicates whether it is optional
+     */
+    static MergeQuery<JsonNode> ofYaml(Iterable<MergeSource> mergeSources) {
+        return new JsonMergeQuery(IDENTITY, mergeSources, ImmutableList.of());
+    }
+
+    /**
      * Returns a newly-created {@link MergeQuery} that merges the JSON contents as specified in the
      * {@code mergeSources}. Then, the specified
      * <a href="https://github.com/json-path/JsonPath/blob/master/README.md">JSON path expressions</a>
