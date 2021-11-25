@@ -249,11 +249,14 @@ public class ContentServiceV1 extends AbstractService {
         if (watchRequest != null) {
             final Revision lastKnownRevision = watchRequest.lastKnownRevision();
             final long timeOutMillis = watchRequest.timeoutMillis();
+            final boolean errorOnEntryNotFound = watchRequest.notifyEntryNotFound();
             if (query != null) {
-                return watchFile(ctx, repository, lastKnownRevision, query, timeOutMillis);
+                return watchFile(ctx, repository, lastKnownRevision, query, timeOutMillis,
+                                 errorOnEntryNotFound);
             }
 
-            return watchRepository(ctx, repository, lastKnownRevision, normalizedPath, timeOutMillis);
+            return watchRepository(ctx, repository, lastKnownRevision, normalizedPath,
+                                   timeOutMillis, errorOnEntryNotFound);
         }
 
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
@@ -272,9 +275,9 @@ public class ContentServiceV1 extends AbstractService {
 
     private CompletableFuture<?> watchFile(ServiceRequestContext ctx,
                                            Repository repository, Revision lastKnownRevision,
-                                           Query<?> query, long timeOutMillis) {
+                                           Query<?> query, long timeOutMillis, boolean errorOnEntryNotFound) {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
-                repository, lastKnownRevision, query, timeOutMillis);
+                repository, lastKnownRevision, query, timeOutMillis, errorOnEntryNotFound);
 
         if (!future.isDone()) {
             ctx.log().whenComplete().thenRun(() -> future.cancel(false));
@@ -289,9 +292,11 @@ public class ContentServiceV1 extends AbstractService {
 
     private CompletableFuture<?> watchRepository(ServiceRequestContext ctx,
                                                  Repository repository, Revision lastKnownRevision,
-                                                 String pathPattern, long timeOutMillis) {
+                                                 String pathPattern, long timeOutMillis,
+                                                 boolean errorOnEntryNotFound) {
         final CompletableFuture<Revision> future =
-                watchService.watchRepository(repository, lastKnownRevision, pathPattern, timeOutMillis);
+                watchService.watchRepository(repository, lastKnownRevision, pathPattern,
+                                             timeOutMillis, errorOnEntryNotFound);
 
         if (!future.isDone()) {
             ctx.log().whenComplete().thenRun(() -> future.cancel(false));

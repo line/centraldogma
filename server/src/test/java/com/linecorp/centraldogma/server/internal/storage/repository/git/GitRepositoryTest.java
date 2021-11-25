@@ -105,8 +105,10 @@ class GitRepositoryTest {
              * Used by {@link GitRepositoryTest#testWatchWithQueryCancellation()}.
              */
             @Override
-            public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
-                final CompletableFuture<Revision> f = super.watch(lastKnownRevision, pathPattern);
+            public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern,
+                                                     boolean errorOnEntryNotFound) {
+                final CompletableFuture<Revision> f = super.watch(lastKnownRevision, pathPattern,
+                                                                  errorOnEntryNotFound);
                 if (watchConsumer != null) {
                     watchConsumer.accept(f);
                 }
@@ -1062,7 +1064,7 @@ class GitRepositoryTest {
         final Revision rev1 = repo.normalizeNow(HEAD);
         final Revision rev2 = rev1.forward(1);
 
-        final CompletableFuture<Revision> f = repo.watch(rev1, Repository.ALL_PATH);
+        final CompletableFuture<Revision> f = repo.watch(rev1, Repository.ALL_PATH, false);
         assertThat(f).isNotDone();
 
         repo.commit(rev1, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]);
@@ -1079,7 +1081,7 @@ class GitRepositoryTest {
         final Revision rev2 = rev1.forward(1);
         final Revision rev3 = rev2.forward(1);
 
-        final CompletableFuture<Revision> f = repo.watch(rev1, jsonPaths[1]);
+        final CompletableFuture<Revision> f = repo.watch(rev1, jsonPaths[1], false);
 
         // Should not notify when the path pattern does not match.
         repo.commit(rev1, 0L, Author.UNKNOWN, SUMMARY, jsonUpserts[0]).join();
@@ -1103,7 +1105,7 @@ class GitRepositoryTest {
         assertThat(latestRev).isNotEqualTo(lastKnownRev);
 
         // Should notify very soon.
-        final CompletableFuture<Revision> f = repo.watch(lastKnownRev, Repository.ALL_PATH);
+        final CompletableFuture<Revision> f = repo.watch(lastKnownRev, Repository.ALL_PATH, false);
         assertThat(f.get(3, TimeUnit.SECONDS)).isEqualTo(latestRev);
 
         ensureWatcherCleanUp();
@@ -1118,7 +1120,7 @@ class GitRepositoryTest {
 
         // Should not return a successful future because the changes in the prior commit did not affect
         // the files that patch the path pattern.
-        final CompletableFuture<Revision> f = repo.watch(lastKnownRev, jsonPaths[1]);
+        final CompletableFuture<Revision> f = repo.watch(lastKnownRev, jsonPaths[1], false);
         assertThatThrownBy(() -> f.get(500, TimeUnit.MILLISECONDS))
                 .isInstanceOf(TimeoutException.class);
 
@@ -1319,7 +1321,7 @@ class GitRepositoryTest {
                 INIT, 0, Author.SYSTEM, "foo",
                 Change.ofTextUpsert("/foo", "foo")).join()).hasCause(expectedException);
         assertThatThrownBy(() -> repo.watch(
-                INIT, "/**").get(10, TimeUnit.SECONDS)).hasCause(expectedException);
+                INIT, "/**", false).get(10, TimeUnit.SECONDS)).hasCause(expectedException);
         assertThatThrownBy(() -> repo.watch(
                 INIT, Query.ofJson("/foo.json")).get(10, TimeUnit.SECONDS)).hasCause(expectedException);
     }

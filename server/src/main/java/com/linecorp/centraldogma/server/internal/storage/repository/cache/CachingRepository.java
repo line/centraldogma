@@ -38,6 +38,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
@@ -178,7 +179,8 @@ final class CachingRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
+    public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern,
+                                                          boolean errorOnEntryNotFound) {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
 
@@ -188,20 +190,28 @@ final class CachingRepository implements Repository {
             return CompletableFuture.completedFuture(null);
         }
 
-        return cache.get(new CacheableFindLatestRevCall(repo, range.from(), range.to(), pathPattern))
+        return cache.get(new CacheableFindLatestRevCall(repo, range.from(), range.to(),
+                                                        pathPattern, errorOnEntryNotFound))
                     .handleAsync((result, cause) -> {
                         throwUnsafelyIfNonNull(cause);
-                        return result != CacheableFindLatestRevCall.EMPTY ? result : null;
+                        if (result == CacheableFindLatestRevCall.ENTRY_NOT_FOUND) {
+                            throw new EntryNotFoundException(range.from(), pathPattern);
+                        }
+                        if (result == CacheableFindLatestRevCall.EMPTY) {
+                            return null;
+                        }
+                        return result;
                     }, executor());
     }
 
     @Override
-    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern,
+                                             boolean errorOnEntryNotFound) {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
 
         final CompletableFuture<Revision> latestRevFuture =
-                findLatestRevision(lastKnownRevision, pathPattern);
+                findLatestRevision(lastKnownRevision, pathPattern, errorOnEntryNotFound);
         if (latestRevFuture.isCompletedExceptionally() || latestRevFuture.getNow(null) != null) {
             return latestRevFuture;
         }
@@ -219,7 +229,8 @@ final class CachingRepository implements Repository {
             }
 
             // Propagate the state of 'watchFuture' to 'future'.
-            final CompletableFuture<Revision> watchFuture = repo.watch(lastKnownRevision, pathPattern);
+            final CompletableFuture<Revision> watchFuture =
+                    repo.watch(lastKnownRevision, pathPattern, errorOnEntryNotFound);
             watchFuture.whenComplete((watchResult, watchCause) -> {
                 if (watchCause == null) {
                     future.complete(watchResult);

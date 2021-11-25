@@ -356,7 +356,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Revision> future =
-                watchService.watchRepository(repo, convert(lastKnownRevision), pathPattern, timeoutMillis);
+                watchService.watchRepository(repo, convert(lastKnownRevision), pathPattern, timeoutMillis,
+                                             false);
         handleWatchRepositoryResult(future, resultHandler);
     }
 
@@ -391,7 +392,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future =
-                watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis);
+                watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis,
+                                       false);
 
         handleWatchFileResult(future, resultHandler);
     }

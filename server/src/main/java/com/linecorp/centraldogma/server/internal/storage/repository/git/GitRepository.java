@@ -106,6 +106,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RedundantChangeException;
@@ -1288,30 +1289,49 @@ class GitRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
+    public CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern,
+                                                          boolean errorOnEntryNotFound) {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
 
         final ServiceRequestContext ctx = context();
         return CompletableFuture.supplyAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "findLatestRevision", lastKnownRevision, pathPattern);
-            return blockingFindLatestRevision(lastKnownRevision, pathPattern);
+            return blockingFindLatestRevision(lastKnownRevision, pathPattern, errorOnEntryNotFound);
         }, repositoryWorker);
     }
 
     @Nullable
-    private Revision blockingFindLatestRevision(Revision lastKnownRevision, String pathPattern) {
+    private Revision blockingFindLatestRevision(Revision lastKnownRevision, String pathPattern,
+                                                boolean errorOnEntryNotFound) {
         final RevisionRange range = normalizeNow(lastKnownRevision, Revision.HEAD);
         if (range.from().equals(range.to())) {
             // Empty range.
-            return null;
+            if (!errorOnEntryNotFound) {
+                return null;
+            }
+            // We have to check if we have the entry.
+            final Map<String, Entry<?>> entries =
+                    blockingFind(range.to(), pathPattern, FindOptions.FIND_ONE_WITHOUT_CONTENT);
+            if (!entries.isEmpty()) {
+                // We have the entry so just return null because there's no change.
+                return null;
+            }
+            throw new EntryNotFoundException(lastKnownRevision, pathPattern);
         }
 
         if (range.from().major() == 1) {
             // Fast path: no need to compare because we are sure there is nothing at revision 1.
             final Map<String, Entry<?>> entries =
                     blockingFind(range.to(), pathPattern, FindOptions.FIND_ONE_WITHOUT_CONTENT);
-            return !entries.isEmpty() ? range.to() : null;
+            if (entries.isEmpty()) {
+                if (!errorOnEntryNotFound) {
+                    return null;
+                }
+                throw new EntryNotFoundException(lastKnownRevision, pathPattern);
+            } else {
+                return range.to();
+            }
         }
 
         // Slow path: compare the two trees.
@@ -1347,7 +1367,15 @@ class GitRepository implements Repository {
             }
         }
 
-        return null;
+        if (!errorOnEntryNotFound) {
+            return null;
+        }
+        if (!blockingFind(range.to(), pathPattern, FindOptions.FIND_ONE_WITHOUT_CONTENT).isEmpty()) {
+            // We have to make sure that the entry does not exist because the size of diffEntries can be 0
+            // when the contents of range.from() and range.to() are identical. (e.g. add, remove and add again)
+            return null;
+        }
+        throw new EntryNotFoundException(lastKnownRevision, pathPattern);
     }
 
     /**
@@ -1408,7 +1436,8 @@ class GitRepository implements Repository {
     }
 
     @Override
-    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+    public CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern,
+                                             boolean errorOnEntryNotFound) {
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
 
@@ -1421,7 +1450,8 @@ class GitRepository implements Repository {
             try {
                 // If lastKnownRevision is outdated already and the recent changes match,
                 // there's no need to watch.
-                final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern);
+                final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
+                                                                           errorOnEntryNotFound);
                 if (latestRevision != null) {
                     future.complete(latestRevision);
                 } else {

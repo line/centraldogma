@@ -439,20 +439,62 @@ public interface Repository {
      * @return the latest {@link Revision} if there's a match, or {@code null} if there's no match or
      *         {@code lastKnownRevision} is the latest {@link Revision}
      */
-    CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern);
+    default CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern) {
+        return findLatestRevision(lastKnownRevision, pathPattern, false);
+    }
+
+    /**
+     * Returns the latest {@link Revision} if there are any {@link Change}s since {@code lastKnownRevision}
+     * that affected the path matched by the specified {@code pathPattern}. The behavior of this method could
+     * be represented as the following code:
+     * <pre>{@code
+     * RevisionRange range = repository.normalizeNow(lastKnownRevision, Revision.HEAD);
+     * return repository.diff(range.from(), range.to(), pathPattern).thenApply(diff -> {
+     *     if (diff.isEmpty()) {
+     *         return null;
+     *     } else {
+     *         return range.to();
+     *     }
+     * });
+     * }</pre>
+     * .. although it would be implemented more efficiently.
+     *
+     * @return the latest {@link Revision} if there's a match, or {@code null} if there's no match or
+     *         {@code lastKnownRevision} is the latest {@link Revision}
+     */
+    CompletableFuture<Revision> findLatestRevision(Revision lastKnownRevision, String pathPattern,
+                                                   boolean errorOnEntryNotFound);
 
     /**
      * Awaits and retrieves the latest revision of the commit that changed the file that matches the specified
      * {@code pathPattern} since the specified last known revision.
      */
-    CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern);
+    default CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern) {
+        return watch(lastKnownRevision, pathPattern, false);
+    }
+
+    /**
+     * Awaits and retrieves the latest revision of the commit that changed the file that matches the specified
+     * {@code pathPattern} since the specified last known revision.
+     */
+    CompletableFuture<Revision> watch(Revision lastKnownRevision, String pathPattern,
+                                      boolean errorOnEntryNotFound);
 
     /**
      * Awaits and retrieves the change in the query result of the specified file asynchronously since the
      * specified last known revision.
      */
     default <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query) {
-        return RepositoryUtil.watch(this, lastKnownRevision, query);
+        return watch(lastKnownRevision, query, false);
+    }
+
+    /**
+     * Awaits and retrieves the change in the query result of the specified file asynchronously since the
+     * specified last known revision.
+     */
+    default <T> CompletableFuture<Entry<T>> watch(Revision lastKnownRevision, Query<T> query,
+                                                  boolean errorOnEntryNotFound) {
+        return RepositoryUtil.watch(this, lastKnownRevision, query, errorOnEntryNotFound);
     }
 
     /**
