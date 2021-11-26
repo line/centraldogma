@@ -54,12 +54,14 @@ public abstract class AbstractMirror implements Mirror {
     private final URI remoteRepoUri;
     private final String remotePath;
     private final String remoteBranch;
+    private final String remoteExcludePath;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
 
     protected AbstractMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                              Repository localRepo, String localPath,
-                             URI remoteRepoUri, String remotePath, @Nullable String remoteBranch) {
+                             URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
+                             @Nullable String remoteExcludePath) {
 
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
@@ -69,6 +71,7 @@ public abstract class AbstractMirror implements Mirror {
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
         this.remoteBranch = remoteBranch;
+        this.remoteExcludePath = remoteExcludePath;
 
         executionTime = ExecutionTime.forCron(this.schedule);
 
@@ -131,6 +134,11 @@ public abstract class AbstractMirror implements Mirror {
     @Override
     public final String remoteBranch() {
         return remoteBranch;
+    }
+
+    @Override
+    public final String remoteExcludePath() {
+        return remoteExcludePath;
     }
 
     @Override

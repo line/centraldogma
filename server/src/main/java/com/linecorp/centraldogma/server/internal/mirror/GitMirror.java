@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
@@ -75,8 +77,10 @@ public final class GitMirror extends AbstractMirror {
 
     public GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath,
-                     URI remoteRepoUri, String remotePath, String remoteBranch) {
-        super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch);
+                     URI remoteRepoUri, String remotePath, String remoteBranch,
+                     @Nullable String remoteExcludePath) {
+        super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
+              remoteExcludePath);
     }
 
     @Override
@@ -147,6 +151,10 @@ public final class GitMirror extends AbstractMirror {
                 while (treeWalk.next()) {
                     final FileMode fileMode = treeWalk.getFileMode();
                     final String path = '/' + treeWalk.getPathString();
+
+                    if (path.startsWith(remotePath() + remoteExcludePath())) {
+                        continue;
+                    }
 
                     // Recurse into a directory if necessary.
                     if (fileMode == FileMode.TREE) {

@@ -220,6 +220,8 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
         final String localPath;
         final URI remoteUri;
         @Nullable
+        final String remoteExcludePath;
+        @Nullable
         final String credentialId;
         final Cron schedule;
 
@@ -230,6 +232,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                            @JsonProperty(value = "localRepo", required = true) String localRepo,
                            @JsonProperty("localPath") @Nullable String localPath,
                            @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
+                           @JsonProperty("remoteExcludePath") @Nullable String remoteExcludePath,
                            @JsonProperty("credentialId") @Nullable String credentialId) {
 
             super(firstNonNull(enabled, true));
@@ -238,6 +241,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
             this.localRepo = requireNonNull(localRepo, "localRepo");
             this.localPath = firstNonNull(localPath, "/");
             this.remoteUri = requireNonNull(remoteUri, "remoteUri");
+            this.remoteExcludePath = remoteExcludePath;
             this.credentialId = credentialId;
         }
 
@@ -249,7 +253,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
 
             return Collections.singletonList(Mirror.of(
                     schedule, direction, findCredential(credentials, remoteUri, credentialId),
-                    parent.repos().get(localRepo), localPath, remoteUri));
+                    parent.repos().get(localRepo), localPath, remoteUri, remoteExcludePath));
         }
     }
 
@@ -316,7 +320,8 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                                                                                 : defaultCredentialId),
                                           repo,
                                           firstNonNull(i.localPath, defaultLocalPath),
-                                          remoteUri));
+                                          remoteUri,
+                                          null));
                 }
             });
 

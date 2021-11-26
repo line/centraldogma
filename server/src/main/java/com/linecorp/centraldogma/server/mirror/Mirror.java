@@ -30,6 +30,8 @@ import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 
+import javax.annotation.Nullable;
+
 import com.cronutils.model.Cron;
 
 import com.linecorp.centraldogma.server.MirrorException;
@@ -53,9 +55,11 @@ public interface Mirror {
      * @param localRepo the Central Dogma repository name
      * @param localPath the directory path in the {@code localRepo}
      * @param remoteUri the URI of the Git repository which will be mirrored from
+     * @param remoteExcludePath the relative path to {@code remoteUri} which will not be mirrored
      */
     static Mirror of(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                     Repository localRepo, String localPath, URI remoteUri) {
+                     Repository localRepo, String localPath, URI remoteUri,
+                     @Nullable String remoteExcludePath) {
         requireNonNull(schedule, "schedule");
         requireNonNull(direction, "direction");
         requireNonNull(credential, "credential");
@@ -83,7 +87,8 @@ public interface Mirror {
                 final String remoteRepo = matcher.group(2);
 
                 return new CentralDogmaMirror(schedule, direction, credential, localRepo, localPath,
-                                              remoteRepoUri, remoteProject, remoteRepo, components[1]);
+                                              remoteRepoUri, remoteProject, remoteRepo, components[1],
+                                              remoteExcludePath);
             }
             case SCHEME_GIT:
             case SCHEME_GIT_SSH:
@@ -92,7 +97,8 @@ public interface Mirror {
             case SCHEME_GIT_FILE: {
                 final String[] components = split(remoteUri, "git", "master");
                 return new GitMirror(schedule, direction, credential, localRepo, localPath,
-                                     URI.create(components[0]), components[1], components[2]);
+                                     URI.create(components[0]), components[1], components[2],
+                                     remoteExcludePath);
             }
         }
 
@@ -145,6 +151,11 @@ public interface Mirror {
      * Returns the name of the branch in the Git repository where is supposed to be mirrored.
      */
     String remoteBranch();
+
+    /**
+     * Returns the relative path to {@code remotePath} where isn't supposed to be mirrored.
+     */
+    String remoteExcludePath();
 
     /**
      * Performs the mirroring task.

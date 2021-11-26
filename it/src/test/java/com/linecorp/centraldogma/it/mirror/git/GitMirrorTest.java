@@ -146,7 +146,7 @@ class GitMirrorTest {
 
     @Test
     void remoteToLocal() throws Exception {
-        pushMirrorSettings(null, null);
+        pushMirrorSettings(null, null, null);
 
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
 
@@ -213,8 +213,56 @@ class GitMirrorTest {
     }
 
     @Test
+    void remoteToLocal_remoteExcludePath() throws Exception {
+        pushMirrorSettings(null, null, "second");
+
+        final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+
+        // Mirror an empty git repository, which will;
+        // - Create /mirror_state.json
+        // - Remove the sample files created by createProject().
+        mirroringService.mirror().join();
+
+        //// Make sure a new commit is added.
+        final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev1).isEqualTo(rev0.forward(1));
+
+        //// Make sure /mirror_state.json exists (and nothing else.)
+        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/");
+        assertThat(client.getFiles(projName, REPO_FOO, rev1, "/**").join().values())
+                .containsExactly(expectedInitialMirrorState);
+
+        // Try to mirror again with no changes in the git repository.
+        mirroringService.mirror().join();
+
+        //// Make sure it does not try to produce an empty commit.
+        final Revision rev2 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev2).isEqualTo(rev1);
+
+        // Now, add some files to the git repository and mirror.
+        //// This file should not be mirrored because it does not conform to CD's file naming rule.
+        addToGitIndex(".gitkeep", "");
+        addToGitIndex("first/light.txt", "26-Aug-2014");
+        addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}");
+        git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
+
+        mirroringService.mirror().join();
+
+        //// Make sure a new commit is added.
+        final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev3).isEqualTo(rev2.forward(1));
+
+        //// Make sure only the file under '/first' is there, because '/second' was excluded.
+        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
+        assertThat(client.getFiles(projName, REPO_FOO, rev3, "/**").join().values())
+                .containsExactlyInAnyOrder(expectedSecondMirrorState,
+                                           Entry.ofDirectory(rev3, "/first"),
+                                           Entry.ofText(rev3, "/first/light.txt", "26-Aug-2014\n"));
+    }
+
+    @Test
     void remoteToLocal_subdirectory() throws Exception {
-        pushMirrorSettings("/target", "/source/main");
+        pushMirrorSettings("/target", "/source/main", null);
 
         client.push(projName, REPO_FOO, Revision.HEAD, "Add a file that's not part of mirror",
                     Change.ofTextUpsert("/not_mirrored.txt", "")).join();
@@ -261,7 +309,7 @@ class GitMirrorTest {
 
     @Test
     void remoteToLocal_merge() throws Exception {
-        pushMirrorSettings(null, null);
+        pushMirrorSettings(null, null, null);
 
         // Mirror an empty git repository, which will;
         // - Create /mirror_state.json
@@ -313,7 +361,7 @@ class GitMirrorTest {
 
     @Test
     void remoteToLocal_submodule(TestInfo testInfo) throws Exception {
-        pushMirrorSettings(null, null);
+        pushMirrorSettings(null, null, null);
 
         // Create a new repository for a submodule.
         final String submoduleName = TestUtil.normalizedDisplayName(testInfo) + ".submodule";
@@ -348,7 +396,7 @@ class GitMirrorTest {
 
     @Test
     void remoteToLocal_tooManyFiles() throws Exception {
-        pushMirrorSettings(null, null);
+        pushMirrorSettings(null, null, null);
 
         // Add more than allowed number of filed.
         for (int i = 0; i <= MAX_NUM_FILES; i++) {
@@ -365,7 +413,7 @@ class GitMirrorTest {
 
     @Test
     void remoteToLocal_tooManyBytes() throws Exception {
-        pushMirrorSettings(null, null);
+        pushMirrorSettings(null, null, null);
 
         // Add files whose total size exceeds the allowed maximum.
         long remainder = MAX_NUM_BYTES + 1;
@@ -398,16 +446,18 @@ class GitMirrorTest {
     @CsvSource({ "meta", "dogma" })
     @ParameterizedTest
     void cannotMirrorToInternalRepositories(String localRepo) {
-        assertThatThrownBy(() -> pushMirrorSettings(localRepo, "/", "/"))
+        assertThatThrownBy(() -> pushMirrorSettings(localRepo, "/", "/", null))
                 .hasCauseInstanceOf(CentralDogmaException.class)
                 .hasMessageContaining("invalid localRepo:");
     }
 
-    private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath) {
-        pushMirrorSettings(REPO_FOO, localPath, remotePath);
+    private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath,
+                                    @Nullable String remoteExcludePath) {
+        pushMirrorSettings(REPO_FOO, localPath, remotePath, remoteExcludePath);
     }
 
-    private void pushMirrorSettings(String localRepo, @Nullable String localPath, @Nullable String remotePath) {
+    private void pushMirrorSettings(String localRepo, @Nullable String localPath, @Nullable String remotePath,
+                                    @Nullable String remoteExcludePath) {
         client.push(projName, Project.REPO_META, Revision.HEAD, "Add /mirrors.json",
                     Change.ofJsonUpsert("/mirrors.json",
                                         "[{" +
@@ -416,6 +466,9 @@ class GitMirrorTest {
                                         "  \"localRepo\": \"" + localRepo + "\"," +
                                         (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
                                         "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
+                                        (remoteExcludePath != null ?
+                                         ",\"remoteExcludePath\": \"" + firstNonNull(remoteExcludePath, "")
+                                         + '"' : "") +
                                         "}]")).join();
     }
 
