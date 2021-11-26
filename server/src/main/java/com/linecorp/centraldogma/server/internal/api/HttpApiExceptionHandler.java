@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.HttpStatusException;
 import com.linecorp.armeria.server.ServiceRequestContext;
@@ -107,26 +108,27 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
 
     @Override
     public HttpResponse handleException(ServiceRequestContext ctx, HttpRequest req, Throwable cause) {
+        final Throwable peeledCause = Exceptions.peel(cause);
 
-        if (cause instanceof HttpStatusException ||
-            cause instanceof HttpResponseException) {
+        if (peeledCause instanceof HttpStatusException ||
+            peeledCause instanceof HttpResponseException) {
             return ExceptionHandlerFunction.fallthrough();
         }
 
         // Use precomputed map if the cause is instance of CentralDogmaException to access in a faster way.
-        final ExceptionHandlerFunction func = exceptionHandlers.get(cause.getClass());
+        final ExceptionHandlerFunction func = exceptionHandlers.get(peeledCause.getClass());
         if (func != null) {
-            return func.handleException(ctx, req, cause);
+            return func.handleException(ctx, req, peeledCause);
         }
 
-        if (cause instanceof IllegalArgumentException) {
-            return newResponse(ctx, HttpStatus.BAD_REQUEST, cause);
+        if (peeledCause instanceof IllegalArgumentException) {
+            return newResponse(ctx, HttpStatus.BAD_REQUEST, peeledCause);
         }
 
-        if (cause instanceof RequestAlreadyTimedOutException) {
-            return newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, cause);
+        if (peeledCause instanceof RequestAlreadyTimedOutException) {
+            return newResponse(ctx, HttpStatus.SERVICE_UNAVAILABLE, peeledCause);
         }
 
-        return newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, cause);
+        return newResponse(ctx, HttpStatus.INTERNAL_SERVER_ERROR, peeledCause);
     }
 }
