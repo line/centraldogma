@@ -467,8 +467,8 @@ class GitMirrorTest {
                                         (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
                                         "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
                                         (remoteExcludePath != null ?
-                                         ",\"remoteExcludePath\": \"" + firstNonNull(remoteExcludePath, "")
-                                         + '"' : "") +
+                                         ",\"remoteExcludePath\": \"" + firstNonNull(remoteExcludePath, "") +
+                                         '"' : "") +
                                         "}]")).join();
     }
 
