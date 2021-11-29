@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.thrift;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
 import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkMirrorLocalRepo;
+import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkPushLocalRepo;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.linecorp.centraldogma.server.storage.project.Project.isReservedRepoName;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
@@ -293,6 +294,7 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
                 convert(changes, Converter::convert);
         try {
             checkMirrorLocalRepo(repositoryName, convertedChanges);
+            checkPushLocalRepo(repositoryName, convertedChanges);
         } catch (Exception e) {
             resultHandler.onError(e);
             return;

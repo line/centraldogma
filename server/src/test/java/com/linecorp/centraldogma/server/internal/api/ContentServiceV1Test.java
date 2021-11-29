@@ -130,6 +130,28 @@ class ContentServiceV1Test {
                 '}');
     }
 
+    @Test
+    void pushAFileToMetaRepositoryShouldBeForbidden() {
+        final WebClient client = dogma.httpClient();
+
+        final String body =
+                '{' +
+                "   \"path\" : \"/meta/foo.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : {\"a\": \"bar\"}," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add foo.json\"," +
+                "       \"detail\": \"Add because we need it.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET,
+                                                         "/api/v1/projects/myPro/repos/meta/contents",
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
+        assertThat(res.status()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
     @Nested
     class FilesTest {
 

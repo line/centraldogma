@@ -38,6 +38,7 @@ import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
@@ -100,7 +101,9 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                         final Object type = firstNonNull(cast.type(), "requests");
                         return newResponse(ctx, HttpStatus.TOO_MANY_REQUESTS, cast,
                                            "Too many %s are sent to %s", type, cause.getMessage());
-                    });
+                    })
+               .put(RepositoryNotAllowedException.class,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.FORBIDDEN, cause));
 
         exceptionHandlers = builder.build();
     }

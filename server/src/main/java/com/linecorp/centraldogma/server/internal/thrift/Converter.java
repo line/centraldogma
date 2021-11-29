@@ -32,6 +32,7 @@ import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
+import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -188,7 +189,7 @@ final class Converter {
         }
 
         ErrorCode code = ErrorCode.INTERNAL_SERVER_ERROR;
-        if (t instanceof IllegalArgumentException) {
+        if (t instanceof IllegalArgumentException || t instanceof RepositoryNotAllowedException) {
             code = ErrorCode.BAD_REQUEST;
         } else if (t instanceof EntryNotFoundException) {
             code = ErrorCode.ENTRY_NOT_FOUND;
