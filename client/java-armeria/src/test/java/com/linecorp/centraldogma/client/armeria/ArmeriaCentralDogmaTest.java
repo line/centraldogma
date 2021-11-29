@@ -17,10 +17,32 @@ package com.linecorp.centraldogma.client.armeria;
 
 import static com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogma.encodePathPattern;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.net.UnknownHostException;
+import java.util.concurrent.CompletionException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.PushResult;
+import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class ArmeriaCentralDogmaTest {
+
+    @RegisterExtension
+    static CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected void scaffold(CentralDogma client) {
+            client.createProject("foo").join();
+        }
+    };
 
     @Test
     void testEncodePathPattern() {
@@ -34,5 +56,37 @@ class ArmeriaCentralDogmaTest {
         final String pathPatternThatDoesNotNeedEscaping = "/*.zip,/**/*.jar";
         assertThat(encodePathPattern(pathPatternThatDoesNotNeedEscaping))
                 .isSameAs(pathPatternThatDoesNotNeedEscaping);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "dogma", "meta" })
+    void pushFileToInternalRepositoryShouldFail(String repoName) throws UnknownHostException {
+        final CentralDogma client = new ArmeriaCentralDogmaBuilder()
+                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
+                .build();
+
+        assertThatThrownBy(() -> client.push("foo",
+                                             repoName,
+                                             Revision.HEAD,
+                                             "summary",
+                                             Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
+                                       .join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(RepositoryNotAllowedException.class);
+    }
+
+    @Test
+    void pushMirrorsJsonFileToMetaRepository() throws UnknownHostException {
+        final CentralDogma client = new ArmeriaCentralDogmaBuilder()
+                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
+                .build();
+
+        final PushResult result = client.push("foo",
+                                              "meta",
+                                              Revision.HEAD,
+                                              "summary",
+                                              Change.ofJsonUpsert("/mirrors.json", "[]"))
+                                        .join();
+        assertThat(result.revision().major()).isPositive();
     }
 }

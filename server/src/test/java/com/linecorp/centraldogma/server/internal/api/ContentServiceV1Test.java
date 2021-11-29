@@ -31,6 +31,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -45,6 +47,7 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
+import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -130,13 +133,14 @@ class ContentServiceV1Test {
                 '}');
     }
 
-    @Test
-    void pushAFileToMetaRepositoryShouldBeForbidden() {
+    @ParameterizedTest
+    @ValueSource(strings = { "dogma", "meta" })
+    void pushFileToInternalRepositoryShouldFail(String repoName) {
         final WebClient client = dogma.httpClient();
 
         final String body =
                 '{' +
-                "   \"path\" : \"/meta/foo.json\"," +
+                "   \"path\" : \"/foo.json\"," +
                 "   \"type\" : \"UPSERT_JSON\"," +
                 "   \"content\" : {\"a\": \"bar\"}," +
                 "   \"commitMessage\" : {" +
@@ -145,11 +149,12 @@ class ContentServiceV1Test {
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +
                 '}';
-        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET,
-                                                         "/api/v1/projects/myPro/repos/meta/contents",
-                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final RequestHeaders headers =
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/" + repoName + "/contents",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(res.contentUtf8()).contains(RepositoryNotAllowedException.class.getName());
     }
 
     @Nested
