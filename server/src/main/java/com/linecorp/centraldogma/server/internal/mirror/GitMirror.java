@@ -19,7 +19,9 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -32,6 +34,8 @@ import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
+import org.eclipse.jgit.ignore.IgnoreNode;
+import org.eclipse.jgit.ignore.IgnoreNode.MatchResult;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
@@ -75,12 +79,22 @@ public final class GitMirror extends AbstractMirror {
 
     private static final int GIT_TIMEOUT_SECS = 10;
 
+    private final IgnoreNode ignoreNode = new IgnoreNode();
+
     public GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath,
                      URI remoteRepoUri, String remotePath, String remoteBranch,
-                     @Nullable String remoteExcludePath) {
+                     @Nullable String remoteExclude) {
         super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
-              remoteExcludePath);
+              remoteExclude);
+
+        if (remoteExclude != null) {
+            try {
+                ignoreNode.parse(new ByteArrayInputStream(remoteExclude.getBytes()));
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Failed to read remoteExclude pattern: " + remoteExclude);
+            }
+        }
     }
 
     @Override
@@ -152,7 +166,7 @@ public final class GitMirror extends AbstractMirror {
                     final FileMode fileMode = treeWalk.getFileMode();
                     final String path = '/' + treeWalk.getPathString();
 
-                    if (path.startsWith(remotePath() + remoteExcludePath())) {
+                    if (ignoreNode.isIgnored(path, fileMode == FileMode.TREE) == MatchResult.IGNORED) {
                         continue;
                     }
 

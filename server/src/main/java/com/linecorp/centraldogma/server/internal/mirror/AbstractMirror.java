@@ -54,14 +54,14 @@ public abstract class AbstractMirror implements Mirror {
     private final URI remoteRepoUri;
     private final String remotePath;
     private final String remoteBranch;
-    private final String remoteExcludePath;
+    private final String remoteExclude;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
 
     protected AbstractMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                              Repository localRepo, String localPath,
                              URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
-                             @Nullable String remoteExcludePath) {
+                             @Nullable String remoteExclude) {
 
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
@@ -71,7 +71,7 @@ public abstract class AbstractMirror implements Mirror {
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
         this.remoteBranch = remoteBranch;
-        this.remoteExcludePath = remoteExcludePath;
+        this.remoteExclude = remoteExclude;
 
         executionTime = ExecutionTime.forCron(this.schedule);
 
@@ -137,8 +137,8 @@ public abstract class AbstractMirror implements Mirror {
     }
 
     @Override
-    public final String remoteExcludePath() {
-        return remoteExcludePath;
+    public final String remoteExclude() {
+        return remoteExclude;
     }
 
     @Override
@@ -177,7 +177,8 @@ public abstract class AbstractMirror implements Mirror {
                                                  .add("localRepo", localRepo.name())
                                                  .add("localPath", localPath)
                                                  .add("remoteRepo", remoteRepoUri)
-                                                 .add("remotePath", remotePath);
+                                                 .add("remotePath", remotePath)
+                                                 .add("remoteExclude", remoteExclude);
         if (remoteBranch != null) {
             helper.add("remoteBranch", remoteBranch);
         }

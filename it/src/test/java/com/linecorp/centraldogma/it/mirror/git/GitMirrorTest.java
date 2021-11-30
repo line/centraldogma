@@ -213,8 +213,8 @@ class GitMirrorTest {
     }
 
     @Test
-    void remoteToLocal_remoteExcludePath() throws Exception {
-        pushMirrorSettings(null, null, "second");
+    void remoteToLocal_remoteExclude() throws Exception {
+        pushMirrorSettings(null, null, "/first/ex*" + "\\n" + "second");
 
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
 
@@ -243,6 +243,7 @@ class GitMirrorTest {
         //// This file should not be mirrored because it does not conform to CD's file naming rule.
         addToGitIndex(".gitkeep", "");
         addToGitIndex("first/light.txt", "26-Aug-2014");
+        addToGitIndex("first/exclude.txt", "26-Aug-2014");
         addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}");
         git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
 
@@ -452,12 +453,12 @@ class GitMirrorTest {
     }
 
     private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath,
-                                    @Nullable String remoteExcludePath) {
-        pushMirrorSettings(REPO_FOO, localPath, remotePath, remoteExcludePath);
+                                    @Nullable String remoteExclude) {
+        pushMirrorSettings(REPO_FOO, localPath, remotePath, remoteExclude);
     }
 
     private void pushMirrorSettings(String localRepo, @Nullable String localPath, @Nullable String remotePath,
-                                    @Nullable String remoteExcludePath) {
+                                    @Nullable String remoteExclude) {
         client.push(projName, Project.REPO_META, Revision.HEAD, "Add /mirrors.json",
                     Change.ofJsonUpsert("/mirrors.json",
                                         "[{" +
@@ -466,9 +467,7 @@ class GitMirrorTest {
                                         "  \"localRepo\": \"" + localRepo + "\"," +
                                         (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
                                         "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
-                                        (remoteExcludePath != null ?
-                                         ",\"remoteExcludePath\": \"" + firstNonNull(remoteExcludePath, "") +
-                                         '"' : "") +
+                                        ",\"remoteExclude\": \"" + firstNonNull(remoteExclude, "") + "\"" +
                                         "}]")).join();
     }
 
