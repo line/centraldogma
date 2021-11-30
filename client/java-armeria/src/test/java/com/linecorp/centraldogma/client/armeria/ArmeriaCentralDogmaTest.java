@@ -29,8 +29,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.PushResult;
-import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -72,7 +72,7 @@ class ArmeriaCentralDogmaTest {
                                              Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
                                        .join())
                 .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(RepositoryNotAllowedException.class);
+                .hasCauseInstanceOf(InvalidPushException.class);
     }
 
     @Test

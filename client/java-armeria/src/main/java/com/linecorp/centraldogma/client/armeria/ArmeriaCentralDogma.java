@@ -87,6 +87,7 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
@@ -98,7 +99,6 @@ import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
-import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
@@ -130,7 +130,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         .put(AuthorizationException.class.getName(), AuthorizationException::new)
                         .put(ShuttingDownException.class.getName(), ShuttingDownException::new)
                         .put(RepositoryExistsException.class.getName(), RepositoryExistsException::new)
-                        .put(RepositoryNotAllowedException.class.getName(), RepositoryNotAllowedException::new)
+                        .put(InvalidPushException.class.getName(), InvalidPushException::new)
                         .build();
 
     private final WebClient client;
@@ -193,7 +193,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         try {
             validateProjectName(projectName);
             return client.execute(
-                    headers(HttpMethod.DELETE, pathBuilder(projectName).append(REMOVED).toString()))
+                                 headers(HttpMethod.DELETE, pathBuilder(projectName).append(REMOVED).toString()))
                          .aggregate()
                          .thenApply(ArmeriaCentralDogma::handlePurgeResult);
         } catch (Exception e) {

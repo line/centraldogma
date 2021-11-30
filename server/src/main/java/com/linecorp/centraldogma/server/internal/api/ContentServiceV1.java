@@ -58,10 +58,10 @@ import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
@@ -408,8 +408,8 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     /**
-     * Checks if the commit is for mirroring setting and raises an exception if the {@code localRepo} field
-     * is one of {@code meta} and {@code dogma} which are internal repositories.
+     * Checks if the commit is for mirroring setting and raises a {@link InvalidPushException} if the given
+     * {@code localRepo} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
     public static void checkMirrorLocalRepo(String repoName, Iterable<Change<?>> changes) {
         // TODO(minwoox): Provide an internal API for mirroring setup with a better UI(?) and check this there.
@@ -438,14 +438,14 @@ public class ContentServiceV1 extends AbstractService {
                                return null;
                            }).filter(Objects::nonNull).findFirst();
             if (notAllowedLocalRepo.isPresent()) {
-                throw new IllegalArgumentException("invalid " + MIRROR_LOCAL_REPO + ": " +
-                                                   notAllowedLocalRepo.get());
+                throw new InvalidPushException("invalid " + MIRROR_LOCAL_REPO + ": " +
+                                               notAllowedLocalRepo.get());
             }
         }
     }
 
     /**
-     * Checks if the commit is for creating a file and raises a {@link RepositoryNotAllowedException} if the
+     * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
      * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
     public static void checkPushLocalRepo(String repoName, Iterable<Change<?>> changes) {
@@ -454,7 +454,7 @@ public class ContentServiceV1 extends AbstractService {
                     Streams.stream(changes)
                            .anyMatch(change -> !DefaultMetaRepository.PATH_MIRRORS.equals(change.path()));
             if (hasChangesWithoutMirroring) {
-                throw new RepositoryNotAllowedException(
+                throw new InvalidPushException(
                         "The " + repoName + " repository is reserved for internal usage.");
             }
         }

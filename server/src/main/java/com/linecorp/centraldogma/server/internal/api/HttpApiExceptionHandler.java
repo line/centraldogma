@@ -33,12 +33,12 @@ import com.linecorp.armeria.server.annotation.ExceptionHandlerFunction;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNoContentException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
-import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.TooManyRequestsException;
@@ -102,8 +102,8 @@ public final class HttpApiExceptionHandler implements ExceptionHandlerFunction {
                         return newResponse(ctx, HttpStatus.TOO_MANY_REQUESTS, cast,
                                            "Too many %s are sent to %s", type, cause.getMessage());
                     })
-               .put(RepositoryNotAllowedException.class,
-                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.FORBIDDEN, cause));
+               .put(InvalidPushException.class,
+                    (ctx, req, cause) -> newResponse(ctx, HttpStatus.BAD_REQUEST, cause));
 
         exceptionHandlers = builder.build();
     }

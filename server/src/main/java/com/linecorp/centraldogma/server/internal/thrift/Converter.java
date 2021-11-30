@@ -27,12 +27,12 @@ import javax.annotation.Nullable;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
-import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -169,7 +169,7 @@ final class Converter {
                 com.linecorp.centraldogma.common.Revision.HEAD,
                 com.linecorp.centraldogma.common.Revision.HEAD,
                 com.linecorp.centraldogma.server.storage.repository.Repository.ALL_PATH, 1).thenApply(
-                        history -> new Repository(name).setHead(convert(history.get(0))));
+                history -> new Repository(name).setHead(convert(history.get(0))));
     }
 
     static Commit convert(com.linecorp.centraldogma.common.Commit commit) {
@@ -189,7 +189,7 @@ final class Converter {
         }
 
         ErrorCode code = ErrorCode.INTERNAL_SERVER_ERROR;
-        if (t instanceof IllegalArgumentException || t instanceof RepositoryNotAllowedException) {
+        if (t instanceof IllegalArgumentException || t instanceof InvalidPushException) {
             code = ErrorCode.BAD_REQUEST;
         } else if (t instanceof EntryNotFoundException) {
             code = ErrorCode.ENTRY_NOT_FOUND;

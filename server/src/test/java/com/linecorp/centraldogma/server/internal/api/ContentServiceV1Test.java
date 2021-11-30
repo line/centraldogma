@@ -46,8 +46,8 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
-import com.linecorp.centraldogma.common.RepositoryNotAllowedException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -154,7 +154,7 @@ class ContentServiceV1Test {
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(res.contentUtf8()).contains(RepositoryNotAllowedException.class.getName());
+        assertThat(res.contentUtf8()).contains(InvalidPushException.class.getName());
     }
 
     @Nested
