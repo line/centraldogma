@@ -153,7 +153,7 @@ class ContentServiceV1Test {
                 RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/" + repoName + "/contents",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
-        assertThat(res.status()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(res.contentUtf8()).contains(InvalidPushException.class.getName());
     }
 
