@@ -186,8 +186,7 @@ public class ContentServiceV1 extends AbstractService {
             Author author,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-        checkMirrorLocalRepo(repository.name(), changes);
-        checkPushLocalRepo(repository.name(), changes);
+        checkPush(repository.name(), changes);
 
         final long commitTimeMillis = System.currentTimeMillis();
         return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
@@ -408,12 +407,24 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     /**
-     * Checks if the commit is for mirroring setting and raises a {@link InvalidPushException} if the given
-     * {@code localRepo} field is one of {@code meta} and {@code dogma} which are internal repositories.
+     * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
+     * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
-    public static void checkMirrorLocalRepo(String repoName, Iterable<Change<?>> changes) {
-        // TODO(minwoox): Provide an internal API for mirroring setup with a better UI(?) and check this there.
+    public static void checkPush(String repoName, Iterable<Change<?>> changes) {
+        if (Project.REPO_DOGMA.equals(repoName)) {
+            throw new InvalidPushException(
+                    "The " + Project.REPO_DOGMA + " repository is reserved for internal usage.");
+        }
+
         if (Project.REPO_META.equals(repoName)) {
+            final boolean hasChangesWithoutMirroring =
+                    Streams.stream(changes)
+                           .anyMatch(change -> !DefaultMetaRepository.PATH_MIRRORS.equals(change.path()));
+            if (hasChangesWithoutMirroring) {
+                throw new InvalidPushException(
+                        "The " + Project.REPO_META + " repository is reserved for internal usage.");
+            }
+
             final Optional<String> notAllowedLocalRepo =
                     Streams.stream(changes)
                            .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
@@ -440,22 +451,6 @@ public class ContentServiceV1 extends AbstractService {
             if (notAllowedLocalRepo.isPresent()) {
                 throw new InvalidPushException("invalid " + MIRROR_LOCAL_REPO + ": " +
                                                notAllowedLocalRepo.get());
-            }
-        }
-    }
-
-    /**
-     * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
-     * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
-     */
-    public static void checkPushLocalRepo(String repoName, Iterable<Change<?>> changes) {
-        if (Project.isReservedRepoName(repoName)) {
-            final boolean hasChangesWithoutMirroring =
-                    Streams.stream(changes)
-                           .anyMatch(change -> !DefaultMetaRepository.PATH_MIRRORS.equals(change.path()));
-            if (hasChangesWithoutMirroring) {
-                throw new InvalidPushException(
-                        "The " + repoName + " repository is reserved for internal usage.");
             }
         }
     }
