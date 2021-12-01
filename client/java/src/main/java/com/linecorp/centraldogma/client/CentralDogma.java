@@ -466,19 +466,19 @@ public interface CentralDogma {
 
     /**
      * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified
-     * {@code lastKnownRevision}. If the files are not exist and {@code errorOnEntryNotFound} of {@link WatchOptions}
+     * {@code lastKnownRevision}. If the files don't exist and {@link WatchOptions#errorOnEntryNotFound}
      * is ture, stops to wait files and throw {@link EntryNotFoundException} as the cause.
-     * If {@code errorOnEntryNotFound} of {@link WatchOptions} is false and no changes were made
-     * within the specified {@code timeoutMillis} of {@link WatchOptions}, the returned {@link CompletableFuture}
+     * If {@link WatchOptions#errorOnEntryNotFound} is false and no changes were made
+     * within the specified {@link WatchOptions#timeoutMillis}, the returned {@link CompletableFuture}
      * will be completed with {@code null}.
      *
-     * @return the {@link Entry} which contains the latest known {@link Query} result.
-     *         {@link EntryNotFoundException} if the file is not exist
-     *         and {@code errorOnEntryNotFound} of {@link WatchOptions} is ture.
-     *         {@code null} if the file was not changed for {@code timeoutMillis} of {@link WatchOptions} milliseconds
-     *         since the invocation of this method.
+     * <p>Note: Legacy client only support {@link WatchOptions#timeoutMillis}</p>
      *
-     * Note: Legacy client don't support {@code errorOnEntryNotFound} of {@link WatchOptions}
+     * @return the {@link Entry} which contains the latest known {@link Query} result.
+     *         {@link EntryNotFoundException} if the file does not exist
+     *         and {@link WatchOptions#errorOnEntryNotFound} is ture.
+     *         {@code null} if the file was not changed for {@link WatchOptions#timeoutMillis} milliseconds
+     *         since the invocation of this method.
      */
     CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                 Revision lastKnownRevision, String pathPattern,
@@ -517,19 +517,19 @@ public interface CentralDogma {
 
     /**
      * Waits for the file matched by the specified {@link Query} to be changed since the specified
-     * {@code lastKnownRevision}. If the file is not exist and {@code errorOnEntryNotFound} of {@link WatchOptions}
+     * {@code lastKnownRevision}. If the file does not exist and {@link WatchOptions#errorOnEntryNotFound}
      * is ture, stops to wait a file and throw {@link EntryNotFoundException} as the cause.
-     * If {@code errorOnEntryNotFound} of {@link WatchOptions} is false and no changes were made
-     * within the specified {@code timeoutMillis} of {@link WatchOptions}, the returned {@link CompletableFuture}
+     * If {@link WatchOptions#errorOnEntryNotFound} is false and no changes were made
+     * within the specified {@link WatchOptions#timeoutMillis}, the returned {@link CompletableFuture}
      * will be completed with {@code null}.
      *
-     * @return the {@link Entry} which contains the latest known {@link Query} result.
-     *         {@link EntryNotFoundException} if the file is not exist
-     *         and {@code errorOnEntryNotFound} of {@link WatchOptions} is ture.
-     *         {@code null} if the file was not changed for {@code timeoutMillis} of {@link WatchOptions} milliseconds
-     *         since the invocation of this method.
+     * <p>Note: Legacy client only support {@link WatchOptions#timeoutMillis}</p>
      *
-     * Note: Legacy client don't support {@code errorOnEntryNotFound} of {@link WatchOptions}
+     * @return the {@link Entry} which contains the latest known {@link Query} result.
+     *         {@link EntryNotFoundException} if the file does not exist
+     *         and {@link WatchOptions#errorOnEntryNotFound} is ture.
+     *         {@code null} if the file was not changed for {@link WatchOptions#timeoutMillis} milliseconds
+     *         since the invocation of this method.
      */
     <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                               Revision lastKnownRevision, Query<T> query,
@@ -592,12 +592,33 @@ public interface CentralDogma {
     }
 
     /**
-     * ing...
+     * Returns a {@link Watcher} which notifies its listeners after applying the specified
+     * {@link Function} when the result of the given {@link Query} becomes available or changes. e.g:
+     * <pre>{@code
+     * Watcher<MyType> watcher = client.fileWatcher(
+     *         "foo", "bar", Query.ofJson("/baz.json"),
+     *         content -> new ObjectMapper().treeToValue(content, MyType.class), executor,
+     *         WatchOptions.builder().timeoutMillis(60000).errorOnEntryNotFound(true).build());
+     *
+     * watcher.watch((revision, myValue) -> {
+     *     assert myValue instanceof MyType;
+     *     ...
+     * });}</pre>
+     *
+     * @param executor the {@link Executor} that executes the {@link Function}.
+     *        if {@code executor} is null, {@link Function} executed by a blocking task executor.
+     * @param watchOptions the {@link WatchOptions} that is options on waiting the matched files.
+     *        if {@code watchOptions} is null, use {@link WatchOptions#defaultOptions()}.
+     *        if {@link WatchOptions#errorOnEntryNotFound} is true and entry doesn't exist,
+     *        {@link Watcher#initialValueFuture()} will be completed with {@link EntryNotFoundException}.
+     *        {@link WatchOptions#timeoutMillis} is the waiting time about the matched files have a change.
+     *        If any no changes during {@link WatchOptions#timeoutMillis}, re-wait the matched files.
+     *        <p>Note: Legacy client only support {@link WatchOptions#timeoutMillis}</p>
      */
 
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
                                   Query<T> query,
-                                  @Nullable Function<? super T, ? extends U> function,
+                                  Function<? super T, ? extends U> function,
                                   @Nullable Executor executor,
                                   @Nullable WatchOptions watchOptions);
 
@@ -660,11 +681,34 @@ public interface CentralDogma {
     }
 
     /**
-     * ing...
+     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
+     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:
+     * <pre>{@code
+     * Watcher<Map<String, Entry<?>> watcher = client.repositoryWatcher(
+     *         "foo", "bar", "/*.json",
+     *         revision -> client.getFiles("foo", "bar", revision, "/*.json").join(), executor,
+     *         WatchOptions.builder().timeoutMillis(60000).errorOnEntryNotFound(true).build());
+     *
+     * watcher.watch((revision, contents) -> {
+     *     ...
+     * });}</pre>
+     * Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and
+     * may have to retry in the above example due to
+     * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
+     *
+     * @param executor the {@link Executor} that executes the {@link Function}.
+     *        if {@code executor} is null, {@link Function} executed by a blocking task executor.
+     * @param watchOptions the {@link WatchOptions} that is options on waiting the matched files.
+     *        if {@code watchOptions} is null, use {@link WatchOptions#defaultOptions()}.
+     *        if {@link WatchOptions#errorOnEntryNotFound} is true and entries don't exist,
+     *        {@link Watcher#initialValueFuture()} will be completed with {@link EntryNotFoundException}.
+     *        {@link WatchOptions#timeoutMillis} is the waiting time about the matched files have a change.
+     *        If any no changes during {@link WatchOptions#timeoutMillis}, re-wait the matched files.
+     *        <p>Note: Legacy client only support {@link WatchOptions#timeoutMillis}</p>
      */
 
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-                                     @Nullable Function<Revision, ? extends T> function,
+                                     Function<Revision, ? extends T> function,
                                      @Nullable Executor executor,
                                      @Nullable WatchOptions watchOptions);
 }

@@ -522,7 +522,7 @@ class WatchTest {
                 null, null,
                 WatchOptions.builder().timeoutMillis(100).errorOnEntryNotFound(true).build());
 
-        // check entry is not exist when to get initial value
+        // check entry does not exist when to get initial value
         assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(EntryNotFoundException.class);
     }
 
@@ -557,7 +557,7 @@ class WatchTest {
             triggeredCount.incrementAndGet();
         });
 
-        // check entry is not exist when to get initial value
+        // check entry does not exist when to get initial value
         assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(EntryNotFoundException.class);
 
         // watch added file
@@ -677,7 +677,7 @@ class WatchTest {
                 null, null,
                 WatchOptions.builder().timeoutMillis(100).errorOnEntryNotFound(true).build());
 
-        // check entry is not exist when to get initial value
+        // check entry does not exist when to get initial value
         assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(EntryNotFoundException.class);
     }
 
@@ -710,7 +710,7 @@ class WatchTest {
             triggeredCount.incrementAndGet();
         });
 
-        // check entry is not exist when to get initial value
+        // check entry does not exist when to get initial value
         assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(EntryNotFoundException.class);
 
         // watch added file

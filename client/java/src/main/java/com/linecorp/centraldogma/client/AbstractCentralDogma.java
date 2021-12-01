@@ -148,7 +148,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
 
     @Override
     public <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
-                                         @Nullable Function<? super T, ? extends U> function,
+                                         Function<? super T, ? extends U> function,
                                          @Nullable Executor executor,
                                          @Nullable WatchOptions watchOptions) {
         final FileWatcher<U> watcher = new FileWatcher<>(
@@ -158,8 +158,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
                 projectName,
                 repositoryName,
                 query,
-                Optional.<Function<? super T, ? extends U>>ofNullable(function)
-                        .orElse((Function<? super T, ? extends U>) Function.<T>identity()),
+                function,
                 Optional.ofNullable(watchOptions).orElse(WatchOptions.defaultOptions()));
         watcher.start();
         return watcher;
@@ -167,7 +166,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
 
     @Override
     public <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-                                            @Nullable Function<Revision, ? extends T> function,
+                                            Function<Revision, ? extends T> function,
                                             @Nullable Executor executor,
                                             @Nullable WatchOptions watchOptions) {
         final RepositoryWatcher<T> watcher = new RepositoryWatcher<>(
@@ -177,8 +176,7 @@ public abstract class AbstractCentralDogma implements CentralDogma {
                 projectName,
                 repositoryName,
                 pathPattern,
-                Optional.<Function<Revision, ? extends T>>ofNullable(function)
-                        .orElse((Function<Revision, ? extends T>) Function.<Revision>identity()),
+                function,
                 Optional.ofNullable(watchOptions).orElse(WatchOptions.defaultOptions()));
         watcher.start();
         return watcher;
