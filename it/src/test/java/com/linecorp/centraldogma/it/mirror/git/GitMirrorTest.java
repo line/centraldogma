@@ -253,7 +253,7 @@ class GitMirrorTest {
         final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
         assertThat(rev3).isEqualTo(rev2.forward(1));
 
-        //// Make sure only the file under '/first' is there, because '/second' was excluded.
+        //// Make sure only the file '/first/light.txt' is there, because other files were excluded.
         final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
         assertThat(client.getFiles(projName, REPO_FOO, rev3, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
