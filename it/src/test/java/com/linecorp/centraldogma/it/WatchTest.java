@@ -177,8 +177,6 @@ class WatchTest {
     @ParameterizedTest
     @EnumSource(ClientType.class)
     void watchRepositoryWithNotExist(ClientType clientType) {
-        revertTestFiles(clientType);
-
         final CentralDogma client = clientType.client(dogma);
         final Revision rev1 = client.watchRepository(
                 dogma.project(), dogma.repo1(), Revision.HEAD, "/not_exist_repo/**",
@@ -290,8 +288,6 @@ class WatchTest {
     @ParameterizedTest
     @EnumSource(ClientType.class)
     void watchFileWithNotExistFile(ClientType clientType) {
-        revertTestFiles(clientType);
-
         final CentralDogma client = clientType.client(dogma);
 
         final CompletableFuture<Entry<JsonNode>> future1 = client.watchFile(
@@ -502,6 +498,245 @@ class WatchTest {
                                          }, executor);
         watcher2.watch((revision1, revision2) -> threadName.set(Thread.currentThread().getName()), executor);
         await().untilAtomic(threadName, Matchers.startsWith(threadNamePrefix));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void fileWatcher_errorOnEntryNotFound_is_true_and_initialValueFuture_is_thrown(ClientType clientType) {
+        //Legacy client don't support this feature
+        if (clientType == ClientType.LEGACY) {
+            return;
+        }
+
+        revertTestFiles(clientType);
+
+        // prepare test
+        final CentralDogma client = clientType.client(dogma);
+
+        String filePath = "/test/not_exist.json";
+
+        // create watcher
+        final Watcher<JsonNode> watcher = client.fileWatcher(
+                dogma.project(), dogma.repo1(),
+                Query.ofJson(filePath),
+                null, null,
+                WatchOptions.builder().timeoutMillis(100).errorOnEntryNotFound(true).build());
+
+        // check entry is not exist when to get initial value
+        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(EntryNotFoundException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void fileWatcher_errorOnEntryNotFound_is_true_thrown_initialValueFuture_and_watch_changed_files(ClientType clientType){
+        // Legacy client don't support this feature
+        if (clientType == ClientType.LEGACY) {
+            return;
+        }
+
+        // prepare test
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        String filePath = "/test/test2.json";
+        client.push(dogma.project(), dogma.repo1(), Revision.HEAD,
+                    String.format("delete file '%s'", filePath),
+                    Change.ofRemoval(filePath));
+
+        // create watcher
+        final Watcher<JsonNode> watcher = client.fileWatcher(
+                dogma.project(), dogma.repo1(),
+                Query.ofJson(filePath),
+                null, null,
+                WatchOptions.builder().timeoutMillis(100).errorOnEntryNotFound(true).build());
+
+        final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
+        final AtomicInteger triggeredCount = new AtomicInteger();
+        watcher.watch((rev, node) -> {
+            watchResult.set(new Latest<>(rev, node));
+            triggeredCount.incrementAndGet();
+        });
+
+        // check entry is not exist when to get initial value
+        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(EntryNotFoundException.class);
+
+        // watch added file
+        final Change<JsonNode> change1 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
+        final Revision rev1 = client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add /a /b", change1)
+                                    .join()
+                                    .revision();
+        await().untilAtomic(triggeredCount, Matchers.is(1));
+        assertThat(watchResult.get()).isEqualTo(watcher.latest());
+
+        // watch changed file
+        final Change<JsonNode> change2 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"artichoke\", \"b\": \"banana\" }");
+        final Revision rev2 = client.push(dogma.project(), dogma.repo1(), rev1, "Change /a", change2)
+                                    .join()
+                                    .revision();
+        await().untilAtomic(triggeredCount, Matchers.is(2));
+        assertThat(watchResult.get()).isEqualTo(watcher.latest());
+
+        // check removed file, latest is null
+        final Change<Void> change3 = Change.ofRemoval(filePath);
+        final Revision rev3 = client.push(dogma.project(), dogma.repo1(), rev2, "Removal", change3)
+                                    .join()
+                                    .revision();
+        await().untilAsserted(() -> assertThatThrownBy(watcher::latest).isInstanceOf(IllegalStateException.class));
+
+        // watch added file
+        final Change<JsonNode> change4 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apricot\", \"b\": \"banana\" }");
+        final Revision rev4 = client.push(dogma.project(), dogma.repo1(), rev3, "Add again /a /b", change4)
+                                    .join()
+                                    .revision();
+        await().untilAtomic(triggeredCount, Matchers.is(3));
+        assertThat(watchResult.get()).isEqualTo(watcher.latest());
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void fileWatcher_errorOnEntryNotFound_is_true_watch_changed_files(ClientType clientType)
+            throws InterruptedException {
+        // Legacy client don't support this feature
+        if (clientType == ClientType.LEGACY) {
+            return;
+        }
+
+
+        // prepare test
+        revertTestFiles(clientType);
+        final CentralDogma client = clientType.client(dogma);
+        String filePath = "/test/test2.json";
+
+        // create watcher
+        final Watcher<JsonNode> watcher = client.fileWatcher(
+                dogma.project(), dogma.repo1(),
+                Query.ofJson(filePath),
+                null, null,
+                WatchOptions.builder().timeoutMillis(100).errorOnEntryNotFound(true).build());
+
+        final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
+        final AtomicInteger triggeredCount = new AtomicInteger();
+        watcher.watch((rev, node) -> {
+            watchResult.set(new Latest<>(rev, node));
+            triggeredCount.incrementAndGet();
+        });
+
+        // check initial value
+        assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
+        await().untilAtomic(triggeredCount, Matchers.is(1));
+
+        final Revision rev0 = watcher.initialValueFuture().join().revision();
+
+        // watch changed file
+        final Change<JsonNode> change2 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"artichoke\"}");
+        final Revision rev1 = client.push(dogma.project(), dogma.repo1(), rev0, "Change /a", change2)
+                                    .join()
+                                    .revision();
+        await().untilAtomic(triggeredCount, Matchers.is(2));
+        assertThat(watchResult.get()).isEqualTo(watcher.latest());
+
+        // check removed file, latest is null
+        final Change<Void> change3 = Change.ofRemoval(filePath);
+        final Revision rev2 = client.push(dogma.project(), dogma.repo1(), rev1, "Removal", change3)
+                                    .join()
+                                    .revision();
+        await().untilAsserted(() -> assertThatThrownBy(watcher::latest).isInstanceOf(IllegalStateException.class));
+
+        // watch added file
+        final Change<JsonNode> change4 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apricot\", \"b\": \"banana\" }");
+        final Revision rev3 = client.push(dogma.project(), dogma.repo1(), rev2, "Add /a /b", change4)
+                                    .join()
+                                    .revision();
+        await().untilAtomic(triggeredCount, Matchers.is(3));
+        assertThat(watchResult.get()).isEqualTo(watcher.latest());
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void repositoryWatcher_errorOnEntryNotFound_is_true_and_initialValueFuture_is_thrown(ClientType clientType) {
+        //Legacy client don't support this feature
+        if (clientType == ClientType.LEGACY) {
+            return;
+        }
+
+        revertTestFiles(clientType);
+
+        // prepare test
+        final CentralDogma client = clientType.client(dogma);
+        final String pathPattern = "/not_exist_repo/**";
+
+        // create watcher
+        final Watcher<Revision> watcher = client.repositoryWatcher(
+                dogma.project(), dogma.repo1(),
+                pathPattern,
+                null, null,
+                WatchOptions.builder().timeoutMillis(100).errorOnEntryNotFound(true).build());
+
+        // check entry is not exist when to get initial value
+        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(EntryNotFoundException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void repositoryWatcher_errorOnEntryNotFound_is_true_thrown_initialValueFuture_and_watch_changed_files(ClientType clientType){
+        // Legacy client don't support this feature
+        if (clientType == ClientType.LEGACY) {
+            return;
+        }
+
+        // prepare test
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final String pathPattern = "/not_exist_repo/**";
+        final String filePath = "/not_exist_repo/test.json";
+
+        // create watcher
+        final Watcher<Revision> watcher = client.repositoryWatcher(
+                dogma.project(), dogma.repo1(),
+                pathPattern,
+                null, null,
+                WatchOptions.builder().timeoutMillis(100).errorOnEntryNotFound(true).build());
+
+        final AtomicReference<Revision> watchResult = new AtomicReference<>();
+        final AtomicInteger triggeredCount = new AtomicInteger();
+        watcher.watch(rev -> {
+            watchResult.set(rev);
+            triggeredCount.incrementAndGet();
+        });
+
+        // check entry is not exist when to get initial value
+        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(EntryNotFoundException.class);
+
+        // watch added file
+        final Change<JsonNode> change1 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
+        final Revision rev1 = client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add /a /b", change1)
+                                    .join()
+                                    .revision();
+        await().untilAtomic(triggeredCount, Matchers.is(1));
+        assertThat(watchResult.get()).isEqualTo(rev1);
+
+        // watch changed file
+        final Change<JsonNode> change2 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"artichoke\", \"b\": \"banana\" }");
+        final Revision rev2 = client.push(dogma.project(), dogma.repo1(), rev1, "Change /a", change2)
+                                    .join()
+                                    .revision();
+        await().untilAtomic(triggeredCount, Matchers.is(2));
+        assertThat(watchResult.get()).isEqualTo(rev2);
+
+        // check removed file, latest is null
+        final Change<Void> change3 = Change.ofRemoval(filePath);
+        final Revision rev3 = client.push(dogma.project(), dogma.repo1(), rev2, "Removal", change3)
+                                    .join()
+                                    .revision();
+        await().untilAsserted(() -> assertThatThrownBy(watcher::latest).isInstanceOf(IllegalStateException.class));
     }
 
     private static void revertTestFiles(ClientType clientType) {

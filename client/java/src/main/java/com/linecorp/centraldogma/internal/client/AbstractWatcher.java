@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
+import com.linecorp.centraldogma.client.WatchOptions;
 import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
@@ -110,6 +111,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private final String projectName;
     private final String repositoryName;
     private final String pathPattern;
+    private final WatchOptions watchOptions;
 
     private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners;
     private final AtomicReference<State> state;
@@ -120,12 +122,14 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private volatile CompletableFuture<?> currentWatchFuture;
 
     protected AbstractWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
-                              String projectName, String repositoryName, String pathPattern) {
+                              String projectName, String repositoryName, String pathPattern,
+                              WatchOptions watchOptions) {
         this.client = requireNonNull(client, "client");
         this.watchScheduler = requireNonNull(watchScheduler, "watchScheduler");
         this.projectName = requireNonNull(projectName, "projectName");
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
+        this.watchOptions = requireNonNull(watchOptions, "watchOptions");
 
         updateListeners = new CopyOnWriteArrayList<>();
         state = new AtomicReference<>(State.INIT);
@@ -230,18 +234,18 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         final Revision lastKnownRevision = latest != null ? latest.revision() : Revision.INIT;
-        final CompletableFuture<Latest<T>> f = doWatch(client, projectName, repositoryName, lastKnownRevision);
+        final CompletableFuture<Latest<T>> f = doWatch(client, projectName, repositoryName,
+                                                       lastKnownRevision, watchOptions);
 
         currentWatchFuture = f;
         f.whenComplete((result, cause) -> currentWatchFuture = null)
          .thenAccept(newLatest -> {
              if (newLatest != null) {
-                 final Latest<T> oldLatest = latest;
                  latest = newLatest;
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
                  notifyListeners();
-                 if (oldLatest == null) {
+                 if (!initialValueFuture.isDone()) {
                      initialValueFuture.complete(newLatest);
                  }
              }
@@ -258,6 +262,13 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                          logger.info("{}/{}{} does not exist yet; trying again",
                                      projectName, repositoryName, pathPattern);
                          logged = true;
+
+                         if (watchOptions.isErrorOnEntryNotFound()) {
+                             latest = null;
+                             if (!initialValueFuture.isDone()) {
+                                 initialValueFuture.completeExceptionally(thrown);
+                             }
+                         }
                      } else if (cause instanceof RepositoryNotFoundException) {
                          logger.info("{}/{} does not exist yet; trying again",
                                      projectName, repositoryName);
@@ -287,7 +298,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     }
 
     protected abstract CompletableFuture<Latest<T>> doWatch(
-            CentralDogma client, String projectName, String repositoryName, Revision lastKnownRevision);
+            CentralDogma client, String projectName, String repositoryName,
+            Revision lastKnownRevision, WatchOptions watchOptions);
 
     private void notifyListeners() {
         if (isStopped()) {

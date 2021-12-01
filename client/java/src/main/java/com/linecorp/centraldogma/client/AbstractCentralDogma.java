@@ -19,10 +19,13 @@ package com.linecorp.centraldogma.client;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -144,47 +147,39 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     }
 
     @Override
-    public final <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
-        return CentralDogma.super.fileWatcher(projectName, repositoryName, query);
-    }
-
-    @Override
-    public <T, U> Watcher<U> fileWatcher(
-            String projectName, String repositoryName, Query<T> query,
-            Function<? super T, ? extends U> function) {
-        return fileWatcher(projectName, repositoryName, query, function, blockingTaskExecutor);
-    }
-
-    @Override
     public <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
-                                         Function<? super T, ? extends U> function, Executor executor) {
-        final FileWatcher<U> watcher =
-                new FileWatcher<>(this, blockingTaskExecutor, executor, projectName, repositoryName, query,
-                                  function);
+                                         @Nullable Function<? super T, ? extends U> function,
+                                         @Nullable Executor executor,
+                                         @Nullable WatchOptions watchOptions) {
+        final FileWatcher<U> watcher = new FileWatcher<>(
+                this,
+                blockingTaskExecutor,
+                Optional.ofNullable(executor).orElse(blockingTaskExecutor),
+                projectName,
+                repositoryName,
+                query,
+                Optional.<Function<? super T, ? extends U>>ofNullable(function)
+                        .orElse((Function<? super T, ? extends U>) Function.<T>identity()),
+                Optional.ofNullable(watchOptions).orElse(WatchOptions.defaultOptions()));
         watcher.start();
         return watcher;
     }
 
     @Override
-    public final Watcher<Revision> repositoryWatcher(
-            String projectName, String repositoryName, String pathPattern) {
-        return CentralDogma.super.repositoryWatcher(projectName, repositoryName, pathPattern);
-    }
-
-    @Override
-    public <T> Watcher<T> repositoryWatcher(
-            String projectName, String repositoryName, String pathPattern,
-            Function<Revision, ? extends T> function) {
-        return repositoryWatcher(projectName, repositoryName, pathPattern, function, blockingTaskExecutor);
-    }
-
-    @Override
     public <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-                                            Function<Revision, ? extends T> function, Executor executor) {
-
-        final RepositoryWatcher<T> watcher =
-                new RepositoryWatcher<>(this, blockingTaskExecutor, executor,
-                                        projectName, repositoryName, pathPattern, function);
+                                            @Nullable Function<Revision, ? extends T> function,
+                                            @Nullable Executor executor,
+                                            @Nullable WatchOptions watchOptions) {
+        final RepositoryWatcher<T> watcher = new RepositoryWatcher<>(
+                this,
+                blockingTaskExecutor,
+                Optional.ofNullable(executor).orElse(blockingTaskExecutor),
+                projectName,
+                repositoryName,
+                pathPattern,
+                Optional.<Function<Revision, ? extends T>>ofNullable(function)
+                        .orElse((Function<Revision, ? extends T>) Function.<Revision>identity()),
+                Optional.ofNullable(watchOptions).orElse(WatchOptions.defaultOptions()));
         watcher.start();
         return watcher;
     }

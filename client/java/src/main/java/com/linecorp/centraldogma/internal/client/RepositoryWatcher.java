@@ -24,6 +24,7 @@ import java.util.function.Function;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
+import com.linecorp.centraldogma.client.WatchOptions;
 import com.linecorp.centraldogma.common.Revision;
 
 public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
@@ -37,8 +38,9 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
     public RepositoryWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
                              Executor callbackExecutor,
                              String projectName, String repositoryName,
-                             String pathPattern, Function<Revision, ? extends T> function) {
-        super(client, watchScheduler, projectName, repositoryName, pathPattern);
+                             String pathPattern, Function<Revision, ? extends T> function,
+                             WatchOptions watchOptions) {
+        super(client, watchScheduler, projectName, repositoryName, pathPattern, watchOptions);
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.function = requireNonNull(function, "function");
         this.callbackExecutor = requireNonNull(callbackExecutor, "callbackExecutor");
@@ -46,8 +48,9 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
 
     @Override
     protected CompletableFuture<Latest<T>> doWatch(CentralDogma client, String projectName,
-                                                   String repositoryName, Revision lastKnownRevision) {
-        return client.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern)
+                                                   String repositoryName, Revision lastKnownRevision,
+                                                   WatchOptions watchOptions) {
+        return client.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern, watchOptions)
                      .thenApplyAsync(revision -> {
                          if (revision == null) {
                              return null;

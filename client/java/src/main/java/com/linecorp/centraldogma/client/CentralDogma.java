@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 
@@ -440,7 +442,7 @@ public interface CentralDogma {
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                         Revision lastKnownRevision, String pathPattern) {
         return watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern,
-                               WatchOptions.builder().build());
+                               WatchOptions.defaultOptions());
     }
 
     /**
@@ -492,8 +494,7 @@ public interface CentralDogma {
      */
     default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                       Revision lastKnownRevision, Query<T> query) {
-        return watchFile(projectName, repositoryName, lastKnownRevision, query,
-                         WatchOptions.builder().build());
+        return watchFile(projectName, repositoryName, lastKnownRevision, query, WatchOptions.defaultOptions());
     }
 
     /**
@@ -546,7 +547,7 @@ public interface CentralDogma {
      * });}</pre>
      */
     default <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
-        return fileWatcher(projectName, repositoryName, query, Function.identity());
+        return fileWatcher(projectName, repositoryName, query, Function.identity(), null, null);
     }
 
     /**
@@ -565,8 +566,10 @@ public interface CentralDogma {
      * <p>Note that {@link Function} by default is executed by a blocking task executor so that you can
      * safely call a blocking operation.
      */
-    <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
-                                  Query<T> query, Function<? super T, ? extends U> function);
+    default <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
+                                  Query<T> query, Function<? super T, ? extends U> function) {
+        return fileWatcher(projectName, repositoryName, query, function, null, null);
+    }
 
     /**
      * Returns a {@link Watcher} which notifies its listeners after applying the specified
@@ -583,8 +586,20 @@ public interface CentralDogma {
      *
      * @param executor the {@link Executor} that executes the {@link Function}
      */
+    default <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
+                                  Query<T> query, Function<? super T, ? extends U> function, Executor executor) {
+        return fileWatcher(projectName, repositoryName, query, function, executor, null);
+    }
+
+    /**
+     * ing...
+     */
+
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
-                                  Query<T> query, Function<? super T, ? extends U> function, Executor executor);
+                                  Query<T> query,
+                                  @Nullable Function<? super T, ? extends U> function,
+                                  @Nullable Executor executor,
+                                  @Nullable WatchOptions watchOptions);
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
@@ -597,7 +612,7 @@ public interface CentralDogma {
      * });}</pre>
      */
     default Watcher<Revision> repositoryWatcher(String projectName, String repositoryName, String pathPattern) {
-        return repositoryWatcher(projectName, repositoryName, pathPattern, Function.identity());
+        return repositoryWatcher(projectName, repositoryName, pathPattern, Function.identity(), null, null);
     }
 
     /**
@@ -617,8 +632,10 @@ public interface CentralDogma {
      * may have to retry in the above example due to
      * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
      */
-    <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-                                     Function<Revision, ? extends T> function);
+    default <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
+                                     Function<Revision, ? extends T> function){
+        return repositoryWatcher(projectName, repositoryName, pathPattern, function, null, null);
+    }
 
     /**
      * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
@@ -637,6 +654,17 @@ public interface CentralDogma {
      *
      * @param executor the {@link Executor} that executes the {@link Function}
      */
+    default <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
+                                     Function<Revision, ? extends T> function, Executor executor) {
+        return repositoryWatcher(projectName, repositoryName, pathPattern, function, executor, null);
+    }
+
+    /**
+     * ing...
+     */
+
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-                                     Function<Revision, ? extends T> function, Executor executor);
+                                     @Nullable Function<Revision, ? extends T> function,
+                                     @Nullable Executor executor,
+                                     @Nullable WatchOptions watchOptions);
 }

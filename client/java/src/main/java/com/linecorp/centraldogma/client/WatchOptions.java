@@ -17,6 +17,10 @@ public final class WatchOptions {
         this.errorOnEntryNotFound = errorOnEntryNotFound;
     }
 
+    public static WatchOptions defaultOptions() {
+        return new Builder().build();
+    }
+
     public static Builder builder() {
         return new Builder();
     }
