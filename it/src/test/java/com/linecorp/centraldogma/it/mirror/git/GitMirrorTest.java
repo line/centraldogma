@@ -213,7 +213,7 @@ class GitMirrorTest {
     }
 
     @Test
-    void remoteToLocal_remoteExclude() throws Exception {
+    void remoteToLocal_gitIgnore() throws Exception {
         pushMirrorSettings(null, null, "/first/ex*" + "\\n" + "second");
 
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
@@ -453,12 +453,12 @@ class GitMirrorTest {
     }
 
     private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath,
-                                    @Nullable String remoteExclude) {
-        pushMirrorSettings(REPO_FOO, localPath, remotePath, remoteExclude);
+                                    @Nullable String gitIgnore) {
+        pushMirrorSettings(REPO_FOO, localPath, remotePath, gitIgnore);
     }
 
     private void pushMirrorSettings(String localRepo, @Nullable String localPath, @Nullable String remotePath,
-                                    @Nullable String remoteExclude) {
+                                    @Nullable String gitIgnore) {
         client.push(projName, Project.REPO_META, Revision.HEAD, "Add /mirrors.json",
                     Change.ofJsonUpsert("/mirrors.json",
                                         "[{" +
@@ -467,7 +467,7 @@ class GitMirrorTest {
                                         "  \"localRepo\": \"" + localRepo + "\"," +
                                         (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
                                         "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
-                                        ",\"remoteExclude\": \"" + firstNonNull(remoteExclude, "") + "\"" +
+                                        ",\"gitIgnore\": \"" + firstNonNull(gitIgnore, "") + "\"" +
                                         "}]")).join();
     }
 

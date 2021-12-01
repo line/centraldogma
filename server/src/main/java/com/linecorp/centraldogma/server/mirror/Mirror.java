@@ -55,12 +55,12 @@ public interface Mirror {
      * @param localRepo the Central Dogma repository name
      * @param localPath the directory path in the {@code localRepo}
      * @param remoteUri the URI of the Git repository which will be mirrored from
-     * @param remoteExclude the file pattern for the files in {@code remoteUri} which will not be mirrored
+     * @param gitIgnore the file pattern for the files in {@code remoteUri} which will not be mirrored
      *                      It follows the same format to gitignore
      */
     static Mirror of(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath, URI remoteUri,
-                     @Nullable String remoteExclude) {
+                     @Nullable String gitIgnore) {
         requireNonNull(schedule, "schedule");
         requireNonNull(direction, "direction");
         requireNonNull(credential, "credential");
@@ -89,7 +89,7 @@ public interface Mirror {
 
                 return new CentralDogmaMirror(schedule, direction, credential, localRepo, localPath,
                                               remoteRepoUri, remoteProject, remoteRepo, components[1],
-                                              remoteExclude);
+                                              gitIgnore);
             }
             case SCHEME_GIT:
             case SCHEME_GIT_SSH:
@@ -99,7 +99,7 @@ public interface Mirror {
                 final String[] components = split(remoteUri, "git", "master");
                 return new GitMirror(schedule, direction, credential, localRepo, localPath,
                                      URI.create(components[0]), components[1], components[2],
-                                     remoteExclude);
+                                     gitIgnore);
             }
         }
 
@@ -156,7 +156,7 @@ public interface Mirror {
     /**
      * Returns the file pattern for the files which won't be mirrored.
      */
-    String remoteExclude();
+    String gitIgnore();
 
     /**
      * Performs the mirroring task.

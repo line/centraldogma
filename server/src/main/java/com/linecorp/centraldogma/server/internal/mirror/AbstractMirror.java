@@ -54,14 +54,14 @@ public abstract class AbstractMirror implements Mirror {
     private final URI remoteRepoUri;
     private final String remotePath;
     private final String remoteBranch;
-    private final String remoteExclude;
+    private final String gitIgnore;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
 
     protected AbstractMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                              Repository localRepo, String localPath,
                              URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
-                             @Nullable String remoteExclude) {
+                             @Nullable String gitIgnore) {
 
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
@@ -71,7 +71,7 @@ public abstract class AbstractMirror implements Mirror {
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
         this.remoteBranch = remoteBranch;
-        this.remoteExclude = remoteExclude;
+        this.gitIgnore = gitIgnore;
 
         executionTime = ExecutionTime.forCron(this.schedule);
 
@@ -137,8 +137,8 @@ public abstract class AbstractMirror implements Mirror {
     }
 
     @Override
-    public final String remoteExclude() {
-        return remoteExclude;
+    public final String gitIgnore() {
+        return gitIgnore;
     }
 
     @Override
@@ -178,7 +178,7 @@ public abstract class AbstractMirror implements Mirror {
                                                  .add("localPath", localPath)
                                                  .add("remoteRepo", remoteRepoUri)
                                                  .add("remotePath", remotePath)
-                                                 .add("remoteExclude", remoteExclude);
+                                                 .add("gitIgnore", gitIgnore);
         if (remoteBranch != null) {
             helper.add("remoteBranch", remoteBranch);
         }
