@@ -27,7 +27,8 @@ import com.google.common.base.MoreObjects;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * An immutable holder of the latest known value and its {@link Revision} retrieved by {@link Watcher}.
+ * An immutable holder of the latest known value and its {@link Revision} retrieved by a {@link Watcher} or
+ * a {@link CentralDogmaWatchingFileRequest#watch(Revision)} call.
  *
  * @param <U> the value type
  */

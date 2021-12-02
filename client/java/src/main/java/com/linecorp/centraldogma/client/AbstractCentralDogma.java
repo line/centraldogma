@@ -64,6 +64,13 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     }
 
     @Override
+    public CentralDogmaRequestPreparation forRepo(String projectName, String repositoryName) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        return new CentralDogmaRequestPreparation(this, projectName, repositoryName, blockingTaskExecutor);
+    }
+
+    @Override
     public final CompletableFuture<Entry<?>> getFile(
             String projectName, String repositoryName, Revision revision, String path) {
         return CentralDogma.super.getFile(projectName, repositoryName, revision, path);

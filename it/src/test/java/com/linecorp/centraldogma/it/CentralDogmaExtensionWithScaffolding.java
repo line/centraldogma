@@ -90,8 +90,10 @@ public class CentralDogmaExtensionWithScaffolding extends CentralDogmaExtension 
 
         final List<Change<?>> changes = Change.fromDirectory(f.toPath(), targetDir);
 
-        client().push(testProject, testRepository1, Revision.HEAD,
-                      "Import " + resourceDir + " into " + targetDir, changes).join();
+        client().forRepo(testProject, testRepository1)
+                .commit("Import " + resourceDir + " into " + targetDir, changes)
+                .push(Revision.HEAD)
+                .join();
     }
 
     @Override

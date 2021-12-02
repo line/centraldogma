@@ -44,9 +44,9 @@ class GetDiffTest {
         final String path = "/test_json_file.json";
         for (int i = 0; i < 5; i++) {
             final Change<JsonNode> change = Change.ofJsonUpsert(path, String.format("{ \"key\" : \"%d\"}", i));
-            client.push(
-                    dogma.project(), dogma.repo1(), HEAD,
-                    TestConstants.randomText(), change).join();
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit(TestConstants.randomText(), change)
+                  .push(HEAD).join();
         }
 
         final Change<JsonNode> res = client.getDiff(
@@ -70,11 +70,17 @@ class GetDiffTest {
     void diff_remove(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
 
-        final Revision rev1 = client.push(dogma.project(), dogma.repo1(), HEAD, "summary1",
-                                          Change.ofTextUpsert("/foo.txt", "hello")).join().revision();
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("summary1", Change.ofTextUpsert("/foo.txt", "hello"))
+                                    .push(HEAD)
+                                    .join()
+                                    .revision();
 
-        final Revision rev2 = client.push(dogma.project(), dogma.repo1(), HEAD, "summary2",
-                                          Change.ofRemoval("/foo.txt")).join().revision();
+        final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("summary2", Change.ofRemoval("/foo.txt"))
+                                    .push(HEAD)
+                                    .join()
+                                    .revision();
 
         assertThat(rev1.forward(1)).isEqualTo(rev2);
 
@@ -93,11 +99,17 @@ class GetDiffTest {
         final CentralDogma client = clientType.client(dogma);
 
         try {
-            final Revision rev1 = client.push(dogma.project(), dogma.repo1(), HEAD, "summary1",
-                                              Change.ofTextUpsert("/bar.txt", "hello")).join().revision();
+            final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                        .commit("summary1", Change.ofTextUpsert("/bar.txt", "hello"))
+                                        .push(HEAD)
+                                        .join()
+                                        .revision();
 
-            final Revision rev2 = client.push(dogma.project(), dogma.repo1(), HEAD, "summary2",
-                                              Change.ofRename("/bar.txt", "/baz.txt")).join().revision();
+            final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                        .commit("summary2", Change.ofRename("/bar.txt", "/baz.txt"))
+                                        .push(HEAD)
+                                        .join()
+                                        .revision();
 
             assertThat(rev1.forward(1)).isEqualTo(rev2);
 
@@ -105,7 +117,10 @@ class GetDiffTest {
                                       Query.ofText("/bar.txt")).join())
                     .isEqualTo(Change.ofRemoval("/bar.txt"));
         } finally {
-            client.push(dogma.project(), dogma.repo1(), HEAD, "summary3", Change.ofRemoval("/baz.txt")).join();
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit("summary3", Change.ofRemoval("/baz.txt"))
+                  .push(HEAD)
+                  .join();
         }
     }
 }

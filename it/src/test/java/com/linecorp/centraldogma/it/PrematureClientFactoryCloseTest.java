@@ -31,7 +31,6 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 /**
@@ -45,8 +44,9 @@ class PrematureClientFactoryCloseTest {
         protected void scaffold(CentralDogma client) {
             client.createProject("foo").join();
             client.createRepository("foo", "bar").join();
-            client.push("foo", "bar", Revision.HEAD,
-                        "Add baz.txt", Change.ofTextUpsert("/baz.txt", "")).join();
+            client.forRepo("foo", "bar")
+                  .commit("Add baz.txt", Change.ofTextUpsert("/baz.txt", ""))
+                  .push(HEAD).join();
         }
     };
 

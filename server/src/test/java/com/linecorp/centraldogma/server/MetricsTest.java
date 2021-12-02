@@ -19,8 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -36,16 +34,16 @@ import io.prometheus.client.exporter.common.TextFormat;
 
 class MetricsTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(MetricsTest.class);
-
     @RegisterExtension
     static CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("foo").join();
             client.createRepository("foo", "bar").join();
-            client.push("foo", "bar", Revision.HEAD, "Initial file",
-                        Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }")).join();
+            client.forRepo("foo", "bar")
+                  .commit("Initial file", Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }"))
+                  .push(Revision.HEAD)
+                  .join();
         }
     };
 

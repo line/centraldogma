@@ -382,7 +382,7 @@ class ReplicationLagTolerantCentralDogmaTest {
                     throw new RevisionNotFoundException();
                 }))
                 .thenReturn(completedFuture(latestEntry));
-        assertThat(dogma.getFile("foo", "bar", Revision.HEAD, "/a.txt").join())
+        assertThat(dogma.forRepo("foo", "bar").file("/a.txt").get(Revision.HEAD).join())
                 .isEqualTo(latestEntry);
 
         verify(delegate).normalizeRevision("foo", "bar", Revision.HEAD);

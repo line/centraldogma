@@ -68,8 +68,9 @@ class ContentCompressionTest {
         protected void scaffold(CentralDogma client) {
             client.createProject(PROJ).join();
             client.createRepository(PROJ, REPO).join();
-            client.push(PROJ, REPO, Revision.HEAD, "Create a large file.",
-                        Change.ofTextUpsert(PATH, CONTENT)).join();
+            client.forRepo(PROJ, REPO)
+                  .commit("Create a large file.", Change.ofTextUpsert(PATH, CONTENT))
+                  .push(Revision.HEAD).join();
         }
     };
 

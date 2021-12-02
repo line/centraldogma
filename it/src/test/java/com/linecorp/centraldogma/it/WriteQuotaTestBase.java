@@ -115,8 +115,10 @@ abstract class WriteQuotaTestBase {
                 ImmutableList.builderWithExpectedSize(iteration);
         final int sleep = 1000 / concurrency + 50;
         for (int i = 0; i < iteration; i++) {
-            builder.add(dogmaClient.push(projectName, repoName, Revision.HEAD, i + ". test commit",
-                                         Change.ofTextUpsert("/foo.txt", "Hello CentralDogma! " + i)));
+            builder.add(dogmaClient.forRepo(projectName, repoName)
+                                   .commit(i + ". test commit",
+                                           Change.ofTextUpsert("/foo.txt", "Hello CentralDogma! " + i))
+                                   .push(Revision.HEAD));
             Thread.sleep(sleep);
         }
         return builder.build();

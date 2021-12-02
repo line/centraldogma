@@ -69,14 +69,14 @@ class CentralDogmaEndpointGroupTest {
         protected void scaffold(CentralDogma client) {
             client.createProject("directory").join();
             client.createRepository("directory", "my-service").join();
-            client.push("directory", "my-service",
-                        Revision.HEAD, "commit",
-                        Change.ofJsonUpsert("/endpoint.json", HOST_AND_PORT_LIST_JSON))
+            client.forRepo("directory", "my-service")
+                  .commit("commit", Change.ofJsonUpsert("/endpoint.json", HOST_AND_PORT_LIST_JSON))
+                  .push(Revision.HEAD)
                   .join();
-            client.push("directory", "my-service",
-                        Revision.HEAD, "commit",
-                        Change.ofTextUpsert("/endpoints.txt",
-                                            String.join("\n", HOST_AND_PORT_LIST)))
+            client.forRepo("directory", "my-service")
+                  .commit("commit", Change.ofTextUpsert("/endpoints.txt",
+                                                        String.join("\n", HOST_AND_PORT_LIST)))
+                  .push(Revision.HEAD)
                   .join();
         }
 
@@ -88,8 +88,9 @@ class CentralDogmaEndpointGroupTest {
 
     @Test
     void json() throws Exception {
-        try (Watcher<JsonNode> watcher = dogma.client().fileWatcher("directory", "my-service",
-                                                                    Query.ofJson("/endpoint.json"))) {
+        try (Watcher<JsonNode> watcher = dogma.client().forRepo("directory", "my-service")
+                                              .watchingFile(Query.ofJson("/endpoint.json"))
+                                              .newWatcher()) {
             final CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.builder(
                     watcher, EndpointListDecoder.JSON).build();
             endpointGroup.whenReady().get();
@@ -100,20 +101,23 @@ class CentralDogmaEndpointGroupTest {
     @Test
     void text() throws Exception {
         final AtomicInteger counter = new AtomicInteger();
-        try (Watcher<String> watcher = dogma.client().fileWatcher(
-                "directory", "my-service", Query.ofText("/endpoints.txt"), entry -> {
-                    counter.incrementAndGet();
-                    return entry;
-                })) {
+        try (Watcher<String> watcher = dogma.client()
+                                            .forRepo("directory", "my-service")
+                                            .watchingFile(Query.ofText("/endpoints.txt"))
+                                            .map(entry -> {
+                                                counter.incrementAndGet();
+                                                return entry;
+                                            }).newWatcher()) {
             final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);
             endpointGroup.whenReady().get();
             assertThat(endpointGroup.endpoints()).isEqualTo(ENDPOINT_LIST);
             assertThat(counter.get()).isOne();
 
-            dogma.client().push("directory", "my-service",
-                                Revision.HEAD, "commit",
-                                Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
+            dogma.client()
+                 .forRepo("directory", "my-service")
+                 .commit("commit", Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
+                 .push(Revision.HEAD)
                  .join();
 
             await().untilAsserted(() -> assertThat(endpointGroup.endpoints())
@@ -125,11 +129,13 @@ class CentralDogmaEndpointGroupTest {
     @Test
     void recoverFromNotFound() throws Exception {
         final AtomicInteger counter = new AtomicInteger();
-        try (Watcher<String> watcher = dogma.client().fileWatcher(
-                "directory", "new-service", Query.ofText("/endpoints.txt"), entry -> {
-                    counter.incrementAndGet();
-                    return entry;
-                })) {
+        try (Watcher<String> watcher = dogma.client()
+                                            .forRepo("directory", "new-service")
+                                            .watchingFile(Query.ofText("/endpoints.txt"))
+                                            .map(entry -> {
+                                                counter.incrementAndGet();
+                                                return entry;
+                                            }).newWatcher()) {
 
             final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);
@@ -140,9 +146,10 @@ class CentralDogmaEndpointGroupTest {
             assertThat(counter.get()).isZero();
 
             dogma.client().createRepository("directory", "new-service").join();
-            dogma.client().push("directory", "new-service",
-                                Revision.HEAD, "commit",
-                                Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
+            dogma.client()
+                 .forRepo("directory", "new-service")
+                 .commit("commit", Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
+                 .push(Revision.HEAD)
                  .join();
             endpointGroup.whenReady().get(20, TimeUnit.SECONDS);
 

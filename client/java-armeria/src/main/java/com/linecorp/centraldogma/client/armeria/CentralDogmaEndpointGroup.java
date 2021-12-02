@@ -88,7 +88,10 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
                                                       String projectName, String repositoryName,
                                                       Query<T> query,
                                                       EndpointListDecoder<T> endpointListDecoder) {
-        return ofWatcher(centralDogma.fileWatcher(projectName, repositoryName, query), endpointListDecoder);
+        return ofWatcher(centralDogma.forRepo(projectName, repositoryName)
+                                     .watchingFile(query)
+                                     .newWatcher(),
+                         endpointListDecoder);
     }
 
     /**

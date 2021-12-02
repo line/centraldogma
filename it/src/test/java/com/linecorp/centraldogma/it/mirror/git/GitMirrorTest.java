@@ -216,8 +216,9 @@ class GitMirrorTest {
     void remoteToLocal_subdirectory() throws Exception {
         pushMirrorSettings("/target", "/source/main");
 
-        client.push(projName, REPO_FOO, Revision.HEAD, "Add a file that's not part of mirror",
-                    Change.ofTextUpsert("/not_mirrored.txt", "")).join();
+        client.forRepo(projName, REPO_FOO)
+              .commit("Add a file that's not part of mirror", Change.ofTextUpsert("/not_mirrored.txt", ""))
+              .push(Revision.HEAD).join();
 
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
 
@@ -408,15 +409,17 @@ class GitMirrorTest {
     }
 
     private void pushMirrorSettings(String localRepo, @Nullable String localPath, @Nullable String remotePath) {
-        client.push(projName, Project.REPO_META, Revision.HEAD, "Add /mirrors.json",
-                    Change.ofJsonUpsert("/mirrors.json",
-                                        "[{" +
-                                        "  \"type\": \"single\"," +
-                                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                                        "  \"localRepo\": \"" + localRepo + "\"," +
-                                        (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
-                                        "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
-                                        "}]")).join();
+        client.forRepo(projName, Project.REPO_META)
+              .commit("Add /mirrors.json",
+                      Change.ofJsonUpsert("/mirrors.json",
+                                          "[{" +
+                                          "  \"type\": \"single\"," +
+                                          "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                                          "  \"localRepo\": \"" + localRepo + "\"," +
+                                          (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
+                                          "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
+                                          "}]"))
+              .push(Revision.HEAD).join();
     }
 
     private Entry<JsonNode> expectedMirrorState(Revision revision, String localPath) throws IOException {

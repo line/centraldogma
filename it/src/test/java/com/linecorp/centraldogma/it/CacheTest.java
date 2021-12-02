@@ -58,8 +58,10 @@ class CacheTest {
         client.createRepository(project, REPO_FOO).join();
 
         final Map<String, Double> meters1 = metersSupplier.get();
-        final PushResult res = client.push(project, REPO_FOO, HEAD, "Add a file",
-                                           Change.ofTextUpsert("/foo.txt", "bar")).join();
+        final PushResult res = client.forRepo(project, REPO_FOO)
+                                     .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
+                                     .push(HEAD)
+                                     .join();
 
         final Map<String, Double> meters2 = metersSupplier.get();
         // Metadata needs to access to check a write quota (one cache miss).
@@ -105,8 +107,9 @@ class CacheTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
-        final PushResult res1 = client.push(project, REPO_FOO, HEAD, "Add a file",
-                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
+        final PushResult res1 = client.forRepo(project, REPO_FOO)
+                                      .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
+                                      .push(HEAD).join();
 
         final Map<String, Double> meters1 = metersSupplier.get();
 
@@ -140,8 +143,9 @@ class CacheTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
-        final PushResult res1 = client.push(project, REPO_FOO, HEAD, "Add a file",
-                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
+        final PushResult res1 = client.forRepo(project, REPO_FOO)
+                                      .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
+                                      .push(HEAD).join();
 
         final Map<String, Double> meters1 = metersSupplier.get();
 

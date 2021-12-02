@@ -95,8 +95,10 @@ class WatchTest {
                                                             "[" + System.currentTimeMillis() + ", " +
                                                             System.nanoTime() + ']');
 
-        final PushResult result = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Add test3.json", change).join();
+        final PushResult result = client.forRepo(dogma.project(), dogma.repo1())
+                                        .commit("Add test3.json", change)
+                                        .push(rev1)
+                                        .join();
 
         final Revision rev2 = result.revision();
 
@@ -115,8 +117,10 @@ class WatchTest {
                                                             "[" + System.currentTimeMillis() + ", " +
                                                             System.nanoTime() + ']');
 
-        final PushResult result = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Add test3.json", change).join();
+        final PushResult result = client.forRepo(dogma.project(), dogma.repo1())
+                                        .commit("Add test3.json", change)
+                                        .push(rev1)
+                                        .join();
 
         final Revision rev2 = result.revision();
 
@@ -144,16 +148,20 @@ class WatchTest {
                                                              "[" + System.currentTimeMillis() + ", " +
                                                              System.nanoTime() + ']');
 
-        final PushResult result1 = client.push(
-                dogma.project(), dogma.repo1(), rev0, "Add test3.json", change1).join();
+        final PushResult result1 = client.forRepo(dogma.project(), dogma.repo1())
+                                         .commit("Add test3.json", change1)
+                                         .push(rev0)
+                                         .join();
         final Revision rev1 = result1.revision();
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         // Ensure that the watcher is not notified because the path pattern does not match test3.json.
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
-        final PushResult result2 = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Add test4.json", change2).join();
+        final PushResult result2 = client.forRepo(dogma.project(), dogma.repo1())
+                                         .commit("Add test4.json", change2)
+                                         .push(rev1)
+                                         .join();
         final Revision rev2 = result2.revision();
         assertThat(rev2).isEqualTo(rev1.forward(1));
 
@@ -191,8 +199,10 @@ class WatchTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final PushResult res1 = client.push(
-                dogma.project(), dogma.repo1(), rev0, "Add test2.json", change1).join();
+        final PushResult res1 = client.forRepo(dogma.project(), dogma.repo1())
+                                      .commit("Add test2.json", change1)
+                                      .push(rev0)
+                                      .join();
 
         final Revision rev1 = res1.revision();
 
@@ -201,8 +211,10 @@ class WatchTest {
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final PushResult res2 = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Add test1.json", change2).join();
+        final PushResult res2 = client.forRepo(dogma.project(), dogma.repo1())
+                                      .commit("Add test1.json", change2)
+                                      .push(rev1)
+                                      .join();
 
         final Revision rev2 = res2.revision();
 
@@ -230,8 +242,10 @@ class WatchTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final PushResult res1 = client.push(
-                dogma.project(), dogma.repo1(), rev0, "Add test2.json", change1).join();
+        final PushResult res1 = client.forRepo(dogma.project(), dogma.repo1())
+                                      .commit("Add test2.json", change1)
+                                      .push(rev0)
+                                      .join();
 
         final Revision rev1 = res1.revision();
 
@@ -240,8 +254,10 @@ class WatchTest {
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final PushResult res2 = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Update test1.json", change2).join();
+        final PushResult res2 = client.forRepo(dogma.project(), dogma.repo1())
+                                      .commit("Update test1.json", change2)
+                                      .push(rev1)
+                                      .join();
 
         final Revision rev2 = res2.revision();
 
@@ -269,12 +285,14 @@ class WatchTest {
         revertTestFiles(clientType);
 
         final CentralDogma client = clientType.client(dogma);
-        final Watcher<JsonNode> jsonWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
-                                                                 Query.ofJson("/test/test2.json"));
+        final Watcher<JsonNode> jsonWatcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                    .watchingFile(Query.ofJson("/test/test2.json"))
+                                                    .newWatcher();
         assertThatJson(jsonWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
 
-        final Watcher<String> stringWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
-                                                                 Query.ofText("/test/test2.json"));
+        final Watcher<String> stringWatcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                    .watchingFile(Query.ofText("/test/test2.json"))
+                                                    .newWatcher();
         assertThat(stringWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
     }
 
@@ -285,8 +303,9 @@ class WatchTest {
 
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
-        final Watcher<JsonNode> jsonWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
-                                                                 Query.ofJson(filePath));
+        final Watcher<JsonNode> jsonWatcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                    .watchingFile(Query.ofJson(filePath))
+                                                    .newWatcher();
 
         // wait for initial value
         assertThatJson(jsonWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
@@ -306,7 +325,9 @@ class WatchTest {
         // update the json
         final Change<JsonNode> update = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"air\" }");
-        client.push(dogma.project(), dogma.repo1(), rev0, "Modify /a", update)
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Modify /a", update)
+              .push(rev0)
               .join();
 
         // the updated json should be reflected in the second watcher
@@ -320,8 +341,9 @@ class WatchTest {
 
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
-        final Watcher<JsonNode> heavyWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
-                                                                  Query.ofJsonPath(filePath));
+        final Watcher<JsonNode> heavyWatcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                     .watchingFile(Query.ofJsonPath(filePath))
+                                                     .newWatcher();
 
         final Watcher<JsonNode> forExisting = Watcher.atJsonPointer(heavyWatcher, "/a");
         final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
@@ -346,7 +368,9 @@ class WatchTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> unrelatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
-        final Revision rev1 = client.push(dogma.project(), dogma.repo1(), rev0, "Add /b", unrelatedChange)
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Add /b", unrelatedChange)
+                                    .push(rev0)
                                     .join()
                                     .revision();
 
@@ -356,7 +380,9 @@ class WatchTest {
         // An relevant change should trigger a notification.
         final Change<JsonNode> relatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"artichoke\", \"b\": \"banana\" }");
-        final Revision rev2 = client.push(dogma.project(), dogma.repo1(), rev1, "Change /a", relatedChange)
+        final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Change /a", relatedChange)
+                                    .push(rev1)
                                     .join()
                                     .revision();
 
@@ -370,8 +396,9 @@ class WatchTest {
 
         final Change<JsonNode> nextRelatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"apricot\", \"b\": \"banana\" }");
-        final Revision rev3 = client.push(dogma.project(), dogma.repo1(), rev2, "Change /a again",
-                                          nextRelatedChange)
+        final Revision rev3 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Change /a again", nextRelatedChange)
+                                    .push(rev2)
                                     .join()
                                     .revision();
 
@@ -389,30 +416,32 @@ class WatchTest {
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test.txt";
         final Watcher<String> watcher =
-                client.fileWatcher(dogma.project(), dogma.repo1(),
-                                   Query.ofText(filePath),
-                                   text -> {
-                                       assertThat(Thread.currentThread().getName())
-                                               .startsWith(THREAD_NAME_PREFIX);
-                                       return text;
-                                   });
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .watchingFile(Query.ofText(filePath))
+                      .map(text -> {
+                          assertThat(Thread.currentThread().getName())
+                                  .startsWith(THREAD_NAME_PREFIX);
+                          return text;
+                      })
+                      .newWatcher();
 
         final AtomicReference<String> threadName = new AtomicReference<>();
         watcher.watch(watched -> threadName.set(Thread.currentThread().getName()));
-        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "test",
-                    Change.ofTextUpsert("/test/test.txt", "foo"));
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("test", Change.ofTextUpsert("/test/test.txt", "foo"))
+              .push(Revision.HEAD);
 
         await().untilAtomic(threadName, Matchers.startsWith(THREAD_NAME_PREFIX));
         threadName.set(null);
 
         final Watcher<Revision> watcher2 =
-                client.repositoryWatcher(dogma.project(), dogma.repo1(),
-                                   filePath,
-                                   revision -> {
-                                       assertThat(Thread.currentThread().getName())
-                                               .startsWith(THREAD_NAME_PREFIX);
-                                       return revision;
-                                   });
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .watchingFiles(filePath)
+                      .map(revision -> {
+                          assertThat(Thread.currentThread().getName())
+                                  .startsWith(THREAD_NAME_PREFIX);
+                          return revision;
+                      }).newWatcher();
         watcher2.watch((revision1, revision2) -> threadName.set(Thread.currentThread().getName()));
         await().untilAtomic(threadName, Matchers.startsWith(THREAD_NAME_PREFIX));
     }
@@ -437,8 +466,9 @@ class WatchTest {
 
         final AtomicReference<String> threadName = new AtomicReference<>();
         watcher.watch(watched -> threadName.set(Thread.currentThread().getName()), executor);
-        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "test",
-                    Change.ofTextUpsert("/test/test.txt", "foo"));
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("test", Change.ofTextUpsert("/test/test.txt", "foo"))
+              .push(Revision.HEAD);
 
         await().untilAtomic(threadName, Matchers.startsWith(threadNamePrefix));
         threadName.set(null);
@@ -464,8 +494,10 @@ class WatchTest {
 
         if (!client.getPreviewDiffs(dogma.project(), dogma.repo1(), Revision.HEAD, changes)
                    .join().isEmpty()) {
-            client.push(dogma.project(), dogma.repo1(), Revision.HEAD,
-                        "Revert test files", changes).join();
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit("Revert test files", changes)
+                  .push(Revision.HEAD)
+                  .join();
         }
     }
 }
