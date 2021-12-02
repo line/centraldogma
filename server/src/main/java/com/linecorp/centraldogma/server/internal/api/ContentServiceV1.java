@@ -417,17 +417,16 @@ public class ContentServiceV1 extends AbstractService {
         }
 
         if (Project.REPO_META.equals(repoName)) {
-            final boolean hasChangesWithoutMirroring =
+            final boolean hasChangesOtherThanMirroring =
                     Streams.stream(changes)
                            .anyMatch(change -> !DefaultMetaRepository.PATH_MIRRORS.equals(change.path()));
-            if (hasChangesWithoutMirroring) {
+            if (hasChangesOtherThanMirroring) {
                 throw new InvalidPushException(
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
             }
 
             final Optional<String> notAllowedLocalRepo =
                     Streams.stream(changes)
-                           .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
                            .filter(change -> change.content() != null)
                            .map(change -> {
                                final Object content = change.content();

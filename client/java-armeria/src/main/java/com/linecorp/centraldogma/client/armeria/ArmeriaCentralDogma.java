@@ -193,7 +193,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         try {
             validateProjectName(projectName);
             return client.execute(
-                                 headers(HttpMethod.DELETE, pathBuilder(projectName).append(REMOVED).toString()))
+                    headers(HttpMethod.DELETE, pathBuilder(projectName).append(REMOVED).toString()))
                          .aggregate()
                          .thenApply(ArmeriaCentralDogma::handlePurgeResult);
         } catch (Exception e) {

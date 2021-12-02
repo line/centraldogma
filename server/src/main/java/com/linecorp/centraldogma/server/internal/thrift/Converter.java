@@ -169,7 +169,7 @@ final class Converter {
                 com.linecorp.centraldogma.common.Revision.HEAD,
                 com.linecorp.centraldogma.common.Revision.HEAD,
                 com.linecorp.centraldogma.server.storage.repository.Repository.ALL_PATH, 1).thenApply(
-                history -> new Repository(name).setHead(convert(history.get(0))));
+                        history -> new Repository(name).setHead(convert(history.get(0))));
     }
 
     static Commit convert(com.linecorp.centraldogma.common.Commit commit) {

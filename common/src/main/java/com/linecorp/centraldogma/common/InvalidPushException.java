@@ -19,16 +19,14 @@ package com.linecorp.centraldogma.common;
 /**
  * A {@link CentralDogmaException} that is raised when a push is invalid.
  */
-public class InvalidPushException extends CentralDogmaException {
+public final class InvalidPushException extends CentralDogmaException {
 
     private static final long serialVersionUID = -8681517517157384962L;
 
     /**
      * Creates a new instance.
      */
-    public InvalidPushException() {
-        super();
-    }
+    public InvalidPushException() {}
 
     /**
      * Creates a new instance.
@@ -59,13 +57,5 @@ public class InvalidPushException extends CentralDogmaException {
      */
     public InvalidPushException(String message, boolean writableStackTrace) {
         super(message, writableStackTrace);
-    }
-
-    /**
-     * Creates a new instance.
-     */
-    protected InvalidPushException(String message, Throwable cause, boolean enableSuppression,
-                                   boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
     }
 }
