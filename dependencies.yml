@@ -4,15 +4,15 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.13.0
-- com.linecorp.armeria:armeria-bom:1.13.3
-- io.micrometer:micrometer-bom:1.7.4
-- org.junit:junit-bom:5.8.1
+- com.linecorp.armeria:armeria-bom:1.13.4
+- io.micrometer:micrometer-bom:1.7.6
+- org.junit:junit-bom:5.8.2
 
 ch.qos.logback:
   logback-classic:
-    version: '1.2.6'
+    version: '1.2.7'
     javadocs:
-    - https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.6/
+    - https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.7/
 
 com.beust:
   # Please check `jcommander` version of Maven Central Repository before updating
@@ -114,7 +114,7 @@ com.linecorp.armeria:
     - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.9.0/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '8.45.1' }
+  checkstyle: { version: '9.2' }
 
 com.spotify:
   completable-futures:
@@ -206,7 +206,7 @@ org.assertj:
   assertj-core: { version: '3.21.0' }
 
 org.awaitility:
-  awaitility: { version: '4.1.0' }
+  awaitility: { version: '4.1.1' }
 
 org.hamcrest:
   hamcrest-library: { version: '2.2' }
@@ -225,7 +225,7 @@ org.javassist:
   javassist: { version: '3.28.0-GA' }
 
 org.mockito:
-  mockito-core: { version: &MOCKITO_VERSION '4.0.0' }
+  mockito-core: { version: &MOCKITO_VERSION '4.1.0' }
   mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
