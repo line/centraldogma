@@ -37,11 +37,41 @@ class WatchRequestConverterTest {
     private static final WatchRequestConverter converter = new WatchRequestConverter();
 
     @Test
-    void convertWatchRequest() throws Exception {
+    void convertToWatchRequest() throws Exception {
         final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
         final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/",
                                                          HttpHeaderNames.IF_NONE_MATCH, "-1",
+                                                         HttpHeaderNames.PREFER, "wait=10");
+        when(request.headers()).thenReturn(headers);
+
+        final WatchRequest watchRequest = convert(ctx, request);
+        assertThat(watchRequest).isNotNull();
+        assertThat(watchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
+        assertThat(watchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
+    }
+
+    @Test
+    void convertRequestWithETaggedIfNoneMatchHeaderToWatchRequest() throws Exception {
+        final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
+        final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/",
+                                                         HttpHeaderNames.IF_NONE_MATCH, "\"-1\"",
+                                                         HttpHeaderNames.PREFER, "wait=10");
+        when(request.headers()).thenReturn(headers);
+
+        final WatchRequest watchRequest = convert(ctx, request);
+        assertThat(watchRequest).isNotNull();
+        assertThat(watchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
+        assertThat(watchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
+    }
+
+    @Test
+    void convertRequestWithWeakComparisonETaggedIfNoneMatchHeaderToWatchRequest() throws Exception {
+        final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
+        final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/",
+                                                         HttpHeaderNames.IF_NONE_MATCH, "W/\"-1\"",
                                                          HttpHeaderNames.PREFER, "wait=10");
         when(request.headers()).thenReturn(headers);
 
