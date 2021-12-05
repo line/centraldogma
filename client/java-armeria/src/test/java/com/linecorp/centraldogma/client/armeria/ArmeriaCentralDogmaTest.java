@@ -24,8 +24,6 @@ import java.util.concurrent.CompletionException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
@@ -58,15 +56,14 @@ class ArmeriaCentralDogmaTest {
                 .isSameAs(pathPatternThatDoesNotNeedEscaping);
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = { "dogma", "meta" })
-    void pushFileToInternalRepositoryShouldFail(String repoName) throws UnknownHostException {
+    @Test
+    void pushFileToMetaRepositoryShouldFail() throws UnknownHostException {
         final CentralDogma client = new ArmeriaCentralDogmaBuilder()
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .build();
 
         assertThatThrownBy(() -> client.push("foo",
-                                             repoName,
+                                             "meta",
                                              Revision.HEAD,
                                              "summary",
                                              Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
