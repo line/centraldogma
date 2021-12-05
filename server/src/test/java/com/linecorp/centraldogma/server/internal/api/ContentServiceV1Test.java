@@ -31,8 +31,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -133,9 +131,8 @@ class ContentServiceV1Test {
                 '}');
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = { "dogma", "meta" })
-    void pushFileToInternalRepositoryShouldFail(String repoName) {
+    @Test
+    void pushFileToMetaRepositoryShouldFail() {
         final WebClient client = dogma.httpClient();
 
         final String body =
@@ -150,7 +147,7 @@ class ContentServiceV1Test {
                 "   }" +
                 '}';
         final RequestHeaders headers =
-                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/" + repoName + "/contents",
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/meta/contents",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
