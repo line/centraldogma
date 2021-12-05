@@ -411,11 +411,6 @@ public class ContentServiceV1 extends AbstractService {
      * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
     public static void checkPush(String repoName, Iterable<Change<?>> changes) {
-        if (Project.REPO_DOGMA.equals(repoName)) {
-            throw new InvalidPushException(
-                    "The " + Project.REPO_DOGMA + " repository is reserved for internal usage.");
-        }
-
         if (Project.REPO_META.equals(repoName)) {
             final boolean hasChangesOtherThanMirroring =
                     Streams.stream(changes)
