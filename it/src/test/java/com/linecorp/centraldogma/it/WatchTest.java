@@ -24,8 +24,6 @@ import static org.awaitility.Awaitility.await;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -41,13 +39,10 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.TextNode;
 
 import com.linecorp.armeria.common.util.ThreadFactories;
-import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
@@ -188,7 +183,7 @@ class WatchTest {
                                                                            1000, false);
         assertThat(future1.join()).isNull();
 
-        //Legacy client don't support this feature
+        // Legacy client doesn't support this feature.
         if (clientType == ClientType.LEGACY) {
             return;
         }
@@ -302,7 +297,7 @@ class WatchTest {
 
         assertThat(future1.join()).isNull();
 
-        //Legacy client don't support this feature
+        // Legacy client doesn't support this feature.
         if (clientType == ClientType.LEGACY) {
             return;
         }
@@ -508,9 +503,9 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void fileWatcher_entry_not_exist_error(ClientType clientType)
+    void fileWatcher_errorOnEntryNotFound(ClientType clientType)
             throws Exception {
-        //Legacy client don't support this feature
+        // Legacy client doesn't support this feature.
         if (clientType == ClientType.LEGACY) {
             return;
         }
@@ -528,8 +523,12 @@ class WatchTest {
                                                              blockingTaskExecutor, 100, true);
 
         // check entry does not exist when to get initial value
-        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(
-                EntryNotFoundException.class);
+        assertThatThrownBy(watcher::awaitInitialValue)
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+        assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS))
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+        assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS, new TextNode("test")))
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
 
         // when initialValueFuture throw 'EntryNotFoundException', you can't use 'watch' method.
         assertThatThrownBy(() -> watcher.watch((rev, node) -> {
@@ -538,7 +537,7 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void fileWatcher_entry_not_exist_error_and_watch_is_not_working_if_initialValue_completed_with_exception(
+    void fileWatcher_errorOnEntryNotFound_watch_method_is_not_working(
             ClientType clientType) throws Exception {
         // Legacy client don't support this feature
         if (clientType == ClientType.LEGACY) {
@@ -582,7 +581,7 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void fileWatcher_entry_not_exist_error_and_file_is_removed_on_watching(ClientType clientType)
+    void fileWatcher_errorOnEntryNotFound_file_is_removed_on_watching(ClientType clientType)
             throws InterruptedException {
         // Legacy client don't support this feature
         if (clientType == ClientType.LEGACY) {
@@ -643,9 +642,9 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void repositoryWatcher_entry_not_exist_error(
+    void repositoryWatcher_errorOnEntryNotFound(
             ClientType clientType) {
-        //Legacy client don't support this feature
+        // Legacy client doesn't support this feature.
         if (clientType == ClientType.LEGACY) {
             return;
         }
@@ -662,8 +661,12 @@ class WatchTest {
                                                                    blockingTaskExecutor, 100, true);
 
         // check entry does not exist when to get initial value
-        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(
-                EntryNotFoundException.class);
+        assertThatThrownBy(watcher::awaitInitialValue)
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+        assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS))
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+        assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS, Revision.INIT))
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
 
         // when initialValueFuture throw 'EntryNotFoundException', you can't use 'watch' method.
         assertThatThrownBy(() -> watcher.watch((rev, node) -> {
@@ -672,10 +675,8 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void
-    repositoryWatcher_entry_not_exist_error_and_watch_not_working_if_initialVal_completed_with_exception
-            (
-                    ClientType clientType) throws Exception {
+    void repositoryWatcher_errorOnEntryNotFound_watch_method_is_not_working(ClientType clientType)
+            throws Exception {
         // Legacy client don't support this feature
         if (clientType == ClientType.LEGACY) {
             return;

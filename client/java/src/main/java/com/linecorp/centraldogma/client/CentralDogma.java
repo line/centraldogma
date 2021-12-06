@@ -469,19 +469,18 @@ public interface CentralDogma {
 
     /**
      * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified
-     * {@code lastKnownRevision}. If the files don't exist and {@code errorOnEntryNotFound} is ture, stops to
-     * wait files and throw {@link EntryNotFoundException} as the cause. If {@code errorOnEntryNotFound} is
-     * false and no changes were made within the specified {@code timeoutMillis}, the returned {@link
-     * CompletableFuture} will be completed with {@code null}. It is recommended to specify the largest {@code
-     * timeoutMillis} allowed by the server.
+     * {@code lastKnownRevision}. If the files don't exist and {@code errorOnEntryNotFound} is {@code true},
+     * the returned {@link CompletableFuture} will be completed exceptionally with
+     * {@link EntryNotFoundException}. If no changes were made within the specified {@code timeoutMillis},
+     * the returned {@link CompletableFuture} will be completed with {@code null}.
+     * It is recommended to specify the largest {@code timeoutMillis} allowed by the server.
      *
      * <p>Note: Legacy client does not support {@code errorOnEntryNotFound}</p>
      *
-     * @return the {@link Entry} which contains the latest known {@link Query} result.
-     *         thrown {@link EntryNotFoundException} if files don't exist and
-     *         {@code errorOnEntryNotFound} is ture.
-     *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
-     *         since the invocation of this method.
+     * @return the latest known {@link Revision} which contains the changes for the matched files.
+     *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
+     *         since the invocation of this method. {@link EntryNotFoundException} is raised if the
+     *         target does not exist.
      */
     CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                 Revision lastKnownRevision, String pathPattern,
@@ -527,17 +526,16 @@ public interface CentralDogma {
 
     /**
      * Waits for the file matched by the specified {@link Query} to be changed since the specified
-     * {@code lastKnownRevision}. If the file does not exist and {@code errorOnEntryNotFound} is ture, stops
-     * to wait the file and throw {@link EntryNotFoundException} as the cause. If {@code errorOnEntryNotFound}
-     * is false and no changes were made within the specified {@code timeoutMillis}, the returned
-     * {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify the largest
-     * {@code timeoutMillis} allowed by the server.
+     * {@code lastKnownRevision}. If the file does not exist and {@code errorOnEntryNotFound} is {@code true},
+     * the returned {@link CompletableFuture} will be completed exceptionally with
+     * {@link EntryNotFoundException}. If no changes were made within the specified {@code timeoutMillis},
+     * the returned {@link CompletableFuture} will be completed with {@code null}.
+     * It is recommended to specify the largest {@code timeoutMillis} allowed by the server.
      *
      * @return the {@link Entry} which contains the latest known {@link Query} result.
-     *         thrown {@link EntryNotFoundException} if the file does not exist and
-     *         {@code errorOnEntryNotFound} is ture.
      *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
-     *         since the invocation of this method.
+     *         since the invocation of this method. {@link EntryNotFoundException} is raised if the
+     *         target does not exist.
      */
     <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                               Revision lastKnownRevision, Query<T> query,
@@ -627,8 +625,8 @@ public interface CentralDogma {
      *
      * @param executor the {@link Executor} that executes the {@link Function}.
      * @param errorOnEntryNotFound the {@code errorOnEntryNotFound} that is a option on watching.
-     *        if is true and the file doesn't exist, {@link Watcher#initialValueFuture()} will be completed
-     *        with {@link EntryNotFoundException}.
+     *        if is {@code true} and the file doesn't exist, {@link Watcher#initialValueFuture()} will be
+     *        completed with {@link EntryNotFoundException}.
      *        <p>Note: Legacy client does not support {@code errorOnEntryNotFound}</p>
      */
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
@@ -720,8 +718,8 @@ public interface CentralDogma {
      *
      * @param executor the {@link Executor} that executes the {@link Function}.
      * @param errorOnEntryNotFound the {@code errorOnEntryNotFound} that is a option on watching.
-     *        if is true and the files don't exist, {@link Watcher#initialValueFuture()} will be completed
-     *        with {@link EntryNotFoundException}.
+     *        if is {@code true} and the files don't exist, {@link Watcher#initialValueFuture()} will be
+     *        completed with {@link EntryNotFoundException}.
      *        <p>Note: Legacy client does not support {@code errorOnEntryNotFound}</p>
      */
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
