@@ -171,19 +171,25 @@ public final class GitMirror extends AbstractMirror {
                     if (ignoreNode != null &&
                         path.startsWith(remotePath()) &&
                         ignoreNode.isIgnored('/' + path.substring(remotePath().length()),
-                                                fileMode == FileMode.TREE) == MatchResult.IGNORED) {
+                                             fileMode == FileMode.TREE) == MatchResult.IGNORED) {
                         continue;
                     }
 
                     // Recurse into a directory if necessary.
                     if (fileMode == FileMode.TREE) {
                         // Enter if the directory is under remotePath.
+                        // e.g.
+                        // path == /foo/bar
+                        // remotePath == /foo/
                         if (path.startsWith(remotePath())) {
                             treeWalk.enterSubtree();
                             continue;
                         }
 
                         // Enter if the directory is equal to remotePath.
+                        // e.g.
+                        // path == /foo
+                        // remotePath == /foo/
                         final int pathLen = path.length() + 1; // Include the trailing '/'.
                         if (pathLen == remotePath().length() && remotePath().startsWith(path)) {
                             treeWalk.enterSubtree();
@@ -191,6 +197,9 @@ public final class GitMirror extends AbstractMirror {
                         }
 
                         // Enter if the directory is parent of remotePath.
+                        // e.g.
+                        // path == /foo
+                        // remotePath == /foo/bar/
                         if (pathLen < remotePath().length() && remotePath().startsWith(path + '/')) {
                             treeWalk.enterSubtree();
                             continue;

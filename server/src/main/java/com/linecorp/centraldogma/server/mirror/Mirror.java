@@ -151,12 +151,14 @@ public interface Mirror {
     /**
      * Returns the name of the branch in the Git repository where is supposed to be mirrored.
      */
-    @Nullable String remoteBranch();
+    @Nullable
+    String remoteBranch();
 
     /**
      * Returns a <a href="https://git-scm.com/docs/gitignore">gitignore</a> pattern for the files which won't be mirrored.
      */
-    @Nullable String gitIgnore();
+    @Nullable
+    String gitIgnore();
 
     /**
      * Performs the mirroring task.
