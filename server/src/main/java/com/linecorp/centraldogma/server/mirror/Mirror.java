@@ -55,8 +55,8 @@ public interface Mirror {
      * @param localRepo the Central Dogma repository name
      * @param localPath the directory path in the {@code localRepo}
      * @param remoteUri the URI of the Git repository which will be mirrored from
-     * @param gitIgnore the file pattern for the files in {@code remoteUri} which will not be mirrored
-     *                      It follows the same format to gitignore
+     * @param gitIgnore the file pattern for the files in {@code remoteUri} which will not be mirrored.
+     *                  It follows the same format to <a href="https://git-scm.com/docs/gitignore">gitignore</a>
      */
     static Mirror of(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath, URI remoteUri,
@@ -151,12 +151,12 @@ public interface Mirror {
     /**
      * Returns the name of the branch in the Git repository where is supposed to be mirrored.
      */
-    String remoteBranch();
+    @Nullable String remoteBranch();
 
     /**
-     * Returns the file pattern for the files which won't be mirrored.
+     * Returns a <a href="https://git-scm.com/docs/gitignore">gitignore</a> pattern for the files which won't be mirrored.
      */
-    String gitIgnore();
+    @Nullable String gitIgnore();
 
     /**
      * Performs the mirroring task.

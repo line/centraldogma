@@ -79,7 +79,8 @@ public final class GitMirror extends AbstractMirror {
 
     private static final int GIT_TIMEOUT_SECS = 10;
 
-    private final IgnoreNode ignoreNode = new IgnoreNode();
+    @Nullable
+    private IgnoreNode ignoreNode;
 
     public GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath,
@@ -89,6 +90,7 @@ public final class GitMirror extends AbstractMirror {
               gitIgnore);
 
         if (gitIgnore != null) {
+            ignoreNode = new IgnoreNode();
             try {
                 ignoreNode.parse(new ByteArrayInputStream(gitIgnore.getBytes()));
             } catch (IOException e) {
@@ -166,7 +168,10 @@ public final class GitMirror extends AbstractMirror {
                     final FileMode fileMode = treeWalk.getFileMode();
                     final String path = '/' + treeWalk.getPathString();
 
-                    if (ignoreNode.isIgnored(path, fileMode == FileMode.TREE) == MatchResult.IGNORED) {
+                    if (ignoreNode != null &&
+                        path.startsWith(remotePath()) &&
+                        ignoreNode.isIgnored('/' + path.substring(remotePath().length()),
+                                                fileMode == FileMode.TREE) == MatchResult.IGNORED) {
                         continue;
                     }
 

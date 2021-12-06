@@ -214,7 +214,7 @@ class GitMirrorTest {
 
     @Test
     void remoteToLocal_gitIgnore() throws Exception {
-        pushMirrorSettings(null, null, "/first/ex*" + "\\n" + "second");
+        pushMirrorSettings(null, "/first", "/exclude_if_root.txt" + "\\n" + "exclude_dir");
 
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
 
@@ -240,11 +240,17 @@ class GitMirrorTest {
         assertThat(rev2).isEqualTo(rev1);
 
         // Now, add some files to the git repository and mirror.
-        //// This file should not be mirrored because it does not conform to CD's file naming rule.
         addToGitIndex(".gitkeep", "");
         addToGitIndex("first/light.txt", "26-Aug-2014");
-        addToGitIndex("first/exclude.txt", "26-Aug-2014");
-        addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}");
+
+        /// This file is excluded from mirroring by pattern "/exclude_if_root.txt"
+        addToGitIndex("first/exclude_if_root.txt", "26-Aug-2014");
+
+        addToGitIndex("first/subdir/exclude_if_root.txt", "26-Aug-2014");
+
+        /// This file is excluded from mirroring by pattern "exclude_dir"
+        addToGitIndex("first/subdir/exclude_dir/cascaded_exclude.txt", "26-Aug-2014");
+
         git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
 
         mirroringService.mirror().join();
@@ -253,12 +259,13 @@ class GitMirrorTest {
         final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
         assertThat(rev3).isEqualTo(rev2.forward(1));
 
-        //// Make sure only the file '/first/light.txt' is there, because other files were excluded.
+        //// Make sure the file that match gitignore are not mirrored.
         final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
         assertThat(client.getFiles(projName, REPO_FOO, rev3, "/**").join().values())
                 .containsExactlyInAnyOrder(expectedSecondMirrorState,
-                                           Entry.ofDirectory(rev3, "/first"),
-                                           Entry.ofText(rev3, "/first/light.txt", "26-Aug-2014\n"));
+                                           Entry.ofText(rev3, "/light.txt", "26-Aug-2014\n"),
+                                           Entry.ofDirectory(rev3, "/subdir"),
+                                           Entry.ofText(rev3, "/subdir/exclude_if_root.txt", "26-Aug-2014\n"));
     }
 
     @Test

@@ -53,7 +53,9 @@ public abstract class AbstractMirror implements Mirror {
     private final String localPath;
     private final URI remoteRepoUri;
     private final String remotePath;
+    @Nullable
     private final String remoteBranch;
+    @Nullable
     private final String gitIgnore;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
@@ -171,6 +173,7 @@ public abstract class AbstractMirror implements Mirror {
     @Override
     public String toString() {
         final ToStringHelper helper = MoreObjects.toStringHelper("")
+                                                 .omitNullValues()
                                                  .add("schedule", CronDescriptor.instance().describe(schedule))
                                                  .add("direction", direction)
                                                  .add("localProj", localRepo.parent().name())
