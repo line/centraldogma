@@ -469,7 +469,9 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     public CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                        Revision lastKnownRevision,
                                                        String pathPattern,
-                                                       long timeoutMillis) {
+                                                       long timeoutMillis,
+                                                       boolean errorOnEntryNotFound) {
+        // Legacy client does not support 'errorOnEntryNotFound'
         final CompletableFuture<WatchRepositoryResult> future = run(callback -> {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(lastKnownRevision, "lastKnownRevision");
@@ -491,8 +493,8 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
-                                                     long timeoutMillis) {
-
+                                                     long timeoutMillis, boolean errorOnEntryNotFound) {
+        // Legacy client does not support 'errorOnEntryNotFound'
         final CompletableFuture<WatchFileResult> future = run(callback -> {
             validateProjectAndRepositoryName(projectName, repositoryName);
             requireNonNull(lastKnownRevision, "lastKnownRevision");
