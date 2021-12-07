@@ -290,11 +290,9 @@ class WatchTest {
     void watchFileWithNotExistFile(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
 
-        CompletableFuture<Entry<JsonNode>> future1 = client.watchFile(dogma.project(), dogma.repo1(),
-                                                                      Revision.HEAD,
-                                                                      Query.ofJson("/test/not_exist.json"),
-                                                                      1000, false);
-
+        final CompletableFuture<Entry<JsonNode>> future1 = client.watchFile(
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test/not_exist.json"),
+                1000, false);
         assertThat(future1.join()).isNull();
 
         // Legacy client doesn't support this feature.
@@ -302,10 +300,9 @@ class WatchTest {
             return;
         }
 
-        CompletableFuture<Entry<JsonNode>> future2 = client.watchFile(dogma.project(), dogma.repo1(),
-                                                                      Revision.HEAD,
-                                                                      Query.ofJson("/test/not_exist.json"),
-                                                                      1000, true);
+        final CompletableFuture<Entry<JsonNode>> future2 = client.watchFile(
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test/not_exist.json"),
+                1000, true);
         assertThatThrownBy(() -> future2.join()).getCause().isInstanceOf(EntryNotFoundException.class);
     }
 
@@ -514,8 +511,7 @@ class WatchTest {
 
         // prepare test
         final CentralDogma client = clientType.client(dogma);
-
-        String filePath = "/test/not_exist.json";
+        final String filePath = "/test/not_exist.json";
 
         // create watcher
         final Watcher<JsonNode> watcher = client.fileWatcher(dogma.project(), dogma.repo1(),
@@ -546,9 +542,8 @@ class WatchTest {
 
         // prepare test
         revertTestFiles(clientType);
-
         final CentralDogma client = clientType.client(dogma);
-        String filePath = "/test/not_exist.json";
+        final String filePath = "/test/not_exist.json";
 
         // create watcher
         final Watcher<JsonNode> watcher = client.fileWatcher(dogma.project(), dogma.repo1(),
@@ -591,7 +586,7 @@ class WatchTest {
         // prepare test
         revertTestFiles(clientType);
         final CentralDogma client = clientType.client(dogma);
-        String filePath = "/test/test2.json";
+        final String filePath = "/test/test2.json";
 
         // create watcher
         final Watcher<JsonNode> watcher = client.fileWatcher(dogma.project(), dogma.repo1(),

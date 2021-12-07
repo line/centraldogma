@@ -885,8 +885,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         builder.set(HttpHeaderNames.IF_NONE_MATCH, lastKnownRevision.text())
                .set(HttpHeaderNames.PREFER,
                     // It is good to extract private method when this logic becomes heavier.
-                    "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L
-                    + ", notify-entry-not-found=" + errorOnEntryNotFound);
+                    "wait=" + LongMath.saturatedAdd(timeoutMillis, 999) / 1000L +
+                    ", notify-entry-not-found=" + errorOnEntryNotFound);
 
         try (SafeCloseable ignored = Clients.withContextCustomizer(ctx -> {
             final long responseTimeoutMillis = ctx.responseTimeoutMillis();

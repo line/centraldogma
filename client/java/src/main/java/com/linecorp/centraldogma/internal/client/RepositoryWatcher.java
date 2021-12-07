@@ -24,7 +24,6 @@ import java.util.function.Function;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
-import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
 
 public final class RepositoryWatcher<T> extends AbstractWatcher<T> {

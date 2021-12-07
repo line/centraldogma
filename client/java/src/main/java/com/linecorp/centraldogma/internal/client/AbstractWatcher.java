@@ -192,13 +192,6 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     public void watch(BiConsumer<? super Revision, ? super T> listener, Executor executor) {
         requireNonNull(listener, "listener");
         checkState(!isStopped(), "watcher closed");
-        if (!initialValueFuture.isDone() && errorOnEntryNotFound) {
-            logger.warn("If entry doesn't not exist, this watch is not working. "
-                        + "Please check 'initialValueFuture()' is completed without any exception. "
-                        + "Recommend to handle this method using 'initialValueFuture()', "
-                        + "if you to need the error that entry doesn't exist.");
-        }
-
         updateListeners.add(new SimpleImmutableEntry<>(listener, executor));
 
         if (latest != null) {

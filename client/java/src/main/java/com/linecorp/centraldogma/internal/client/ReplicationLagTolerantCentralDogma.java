@@ -450,8 +450,8 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                     @Override
                     public String toString() {
                         return "watchRepository(" + projectName + ", " + repositoryName + ", " +
-                               lastKnownRevision + ", " + pathPattern + ", " + timeoutMillis + ", "
-                               + errorOnEntryNotFound + ')';
+                               lastKnownRevision + ", " + pathPattern + ", " + timeoutMillis + ", " +
+                               errorOnEntryNotFound + ')';
                     }
                 });
     }
@@ -480,8 +480,8 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                     @Override
                     public String toString() {
                         return "watchFile(" + projectName + ", " + repositoryName + ", " +
-                               lastKnownRevision + ", " + query + ", " + timeoutMillis + ", "
-                               + errorOnEntryNotFound + ')';
+                               lastKnownRevision + ", " + query + ", " + timeoutMillis + ", " +
+                               errorOnEntryNotFound + ')';
                     }
                 });
     }

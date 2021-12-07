@@ -436,10 +436,7 @@ public interface CentralDogma {
      *
      * @return the latest known {@link Revision} which contains the changes for the matched files.
      *         {@code null} if the files were not changed for 1 minute since the invocation of this method.
-     *
-     * @deprecated Use {@link CentralDogma#watchRepository(String, String, Revision, String, long, boolean)}.
      */
-    @Deprecated
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                         Revision lastKnownRevision, String pathPattern) {
         return watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern,
@@ -493,10 +490,7 @@ public interface CentralDogma {
      *
      * @return the {@link Entry} which contains the latest known {@link Query} result.
      *         {@code null} if the file was not changed for 1 minute since the invocation of this method.
-     *
-     * @deprecated Use {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)}.
      */
-    @Deprecated
     default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                       Revision lastKnownRevision, Query<T> query) {
         return watchFile(projectName, repositoryName, lastKnownRevision, query,
@@ -551,11 +545,7 @@ public interface CentralDogma {
      *     assert content instanceof JsonNode;
      *     ...
      * });}</pre>
-     *
-     * @deprecated Use {@link CentralDogma#fileWatcher(String, String, Query, Function, Executor, long,
-     *             boolean)}.
      */
-    @Deprecated
     default <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
         return fileWatcher(projectName, repositoryName, query, Function.identity());
     }
@@ -575,11 +565,7 @@ public interface CentralDogma {
      *
      * <p>Note that {@link Function} by default is executed by a blocking task executor so that you can
      * safely call a blocking operation.
-     *
-     * @deprecated Use {@link CentralDogma#fileWatcher(String, String, Query, Function, Executor, long,
-     *             boolean)}.
      */
-    @Deprecated
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
                                   Query<T> query, Function<? super T, ? extends U> function);
 
@@ -595,13 +581,7 @@ public interface CentralDogma {
      *     assert myValue instanceof MyType;
      *     ...
      * });}</pre>
-     *
-     * @param executor the {@link Executor} that executes the {@link Function}
-     *
-     * @deprecated Use {@link CentralDogma#fileWatcher(String, String, Query, Function, Executor, long,
-     *             boolean)}.
      */
-    @Deprecated
     default <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
                                           Function<? super T, ? extends U> function, Executor executor) {
         return fileWatcher(projectName, repositoryName, query, function, executor,
@@ -642,11 +622,7 @@ public interface CentralDogma {
      * watcher.watch(revision -> {
      *     ...
      * });}</pre>
-     *
-     * @deprecated Use {@link CentralDogma#repositoryWatcher(String, String, String, Function, Executor, long,
-     *             boolean)}.
      */
-    @Deprecated
     default Watcher<Revision> repositoryWatcher(String projectName, String repositoryName, String pathPattern) {
         return repositoryWatcher(projectName, repositoryName, pathPattern, Function.identity());
     }
@@ -667,11 +643,7 @@ public interface CentralDogma {
      * <p>Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and
      * may have to retry in the above example due to
      * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
-     *
-     * @deprecated Use {@link CentralDogma#repositoryWatcher(String, String, String, Function, Executor, long,
-     *             boolean)}.
      */
-    @Deprecated
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                      Function<Revision, ? extends T> function);
 
@@ -691,11 +663,7 @@ public interface CentralDogma {
      * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
      *
      * @param executor the {@link Executor} that executes the {@link Function}
-     *
-     * @deprecated Use {@link CentralDogma#repositoryWatcher(String, String, String, Function, Executor, long,
-     *             boolean)}.
      */
-    @Deprecated
     default <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                              Function<Revision, ? extends T> function, Executor executor) {
         return repositoryWatcher(projectName, repositoryName, pathPattern, function, executor,
@@ -704,8 +672,8 @@ public interface CentralDogma {
     }
 
     /**
-     * Returns a {@link Watcher} which notifies its listeners after applying the specified
-     * {@link Function} when the result of the given {@link Query} becomes available or changes. e.g:
+     * Returns a {@link Watcher} which notifies its listeners when the specified repository has a new commit
+     * that contains the changes for the files matched by the given {@code pathPattern}. e.g:
      * <pre>{@code
      * Watcher<MyType> watcher = client.repositoryWatcher(
      *         "foo", "bar", "/*.json",
@@ -715,6 +683,9 @@ public interface CentralDogma {
      * watcher.initialValueFuture().thenAccept(result -> watcher.watch((revision, contents) -> {
      *     ...
      * }));}</pre>
+     * Note that you may get {@link RevisionNotFoundException} during the {@code getFiles()} call and
+     * may have to retry in the above example due to
+     * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
      *
      * @param executor the {@link Executor} that executes the {@link Function}.
      * @param errorOnEntryNotFound the {@code errorOnEntryNotFound} that is a option on watching.
