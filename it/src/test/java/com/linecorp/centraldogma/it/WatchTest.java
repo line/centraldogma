@@ -23,6 +23,7 @@ import static org.awaitility.Awaitility.await;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.EnumSource.Mode;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
@@ -51,6 +53,7 @@ import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -176,10 +179,10 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void watchRepositoryWithNotExist(ClientType clientType) {
+    void watchRepositoryWithNotExist(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
         final CompletableFuture<Revision> future1 = client.watchRepository(dogma.project(), dogma.repo1(),
-                                                                           Revision.HEAD, "/not_exist_repo/**",
+                                                                           Revision.HEAD, "/test_not_found/**",
                                                                            1000, false);
         assertThat(future1.join()).isNull();
 
@@ -189,7 +192,7 @@ class WatchTest {
         }
 
         final CompletableFuture<Revision> future2 = client.watchRepository(dogma.project(), dogma.repo1(),
-                                                                           Revision.HEAD, "/not_exist_repo/**",
+                                                                           Revision.HEAD, "/test_not_found/**",
                                                                            1000, true);
         assertThatThrownBy(() -> future2.join()).getCause().isInstanceOf(EntryNotFoundException.class);
     }
@@ -287,13 +290,13 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void watchFileWithNotExistFile(ClientType clientType) {
+    void watchFileWithNotExistFile(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
 
         final CompletableFuture<Entry<JsonNode>> future1 = client.watchFile(
-                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test/not_exist.json"),
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test_not_found/test.json"),
                 1000, false);
-        assertThat(future1.join()).isNull();
+        assertThat(future1.get()).isNull();
 
         // Legacy client doesn't support this feature.
         if (clientType == ClientType.LEGACY) {
@@ -301,9 +304,9 @@ class WatchTest {
         }
 
         final CompletableFuture<Entry<JsonNode>> future2 = client.watchFile(
-                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test/not_exist.json"),
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test_not_found/test.json"),
                 1000, true);
-        assertThatThrownBy(() -> future2.join()).getCause().isInstanceOf(EntryNotFoundException.class);
+        assertThatThrownBy(() -> future2.get()).getCause().isInstanceOf(EntryNotFoundException.class);
     }
 
     @ParameterizedTest
@@ -499,19 +502,12 @@ class WatchTest {
     }
 
     @ParameterizedTest
-    @EnumSource(ClientType.class)
-    void fileWatcher_errorOnEntryNotFound(ClientType clientType)
-            throws Exception {
-        // Legacy client doesn't support this feature.
-        if (clientType == ClientType.LEGACY) {
-            return;
-        }
-
-        revertTestFiles(clientType);
-
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void fileWatcher_errorOnEntryNotFound(ClientType clientType) {
         // prepare test
+        revertTestFiles(clientType);
         final CentralDogma client = clientType.client(dogma);
-        final String filePath = "/test/not_exist.json";
+        final String filePath = "/test_not_found/test.json";
 
         // create watcher
         final Watcher<JsonNode> watcher = client.fileWatcher(dogma.project(), dogma.repo1(),
@@ -532,18 +528,12 @@ class WatchTest {
     }
 
     @ParameterizedTest
-    @EnumSource(ClientType.class)
-    void fileWatcher_errorOnEntryNotFound_watch_method_is_not_working(
-            ClientType clientType) throws Exception {
-        // Legacy client don't support this feature
-        if (clientType == ClientType.LEGACY) {
-            return;
-        }
-
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void fileWatcher_errorOnEntryNotFound_watchIsNotWorking(ClientType clientType) throws Exception {
         // prepare test
         revertTestFiles(clientType);
         final CentralDogma client = clientType.client(dogma);
-        final String filePath = "/test/not_exist.json";
+        final String filePath = "/test_not_found/test.json";
 
         // create watcher
         final Watcher<JsonNode> watcher = client.fileWatcher(dogma.project(), dogma.repo1(),
@@ -575,14 +565,8 @@ class WatchTest {
     }
 
     @ParameterizedTest
-    @EnumSource(ClientType.class)
-    void fileWatcher_errorOnEntryNotFound_file_is_removed_on_watching(ClientType clientType)
-            throws InterruptedException {
-        // Legacy client don't support this feature
-        if (clientType == ClientType.LEGACY) {
-            return;
-        }
-
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void fileWatcher_errorOnEntryNotFound_EntryIsRemovedOnWatching(ClientType clientType) throws Exception {
         // prepare test
         revertTestFiles(clientType);
         final CentralDogma client = clientType.client(dogma);
@@ -636,19 +620,12 @@ class WatchTest {
     }
 
     @ParameterizedTest
-    @EnumSource(ClientType.class)
-    void repositoryWatcher_errorOnEntryNotFound(
-            ClientType clientType) {
-        // Legacy client doesn't support this feature.
-        if (clientType == ClientType.LEGACY) {
-            return;
-        }
-
-        revertTestFiles(clientType);
-
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void repositoryWatcher_errorOnEntryNotFound(ClientType clientType) {
         // prepare test
+        revertTestFiles(clientType);
         final CentralDogma client = clientType.client(dogma);
-        final String pathPattern = "/not_exist_repo/**";
+        final String pathPattern = "/test_not_found/**";
 
         // create watcher
         final Watcher<Revision> watcher = client.repositoryWatcher(dogma.project(), dogma.repo1(),
@@ -669,20 +646,14 @@ class WatchTest {
     }
 
     @ParameterizedTest
-    @EnumSource(ClientType.class)
-    void repositoryWatcher_errorOnEntryNotFound_watch_method_is_not_working(ClientType clientType)
-            throws Exception {
-        // Legacy client don't support this feature
-        if (clientType == ClientType.LEGACY) {
-            return;
-        }
-
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void repositoryWatcher_errorOnEntryNotFound_watchIsNotWorking(ClientType clientType) throws Exception {
         // prepare test
         revertTestFiles(clientType);
 
         final CentralDogma client = clientType.client(dogma);
-        final String pathPattern = "/not_exist_repo/**";
-        final String filePath = "/not_exist_repo/test.json";
+        final String pathPattern = "/test_not_found/**";
+        final String filePath = "/test_not_found/test.json";
 
         // create watcher
         final Watcher<Revision> watcher = client.repositoryWatcher(dogma.project(), dogma.repo1(),
@@ -725,6 +696,13 @@ class WatchTest {
                    .join().isEmpty()) {
             client.push(dogma.project(), dogma.repo1(), Revision.HEAD,
                         "Revert test files", changes).join();
+        }
+
+        final Change<Void> change3 = Change.ofRemoval("/test_not_found/test.json");
+        final Map<String, EntryType> files = client.listFiles(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                              "/test_not_found/**").join();
+        if (files.containsKey(change3.path())) {
+            client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Remove test files", change3).join();
         }
     }
 }
