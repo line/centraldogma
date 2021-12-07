@@ -266,6 +266,23 @@ class GitMirrorTest {
                                            Entry.ofText(rev3, "/light.txt", "26-Aug-2014\n"),
                                            Entry.ofDirectory(rev3, "/subdir"),
                                            Entry.ofText(rev3, "/subdir/exclude_if_root.txt", "26-Aug-2014\n"));
+
+        /// Add new file, but it is not mirrored because its parent directory is excluded
+        addToGitIndex("first/subdir/exclude_dir/new2.txt", "26-Aug-2014");
+
+        git.commit().setMessage("Add new file in excluded directory").call();
+
+        mirroringService.mirror().join();
+
+        final Revision rev4 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev4).isEqualTo(rev2.forward(2));
+
+        //// Make sure the file that there's no change in mirrored file list
+        assertThat(client.getFiles(projName, REPO_FOO, rev4, "/**").join().values())
+                .containsExactlyInAnyOrder(expectedMirrorState(rev4, "/"),
+                                           Entry.ofText(rev4, "/light.txt", "26-Aug-2014\n"),
+                                           Entry.ofDirectory(rev4, "/subdir"),
+                                           Entry.ofText(rev4, "/subdir/exclude_if_root.txt", "26-Aug-2014\n"));
     }
 
     @Test
