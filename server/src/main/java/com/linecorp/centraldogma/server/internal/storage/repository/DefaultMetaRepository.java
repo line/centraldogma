@@ -220,7 +220,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
         final String localPath;
         final URI remoteUri;
         @Nullable
-        final String gitIgnore;
+        final String gitignore;
         @Nullable
         final String credentialId;
         final Cron schedule;
@@ -232,7 +232,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                            @JsonProperty(value = "localRepo", required = true) String localRepo,
                            @JsonProperty("localPath") @Nullable String localPath,
                            @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
-                           @JsonProperty("gitIgnore") @Nullable Object gitIgnore,
+                           @JsonProperty("gitignore") @Nullable Object gitignore,
                            @JsonProperty("credentialId") @Nullable String credentialId) {
 
             super(firstNonNull(enabled, true));
@@ -241,17 +241,17 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
             this.localRepo = requireNonNull(localRepo, "localRepo");
             this.localPath = firstNonNull(localPath, "/");
             this.remoteUri = requireNonNull(remoteUri, "remoteUri");
-            if (gitIgnore != null) {
-                if (gitIgnore instanceof Iterable) {
-                    this.gitIgnore = String.join("\n", (Iterable<String>) gitIgnore);
-                } else if (gitIgnore instanceof String) {
-                    this.gitIgnore = (String) gitIgnore;
+            if (gitignore != null) {
+                if (gitignore instanceof Iterable) {
+                    this.gitignore = String.join("\n", (Iterable<String>) gitignore);
+                } else if (gitignore instanceof String) {
+                    this.gitignore = (String) gitignore;
                 } else {
                     throw new IllegalArgumentException(
-                            "gitIgnore: " + gitIgnore + " (expected: either a string or array of strings)");
+                            "gitignore: " + gitignore + " (expected: either a string or array of strings)");
                 }
             } else {
-                this.gitIgnore = null;
+                this.gitignore = null;
             }
             this.credentialId = credentialId;
         }
@@ -264,7 +264,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
 
             return Collections.singletonList(Mirror.of(
                     schedule, direction, findCredential(credentials, remoteUri, credentialId),
-                    parent.repos().get(localRepo), localPath, remoteUri, gitIgnore));
+                    parent.repos().get(localRepo), localPath, remoteUri, gitignore));
         }
     }
 

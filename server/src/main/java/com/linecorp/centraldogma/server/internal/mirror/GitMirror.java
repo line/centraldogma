@@ -85,16 +85,16 @@ public final class GitMirror extends AbstractMirror {
     public GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath,
                      URI remoteRepoUri, String remotePath, String remoteBranch,
-                     @Nullable String gitIgnore) {
+                     @Nullable String gitignore) {
         super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
-              gitIgnore);
+              gitignore);
 
-        if (gitIgnore != null) {
+        if (gitignore != null) {
             ignoreNode = new IgnoreNode();
             try {
-                ignoreNode.parse(new ByteArrayInputStream(gitIgnore.getBytes()));
+                ignoreNode.parse(new ByteArrayInputStream(gitignore.getBytes()));
             } catch (IOException e) {
-                throw new IllegalArgumentException("Failed to read gitIgnore: " + gitIgnore, e);
+                throw new IllegalArgumentException("Failed to read gitignore: " + gitignore, e);
             }
         }
     }

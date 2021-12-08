@@ -51,7 +51,7 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
         "localPath": "/",
         "remoteUri": "git+ssh://git.example.com/foo.git/settings#release",
         "credentialId": "my_private_key",
-        "gitIgnore": [
+        "gitignore": [
             "/credential.txt",
             "private_dir"
         ]
@@ -108,11 +108,11 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
     the credential whose ``hostnamePattern`` is matched by the host name part of the ``remoteUri`` value will
     be selected automatically.
 
-- ``gitIgnore`` (string or array of string, optional)
+- ``gitignore`` (string or array of string, optional)
 
-  - a `gitIgnore <https://git-scm.com/docs/gitignore>`_ pattern for the files excluded from mirroring.
-    The type of gitIgnore can be a full string of gitIgnore (e.g. ``/filename.txt\ndirectory``) or an array of
-    strings which consists of each line of gitIgnore. The file path expressed in gitIgnore is relative to the
+  - a `gitignore <https://git-scm.com/docs/gitignore>`_ pattern for the files excluded from mirroring.
+    The type of gitignore can be a full string of gitignore (e.g. ``/filename.txt\ndirectory``) or an array of
+    strings which consists of each line of gitignore. The file path expressed in gitignore is relative to the
     path of ``remoteUri``.
 
 ``/credentials.json`` contains the authentication credentials which are required when accessing the Git

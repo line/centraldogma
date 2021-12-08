@@ -55,12 +55,12 @@ public interface Mirror {
      * @param localRepo the Central Dogma repository name
      * @param localPath the directory path in the {@code localRepo}
      * @param remoteUri the URI of the Git repository which will be mirrored from
-     * @param gitIgnore the file pattern for the files in {@code remoteUri} which will not be mirrored.
+     * @param gitignore the file pattern for the files in {@code remoteUri} which will not be mirrored.
      *                  It follows the same format to <a href="https://git-scm.com/docs/gitignore">gitignore</a>
      */
     static Mirror of(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath, URI remoteUri,
-                     @Nullable String gitIgnore) {
+                     @Nullable String gitignore) {
         requireNonNull(schedule, "schedule");
         requireNonNull(direction, "direction");
         requireNonNull(credential, "credential");
@@ -89,7 +89,7 @@ public interface Mirror {
 
                 return new CentralDogmaMirror(schedule, direction, credential, localRepo, localPath,
                                               remoteRepoUri, remoteProject, remoteRepo, components[1],
-                                              gitIgnore);
+                                              gitignore);
             }
             case SCHEME_GIT:
             case SCHEME_GIT_SSH:
@@ -99,7 +99,7 @@ public interface Mirror {
                 final String[] components = split(remoteUri, "git", "master");
                 return new GitMirror(schedule, direction, credential, localRepo, localPath,
                                      URI.create(components[0]), components[1], components[2],
-                                     gitIgnore);
+                                     gitignore);
             }
         }
 
@@ -159,7 +159,7 @@ public interface Mirror {
      * which won't be mirrored.
      */
     @Nullable
-    String gitIgnore();
+    String gitignore();
 
     /**
      * Performs the mirroring task.

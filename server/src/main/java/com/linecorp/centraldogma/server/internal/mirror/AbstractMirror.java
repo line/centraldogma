@@ -56,14 +56,14 @@ public abstract class AbstractMirror implements Mirror {
     @Nullable
     private final String remoteBranch;
     @Nullable
-    private final String gitIgnore;
+    private final String gitignore;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
 
     protected AbstractMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                              Repository localRepo, String localPath,
                              URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
-                             @Nullable String gitIgnore) {
+                             @Nullable String gitignore) {
 
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
@@ -73,7 +73,7 @@ public abstract class AbstractMirror implements Mirror {
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
         this.remoteBranch = remoteBranch;
-        this.gitIgnore = gitIgnore;
+        this.gitignore = gitignore;
 
         executionTime = ExecutionTime.forCron(this.schedule);
 
@@ -139,8 +139,8 @@ public abstract class AbstractMirror implements Mirror {
     }
 
     @Override
-    public final String gitIgnore() {
-        return gitIgnore;
+    public final String gitignore() {
+        return gitignore;
     }
 
     @Override
@@ -182,7 +182,7 @@ public abstract class AbstractMirror implements Mirror {
                                                  .add("remoteRepo", remoteRepoUri)
                                                  .add("remotePath", remotePath)
                                                  .add("remoteBranch", remoteBranch)
-                                                 .add("gitIgnore", gitIgnore)
+                                                 .add("gitignore", gitignore)
                                                  .add("credential", credential);
 
         return helper.toString();
