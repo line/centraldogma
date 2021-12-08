@@ -18,8 +18,6 @@ package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import javax.annotation.Nullable;
 
@@ -129,13 +127,11 @@ class WatchRequestConverterTest {
 
     @Test
     void emptyHeader() throws Exception {
-        final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
-        final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/");
+        final HttpRequest request = HttpRequest.of(headers);
+        final ServiceRequestContext ctx = ServiceRequestContext.of(request);
 
-        when(request.headers()).thenReturn(headers);
-
-        final WatchRequest watchRequest = convert(ctx, request);
+        final WatchRequest watchRequest = convert(ctx, request.aggregate().join());
         assertThat(watchRequest).isNull();
     }
 
