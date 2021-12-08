@@ -53,6 +53,8 @@ public final class WatchRequestConverter implements RequestConverterFunction {
     /**
      * Converts the specified {@code request} to a {@link WatchRequest} when the request has
      * {@link HttpHeaderNames#IF_NONE_MATCH}. {@code null} otherwise.
+     *
+     * {@link HttpHeaderNames#IF_NONE_MATCH} must be integer, ETag and Weak Comparison ETag.
      */
     @Override
     @Nullable
