@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
-import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Revision;
@@ -41,10 +40,10 @@ class WatchRequestConverterTest {
         final RequestHeaders firstHeaders = RequestHeaders.of(HttpMethod.GET, "/",
                                                               HttpHeaderNames.IF_NONE_MATCH, "-1",
                                                               HttpHeaderNames.PREFER, "wait=10");
-        final HttpRequest firstRequest = HttpRequest.of(firstHeaders);
-        final ServiceRequestContext firstCtx = ServiceRequestContext.of(firstRequest);
+        final AggregatedHttpRequest firstRequest = AggregatedHttpRequest.of(firstHeaders);
+        final ServiceRequestContext firstCtx = ServiceRequestContext.of(firstRequest.toHttpRequest());
 
-        final WatchRequest firstWatchRequest = convert(firstCtx, firstRequest.aggregate().join());
+        final WatchRequest firstWatchRequest = convert(firstCtx, firstRequest);
         assertThat(firstWatchRequest).isNotNull();
         assertThat(firstWatchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
         assertThat(firstWatchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
@@ -52,10 +51,10 @@ class WatchRequestConverterTest {
         final RequestHeaders secondHeaders = RequestHeaders.of(HttpMethod.GET, "/",
                                                                HttpHeaderNames.IF_NONE_MATCH, "\"-1\"",
                                                                HttpHeaderNames.PREFER, "wait=10");
-        final HttpRequest secondRequest = HttpRequest.of(secondHeaders);
-        final ServiceRequestContext secondCtx = ServiceRequestContext.of(secondRequest);
+        final AggregatedHttpRequest secondRequest = AggregatedHttpRequest.of(secondHeaders);
+        final ServiceRequestContext secondCtx = ServiceRequestContext.of(secondRequest.toHttpRequest());
 
-        final WatchRequest secondWatchRequest = convert(secondCtx, secondRequest.aggregate().join());
+        final WatchRequest secondWatchRequest = convert(secondCtx, secondRequest);
         assertThat(secondWatchRequest).isNotNull();
         assertThat(secondWatchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
         assertThat(secondWatchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
@@ -63,10 +62,10 @@ class WatchRequestConverterTest {
         final RequestHeaders thirdHeaders = RequestHeaders.of(HttpMethod.GET, "/",
                                                               HttpHeaderNames.IF_NONE_MATCH, "W/\"-1\"",
                                                               HttpHeaderNames.PREFER, "wait=10");
-        final HttpRequest thirdRequest = HttpRequest.of(thirdHeaders);
-        final ServiceRequestContext thirdCtx = ServiceRequestContext.of(thirdRequest);
+        final AggregatedHttpRequest thirdRequest = AggregatedHttpRequest.of(thirdHeaders);
+        final ServiceRequestContext thirdCtx = ServiceRequestContext.of(thirdRequest.toHttpRequest());
 
-        final WatchRequest thirdWatchRequest = convert(thirdCtx, thirdRequest.aggregate().join());
+        final WatchRequest thirdWatchRequest = convert(thirdCtx, thirdRequest);
         assertThat(thirdWatchRequest).isNotNull();
         assertThat(thirdWatchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
         assertThat(thirdWatchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
@@ -78,60 +77,60 @@ class WatchRequestConverterTest {
                 RequestHeaders.of(HttpMethod.GET, "/",
                                   HttpHeaderNames.IF_NONE_MATCH, "w/\"-1\"",
                                   HttpHeaderNames.PREFER, "wait=10");
-        final HttpRequest firstInvalidRequest = HttpRequest.of(firstInvalidHeaders);
-        final ServiceRequestContext firstCtx = ServiceRequestContext.of(firstInvalidRequest);
+        final AggregatedHttpRequest firstInvalidRequest = AggregatedHttpRequest.of(firstInvalidHeaders);
+        final ServiceRequestContext firstCtx = ServiceRequestContext.of(firstInvalidRequest.toHttpRequest());
 
-        assertThatThrownBy(() -> convert(firstCtx, firstInvalidRequest.aggregate().join()))
+        assertThatThrownBy(() -> convert(firstCtx, firstInvalidRequest))
                 .isInstanceOf(IllegalArgumentException.class);
 
         final RequestHeaders secondInvalidHeaders =
                 RequestHeaders.of(HttpMethod.GET, "/",
                                   HttpHeaderNames.IF_NONE_MATCH, "W\"-1\"",
                                   HttpHeaderNames.PREFER, "wait=10");
-        final HttpRequest secondInvalidRequest = HttpRequest.of(secondInvalidHeaders);
-        final ServiceRequestContext secondCtx = ServiceRequestContext.of(secondInvalidRequest);
+        final AggregatedHttpRequest secondInvalidRequest = AggregatedHttpRequest.of(secondInvalidHeaders);
+        final ServiceRequestContext secondCtx = ServiceRequestContext.of(secondInvalidRequest.toHttpRequest());
 
-        assertThatThrownBy(() -> convert(secondCtx, secondInvalidRequest.aggregate().join()))
+        assertThatThrownBy(() -> convert(secondCtx, secondInvalidRequest))
                 .isInstanceOf(IllegalArgumentException.class);
 
         final RequestHeaders thirdInvalidHeaders =
                 RequestHeaders.of(HttpMethod.GET, "/",
                                   HttpHeaderNames.IF_NONE_MATCH, "/\"-1\"",
                                   HttpHeaderNames.PREFER, "wait=10");
-        final HttpRequest thirdInvalidRequest = HttpRequest.of(thirdInvalidHeaders);
-        final ServiceRequestContext thirdCtx = ServiceRequestContext.of(thirdInvalidRequest);
+        final AggregatedHttpRequest thirdInvalidRequest = AggregatedHttpRequest.of(thirdInvalidHeaders);
+        final ServiceRequestContext thirdCtx = ServiceRequestContext.of(thirdInvalidRequest.toHttpRequest());
 
-        assertThatThrownBy(() -> convert(thirdCtx, thirdInvalidRequest.aggregate().join()))
+        assertThatThrownBy(() -> convert(thirdCtx, thirdInvalidRequest))
                 .isInstanceOf(IllegalArgumentException.class);
 
         final RequestHeaders fourthInvalidHeaders =
                 RequestHeaders.of(HttpMethod.GET, "/",
                                   HttpHeaderNames.IF_NONE_MATCH, "-1\"",
                                   HttpHeaderNames.PREFER, "wait=10");
-        final HttpRequest fourthInvalidRequest = HttpRequest.of(fourthInvalidHeaders);
-        final ServiceRequestContext fourthCtx = ServiceRequestContext.of(fourthInvalidRequest);
+        final AggregatedHttpRequest fourthInvalidRequest = AggregatedHttpRequest.of(fourthInvalidHeaders);
+        final ServiceRequestContext fourthCtx = ServiceRequestContext.of(fourthInvalidRequest.toHttpRequest());
 
-        assertThatThrownBy(() -> convert(fourthCtx, fourthInvalidRequest.aggregate().join()))
+        assertThatThrownBy(() -> convert(fourthCtx, fourthInvalidRequest))
                 .isInstanceOf(IllegalArgumentException.class);
 
         final RequestHeaders fifthInvalidHeaders =
                 RequestHeaders.of(HttpMethod.GET, "/",
                                   HttpHeaderNames.IF_NONE_MATCH, "\"-1",
                                   HttpHeaderNames.PREFER, "wait=10");
-        final HttpRequest fifthInvalidRequest = HttpRequest.of(fifthInvalidHeaders);
-        final ServiceRequestContext fifthCtx = ServiceRequestContext.of(fifthInvalidRequest);
+        final AggregatedHttpRequest fifthInvalidRequest = AggregatedHttpRequest.of(fifthInvalidHeaders);
+        final ServiceRequestContext fifthCtx = ServiceRequestContext.of(fifthInvalidRequest.toHttpRequest());
 
-        assertThatThrownBy(() -> convert(fifthCtx, fifthInvalidRequest.aggregate().join()))
+        assertThatThrownBy(() -> convert(fifthCtx, fifthInvalidRequest))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void emptyHeader() throws Exception {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/");
-        final HttpRequest request = HttpRequest.of(headers);
-        final ServiceRequestContext ctx = ServiceRequestContext.of(request);
+        final AggregatedHttpRequest request = AggregatedHttpRequest.of(headers);
+        final ServiceRequestContext ctx = ServiceRequestContext.of(request.toHttpRequest());
 
-        final WatchRequest watchRequest = convert(ctx, request.aggregate().join());
+        final WatchRequest watchRequest = convert(ctx, request);
         assertThat(watchRequest).isNull();
     }
 
