@@ -219,6 +219,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
         final String localRepo;
         final String localPath;
         final URI remoteUri;
+        @Nullable
         final String gitIgnore;
         @Nullable
         final String credentialId;
@@ -231,7 +232,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                            @JsonProperty(value = "localRepo", required = true) String localRepo,
                            @JsonProperty("localPath") @Nullable String localPath,
                            @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
-                           @JsonProperty("gitIgnore") @Nullable String gitIgnore,
+                           @JsonProperty("gitIgnore") @Nullable Object gitIgnore,
                            @JsonProperty("credentialId") @Nullable String credentialId) {
 
             super(firstNonNull(enabled, true));
@@ -240,7 +241,18 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
             this.localRepo = requireNonNull(localRepo, "localRepo");
             this.localPath = firstNonNull(localPath, "/");
             this.remoteUri = requireNonNull(remoteUri, "remoteUri");
-            this.gitIgnore = gitIgnore;
+            if (gitIgnore != null) {
+                if (gitIgnore instanceof Iterable) {
+                    this.gitIgnore = String.join("\n", (Iterable<String>) gitIgnore);
+                } else if (gitIgnore instanceof String) {
+                    this.gitIgnore = (String) gitIgnore;
+                } else {
+                    throw new IllegalArgumentException(
+                            "gitIgnore: " + gitIgnore + " (expected: either a string or array of strings)");
+                }
+            } else {
+                this.gitIgnore = null;
+            }
             this.credentialId = credentialId;
         }
 

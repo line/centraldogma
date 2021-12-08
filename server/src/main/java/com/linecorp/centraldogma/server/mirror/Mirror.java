@@ -155,7 +155,8 @@ public interface Mirror {
     String remoteBranch();
 
     /**
-     * Returns a <a href="https://git-scm.com/docs/gitignore">gitignore</a> pattern for the files which won't be mirrored.
+     * Returns a <a href="https://git-scm.com/docs/gitignore">gitignore</a> pattern for the files
+     * which won't be mirrored.
      */
     @Nullable
     String gitIgnore();

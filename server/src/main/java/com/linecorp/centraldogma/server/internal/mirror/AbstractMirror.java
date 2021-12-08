@@ -181,12 +181,9 @@ public abstract class AbstractMirror implements Mirror {
                                                  .add("localPath", localPath)
                                                  .add("remoteRepo", remoteRepoUri)
                                                  .add("remotePath", remotePath)
-                                                 .add("gitIgnore", gitIgnore);
-        if (remoteBranch != null) {
-            helper.add("remoteBranch", remoteBranch);
-        }
-
-        helper.add("credential", credential);
+                                                 .add("remoteBranch", remoteBranch)
+                                                 .add("gitIgnore", gitIgnore)
+                                                 .add("credential", credential);
 
         return helper.toString();
     }

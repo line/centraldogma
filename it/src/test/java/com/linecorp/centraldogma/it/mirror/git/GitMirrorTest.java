@@ -491,7 +491,7 @@ class GitMirrorTest {
                                         "  \"localRepo\": \"" + localRepo + "\"," +
                                         (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
                                         "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
-                                        ",\"gitIgnore\": \"" + firstNonNull(gitIgnore, "") + "\"" +
+                                        ",\"gitIgnore\": \"" + firstNonNull(gitIgnore, "") + '"' +
                                         "}]")).join();
     }
 

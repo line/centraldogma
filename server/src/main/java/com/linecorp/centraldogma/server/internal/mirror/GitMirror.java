@@ -94,7 +94,7 @@ public final class GitMirror extends AbstractMirror {
             try {
                 ignoreNode.parse(new ByteArrayInputStream(gitIgnore.getBytes()));
             } catch (IOException e) {
-                throw new IllegalArgumentException("Failed to read gitIgnore: " + gitIgnore);
+                throw new IllegalArgumentException("Failed to read gitIgnore: " + gitIgnore, e);
             }
         }
     }
