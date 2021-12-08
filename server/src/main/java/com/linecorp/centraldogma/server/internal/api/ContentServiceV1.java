@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -98,6 +99,9 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 public class ContentServiceV1 extends AbstractService {
 
     private static final String MIRROR_LOCAL_REPO = "localRepo";
+    private static final Predicate<Change<?>> NOT_INTERNAL_FILES =
+            change -> !DefaultMetaRepository.PATH_CREDENTIALS.equals(change.path()) &&
+                      !DefaultMetaRepository.PATH_MIRRORS.equals(change.path());
 
     private final WatchService watchService;
 
@@ -412,10 +416,9 @@ public class ContentServiceV1 extends AbstractService {
      */
     public static void checkPush(String repoName, Iterable<Change<?>> changes) {
         if (Project.REPO_META.equals(repoName)) {
-            final boolean hasChangesOtherThanMirroring =
-                    Streams.stream(changes)
-                           .anyMatch(change -> !DefaultMetaRepository.PATH_MIRRORS.equals(change.path()));
-            if (hasChangesOtherThanMirroring) {
+            final boolean hasChangesOtherThanInternalFiles = Streams.stream(changes)
+                                                                    .anyMatch(NOT_INTERNAL_FILES);
+            if (hasChangesOtherThanInternalFiles) {
                 throw new InvalidPushException(
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
             }
