@@ -63,6 +63,8 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
 
     public static final String PATH_MIRRORS = "/mirrors.json";
 
+    public static final Set<String> metaRepoFiles = ImmutableSet.of(PATH_CREDENTIALS, PATH_MIRRORS);
+
     private static final String PATH_CREDENTIALS_AND_MIRRORS = PATH_CREDENTIALS + ',' + PATH_MIRRORS;
 
     private final Lock mirrorLock = new ReentrantLock();

@@ -24,6 +24,7 @@ import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.metaRepoFiles;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -34,7 +35,6 @@ import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -99,9 +99,6 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 public class ContentServiceV1 extends AbstractService {
 
     private static final String MIRROR_LOCAL_REPO = "localRepo";
-    private static final Predicate<Change<?>> NOT_INTERNAL_FILES =
-            change -> !DefaultMetaRepository.PATH_CREDENTIALS.equals(change.path()) &&
-                      !DefaultMetaRepository.PATH_MIRRORS.equals(change.path());
 
     private final WatchService watchService;
 
@@ -416,15 +413,16 @@ public class ContentServiceV1 extends AbstractService {
      */
     public static void checkPush(String repoName, Iterable<Change<?>> changes) {
         if (Project.REPO_META.equals(repoName)) {
-            final boolean hasChangesOtherThanInternalFiles = Streams.stream(changes)
-                                                                    .anyMatch(NOT_INTERNAL_FILES);
-            if (hasChangesOtherThanInternalFiles) {
+            final boolean hasChangesOtherThanMetaRepoFiles =
+                    Streams.stream(changes).anyMatch(change -> !metaRepoFiles.contains(change.path()));
+            if (hasChangesOtherThanMetaRepoFiles) {
                 throw new InvalidPushException(
                         "The " + Project.REPO_META + " repository is reserved for internal usage.");
             }
 
             final Optional<String> notAllowedLocalRepo =
                     Streams.stream(changes)
+                           .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
                            .filter(change -> change.content() != null)
                            .map(change -> {
                                final Object content = change.content();
