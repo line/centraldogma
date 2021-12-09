@@ -30,7 +30,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
@@ -48,6 +47,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Streams;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
@@ -244,8 +244,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
             this.remoteUri = requireNonNull(remoteUri, "remoteUri");
             if (gitignore != null) {
                 if (gitignore instanceof Iterable &&
-                    StreamSupport.stream(((Iterable<?>) gitignore).spliterator(), false)
-                                 .allMatch(String.class::isInstance)) {
+                    Streams.stream((Iterable<?>) gitignore).allMatch(String.class::isInstance)) {
                     this.gitignore = String.join("\n", (Iterable<String>) gitignore);
                 } else if (gitignore instanceof String) {
                     this.gitignore = (String) gitignore;
