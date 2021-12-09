@@ -37,8 +37,10 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
     public RepositoryWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
                              Executor callbackExecutor,
                              String projectName, String repositoryName,
-                             String pathPattern, Function<Revision, ? extends T> function) {
-        super(client, watchScheduler, projectName, repositoryName, pathPattern);
+                             String pathPattern, Function<Revision, ? extends T> function,
+                             long timeoutMillis, boolean errorOnEntryNotFound) {
+        super(client, watchScheduler, projectName, repositoryName, pathPattern, timeoutMillis,
+              errorOnEntryNotFound);
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.function = requireNonNull(function, "function");
         this.callbackExecutor = requireNonNull(callbackExecutor, "callbackExecutor");
@@ -46,8 +48,10 @@ public final class RepositoryWatcher<T> extends AbstractWatcher<T> {
 
     @Override
     protected CompletableFuture<Latest<T>> doWatch(CentralDogma client, String projectName,
-                                                   String repositoryName, Revision lastKnownRevision) {
-        return client.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern)
+                                                   String repositoryName, Revision lastKnownRevision,
+                                                   long timeoutMillis, boolean errorOnEntryNotFound) {
+        return client.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern,
+                                      timeoutMillis, errorOnEntryNotFound)
                      .thenApplyAsync(revision -> {
                          if (revision == null) {
                              return null;

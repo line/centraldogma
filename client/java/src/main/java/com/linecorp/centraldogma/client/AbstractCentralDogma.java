@@ -144,59 +144,43 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     }
 
     @Override
-    public final CompletableFuture<Revision> watchRepository(
-            String projectName, String repositoryName, Revision lastKnownRevision, String pathPattern) {
-        return CentralDogma.super.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern);
-    }
-
-    @Override
-    public final <T> CompletableFuture<Entry<T>> watchFile(
-            String projectName, String repositoryName, Revision lastKnownRevision, Query<T> query) {
-        return CentralDogma.super.watchFile(projectName, repositoryName, lastKnownRevision, query);
-    }
-
-    @Override
-    public final <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
-        return CentralDogma.super.fileWatcher(projectName, repositoryName, query);
-    }
-
-    @Override
     public <T, U> Watcher<U> fileWatcher(
             String projectName, String repositoryName, Query<T> query,
             Function<? super T, ? extends U> function) {
-        return fileWatcher(projectName, repositoryName, query, function, blockingTaskExecutor);
+        return fileWatcher(projectName, repositoryName, query, function,
+                           blockingTaskExecutor,
+                           WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
+                           WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
     }
 
     @Override
     public <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
-                                         Function<? super T, ? extends U> function, Executor executor) {
+                                         Function<? super T, ? extends U> function, Executor executor,
+                                         long timeoutMillis, boolean errorOnEntryNotFound) {
         final FileWatcher<U> watcher =
                 new FileWatcher<>(this, blockingTaskExecutor, executor, projectName, repositoryName, query,
-                                  function);
+                                  function, timeoutMillis, errorOnEntryNotFound);
         watcher.start();
         return watcher;
-    }
-
-    @Override
-    public final Watcher<Revision> repositoryWatcher(
-            String projectName, String repositoryName, String pathPattern) {
-        return CentralDogma.super.repositoryWatcher(projectName, repositoryName, pathPattern);
     }
 
     @Override
     public <T> Watcher<T> repositoryWatcher(
             String projectName, String repositoryName, String pathPattern,
             Function<Revision, ? extends T> function) {
-        return repositoryWatcher(projectName, repositoryName, pathPattern, function, blockingTaskExecutor);
+        return repositoryWatcher(projectName, repositoryName, pathPattern, function,
+                                 blockingTaskExecutor,
+                                 WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
+                                 WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
     }
 
     @Override
     public <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-                                            Function<Revision, ? extends T> function, Executor executor) {
-
+                                            Function<Revision, ? extends T> function, Executor executor,
+                                            long timeoutMillis, boolean errorOnEntryNotFound) {
         final RepositoryWatcher<T> watcher =
-                new RepositoryWatcher<>(this, blockingTaskExecutor, executor,
-                                        projectName, repositoryName, pathPattern, function);
+                new RepositoryWatcher<>(this, blockingTaskExecutor, executor, projectName, repositoryName,
+                                        pathPattern, function, timeoutMillis, errorOnEntryNotFound);
         watcher.start();
         return watcher;
     }

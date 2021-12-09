@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 final class WatchConstants {
 
     static final long DEFAULT_WATCH_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(1);
+    static final boolean DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND = false;
     static final int RECOMMENDED_AWAIT_TIMEOUT_SECONDS = 20;
 
     private WatchConstants() {}
