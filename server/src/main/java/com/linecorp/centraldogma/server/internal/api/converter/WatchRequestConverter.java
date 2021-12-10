@@ -60,7 +60,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
             ServiceRequestContext ctx, AggregatedHttpRequest request, Class<?> expectedResultType,
             @Nullable ParameterizedType expectedParameterizedResultType) throws Exception {
 
-        String ifNoneMatch = request.headers().get(HttpHeaderNames.IF_NONE_MATCH);
+        final String ifNoneMatch = request.headers().get(HttpHeaderNames.IF_NONE_MATCH);
         if (isNullOrEmpty(ifNoneMatch)) {
             return null;
         }
@@ -80,7 +80,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
 
         return new WatchRequest(lastKnownRevision, timeoutMillis, notifyEntryNotFound);
     }
-    
+
     String extractRevision(String ifNoneMatch) {
         // Three below cases are valid:
         // - <revision> (for backward compatibility)
