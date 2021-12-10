@@ -108,7 +108,7 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
     the credential whose ``hostnamePattern`` is matched by the host name part of the ``remoteUri`` value will
     be selected automatically.
 
-- ``gitignore`` (string or array of string, optional)
+- ``gitignore`` (string or array of strings, optional)
 
   - a `gitignore <https://git-scm.com/docs/gitignore>`_ pattern for the files excluded from mirroring.
     The type of gitignore can be a full string of gitignore (e.g. ``/filename.txt\ndirectory``) or an array of
