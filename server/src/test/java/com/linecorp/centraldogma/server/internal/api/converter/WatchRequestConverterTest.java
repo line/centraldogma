@@ -122,6 +122,27 @@ class WatchRequestConverterTest {
 
         assertThatThrownBy(() -> convert(fifthCtx, fifthInvalidRequest))
                 .isInstanceOf(IllegalArgumentException.class);
+
+        final RequestHeaders sixthInvalidHeaders =
+                RequestHeaders.of(HttpMethod.GET, "/",
+                                  HttpHeaderNames.IF_NONE_MATCH, "W/\"",
+                                  HttpHeaderNames.PREFER, "wait=10");
+        final AggregatedHttpRequest sixthInvalidRequest = AggregatedHttpRequest.of(sixthInvalidHeaders);
+        final ServiceRequestContext sixthCtx = ServiceRequestContext.of(sixthInvalidRequest.toHttpRequest());
+
+        assertThatThrownBy(() -> convert(sixthCtx, sixthInvalidRequest))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        final RequestHeaders seventhInvalidHeaders =
+                RequestHeaders.of(HttpMethod.GET, "/",
+                                  HttpHeaderNames.IF_NONE_MATCH, "\"",
+                                  HttpHeaderNames.PREFER, "wait=10");
+        final AggregatedHttpRequest seventhInvalidRequest = AggregatedHttpRequest.of(seventhInvalidHeaders);
+        final ServiceRequestContext seventhCtx =
+                ServiceRequestContext.of(seventhInvalidRequest.toHttpRequest());
+
+        assertThatThrownBy(() -> convert(seventhCtx, seventhInvalidRequest))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

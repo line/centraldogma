@@ -53,8 +53,6 @@ public final class WatchRequestConverter implements RequestConverterFunction {
     /**
      * Converts the specified {@code request} to a {@link WatchRequest} when the request has
      * {@link HttpHeaderNames#IF_NONE_MATCH}. {@code null} otherwise.
-     *
-     * {@link HttpHeaderNames#IF_NONE_MATCH} must be integer, ETag and Weak Comparison ETag.
      */
     @Override
     @Nullable
@@ -67,9 +65,14 @@ public final class WatchRequestConverter implements RequestConverterFunction {
             return null;
         }
 
-        if (ifNoneMatch.startsWith("\"") && ifNoneMatch.endsWith("\"")) {
+        // Three below cases are valid:
+        // - <revision> (for backward compatibility)
+        // - "<revision>"
+        // - W/"<revision>"
+        if (ifNoneMatch.startsWith("\"") && ifNoneMatch.endsWith("\"") && !ifNoneMatch.equals("\"")) {
             ifNoneMatch = ifNoneMatch.substring(1, ifNoneMatch.length() - 1);
-        } else if (ifNoneMatch.startsWith("W/\"") && ifNoneMatch.endsWith("\"")) {
+        } else if (ifNoneMatch.startsWith("W/\"") && ifNoneMatch.endsWith("\"")
+                   && !ifNoneMatch.equals("W/\"")) {
             ifNoneMatch = ifNoneMatch.substring(3, ifNoneMatch.length() - 1);
         }
 
