@@ -250,7 +250,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                     this.gitignore = (String) gitignore;
                 } else {
                     throw new IllegalArgumentException(
-                            "gitignore: " + gitignore + " (expected: either a string or array of strings)");
+                            "gitignore: " + gitignore + " (expected: either a string or an array of strings)");
                 }
             } else {
                 this.gitignore = null;
