@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 
@@ -65,18 +66,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
             return null;
         }
 
-        // Three below cases are valid:
-        // - <revision> (for backward compatibility)
-        // - "<revision>"
-        // - W/"<revision>"
-        if (ifNoneMatch.startsWith("\"") && ifNoneMatch.endsWith("\"") && !ifNoneMatch.equals("\"")) {
-            ifNoneMatch = ifNoneMatch.substring(1, ifNoneMatch.length() - 1);
-        } else if (ifNoneMatch.startsWith("W/\"") && ifNoneMatch.endsWith("\"")
-                   && !ifNoneMatch.equals("W/\"")) {
-            ifNoneMatch = ifNoneMatch.substring(3, ifNoneMatch.length() - 1);
-        }
-
-        final Revision lastKnownRevision = new Revision(ifNoneMatch);
+        final Revision lastKnownRevision = new Revision(extractRevision(ifNoneMatch));
         final String prefer = request.headers().get(HttpHeaderNames.PREFER);
         final long timeoutMillis;
         final boolean notifyEntryNotFound;
@@ -90,6 +80,22 @@ public final class WatchRequestConverter implements RequestConverterFunction {
         }
 
         return new WatchRequest(lastKnownRevision, timeoutMillis, notifyEntryNotFound);
+    }
+
+    // Three below cases are valid:
+    // - <revision> (for backward compatibility)
+    // - "<revision>"
+    // - W/"<revision>"
+    @VisibleForTesting
+    String extractRevision(String ifNoneMatch) {
+        if (ifNoneMatch.startsWith("\"") && ifNoneMatch.endsWith("\"") && !ifNoneMatch.equals("\"")) {
+            ifNoneMatch = ifNoneMatch.substring(1, ifNoneMatch.length() - 1);
+        } else if (ifNoneMatch.startsWith("W/\"") && ifNoneMatch.endsWith("\"")
+                   && !ifNoneMatch.equals("W/\"")) {
+            ifNoneMatch = ifNoneMatch.substring(3, ifNoneMatch.length() - 1);
+        }
+
+        return ifNoneMatch;
     }
 
     // TODO(minwoox) Use https://github.com/line/armeria/issues/1835

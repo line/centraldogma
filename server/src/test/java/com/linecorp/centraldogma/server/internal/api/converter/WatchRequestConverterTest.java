@@ -17,18 +17,15 @@
 package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
-import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
 
 class WatchRequestConverterTest {
@@ -36,115 +33,51 @@ class WatchRequestConverterTest {
     private static final WatchRequestConverter converter = new WatchRequestConverter();
 
     @Test
-    void convertRequestWithValidInNoneMatcherHeaderToWatchRequest() throws Exception {
-        final RequestHeaders firstHeaders = RequestHeaders.of(HttpMethod.GET, "/",
-                                                              HttpHeaderNames.IF_NONE_MATCH, "-1",
-                                                              HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest firstRequest = AggregatedHttpRequest.of(firstHeaders);
-        final ServiceRequestContext firstCtx = ServiceRequestContext.of(firstRequest.toHttpRequest());
+    void extractValidRevision() {
+        final String firstIfNoneMatch = "-1";
+        final String firstRevision = converter.extractRevision(firstIfNoneMatch);
+        assertThat(firstRevision).isEqualTo(firstIfNoneMatch);
 
-        final WatchRequest firstWatchRequest = convert(firstCtx, firstRequest);
-        assertThat(firstWatchRequest).isNotNull();
-        assertThat(firstWatchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
-        assertThat(firstWatchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
+        final String secondIfNoneMatch = "\"-1\"";
+        final String secondRevision = converter.extractRevision(secondIfNoneMatch);
+        assertThat(secondRevision).isEqualTo("-1");
 
-        final RequestHeaders secondHeaders = RequestHeaders.of(HttpMethod.GET, "/",
-                                                               HttpHeaderNames.IF_NONE_MATCH, "\"-1\"",
-                                                               HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest secondRequest = AggregatedHttpRequest.of(secondHeaders);
-        final ServiceRequestContext secondCtx = ServiceRequestContext.of(secondRequest.toHttpRequest());
-
-        final WatchRequest secondWatchRequest = convert(secondCtx, secondRequest);
-        assertThat(secondWatchRequest).isNotNull();
-        assertThat(secondWatchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
-        assertThat(secondWatchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
-
-        final RequestHeaders thirdHeaders = RequestHeaders.of(HttpMethod.GET, "/",
-                                                              HttpHeaderNames.IF_NONE_MATCH, "W/\"-1\"",
-                                                              HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest thirdRequest = AggregatedHttpRequest.of(thirdHeaders);
-        final ServiceRequestContext thirdCtx = ServiceRequestContext.of(thirdRequest.toHttpRequest());
-
-        final WatchRequest thirdWatchRequest = convert(thirdCtx, thirdRequest);
-        assertThat(thirdWatchRequest).isNotNull();
-        assertThat(thirdWatchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
-        assertThat(thirdWatchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
+        final String thirdIfNoneMatch = "W/\"-1\"";
+        final String thirdRevision = converter.extractRevision(thirdIfNoneMatch);
+        assertThat(thirdRevision).isEqualTo("-1");
     }
 
     @Test
-    void convertRequestWithInvalidInNoneMatcherHeaderToWatchRequest() {
-        final RequestHeaders firstInvalidHeaders =
-                RequestHeaders.of(HttpMethod.GET, "/",
-                                  HttpHeaderNames.IF_NONE_MATCH, "w/\"-1\"",
-                                  HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest firstInvalidRequest = AggregatedHttpRequest.of(firstInvalidHeaders);
-        final ServiceRequestContext firstCtx = ServiceRequestContext.of(firstInvalidRequest.toHttpRequest());
+    void extractInvalidRevision() {
+        final String firstIfNoneMatch = "w/\"-1\"";
+        final String firstRevision = converter.extractRevision(firstIfNoneMatch);
+        assertThat(firstRevision).isEqualTo(firstIfNoneMatch);
 
-        assertThatThrownBy(() -> convert(firstCtx, firstInvalidRequest))
-                .isInstanceOf(IllegalArgumentException.class);
+        final String secondIfNoneMatch = "W\"-1\"";
+        final String secondRevision = converter.extractRevision(secondIfNoneMatch);
+        assertThat(secondRevision).isEqualTo(secondIfNoneMatch);
 
-        final RequestHeaders secondInvalidHeaders =
-                RequestHeaders.of(HttpMethod.GET, "/",
-                                  HttpHeaderNames.IF_NONE_MATCH, "W\"-1\"",
-                                  HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest secondInvalidRequest = AggregatedHttpRequest.of(secondInvalidHeaders);
-        final ServiceRequestContext secondCtx = ServiceRequestContext.of(secondInvalidRequest.toHttpRequest());
+        final String thirdIfNoneMatch = "/\"-1\"";
+        final String thirdRevision = converter.extractRevision(thirdIfNoneMatch);
+        assertThat(thirdRevision).isEqualTo(thirdIfNoneMatch);
 
-        assertThatThrownBy(() -> convert(secondCtx, secondInvalidRequest))
-                .isInstanceOf(IllegalArgumentException.class);
+        final String fourthIfNoneMatch = "-1\"";
+        final String fourthRevision = converter.extractRevision(fourthIfNoneMatch);
+        assertThat(fourthRevision).isEqualTo(fourthIfNoneMatch);
 
-        final RequestHeaders thirdInvalidHeaders =
-                RequestHeaders.of(HttpMethod.GET, "/",
-                                  HttpHeaderNames.IF_NONE_MATCH, "/\"-1\"",
-                                  HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest thirdInvalidRequest = AggregatedHttpRequest.of(thirdInvalidHeaders);
-        final ServiceRequestContext thirdCtx = ServiceRequestContext.of(thirdInvalidRequest.toHttpRequest());
+        final String fifthIfNoneMatch = "\"-1";
+        final String fifthRevision = converter.extractRevision(fifthIfNoneMatch);
+        assertThat(fifthRevision).isEqualTo(fifthIfNoneMatch);
 
-        assertThatThrownBy(() -> convert(thirdCtx, thirdInvalidRequest))
-                .isInstanceOf(IllegalArgumentException.class);
+        final String sixthIfNoneMatch = "W/\"";
+        final String sixthRevision = converter.extractRevision(sixthIfNoneMatch);
+        assertThat(sixthRevision).isEqualTo(sixthIfNoneMatch);
 
-        final RequestHeaders fourthInvalidHeaders =
-                RequestHeaders.of(HttpMethod.GET, "/",
-                                  HttpHeaderNames.IF_NONE_MATCH, "-1\"",
-                                  HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest fourthInvalidRequest = AggregatedHttpRequest.of(fourthInvalidHeaders);
-        final ServiceRequestContext fourthCtx = ServiceRequestContext.of(fourthInvalidRequest.toHttpRequest());
-
-        assertThatThrownBy(() -> convert(fourthCtx, fourthInvalidRequest))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        final RequestHeaders fifthInvalidHeaders =
-                RequestHeaders.of(HttpMethod.GET, "/",
-                                  HttpHeaderNames.IF_NONE_MATCH, "\"-1",
-                                  HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest fifthInvalidRequest = AggregatedHttpRequest.of(fifthInvalidHeaders);
-        final ServiceRequestContext fifthCtx = ServiceRequestContext.of(fifthInvalidRequest.toHttpRequest());
-
-        assertThatThrownBy(() -> convert(fifthCtx, fifthInvalidRequest))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        final RequestHeaders sixthInvalidHeaders =
-                RequestHeaders.of(HttpMethod.GET, "/",
-                                  HttpHeaderNames.IF_NONE_MATCH, "W/\"",
-                                  HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest sixthInvalidRequest = AggregatedHttpRequest.of(sixthInvalidHeaders);
-        final ServiceRequestContext sixthCtx = ServiceRequestContext.of(sixthInvalidRequest.toHttpRequest());
-
-        assertThatThrownBy(() -> convert(sixthCtx, sixthInvalidRequest))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        final RequestHeaders seventhInvalidHeaders =
-                RequestHeaders.of(HttpMethod.GET, "/",
-                                  HttpHeaderNames.IF_NONE_MATCH, "\"",
-                                  HttpHeaderNames.PREFER, "wait=10");
-        final AggregatedHttpRequest seventhInvalidRequest = AggregatedHttpRequest.of(seventhInvalidHeaders);
-        final ServiceRequestContext seventhCtx =
-                ServiceRequestContext.of(seventhInvalidRequest.toHttpRequest());
-
-        assertThatThrownBy(() -> convert(seventhCtx, seventhInvalidRequest))
-                .isInstanceOf(IllegalArgumentException.class);
+        final String seventhIfNoneMatch = "\"";
+        final String seventhRevision = converter.extractRevision(seventhIfNoneMatch);
+        assertThat(seventhRevision).isEqualTo(seventhIfNoneMatch);
     }
-
+    
     @Test
     void emptyHeader() throws Exception {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/");
