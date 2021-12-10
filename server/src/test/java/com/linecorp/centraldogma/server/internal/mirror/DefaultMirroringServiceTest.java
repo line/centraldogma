@@ -66,7 +66,7 @@ class DefaultMirroringServiceTest {
 
         final Mirror mirror = new AbstractMirror(EVERY_SECOND, MirrorDirection.REMOTE_TO_LOCAL,
                                                  MirrorCredential.FALLBACK, r, "/",
-                                                 URI.create("unused://uri"), "/", null) {
+                                                 URI.create("unused://uri"), "/", null, null) {
             @Override
             protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {}
 
