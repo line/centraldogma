@@ -63,7 +63,7 @@ class AdministrativeServiceTest {
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
-                "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }]").aggregate().join();
+                "[" + writable(false) + "]").aggregate().join();
 
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo(
@@ -76,8 +76,7 @@ class AdministrativeServiceTest {
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
-                "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": false }," +
-                " { \"op\": \"replace\", \"path\": \"/replicating\", \"value\": false }]").aggregate().join();
+                "[" + writable(false) + "," + replicating(false) + "]").aggregate().join();
 
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo(
@@ -90,8 +89,7 @@ class AdministrativeServiceTest {
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
-                "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }," +
-                " { \"op\": \"replace\", \"path\": \"/replicating\", \"value\": false }]").aggregate().join();
+                "[" + writable(true) + "," + replicating(false) + "]").aggregate().join();
 
         assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -102,7 +100,7 @@ class AdministrativeServiceTest {
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
-                "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();
+                "[" + writable(true) + "]").aggregate().join();
 
         assertThat(res.status()).isEqualTo(HttpStatus.NOT_MODIFIED);
     }
@@ -113,7 +111,7 @@ class AdministrativeServiceTest {
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
-                "[{ \"op\": \"replace\", \"path\": \"/replicating\", \"value\": true }]").aggregate().join();
+                "[" + replicating(true) + "]").aggregate().join();
 
         assertThat(res.status()).isEqualTo(HttpStatus.NOT_MODIFIED);
     }
@@ -127,10 +125,66 @@ class AdministrativeServiceTest {
         final AggregatedHttpResponse res = client.execute(
                 RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
-                "[{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": true }]").aggregate().join();
+                "[" + writable(true) + "]").aggregate().join();
 
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
         assertThatJson(res.contentUtf8()).isEqualTo(
                 "{ \"writable\": true, \"replicating\": true }");
+    }
+
+    @Test
+    void updateStatus_enableReplicatingWithReadOnlyMode() {
+        final WebClient client = dogma.httpClient();
+
+        // Try to enter read-only mode with replication disabled.
+        AggregatedHttpResponse res =
+                client.execute(RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
+                                                 HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
+                               "[" + writable(false) + "," + replicating(false) + "]")
+                      .aggregate()
+                      .join();
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThatJson(res.contentUtf8()).isEqualTo("{ \"writable\": false, \"replicating\": false }");
+
+        // Try to enable replication.
+        res = client.execute(RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
+                                               HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
+                             "[" + replicating(true) + "]")
+                    .aggregate()
+                    .join();
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThatJson(res.contentUtf8()).isEqualTo("{ \"writable\": false, \"replicating\": true }");
+    }
+
+    @Test
+    void updateStatus_disableReplicatingWithReadOnlyMode() {
+        final WebClient client = dogma.httpClient();
+
+        // Try to enter read-only mode with replication enabled.
+        AggregatedHttpResponse res =
+                client.execute(RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
+                                                 HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
+                               "[" + writable(false) + "," + replicating(true) + "]")
+                      .aggregate()
+                      .join();
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThatJson(res.contentUtf8()).isEqualTo("{ \"writable\": false, \"replicating\": true }");
+
+        // Try to disable replication.
+        res = client.execute(RequestHeaders.of(HttpMethod.PATCH, API_V1_PATH_PREFIX + "status",
+                                               HttpHeaderNames.CONTENT_TYPE, MediaType.JSON_PATCH),
+                             "[" + replicating(false) + "]")
+                    .aggregate()
+                    .join();
+        assertThat(res.status()).isEqualTo(HttpStatus.OK);
+        assertThatJson(res.contentUtf8()).isEqualTo("{ \"writable\": false, \"replicating\": false }");
+    }
+
+    private static String writable(boolean writable) {
+        return "{ \"op\": \"replace\", \"path\": \"/writable\", \"value\": " + writable + " }";
+    }
+
+    private static String replicating(boolean replicating) {
+        return "{ \"op\": \"replace\", \"path\": \"/replicating\", \"value\": " + replicating + " }";
     }
 }

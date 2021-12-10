@@ -124,6 +124,28 @@ public final class AdministrativeService extends AbstractService {
                 }
                 return status();
             });
+        } else if (oldStatus.replicating) {
+            if (!replicating) { // replicating -> unreplicating
+                logger.warn("Disabling replication with read-only mode");
+                return executor().stop().handle((unused, cause) -> {
+                    if (cause != null) {
+                        logger.warn("Failed to stop the command executor:", cause);
+                    } else {
+                        logger.info("Disabled replication");
+                    }
+                    return status();
+                });
+            }
+        } else if (replicating) { // unreplicating -> replicating
+            logger.warn("Enabling replication with read-only mode");
+            return executor().start().handle((unused, cause) -> {
+                if (cause != null) {
+                    logger.warn("Failed to start the command executor:", cause);
+                } else {
+                    logger.info("Enabled replication");
+                }
+                return status();
+            });
         }
 
         throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
