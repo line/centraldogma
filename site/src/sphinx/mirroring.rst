@@ -110,9 +110,9 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
 
 - ``gitignore`` (string or array of strings, optional)
 
-  - a `gitignore <https://git-scm.com/docs/gitignore>`_ pattern for the files excluded from mirroring.
-    The type of gitignore can be a full string of gitignore (e.g. ``/filename.txt\ndirectory``) or an array of
-    strings which consists of each line of gitignore. The file path expressed in gitignore is relative to the
+  - a `gitignore <https://git-scm.com/docs/gitignore>` specifies files that should be excluded from mirroring.
+    The type of gitignore can either be a string containing the entire file (e.g. ``/filename.txt\ndirectory``) or an array 
+    of strings where each line represents a single pattern. The file pattern expressed in gitignore is relative to the
     path of ``remoteUri``.
 
 ``/credentials.json`` contains the authentication credentials which are required when accessing the Git
