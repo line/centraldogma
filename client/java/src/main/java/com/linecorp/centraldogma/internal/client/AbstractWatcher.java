@@ -110,6 +110,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private final String projectName;
     private final String repositoryName;
     private final String pathPattern;
+    private final long timeoutMillis;
+    private final boolean errorOnEntryNotFound;
 
     private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners;
     private final AtomicReference<State> state;
@@ -120,12 +122,15 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private volatile CompletableFuture<?> currentWatchFuture;
 
     protected AbstractWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
-                              String projectName, String repositoryName, String pathPattern) {
+                              String projectName, String repositoryName, String pathPattern,
+                              long timeoutMillis, boolean errorOnEntryNotFound) {
         this.client = requireNonNull(client, "client");
         this.watchScheduler = requireNonNull(watchScheduler, "watchScheduler");
         this.projectName = requireNonNull(projectName, "projectName");
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
+        this.timeoutMillis = timeoutMillis;
+        this.errorOnEntryNotFound = errorOnEntryNotFound;
 
         updateListeners = new CopyOnWriteArrayList<>();
         state = new AtomicReference<>(State.INIT);
@@ -230,18 +235,19 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         final Revision lastKnownRevision = latest != null ? latest.revision() : Revision.INIT;
-        final CompletableFuture<Latest<T>> f = doWatch(client, projectName, repositoryName, lastKnownRevision);
+        final CompletableFuture<Latest<T>> f = doWatch(
+                client, projectName, repositoryName, lastKnownRevision, timeoutMillis,
+                !initialValueFuture.isDone() ? errorOnEntryNotFound : false);
 
         currentWatchFuture = f;
         f.whenComplete((result, cause) -> currentWatchFuture = null)
          .thenAccept(newLatest -> {
              if (newLatest != null) {
-                 final Latest<T> oldLatest = latest;
                  latest = newLatest;
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
                  notifyListeners();
-                 if (oldLatest == null) {
+                 if (!initialValueFuture.isDone()) {
                      initialValueFuture.complete(newLatest);
                  }
              }
@@ -255,6 +261,11 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  boolean logged = false;
                  if (cause instanceof CentralDogmaException) {
                      if (cause instanceof EntryNotFoundException) {
+                         if (!initialValueFuture.isDone() && errorOnEntryNotFound) {
+                             initialValueFuture.completeExceptionally(thrown);
+                             close();
+                             return null;
+                         }
                          logger.info("{}/{}{} does not exist yet; trying again",
                                      projectName, repositoryName, pathPattern);
                          logged = true;
@@ -287,7 +298,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     }
 
     protected abstract CompletableFuture<Latest<T>> doWatch(
-            CentralDogma client, String projectName, String repositoryName, Revision lastKnownRevision);
+            CentralDogma client, String projectName, String repositoryName, Revision lastKnownRevision,
+            long timeoutMillis, boolean errorOnEntryNotFound);
 
     private void notifyListeners() {
         if (isStopped()) {

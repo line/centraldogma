@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
@@ -83,12 +84,13 @@ public interface Watcher<T> extends AutoCloseable {
      *         the initial value came from.
      *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
+     * @throws EntryNotFoundException if {@code errorOnEntryNotFound} is {@code true} and entry isn't found on
+     *         watching the initial value
      */
     default Latest<T> awaitInitialValue() throws InterruptedException {
         try {
             return initialValueFuture().get();
         } catch (ExecutionException e) {
-            // Should never occur because we never complete this future exceptionally.
             throw new Error(e);
         }
     }
@@ -114,6 +116,8 @@ public interface Watcher<T> extends AutoCloseable {
      *         the initial value came from.
      *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
+     * @throws EntryNotFoundException if {@code errorOnEntryNotFound} is {@code true} and entry isn't found on
+     *         watching the initial value
      * @throws TimeoutException if failed to retrieve the initial value within the specified timeout
      */
     default Latest<T> awaitInitialValue(long timeout, TimeUnit unit) throws InterruptedException,
@@ -122,7 +126,6 @@ public interface Watcher<T> extends AutoCloseable {
         try {
             return initialValueFuture().get(timeout, unit);
         } catch (ExecutionException e) {
-            // Should never occur because we never complete this future exceptionally.
             throw new Error(e);
         }
     }
@@ -144,6 +147,8 @@ public interface Watcher<T> extends AutoCloseable {
      * @return the initial value, or the default value if timed out.
      *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
+     * @throws EntryNotFoundException if {@code errorOnEntryNotFound} is {@code true} and entry isn't found on
+     *         watching the initial value
      */
     @Nullable
     default T awaitInitialValue(long timeout, TimeUnit unit, @Nullable T defaultValue)
@@ -200,12 +205,22 @@ public interface Watcher<T> extends AutoCloseable {
     /**
      * Registers a {@link BiConsumer} that will be invoked when the value of the watched entry becomes
      * available or changes.
+     *
+     * <p>Note that the specified {@link BiConsumer} is not called when {@code errorOnEntryNotFound} is
+     * {@code true} and the target doesn't exist in the Central Dogma server when this {@link Watcher} sends
+     * the initial watch call. You should use {@link #initialValueFuture()} or {@link #awaitInitialValue()} to
+     * check the target exists or not.
      */
     void watch(BiConsumer<? super Revision, ? super T> listener);
 
     /**
      * Registers a {@link BiConsumer} that will be invoked when the value of the watched entry becomes
      * available or changes.
+     *
+     * <p>Note that the specified {@link BiConsumer} is not called when {@code errorOnEntryNotFound} is
+     * {@code true} and the target doesn't exist in the Central Dogma server when this {@link Watcher} sends
+     * the initial watch call. You should use {@link #initialValueFuture()} or {@link #awaitInitialValue()} to
+     * check the target exists or not.
      *
      * @param executor the {@link Executor} that executes the {@link BiConsumer}
      */

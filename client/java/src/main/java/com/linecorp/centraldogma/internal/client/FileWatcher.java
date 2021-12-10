@@ -39,9 +39,11 @@ public final class FileWatcher<T> extends AbstractWatcher<T> {
     public <U> FileWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
                            Executor callbackExecutor,
                            String projectName, String repositoryName,
-                           Query<U> query, Function<? super U, ? extends T> function) {
+                           Query<U> query, Function<? super U, ? extends T> function,
+                           long timeoutMillis, boolean errorOnEntryNotFound) {
 
-        super(client, watchScheduler, projectName, repositoryName, requireNonNull(query, "query").path());
+        super(client, watchScheduler, projectName, repositoryName, requireNonNull(query, "query").path(),
+              timeoutMillis, errorOnEntryNotFound);
         this.query = query;
         this.function = unsafeCast(requireNonNull(function, "function"));
         this.callbackExecutor = requireNonNull(callbackExecutor, "callbackExecutor");
@@ -49,8 +51,10 @@ public final class FileWatcher<T> extends AbstractWatcher<T> {
 
     @Override
     protected CompletableFuture<Latest<T>> doWatch(CentralDogma client, String projectName,
-                                                   String repositoryName, Revision lastKnownRevision) {
-        return client.watchFile(projectName, repositoryName, lastKnownRevision, query)
+                                                   String repositoryName, Revision lastKnownRevision,
+                                                   long timeoutMillis, boolean errorOnEntryNotFound) {
+        return client.watchFile(projectName, repositoryName, lastKnownRevision, query, timeoutMillis,
+                                errorOnEntryNotFound)
                      .thenApplyAsync(result -> {
                          if (result == null) {
                              return null;
