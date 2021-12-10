@@ -215,130 +215,13 @@ class GitMirrorTest {
     @Test
     void remoteToLocal_gitignore() throws Exception {
         pushMirrorSettings(null, "/first", "\"/exclude_if_root.txt\\nexclude_dir\"");
-
-        final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-
-        // Mirror an empty git repository, which will;
-        // - Create /mirror_state.json
-        // - Remove the sample files created by createProject().
-        mirroringService.mirror().join();
-
-        //// Make sure a new commit is added.
-        final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-        assertThat(rev1).isEqualTo(rev0.forward(1));
-
-        //// Make sure /mirror_state.json exists (and nothing else.)
-        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/");
-        assertThat(client.getFiles(projName, REPO_FOO, rev1, "/**").join().values())
-                .containsExactly(expectedInitialMirrorState);
-
-        // Try to mirror again with no changes in the git repository.
-        mirroringService.mirror().join();
-
-        //// Make sure it does not try to produce an empty commit.
-        final Revision rev2 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-        assertThat(rev2).isEqualTo(rev1);
-
-        // Now, add some files to the git repository and mirror.
-        addToGitIndex(".gitkeep", "");
-        addToGitIndex("first/light.txt", "26-Aug-2014");
-
-        /// This file is excluded from mirroring by pattern "/exclude_if_root.txt"
-        addToGitIndex("first/exclude_if_root.txt", "26-Aug-2014");
-
-        addToGitIndex("first/subdir/exclude_if_root.txt", "26-Aug-2014");
-
-        /// This file is excluded from mirroring by pattern "exclude_dir"
-        addToGitIndex("first/subdir/exclude_dir/cascaded_exclude.txt", "26-Aug-2014");
-
-        git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
-
-        mirroringService.mirror().join();
-
-        //// Make sure a new commit is added.
-        final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-        assertThat(rev3).isEqualTo(rev2.forward(1));
-
-        //// Make sure the file that match gitignore are not mirrored.
-        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
-        assertThat(client.getFiles(projName, REPO_FOO, rev3, "/**").join().values())
-                .containsExactlyInAnyOrder(expectedSecondMirrorState,
-                                           Entry.ofText(rev3, "/light.txt", "26-Aug-2014\n"),
-                                           Entry.ofDirectory(rev3, "/subdir"),
-                                           Entry.ofText(rev3, "/subdir/exclude_if_root.txt", "26-Aug-2014\n"));
-
-        /// Add new file, but it is not mirrored because its parent directory is excluded
-        addToGitIndex("first/subdir/exclude_dir/new2.txt", "26-Aug-2014");
-
-        git.commit().setMessage("Add new file in excluded directory").call();
-
-        mirroringService.mirror().join();
-
-        final Revision rev4 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-        assertThat(rev4).isEqualTo(rev2.forward(2));
-
-        //// Make sure the file that there's no change in mirrored file list
-        assertThat(client.getFiles(projName, REPO_FOO, rev4, "/**").join().values())
-                .containsExactlyInAnyOrder(expectedMirrorState(rev4, "/"),
-                                           Entry.ofText(rev4, "/light.txt", "26-Aug-2014\n"),
-                                           Entry.ofDirectory(rev4, "/subdir"),
-                                           Entry.ofText(rev4, "/subdir/exclude_if_root.txt", "26-Aug-2014\n"));
+        checkGitignore();
     }
 
     @Test
     void remoteToLocal_gitignore_with_array() throws Exception {
         pushMirrorSettings(null, "/first", "[\"/exclude_if_root.txt\", \"exclude_dir\"]");
-
-        final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-
-        // Mirror an empty git repository, which will;
-        // - Create /mirror_state.json
-        // - Remove the sample files created by createProject().
-        mirroringService.mirror().join();
-
-        //// Make sure a new commit is added.
-        final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-        assertThat(rev1).isEqualTo(rev0.forward(1));
-
-        //// Make sure /mirror_state.json exists (and nothing else.)
-        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/");
-        assertThat(client.getFiles(projName, REPO_FOO, rev1, "/**").join().values())
-                .containsExactly(expectedInitialMirrorState);
-
-        // Try to mirror again with no changes in the git repository.
-        mirroringService.mirror().join();
-
-        //// Make sure it does not try to produce an empty commit.
-        final Revision rev2 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-        assertThat(rev2).isEqualTo(rev1);
-
-        // Now, add some files to the git repository and mirror.
-        addToGitIndex(".gitkeep", "");
-        addToGitIndex("first/light.txt", "26-Aug-2014");
-
-        /// This file is excluded from mirroring by pattern "/exclude_if_root.txt"
-        addToGitIndex("first/exclude_if_root.txt", "26-Aug-2014");
-
-        addToGitIndex("first/subdir/exclude_if_root.txt", "26-Aug-2014");
-
-        /// This file is excluded from mirroring by pattern "exclude_dir"
-        addToGitIndex("first/subdir/exclude_dir/cascaded_exclude.txt", "26-Aug-2014");
-
-        git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
-
-        mirroringService.mirror().join();
-
-        //// Make sure a new commit is added.
-        final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
-        assertThat(rev3).isEqualTo(rev2.forward(1));
-
-        //// Make sure the file that match gitignore are not mirrored.
-        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
-        assertThat(client.getFiles(projName, REPO_FOO, rev3, "/**").join().values())
-                .containsExactlyInAnyOrder(expectedSecondMirrorState,
-                                           Entry.ofText(rev3, "/light.txt", "26-Aug-2014\n"),
-                                           Entry.ofDirectory(rev3, "/subdir"),
-                                           Entry.ofText(rev3, "/subdir/exclude_if_root.txt", "26-Aug-2014\n"));
+        checkGitignore();
     }
 
     @Test
@@ -570,5 +453,75 @@ class GitMirrorTest {
         file.getParentFile().mkdirs();
         Files.asCharSink(file, StandardCharsets.UTF_8).write(content);
         git.add().addFilepattern(path).call();
+    }
+
+    private void checkGitignore() throws IOException, GitAPIException {
+        final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+
+        // Mirror an empty git repository, which will;
+        // - Create /mirror_state.json
+        // - Remove the sample files created by createProject().
+        mirroringService.mirror().join();
+
+        //// Make sure a new commit is added.
+        final Revision rev1 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev1).isEqualTo(rev0.forward(1));
+
+        //// Make sure /mirror_state.json exists (and nothing else.)
+        final Entry<JsonNode> expectedInitialMirrorState = expectedMirrorState(rev1, "/");
+        assertThat(client.getFiles(projName, REPO_FOO, rev1, "/**").join().values())
+                .containsExactly(expectedInitialMirrorState);
+
+        // Try to mirror again with no changes in the git repository.
+        mirroringService.mirror().join();
+
+        //// Make sure it does not try to produce an empty commit.
+        final Revision rev2 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev2).isEqualTo(rev1);
+
+        // Now, add some files to the git repository and mirror.
+        addToGitIndex(".gitkeep", "");
+        addToGitIndex("first/light.txt", "26-Aug-2014");
+
+        /// This file is excluded from mirroring by pattern "/exclude_if_root.txt"
+        addToGitIndex("first/exclude_if_root.txt", "26-Aug-2014");
+
+        addToGitIndex("first/subdir/exclude_if_root.txt", "26-Aug-2014");
+
+        /// This file is excluded from mirroring by pattern "exclude_dir"
+        addToGitIndex("first/subdir/exclude_dir/cascaded_exclude.txt", "26-Aug-2014");
+
+        git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
+
+        mirroringService.mirror().join();
+
+        //// Make sure a new commit is added.
+        final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev3).isEqualTo(rev2.forward(1));
+
+        //// Make sure the file that match gitignore are not mirrored.
+        final Entry<JsonNode> expectedSecondMirrorState = expectedMirrorState(rev3, "/");
+        assertThat(client.getFiles(projName, REPO_FOO, rev3, "/**").join().values())
+                .containsExactlyInAnyOrder(expectedSecondMirrorState,
+                                           Entry.ofText(rev3, "/light.txt", "26-Aug-2014\n"),
+                                           Entry.ofDirectory(rev3, "/subdir"),
+                                           Entry.ofText(rev3, "/subdir/exclude_if_root.txt", "26-Aug-2014\n"));
+
+        /// Add new file, but it is not mirrored because its parent directory is excluded
+        addToGitIndex("first/subdir/exclude_dir/new2.txt", "26-Aug-2014");
+
+        git.commit().setMessage("Add new file in excluded directory").call();
+
+        mirroringService.mirror().join();
+
+        final Revision rev4 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
+        assertThat(rev4).isEqualTo(rev2.forward(2));
+
+        //// Make sure the file that there's no change in mirrored file list
+        assertThat(client.getFiles(projName, REPO_FOO, rev4, "/**").join().values())
+                .containsExactlyInAnyOrder(expectedMirrorState(rev4, "/"),
+                                           Entry.ofText(rev4, "/light.txt", "26-Aug-2014\n"),
+                                           Entry.ofDirectory(rev4, "/subdir"),
+                                           Entry.ofText(rev4, "/subdir/exclude_if_root.txt", "26-Aug-2014\n"));
     }
 }
