@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 
@@ -81,8 +80,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
 
         return new WatchRequest(lastKnownRevision, timeoutMillis, notifyEntryNotFound);
     }
-
-    @VisibleForTesting
+    
     String extractRevision(String ifNoneMatch) {
         // Three below cases are valid:
         // - <revision> (for backward compatibility)
