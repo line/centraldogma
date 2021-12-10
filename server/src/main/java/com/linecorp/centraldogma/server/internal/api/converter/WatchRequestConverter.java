@@ -82,12 +82,12 @@ public final class WatchRequestConverter implements RequestConverterFunction {
         return new WatchRequest(lastKnownRevision, timeoutMillis, notifyEntryNotFound);
     }
 
-    // Three below cases are valid:
-    // - <revision> (for backward compatibility)
-    // - "<revision>"
-    // - W/"<revision>"
     @VisibleForTesting
     String extractRevision(String ifNoneMatch) {
+        // Three below cases are valid:
+        // - <revision> (for backward compatibility)
+        // - "<revision>"
+        // - W/"<revision>"
         if (ifNoneMatch.startsWith("\"") && ifNoneMatch.endsWith("\"") && !ifNoneMatch.equals("\"")) {
             ifNoneMatch = ifNoneMatch.substring(1, ifNoneMatch.length() - 1);
         } else if (ifNoneMatch.startsWith("W/\"") && ifNoneMatch.endsWith("\"")
