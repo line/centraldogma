@@ -86,11 +86,14 @@ public final class WatchRequestConverter implements RequestConverterFunction {
         // - <revision> (for backward compatibility)
         // - "<revision>"
         // - W/"<revision>"
-        if (ifNoneMatch.startsWith("\"") && ifNoneMatch.endsWith("\"") && !ifNoneMatch.equals("\"")) {
-            ifNoneMatch = ifNoneMatch.substring(1, ifNoneMatch.length() - 1);
-        } else if (ifNoneMatch.startsWith("W/\"") && ifNoneMatch.endsWith("\"")
-                   && !ifNoneMatch.equals("W/\"")) {
-            ifNoneMatch = ifNoneMatch.substring(3, ifNoneMatch.length() - 1);
+        if (ifNoneMatch.length() > 1 && ifNoneMatch.charAt(0) == '"' &&
+            ifNoneMatch.charAt(ifNoneMatch.length() - 1) == '"') {
+            return ifNoneMatch.substring(1, ifNoneMatch.length() - 1);
+        }
+
+        if (ifNoneMatch.length() > 3 && ifNoneMatch.startsWith("W/\"") &&
+            ifNoneMatch.charAt(ifNoneMatch.length() - 1) == '"') {
+            return ifNoneMatch.substring(3, ifNoneMatch.length() - 1);
         }
 
         return ifNoneMatch;
