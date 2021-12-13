@@ -76,6 +76,10 @@ class WatchRequestConverterTest {
         final String seventhIfNoneMatch = "\"";
         final String seventhRevision = converter.extractRevision(seventhIfNoneMatch);
         assertThat(seventhRevision).isEqualTo(seventhIfNoneMatch);
+
+        final String eighthIfNoneMatch = "\"\"";
+        final String eighthRevision = converter.extractRevision(eighthIfNoneMatch);
+        assertThat(eighthRevision).isEqualTo(eighthIfNoneMatch);
     }
     
     @Test
