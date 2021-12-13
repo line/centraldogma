@@ -22,19 +22,21 @@ import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * Prepares to send a {@link CentralDogma#getFiles(String, String, Revision, String)} request to the
+ * Prepares to send a {@link CentralDogma#getFiles(String, String, Revision, PathPattern)} or
+ * {@link CentralDogma#listFiles(String, String, Revision, PathPattern)} request to the
  * Central Dogma repository.
  */
-public final class CentralDogmaFilesRequest {
+public final class FilesRequest {
 
-    private final CentralDogmaRequestPreparation requestPreparation;
-    private final String pathPattern;
+    private final CentralDogmaRepository centralDogmaRepo;
+    private final PathPattern pathPattern;
 
-    CentralDogmaFilesRequest(CentralDogmaRequestPreparation requestPreparation, String pathPattern) {
-        this.requestPreparation = requestPreparation;
+    FilesRequest(CentralDogmaRepository centralDogmaRepo, PathPattern pathPattern) {
+        this.centralDogmaRepo = centralDogmaRepo;
         this.pathPattern = pathPattern;
     }
 
@@ -45,8 +47,8 @@ public final class CentralDogmaFilesRequest {
      */
     public CompletableFuture<Map<String, EntryType>> list(Revision revision) {
         requireNonNull(revision, "revision");
-        return requestPreparation.centralDogma().listFiles(requestPreparation.projectName(),
-                                                           requestPreparation.repositoryName(),
+        return centralDogmaRepo.centralDogma().listFiles(centralDogmaRepo.projectName(),
+                                                           centralDogmaRepo.repositoryName(),
                                                            revision, pathPattern);
     }
 
@@ -57,8 +59,8 @@ public final class CentralDogmaFilesRequest {
      */
     public CompletableFuture<Map<String, Entry<?>>> get(Revision revision) {
         requireNonNull(revision, "revision");
-        return requestPreparation.centralDogma().getFiles(requestPreparation.projectName(),
-                                                          requestPreparation.repositoryName(),
+        return centralDogmaRepo.centralDogma().getFiles(centralDogmaRepo.projectName(),
+                                                          centralDogmaRepo.repositoryName(),
                                                           revision, pathPattern);
     }
 }

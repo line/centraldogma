@@ -21,19 +21,20 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.common.Commit;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * Prepares to send a {@link CentralDogma#getHistory(String, String, Revision, Revision, String)} request to the
- * Central Dogma repository.
+ * Prepares to send a {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern)} request
+ * to the Central Dogma repository.
  */
-public final class CentralDogmaHistoryRequest {
+public final class HistoryRequest {
 
-    private final CentralDogmaRequestPreparation requestPreparation;
-    private final String pathPattern;
+    private final CentralDogmaRepository centralDogmaRepo;
+    private final PathPattern pathPattern;
 
-    CentralDogmaHistoryRequest(CentralDogmaRequestPreparation requestPreparation, String pathPattern) {
-        this.requestPreparation = requestPreparation;
+    HistoryRequest(CentralDogmaRepository centralDogmaRepo, PathPattern pathPattern) {
+        this.centralDogmaRepo = centralDogmaRepo;
         this.pathPattern = pathPattern;
     }
 
@@ -48,8 +49,8 @@ public final class CentralDogmaHistoryRequest {
     public CompletableFuture<List<Commit>> get(Revision from, Revision to) {
         requireNonNull(from, "from");
         requireNonNull(to, "to");
-        return requestPreparation.centralDogma().getHistory(requestPreparation.projectName(),
-                                                            requestPreparation.repositoryName(),
+        return centralDogmaRepo.centralDogma().getHistory(centralDogmaRepo.projectName(),
+                                                            centralDogmaRepo.repositoryName(),
                                                             from, to, pathPattern);
     }
 }

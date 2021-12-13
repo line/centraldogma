@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.client;
 
+import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -37,6 +38,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.MergedEntry;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
@@ -49,14 +51,10 @@ import com.linecorp.centraldogma.common.RevisionNotFoundException;
 public interface CentralDogma {
 
     /**
-     * Returns a new {@link CentralDogmaRequestPreparation} that is used to send a request to the specified
+     * Returns a new {@link CentralDogmaRepository} that is used to send a request to the specified
      * {@code projectName} and {@code repositoryName}.
      */
-    default CentralDogmaRequestPreparation forRepo(String projectName, String repositoryName) {
-        requireNonNull(projectName, "projectName");
-        requireNonNull(repositoryName, "repositoryName");
-        return new CentralDogmaRequestPreparation(this, projectName, repositoryName, null);
-    }
+    CentralDogmaRepository forRepo(String projectName, String repositoryName);
 
     /**
      * Creates a project.
@@ -136,20 +134,25 @@ public interface CentralDogma {
     CompletableFuture<Revision> normalizeRevision(String projectName, String repositoryName, Revision revision);
 
     /**
-     * Retrieves the list of the files matched by the given path pattern. A path pattern is a variant of glob:
-     * <ul>
-     *   <li>{@code "/**"} - find all files recursively</li>
-     *   <li>{@code "*.json"} - find all JSON files recursively</li>
-     *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
-     *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
-     *                                     if <em>any</em> pattern matches.</li>
-     * </ul>
+     * Retrieves the list of the files matched by the given path pattern.
+     *
+     * @return a {@link Map} of file path and type pairs
+     *
+     * @deprecated Use {@link #listFiles(String, String, Revision, PathPattern)}.
+     */
+    @Deprecated
+    default CompletableFuture<Map<String, EntryType>> listFiles(String projectName, String repositoryName,
+                                                                Revision revision, String pathPattern) {
+        return listFiles(projectName, repositoryName, revision, toPathPattern(pathPattern));
+    }
+
+    /**
+     * Retrieves the list of the files matched by the given {@link PathPattern}.
      *
      * @return a {@link Map} of file path and type pairs
      */
     CompletableFuture<Map<String, EntryType>> listFiles(String projectName, String repositoryName,
-                                                        Revision revision, String pathPattern);
+                                                        Revision revision, PathPattern pathPattern);
 
     /**
      * Retrieves the file at the specified revision and path. This method is a shortcut of
@@ -160,7 +163,7 @@ public interface CentralDogma {
      * @return the {@link Entry} at the given {@code path}
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#file(String)}.
+     *             {@link CentralDogmaRepository#file(String)}.
      */
     @Deprecated
     default CompletableFuture<Entry<?>> getFile(String projectName, String repositoryName,
@@ -180,20 +183,25 @@ public interface CentralDogma {
                                             Revision revision, Query<T> query);
 
     /**
-     * Retrieves the files matched by the path pattern. A path pattern is a variant of glob:
-     * <ul>
-     *   <li>{@code "/**"} - find all files recursively</li>
-     *   <li>{@code "*.json"} - find all JSON files recursively</li>
-     *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
-     *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
-     *                                     if <em>any</em> pattern matches.</li>
-     * </ul>
+     * Retrieves the files matched by the path pattern.
+     *
+     * @return a {@link Map} of file path and {@link Entry} pairs
+     *
+     * @deprecated Use {@link #getFiles(String, String, Revision, PathPattern)}.
+     */
+    @Deprecated
+    default CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
+                                                              Revision revision, String pathPattern) {
+        return getFiles(projectName, repositoryName, revision, toPathPattern(pathPattern));
+    }
+
+    /**
+     * Retrieves the files matched by the {@link PathPattern}.
      *
      * @return a {@link Map} of file path and {@link Entry} pairs
      */
     CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
-                                                      Revision revision, String pathPattern);
+                                                      Revision revision, PathPattern pathPattern);
 
     /**
      * Retrieves the merged entry of the specified {@link MergeSource}s at the specified revision.
@@ -206,7 +214,7 @@ public interface CentralDogma {
      * @return the {@link MergedEntry} which contains the result of the merge
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#mergingFiles(MergeSource...)}.
+     *             {@link CentralDogmaRepository#merge(MergeSource...)}.
      */
     @Deprecated
     default CompletableFuture<MergedEntry<?>> mergeFiles(
@@ -227,7 +235,7 @@ public interface CentralDogma {
      * @return the {@link MergedEntry} which contains the result of the merge
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#mergingFiles(Iterable)}.
+     *             {@link CentralDogmaRepository#merge(Iterable)}.
      */
     @Deprecated
     default CompletableFuture<MergedEntry<?>> mergeFiles(
@@ -258,12 +266,12 @@ public interface CentralDogma {
      * {@code getHistory(projectName, repositoryName, from, to, "/**")}. Note that this method does not
      * retrieve the diffs but only metadata about the changes.
      * Use {@link #getDiff(String, String, Revision, Revision, Query)} or
-     * {@link #getDiffs(String, String, Revision, Revision, String)} to retrieve the diffs.
+     * {@link #getDiff(String, String, Revision, Revision, PathPattern)} to retrieve the diffs.
      *
      * @return a {@link List} that contains the {@link Commit}s of the specified repository
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#history()}.
+     *             {@link CentralDogmaRepository#history()}.
      */
     @Deprecated
     default CompletableFuture<List<Commit>> getHistory(
@@ -273,25 +281,35 @@ public interface CentralDogma {
 
     /**
      * Retrieves the history of the files matched by the given path pattern between two {@link Revision}s.
-     * A path pattern is a variant of glob:
-     * <ul>
-     *   <li>{@code "/**"} - find all files recursively</li>
-     *   <li>{@code "*.json"} - find all JSON files recursively</li>
-     *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
-     *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
-     *                                     if <em>any</em> pattern matches.</li>
-     * </ul>
      *
      * <p>Note that this method does not retrieve the diffs but only metadata about the changes.
      * Use {@link #getDiff(String, String, Revision, Revision, Query)} or
-     * {@link #getDiffs(String, String, Revision, Revision, String)} to retrieve the diffs.
+     * {@link #getDiff(String, String, Revision, Revision, PathPattern)} to retrieve the diffs.
+     *
+     * @return a {@link List} that contains the {@link Commit}s of the files matched by the given
+     *         {@code pathPattern} in the specified repository
+     *
+     * @deprecated Use {@link #getHistory(String, String, Revision, Revision, PathPattern)}.
+     */
+    @Deprecated
+    default CompletableFuture<List<Commit>> getHistory(
+            String projectName, String repositoryName, Revision from, Revision to, String pathPattern) {
+        return getHistory(projectName, repositoryName, from, to, toPathPattern(pathPattern));
+    }
+
+    /**
+     * Retrieves the history of the files matched by the given {@link PathPattern} between
+     * two {@link Revision}s.
+     *
+     * <p>Note that this method does not retrieve the diffs but only metadata about the changes.
+     * Use {@link #getDiff(String, String, Revision, Revision, Query)} or
+     * {@link #getDiff(String, String, Revision, Revision, PathPattern)} to retrieve the diffs.
      *
      * @return a {@link List} that contains the {@link Commit}s of the files matched by the given
      *         {@code pathPattern} in the specified repository
      */
     CompletableFuture<List<Commit>> getHistory(
-            String projectName, String repositoryName, Revision from, Revision to, String pathPattern);
+            String projectName, String repositoryName, Revision from, Revision to, PathPattern pathPattern);
 
     /**
      * Returns the diff of a file between two {@link Revision}s. This method is a shortcut of
@@ -303,7 +321,7 @@ public interface CentralDogma {
      *         two revisions
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#diff(String)}.
+     *             {@link CentralDogmaRepository#diff(String)}.
      */
     @Deprecated
     default CompletableFuture<Change<?>> getDiff(String projectName, String repositoryName,
@@ -324,22 +342,27 @@ public interface CentralDogma {
                                              Revision from, Revision to, Query<T> query);
 
     /**
-     * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
-     * A path pattern is a variant of glob:
-     * <ul>
-     *   <li>{@code "/**"} - find all files recursively</li>
-     *   <li>{@code "*.json"} - find all JSON files recursively</li>
-     *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
-     *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
-     *                                     if <em>any</em> pattern matches.</li>
-     * </ul>
+     * Retrieves the diffs of the files matched by the given {@link PathPattern} between two {@link Revision}s.
      *
      * @return a {@link List} of the {@link Change}s that contain the diffs between the files matched by the
      *         given {@code pathPattern} between two revisions.
      */
-    CompletableFuture<List<Change<?>>> getDiffs(String projectName, String repositoryName,
-                                                Revision from, Revision to, String pathPattern);
+    CompletableFuture<List<Change<?>>> getDiff(String projectName, String repositoryName,
+                                               Revision from, Revision to, PathPattern pathPattern);
+
+    /**
+     * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
+     *
+     * @return a {@link List} of the {@link Change}s that contain the diffs between the files matched by the
+     *         given {@code pathPattern} between two revisions.
+     *
+     * @deprecated Use {@link #getDiff(String, String, Revision, Revision, PathPattern)}.
+     */
+    @Deprecated
+    default CompletableFuture<List<Change<?>>> getDiffs(String projectName, String repositoryName,
+                                                        Revision from, Revision to, String pathPattern) {
+        return getDiff(projectName, repositoryName, from, to, toPathPattern(pathPattern));
+    }
 
     /**
      * Retrieves the <em>preview diffs</em>, which are hypothetical diffs generated if the specified
@@ -349,7 +372,7 @@ public interface CentralDogma {
      * @return the diffs which would be committed if the specified {@link Change}s were pushed successfully
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#previewDiffs(Change...)}.
+     *             {@link CentralDogmaRepository#diff(Change...)}.
      */
     @Deprecated
     default CompletableFuture<List<Change<?>>> getPreviewDiffs(String projectName, String repositoryName,
@@ -374,7 +397,7 @@ public interface CentralDogma {
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#commit(String, Change...)}.
+     *             {@link CentralDogmaRepository#commit(String, Change...)}.
      */
     @Deprecated
     default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
@@ -389,7 +412,7 @@ public interface CentralDogma {
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#commit(String, Iterable)}.
+     *             {@link CentralDogmaRepository#commit(String, Iterable)}.
      */
     @Deprecated
     default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
@@ -403,7 +426,7 @@ public interface CentralDogma {
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#commit(String, Change...)}.
+     *             {@link CentralDogmaRepository#commit(String, Change...)}.
      */
     @Deprecated
     default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
@@ -441,7 +464,7 @@ public interface CentralDogma {
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#commit(String, Iterable)}.
+     *             {@link CentralDogmaRepository#commit(String, Iterable)}.
      */
     @Deprecated
     default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
@@ -456,7 +479,7 @@ public interface CentralDogma {
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#commit(String, Change...)}.
+     *             {@link CentralDogmaRepository#commit(String, Change...)}.
      */
     @Deprecated
     default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
@@ -487,7 +510,7 @@ public interface CentralDogma {
      *         {@code null} if the files were not changed for 1 minute since the invocation of this method.
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#watchingFiles(String)}.
+     *             {@link CentralDogmaRepository#watch(PathPattern)}.
      */
     @Deprecated
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
@@ -506,33 +529,29 @@ public interface CentralDogma {
      *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
      *         since the invocation of this method.
      *
-     * @deprecated Use {@link CentralDogma#watchRepository(String, String, Revision, String, long, boolean)}.
+     * @deprecated Use
+     *             {@link CentralDogma#watchRepository(String, String, Revision, PathPattern, long, boolean)}.
      */
     @Deprecated
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                         Revision lastKnownRevision, String pathPattern,
                                                         long timeoutMillis) {
-        return watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern,
+        return watchRepository(projectName, repositoryName, lastKnownRevision, toPathPattern(pathPattern),
                                timeoutMillis, WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
     }
 
     /**
      * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified
-     * {@code lastKnownRevision}. If the files don't exist and {@code errorOnEntryNotFound} is {@code true},
-     * the returned {@link CompletableFuture} will be completed exceptionally with
-     * {@link EntryNotFoundException}. If no changes were made within the specified {@code timeoutMillis},
-     * the returned {@link CompletableFuture} will be completed with {@code null}.
-     * It is recommended to specify the largest {@code timeoutMillis} allowed by the server.
-     *
-     * <p>Note: Legacy client does not support {@code errorOnEntryNotFound}</p>
+     * {@code lastKnownRevision}.  If no changes were made within the specified {@code timeoutMillis}, the
+     * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify
+     * the largest {@code timeoutMillis} allowed by the server.
      *
      * @return the latest known {@link Revision} which contains the changes for the matched files.
      *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
-     *         since the invocation of this method. {@link EntryNotFoundException} is raised if the
-     *         target does not exist.
+     *         since the invocation of this method.
      */
     CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
-                                                Revision lastKnownRevision, String pathPattern,
+                                                Revision lastKnownRevision, PathPattern pathPattern,
                                                 long timeoutMillis, boolean errorOnEntryNotFound);
 
     /**
@@ -544,7 +563,7 @@ public interface CentralDogma {
      *         {@code null} if the file was not changed for 1 minute since the invocation of this method.
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#watchingFile(Query)}.
+     *             {@link CentralDogmaRepository#watch(Query)}.
      */
     @Deprecated
     default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
@@ -602,11 +621,11 @@ public interface CentralDogma {
      * });}</pre>
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#watchingFile(Query)}.
+     *             {@link CentralDogmaRepository#watch(Query)}.
      */
     @Deprecated
     default <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
-        return forRepo(projectName, repositoryName).watchingFile(query).newWatcher();
+        return forRepo(projectName, repositoryName).watch(query).forever();
     }
 
     /**
@@ -626,7 +645,7 @@ public interface CentralDogma {
      * safely call a blocking operation.
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#watchingFile(Query)}.
+     *             {@link CentralDogmaRepository#watch(Query)}.
      */
     @Deprecated
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
@@ -687,11 +706,12 @@ public interface CentralDogma {
      * });}</pre>
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#watchingFiles(String)}.
+     *             {@link CentralDogmaRepository#watch(PathPattern)}.
      */
     @Deprecated
     default Watcher<Revision> repositoryWatcher(String projectName, String repositoryName, String pathPattern) {
-        return forRepo(projectName, repositoryName).watchingFiles(pathPattern).newWatcher();
+        return forRepo(projectName, repositoryName).watch(toPathPattern(pathPattern))
+                                                   .forever();
     }
 
     /**
@@ -712,7 +732,7 @@ public interface CentralDogma {
      * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
      *
      * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRequestPreparation#watchingFiles(String)}.
+     *             {@link CentralDogmaRepository#watch(PathPattern)}.
      */
     @Deprecated
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,

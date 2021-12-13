@@ -55,6 +55,7 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -214,7 +215,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
     @Override
     public CompletableFuture<Map<String, EntryType>> listFiles(
-            String projectName, String repositoryName, Revision revision, String pathPattern) {
+            String projectName, String repositoryName, Revision revision, PathPattern pathPattern) {
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, revision,
                 new Function<Revision, CompletableFuture<Map<String, EntryType>>>() {
@@ -252,7 +253,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
 
     @Override
     public CompletableFuture<Map<String, Entry<?>>> getFiles(
-            String projectName, String repositoryName, Revision revision, String pathPattern) {
+            String projectName, String repositoryName, Revision revision, PathPattern pathPattern) {
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, revision,
                 new Function<Revision, CompletableFuture<Map<String, Entry<?>>>>() {
@@ -292,7 +293,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     @Override
     public CompletableFuture<List<Commit>> getHistory(
             String projectName, String repositoryName, Revision from,
-            Revision to, String pathPattern) {
+            Revision to, PathPattern pathPattern) {
         return normalizeRevisionsAndExecuteWithRetries(
                 projectName, repositoryName, from, to,
                 new BiFunction<Revision, Revision, CompletableFuture<List<Commit>>>() {
@@ -331,15 +332,15 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     }
 
     @Override
-    public CompletableFuture<List<Change<?>>> getDiffs(
-            String projectName, String repositoryName, Revision from, Revision to, String pathPattern) {
+    public CompletableFuture<List<Change<?>>> getDiff(
+            String projectName, String repositoryName, Revision from, Revision to, PathPattern pathPattern) {
         return normalizeRevisionsAndExecuteWithRetries(
                 projectName, repositoryName, from, to,
                 new BiFunction<Revision, Revision, CompletableFuture<List<Change<?>>>>() {
                     @Override
                     public CompletableFuture<List<Change<?>>> apply(Revision normFromRev, Revision normToRev) {
-                        return delegate.getDiffs(projectName, repositoryName,
-                                                 normFromRev, normToRev, pathPattern);
+                        return delegate.getDiff(projectName, repositoryName,
+                                                normFromRev, normToRev, pathPattern);
                     }
 
                     @Override
@@ -429,7 +430,7 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     @Override
     public CompletableFuture<Revision> watchRepository(
             String projectName, String repositoryName, Revision lastKnownRevision,
-            String pathPattern, long timeoutMillis, boolean errorOnEntryNotFound) {
+            PathPattern pathPattern, long timeoutMillis, boolean errorOnEntryNotFound) {
 
         return normalizeRevisionAndExecuteWithRetries(
                 projectName, repositoryName, lastKnownRevision,

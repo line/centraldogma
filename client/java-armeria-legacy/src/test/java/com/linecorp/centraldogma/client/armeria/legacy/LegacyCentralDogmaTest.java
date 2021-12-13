@@ -54,6 +54,7 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -291,7 +292,8 @@ class LegacyCentralDogmaTest {
             callback.onComplete(ImmutableList.of(change));
             return null;
         }).when(iface).getDiffs(any(), any(), any(), any(), any(), any());
-        assertThat(client.getDiffs("project", "repo", new Revision(1), new Revision(3), "path").get())
+        assertThat(client.getDiff("project", "repo", new Revision(1), new Revision(3), PathPattern.of("path"))
+                         .get())
                 .isEqualTo(ImmutableList.of(Change.ofTextUpsert("/a.txt", "content")));
         verify(iface).getDiffs(eq("project"), eq("repo"), any(), any(), eq("path"), any());
     }

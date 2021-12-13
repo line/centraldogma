@@ -27,13 +27,13 @@ import com.linecorp.centraldogma.common.Revision;
  * Prepares to send a {@link CentralDogma#getDiff(String, String, Revision, Revision, Query)} request to the
  * Central Dogma repository.
  */
-public final class CentralDogmaDiffRequest<T> {
+public final class DiffRequest<T> {
 
-    private final CentralDogmaRequestPreparation requestPreparation;
+    private final CentralDogmaRepository centralDogmaRepo;
     private final Query<T> query;
 
-    CentralDogmaDiffRequest(CentralDogmaRequestPreparation requestPreparation, Query<T> query) {
-        this.requestPreparation = requestPreparation;
+    DiffRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query) {
+        this.centralDogmaRepo = centralDogmaRepo;
         this.query = query;
     }
 
@@ -46,8 +46,8 @@ public final class CentralDogmaDiffRequest<T> {
     public CompletableFuture<Change<T>> get(Revision from, Revision to) {
         requireNonNull(from, "from");
         requireNonNull(to, "to");
-        return requestPreparation.centralDogma().getDiff(requestPreparation.projectName(),
-                                                         requestPreparation.repositoryName(),
+        return centralDogmaRepo.centralDogma().getDiff(centralDogmaRepo.projectName(),
+                                                         centralDogmaRepo.repositoryName(),
                                                          from, to, query);
     }
 }

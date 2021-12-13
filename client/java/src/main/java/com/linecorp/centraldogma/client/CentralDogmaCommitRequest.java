@@ -31,16 +31,16 @@ import com.linecorp.centraldogma.common.Revision;
  */
 public final class CentralDogmaCommitRequest {
 
-    private final CentralDogmaRequestPreparation requestPreparation;
+    private final CentralDogmaRepository centralDogmaRepo;
     private final String summary;
     private final Iterable<? extends Change<?>> changes;
 
     private String detail = "";
     private Markup markup = Markup.PLAINTEXT;
 
-    CentralDogmaCommitRequest(CentralDogmaRequestPreparation requestPreparation,
+    CentralDogmaCommitRequest(CentralDogmaRepository centralDogmaRepo,
                               String summary, Iterable<? extends Change<?>> changes) {
-        this.requestPreparation = requestPreparation;
+        this.centralDogmaRepo = centralDogmaRepo;
         this.summary = summary;
         this.changes = changes;
     }
@@ -61,8 +61,8 @@ public final class CentralDogmaCommitRequest {
      */
     public CompletableFuture<PushResult> push(Revision baseRevision) {
         requireNonNull(baseRevision, "baseRevision");
-        return requestPreparation.centralDogma().push(requestPreparation.projectName(),
-                                                      requestPreparation.repositoryName(),
+        return centralDogmaRepo.centralDogma().push(centralDogmaRepo.projectName(),
+                                                      centralDogmaRepo.repositoryName(),
                                                       baseRevision, summary, detail, markup, changes);
     }
 }

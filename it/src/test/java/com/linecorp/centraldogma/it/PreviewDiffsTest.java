@@ -49,7 +49,7 @@ class PreviewDiffsTest {
         final Change<?> change = Change.ofJsonPatch("/test/new_json_file.json",
                                                     "{ \"a\": \"apple\" }", "{ \"a\": \"angle\" }");
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "/test/new_json_file.json", () ->
-                client.forRepo(dogma.project(), dogma.repo1()).previewDiffs(change).get(Revision.HEAD).join())
+                client.forRepo(dogma.project(), dogma.repo1()).diff(change).get(Revision.HEAD).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
     }
 
@@ -61,7 +61,7 @@ class PreviewDiffsTest {
         final Change<?> change = Change.ofRemoval("/non_existent_path.txt");
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "non_existent_path.txt", () ->
                 client.forRepo(dogma.project(), dogma.repo1())
-                      .previewDiffs(change)
+                      .diff(change)
                       .get(Revision.HEAD)
                       .join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
@@ -74,7 +74,7 @@ class PreviewDiffsTest {
         final Change<String> change = Change.ofTextUpsert("/a_new_text_file.txt", "text");
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "2147483647", () ->
                 client.forRepo(dogma.project(), dogma.repo1())
-                      .previewDiffs(change)
+                      .diff(change)
                       .get(new Revision(Integer.MAX_VALUE))
                       .join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RevisionNotFoundException.class);
@@ -85,7 +85,7 @@ class PreviewDiffsTest {
     void emptyChange(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
         assertThat(client.forRepo(dogma.project(), dogma.repo1())
-                         .previewDiffs()
+                         .diff()
                          .get(Revision.HEAD)
                          .join()).isEmpty();
     }
@@ -111,7 +111,7 @@ class PreviewDiffsTest {
 
         final List<Change<?>> returnedList =
                 client.forRepo(dogma.project(), dogma.repo1())
-                      .previewDiffs(change)
+                      .diff(change)
                       .get(Revision.HEAD)
                       .join();
 

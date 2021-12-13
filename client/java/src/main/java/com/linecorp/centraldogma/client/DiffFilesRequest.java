@@ -19,19 +19,20 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * Prepares to send a {@link CentralDogma#getDiffs(String, String, Revision, Revision, String)} request to the
- * Central Dogma repository.
+ * Prepares to send a {@link CentralDogma#getDiff(String, String, Revision, Revision, PathPattern)} request
+ * to the Central Dogma repository.
  */
-public final class CentralDogmaDiffsRequest {
+public final class DiffFilesRequest {
 
-    private final CentralDogmaRequestPreparation requestPreparation;
-    private final String pathPattern;
+    private final CentralDogmaRepository centralDogmaRepo;
+    private final PathPattern pathPattern;
 
-    CentralDogmaDiffsRequest(CentralDogmaRequestPreparation requestPreparation, String pathPattern) {
-        this.requestPreparation = requestPreparation;
+    DiffFilesRequest(CentralDogmaRepository centralDogmaRepo, PathPattern pathPattern) {
+        this.centralDogmaRepo = centralDogmaRepo;
         this.pathPattern = pathPattern;
     }
 
@@ -42,8 +43,8 @@ public final class CentralDogmaDiffsRequest {
      *         given {@code pathPattern} between two revisions.
      */
     public CompletableFuture<List<Change<?>>> get(Revision from, Revision to) {
-        return requestPreparation.centralDogma().getDiffs(requestPreparation.projectName(),
-                                                          requestPreparation.repositoryName(),
-                                                          from, to, pathPattern);
+        return centralDogmaRepo.centralDogma().getDiff(centralDogmaRepo.projectName(),
+                                                         centralDogmaRepo.repositoryName(),
+                                                         from, to, pathPattern);
     }
 }

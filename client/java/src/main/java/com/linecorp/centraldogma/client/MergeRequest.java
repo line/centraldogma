@@ -29,14 +29,14 @@ import com.linecorp.centraldogma.common.Revision;
  * Prepares to send a {@link CentralDogma#mergeFiles(String, String, Revision, MergeQuery)} request to the
  * Central Dogma repository.
  */
-public final class CentralDogmaMergingFilesRequest<T> {
+public final class MergeRequest<T> {
 
-    private final CentralDogmaRequestPreparation requestPreparation;
+    private final CentralDogmaRepository centralDogmaRepo;
     private final MergeQuery<T> mergeQuery;
 
-    CentralDogmaMergingFilesRequest(CentralDogmaRequestPreparation requestPreparation,
-                                    MergeQuery<T> mergeQuery) {
-        this.requestPreparation = requestPreparation;
+    MergeRequest(CentralDogmaRepository centralDogmaRepo,
+                 MergeQuery<T> mergeQuery) {
+        this.centralDogmaRepo = centralDogmaRepo;
         this.mergeQuery = mergeQuery;
     }
 
@@ -52,8 +52,8 @@ public final class CentralDogmaMergingFilesRequest<T> {
      */
     public CompletableFuture<MergedEntry<T>> get(Revision revision) {
         requireNonNull(revision, "revision");
-        return requestPreparation.centralDogma().mergeFiles(requestPreparation.projectName(),
-                                                            requestPreparation.repositoryName(),
+        return centralDogmaRepo.centralDogma().mergeFiles(centralDogmaRepo.projectName(),
+                                                            centralDogmaRepo.repositoryName(),
                                                             revision, mergeQuery);
     }
 }

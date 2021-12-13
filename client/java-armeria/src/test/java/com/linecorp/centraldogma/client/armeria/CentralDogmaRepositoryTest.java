@@ -30,17 +30,18 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.CentralDogmaRequestPreparation;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.MergeSource;
 import com.linecorp.centraldogma.common.MergedEntry;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-class CentralDogmaRequestPreparationTest {
+class CentralDogmaRepositoryTest {
 
     @RegisterExtension
     static final CentralDogmaExtension centralDogma = new CentralDogmaExtension() {
@@ -62,7 +63,7 @@ class CentralDogmaRequestPreparationTest {
 
     @Test
     void files() throws JsonParseException {
-        final CentralDogmaRequestPreparation preparation = centralDogma.client().forRepo("foo", "bar");
+        final CentralDogmaRepository preparation = centralDogma.client().forRepo("foo", "bar");
         assertThat(preparation.normalize(Revision.HEAD).join()).isEqualTo(new Revision(3));
 
         final Entry<JsonNode> fooJson = Entry.ofJson(new Revision(3), "/foo.json", "{ \"a\": \"b\" }");
@@ -77,14 +78,14 @@ class CentralDogmaRequestPreparationTest {
                 .isEqualTo(fooJson);
 
         final Entry<JsonNode> barJson = Entry.ofJson(new Revision(3), "/bar.json", "{ \"a\": \"c\" }");
-        assertThat(preparation.files("/**")
+        assertThat(preparation.file(PathPattern.all())
                               .get(Revision.HEAD)
                               .join())
                 .containsOnly(Maps.immutableEntry("/foo.json", fooJson),
                               Maps.immutableEntry("/bar.json", barJson));
 
-        final MergedEntry<?> merged = preparation.mergingFiles(MergeSource.ofRequired("/foo.json"),
-                                                               MergeSource.ofRequired("/bar.json"))
+        final MergedEntry<?> merged = preparation.merge(MergeSource.ofRequired("/foo.json"),
+                                                        MergeSource.ofRequired("/bar.json"))
                                                  .get(Revision.HEAD).join();
         assertThat(merged.paths()).containsExactly("/foo.json", "/bar.json");
         assertThat(merged.revision()).isEqualTo(new Revision(3));
@@ -93,7 +94,7 @@ class CentralDogmaRequestPreparationTest {
 
     @Test
     void historyAndDiff() {
-        final CentralDogmaRequestPreparation preparation = centralDogma.client().forRepo("foo", "bar");
+        final CentralDogmaRepository preparation = centralDogma.client().forRepo("foo", "bar");
         final List<Commit> commits = preparation.history().get(new Revision(2), Revision.HEAD).join();
         assertThat(commits.stream()
                           .map(Commit::summary)
@@ -108,13 +109,13 @@ class CentralDogmaRequestPreparationTest {
                               .join())
                 .isEqualTo(Change.ofJsonUpsert("/foo.json", "{ \"a\": \"b\" }"));
 
-        assertThat(preparation.diffs("/**")
+        assertThat(preparation.diff(PathPattern.all())
                               .get(Revision.INIT, Revision.HEAD)
                               .join())
                 .containsExactlyInAnyOrder(Change.ofJsonUpsert("/foo.json", "{ \"a\": \"b\" }"),
                                            Change.ofJsonUpsert("/bar.json", "{ \"a\": \"c\" }"));
 
-        assertThat(preparation.previewDiffs(Change.ofJsonUpsert("/foo.json", "{ \"a\": \"d\" }"))
+        assertThat(preparation.diff(Change.ofJsonUpsert("/foo.json", "{ \"a\": \"d\" }"))
                               .get(Revision.HEAD)
                               .join())
                 .containsExactly(Change.ofJsonPatch(

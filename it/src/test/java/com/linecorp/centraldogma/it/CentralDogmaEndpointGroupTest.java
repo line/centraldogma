@@ -89,7 +89,7 @@ class CentralDogmaEndpointGroupTest {
     @Test
     void json() throws Exception {
         try (Watcher<JsonNode> watcher = dogma.client().forRepo("directory", "my-service")
-                                              .watchingFile(Query.ofJson("/endpoint.json"))
+                                              .watch(Query.ofJson("/endpoint.json"))
                                               .newWatcher()) {
             final CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.builder(
                     watcher, EndpointListDecoder.JSON).build();
@@ -103,7 +103,7 @@ class CentralDogmaEndpointGroupTest {
         final AtomicInteger counter = new AtomicInteger();
         try (Watcher<String> watcher = dogma.client()
                                             .forRepo("directory", "my-service")
-                                            .watchingFile(Query.ofText("/endpoints.txt"))
+                                            .watch(Query.ofText("/endpoints.txt"))
                                             .map(entry -> {
                                                 counter.incrementAndGet();
                                                 return entry;
@@ -131,7 +131,7 @@ class CentralDogmaEndpointGroupTest {
         final AtomicInteger counter = new AtomicInteger();
         try (Watcher<String> watcher = dogma.client()
                                             .forRepo("directory", "new-service")
-                                            .watchingFile(Query.ofText("/endpoints.txt"))
+                                            .watch(Query.ofText("/endpoints.txt"))
                                             .map(entry -> {
                                                 counter.incrementAndGet();
                                                 return entry;

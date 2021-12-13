@@ -332,12 +332,12 @@ class WatchTest {
 
         final CentralDogma client = clientType.client(dogma);
         final Watcher<JsonNode> jsonWatcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                    .watchingFile(Query.ofJson("/test/test2.json"))
+                                                    .watch(Query.ofJson("/test/test2.json"))
                                                     .newWatcher();
         assertThatJson(jsonWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
 
         final Watcher<String> stringWatcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                    .watchingFile(Query.ofText("/test/test2.json"))
+                                                    .watch(Query.ofText("/test/test2.json"))
                                                     .newWatcher();
         assertThat(stringWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
     }
@@ -350,7 +350,7 @@ class WatchTest {
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
         final Watcher<JsonNode> jsonWatcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                    .watchingFile(Query.ofJson(filePath))
+                                                    .watch(Query.ofJson(filePath))
                                                     .newWatcher();
 
         // wait for initial value
@@ -388,7 +388,7 @@ class WatchTest {
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
         final Watcher<JsonNode> heavyWatcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                     .watchingFile(Query.ofJsonPath(filePath))
+                                                     .watch(Query.ofJsonPath(filePath))
                                                      .newWatcher();
 
         final Watcher<JsonNode> forExisting = Watcher.atJsonPointer(heavyWatcher, "/a");
@@ -463,7 +463,7 @@ class WatchTest {
         final String filePath = "/test/test.txt";
         final Watcher<String> watcher =
                 client.forRepo(dogma.project(), dogma.repo1())
-                      .watchingFile(Query.ofText(filePath))
+                      .watch(Query.ofText(filePath))
                       .map(text -> {
                           assertThat(Thread.currentThread().getName())
                                   .startsWith(THREAD_NAME_PREFIX);

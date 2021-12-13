@@ -27,14 +27,14 @@ import com.linecorp.centraldogma.common.Revision;
  * Prepares to send a {@link CentralDogma#getFile(String, String, Revision, Query)} request to the
  * Central Dogma repository.
  */
-public final class CentralDogmaFileRequest<T> {
+public final class FileRequest<T> {
 
     private final Query<T> query;
-    private final CentralDogmaRequestPreparation requestPreparation;
+    private final CentralDogmaRepository centralDogmaRepo;
 
-    CentralDogmaFileRequest(CentralDogmaRequestPreparation requestPreparation, Query<T> query) {
+    FileRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query) {
         this.query = query;
-        this.requestPreparation = requestPreparation;
+        this.centralDogmaRepo = centralDogmaRepo;
     }
 
     /**
@@ -44,8 +44,8 @@ public final class CentralDogmaFileRequest<T> {
      */
     public CompletableFuture<Entry<T>> get(Revision revision) {
         requireNonNull(revision, "revision");
-        return requestPreparation.centralDogma().getFile(requestPreparation.projectName(),
-                                                         requestPreparation.repositoryName(),
+        return centralDogmaRepo.centralDogma().getFile(centralDogmaRepo.projectName(),
+                                                         centralDogmaRepo.repositoryName(),
                                                          revision, query);
     }
 }

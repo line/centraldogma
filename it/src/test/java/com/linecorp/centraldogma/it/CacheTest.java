@@ -34,6 +34,7 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -151,13 +152,13 @@ class CacheTest {
 
         // Get the diffs in various combination of from/to revisions.
         final List<Change<?>> diff1 =
-                client.getDiffs(project, REPO_FOO, HEAD, new Revision(-2), "/**").join();
+                client.getDiff(project, REPO_FOO, HEAD, new Revision(-2), PathPattern.all()).join();
         final List<Change<?>> diff2 =
-                client.getDiffs(project, REPO_FOO, HEAD, INIT, "/**").join();
+                client.getDiff(project, REPO_FOO, HEAD, INIT, PathPattern.all()).join();
         final List<Change<?>> diff3 =
-                client.getDiffs(project, REPO_FOO, res1.revision(), new Revision(-2), "/**").join();
+                client.getDiff(project, REPO_FOO, res1.revision(), new Revision(-2), PathPattern.all()).join();
         final List<Change<?>> diff4 =
-                client.getDiffs(project, REPO_FOO, res1.revision(), INIT, "/**").join();
+                client.getDiff(project, REPO_FOO, res1.revision(), INIT, PathPattern.all()).join();
 
         // and they should all same.
         assertThat(diff1).isEqualTo(diff2);

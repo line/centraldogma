@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.client;
 
+import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -34,8 +35,6 @@ import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.client.FileWatcher;
-import com.linecorp.centraldogma.internal.client.RepositoryWatcher;
 
 /**
  * A skeletal {@link CentralDogma} implementation.
@@ -64,10 +63,10 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     }
 
     @Override
-    public CentralDogmaRequestPreparation forRepo(String projectName, String repositoryName) {
+    public CentralDogmaRepository forRepo(String projectName, String repositoryName) {
         requireNonNull(projectName, "projectName");
         requireNonNull(repositoryName, "repositoryName");
-        return new CentralDogmaRequestPreparation(this, projectName, repositoryName, blockingTaskExecutor);
+        return new CentralDogmaRepository(this, projectName, repositoryName, blockingTaskExecutor);
     }
 
     @Override
@@ -164,9 +163,12 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     public <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
                                          Function<? super T, ? extends U> function, Executor executor,
                                          long timeoutMillis, boolean errorOnEntryNotFound) {
-        final FileWatcher<U> watcher =
-                new FileWatcher<>(this, blockingTaskExecutor, executor, projectName, repositoryName, query,
-                                  function, timeoutMillis, errorOnEntryNotFound);
+        final Watcher<U> watcher =
+                forRepo(projectName, repositoryName).watch(query)
+                                                    .timeoutMillis(timeoutMillis)
+                                                    .errorOnEntryNotFound(errorOnEntryNotFound)
+                                                    .forever()
+                                                    .map(function, executor);
         watcher.start();
         return watcher;
     }
@@ -185,9 +187,12 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     public <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                             Function<Revision, ? extends T> function, Executor executor,
                                             long timeoutMillis, boolean errorOnEntryNotFound) {
-        final RepositoryWatcher<T> watcher =
-                new RepositoryWatcher<>(this, blockingTaskExecutor, executor, projectName, repositoryName,
-                                        pathPattern, function, timeoutMillis, errorOnEntryNotFound);
+        final Watcher<T> watcher =
+                forRepo(projectName, repositoryName).watch(toPathPattern(pathPattern))
+                                                    .timeoutMillis(timeoutMillis)
+                                                    .errorOnEntryNotFound(errorOnEntryNotFound)
+                                                    .forever()
+                                                    .map(function, executor);
         watcher.start();
         return watcher;
     }

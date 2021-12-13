@@ -66,10 +66,10 @@ class MergeFileTest {
     void mergeJsonFiles(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
         final MergedEntry<?> merged = client.forRepo("myPro", "myRepo")
-                                            .mergingFiles(MergeSource.ofRequired("/foo.json"),
-                                                          MergeSource.ofRequired("/foo1.json"),
-                                                          MergeSource.ofRequired("/foo2.json"),
-                                                          MergeSource.ofOptional("/foo3.json")) // optional
+                                            .merge(MergeSource.ofRequired("/foo.json"),
+                                                   MergeSource.ofRequired("/foo1.json"),
+                                                   MergeSource.ofRequired("/foo2.json"),
+                                                   MergeSource.ofOptional("/foo3.json")) // optional
                                             .get(Revision.HEAD).join();
 
         assertThat(merged.paths()).containsExactly("/foo.json", "/foo1.json", "/foo2.json");
@@ -91,10 +91,10 @@ class MergeFileTest {
                 .isEqualTo("{ \"a\": \"new_bar\" }");
 
         assertThatThrownBy(() -> client.forRepo("myPro", "myRepo")
-                                       .mergingFiles(MergeSource.ofRequired("/foo.json"),
-                                                     MergeSource.ofRequired("/foo1.json"),
-                                                     MergeSource.ofRequired("/foo2.json"),
-                                                     MergeSource.ofRequired("/foo3.json")) // required
+                                       .merge(MergeSource.ofRequired("/foo.json"),
+                                              MergeSource.ofRequired("/foo1.json"),
+                                              MergeSource.ofRequired("/foo2.json"),
+                                              MergeSource.ofRequired("/foo3.json")) // required
                                        .get(Revision.HEAD).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(EntryNotFoundException.class);
@@ -105,8 +105,8 @@ class MergeFileTest {
     void exceptionWhenOnlyOptionalFilesAndDoNotExist(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
         assertThatThrownBy(() -> client.forRepo("myPro", "myRepo")
-                                       .mergingFiles(MergeSource.ofOptional("/non_existent1.json"),
-                                                     MergeSource.ofRequired("/non_existent2.json"))
+                                       .merge(MergeSource.ofOptional("/non_existent1.json"),
+                                              MergeSource.ofRequired("/non_existent2.json"))
                                        .get(Revision.HEAD).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(EntryNotFoundException.class);
@@ -121,10 +121,10 @@ class MergeFileTest {
               .push(Revision.HEAD).join();
 
         assertThatThrownBy(() -> client.forRepo("myPro", "myRepo")
-                                       .mergingFiles(MergeSource.ofRequired("/foo.json"),
-                                                     MergeSource.ofRequired("/foo1.json"),
-                                                     MergeSource.ofRequired("/foo2.json"),
-                                                     MergeSource.ofRequired("/foo10.json"))
+                                       .merge(MergeSource.ofRequired("/foo.json"),
+                                              MergeSource.ofRequired("/foo1.json"),
+                                              MergeSource.ofRequired("/foo2.json"),
+                                              MergeSource.ofRequired("/foo10.json"))
                                        .get(Revision.HEAD).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(QueryExecutionException.class);

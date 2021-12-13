@@ -25,40 +25,30 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+
 /**
  * Prepares a watch request.
  */
-public abstract class CentralDogmaWatchingRequest {
-
-    static final Executor defaultExecutor;
-
-    static {
-        Executor executor;
-        try {
-            final Class<?> commonPools = Class.forName("com.linecorp.armeria.common.CommonPools");
-            final Method method = commonPools.getDeclaredMethod("blockingTaskExecutor");
-            executor = (ScheduledExecutorService) method.invoke(null);
-        } catch (ClassNotFoundException | NoSuchMethodException |
-                IllegalAccessException | InvocationTargetException ignored) {
-            executor = ForkJoinPool.commonPool();
-        }
-        defaultExecutor = executor;
-    }
+public abstract class WatchOptions {
 
     private long timeoutMillis;
+    private boolean errorOnEntryNotFound;
 
-    CentralDogmaWatchingRequest() {
-        this(WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS);
+    WatchOptions() {
+        this(WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
+             WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
     }
 
-    CentralDogmaWatchingRequest(long timeoutMillis) {
+    WatchOptions(long timeoutMillis, boolean errorOnEntryNotFound) {
         this.timeoutMillis = timeoutMillis;
+        this.errorOnEntryNotFound = errorOnEntryNotFound;
     }
 
     /**
      * Sets the timeout for a watch request.
      */
-    public CentralDogmaWatchingRequest timeout(Duration timeout) {
+    public WatchOptions timeout(Duration timeout) {
         requireNonNull(timeout, "timeout");
         checkArgument(!timeout.isZero() && !timeout.isNegative(), "timeout: %s (expected: > 0)", timeout);
         return timeoutMillis(timeout.toMillis());
@@ -67,13 +57,25 @@ public abstract class CentralDogmaWatchingRequest {
     /**
      * Sets the timeout for a watch request in milliseconds.
      */
-    public CentralDogmaWatchingRequest timeoutMillis(long timeoutMillis) {
+    public WatchOptions timeoutMillis(long timeoutMillis) {
         checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
         this.timeoutMillis = timeoutMillis;
         return this;
     }
 
+    /**
+     * Sets whether to throw an {@link EntryNotFoundException} if the watch target does not exist.
+     */
+    public WatchOptions errorOnEntryNotFound(boolean errorOnEntryNotFound) {
+        this.errorOnEntryNotFound = errorOnEntryNotFound;
+        return this;
+    }
+
     long timeoutMillis() {
         return timeoutMillis;
+    }
+
+    boolean errorOnEntryNotFound() {
+        return errorOnEntryNotFound;
     }
 }

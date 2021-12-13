@@ -21,6 +21,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
@@ -70,6 +71,14 @@ public interface Watcher<T> extends AutoCloseable {
             }
         });
     }
+
+    /**
+     * Starts to watch the file specified in the {@link Query} or the {@code pathPattern}
+     * given with the constructor.
+     */
+    void start();
+
+    ScheduledExecutorService watchScheduler();
 
     /**
      * Returns the {@link CompletableFuture} which is completed when the initial value retrieval is done
@@ -252,8 +261,32 @@ public interface Watcher<T> extends AutoCloseable {
      *         its listeners are <b>not</b> notified when a change has no effect on the transformed value.
      *         Furthermore, it does not need to be closed after use.
      */
-    default <U> Watcher<U> newChild(Function<T, U> transformer) {
+    default <U> Watcher<U> map(Function<? super T, ? extends U> mapper) {
+        return map(mapper, watchScheduler());
+    }
+
+    /**
+     * Forks into a new {@link Watcher}, that reuses the current watcher and applies a transformation.
+     *
+     * @return A {@link Watcher} that is effectively filtering in a sense that,
+     *         its listeners are <b>not</b> notified when a change has no effect on the transformed value.
+     *         Furthermore, it does not need to be closed after use.
+     */
+    default <U> Watcher<U> map(Function<? super T, ? extends U> mapper, Executor executor) {
+        requireNonNull(mapper, "mapper");
+        requireNonNull(executor, "executor");
+        return MappingWatcher.of(this, mapper, executor, true);
+    }
+
+    /**
+     * Forks into a new {@link Watcher}, that reuses the current watcher and applies a transformation.
+     *
+     * @return A {@link Watcher} that is effectively filtering in a sense that,
+     *         its listeners are <b>not</b> notified when a change has no effect on the transformed value.
+     *         Furthermore, it does not need to be closed after use.
+     */
+    default <U> Watcher<U> newChild(Function<? super T, ? extends U> transformer) {
         requireNonNull(transformer, "transformer");
-        return new TransformingWatcher<>(this, transformer);
+        return MappingWatcher.of(this, transformer, watchScheduler(), false);
     }
 }

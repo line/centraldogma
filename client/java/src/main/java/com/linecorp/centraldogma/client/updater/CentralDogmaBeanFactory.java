@@ -290,7 +290,7 @@ public class CentralDogmaBeanFactory {
 
         final Watcher<T> watcher =
                 dogma.forRepo(settings.project().get(), settings.repository().get())
-                     .watchingFile(buildQuery(settings))
+                     .watch(buildQuery(settings))
                      .map(jsonNode -> {
                          try {
                              final T value = objectMapper.treeToValue(jsonNode, beanType);
