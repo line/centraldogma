@@ -91,7 +91,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
             return ifNoneMatch.substring(1, ifNoneMatch.length() - 1);
         }
 
-        if (ifNoneMatch.length() > 3 && ifNoneMatch.startsWith("W/\"") &&
+        if (ifNoneMatch.length() > 4 && ifNoneMatch.startsWith("W/\"") &&
             ifNoneMatch.charAt(ifNoneMatch.length() - 1) == '"') {
             return ifNoneMatch.substring(3, ifNoneMatch.length() - 1);
         }
