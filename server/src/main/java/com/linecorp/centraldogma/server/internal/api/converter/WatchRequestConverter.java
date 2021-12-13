@@ -82,7 +82,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
     }
 
     String extractRevision(String ifNoneMatch) {
-        // Three below cases are valid:
+        // Three below cases are valid. See https://github.com/line/centraldogma/issues/415
         // - <revision> (for backward compatibility)
         // - "<revision>"
         // - W/"<revision>"
