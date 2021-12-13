@@ -87,6 +87,7 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
@@ -129,6 +130,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                         .put(AuthorizationException.class.getName(), AuthorizationException::new)
                         .put(ShuttingDownException.class.getName(), ShuttingDownException::new)
                         .put(RepositoryExistsException.class.getName(), RepositoryExistsException::new)
+                        .put(InvalidPushException.class.getName(), InvalidPushException::new)
                         .build();
 
     private final WebClient client;

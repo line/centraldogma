@@ -44,7 +44,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
@@ -61,10 +60,11 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
 
-    @VisibleForTesting
-    static final String PATH_CREDENTIALS = "/credentials.json";
+    public static final String PATH_CREDENTIALS = "/credentials.json";
 
     public static final String PATH_MIRRORS = "/mirrors.json";
+
+    public static final Set<String> metaRepoFiles = ImmutableSet.of(PATH_CREDENTIALS, PATH_MIRRORS);
 
     private static final String PATH_CREDENTIALS_AND_MIRRORS = PATH_CREDENTIALS + ',' + PATH_MIRRORS;
 
