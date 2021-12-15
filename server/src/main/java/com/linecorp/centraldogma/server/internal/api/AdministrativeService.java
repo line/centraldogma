@@ -88,45 +88,49 @@ public final class AdministrativeService extends AbstractService {
             return rejectStatusPatch(patch);
         }
 
+        //    writable       | replicating   |  result
+        //-------------------+---------------+-----------------------------------
+        //    true -> true   | true -> true  | not_modified exception
+        //                   | true -> false | bad_request exception
+        //-------------------+---------------+-----------------------------------
+        //    true -> false  | true -> true  | setWritable(false)
+        //                   | true -> false | setWritable(false) & stop executor.
+        //-------------------+---------------+-----------------------------------
+        //    false -> true  | true -> true  | setWritable(true)
+        //                   | false -> true | setWritable(true) & start executor.
+        //-------------------+---------------+-----------------------------------
+        //    false -> false | true -> false | Stop executor.
+        //                   | false -> true | Start executor.
         final boolean writable = writableNode.asBoolean();
         final boolean replicating = replicatingNode.asBoolean();
         if (writable && !replicating) {
             return HttpApiUtil.throwResponse(ctx, HttpStatus.BAD_REQUEST,
                                              "'replicating' must be 'true' if 'writable' is 'true'.");
         }
+        if (oldStatus.writable == writable && oldStatus.replicating == replicating) {
+            throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
+        }
 
-        if (oldStatus.writable) {
-            if (!writable) { // writable -> unwritable
-                executor().setWritable(false);
-                if (replicating) {
-                    logger.warn("Entered read-only mode with replication enabled");
-                    return CompletableFuture.completedFuture(status());
-                } else {
-                    logger.warn("Entering read-only mode with replication disabled ..");
-                    return executor().stop().handle((unused, cause) -> {
-                        if (cause != null) {
-                            logger.warn("Failed to stop the command executor:", cause);
-                        } else {
-                            logger.info("Entered read-only mode with replication disabled");
-                        }
-                        return status();
-                    });
-                }
+        if (oldStatus.writable != writable) {
+            executor().setWritable(writable);
+            if (writable) {
+                logger.warn("Left read-only mode");
+            } else {
+                logger.warn("Entered read-only mode");
             }
-        } else if (writable) { // unwritable -> writable
-            logger.warn("Leaving read-only mode ..");
-            executor().setWritable(true);
-            return executor().start().handle((unused, cause) -> {
-                if (cause != null) {
-                    logger.warn("Failed to leave read-only mode:", cause);
-                } else {
-                    logger.info("Left read-only mode");
-                }
-                return status();
-            });
-        } else if (oldStatus.replicating) {
-            if (!replicating) { // replicating -> unreplicating
-                logger.warn("Disabling replication with read-only mode");
+        }
+
+        if (oldStatus.replicating != replicating) {
+            if (replicating) {
+                return executor().start().handle((unused, cause) -> {
+                    if (cause != null) {
+                        logger.warn("Failed to start the command executor:", cause);
+                    } else {
+                        logger.info("Enabled replication");
+                    }
+                    return status();
+                });
+            } else {
                 return executor().stop().handle((unused, cause) -> {
                     if (cause != null) {
                         logger.warn("Failed to stop the command executor:", cause);
@@ -136,19 +140,9 @@ public final class AdministrativeService extends AbstractService {
                     return status();
                 });
             }
-        } else if (replicating) { // unreplicating -> replicating
-            logger.warn("Enabling replication with read-only mode");
-            return executor().start().handle((unused, cause) -> {
-                if (cause != null) {
-                    logger.warn("Failed to start the command executor:", cause);
-                } else {
-                    logger.info("Enabled replication");
-                }
-                return status();
-            });
         }
 
-        throw HttpStatusException.of(HttpStatus.NOT_MODIFIED);
+        return CompletableFuture.completedFuture(status());
     }
 
     private static CompletableFuture<ServerStatus> rejectStatusPatch(JsonNode patch) {
