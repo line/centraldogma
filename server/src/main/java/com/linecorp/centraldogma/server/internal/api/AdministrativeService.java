@@ -126,7 +126,7 @@ public final class AdministrativeService extends AbstractService {
                     if (cause != null) {
                         logger.warn("Failed to start the command executor:", cause);
                     } else {
-                        logger.info("Enabled replication");
+                        logger.info("Enabled replication. read-only: {}", !writable);
                     }
                     return status();
                 });
