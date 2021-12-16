@@ -114,9 +114,9 @@ public final class AdministrativeService extends AbstractService {
         if (oldStatus.writable != writable) {
             executor().setWritable(writable);
             if (writable) {
-                logger.warn("Left read-only mode");
+                logger.warn("Left read-only mode. replication: {}, replicating");
             } else {
-                logger.warn("Entered read-only mode");
+                logger.warn("Entered read-only mode. replication: {}, replicating");
             }
         }
 
