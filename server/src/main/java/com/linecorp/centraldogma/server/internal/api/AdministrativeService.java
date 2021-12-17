@@ -130,15 +130,15 @@ public final class AdministrativeService extends AbstractService {
                     }
                     return status();
                 });
-            } else {
-                return executor().stop().handle((unused, cause) -> {
-                    if (cause != null) {
-                        logger.warn("Failed to stop the command executor:", cause);
-                    } else {
-                        logger.info("Disabled replication");
-                    }
-                    return status();
-                });
+            }
+            return executor().stop().handle((unused, cause) -> {
+                if (cause != null) {
+                    logger.warn("Failed to stop the command executor:", cause);
+                } else {
+                    logger.info("Disabled replication");
+                }
+                return status();
+            });
             }
         }
 
