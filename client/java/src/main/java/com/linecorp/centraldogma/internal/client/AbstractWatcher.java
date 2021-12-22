@@ -39,6 +39,8 @@ import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.MoreObjects;
+
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
@@ -113,9 +115,10 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private final long timeoutMillis;
     private final boolean errorOnEntryNotFound;
 
-    private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners;
-    private final AtomicReference<State> state;
-    private final CompletableFuture<Latest<T>> initialValueFuture;
+    private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners =
+            new CopyOnWriteArrayList<>();
+    private final AtomicReference<State> state = new AtomicReference<>(State.INIT);
+    private final CompletableFuture<Latest<T>> initialValueFuture = new CompletableFuture<>();
 
     private volatile Latest<T> latest;
     private volatile ScheduledFuture<?> currentScheduleFuture;
@@ -131,10 +134,11 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.timeoutMillis = timeoutMillis;
         this.errorOnEntryNotFound = errorOnEntryNotFound;
+    }
 
-        updateListeners = new CopyOnWriteArrayList<>();
-        state = new AtomicReference<>(State.INIT);
-        initialValueFuture = new CompletableFuture<>();
+    @Override
+    public final ScheduledExecutorService watchScheduler() {
+        return watchScheduler;
     }
 
     @Override
@@ -194,11 +198,11 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         checkState(!isStopped(), "watcher closed");
         updateListeners.add(new SimpleImmutableEntry<>(listener, executor));
 
+        final Latest<T> latest = this.latest;
         if (latest != null) {
             // Perform initial notification so that the listener always gets the initial value.
             try {
                 executor.execute(() -> {
-                    final Latest<T> latest = this.latest;
                     listener.accept(latest.revision(), latest.value());
                 });
             } catch (RejectedExecutionException e) {
@@ -330,5 +334,19 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         close();
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("client", client)
+                          .add("watchScheduler", watchScheduler)
+                          .add("projectName", projectName)
+                          .add("repositoryName", repositoryName)
+                          .add("pathPattern", pathPattern)
+                          .add("timeoutMillis", timeoutMillis)
+                          .add("errorOnEntryNotFound", errorOnEntryNotFound)
+                          .add("latest", latest)
+                          .toString();
     }
 }

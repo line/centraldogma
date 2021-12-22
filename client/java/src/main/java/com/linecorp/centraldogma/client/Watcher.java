@@ -21,6 +21,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
@@ -70,6 +71,11 @@ public interface Watcher<T> extends AutoCloseable {
             }
         });
     }
+
+    /**
+     * Returns the {@link ScheduledExecutorService} that is used to schedule watch.
+     */
+    ScheduledExecutorService watchScheduler();
 
     /**
      * Returns the {@link CompletableFuture} which is completed when the initial value retrieval is done
@@ -161,7 +167,7 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Returns the latest {@link Revision} and value of {@code watchFile()} result.
+     * Returns the latest {@link Revision} and value of {@code watchFile()} or {@code watchRepository()} result.
      *
      * @throws IllegalStateException if the value is not available yet.
      *                               Use {@link #awaitInitialValue(long, TimeUnit)} first or
@@ -170,7 +176,7 @@ public interface Watcher<T> extends AutoCloseable {
     Latest<T> latest();
 
     /**
-     * Returns the latest value of {@code watchFile()} result.
+     * Returns the latest value of {@code watchFile()} or {@code watchRepository()} result.
      *
      * @throws IllegalStateException if the value is not available yet.
      *                               Use {@link #awaitInitialValue(long, TimeUnit)} first or
@@ -182,7 +188,7 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Returns the latest value of {@code watchFile()} result.
+     * Returns the latest value of {@code watchFile()} or {@code watchRepository()} result.
      *
      * @param defaultValue the default value which is returned when the value is not available yet
      */
@@ -246,14 +252,22 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Forks into a new {@link Watcher}, that reuses the current watcher and applies a transformation.
-     *
-     * @return A {@link Watcher} that is effectively filtering in a sense that,
-     *         its listeners are <b>not</b> notified when a change has no effect on the transformed value.
-     *         Furthermore, it does not need to be closed after use.
+     * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
+     * This {@link Watcher} must be closed regardless of closing the returned {@link Watcher}
+     * when it's not used anymore.
      */
-    default <U> Watcher<U> newChild(Function<T, U> transformer) {
-        requireNonNull(transformer, "transformer");
-        return new TransformingWatcher<>(this, transformer);
+    default <U> Watcher<U> newChild(Function<? super T, ? extends U> mapper) {
+        return newChild(mapper, watchScheduler());
+    }
+
+    /**
+     * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
+     * This {@link Watcher} must be closed regardless of closing the returned {@link Watcher}
+     * when it's not used anymore.
+     */
+    default <U> Watcher<U> newChild(Function<? super T, ? extends U> mapper, Executor mapperExecutor) {
+        requireNonNull(mapper, "mapper");
+        requireNonNull(mapperExecutor, "mapperExecutor");
+        return new TransformingWatcher<>(this, mapper, mapperExecutor);
     }
 }

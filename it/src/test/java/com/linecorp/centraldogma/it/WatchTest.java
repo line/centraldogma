@@ -641,8 +641,9 @@ class WatchTest {
                 .getRootCause().isInstanceOf(EntryNotFoundException.class);
 
         // when initialValueFuture throw 'EntryNotFoundException', you can't use 'watch' method.
-        assertThatThrownBy(() -> watcher.watch((rev, node) -> {
-        })).isInstanceOf(IllegalStateException.class);
+        await().untilAsserted(() -> assertThatThrownBy(
+                () -> watcher.watch((rev, node) -> {}))
+                .isInstanceOf(IllegalStateException.class));
     }
 
     @ParameterizedTest
