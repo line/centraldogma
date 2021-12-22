@@ -62,21 +62,23 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
             if (closed) {
                 return;
             }
-            mapperExecutor.execute(() -> {
-                final U mappedValue = mapper.apply(value);
-                final Latest<U> oldLatest = mappedLatest;
-                if (oldLatest != null && oldLatest.value() == mappedValue) {
-                    return;
-                }
+            final U mappedValue = mapper.apply(value);
+            if (mappedValue == null) {
+                logger.warn("mapper.apply() returned null. mapper: {}", mapper);
+                return;
+            }
+            final Latest<U> oldLatest = mappedLatest;
+            if (oldLatest != null && oldLatest.value() == mappedValue) {
+                return;
+            }
 
-                final Latest<U> newLatest = new Latest<>(revision, mappedValue);
-                mappedLatest = newLatest;
-                notifyListeners();
-                if (!initialValueFuture.isDone()) {
-                    initialValueFuture.complete(newLatest);
-                }
-            });
-        });
+            final Latest<U> newLatest = new Latest<>(revision, mappedValue);
+            mappedLatest = newLatest;
+            notifyListeners();
+            if (!initialValueFuture.isDone()) {
+                initialValueFuture.complete(newLatest);
+            }
+        }, mapperExecutor);
     }
 
     private void notifyListeners() {
@@ -148,9 +150,7 @@ final class TransformingWatcher<T, U> implements Watcher<U> {
             // However, it's such a rare case and we usually call `watch` method after creating a Watcher,
             // which means mappedLatest is probably not set yet, so we don't use a lock to guarantee
             // the atomicity.
-            executor.execute(() -> {
-                listener.accept(mappedLatest.revision(), mappedLatest.value());
-            });
+            executor.execute(() -> listener.accept(mappedLatest.revision(), mappedLatest.value()));
         }
     }
 

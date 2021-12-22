@@ -115,8 +115,9 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private final long timeoutMillis;
     private final boolean errorOnEntryNotFound;
 
-    private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners;
-    private final AtomicReference<State> state;
+    private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners =
+            new CopyOnWriteArrayList<>();
+    private final AtomicReference<State> state = new AtomicReference<>(State.INIT);
     private final CompletableFuture<Latest<T>> initialValueFuture = new CompletableFuture<>();
 
     private volatile Latest<T> latest;
@@ -133,13 +134,10 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
         this.timeoutMillis = timeoutMillis;
         this.errorOnEntryNotFound = errorOnEntryNotFound;
-
-        updateListeners = new CopyOnWriteArrayList<>();
-        state = new AtomicReference<>(State.INIT);
     }
 
     @Override
-    public ScheduledExecutorService watchScheduler() {
+    public final ScheduledExecutorService watchScheduler() {
         return watchScheduler;
     }
 
@@ -200,11 +198,11 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         checkState(!isStopped(), "watcher closed");
         updateListeners.add(new SimpleImmutableEntry<>(listener, executor));
 
+        final Latest<T> latest = this.latest;
         if (latest != null) {
             // Perform initial notification so that the listener always gets the initial value.
             try {
                 executor.execute(() -> {
-                    final Latest<T> latest = this.latest;
                     listener.accept(latest.revision(), latest.value());
                 });
             } catch (RejectedExecutionException e) {

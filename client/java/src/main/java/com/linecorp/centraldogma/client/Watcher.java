@@ -268,6 +268,6 @@ public interface Watcher<T> extends AutoCloseable {
     default <U> Watcher<U> newChild(Function<? super T, ? extends U> mapper, Executor mapperExecutor) {
         requireNonNull(mapper, "mapper");
         requireNonNull(mapperExecutor, "mapperExecutor");
-        return new TransformingWatcher<>(this, mapper, watchScheduler());
+        return new TransformingWatcher<>(this, mapper, mapperExecutor);
     }
 }
