@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
-import static com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogma.encodePathPattern;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -48,11 +47,9 @@ class ArmeriaCentralDogmaTest {
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .build();
 
-        assertThatThrownBy(() -> client.push("foo",
-                                             "meta",
-                                             Revision.HEAD,
-                                             "summary",
-                                             Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
+        assertThatThrownBy(() -> client.forRepo("foo", "meta")
+                                       .commit("summary", Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
+                                       .push(Revision.HEAD)
                                        .join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(InvalidPushException.class);
@@ -64,11 +61,9 @@ class ArmeriaCentralDogmaTest {
                 .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
                 .build();
 
-        final PushResult result = client.push("foo",
-                                              "meta",
-                                              Revision.HEAD,
-                                              "summary",
-                                              Change.ofJsonUpsert("/mirrors.json", "[]"))
+        final PushResult result = client.forRepo("foo", "meta")
+                                        .commit("summary", Change.ofJsonUpsert("/mirrors.json", "[]"))
+                                        .push(Revision.HEAD)
                                         .join();
         assertThat(result.revision().major()).isPositive();
     }
