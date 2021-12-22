@@ -44,6 +44,7 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
@@ -128,6 +129,29 @@ class ContentServiceV1Test {
                 "  \"exception\": \"" + RedundantChangeException.class.getName() + "\"," +
                 "  \"message\": \"${json-unit.ignore}\"" +
                 '}');
+    }
+
+    @Test
+    void pushFileToMetaRepositoryShouldFail() {
+        final WebClient client = dogma.httpClient();
+
+        final String body =
+                '{' +
+                "   \"path\" : \"/foo.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : {\"a\": \"bar\"}," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add foo.json\"," +
+                "       \"detail\": \"Add because we need it.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final RequestHeaders headers =
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/meta/contents",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
+        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(res.contentUtf8()).contains(InvalidPushException.class.getName());
     }
 
     @Nested

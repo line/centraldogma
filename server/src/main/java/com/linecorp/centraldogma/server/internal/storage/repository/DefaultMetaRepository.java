@@ -44,9 +44,9 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Streams;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
@@ -60,10 +60,11 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
 
-    @VisibleForTesting
-    static final String PATH_CREDENTIALS = "/credentials.json";
+    public static final String PATH_CREDENTIALS = "/credentials.json";
 
     public static final String PATH_MIRRORS = "/mirrors.json";
+
+    public static final Set<String> metaRepoFiles = ImmutableSet.of(PATH_CREDENTIALS, PATH_MIRRORS);
 
     private static final String PATH_CREDENTIALS_AND_MIRRORS = PATH_CREDENTIALS + ',' + PATH_MIRRORS;
 
@@ -220,6 +221,8 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
         final String localPath;
         final URI remoteUri;
         @Nullable
+        final String gitignore;
+        @Nullable
         final String credentialId;
         final Cron schedule;
 
@@ -230,6 +233,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                            @JsonProperty(value = "localRepo", required = true) String localRepo,
                            @JsonProperty("localPath") @Nullable String localPath,
                            @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
+                           @JsonProperty("gitignore") @Nullable Object gitignore,
                            @JsonProperty("credentialId") @Nullable String credentialId) {
 
             super(firstNonNull(enabled, true));
@@ -238,6 +242,19 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
             this.localRepo = requireNonNull(localRepo, "localRepo");
             this.localPath = firstNonNull(localPath, "/");
             this.remoteUri = requireNonNull(remoteUri, "remoteUri");
+            if (gitignore != null) {
+                if (gitignore instanceof Iterable &&
+                    Streams.stream((Iterable<?>) gitignore).allMatch(String.class::isInstance)) {
+                    this.gitignore = String.join("\n", (Iterable<String>) gitignore);
+                } else if (gitignore instanceof String) {
+                    this.gitignore = (String) gitignore;
+                } else {
+                    throw new IllegalArgumentException(
+                            "gitignore: " + gitignore + " (expected: either a string or an array of strings)");
+                }
+            } else {
+                this.gitignore = null;
+            }
             this.credentialId = credentialId;
         }
 
@@ -249,7 +266,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
 
             return Collections.singletonList(Mirror.of(
                     schedule, direction, findCredential(credentials, remoteUri, credentialId),
-                    parent.repos().get(localRepo), localPath, remoteUri));
+                    parent.repos().get(localRepo), localPath, remoteUri, gitignore));
         }
     }
 
@@ -316,7 +333,8 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                                                                                 : defaultCredentialId),
                                           repo,
                                           firstNonNull(i.localPath, defaultLocalPath),
-                                          remoteUri));
+                                          remoteUri,
+                                          null));
                 }
             });
 

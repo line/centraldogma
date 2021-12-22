@@ -30,6 +30,8 @@ import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 
+import javax.annotation.Nullable;
+
 import com.cronutils.model.Cron;
 
 import com.linecorp.centraldogma.server.MirrorException;
@@ -53,9 +55,12 @@ public interface Mirror {
      * @param localRepo the Central Dogma repository name
      * @param localPath the directory path in the {@code localRepo}
      * @param remoteUri the URI of the Git repository which will be mirrored from
+     * @param gitignore the file pattern for the files in {@code remoteUri} which will not be mirrored.
+     *                  It follows the same format to <a href="https://git-scm.com/docs/gitignore">gitignore</a>
      */
     static Mirror of(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                     Repository localRepo, String localPath, URI remoteUri) {
+                     Repository localRepo, String localPath, URI remoteUri,
+                     @Nullable String gitignore) {
         requireNonNull(schedule, "schedule");
         requireNonNull(direction, "direction");
         requireNonNull(credential, "credential");
@@ -83,7 +88,8 @@ public interface Mirror {
                 final String remoteRepo = matcher.group(2);
 
                 return new CentralDogmaMirror(schedule, direction, credential, localRepo, localPath,
-                                              remoteRepoUri, remoteProject, remoteRepo, components[1]);
+                                              remoteRepoUri, remoteProject, remoteRepo, components[1],
+                                              gitignore);
             }
             case SCHEME_GIT:
             case SCHEME_GIT_SSH:
@@ -92,7 +98,8 @@ public interface Mirror {
             case SCHEME_GIT_FILE: {
                 final String[] components = split(remoteUri, "git", "master");
                 return new GitMirror(schedule, direction, credential, localRepo, localPath,
-                                     URI.create(components[0]), components[1], components[2]);
+                                     URI.create(components[0]), components[1], components[2],
+                                     gitignore);
             }
         }
 
@@ -144,7 +151,15 @@ public interface Mirror {
     /**
      * Returns the name of the branch in the Git repository where is supposed to be mirrored.
      */
+    @Nullable
     String remoteBranch();
+
+    /**
+     * Returns a <a href="https://git-scm.com/docs/gitignore">gitignore</a> pattern for the files
+     * which won't be mirrored.
+     */
+    @Nullable
+    String gitignore();
 
     /**
      * Performs the mirroring task.

@@ -24,6 +24,7 @@ import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.metaRepoFiles;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
@@ -58,6 +59,7 @@ import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
@@ -185,7 +187,7 @@ public class ContentServiceV1 extends AbstractService {
             Author author,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
-        checkMirrorLocalRepo(repository.name(), changes);
+        checkPush(repository.name(), changes);
 
         final long commitTimeMillis = System.currentTimeMillis();
         return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
@@ -406,12 +408,18 @@ public class ContentServiceV1 extends AbstractService {
     }
 
     /**
-     * Checks if the commit is for mirroring setting and raises an exception if the {@code localRepo} field
-     * is one of {@code meta} and {@code dogma} which are internal repositories.
+     * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
+     * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
      */
-    public static void checkMirrorLocalRepo(String repoName, Iterable<Change<?>> changes) {
-        // TODO(minwoox): Provide an internal API for mirroring setup with a better UI(?) and check this there.
+    public static void checkPush(String repoName, Iterable<Change<?>> changes) {
         if (Project.REPO_META.equals(repoName)) {
+            final boolean hasChangesOtherThanMetaRepoFiles =
+                    Streams.stream(changes).anyMatch(change -> !metaRepoFiles.contains(change.path()));
+            if (hasChangesOtherThanMetaRepoFiles) {
+                throw new InvalidPushException(
+                        "The " + Project.REPO_META + " repository is reserved for internal usage.");
+            }
+
             final Optional<String> notAllowedLocalRepo =
                     Streams.stream(changes)
                            .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
@@ -436,8 +444,8 @@ public class ContentServiceV1 extends AbstractService {
                                return null;
                            }).filter(Objects::nonNull).findFirst();
             if (notAllowedLocalRepo.isPresent()) {
-                throw new IllegalArgumentException("invalid " + MIRROR_LOCAL_REPO + ": " +
-                                                   notAllowedLocalRepo.get());
+                throw new InvalidPushException("invalid " + MIRROR_LOCAL_REPO + ": " +
+                                               notAllowedLocalRepo.get());
             }
         }
     }
