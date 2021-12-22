@@ -20,17 +20,14 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Function;
 
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * Prepares to send a {@link CentralDogma#watchRepository(String, String, Revision, String, long)} request to
- * the Central Dogma repository or create
- * a new {@link CentralDogma#repositoryWatcher(String, String, String, Function, Executor)}.
+ * Prepares to send a {@link CentralDogma#watchRepository(String, String, Revision, PathPattern, long, boolean)}
+ * request to the Central Dogma repository or create a new {@link Watcher}.
  */
 public final class WatchFilesRequest extends WatchOptions {
 
@@ -78,13 +75,13 @@ public final class WatchFilesRequest extends WatchOptions {
     }
 
     /**
-     * Returns a {@link Watcher} which notifies its listeners when the repository has a new commit
-     * that contains the changes for the files matched by the {@link PathPattern}. e.g:
+     * Returns a newly created {@link Watcher} which notifies its listeners when the repository has a new commit
+     * that contains the changes for the files matched by the {@link PathPattern}.
+     *
      * <pre>{@code
      * Watcher<Revision> watcher = client.forRepo("foo", "bar")
      *                                   .watch(PathPattern.of("/*.json"))
-     *                                   .watcher()
-     *                                   .build();
+     *                                   .forever();
      * watcher.watch(revision -> {
      *     ...
      * });}</pre>
@@ -93,11 +90,24 @@ public final class WatchFilesRequest extends WatchOptions {
         return forever(ofDefault());
     }
 
+    /**
+     * Returns a newly created {@link Watcher} with the {@link WatcherOptions} which notifies its listeners
+     * when the repository has a new commit that contains the changes for the files matched
+     * by the {@link PathPattern}.
+     *
+     * <pre>{@code
+     * Watcher<Revision> watcher = client.forRepo("foo", "bar")
+     *                                   .watch(PathPattern.of("/*.json"))
+     *                                   .forever(watcherOptions);
+     * watcher.watch(revision -> {
+     *     ...
+     * });}</pre>
+     */
     public Watcher<Revision> forever(WatcherOptions watcherOptions) {
         requireNonNull(watcherOptions, "watcherOptions");
         final String proName = centralDogmaRepo.projectName();
         final String repoName = centralDogmaRepo.repositoryName();
-        return new DefaultWatcher<>(
+        final DefaultWatcher<Revision> watcher = new DefaultWatcher<>(
                 blockingTaskExecutor, proName, repoName, pathPattern.get(),
                 lastKnownRevision ->
                         centralDogmaRepo.centralDogma()
@@ -105,5 +115,7 @@ public final class WatchFilesRequest extends WatchOptions {
                                                          timeoutMillis(), errorOnEntryNotFound())
                                         .thenApply(revision -> new Latest<>(revision, revision)),
                 errorOnEntryNotFound(), watcherOptions);
+        watcher.start();
+        return watcher;
     }
 }

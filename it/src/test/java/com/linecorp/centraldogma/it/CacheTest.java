@@ -116,13 +116,14 @@ class CacheTest {
 
         // Get the history in various combination of from/to revisions.
         final List<Commit> history1 =
-                client.getHistory(project, REPO_FOO, HEAD, new Revision(-2), "/**").join();
+                client.getHistory(project, REPO_FOO, HEAD, new Revision(-2), PathPattern.all()).join();
         final List<Commit> history2 =
-                client.getHistory(project, REPO_FOO, HEAD, INIT, "/**").join();
+                client.getHistory(project, REPO_FOO, HEAD, INIT, PathPattern.all()).join();
         final List<Commit> history3 =
-                client.getHistory(project, REPO_FOO, res1.revision(), new Revision(-2), "/**").join();
+                client.getHistory(project, REPO_FOO, res1.revision(), new Revision(-2), PathPattern.all())
+                      .join();
         final List<Commit> history4 =
-                client.getHistory(project, REPO_FOO, res1.revision(), INIT, "/**").join();
+                client.getHistory(project, REPO_FOO, res1.revision(), INIT, PathPattern.all()).join();
 
         // and they should all same.
         assertThat(history1).isEqualTo(history2);

@@ -18,32 +18,19 @@ package com.linecorp.centraldogma.client;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.time.Duration;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ScheduledExecutorService;
 
 import com.linecorp.centraldogma.common.EntryNotFoundException;
 
 /**
- * Prepares a watch request.
+ * Options for a watch request.
  */
 public abstract class WatchOptions {
 
-    private long timeoutMillis;
-    private boolean errorOnEntryNotFound;
+    private long timeoutMillis = WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS;
+    private boolean errorOnEntryNotFound = WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND;
 
-    WatchOptions() {
-        this(WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
-             WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
-    }
-
-    WatchOptions(long timeoutMillis, boolean errorOnEntryNotFound) {
-        this.timeoutMillis = timeoutMillis;
-        this.errorOnEntryNotFound = errorOnEntryNotFound;
-    }
+    WatchOptions() {}
 
     /**
      * Sets the timeout for a watch request.
@@ -63,16 +50,16 @@ public abstract class WatchOptions {
         return this;
     }
 
+    long timeoutMillis() {
+        return timeoutMillis;
+    }
+
     /**
      * Sets whether to throw an {@link EntryNotFoundException} if the watch target does not exist.
      */
     public WatchOptions errorOnEntryNotFound(boolean errorOnEntryNotFound) {
         this.errorOnEntryNotFound = errorOnEntryNotFound;
         return this;
-    }
-
-    long timeoutMillis() {
-        return timeoutMillis;
     }
 
     boolean errorOnEntryNotFound() {

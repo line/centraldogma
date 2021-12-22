@@ -153,48 +153,30 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     public <T, U> Watcher<U> fileWatcher(
             String projectName, String repositoryName, Query<T> query,
             Function<? super T, ? extends U> function) {
-        return fileWatcher(projectName, repositoryName, query, function,
-                           blockingTaskExecutor,
-                           WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
-                           WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
+        return fileWatcher(projectName, repositoryName, query, function, blockingTaskExecutor);
     }
 
     @Override
     public <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
-                                         Function<? super T, ? extends U> function, Executor executor,
-                                         long timeoutMillis, boolean errorOnEntryNotFound) {
-        final Watcher<U> watcher =
-                forRepo(projectName, repositoryName).watch(query)
-                                                    .timeoutMillis(timeoutMillis)
-                                                    .errorOnEntryNotFound(errorOnEntryNotFound)
-                                                    .forever()
-                                                    .map(function, executor);
-        watcher.start();
-        return watcher;
+                                         Function<? super T, ? extends U> function, Executor executor) {
+        return forRepo(projectName, repositoryName).watch(query)
+                                                   .forever()
+                                                   .map(function, executor);
     }
 
     @Override
     public <T> Watcher<T> repositoryWatcher(
             String projectName, String repositoryName, String pathPattern,
             Function<Revision, ? extends T> function) {
-        return repositoryWatcher(projectName, repositoryName, pathPattern, function,
-                                 blockingTaskExecutor,
-                                 WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS,
-                                 WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND);
+        return repositoryWatcher(projectName, repositoryName, pathPattern, function, blockingTaskExecutor);
     }
 
     @Override
     public <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
-                                            Function<Revision, ? extends T> function, Executor executor,
-                                            long timeoutMillis, boolean errorOnEntryNotFound) {
-        final Watcher<T> watcher =
-                forRepo(projectName, repositoryName).watch(toPathPattern(pathPattern))
-                                                    .timeoutMillis(timeoutMillis)
-                                                    .errorOnEntryNotFound(errorOnEntryNotFound)
-                                                    .forever()
-                                                    .map(function, executor);
-        watcher.start();
-        return watcher;
+                                            Function<Revision, ? extends T> function, Executor executor) {
+        return forRepo(projectName, repositoryName).watch(toPathPattern(pathPattern))
+                                                   .forever()
+                                                   .map(function, executor);
     }
 
     /**

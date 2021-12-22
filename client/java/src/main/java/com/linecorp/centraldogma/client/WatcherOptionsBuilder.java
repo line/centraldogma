@@ -21,6 +21,9 @@ import static java.util.Objects.requireNonNull;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Builds {@link WatcherOptions}.
+ */
 public final class WatcherOptionsBuilder {
 
     private static final long DEFAULT_DELAY_ON_SUCCESS_MILLIS = TimeUnit.SECONDS.toMillis(1);
@@ -36,6 +39,9 @@ public final class WatcherOptionsBuilder {
 
     WatcherOptionsBuilder() {}
 
+    /**
+     * Sets the delay for sending the next watch request when the previous request succeeds.
+     */
     public WatcherOptionsBuilder delayOnSuccess(Duration delayOnSuccess) {
         requireNonNull(delayOnSuccess, "delayOnSuccess");
         checkArgument(!delayOnSuccess.isNegative(),
@@ -43,6 +49,9 @@ public final class WatcherOptionsBuilder {
         return delayOnSuccessMillis(delayOnSuccess.toMillis());
     }
 
+    /**
+     * Sets the delay in milliseconds for sending the next watch request when the previous request succeeds.
+     */
     public WatcherOptionsBuilder delayOnSuccessMillis(long delayOnSuccessMillis) {
         this.delayOnSuccessMillis = delayOnSuccessMillis;
         checkArgument(delayOnSuccessMillis >= 0,
@@ -50,6 +59,11 @@ public final class WatcherOptionsBuilder {
         return this;
     }
 
+    /**
+     * Sets the delays and multiplier which is used to calculate the delay
+     * for sending the next watch request when the previous request fails.
+     * Currently, it uses exponential backoff. File a feature request if you need another algorithm.
+     */
     public WatcherOptionsBuilder backoffOnFailure(long initialDelayMillis, long maxDelayMillis,
                                                   double multiplier) {
         checkArgument(initialDelayMillis >= 0, "initialDelayMillis: %s (expected: >= 0)", initialDelayMillis);
@@ -62,6 +76,9 @@ public final class WatcherOptionsBuilder {
         return this;
     }
 
+    /**
+     * Sets the jitter to apply the delay.
+     */
     public WatcherOptionsBuilder jitterRate(double jitterRate) {
         checkArgument(0.0 <= jitterRate && jitterRate <= 1.0,
                       "jitterRate: %s (expected: >= 0.0 and <= 1.0)", jitterRate);
@@ -69,6 +86,9 @@ public final class WatcherOptionsBuilder {
         return this;
     }
 
+    /**
+     * Returns a newly created {@link WatcherOptions} based on the properties set so far.
+     */
     public WatcherOptions build() {
         return new WatcherOptions(delayOnSuccessMillis, initialDelayMillis, maxDelayMillis,
                                   multiplier, jitterRate);

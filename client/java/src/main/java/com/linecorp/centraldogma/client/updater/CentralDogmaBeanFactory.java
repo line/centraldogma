@@ -291,6 +291,7 @@ public class CentralDogmaBeanFactory {
         final Watcher<T> watcher =
                 dogma.forRepo(settings.project().get(), settings.repository().get())
                      .watch(buildQuery(settings))
+                     .forever()
                      .map(jsonNode -> {
                          try {
                              final T value = objectMapper.treeToValue(jsonNode, beanType);
@@ -300,7 +301,7 @@ public class CentralDogmaBeanFactory {
                              throw new IllegalStateException(
                                      "Failed to convert a JSON node into: " + beanType.getName(), e);
                          }
-                     }).newWatcher();
+                     });
 
         if (initialValueTimeout > 0) {
             final long t0 = System.nanoTime();

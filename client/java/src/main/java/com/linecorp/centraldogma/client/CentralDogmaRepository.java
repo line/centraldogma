@@ -18,9 +18,7 @@ package com.linecorp.centraldogma.client;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Function;
 
 import com.google.common.collect.ImmutableList;
 
@@ -93,18 +91,9 @@ public final class CentralDogmaRepository {
 
     /**
      * Returns a new {@link FilesRequest} that is used to send
-     * {@link CentralDogma#getFiles(String, String, Revision, String)} and
-     * {@link CentralDogma#listFiles(String, String, Revision, String)} requests to the
+     * {@link CentralDogma#getFiles(String, String, Revision, PathPattern)} and
+     * {@link CentralDogma#listFiles(String, String, Revision, PathPattern)} requests to the
      * Central Dogma repository.
-     * A path pattern is a variant of glob:
-     * <ul>
-     *   <li>{@code "/**"} - find all files recursively</li>
-     *   <li>{@code "*.json"} - find all JSON files recursively</li>
-     *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
-     *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
-     *                                     if <em>any</em> pattern matches.</li>
-     * </ul>
      */
     public FilesRequest file(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
@@ -184,15 +173,6 @@ public final class CentralDogmaRepository {
      * Returns a new {@link DiffFilesRequest} that is used to send
      * {@link CentralDogma#getDiff(String, String, Revision, Revision, PathPattern)} request to the
      * Central Dogma repository.
-     * A path pattern is a variant of glob:
-     * <ul>
-     *   <li>{@code "/**"} - find all files recursively</li>
-     *   <li>{@code "*.json"} - find all JSON files recursively</li>
-     *   <li>{@code "/foo/*.json"} - find all JSON files under the directory {@code /foo}</li>
-     *   <li><code>"/&#42;/foo.txt"</code> - find all files named {@code foo.txt} at the second depth level</li>
-     *   <li>{@code "*.json,/bar/*.txt"} - use comma to specify more than one pattern. A file will be matched
-     *                                     if <em>any</em> pattern matches.</li>
-     * </ul>
      */
     public DiffFilesRequest diff(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
@@ -241,9 +221,8 @@ public final class CentralDogmaRepository {
 
     /**
      * Returns a new {@link WatchRequest} that is used to send
-     * {@link CentralDogma#watchFile(String, String, Revision, Query, long)} request to
-     * the Central Dogma repository or create a new
-     * {@link CentralDogma#fileWatcher(String, String, Query, Function, Executor)}.
+     * {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)} request to
+     * the Central Dogma repository or create a new {@link Watcher}.
      */
     public WatchRequest<?> watch(String path) {
         requireNonNull(path, "path");
@@ -252,9 +231,8 @@ public final class CentralDogmaRepository {
 
     /**
      * Returns a new {@link WatchRequest} that is used to send
-     * {@link CentralDogma#watchFile(String, String, Revision, Query, long)} request to
-     * the Central Dogma repository or create a new
-     * {@link CentralDogma#fileWatcher(String, String, Query, Function, Executor)}.
+     * {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)} request to
+     * the Central Dogma repository or create a new {@link Watcher}.
      */
     public <T> WatchRequest<T> watch(Query<T> query) {
         requireNonNull(query, "query");
@@ -263,9 +241,8 @@ public final class CentralDogmaRepository {
 
     /**
      * Returns a new {@link WatchFilesRequest} that is used to send
-     * {@link CentralDogma#watchRepository(String, String, Revision, String, long)} request to the
-     * Central Dogma repository or create
-     * a new {@link CentralDogma#repositoryWatcher(String, String, String, Function, Executor)}.
+     * {@link CentralDogma#watchRepository(String, String, Revision, PathPattern, long, boolean)}
+     * request to the Central Dogma repository or create a new {@link Watcher}.
      */
     public WatchFilesRequest watch(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");

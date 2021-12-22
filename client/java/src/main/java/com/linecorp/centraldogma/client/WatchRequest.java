@@ -20,18 +20,15 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Function;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * Prepares to send a {@link CentralDogma#watchFile(String, String, Revision, Query, long)} request to the
- * Central Dogma repository or create
- * a new {@link CentralDogma#fileWatcher(String, String, Query, Function, Executor)}.
+ * Prepares to send a {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)}
+ * request to the Central Dogma repository or create a new {@link Watcher}.
  */
 public final class WatchRequest<T> extends WatchOptions {
 
@@ -82,13 +79,13 @@ public final class WatchRequest<T> extends WatchOptions {
     }
 
     /**
-     * Returns a {@link Watcher} which notifies its listeners when the result of the
-     * {@link Query} becomes available or changes. e.g:
+     * Returns a newly created {@link Watcher} which notifies its listeners when the result of the
+     * {@link Query} becomes available or changes.
+     *
      * <pre>{@code
-     * Watcher<Revision> watcher = client.forRepo("foo", "bar")
+     * Watcher<JsonNode> watcher = client.forRepo("foo", "bar")
      *                                   .watch(Query.ofJson("/baz.json"))
-     *                                   .watcher()
-     *                                   .build();
+     *                                   .forever();
      * watcher.watch((revision, content) -> {
      *     assert content instanceof JsonNode;
      *     ...
@@ -98,11 +95,24 @@ public final class WatchRequest<T> extends WatchOptions {
         return forever(ofDefault());
     }
 
+    /**
+     * Returns a newly created {@link Watcher} with the {@link WatcherOptions} which notifies its listeners
+     * when the result of the {@link Query} becomes available or changes.
+     *
+     * <pre>{@code
+     * Watcher<JsonNode> watcher = client.forRepo("foo", "bar")
+     *                                   .watch(Query.ofJson("/baz.json"))
+     *                                   .forever(watcherOptions);
+     * watcher.watch((revision, content) -> {
+     *     assert content instanceof JsonNode;
+     *     ...
+     * });}</pre>
+     */
     public Watcher<T> forever(WatcherOptions watcherOptions) {
         requireNonNull(watcherOptions, "watcherOptions");
         final String proName = centralDogmaRepo.projectName();
         final String repoName = centralDogmaRepo.repositoryName();
-        return new DefaultWatcher<>(
+        final DefaultWatcher<T> watcher = new DefaultWatcher<>(
                 blockingTaskExecutor, proName, repoName, query.path(),
                 lastKnownRevision ->
                         centralDogmaRepo.centralDogma()
@@ -110,5 +120,7 @@ public final class WatchRequest<T> extends WatchOptions {
                                                    timeoutMillis(), errorOnEntryNotFound())
                                         .thenApply(entry -> new Latest<>(entry.revision(), entry.content())),
                 errorOnEntryNotFound(), watcherOptions);
+        watcher.start();
+        return watcher;
     }
 }

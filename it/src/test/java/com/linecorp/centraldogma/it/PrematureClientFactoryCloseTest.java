@@ -30,6 +30,7 @@ import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -52,12 +53,12 @@ class PrematureClientFactoryCloseTest {
 
     @Test
     void watchRepository() throws Exception {
-        test(client -> client.watchRepository("foo", "bar", HEAD, "/**", Long.MAX_VALUE));
+        test(client -> client.watchRepository("foo", "bar", HEAD, PathPattern.all(), Long.MAX_VALUE, false));
     }
 
     @Test
     void watchFile() throws Exception {
-        test(client -> client.watchFile("foo", "bar", HEAD, Query.ofText("/baz.txt"), Long.MAX_VALUE));
+        test(client -> client.watchFile("foo", "bar", HEAD, Query.ofText("/baz.txt"), Long.MAX_VALUE, false));
     }
 
     private static void test(Function<CentralDogma, CompletableFuture<?>> watchAction) throws Exception {

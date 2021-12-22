@@ -48,6 +48,7 @@ import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
@@ -327,13 +328,14 @@ class ReplicationLagTolerantCentralDogmaTest {
         when(delegate.watchRepository(any(), any(), any(), any(), anyLong(), anyBoolean()))
                 .thenReturn(completedFuture(latestRevision));
 
-        assertThat(dogma.watchRepository("foo", "bar", Revision.INIT, "/**", 10000L, false).join())
+        assertThat(dogma.watchRepository("foo", "bar", Revision.INIT, PathPattern.all(), 10000L, false).join())
                 .isEqualTo(latestRevision);
 
         assertThat(dogma.latestKnownRevision("foo", "bar")).isEqualTo(latestRevision);
 
         verify(delegate, times(1)).normalizeRevision("foo", "bar", Revision.INIT);
-        verify(delegate, times(1)).watchRepository("foo", "bar", Revision.INIT, "/**", 10000L, false);
+        verify(delegate, times(1)).watchRepository("foo", "bar", Revision.INIT, PathPattern.all(),
+                                                   10000L, false);
         verifyNoMoreInteractions(delegate);
         reset(delegate);
 

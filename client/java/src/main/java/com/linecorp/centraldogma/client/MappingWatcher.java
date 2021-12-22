@@ -18,7 +18,11 @@ package com.linecorp.centraldogma.client;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiConsumer;
@@ -26,9 +30,16 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Maps;
+
 import com.linecorp.centraldogma.common.Revision;
 
 final class MappingWatcher<T, U> implements Watcher<U> {
+
+    private static final Logger logger = LoggerFactory.getLogger(MappingWatcher.class);
 
     static <T, U> MappingWatcher<T, U> of(Watcher<T> parent, Function<? super T, ? extends U> mapper,
                                           Executor executor, boolean closeParentWhenClosing) {
@@ -41,9 +52,10 @@ final class MappingWatcher<T, U> implements Watcher<U> {
 
     private final Watcher<T> parent;
     private final Function<? super T, ? extends U> mapper;
-    private final Executor mapperExecutor;
     private final boolean closeParentWhenClosing;
     private final CompletableFuture<Latest<U>> initialValueFuture = new CompletableFuture<>();
+    private final List<Entry<BiConsumer<? super Revision, ? super U>, Executor>> updateListeners =
+            new CopyOnWriteArrayList<>();
 
     @Nullable
     private volatile Latest<U> mappedLatest;
@@ -53,20 +65,53 @@ final class MappingWatcher<T, U> implements Watcher<U> {
                    boolean closeParentWhenClosing) {
         this.parent = parent;
         this.mapper = mapper;
-        this.mapperExecutor = mapperExecutor;
         this.closeParentWhenClosing = closeParentWhenClosing;
-        parent.initialValueFuture().thenAcceptAsync(latest -> {
-            if (latest != null) {
-                final Latest<U> mappedLatest = new Latest<>(latest.revision(), mapper.apply(latest.value()));
-                this.mappedLatest = mappedLatest;
-                initialValueFuture.complete(mappedLatest);
+        parent.initialValueFuture().exceptionally(cause -> {
+            initialValueFuture.completeExceptionally(cause);
+            return null;
+        });
+        parent.watch((revision, value) -> {
+            if (closed) {
+                return;
+            }
+            final U mappedValue = mapper.apply(value);
+            if (mappedValue == null) {
+                logger.warn("mapper.apply() returned null. mapper: {}", mapper);
+                return;
+            }
+            final Latest<U> oldLatest = mappedLatest;
+            if (oldLatest != null && oldLatest.value() == mappedValue) {
+                return;
+            }
+
+            final Latest<U> newLatest = new Latest<>(revision, mappedValue);
+            mappedLatest = newLatest;
+            notifyListeners();
+            if (!initialValueFuture.isDone()) {
+                initialValueFuture.complete(newLatest);
             }
         }, mapperExecutor);
     }
 
-    @Override
-    public void start() {
-        parent.start();
+    private void notifyListeners() {
+        if (closed) {
+            return;
+        }
+
+        final Latest<U> latest = mappedLatest;
+        assert latest != null;
+        for (Map.Entry<BiConsumer<? super Revision, ? super U>, Executor> entry : updateListeners) {
+            final BiConsumer<? super Revision, ? super U> listener = entry.getKey();
+            final Executor executor = entry.getValue();
+            executor.execute(() -> {
+                try {
+                    listener.accept(latest.revision(), latest.value());
+                } catch (Exception e) {
+                    logger.warn("Unexpected exception is raised from {}: rev={}",
+                                listener, latest.revision(), e);
+                }
+            });
+        }
     }
 
     @Override
@@ -101,45 +146,34 @@ final class MappingWatcher<T, U> implements Watcher<U> {
 
     @Override
     public void watch(BiConsumer<? super Revision, ? super U> listener) {
-        watch(listener, mapperExecutor);
+        watch(listener, parent.watchScheduler());
     }
 
     @Override
     public void watch(BiConsumer<? super Revision, ? super U> listener, Executor executor) {
         requireNonNull(listener, "listener");
         requireNonNull(executor, "executor");
-        parent.watch(map(listener), executor);
-    }
+        updateListeners.add(Maps.immutableEntry(listener, executor));
 
-    private BiConsumer<Revision, T> map(BiConsumer<? super Revision, ? super U> listener) {
-        return (revision, value) -> {
-            if (closed) {
-                return;
-            }
-            final U newValue = mapper.apply(value);
-            final Latest<U> oldLatest = mappedLatest;
-            boolean notifyListener = true;
-            if (oldLatest != null) {
-                notifyListener = oldLatest.value().equals(newValue);
-            }
-            if (notifyListener) {
-                final Latest<U> newLatest = new Latest<>(revision, newValue);
-                mappedLatest = newLatest;
-                if (!initialValueFuture.isDone()) {
-                    initialValueFuture.complete(newLatest);
-                }
-                listener.accept(revision, newValue);
-            }
-        };
+        final Latest<U> mappedLatest = this.mappedLatest;
+        if (mappedLatest != null) {
+            // There's a chance that listener.accept(...) is called twice for the same value
+            // if this watch method is called:
+            // - after "mappedLatest = newLatest;" is invoked.
+            // - and before notifyListener() is called.
+            // However, it's such a rare case and we usually call `watch` method after creating a Watcher,
+            // which means mappedLatest is probably not set yet, so we don't use a lock to guarantee
+            // the atomicity.
+            executor.execute(() -> listener.accept(mappedLatest.revision(), mappedLatest.value()));
+        }
     }
 
     @Override
     public String toString() {
-        return toStringHelper(this).omitNullValues()
-                                   .add("parent", parent)
-                                   .add("mapper", mapper)
-                                   .add("mapperExecutor", mapperExecutor)
-                                   .add("closed", closed)
-                                   .toString();
+        return toStringHelper(this)
+                .add("parent", parent)
+                .add("mapper", mapper)
+                .add("closed", closed)
+                .toString();
     }
 }

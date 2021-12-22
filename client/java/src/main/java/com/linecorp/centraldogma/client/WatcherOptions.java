@@ -15,6 +15,9 @@
  */
 package com.linecorp.centraldogma.client;
 
+/**
+ * Options used for {@link Watcher}.
+ */
 public final class WatcherOptions {
 
     private static final WatcherOptions defaultWatcherOptions = builder().build();
@@ -23,6 +26,9 @@ public final class WatcherOptions {
         return defaultWatcherOptions;
     }
 
+    /**
+     * Returns a newly created {@link WatcherOptionsBuilder}.
+     */
     public static WatcherOptionsBuilder builder() {
         return new WatcherOptionsBuilder();
     }

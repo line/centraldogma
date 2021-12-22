@@ -28,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -41,6 +40,8 @@ import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
@@ -111,8 +112,11 @@ final class DefaultWatcher<T> implements Watcher<T> {
         return latest;
     }
 
-    @Override
-    public void start() {
+    /**
+     * Starts to watch the file specified in the {@link Query} or the {@code pathPattern}
+     * given with the constructor.
+     */
+    void start() {
         if (state.compareAndSet(State.INIT, State.STARTED)) {
             scheduleWatch(0);
         }
@@ -153,14 +157,14 @@ final class DefaultWatcher<T> implements Watcher<T> {
 
         final Latest<T> latest = this.latest;
         if (latest != null) {
-            // Perform initial notification so that the listener always gets the initial value.
-            try {
-                executor.execute(() -> {
-                    listener.accept(latest.revision(), latest.value());
-                });
-            } catch (RejectedExecutionException e) {
-                handleExecutorShutdown(executor, e);
-            }
+            // There's a chance that listener.accept(...) is called twice for the same value
+            // if this watch method is called:
+            // - after " this.latest = newLatest;" is invoked.
+            // - and before notifyListener() is called.
+            // However, it's such a rare case and we usually call `watch` method right after creating a Watcher,
+            // which means latest is probably not set yet, so we don't use a lock to guarantee
+            // the atomicity.
+            executor.execute(() -> listener.accept(latest.revision(), latest.value()));
         }
     }
 
@@ -176,14 +180,10 @@ final class DefaultWatcher<T> implements Watcher<T> {
             delay = nextDelayMillis(numAttemptsSoFar);
         }
 
-        try {
-            currentScheduleFuture = watchScheduler.schedule(() -> {
-                currentScheduleFuture = null;
-                doWatch(numAttemptsSoFar);
-            }, delay, TimeUnit.MILLISECONDS);
-        } catch (RejectedExecutionException e) {
-            handleExecutorShutdown(watchScheduler, e);
-        }
+        currentScheduleFuture = watchScheduler.schedule(() -> {
+            currentScheduleFuture = null;
+            doWatch(numAttemptsSoFar);
+        }, delay, TimeUnit.MILLISECONDS);
     }
 
     private long nextDelayMillis(int numAttemptsSoFar) {
@@ -316,13 +316,15 @@ final class DefaultWatcher<T> implements Watcher<T> {
         }
     }
 
-    private void handleExecutorShutdown(Executor executor, RejectedExecutionException e) {
-        if (logger.isTraceEnabled()) {
-            logger.trace("Stopping to watch since the executor is shut down. executor: {}", executor, e);
-        } else {
-            logger.debug("Stopping to watch since the executor is shut down. executor: {}", executor);
-        }
-
-        close();
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("watchScheduler", watchScheduler)
+                          .add("projectName", projectName)
+                          .add("repositoryName", repositoryName)
+                          .add("pathPattern", pathPattern)
+                          .add("errorOnEntryNotFound", errorOnEntryNotFound)
+                          .add("latest", latest)
+                          .toString();
     }
 }

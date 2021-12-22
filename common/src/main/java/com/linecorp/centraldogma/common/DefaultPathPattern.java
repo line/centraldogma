@@ -31,7 +31,7 @@ final class DefaultPathPattern implements PathPattern {
 
     private static final Pattern PATH_PATTERN_PATTERN = Pattern.compile("^[- /*_.0-9a-zA-Z]+$");
 
-    private static final String ALL = "/**";
+    static final String ALL = "/**";
 
     static final DefaultPathPattern allPattern = new DefaultPathPattern(ALL, ALL);
 
@@ -41,21 +41,15 @@ final class DefaultPathPattern implements PathPattern {
     private String encoded;
 
     DefaultPathPattern(Set<String> patterns) {
-        final boolean containsAllPattern = patterns.stream()
-                                                   .anyMatch(ALL::equals);
-        if (containsAllPattern) {
-            this.patterns = ALL;
-        } else {
-            this.patterns = patterns.stream()
-                                    .peek(DefaultPathPattern::validatePathPattern)
-                                    .filter(pattern -> !pattern.isEmpty())
-                                    .map(pattern -> {
-                                        if (pattern.charAt(0) != '/') {
-                                            return "/**/" + pattern;
-                                        }
-                                        return pattern;
-                                    }).collect(Collectors.joining(","));
-        }
+        this.patterns = patterns.stream()
+                                .peek(DefaultPathPattern::validatePathPattern)
+                                .filter(pattern -> !pattern.isEmpty())
+                                .map(pattern -> {
+                                    if (pattern.charAt(0) != '/') {
+                                        return "/**/" + pattern;
+                                    }
+                                    return pattern;
+                                }).collect(Collectors.joining(","));
     }
 
     private DefaultPathPattern(String patterns, String encoded) {
