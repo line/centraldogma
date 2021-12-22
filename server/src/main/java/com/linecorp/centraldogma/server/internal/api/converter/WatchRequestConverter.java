@@ -81,6 +81,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
         return new WatchRequest(lastKnownRevision, timeoutMillis, notifyEntryNotFound);
     }
 
+    @VisibleForTesting
     String extractRevision(String ifNoneMatch) {
         // Three below cases are valid. See https://github.com/line/centraldogma/issues/415
         // - <revision> (for backward compatibility)
