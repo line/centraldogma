@@ -53,13 +53,17 @@ public abstract class AbstractMirror implements Mirror {
     private final String localPath;
     private final URI remoteRepoUri;
     private final String remotePath;
+    @Nullable
     private final String remoteBranch;
+    @Nullable
+    private final String gitignore;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
 
     protected AbstractMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                              Repository localRepo, String localPath,
-                             URI remoteRepoUri, String remotePath, @Nullable String remoteBranch) {
+                             URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
+                             @Nullable String gitignore) {
 
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
@@ -69,6 +73,7 @@ public abstract class AbstractMirror implements Mirror {
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
         this.remoteBranch = remoteBranch;
+        this.gitignore = gitignore;
 
         executionTime = ExecutionTime.forCron(this.schedule);
 
@@ -134,6 +139,11 @@ public abstract class AbstractMirror implements Mirror {
     }
 
     @Override
+    public final String gitignore() {
+        return gitignore;
+    }
+
+    @Override
     public final void mirror(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes) {
         try {
             switch (direction()) {
@@ -163,18 +173,17 @@ public abstract class AbstractMirror implements Mirror {
     @Override
     public String toString() {
         final ToStringHelper helper = MoreObjects.toStringHelper("")
+                                                 .omitNullValues()
                                                  .add("schedule", CronDescriptor.instance().describe(schedule))
                                                  .add("direction", direction)
                                                  .add("localProj", localRepo.parent().name())
                                                  .add("localRepo", localRepo.name())
                                                  .add("localPath", localPath)
                                                  .add("remoteRepo", remoteRepoUri)
-                                                 .add("remotePath", remotePath);
-        if (remoteBranch != null) {
-            helper.add("remoteBranch", remoteBranch);
-        }
-
-        helper.add("credential", credential);
+                                                 .add("remotePath", remotePath)
+                                                 .add("remoteBranch", remoteBranch)
+                                                 .add("gitignore", gitignore)
+                                                 .add("credential", credential);
 
         return helper.toString();
     }

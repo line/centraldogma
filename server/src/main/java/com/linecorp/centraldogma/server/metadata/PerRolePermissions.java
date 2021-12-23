@@ -44,7 +44,30 @@ public class PerRolePermissions {
     public static final Collection<Permission> READ_ONLY = EnumSet.of(Permission.READ);
     public static final Collection<Permission> NO_PERMISSION = EnumSet.noneOf(Permission.class);
 
-    public static final PerRolePermissions DEFAULT = new PerRolePermissions(READ_WRITE, READ_WRITE, READ_WRITE);
+    /**
+     * The default permission.
+     *
+     * @deprecated Use {@link #ofDefault()}.
+     */
+    @Deprecated
+    public static final PerRolePermissions DEFAULT =
+            new PerRolePermissions(READ_WRITE, READ_WRITE, NO_PERMISSION);
+    private static final PerRolePermissions internalPermissions =
+            new PerRolePermissions(READ_WRITE, NO_PERMISSION, NO_PERMISSION);
+
+    /**
+     * Creates a {@link PerRolePermissions} which allows read/write a repository from a owner.
+     */
+    public static PerRolePermissions ofInternal() {
+        return internalPermissions;
+    }
+
+    /**
+     * Creates a {@link PerRolePermissions} which allows read/write to owners and members.
+     */
+    public static PerRolePermissions ofDefault() {
+        return DEFAULT;
+    }
 
     /**
      * Creates a {@link PerRolePermissions} which allows accessing a repository from everyone.

@@ -24,20 +24,25 @@ import static com.linecorp.centraldogma.internal.Util.isValidDirPath;
 import static com.linecorp.centraldogma.internal.Util.isValidFilePath;
 import static com.linecorp.centraldogma.server.internal.api.DtoConverter.convert;
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.returnOrThrow;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.metaRepoFiles;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Streams;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpResponse;
@@ -54,6 +59,7 @@ import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.Query;
@@ -75,6 +81,8 @@ import com.linecorp.centraldogma.server.internal.api.converter.MergeQueryRequest
 import com.linecorp.centraldogma.server.internal.api.converter.QueryRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
+import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
+import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.FindOption;
 import com.linecorp.centraldogma.server.storage.repository.FindOptions;
@@ -88,6 +96,8 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
 @RequestConverter(CommitMessageRequestConverter.class)
 @ExceptionHandler(HttpApiExceptionHandler.class)
 public class ContentServiceV1 extends AbstractService {
+
+    private static final String MIRROR_LOCAL_REPO = "localRepo";
 
     private final WatchService watchService;
 
@@ -176,6 +186,7 @@ public class ContentServiceV1 extends AbstractService {
             Author author,
             CommitMessageDto commitMessage,
             @RequestConverter(ChangesRequestConverter.class) Iterable<Change<?>> changes) {
+        checkPush(repository.name(), changes);
 
         final long commitTimeMillis = System.currentTimeMillis();
         return push(commitTimeMillis, author, repository, new Revision(revision), commitMessage, changes)
@@ -239,11 +250,14 @@ public class ContentServiceV1 extends AbstractService {
         if (watchRequest != null) {
             final Revision lastKnownRevision = watchRequest.lastKnownRevision();
             final long timeOutMillis = watchRequest.timeoutMillis();
+            final boolean errorOnEntryNotFound = watchRequest.notifyEntryNotFound();
             if (query != null) {
-                return watchFile(ctx, repository, lastKnownRevision, query, timeOutMillis);
+                return watchFile(ctx, repository, lastKnownRevision, query, timeOutMillis,
+                                 errorOnEntryNotFound);
             }
 
-            return watchRepository(ctx, repository, lastKnownRevision, normalizedPath, timeOutMillis);
+            return watchRepository(ctx, repository, lastKnownRevision, normalizedPath,
+                                   timeOutMillis, errorOnEntryNotFound);
         }
 
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
@@ -262,9 +276,9 @@ public class ContentServiceV1 extends AbstractService {
 
     private CompletableFuture<?> watchFile(ServiceRequestContext ctx,
                                            Repository repository, Revision lastKnownRevision,
-                                           Query<?> query, long timeOutMillis) {
+                                           Query<?> query, long timeOutMillis, boolean errorOnEntryNotFound) {
         final CompletableFuture<? extends Entry<?>> future = watchService.watchFile(
-                repository, lastKnownRevision, query, timeOutMillis);
+                repository, lastKnownRevision, query, timeOutMillis, errorOnEntryNotFound);
 
         if (!future.isDone()) {
             ctx.log().whenComplete().thenRun(() -> future.cancel(false));
@@ -279,9 +293,11 @@ public class ContentServiceV1 extends AbstractService {
 
     private CompletableFuture<?> watchRepository(ServiceRequestContext ctx,
                                                  Repository repository, Revision lastKnownRevision,
-                                                 String pathPattern, long timeOutMillis) {
+                                                 String pathPattern, long timeOutMillis,
+                                                 boolean errorOnEntryNotFound) {
         final CompletableFuture<Revision> future =
-                watchService.watchRepository(repository, lastKnownRevision, pathPattern, timeOutMillis);
+                watchService.watchRepository(repository, lastKnownRevision, pathPattern,
+                                             timeOutMillis, errorOnEntryNotFound);
 
         if (!future.isDone()) {
             ctx.log().whenComplete().thenRun(() -> future.cancel(false));
@@ -387,5 +403,48 @@ public class ContentServiceV1 extends AbstractService {
             @Param @Default("-1") String revision, Repository repository,
             @RequestConverter(MergeQueryRequestConverter.class) MergeQuery<T> query) {
         return repository.mergeFiles(new Revision(revision), query).thenApply(DtoConverter::convert);
+    }
+
+    /**
+     * Checks if the commit is for creating a file and raises a {@link InvalidPushException} if the
+     * given {@code repoName} field is one of {@code meta} and {@code dogma} which are internal repositories.
+     */
+    public static void checkPush(String repoName, Iterable<Change<?>> changes) {
+        if (Project.REPO_META.equals(repoName)) {
+            final boolean hasChangesOtherThanMetaRepoFiles =
+                    Streams.stream(changes).anyMatch(change -> !metaRepoFiles.contains(change.path()));
+            if (hasChangesOtherThanMetaRepoFiles) {
+                throw new InvalidPushException(
+                        "The " + Project.REPO_META + " repository is reserved for internal usage.");
+            }
+
+            final Optional<String> notAllowedLocalRepo =
+                    Streams.stream(changes)
+                           .filter(change -> DefaultMetaRepository.PATH_MIRRORS.equals(change.path()))
+                           .filter(change -> change.content() != null)
+                           .map(change -> {
+                               final Object content = change.content();
+                               if (content instanceof JsonNode) {
+                                   final JsonNode node = (JsonNode) content;
+                                   if (!node.isArray()) {
+                                       return null;
+                                   }
+                                   for (JsonNode jsonNode : node) {
+                                       final JsonNode localRepoNode = jsonNode.get(MIRROR_LOCAL_REPO);
+                                       if (localRepoNode != null) {
+                                           final String localRepo = localRepoNode.textValue();
+                                           if (Project.isReservedRepoName(localRepo)) {
+                                               return localRepo;
+                                           }
+                                       }
+                                   }
+                               }
+                               return null;
+                           }).filter(Objects::nonNull).findFirst();
+            if (notAllowedLocalRepo.isPresent()) {
+                throw new InvalidPushException("invalid " + MIRROR_LOCAL_REPO + ": " +
+                                               notAllowedLocalRepo.get());
+            }
+        }
     }
 }

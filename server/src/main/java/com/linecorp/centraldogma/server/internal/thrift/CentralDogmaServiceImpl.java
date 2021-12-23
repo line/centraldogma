@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.server.internal.thrift;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.common.Author.SYSTEM;
+import static com.linecorp.centraldogma.server.internal.api.ContentServiceV1.checkPush;
 import static com.linecorp.centraldogma.server.internal.thrift.Converter.convert;
 import static com.linecorp.centraldogma.server.storage.project.Project.isReservedRepoName;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
@@ -288,11 +289,18 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
     @Override
     public void push(String projectName, String repositoryName, Revision baseRevision, Author author,
                      String summary, Comment detail, List<Change> changes, AsyncMethodCallback resultHandler) {
-
+        final List<com.linecorp.centraldogma.common.Change<?>> convertedChanges =
+                convert(changes, Converter::convert);
+        try {
+            checkPush(repositoryName, convertedChanges);
+        } catch (Exception e) {
+            resultHandler.onError(e);
+            return;
+        }
         // TODO(trustin): Change Repository.commit() to return a Commit.
         handle(executor.execute(Command.push(convert(author), projectName, repositoryName,
                                              convert(baseRevision), summary, detail.getContent(),
-                                             convert(detail.getMarkup()), convert(changes, Converter::convert)))
+                                             convert(detail.getMarkup()), convertedChanges))
                        .thenCompose(commitResult -> {
                            final com.linecorp.centraldogma.common.Revision newRev = commitResult.revision();
                            return projectManager.get(projectName).repos().get(repositoryName)
@@ -348,7 +356,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Revision> future =
-                watchService.watchRepository(repo, convert(lastKnownRevision), pathPattern, timeoutMillis);
+                watchService.watchRepository(repo, convert(lastKnownRevision), pathPattern, timeoutMillis,
+                                             false);
         handleWatchRepositoryResult(future, resultHandler);
     }
 
@@ -383,7 +392,8 @@ public class CentralDogmaServiceImpl implements CentralDogmaService.AsyncIface {
 
         final Repository repo = projectManager.get(projectName).repos().get(repositoryName);
         final CompletableFuture<com.linecorp.centraldogma.common.Entry<Object>> future =
-                watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis);
+                watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis,
+                                       false);
 
         handleWatchFileResult(future, resultHandler);
     }

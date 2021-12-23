@@ -20,6 +20,18 @@ Known issues
 
 Previously known issues
 -----------------------
+- Privilege Escalation was found in Central Dogma.
+  An attacker could exploit this using mirroring to the internal `dogma` repository that has a file managing
+  the authorization of the project. The file could be overwritten by the mirror, resulting to
+  Privilege Escalation.
+
+  - This issue affects: Central Dogma artifacts from 0.17.0 to 0.51.1.
+  - The impact: Attacker is able to have admin of a project using mirroring.
+  - The component: Mirroring feature
+  - The attack vector: The project of the Victim must give write permission to Guest role.
+  - The fixed version: 0.52.0 and later.
+  - Please check `CVE-2021-38388 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-38388>`_ to get more information.
+
 - DOM based, Cross-site Scripting (XSS) was found in Central Dogma.
   An attacker could exploit this by convincing an authenticated user to visit a specifically crafted URL on a CentralDogma server,
   allowing for the execution of arbitrary scripts on the client-side browser, resulting to perform unauthorized actions.
@@ -30,5 +42,6 @@ Previously known issues
   - The attack vector: Victim must open a specifically crafted URL.
   - The fixed version: 0.41.0 and later.
   - Please check `CVE-2019-6002 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-6002>`_ to get more information.
-  - If you found security bugs, please let us know  `dl_oss_dev@linecorp.com <mailto:dl_oss_dev@linecorp.com>`_ or
-    send `Slack DM <https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ>`_ to maintainer.
+
+- If you found security bugs, please let us know  `dl_oss_dev@linecorp.com <mailto:dl_oss_dev@linecorp.com>`_ or
+  send `Slack DM <https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ>`_ to maintainer.

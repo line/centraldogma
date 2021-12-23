@@ -18,7 +18,7 @@ package com.linecorp.centraldogma.server.internal.replication;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJ;
+import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
 import static java.util.Objects.requireNonNull;
 
 import java.io.BufferedReader;
@@ -713,9 +713,9 @@ public final class ZooKeeperCommandExecutor
             return;
         }
 
+        long nextRevision = info.lastReplayedRevision + 1;
         try {
             for (;;) {
-                final long nextRevision = info.lastReplayedRevision + 1;
                 final Optional<ReplicationLog<?>> log = loadLog(nextRevision, true);
                 if (log.isPresent()) {
                     final ReplicationLog<?> l = log.get();
@@ -725,7 +725,7 @@ public final class ZooKeeperCommandExecutor
 
                     if (!Objects.equals(expectedResult, actualResult)) {
                         throw new ReplicationException(
-                                "mismatching replay result at revision " + info.lastReplayedRevision +
+                                "mismatching replay result at revision " + nextRevision +
                                 ": " + actualResult + " (expected: " + expectedResult +
                                 ", command: " + command + ')');
                     }
@@ -736,22 +736,22 @@ public final class ZooKeeperCommandExecutor
                     // same replicaId. skip
                 }
 
-                info.lastReplayedRevision = nextRevision;
                 updateLastReplayedRevision(nextRevision);
+                info.lastReplayedRevision = nextRevision;
                 if (nextRevision == targetRevision) {
                     break;
+                } else {
+                    nextRevision++;
                 }
             }
         } catch (Throwable t) {
-            logger.error("Failed to replay a log at revision {}; entering read-only mode",
-                         info.lastReplayedRevision, t);
+            logger.error("Failed to replay a log at revision {}; entering read-only mode", nextRevision, t);
             stopLater();
 
             if (t instanceof ReplicationException) {
                 throw (ReplicationException) t;
             }
-            throw new ReplicationException("failed to replay a log at revision " +
-                                           info.lastReplayedRevision, t);
+            throw new ReplicationException("failed to replay a log at revision " + nextRevision, t);
         }
     }
 
@@ -824,7 +824,7 @@ public final class ZooKeeperCommandExecutor
 
     @Nullable
     private WriteLock acquireWriteLock(NormalizingPushCommand command) throws Exception {
-        if (command.projectName().equals(INTERNAL_PROJ) ||
+        if (command.projectName().equals(INTERNAL_PROJECT_DOGMA) ||
             command.repositoryName().equals(Project.REPO_DOGMA)) {
             // Do not check quota for internal project and repository.
             return null;

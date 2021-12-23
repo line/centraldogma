@@ -50,7 +50,11 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
         "localRepo": "foo",
         "localPath": "/",
         "remoteUri": "git+ssh://git.example.com/foo.git/settings#release",
-        "credentialId": "my_private_key"
+        "credentialId": "my_private_key",
+        "gitignore": [
+            "/credential.txt",
+            "private_dir"
+        ]
       }
     ]
 
@@ -103,6 +107,13 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
   - the ID of the credential to use for authentication, as defined in ``/credentials.json``. If unspecified,
     the credential whose ``hostnamePattern`` is matched by the host name part of the ``remoteUri`` value will
     be selected automatically.
+
+- ``gitignore`` (string or array of strings, optional)
+
+  - a `gitignore <https://git-scm.com/docs/gitignore>` specifies files that should be excluded from mirroring.
+    The type of gitignore can either be a string containing the entire file (e.g. ``/filename.txt\ndirectory``) or an array 
+    of strings where each line represents a single pattern. The file pattern expressed in gitignore is relative to the
+    path of ``remoteUri``.
 
 ``/credentials.json`` contains the authentication credentials which are required when accessing the Git
 repositories defined in ``/mirrors.json``:

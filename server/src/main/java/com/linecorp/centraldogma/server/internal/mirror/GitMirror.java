@@ -19,17 +19,23 @@ package com.linecorp.centraldogma.server.internal.mirror;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
+import org.eclipse.jgit.ignore.IgnoreNode;
+import org.eclipse.jgit.ignore.IgnoreNode.MatchResult;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
@@ -73,10 +79,24 @@ public final class GitMirror extends AbstractMirror {
 
     private static final int GIT_TIMEOUT_SECS = 10;
 
+    @Nullable
+    private IgnoreNode ignoreNode;
+
     public GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath,
-                     URI remoteRepoUri, String remotePath, String remoteBranch) {
-        super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch);
+                     URI remoteRepoUri, String remotePath, String remoteBranch,
+                     @Nullable String gitignore) {
+        super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
+              gitignore);
+
+        if (gitignore != null) {
+            ignoreNode = new IgnoreNode();
+            try {
+                ignoreNode.parse(new ByteArrayInputStream(gitignore.getBytes()));
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Failed to read gitignore: " + gitignore, e);
+            }
+        }
     }
 
     @Override
@@ -148,15 +168,28 @@ public final class GitMirror extends AbstractMirror {
                     final FileMode fileMode = treeWalk.getFileMode();
                     final String path = '/' + treeWalk.getPathString();
 
+                    if (ignoreNode != null &&
+                        path.startsWith(remotePath()) &&
+                        ignoreNode.isIgnored('/' + path.substring(remotePath().length()),
+                                             fileMode == FileMode.TREE) == MatchResult.IGNORED) {
+                        continue;
+                    }
+
                     // Recurse into a directory if necessary.
                     if (fileMode == FileMode.TREE) {
                         // Enter if the directory is under remotePath.
+                        // e.g.
+                        // path == /foo/bar
+                        // remotePath == /foo/
                         if (path.startsWith(remotePath())) {
                             treeWalk.enterSubtree();
                             continue;
                         }
 
                         // Enter if the directory is equal to remotePath.
+                        // e.g.
+                        // path == /foo
+                        // remotePath == /foo/
                         final int pathLen = path.length() + 1; // Include the trailing '/'.
                         if (pathLen == remotePath().length() && remotePath().startsWith(path)) {
                             treeWalk.enterSubtree();
@@ -164,6 +197,9 @@ public final class GitMirror extends AbstractMirror {
                         }
 
                         // Enter if the directory is parent of remotePath.
+                        // e.g.
+                        // path == /foo
+                        // remotePath == /foo/bar/
                         if (pathLen < remotePath().length() && remotePath().startsWith(path + '/')) {
                             treeWalk.enterSubtree();
                             continue;

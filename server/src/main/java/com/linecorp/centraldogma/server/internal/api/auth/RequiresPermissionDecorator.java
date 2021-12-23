@@ -39,6 +39,7 @@ import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
 import com.linecorp.centraldogma.server.metadata.Permission;
+import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.server.storage.project.Project;
 
@@ -49,7 +50,7 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
 
     private final Permission requiredPermission;
 
-    public RequiresPermissionDecorator(HttpService delegate, Permission requiredPermission) {
+    RequiresPermissionDecorator(HttpService delegate, Permission requiredPermission) {
         super(delegate);
         this.requiredPermission = requireNonNull(requiredPermission, "requiredPermission");
     }
@@ -64,8 +65,8 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
         final String repoName = ctx.pathParam("repoName");
         checkArgument(!isNullOrEmpty(repoName), "no repository name is specified");
 
-        if (Project.REPO_DOGMA.equals(repoName)) {
-            return serveInternalRepo(ctx, req, mds, user, projectName);
+        if (Project.isReservedRepoName(repoName)) {
+            return serveInternalRepo(ctx, req, mds, user, projectName, repoName);
         } else {
             return serveUserRepo(ctx, req, mds, user, projectName, repoName);
         }
@@ -73,22 +74,21 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
 
     private HttpResponse serveInternalRepo(ServiceRequestContext ctx, HttpRequest req,
                                            MetadataService mds, User user,
-                                           String projectName) throws Exception {
+                                           String projectName, String repoName) throws Exception {
         if (user.isAdmin()) {
             return unwrap().serve(ctx, req);
         }
-        // We do not manage permission for the internal repository. Actually we do not have a metadata of that.
-        // So we need to check whether the current user is an 'administrator' or not when the request is
-        // accessing to the internal repository.
+        if (Project.REPO_DOGMA.equals(repoName)) {
+            return throwForbiddenResponse(ctx, projectName, repoName, "administrator");
+        }
+        assert Project.REPO_META.equals(repoName);
+
         return HttpResponse.from(mds.findRole(projectName, user).handle((role, cause) -> {
             if (cause != null) {
                 return handleException(ctx, cause);
             }
-            if (!user.isAdmin()) {
-                return HttpApiUtil.throwResponse(
-                        ctx, HttpStatus.FORBIDDEN,
-                        "Repository '%s/%s' can be accessed only by an administrator.",
-                        projectName, Project.REPO_DOGMA);
+            if (role != ProjectRole.OWNER) {
+                return throwForbiddenResponse(ctx, projectName, repoName, "owner");
             }
             try {
                 return unwrap().serve(ctx, req);
@@ -96,6 +96,13 @@ public final class RequiresPermissionDecorator extends SimpleDecoratingHttpServi
                 return Exceptions.throwUnsafely(e);
             }
         }));
+    }
+
+    private static HttpResponse throwForbiddenResponse(ServiceRequestContext ctx, String projectName,
+                                                       String repoName, String adminOrOwner) {
+        return HttpApiUtil.throwResponse(ctx, HttpStatus.FORBIDDEN,
+                                         "Repository '%s/%s' can be accessed only by an %s.",
+                                         projectName, repoName, adminOrOwner);
     }
 
     private HttpResponse serveUserRepo(ServiceRequestContext ctx, HttpRequest req,
