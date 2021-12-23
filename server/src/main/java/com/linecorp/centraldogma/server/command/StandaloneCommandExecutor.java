@@ -170,6 +170,10 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
             return (CompletableFuture<T>) purgeRepository((PurgeRepositoryCommand) command);
         }
 
+        if (command instanceof CreateRollingRepositoryCommand) {
+            return (CompletableFuture<T>) createRollingRepository((CreateRollingRepositoryCommand) command);
+        }
+
         if (command instanceof NormalizingPushCommand) {
             return (CompletableFuture<T>) push((NormalizingPushCommand) command, true);
         }
@@ -249,6 +253,13 @@ public class StandaloneCommandExecutor extends AbstractCommandExecutor {
     private CompletableFuture<Void> purgeRepository(PurgeRepositoryCommand c) {
         return CompletableFuture.supplyAsync(() -> {
             projectManager.get(c.projectName()).repos().markForPurge(c.repositoryName());
+            return null;
+        }, repositoryWorker);
+    }
+
+    private CompletableFuture<Void> createRollingRepository(CreateRollingRepositoryCommand c) {
+        return CompletableFuture.supplyAsync(() -> {
+            repo(c).createRollingRepository(c.initialRevision(), c.minRetentionCommits(), c.minRetentionDays());
             return null;
         }, repositoryWorker);
     }

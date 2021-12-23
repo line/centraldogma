@@ -92,6 +92,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Author;
@@ -307,14 +308,6 @@ final class InternalRepository {
         this.repoDir = repoDir;
         this.jGitRepository = jGitRepository;
         this.commitIdDatabase = commitIdDatabase;
-    }
-
-    Project project() {
-        return project;
-    }
-
-    String originalRepoName() {
-        return originalRepoName;
     }
 
     File repoDir() {
@@ -1143,6 +1136,17 @@ final class InternalRepository {
             logger.warn("Failed to close a commitId database:", t);
         }
         closeJGitRepo(jGitRepository);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("project", project)
+                          .add("originalRepoName", originalRepoName)
+                          .add("repoDir", repoDir)
+                          .add("commitIdDatabase", commitIdDatabase)
+                          .add("jGitRepository", jGitRepository)
+                          .toString();
     }
 
     static final class RevisionAndEntries {

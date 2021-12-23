@@ -34,8 +34,10 @@ import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.CommitRetentionConfig;
+import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
@@ -58,7 +60,7 @@ public final class CommitRetentionManagementPlugin implements Plugin {
 
     @Override
     public PluginTarget target() {
-        return PluginTarget.ALL_REPLICAS;
+        return PluginTarget.LEADER_ONLY;
     }
 
     @Override
@@ -111,7 +113,14 @@ public final class CommitRetentionManagementPlugin implements Plugin {
         final ProjectManager pm = context.projectManager();
         for (Project project : pm.list().values()) {
             for (Repository repo : project.repos().list().values()) {
-                repo.removeOldCommits(config.minRetentionCommits(), config.minRetentionDays());
+                final Revision revision = repo.shouldCreateRollingRepository(config.minRetentionCommits(),
+                                                                             config.minRetentionDays());
+                if (revision != null) {
+                    context.commandExecutor().execute(
+                            Command.createRollingRepository(project.name(), repo.name(), revision,
+                                                            config.minRetentionCommits(),
+                                                            config.minRetentionDays()));
+                }
             }
         }
 

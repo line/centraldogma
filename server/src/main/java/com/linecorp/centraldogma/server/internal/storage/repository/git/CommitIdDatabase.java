@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
@@ -326,5 +327,14 @@ final class CommitIdDatabase implements AutoCloseable {
         } catch (IOException e) {
             logger.warn("Failed to close the commit ID database: {}", path, e);
         }
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("path", path)
+                          .add("headRevision", headRevision)
+                          .add("firstRevision", firstRevision)
+                          .toString();
     }
 }

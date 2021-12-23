@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -526,4 +528,9 @@ public interface Repository {
      * number of {@code minRetentionCommits}.
      */
     void removeOldCommits(int minRetentionCommits, int minRetentionDays);
+
+    @Nullable
+    Revision shouldCreateRollingRepository(int minRetentionCommits, int minRetentionDays);
+
+    void createRollingRepository(Revision initialRevision, int minRetentionCommits, int minRetentionDays);
 }

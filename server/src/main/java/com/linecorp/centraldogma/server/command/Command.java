@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.command;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
@@ -48,6 +49,7 @@ import com.linecorp.centraldogma.server.storage.repository.Repository;
         @Type(value = RemoveRepositoryCommand.class, name = "REMOVE_REPOSITORY"),
         @Type(value = PurgeRepositoryCommand.class, name = "PURGE_REPOSITORY"),
         @Type(value = UnremoveRepositoryCommand.class, name = "UNREMOVE_REPOSITORY"),
+        @Type(value = CreateRollingRepositoryCommand.class, name = "CREATE_ROLLING_REPOSITORY"),
         @Type(value = NormalizingPushCommand.class, name = "NORMALIZING_PUSH"),
         @Type(value = PushAsIsCommand.class, name = "PUSH"),
         @Type(value = CreateSessionCommand.class, name = "CREATE_SESSIONS"),
@@ -244,6 +246,28 @@ public interface Command<T> {
                                          String projectName, String repositoryName) {
         requireNonNull(author, "author");
         return new PurgeRepositoryCommand(timestamp, author, projectName, repositoryName);
+    }
+
+    /**
+     * Returns a new {@link Command} which is used to create a rolling repository.
+     *
+     * @param projectName the name of the project
+     * @param repositoryName the name of the repository which is supposed to be purged
+     * @param initialRevision the initial {@link Revision} of the rolling repository
+     * @param minRetentionCommits the configured number of recent commits that a repository should retain
+     * @param minRetentionDays the configured number of days for recent commits that a repository should retain
+     */
+    static Command<Void> createRollingRepository(
+            String projectName, String repositoryName, Revision initialRevision,
+            int minRetentionCommits, int minRetentionDays) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        requireNonNull(initialRevision, "initialRevision");
+        checkArgument(minRetentionCommits > 0, "minRetentionCommits: %s (expected: > 0)",
+                      minRetentionCommits);
+        checkArgument(minRetentionDays > 0, "minRetentionDays: %s (expected: > 0)", minRetentionDays);
+        return new CreateRollingRepositoryCommand(projectName, repositoryName, initialRevision,
+                                                  minRetentionCommits, minRetentionDays);
     }
 
     /**
