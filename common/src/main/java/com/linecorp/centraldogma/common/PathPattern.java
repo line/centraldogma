@@ -67,7 +67,7 @@ public interface PathPattern {
     String get();
 
     /**
-     * Returns the encoded {@link #get()}.
+     * Returns the encoded {@link #get()} which just encodes a space to '%20'.
      */
     String encoded();
 }

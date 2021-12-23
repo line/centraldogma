@@ -287,7 +287,7 @@ public interface CentralDogma {
      * {@link #getDiff(String, String, Revision, Revision, PathPattern)} to retrieve the diffs.
      *
      * @return a {@link List} that contains the {@link Commit}s of the files matched by the given
-     *         {@code pathPattern} in the specified repository
+     *         {@link PathPattern} in the specified repository
      *
      * @deprecated Use {@link #getHistory(String, String, Revision, Revision, PathPattern)}.
      */
@@ -306,7 +306,7 @@ public interface CentralDogma {
      * {@link #getDiff(String, String, Revision, Revision, PathPattern)} to retrieve the diffs.
      *
      * @return a {@link List} that contains the {@link Commit}s of the files matched by the given
-     *         {@code pathPattern} in the specified repository
+     *         {@link PathPattern} in the specified repository
      */
     CompletableFuture<List<Commit>> getHistory(
             String projectName, String repositoryName, Revision from, Revision to, PathPattern pathPattern);
@@ -345,7 +345,7 @@ public interface CentralDogma {
      * Retrieves the diffs of the files matched by the given {@link PathPattern} between two {@link Revision}s.
      *
      * @return a {@link List} of the {@link Change}s that contain the diffs between the files matched by the
-     *         given {@code pathPattern} between two revisions.
+     *         given {@link PathPattern} between two revisions.
      */
     CompletableFuture<List<Change<?>>> getDiff(String projectName, String repositoryName,
                                                Revision from, Revision to, PathPattern pathPattern);
@@ -354,7 +354,7 @@ public interface CentralDogma {
      * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
      *
      * @return a {@link List} of the {@link Change}s that contain the diffs between the files matched by the
-     *         given {@code pathPattern} between two revisions.
+     *         given {@link PathPattern} between two revisions.
      *
      * @deprecated Use {@link #getDiff(String, String, Revision, Revision, PathPattern)}.
      */
@@ -450,7 +450,8 @@ public interface CentralDogma {
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
-     * @deprecated ....
+     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     *             {@link CentralDogmaRepository#commit(String, Change...)}.
      */
     @Deprecated
     default CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
@@ -542,7 +543,7 @@ public interface CentralDogma {
     }
 
     /**
-     * Waits for the files matched by the specified {@code pathPattern} to be changed since the specified
+     * Waits for the files matched by the specified {@link PathPattern} to be changed since the specified
      * {@code lastKnownRevision}.  If no changes were made within the specified {@code timeoutMillis}, the
      * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify
      * the largest {@code timeoutMillis} allowed by the server.

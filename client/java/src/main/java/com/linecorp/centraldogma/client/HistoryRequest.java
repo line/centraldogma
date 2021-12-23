@@ -44,13 +44,13 @@ public final class HistoryRequest {
      * <p>Note that this method does not retrieve the diffs but only metadata about the changes.
      *
      * @return a {@link List} that contains the {@link Commit}s of the files matched by the given
-     *         {@code pathPattern} in the specified repository
+     *         {@link PathPattern} in the specified repository
      */
     public CompletableFuture<List<Commit>> get(Revision from, Revision to) {
         requireNonNull(from, "from");
         requireNonNull(to, "to");
         return centralDogmaRepo.centralDogma().getHistory(centralDogmaRepo.projectName(),
-                                                            centralDogmaRepo.repositoryName(),
-                                                            from, to, pathPattern);
+                                                          centralDogmaRepo.repositoryName(),
+                                                          from, to, pathPattern);
     }
 }

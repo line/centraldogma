@@ -40,11 +40,11 @@ public final class DiffFilesRequest {
      * Retrieves the diffs of the files matched by the given path pattern between two {@link Revision}s.
      *
      * @return a {@link List} of the {@link Change}s that contain the diffs between the files matched by the
-     *         given {@code pathPattern} between two revisions.
+     *         given {@link PathPattern} between two revisions.
      */
     public CompletableFuture<List<Change<?>>> get(Revision from, Revision to) {
         return centralDogmaRepo.centralDogma().getDiff(centralDogmaRepo.projectName(),
-                                                         centralDogmaRepo.repositoryName(),
-                                                         from, to, pathPattern);
+                                                       centralDogmaRepo.repositoryName(),
+                                                       from, to, pathPattern);
     }
 }

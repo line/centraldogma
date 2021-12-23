@@ -34,6 +34,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 
 import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
@@ -203,7 +204,7 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Stops watching the file specified in the {@link Query} or the {@code pathPattern} in the repository.
+     * Stops watching the file specified in the {@link Query} or the {@link PathPattern} in the repository.
      */
     @Override
     void close();

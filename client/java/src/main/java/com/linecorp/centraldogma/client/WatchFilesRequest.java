@@ -58,7 +58,7 @@ public final class WatchFilesRequest extends WatchOptions {
     }
 
     /**
-     * Waits for the files matched by the {@code pathPattern} to be changed since the specified
+     * Waits for the files matched by the {@link PathPattern} to be changed since the specified
      * {@code lastKnownRevision}. If no changes were made within the {@link #timeoutMillis(long)}, the
      * returned {@link CompletableFuture} will be completed with {@code null}.
      *

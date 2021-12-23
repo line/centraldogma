@@ -76,4 +76,17 @@ class MappingWatcherTest {
         assertThat(mapperCounter.get()).isEqualTo(2);
         watcher.close();
     }
+
+    @Test
+    void multipleMap() throws Exception {
+        final Watcher<Boolean> watcher = dogma.client()
+                                              .forRepo("foo", "bar")
+                                              .watch(Query.ofText("/baz.txt"))
+                                              .forever()
+                                              .map(txt -> 1)
+                                              .map(intValue -> true);
+
+        assertThat(watcher.initialValueFuture().join().value()).isTrue();
+        watcher.close();
+    }
 }

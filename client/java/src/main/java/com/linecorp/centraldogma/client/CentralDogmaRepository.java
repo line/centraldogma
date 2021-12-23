@@ -206,7 +206,7 @@ public final class CentralDogmaRepository {
      */
     public CentralDogmaCommitRequest commit(String summary, Change<?>... changes) {
         requireNonNull(changes, "changes");
-        return new CentralDogmaCommitRequest(this, summary, ImmutableList.copyOf(changes));
+        return commit(summary, ImmutableList.copyOf(changes));
     }
 
     /**
@@ -215,6 +215,7 @@ public final class CentralDogmaRepository {
      * Central Dogma repository.
      */
     public CentralDogmaCommitRequest commit(String summary, Iterable<? extends Change<?>> changes) {
+        requireNonNull(summary, "summary");
         requireNonNull(changes, "changes");
         return new CentralDogmaCommitRequest(this, summary, changes);
     }

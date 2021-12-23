@@ -48,8 +48,8 @@ public final class FilesRequest {
     public CompletableFuture<Map<String, EntryType>> list(Revision revision) {
         requireNonNull(revision, "revision");
         return centralDogmaRepo.centralDogma().listFiles(centralDogmaRepo.projectName(),
-                                                           centralDogmaRepo.repositoryName(),
-                                                           revision, pathPattern);
+                                                         centralDogmaRepo.repositoryName(),
+                                                         revision, pathPattern);
     }
 
     /**
@@ -60,7 +60,7 @@ public final class FilesRequest {
     public CompletableFuture<Map<String, Entry<?>>> get(Revision revision) {
         requireNonNull(revision, "revision");
         return centralDogmaRepo.centralDogma().getFiles(centralDogmaRepo.projectName(),
-                                                          centralDogmaRepo.repositoryName(),
-                                                          revision, pathPattern);
+                                                        centralDogmaRepo.repositoryName(),
+                                                        revision, pathPattern);
     }
 }

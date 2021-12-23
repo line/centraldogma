@@ -16,7 +16,7 @@
 package com.linecorp.centraldogma.client;
 
 /**
- * Options used for {@link Watcher}.
+ * Options used for a {@link Watcher}.
  */
 public final class WatcherOptions {
 

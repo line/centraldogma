@@ -113,7 +113,7 @@ final class DefaultWatcher<T> implements Watcher<T> {
     }
 
     /**
-     * Starts to watch the file specified in the {@link Query} or the {@code pathPattern}
+     * Starts to watch the file specified in the {@link Query} or the {@link PathPattern}
      * given with the constructor.
      */
     void start() {

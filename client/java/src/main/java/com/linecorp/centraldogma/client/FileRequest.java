@@ -45,7 +45,7 @@ public final class FileRequest<T> {
     public CompletableFuture<Entry<T>> get(Revision revision) {
         requireNonNull(revision, "revision");
         return centralDogmaRepo.centralDogma().getFile(centralDogmaRepo.projectName(),
-                                                         centralDogmaRepo.repositoryName(),
-                                                         revision, query);
+                                                       centralDogmaRepo.repositoryName(),
+                                                       revision, query);
     }
 }

@@ -47,7 +47,7 @@ public final class DiffRequest<T> {
         requireNonNull(from, "from");
         requireNonNull(to, "to");
         return centralDogmaRepo.centralDogma().getDiff(centralDogmaRepo.projectName(),
-                                                         centralDogmaRepo.repositoryName(),
-                                                         from, to, query);
+                                                       centralDogmaRepo.repositoryName(),
+                                                       from, to, query);
     }
 }

@@ -48,7 +48,7 @@ public final class PreviewDiffRequest {
     public CompletableFuture<List<Change<?>>> get(Revision baseRevision) {
         requireNonNull(baseRevision, "baseRevision");
         return centralDogmaRepo.centralDogma().getPreviewDiffs(centralDogmaRepo.projectName(),
-                                                                 centralDogmaRepo.repositoryName(),
-                                                                 baseRevision, changes);
+                                                               centralDogmaRepo.repositoryName(),
+                                                               baseRevision, changes);
     }
 }

@@ -53,7 +53,7 @@ public final class MergeRequest<T> {
     public CompletableFuture<MergedEntry<T>> get(Revision revision) {
         requireNonNull(revision, "revision");
         return centralDogmaRepo.centralDogma().mergeFiles(centralDogmaRepo.projectName(),
-                                                            centralDogmaRepo.repositoryName(),
-                                                            revision, mergeQuery);
+                                                          centralDogmaRepo.repositoryName(),
+                                                          revision, mergeQuery);
     }
 }
