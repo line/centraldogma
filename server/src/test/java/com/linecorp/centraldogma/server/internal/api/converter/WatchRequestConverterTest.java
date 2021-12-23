@@ -81,7 +81,7 @@ class WatchRequestConverterTest {
         final String eighthRevision = converter.extractRevision(eighthIfNoneMatch);
         assertThat(eighthRevision).isEqualTo(eighthIfNoneMatch);
     }
-    
+
     @Test
     void emptyHeader() throws Exception {
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/");
