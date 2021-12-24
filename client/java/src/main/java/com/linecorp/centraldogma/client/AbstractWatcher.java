@@ -34,7 +34,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
@@ -45,14 +44,15 @@ import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 
-final class DefaultWatcher<T> implements Watcher<T> {
+abstract class AbstractWatcher<T> implements Watcher<T> {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultWatcher.class);
+    private static final Logger logger = LoggerFactory.getLogger(AbstractWatcher.class);
 
     private enum State {
         INIT,
@@ -64,9 +64,12 @@ final class DefaultWatcher<T> implements Watcher<T> {
     private final String projectName;
     private final String repositoryName;
     private final String pathPattern;
-    private final Function<Revision, CompletableFuture<Latest<T>>> watchFunction;
     private final boolean errorOnEntryNotFound;
-    private final WatcherOptions watcherOptions;
+    private final long delayOnSuccessMillis;
+    private final long initialDelayMillis;
+    private final long maxDelayMillis;
+    private final double multiplier;
+    private final double jitterRate;
 
     private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners =
             new CopyOnWriteArrayList<>();
@@ -80,17 +83,19 @@ final class DefaultWatcher<T> implements Watcher<T> {
     @Nullable
     private volatile CompletableFuture<?> currentWatchFuture;
 
-    DefaultWatcher(ScheduledExecutorService watchScheduler,
-                   String projectName, String repositoryName, String pathPattern,
-                   Function<Revision, CompletableFuture<Latest<T>>> watchFunction,
-                   boolean errorOnEntryNotFound, WatcherOptions watcherOptions) {
-        this.watchScheduler = requireNonNull(watchScheduler, "watchScheduler");
-        this.projectName = requireNonNull(projectName, "projectName");
-        this.repositoryName = requireNonNull(repositoryName, "repositoryName");
-        this.pathPattern = requireNonNull(pathPattern, "pathPattern");
-        this.watchFunction = requireNonNull(watchFunction, "watchFunction");
+    AbstractWatcher(ScheduledExecutorService watchScheduler, String projectName, String repositoryName,
+                    String pathPattern, boolean errorOnEntryNotFound, long delayOnSuccessMillis,
+                    long initialDelayMillis, long maxDelayMillis, double multiplier, double jitterRate) {
+        this.watchScheduler = watchScheduler;
+        this.projectName = projectName;
+        this.repositoryName = repositoryName;
+        this.pathPattern = pathPattern;
         this.errorOnEntryNotFound = errorOnEntryNotFound;
-        this.watcherOptions = requireNonNull(watcherOptions, "watcherOptions");
+        this.delayOnSuccessMillis = delayOnSuccessMillis;
+        this.initialDelayMillis = initialDelayMillis;
+        this.maxDelayMillis = maxDelayMillis;
+        this.multiplier = multiplier;
+        this.jitterRate = jitterRate;
     }
 
     @Override
@@ -175,7 +180,7 @@ final class DefaultWatcher<T> implements Watcher<T> {
 
         final long delay;
         if (numAttemptsSoFar == 0) {
-            delay = latest != null ? watcherOptions.delayOnSuccessMillis() : 0;
+            delay = latest != null ? delayOnSuccessMillis : 0;
         } else {
             delay = nextDelayMillis(numAttemptsSoFar);
         }
@@ -189,16 +194,15 @@ final class DefaultWatcher<T> implements Watcher<T> {
     private long nextDelayMillis(int numAttemptsSoFar) {
         final long nextDelayMillis;
         if (numAttemptsSoFar == 1) {
-            nextDelayMillis = watcherOptions.initialDelayMillis();
+            nextDelayMillis = initialDelayMillis;
         } else {
             nextDelayMillis =
-                    Math.min(saturatedMultiply(watcherOptions.initialDelayMillis(),
-                                               Math.pow(watcherOptions.multiplier(), numAttemptsSoFar - 1)),
-                             watcherOptions.maxDelayMillis());
+                    Math.min(saturatedMultiply(initialDelayMillis, Math.pow(multiplier, numAttemptsSoFar - 1)),
+                             maxDelayMillis);
         }
 
-        final long minJitter = (long) (nextDelayMillis * (1 - watcherOptions.jitterRate()));
-        final long maxJitter = (long) (nextDelayMillis * (1 + watcherOptions.jitterRate()));
+        final long minJitter = (long) (nextDelayMillis * (1 - jitterRate));
+        final long maxJitter = (long) (nextDelayMillis * (1 + jitterRate));
         final long bound = maxJitter - minJitter + 1;
         final long millis = random(bound);
         return Math.max(0, saturatedAdd(minJitter, millis));
@@ -234,16 +238,16 @@ final class DefaultWatcher<T> implements Watcher<T> {
 
         final Latest<T> latest = this.latest;
         final Revision lastKnownRevision = latest != null ? latest.revision() : Revision.INIT;
-        final CompletableFuture<Latest<T>> f = watchFunction.apply(lastKnownRevision);
+        final CompletableFuture<Latest<T>> f = doWatch(lastKnownRevision);
 
         currentWatchFuture = f;
-        f.whenComplete((result, cause) -> currentWatchFuture = null)
-         .thenAccept(newLatest -> {
+        f.thenAccept(newLatest -> {
+             currentWatchFuture = null;
              if (newLatest != null) {
                  this.latest = newLatest;
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
-                 notifyListeners();
+                 notifyListeners(newLatest);
                  if (!initialValueFuture.isDone()) {
                      initialValueFuture.complete(newLatest);
                  }
@@ -253,6 +257,7 @@ final class DefaultWatcher<T> implements Watcher<T> {
              scheduleWatch(0);
          })
          .exceptionally(thrown -> {
+             currentWatchFuture = null;
              try {
                  final Throwable cause = thrown instanceof CompletionException ? thrown.getCause() : thrown;
                  boolean logged = false;
@@ -294,14 +299,14 @@ final class DefaultWatcher<T> implements Watcher<T> {
          });
     }
 
-    private void notifyListeners() {
+    abstract CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision);
+
+    private void notifyListeners(Latest<T> latest) {
         if (isStopped()) {
             // Do not notify after stopped.
             return;
         }
 
-        final Latest<T> latest = this.latest;
-        assert latest != null;
         for (Map.Entry<BiConsumer<? super Revision, ? super T>, Executor> entry : updateListeners) {
             final BiConsumer<? super Revision, ? super T> listener = entry.getKey();
             final Executor executor = entry.getValue();

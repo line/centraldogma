@@ -159,9 +159,11 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     @Override
     public <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
                                          Function<? super T, ? extends U> function, Executor executor) {
-        return forRepo(projectName, repositoryName).watch(query)
-                                                   .forever()
-                                                   .map(function, executor);
+        //noinspection unchecked
+        return (Watcher<U>) forRepo(projectName, repositoryName).watcher(query)
+                                                                .map(function)
+                                                                .mapperExecutor(executor)
+                                                                .start();
     }
 
     @Override
@@ -174,9 +176,11 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     @Override
     public <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                             Function<Revision, ? extends T> function, Executor executor) {
-        return forRepo(projectName, repositoryName).watch(toPathPattern(pathPattern))
-                                                   .forever()
-                                                   .map(function, executor);
+        //noinspection unchecked
+        return (Watcher<T>) forRepo(projectName, repositoryName).watcher(toPathPattern(pathPattern))
+                                                                .map(function)
+                                                                .mapperExecutor(executor)
+                                                                .start();
     }
 
     /**

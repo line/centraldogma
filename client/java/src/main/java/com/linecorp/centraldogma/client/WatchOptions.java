@@ -25,17 +25,15 @@ import com.linecorp.centraldogma.common.EntryNotFoundException;
 /**
  * Options for a watch request.
  */
-public abstract class WatchOptions {
+abstract class WatchOptions {
 
     private long timeoutMillis = WatchConstants.DEFAULT_WATCH_TIMEOUT_MILLIS;
     private boolean errorOnEntryNotFound = WatchConstants.DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND;
 
-    WatchOptions() {}
-
     /**
      * Sets the timeout for a watch request.
      */
-    public WatchOptions timeout(Duration timeout) {
+    WatchOptions timeout(Duration timeout) {
         requireNonNull(timeout, "timeout");
         checkArgument(!timeout.isZero() && !timeout.isNegative(), "timeout: %s (expected: > 0)", timeout);
         return timeoutMillis(timeout.toMillis());
@@ -44,7 +42,7 @@ public abstract class WatchOptions {
     /**
      * Sets the timeout for a watch request in milliseconds.
      */
-    public WatchOptions timeoutMillis(long timeoutMillis) {
+    WatchOptions timeoutMillis(long timeoutMillis) {
         checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
         this.timeoutMillis = timeoutMillis;
         return this;

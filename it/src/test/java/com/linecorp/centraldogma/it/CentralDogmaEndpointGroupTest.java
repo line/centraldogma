@@ -89,8 +89,8 @@ class CentralDogmaEndpointGroupTest {
     @Test
     void json() throws Exception {
         try (Watcher<JsonNode> watcher = dogma.client().forRepo("directory", "my-service")
-                                              .watch(Query.ofJson("/endpoint.json"))
-                                              .forever()) {
+                                              .watcher(Query.ofJson("/endpoint.json"))
+                                              .start()) {
             final CentralDogmaEndpointGroup<JsonNode> endpointGroup = CentralDogmaEndpointGroup.builder(
                     watcher, EndpointListDecoder.JSON).build();
             endpointGroup.whenReady().get();
@@ -103,12 +103,12 @@ class CentralDogmaEndpointGroupTest {
         final AtomicInteger counter = new AtomicInteger();
         try (Watcher<String> watcher = dogma.client()
                                             .forRepo("directory", "my-service")
-                                            .watch(Query.ofText("/endpoints.txt"))
-                                            .forever()
+                                            .watcher(Query.ofText("/endpoints.txt"))
                                             .map(entry -> {
                                                 counter.incrementAndGet();
                                                 return entry;
-                                            })) {
+                                            })
+                                            .start()) {
             final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);
             endpointGroup.whenReady().get();
@@ -132,12 +132,12 @@ class CentralDogmaEndpointGroupTest {
         final AtomicInteger counter = new AtomicInteger();
         try (Watcher<String> watcher = dogma.client()
                                             .forRepo("directory", "new-service")
-                                            .watch(Query.ofText("/endpoints.txt"))
-                                            .forever()
+                                            .watcher(Query.ofText("/endpoints.txt"))
                                             .map(entry -> {
                                                 counter.incrementAndGet();
                                                 return entry;
-                                            })) {
+                                            })
+                                            .start()) {
 
             final CentralDogmaEndpointGroup<String> endpointGroup = CentralDogmaEndpointGroup.ofWatcher(
                     watcher, EndpointListDecoder.TEXT);

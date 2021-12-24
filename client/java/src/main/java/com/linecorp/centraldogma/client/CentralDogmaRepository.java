@@ -72,8 +72,9 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link FileRequest} that is used to send
-     * {@link CentralDogma#getFile(String, String, Revision, Query)} request to the Central Dogma repository.
+     * Returns a new {@link FileRequest} that is used to retrieve the file in the Central Dogma repository.
+     * Call {@link FileRequest#get(Revision)} to perform the same operation as
+     * {@link CentralDogma#getFile(String, String, Revision, Query)}.
      */
     public FileRequest<?> file(String path) {
         requireNonNull(path, "path");
@@ -81,8 +82,9 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link FileRequest} that is used to send
-     * {@link CentralDogma#getFile(String, String, Revision, Query)} request to the Central Dogma repository.
+     * Returns a new {@link FileRequest} that is used to retrieve the file in the Central Dogma repository.
+     * Call {@link FileRequest#get(Revision)} to perform the same operation as
+     * {@link CentralDogma#getFile(String, String, Revision, Query)}.
      */
     public <T> FileRequest<T> file(Query<T> query) {
         requireNonNull(query, "query");
@@ -90,10 +92,9 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link FilesRequest} that is used to send
-     * {@link CentralDogma#getFiles(String, String, Revision, PathPattern)} and
-     * {@link CentralDogma#listFiles(String, String, Revision, PathPattern)} requests to the
+     * Returns a new {@link FilesRequest} that is used to retrieve or list files in the
      * Central Dogma repository.
+     * Call {@link FilesRequest#get(Revision)} or {@link FilesRequest#list(Revision)} for those operation.
      */
     public FilesRequest file(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
@@ -101,9 +102,10 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link MergeRequest} that is used to send
-     * {@link CentralDogma#mergeFiles(String, String, Revision, MergeQuery)} request to the
+     * Returns a new {@link MergeRequest} that is used to retrieve the merged file in the
      * Central Dogma repository.
+     * Call {@link MergeRequest#get(Revision)} to perform the same operation as
+     * {@link CentralDogma#mergeFiles(String, String, Revision, MergeQuery)}.
      */
     public MergeRequest<?> merge(MergeSource... mergeSources) {
         requireNonNull(mergeSources, "mergeSources");
@@ -111,9 +113,10 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link MergeRequest} that is used to send
-     * {@link CentralDogma#mergeFiles(String, String, Revision, MergeQuery)} request to the
+     * Returns a new {@link MergeRequest} that is used to retrieve the merged file in the
      * Central Dogma repository.
+     * Call {@link MergeRequest#get(Revision)} to perform the same operation as
+     * {@link CentralDogma#mergeFiles(String, String, Revision, MergeQuery)}.
      */
     public MergeRequest<?> merge(Iterable<MergeSource> mergeSources) {
         requireNonNull(mergeSources, "mergeSources");
@@ -121,9 +124,10 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link MergeRequest} that is used to send
-     * {@link CentralDogma#mergeFiles(String, String, Revision, MergeQuery)} request to the
+     * Returns a new {@link MergeRequest} that is used to retrieve the merged file in the
      * Central Dogma repository.
+     * Call {@link MergeRequest#get(Revision)} to perform the same operation as
+     * {@link CentralDogma#mergeFiles(String, String, Revision, MergeQuery)}.
      */
     public <T> MergeRequest<T> merge(MergeQuery<T> mergeQuery) {
         requireNonNull(mergeQuery, "mergeQuery");
@@ -131,18 +135,20 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link HistoryRequest} that is used to send
-     * {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern)} request with
-     * {@link PathPattern#all()} to the Central Dogma repository.
+     * Returns a new {@link HistoryRequest} that is used to retrieve the history of all files in the
+     * Central Dogma repository.
+     * Call {@link HistoryRequest#get(Revision, Revision)} to perform the same operation as
+     * {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern)}.
      */
     public HistoryRequest history() {
         return history(PathPattern.all());
     }
 
     /**
-     * Returns a new {@link HistoryRequest} that is used to send
-     * {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern)} request to the
+     * Returns a new {@link HistoryRequest} that is used to retrieve the history of files in the
      * Central Dogma repository.
+     * Call {@link HistoryRequest#get(Revision, Revision)} to perform the same operation as
+     * {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern)}.
      */
     public HistoryRequest history(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
@@ -150,9 +156,10 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link DiffRequest} that is used to send
-     * {@link CentralDogma#getDiff(String, String, Revision, Revision, Query)} request to the
+     * Returns a new {@link DiffRequest} that is used to retrieve the diff of the file in the
      * Central Dogma repository.
+     * Call {@link DiffRequest#get(Revision, Revision)} to perform the same operation as
+     * {@link CentralDogma#getDiff(String, String, Revision, Revision, Query)}.
      */
     public DiffRequest<?> diff(String path) {
         requireNonNull(path, "path");
@@ -160,9 +167,10 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link DiffRequest} that is used to send
-     * {@link CentralDogma#getDiff(String, String, Revision, Revision, Query)} request to the
+     * Returns a new {@link DiffRequest} that is used to retrieve the diff of the file in the
      * Central Dogma repository.
+     * Call {@link DiffRequest#get(Revision, Revision)} to perform the same operation as
+     * {@link CentralDogma#getDiff(String, String, Revision, Revision, Query)}.
      */
     public <T> DiffRequest<T> diff(Query<T> query) {
         requireNonNull(query, "query");
@@ -170,9 +178,10 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link DiffFilesRequest} that is used to send
-     * {@link CentralDogma#getDiff(String, String, Revision, Revision, PathPattern)} request to the
+     * Returns a new {@link DiffFilesRequest} that is used to retrieve the diff of files in the
      * Central Dogma repository.
+     * Call {@link DiffFilesRequest#get(Revision, Revision)} to perform the same operation as
+     * {@link CentralDogma#getDiff(String, String, Revision, Revision, PathPattern)}.
      */
     public DiffFilesRequest diff(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
@@ -180,9 +189,10 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link PreviewDiffRequest} that is used to send
-     * {@link CentralDogma#getPreviewDiffs(String, String, Revision, Iterable)} request to the
+     * Returns a new {@link PreviewDiffRequest} that is used to retrieve the preview diff of files in the
      * Central Dogma repository.
+     * Call {@link PreviewDiffRequest#get(Revision)} to perform the same operation as
+     * {@link CentralDogma#getPreviewDiffs(String, String, Revision, Iterable)}.
      */
     public PreviewDiffRequest diff(Change<?>... changes) {
         requireNonNull(changes, "changes");
@@ -190,9 +200,10 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link PreviewDiffRequest} that is used to send
-     * {@link CentralDogma#getPreviewDiffs(String, String, Revision, Iterable)} request to the
+     * Returns a new {@link PreviewDiffRequest} that is used to retrieve the preview diff of files in the
      * Central Dogma repository.
+     * Call {@link PreviewDiffRequest#get(Revision)} to perform the same operation as
+     * {@link CentralDogma#getPreviewDiffs(String, String, Revision, Iterable)}.
      */
     public PreviewDiffRequest diff(Iterable<? extends Change<?>> changes) {
         requireNonNull(changes, "changes");
@@ -200,30 +211,33 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link CentralDogmaCommitRequest} that is used to send
-     * {@link CentralDogma#push(String, String, Revision, String, String, Markup, Iterable)} request to the
+     * Returns a new {@link CommitRequest} that is used to push the {@link Change}s to the
      * Central Dogma repository.
+     * Call {@link CommitRequest#push(Revision)} to perform the same operation as
+     * {@link CentralDogma#push(String, String, Revision, String, String, Markup, Iterable)}.
      */
-    public CentralDogmaCommitRequest commit(String summary, Change<?>... changes) {
+    public CommitRequest commit(String summary, Change<?>... changes) {
         requireNonNull(changes, "changes");
         return commit(summary, ImmutableList.copyOf(changes));
     }
 
     /**
-     * Returns a new {@link CentralDogmaCommitRequest} that is used to send
-     * {@link CentralDogma#push(String, String, Revision, String, String, Markup, Iterable)} request to the
+     * Returns a new {@link CommitRequest} that is used to push the {@link Change}s to the
      * Central Dogma repository.
+     * Call {@link CommitRequest#push(Revision)} to perform the same operation as
+     * {@link CentralDogma#push(String, String, Revision, String, String, Markup, Iterable)}.
      */
-    public CentralDogmaCommitRequest commit(String summary, Iterable<? extends Change<?>> changes) {
+    public CommitRequest commit(String summary, Iterable<? extends Change<?>> changes) {
         requireNonNull(summary, "summary");
         requireNonNull(changes, "changes");
-        return new CentralDogmaCommitRequest(this, summary, changes);
+        return new CommitRequest(this, summary, changes);
     }
 
     /**
-     * Returns a new {@link WatchRequest} that is used to send
-     * {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)} request to
-     * the Central Dogma repository or create a new {@link Watcher}.
+     * Returns a new {@link WatchRequest} that is used to watch the file in the
+     * Central Dogma repository.
+     * Call {@link WatchRequest#await()} to perform the same operation as
+     * {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)}.
      */
     public WatchRequest<?> watch(String path) {
         requireNonNull(path, "path");
@@ -231,22 +245,40 @@ public final class CentralDogmaRepository {
     }
 
     /**
-     * Returns a new {@link WatchRequest} that is used to send
-     * {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)} request to
-     * the Central Dogma repository or create a new {@link Watcher}.
+     * Returns a new {@link WatchRequest} that is used to watch the file in the
+     * Central Dogma repository.
+     * Call {@link WatchRequest#await()} to perform the same operation as
+     * {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)}.
      */
     public <T> WatchRequest<T> watch(Query<T> query) {
         requireNonNull(query, "query");
-        return new WatchRequest<>(this, query, blockingTaskExecutor);
+        return new WatchRequest<>(this, query);
     }
 
     /**
-     * Returns a new {@link WatchFilesRequest} that is used to send
-     * {@link CentralDogma#watchRepository(String, String, Revision, PathPattern, long, boolean)}
-     * request to the Central Dogma repository or create a new {@link Watcher}.
+     * Returns a new {@link WatchFilesRequest} that is used to watch the files in the
+     * Central Dogma repository.
+     * Call {@link WatchFilesRequest#await()} to perform the same operation as
+     * {@link CentralDogma#watchRepository(String, String, Revision, PathPattern, long, boolean)}.
      */
     public WatchFilesRequest watch(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
-        return new WatchFilesRequest(this, pathPattern, blockingTaskExecutor);
+        return new WatchFilesRequest(this, pathPattern);
+    }
+
+    /**
+     * Returns a new {@link WatcherRequest} that is used to create a {@link Watcher}.
+     */
+    public <T> WatcherRequest<T> watcher(Query<T> query) {
+        requireNonNull(query, "query");
+        return new WatcherRequest<>(this, query, blockingTaskExecutor);
+    }
+
+    /**
+     * Returns a new {@link WatcherRequest} that is used to create a {@link Watcher}.
+     */
+    public WatcherRequest<Revision> watcher(PathPattern pathPattern) {
+        requireNonNull(pathPattern, "pathPattern");
+        return new WatcherRequest<>(this, pathPattern, blockingTaskExecutor);
     }
 }

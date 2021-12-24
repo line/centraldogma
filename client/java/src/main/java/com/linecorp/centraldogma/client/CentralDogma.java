@@ -511,7 +511,7 @@ public interface CentralDogma {
      *         {@code null} if the files were not changed for 1 minute since the invocation of this method.
      *
      * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and
-     *             {@link WatchFilesRequest#once(Revision)}.
+     *             {@link WatchFilesRequest#await()}.
      */
     @Deprecated
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
@@ -532,7 +532,7 @@ public interface CentralDogma {
      *         since the invocation of this method.
      *
      * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and
-     *             {@link WatchFilesRequest#once(Revision)}.
+     *             {@link WatchFilesRequest#await()}.
      */
     @Deprecated
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
@@ -566,7 +566,7 @@ public interface CentralDogma {
      *         {@code null} if the file was not changed for 1 minute since the invocation of this method.
      *
      * @deprecated Use {@link CentralDogmaRepository#watch(Query)} and
-     *             {@link WatchRequest#once(Revision)}.
+     *             {@link WatchRequest#await()}.
      */
     @Deprecated
     default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
@@ -587,7 +587,7 @@ public interface CentralDogma {
      *         since the invocation of this method.
      *
      * @deprecated Use {@link CentralDogmaRepository#watch(Query)} and
-     *             {@link WatchRequest#once(Revision)}.
+     *             {@link WatchRequest#await()}.
      */
     @Deprecated
     default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
@@ -625,12 +625,11 @@ public interface CentralDogma {
      *     ...
      * });}</pre>
      *
-     * @deprecated Use {@link CentralDogmaRepository#watch(Query)} and
-     *             {@link WatchRequest#forever()}.
+     * @deprecated Use {@link CentralDogmaRepository#watcher(Query)}.
      */
     @Deprecated
     default <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
-        return forRepo(projectName, repositoryName).watch(query).forever();
+        return forRepo(projectName, repositoryName).watcher(query).start();
     }
 
     /**
@@ -649,8 +648,7 @@ public interface CentralDogma {
      * <p>Note that {@link Function} by default is executed by a blocking task executor so that you can
      * safely call a blocking operation.
      *
-     * @deprecated Use {@link CentralDogmaRepository#watch(Query)} and
-     *             {@link WatchRequest#forever()} with {@link Watcher#map(Function)}.
+     * @deprecated Use {@link CentralDogmaRepository#watcher(Query)} and {@link WatcherRequest#map(Function)}.
      */
     @Deprecated
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
@@ -669,8 +667,7 @@ public interface CentralDogma {
      *     ...
      * });}</pre>
      *
-     * @deprecated Use {@link CentralDogmaRepository#watch(Query)} and
-     *             {@link WatchRequest#forever()} with {@link Watcher#map(Function, Executor)}.
+     * @deprecated Use {@link CentralDogmaRepository#watcher(Query)} and {@link WatcherRequest#map(Function)}.
      */
     @Deprecated
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
@@ -686,13 +683,11 @@ public interface CentralDogma {
      *     ...
      * });}</pre>
      *
-     * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and
-     *             {@link WatchFilesRequest#forever()}.
+     * @deprecated Use {@link CentralDogmaRepository#watcher(PathPattern)}.
      */
     @Deprecated
     default Watcher<Revision> repositoryWatcher(String projectName, String repositoryName, String pathPattern) {
-        return forRepo(projectName, repositoryName).watch(toPathPattern(pathPattern))
-                                                   .forever();
+        return forRepo(projectName, repositoryName).watcher(toPathPattern(pathPattern)).start();
     }
 
     /**
@@ -712,8 +707,8 @@ public interface CentralDogma {
      * may have to retry in the above example due to
      * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
      *
-     * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and
-     *             {@link WatchFilesRequest#forever()} with {@link Watcher#map(Function)}.
+     * @deprecated Use {@link CentralDogmaRepository#watcher(PathPattern)}
+     *             and {@link WatcherRequest#map(Function)}.
      */
     @Deprecated
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
@@ -736,8 +731,8 @@ public interface CentralDogma {
      *
      * @param executor the {@link Executor} that executes the {@link Function}
      *
-     * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and
-     *             {@link WatchFilesRequest#forever()} with {@link Watcher#map(Function, Executor)}.
+     * @deprecated Use {@link CentralDogmaRepository#watcher(PathPattern)}
+     *             and {@link WatcherRequest#map(Function)}.
      */
     @Deprecated
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,

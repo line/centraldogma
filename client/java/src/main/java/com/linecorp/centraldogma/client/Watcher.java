@@ -39,7 +39,8 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * Watches the changes of a repository or a file.
+ * Watches the changes of a repository or a file. The {@link Watcher} must be closed via
+ * {@link Watcher#close()} after use.
  *
  * @param <T> the watch result type
  */
@@ -254,28 +255,6 @@ public interface Watcher<T> extends AutoCloseable {
 
     /**
      * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
-     * Unlike {@link #newChild(Function)}, when the returned {@link Watcher} is closed, this {@link Watcher} is
-     * also closed so you don't have to close this {@link Watcher}.
-     */
-    default <U> Watcher<U> map(Function<? super T, ? extends U> mapper) {
-        return map(mapper, watchScheduler());
-    }
-
-    /**
-     * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
-     * Unlike {@link #newChild(Function)}, when the returned {@link Watcher} is closed, this {@link Watcher} is
-     * also closed so you don't have to close this {@link Watcher}.
-     */
-    default <U> Watcher<U> map(Function<? super T, ? extends U> mapper, Executor executor) {
-        requireNonNull(mapper, "mapper");
-        requireNonNull(executor, "executor");
-        return MappingWatcher.of(this, mapper, executor, true);
-    }
-
-    /**
-     * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
-     * This {@link Watcher} must be closed regardless of closing the returned {@link Watcher}
-     * when this {@link Watcher} is not used anymore unlike {@link #map(Function)}.
      */
     default <U> Watcher<U> newChild(Function<? super T, ? extends U> mapper) {
         return newChild(mapper, watchScheduler());
@@ -283,8 +262,6 @@ public interface Watcher<T> extends AutoCloseable {
 
     /**
      * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
-     * This {@link Watcher} must be closed regardless of closing the returned {@link Watcher}
-     * when this {@link Watcher} is not used anymore unlike {@link #map(Function, Executor)}.
      */
     default <U> Watcher<U> newChild(Function<? super T, ? extends U> mapper, Executor executor) {
         requireNonNull(mapper, "mapper");

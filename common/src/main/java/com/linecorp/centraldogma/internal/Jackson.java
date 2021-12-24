@@ -129,9 +129,9 @@ public final class Jackson {
         prettyMapper.registerSubtypes(subtypes);
     }
 
-public static <T> T readValue(String data, Class<T> type) throws JsonParseException, JsonMappingException {
-    try {
-        return compactMapper.readValue(data, type);
+    public static <T> T readValue(String data, Class<T> type) throws JsonParseException, JsonMappingException {
+        try {
+            return compactMapper.readValue(data, type);
         } catch (JsonParseException | JsonMappingException e) {
             throw e;
         } catch (IOException e) {

@@ -30,7 +30,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-class MappingWatcherTest {
+class WatcherTest {
 
     @RegisterExtension
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -48,8 +48,8 @@ class MappingWatcherTest {
     void mapperIsCalledOnlyOnceWhenFileIsChanged() throws Exception {
         final Watcher<String> watcher = dogma.client()
                                              .forRepo("foo", "bar")
-                                             .watch(Query.ofText("/baz.txt"))
-                                             .forever();
+                                             .watcher(Query.ofText("/baz.txt"))
+                                             .start();
         assertThat(watcher.initialValueFuture().join().value()).isEmpty();
         final AtomicInteger mapperCounter = new AtomicInteger();
         final Watcher<Integer> childWatcher = watcher.newChild(str -> mapperCounter.getAndIncrement());
@@ -81,12 +81,28 @@ class MappingWatcherTest {
     void multipleMap() throws Exception {
         final Watcher<Boolean> watcher = dogma.client()
                                               .forRepo("foo", "bar")
-                                              .watch(Query.ofText("/baz.txt"))
-                                              .forever()
+                                              .watcher(Query.ofText("/baz.txt"))
                                               .map(txt -> 1)
-                                              .map(intValue -> true);
+                                              .map(intValue -> Integer.toString(intValue))
+                                              .map(str -> "1".equals(str) ? true : false)
+                                              .start();
 
         assertThat(watcher.initialValueFuture().join().value()).isTrue();
         watcher.close();
+    }
+
+    @Test
+    void multipleNewChild() throws Exception {
+        final Watcher<String> originalWatcher = dogma.client()
+                                                     .forRepo("foo", "bar")
+                                                     .watcher(Query.ofText("/baz.txt"))
+                                                     .start();
+        final Watcher<Boolean> watcher = originalWatcher
+                .newChild(txt -> 1)
+                .newChild(intValue -> Integer.toString(intValue))
+                .newChild(str -> "1".equals(str) ? true : false);
+
+        assertThat(watcher.initialValueFuture().join().value()).isTrue();
+        originalWatcher.close();
     }
 }

@@ -15,14 +15,13 @@
  */
 package com.linecorp.centraldogma.client;
 
-import static com.linecorp.centraldogma.client.WatcherOptions.ofDefault;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
@@ -34,13 +33,20 @@ public final class WatchRequest<T> extends WatchOptions {
 
     private final CentralDogmaRepository centralDogmaRepo;
     private final Query<T> query;
-    private final ScheduledExecutorService blockingTaskExecutor;
+    private Revision lastKnownRevision = Revision.HEAD;
 
-    WatchRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query,
-                 ScheduledExecutorService blockingTaskExecutor) {
+    WatchRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query) {
         this.centralDogmaRepo = centralDogmaRepo;
         this.query = query;
-        this.blockingTaskExecutor = blockingTaskExecutor;
+    }
+
+    /**
+     * Sets the last known {@link Revision} to get notified if there's a change since the {@link Revision}.
+     * {@link Revision#HEAD} is used by default.
+     */
+    public WatchRequest from(Revision lastKnownRevision) {
+        this.lastKnownRevision = requireNonNull(lastKnownRevision, "lastKnownRevision");
+        return this;
     }
 
     @Override
@@ -62,65 +68,19 @@ public final class WatchRequest<T> extends WatchOptions {
     }
 
     /**
-     * Waits for the file matched by the {@link Query} to be changed since the specified
-     * {@code lastKnownRevision}. If no changes were made within the {@link #timeoutMillis(long)}, the
+     * Waits for the file matched by the {@link Query} to be changed since the {@code lastKnownRevision}.
+     * If no changes were made within the {@link #timeoutMillis(long)}, the
      * returned {@link CompletableFuture} will be completed with {@code null}.
      *
      * @return the {@link Entry} which contains the latest known {@link Query} result.
      *         {@code null} if the file was not changed for {@link #timeoutMillis(long)} milliseconds
-     *         since the invocation of this method.
+     *         since the invocation of this method. {@link EntryNotFoundException} is raised if the
+     *         target does not exist.
      */
-    public CompletableFuture<Entry<T>> once(Revision lastKnownRevision) {
-        requireNonNull(lastKnownRevision, "lastKnownRevision");
+    public CompletableFuture<Entry<T>> await() {
         return centralDogmaRepo.centralDogma().watchFile(centralDogmaRepo.projectName(),
                                                          centralDogmaRepo.repositoryName(),
                                                          lastKnownRevision, query,
                                                          timeoutMillis(), errorOnEntryNotFound());
-    }
-
-    /**
-     * Returns a newly created {@link Watcher} which notifies its listeners when the result of the
-     * {@link Query} becomes available or changes.
-     *
-     * <pre>{@code
-     * Watcher<JsonNode> watcher = client.forRepo("foo", "bar")
-     *                                   .watch(Query.ofJson("/baz.json"))
-     *                                   .forever();
-     * watcher.watch((revision, content) -> {
-     *     assert content instanceof JsonNode;
-     *     ...
-     * });}</pre>
-     */
-    public Watcher<T> forever() {
-        return forever(ofDefault());
-    }
-
-    /**
-     * Returns a newly created {@link Watcher} with the {@link WatcherOptions} which notifies its listeners
-     * when the result of the {@link Query} becomes available or changes.
-     *
-     * <pre>{@code
-     * Watcher<JsonNode> watcher = client.forRepo("foo", "bar")
-     *                                   .watch(Query.ofJson("/baz.json"))
-     *                                   .forever(watcherOptions);
-     * watcher.watch((revision, content) -> {
-     *     assert content instanceof JsonNode;
-     *     ...
-     * });}</pre>
-     */
-    public Watcher<T> forever(WatcherOptions watcherOptions) {
-        requireNonNull(watcherOptions, "watcherOptions");
-        final String proName = centralDogmaRepo.projectName();
-        final String repoName = centralDogmaRepo.repositoryName();
-        final DefaultWatcher<T> watcher = new DefaultWatcher<>(
-                blockingTaskExecutor, proName, repoName, query.path(),
-                lastKnownRevision ->
-                        centralDogmaRepo.centralDogma()
-                                        .watchFile(proName, repoName, lastKnownRevision, query,
-                                                   timeoutMillis(), errorOnEntryNotFound())
-                                        .thenApply(entry -> new Latest<>(entry.revision(), entry.content())),
-                errorOnEntryNotFound(), watcherOptions);
-        watcher.start();
-        return watcher;
     }
 }

@@ -334,14 +334,14 @@ class WatchTest {
 
         final CentralDogma client = clientType.client(dogma);
         final Watcher<JsonNode> jsonWatcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                    .watch(Query.ofJson("/test/test2.json"))
-                                                    .forever();
+                                                    .watcher(Query.ofJson("/test/test2.json"))
+                                                    .start();
         assertThatJson(jsonWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
         jsonWatcher.close();
 
         final Watcher<String> stringWatcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                    .watch(Query.ofText("/test/test2.json"))
-                                                    .forever();
+                                                    .watcher(Query.ofText("/test/test2.json"))
+                                                    .start();
         assertThat(stringWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
         stringWatcher.close();
     }
@@ -354,8 +354,8 @@ class WatchTest {
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
         final Watcher<JsonNode> jsonWatcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                    .watch(Query.ofJson(filePath))
-                                                    .forever();
+                                                    .watcher(Query.ofJson(filePath))
+                                                    .start();
 
         // wait for initial value
         assertThatJson(jsonWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
@@ -393,8 +393,8 @@ class WatchTest {
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
         final Watcher<JsonNode> heavyWatcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                     .watch(Query.ofJsonPath(filePath))
-                                                     .forever();
+                                                     .watcher(Query.ofJsonPath(filePath))
+                                                     .start();
 
         final Watcher<JsonNode> forExisting = Watcher.atJsonPointer(heavyWatcher, "/a");
         final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
@@ -469,13 +469,13 @@ class WatchTest {
         final String filePath = "/test/test.txt";
         final Watcher<String> watcher =
                 client.forRepo(dogma.project(), dogma.repo1())
-                      .watch(Query.ofText(filePath))
-                      .forever()
+                      .watcher(Query.ofText(filePath))
                       .map(text -> {
                           assertThat(Thread.currentThread().getName())
                                   .startsWith(THREAD_NAME_PREFIX);
                           return text;
-                      });
+                      })
+                      .start();
 
         final AtomicReference<String> threadName = new AtomicReference<>();
         watcher.watch(watched -> threadName.set(Thread.currentThread().getName()));
@@ -489,13 +489,13 @@ class WatchTest {
 
         final Watcher<Revision> watcher2 =
                 client.forRepo(dogma.project(), dogma.repo1())
-                      .watch(PathPattern.of(filePath))
-                      .forever()
+                      .watcher(PathPattern.of(filePath))
                       .map(revision -> {
                           assertThat(Thread.currentThread().getName())
                                   .startsWith(THREAD_NAME_PREFIX);
                           return revision;
-                      });
+                      })
+                      .start();
         watcher2.watch((revision1, revision2) -> threadName.set(Thread.currentThread().getName()));
         await().untilAtomic(threadName, Matchers.startsWith(THREAD_NAME_PREFIX));
         watcher2.close();
@@ -512,13 +512,14 @@ class WatchTest {
         final String filePath = "/test/test.txt";
         final Watcher<String> watcher =
                 client.forRepo(dogma.project(), dogma.repo1())
-                      .watch(Query.ofText(filePath))
-                      .forever()
+                      .watcher(Query.ofText(filePath))
                       .map(text -> {
                           assertThat(Thread.currentThread().getName())
                                   .startsWith(threadNamePrefix);
                           return text;
-                      }, executor);
+                      })
+                      .mapperExecutor(executor)
+                      .start();
 
         final AtomicReference<String> threadName = new AtomicReference<>();
         watcher.watch(watched -> threadName.set(Thread.currentThread().getName()), executor);
@@ -532,13 +533,14 @@ class WatchTest {
 
         final Watcher<Revision> watcher2 =
                 client.forRepo(dogma.project(), dogma.repo1())
-                      .watch(PathPattern.of(filePath))
-                      .forever()
+                      .watcher(PathPattern.of(filePath))
                       .map(revision -> {
                           assertThat(Thread.currentThread().getName())
                                   .startsWith(threadNamePrefix);
                           return revision;
-                      }, executor);
+                      })
+                      .mapperExecutor(executor)
+                      .start();
         watcher2.watch((revision1, revision2) -> threadName.set(Thread.currentThread().getName()), executor);
         await().untilAtomic(threadName, Matchers.startsWith(threadNamePrefix));
         watcher2.close();
@@ -554,9 +556,10 @@ class WatchTest {
 
         // create watcher
         final Watcher<JsonNode> watcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                .watch(Query.ofJson(filePath))
+                                                .watcher(Query.ofJson(filePath))
                                                 .errorOnEntryNotFound(true)
-                                                .timeoutMillis(100).forever();
+                                                .timeoutMillis(100)
+                                                .start();
 
         // check entry does not exist when to get initial value
         assertThatThrownBy(watcher::awaitInitialValue)
@@ -582,10 +585,10 @@ class WatchTest {
 
         // create watcher
         final Watcher<JsonNode> watcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                .watch(Query.ofJson(filePath))
+                                                .watcher(Query.ofJson(filePath))
                                                 .timeoutMillis(100)
                                                 .errorOnEntryNotFound(true)
-                                                .forever();
+                                                .start();
 
         final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
         final AtomicInteger triggeredCount = new AtomicInteger();
@@ -624,10 +627,10 @@ class WatchTest {
 
         // create watcher
         final Watcher<JsonNode> watcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                .watch(Query.ofJson(filePath))
+                                                .watcher(Query.ofJson(filePath))
                                                 .timeoutMillis(100)
                                                 .errorOnEntryNotFound(true)
-                                                .forever();
+                                                .start();
 
         final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
         final AtomicInteger triggeredCount = new AtomicInteger();
@@ -689,10 +692,10 @@ class WatchTest {
 
         // create watcher
         final Watcher<Revision> watcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                .watch(PathPattern.of(pathPattern))
+                                                .watcher(PathPattern.of(pathPattern))
                                                 .timeoutMillis(100)
                                                 .errorOnEntryNotFound(true)
-                                                .forever();
+                                                .start();
 
         // check entry does not exist when to get initial value
         assertThatThrownBy(watcher::awaitInitialValue)
@@ -720,10 +723,10 @@ class WatchTest {
         final String filePath = "/test_not_found/test.json";
 
         final Watcher<Revision> watcher = client.forRepo(dogma.project(), dogma.repo1())
-                                                .watch(PathPattern.of(pathPattern))
+                                                .watcher(PathPattern.of(pathPattern))
                                                 .timeoutMillis(100)
                                                 .errorOnEntryNotFound(true)
-                                                .forever();
+                                                .start();
 
         final AtomicReference<Revision> watchResult = new AtomicReference<>();
         final AtomicInteger triggeredCount = new AtomicInteger();

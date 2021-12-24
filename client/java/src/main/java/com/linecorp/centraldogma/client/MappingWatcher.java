@@ -52,6 +52,7 @@ final class MappingWatcher<T, U> implements Watcher<U> {
 
     private final Watcher<T> parent;
     private final Function<? super T, ? extends U> mapper;
+    private final Executor mapperExecutor;
     private final boolean closeParentWhenClosing;
     private final CompletableFuture<Latest<U>> initialValueFuture = new CompletableFuture<>();
     private final List<Entry<BiConsumer<? super Revision, ? super U>, Executor>> updateListeners =
@@ -65,6 +66,7 @@ final class MappingWatcher<T, U> implements Watcher<U> {
                    boolean closeParentWhenClosing) {
         this.parent = parent;
         this.mapper = mapper;
+        this.mapperExecutor = mapperExecutor;
         this.closeParentWhenClosing = closeParentWhenClosing;
         parent.initialValueFuture().exceptionally(cause -> {
             initialValueFuture.completeExceptionally(cause);
@@ -75,42 +77,43 @@ final class MappingWatcher<T, U> implements Watcher<U> {
                 return;
             }
             final U mappedValue = mapper.apply(value);
-            if (mappedValue == null) {
-                logger.warn("mapper.apply() returned null. mapper: {}", mapper);
-                return;
-            }
             final Latest<U> oldLatest = mappedLatest;
             if (oldLatest != null && oldLatest.value() == mappedValue) {
                 return;
             }
 
+            // mappedValue can be nullable which is fine.
             final Latest<U> newLatest = new Latest<>(revision, mappedValue);
             mappedLatest = newLatest;
-            notifyListeners();
+            notifyListeners(newLatest);
             if (!initialValueFuture.isDone()) {
                 initialValueFuture.complete(newLatest);
             }
         }, mapperExecutor);
     }
 
-    private void notifyListeners() {
+    private void notifyListeners(Latest<U> latest) {
         if (closed) {
             return;
         }
 
-        final Latest<U> latest = mappedLatest;
-        assert latest != null;
         for (Map.Entry<BiConsumer<? super Revision, ? super U>, Executor> entry : updateListeners) {
             final BiConsumer<? super Revision, ? super U> listener = entry.getKey();
             final Executor executor = entry.getValue();
-            executor.execute(() -> {
-                try {
-                    listener.accept(latest.revision(), latest.value());
-                } catch (Exception e) {
-                    logger.warn("Unexpected exception is raised from {}: rev={}",
-                                listener, latest.revision(), e);
-                }
-            });
+            if (mapperExecutor == executor) {
+                notifyListener(latest, listener);
+            } else {
+                executor.execute(() -> notifyListener(latest, listener));
+            }
+        }
+    }
+
+    private void notifyListener(Latest<U> latest, BiConsumer<? super Revision, ? super U> listener) {
+        try {
+            listener.accept(latest.revision(), latest.value());
+        } catch (Exception e) {
+            logger.warn("Unexpected exception is raised from {}: rev={}",
+                        listener, latest.revision(), e);
         }
     }
 

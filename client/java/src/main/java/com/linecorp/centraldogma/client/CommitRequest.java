@@ -29,7 +29,7 @@ import com.linecorp.centraldogma.common.Revision;
  * Prepares to send a {@link CentralDogma#push(String, String, Revision, String, String, Markup, Iterable)}
  * request to the Central Dogma repository.
  */
-public final class CentralDogmaCommitRequest {
+public final class CommitRequest {
 
     private final CentralDogmaRepository centralDogmaRepo;
     private final String summary;
@@ -38,8 +38,8 @@ public final class CentralDogmaCommitRequest {
     private String detail = "";
     private Markup markup = Markup.PLAINTEXT;
 
-    CentralDogmaCommitRequest(CentralDogmaRepository centralDogmaRepo,
-                              String summary, Iterable<? extends Change<?>> changes) {
+    CommitRequest(CentralDogmaRepository centralDogmaRepo,
+                  String summary, Iterable<? extends Change<?>> changes) {
         this.centralDogmaRepo = centralDogmaRepo;
         this.summary = summary;
         this.changes = changes;
@@ -48,7 +48,7 @@ public final class CentralDogmaCommitRequest {
     /**
      * Sets the detail and {@link Markup} of a {@link Commit}.
      */
-    public CentralDogmaCommitRequest detail(String detail, Markup markup) {
+    public CommitRequest detail(String detail, Markup markup) {
         this.detail = requireNonNull(detail, "detail");
         this.markup = requireNonNull(markup, "markup");
         return this;

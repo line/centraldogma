@@ -15,31 +15,37 @@
  */
 package com.linecorp.centraldogma.client;
 
-import static com.linecorp.centraldogma.client.WatcherOptions.ofDefault;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 
+import com.linecorp.centraldogma.common.EntryNotFoundException;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
  * Prepares to send a {@link CentralDogma#watchRepository(String, String, Revision, PathPattern, long, boolean)}
- * request to the Central Dogma repository or create a new {@link Watcher}.
+ * request to the Central Dogma repository.
  */
 public final class WatchFilesRequest extends WatchOptions {
 
     private final CentralDogmaRepository centralDogmaRepo;
     private final PathPattern pathPattern;
-    private final ScheduledExecutorService blockingTaskExecutor;
+    private Revision lastKnownRevision = Revision.HEAD;
 
-    WatchFilesRequest(CentralDogmaRepository centralDogmaRepo, PathPattern pathPattern,
-                      ScheduledExecutorService blockingTaskExecutor) {
+    WatchFilesRequest(CentralDogmaRepository centralDogmaRepo, PathPattern pathPattern) {
         this.centralDogmaRepo = centralDogmaRepo;
         this.pathPattern = pathPattern;
-        this.blockingTaskExecutor = blockingTaskExecutor;
+    }
+
+    /**
+     * Sets the last known {@link Revision} to get notified if there's a change since the {@link Revision}.
+     * {@link Revision#HEAD} is used by default.
+     */
+    public WatchFilesRequest from(Revision lastKnownRevision) {
+        this.lastKnownRevision = requireNonNull(lastKnownRevision, "lastKnownRevision");
+        return this;
     }
 
     @Override
@@ -58,64 +64,19 @@ public final class WatchFilesRequest extends WatchOptions {
     }
 
     /**
-     * Waits for the files matched by the {@link PathPattern} to be changed since the specified
-     * {@code lastKnownRevision}. If no changes were made within the {@link #timeoutMillis(long)}, the
+     * Waits for the files matched by the {@link PathPattern} to be changed since the {@code lastKnownRevision}.
+     * If no changes were made within the {@link #timeoutMillis(long)}, the
      * returned {@link CompletableFuture} will be completed with {@code null}.
      *
      * @return the latest known {@link Revision} which contains the changes for the matched files.
      *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
-     *         since the invocation of this method.
+     *         since the invocation of this method. {@link EntryNotFoundException} is raised if the
+     *         target does not exist.
      */
-    public CompletableFuture<Revision> once(Revision lastKnownRevision) {
-        requireNonNull(lastKnownRevision, "lastKnownRevision");
+    public CompletableFuture<Revision> await() {
         return centralDogmaRepo.centralDogma().watchRepository(centralDogmaRepo.projectName(),
                                                                centralDogmaRepo.repositoryName(),
                                                                lastKnownRevision, pathPattern,
                                                                timeoutMillis(), errorOnEntryNotFound());
-    }
-
-    /**
-     * Returns a newly created {@link Watcher} which notifies its listeners when the repository has a new commit
-     * that contains the changes for the files matched by the {@link PathPattern}.
-     *
-     * <pre>{@code
-     * Watcher<Revision> watcher = client.forRepo("foo", "bar")
-     *                                   .watch(PathPattern.of("/*.json"))
-     *                                   .forever();
-     * watcher.watch(revision -> {
-     *     ...
-     * });}</pre>
-     */
-    public Watcher<Revision> forever() {
-        return forever(ofDefault());
-    }
-
-    /**
-     * Returns a newly created {@link Watcher} with the {@link WatcherOptions} which notifies its listeners
-     * when the repository has a new commit that contains the changes for the files matched
-     * by the {@link PathPattern}.
-     *
-     * <pre>{@code
-     * Watcher<Revision> watcher = client.forRepo("foo", "bar")
-     *                                   .watch(PathPattern.of("/*.json"))
-     *                                   .forever(watcherOptions);
-     * watcher.watch(revision -> {
-     *     ...
-     * });}</pre>
-     */
-    public Watcher<Revision> forever(WatcherOptions watcherOptions) {
-        requireNonNull(watcherOptions, "watcherOptions");
-        final String proName = centralDogmaRepo.projectName();
-        final String repoName = centralDogmaRepo.repositoryName();
-        final DefaultWatcher<Revision> watcher = new DefaultWatcher<>(
-                blockingTaskExecutor, proName, repoName, pathPattern.get(),
-                lastKnownRevision ->
-                        centralDogmaRepo.centralDogma()
-                                        .watchRepository(proName, repoName, lastKnownRevision, pathPattern,
-                                                         timeoutMillis(), errorOnEntryNotFound())
-                                        .thenApply(revision -> new Latest<>(revision, revision)),
-                errorOnEntryNotFound(), watcherOptions);
-        watcher.start();
-        return watcher;
     }
 }
