@@ -84,18 +84,20 @@ public final class WatchRequestConverter implements RequestConverterFunction {
 
     @VisibleForTesting
     String extractRevision(String ifNoneMatch) {
+        final int length = ifNoneMatch.length();
+
         // Three below cases are valid. See https://github.com/line/centraldogma/issues/415
         // - <revision> (for backward compatibility)
         // - "<revision>"
         // - W/"<revision>"
-        if (ifNoneMatch.length() > 2 && ifNoneMatch.charAt(0) == '"' &&
-            ifNoneMatch.charAt(ifNoneMatch.length() - 1) == '"') {
-            return ifNoneMatch.substring(1, ifNoneMatch.length() - 1);
+        if (length > 2 && ifNoneMatch.charAt(0) == '"' &&
+            ifNoneMatch.charAt(length - 1) == '"') {
+            return ifNoneMatch.substring(1, length - 1);
         }
 
-        if (ifNoneMatch.length() > 4 && ifNoneMatch.startsWith("W/\"") &&
-            ifNoneMatch.charAt(ifNoneMatch.length() - 1) == '"') {
-            return ifNoneMatch.substring(3, ifNoneMatch.length() - 1);
+        if (length > 4 && ifNoneMatch.startsWith("W/\"") &&
+            ifNoneMatch.charAt(length - 1) == '"') {
+            return ifNoneMatch.substring(3, length - 1);
         }
 
         return ifNoneMatch;
