@@ -53,12 +53,20 @@ class PrematureClientFactoryCloseTest {
 
     @Test
     void watchRepository() throws Exception {
-        test(client -> client.watchRepository("foo", "bar", HEAD, PathPattern.all(), Long.MAX_VALUE, false));
+        test(client -> client.forRepo("foo", "bar")
+                             .watch(PathPattern.all())
+                             .timeoutMillis(Long.MAX_VALUE)
+                             .errorOnEntryNotFound(false)
+                             .start());
     }
 
     @Test
     void watchFile() throws Exception {
-        test(client -> client.watchFile("foo", "bar", HEAD, Query.ofText("/baz.txt"), Long.MAX_VALUE, false));
+        test(client -> client.forRepo("foo", "bar")
+                             .watch(Query.ofText("/baz.txt"))
+                             .timeoutMillis(Long.MAX_VALUE)
+                             .errorOnEntryNotFound(false)
+                             .start());
     }
 
     private static void test(Function<CentralDogma, CompletableFuture<?>> watchAction) throws Exception {

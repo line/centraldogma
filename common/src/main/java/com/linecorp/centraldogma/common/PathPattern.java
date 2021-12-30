@@ -64,10 +64,10 @@ public interface PathPattern {
     /**
      * Returns the path pattern that concatenates the {@code patterns} using ','.
      */
-    String get();
+    String patternString();
 
     /**
-     * Returns the encoded {@link #get()} which just encodes a space to '%20'.
+     * Returns the encoded {@link #patternString()} which just encodes a space to '%20'.
      */
     String encoded();
 }

@@ -33,20 +33,10 @@ public final class WatchRequest<T> extends WatchOptions {
 
     private final CentralDogmaRepository centralDogmaRepo;
     private final Query<T> query;
-    private Revision lastKnownRevision = Revision.HEAD;
 
     WatchRequest(CentralDogmaRepository centralDogmaRepo, Query<T> query) {
         this.centralDogmaRepo = centralDogmaRepo;
         this.query = query;
-    }
-
-    /**
-     * Sets the last known {@link Revision} to get notified if there's a change since the {@link Revision}.
-     * {@link Revision#HEAD} is used by default.
-     */
-    public WatchRequest from(Revision lastKnownRevision) {
-        this.lastKnownRevision = requireNonNull(lastKnownRevision, "lastKnownRevision");
-        return this;
     }
 
     @Override
@@ -68,6 +58,20 @@ public final class WatchRequest<T> extends WatchOptions {
     }
 
     /**
+     * Waits for the file matched by the {@link Query} to be changed since the {@link Revision#HEAD}.
+     * If no changes were made within the {@link #timeoutMillis(long)}, the
+     * returned {@link CompletableFuture} will be completed with {@code null}.
+     *
+     * @return the {@link Entry} which contains the latest known {@link Query} result.
+     *         {@code null} if the file was not changed for {@link #timeoutMillis(long)} milliseconds
+     *         since the invocation of this method. {@link EntryNotFoundException} is raised if the
+     *         target does not exist.
+     */
+    public CompletableFuture<Entry<T>> start() {
+        return start(Revision.HEAD);
+    }
+
+    /**
      * Waits for the file matched by the {@link Query} to be changed since the {@code lastKnownRevision}.
      * If no changes were made within the {@link #timeoutMillis(long)}, the
      * returned {@link CompletableFuture} will be completed with {@code null}.
@@ -77,7 +81,8 @@ public final class WatchRequest<T> extends WatchOptions {
      *         since the invocation of this method. {@link EntryNotFoundException} is raised if the
      *         target does not exist.
      */
-    public CompletableFuture<Entry<T>> await() {
+    public CompletableFuture<Entry<T>> start(Revision lastKnownRevision) {
+        requireNonNull(lastKnownRevision, "lastKnownRevision");
         return centralDogmaRepo.centralDogma().watchFile(centralDogmaRepo.projectName(),
                                                          centralDogmaRepo.repositoryName(),
                                                          lastKnownRevision, query,

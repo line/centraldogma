@@ -59,7 +59,13 @@ class MetricsTest {
         assertThat(content).doesNotContain(
                 "com.linecorp.centraldogma.server.internal.api.WatchContentServiceV1");
 
-        dogma.client().watchFile("foo", "bar", Revision.HEAD, Query.ofJson("/foo.json"), 100, false).join();
+        dogma.client()
+             .forRepo("foo", "bar")
+             .watch(Query.ofJson("/foo.json"))
+             .timeoutMillis(100)
+             .errorOnEntryNotFound(false)
+             .start()
+             .join();
         res = dogma.httpClient().get("/monitor/metrics").aggregate().join();
         content = res.contentUtf8();
         assertThat(content).contains("com.linecorp.centraldogma.server.internal.api.WatchContentServiceV1");

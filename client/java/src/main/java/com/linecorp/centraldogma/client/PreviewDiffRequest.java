@@ -39,8 +39,21 @@ public final class PreviewDiffRequest {
     }
 
     /**
-     * Retrieves the <em>preview diffs</em>, which are hypothetical diffs generated if the
-     * {@link Change}s were successfully pushed to the specified repository. This operation is useful for
+     * Retrieves the <em>preview diffs</em>, which are hypothetical diffs generated from the
+     * {@link Revision#HEAD} and the latest {@link Revision} if the {@link Change}s were
+     * successfully pushed to the specified repository. This operation is useful for
+     * pre-checking if the {@link Change}s will be applied as expected without any conflicts.
+     *
+     * @return the diffs which would be committed if the {@link Change}s were pushed successfully
+     */
+    public CompletableFuture<List<Change<?>>> get() {
+        return get(Revision.HEAD);
+    }
+
+    /**
+     * Retrieves the <em>preview diffs</em>, which are hypothetical diffs generated from the specified
+     * {@link Revision} and the latest {@link Revision} if the {@link Change}s were
+     * successfully pushed to the specified repository. This operation is useful for
      * pre-checking if the {@link Change}s will be applied as expected without any conflicts.
      *
      * @return the diffs which would be committed if the {@link Change}s were pushed successfully

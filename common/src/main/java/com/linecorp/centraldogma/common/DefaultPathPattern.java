@@ -58,7 +58,7 @@ final class DefaultPathPattern implements PathPattern {
     }
 
     @Override
-    public String get() {
+    public String patternString() {
         return patterns;
     }
 

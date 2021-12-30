@@ -138,7 +138,7 @@ public interface CentralDogma {
      *
      * @return a {@link Map} of file path and type pairs
      *
-     * @deprecated Use {@link #listFiles(String, String, Revision, PathPattern)}.
+     * @deprecated Use {@link FilesRequest#list(Revision)} via {@link CentralDogmaRepository#file(PathPattern)}.
      */
     @Deprecated
     default CompletableFuture<Map<String, EntryType>> listFiles(String projectName, String repositoryName,
@@ -148,6 +148,13 @@ public interface CentralDogma {
 
     /**
      * Retrieves the list of the files matched by the given {@link PathPattern}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .files(pathPattern)
+     *      .list(revision);
+     * }</pre>
      *
      * @return a {@link Map} of file path and type pairs
      */
@@ -162,8 +169,7 @@ public interface CentralDogma {
      *
      * @return the {@link Entry} at the given {@code path}
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRepository#file(String)}.
+     * @deprecated Use {@link FileRequest#get(Revision)} via {@link CentralDogmaRepository#file(String)}.
      */
     @Deprecated
     default CompletableFuture<Entry<?>> getFile(String projectName, String repositoryName,
@@ -176,6 +182,13 @@ public interface CentralDogma {
 
     /**
      * Queries a file at the specified revision and path with the specified {@link Query}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .file(query)
+     *      .get(revision);
+     * }</pre>
      *
      * @return the {@link Entry} that is matched by the given {@link Query}
      */
@@ -187,7 +200,7 @@ public interface CentralDogma {
      *
      * @return a {@link Map} of file path and {@link Entry} pairs
      *
-     * @deprecated Use {@link #getFiles(String, String, Revision, PathPattern)}.
+     * @deprecated Use {@link FilesRequest#get(Revision)} via {@link CentralDogmaRepository#file(PathPattern)}.
      */
     @Deprecated
     default CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
@@ -197,6 +210,13 @@ public interface CentralDogma {
 
     /**
      * Retrieves the files matched by the {@link PathPattern}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .file(pathPattern)
+     *      .get(revision);
+     * }</pre>
      *
      * @return a {@link Map} of file path and {@link Entry} pairs
      */
@@ -213,7 +233,7 @@ public interface CentralDogma {
      *
      * @return the {@link MergedEntry} which contains the result of the merge
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link MergeRequest#get(Revision)} via
      *             {@link CentralDogmaRepository#merge(MergeSource...)}.
      */
     @Deprecated
@@ -234,7 +254,7 @@ public interface CentralDogma {
      *
      * @return the {@link MergedEntry} which contains the result of the merge
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link MergeRequest#get(Revision)} via
      *             {@link CentralDogmaRepository#merge(Iterable)}.
      */
     @Deprecated
@@ -252,6 +272,13 @@ public interface CentralDogma {
      * Retrieves the merged entry of the specified {@link MergeQuery} at the specified revision.
      * Only JSON entry merge is currently supported. The JSON files are merged sequentially as specified in
      * the {@link MergeQuery}.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .merge(mergeQuery)
+     *      .get(revision);
+     * }</pre>
      *
      * <p>Note that only {@link ObjectNode} is recursively merged traversing the children. Other node types are
      * simply replaced.
@@ -270,7 +297,7 @@ public interface CentralDogma {
      *
      * @return a {@link List} that contains the {@link Commit}s of the specified repository
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link HistoryRequest#get(Revision, Revision)} via
      *             {@link CentralDogmaRepository#history()}.
      */
     @Deprecated
@@ -289,7 +316,8 @@ public interface CentralDogma {
      * @return a {@link List} that contains the {@link Commit}s of the files matched by the given
      *         {@link PathPattern} in the specified repository
      *
-     * @deprecated Use {@link #getHistory(String, String, Revision, Revision, PathPattern)}.
+     * @deprecated Use {@link HistoryRequest#get(Revision, Revision)} via
+     *             {@link CentralDogmaRepository#history(PathPattern)}.
      */
     @Deprecated
     default CompletableFuture<List<Commit>> getHistory(
@@ -300,10 +328,16 @@ public interface CentralDogma {
     /**
      * Retrieves the history of the files matched by the given {@link PathPattern} between
      * two {@link Revision}s.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .history(pathPattern)
+     *      .get(from, to);
+     * }</pre>
      *
      * <p>Note that this method does not retrieve the diffs but only metadata about the changes.
-     * Use {@link #getDiff(String, String, Revision, Revision, Query)} or
-     * {@link #getDiff(String, String, Revision, Revision, PathPattern)} to retrieve the diffs.
+     * Use {@link DiffRequest} to retrieve the diffs.
      *
      * @return a {@link List} that contains the {@link Commit}s of the files matched by the given
      *         {@link PathPattern} in the specified repository
@@ -320,7 +354,7 @@ public interface CentralDogma {
      * @return the {@link Change} that contains the diff of the given {@code path} between the specified
      *         two revisions
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link DiffRequest#get(Revision, Revision)} via
      *             {@link CentralDogmaRepository#diff(String)}.
      */
     @Deprecated
@@ -334,6 +368,13 @@ public interface CentralDogma {
 
     /**
      * Queries a file at two different revisions and returns the diff of the two {@link Query} results.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .diff(query)
+     *      .get(from, to);
+     * }</pre>
      *
      * @return the {@link Change} that contains the diff of the file matched by the given {@code query}
      *         between the specified two revisions
@@ -343,6 +384,12 @@ public interface CentralDogma {
 
     /**
      * Retrieves the diffs of the files matched by the given {@link PathPattern} between two {@link Revision}s.
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .diff(pathPattern)
+     *      .get(from, to);
+     * }</pre>
      *
      * @return a {@link List} of the {@link Change}s that contain the diffs between the files matched by the
      *         given {@link PathPattern} between two revisions.
@@ -356,7 +403,8 @@ public interface CentralDogma {
      * @return a {@link List} of the {@link Change}s that contain the diffs between the files matched by the
      *         given {@link PathPattern} between two revisions.
      *
-     * @deprecated Use {@link #getDiff(String, String, Revision, Revision, PathPattern)}.
+     * @deprecated Use {@link DiffRequest#get(Revision, Revision)} via
+     *             {@link CentralDogmaRepository#diff(PathPattern)}.
      */
     @Deprecated
     default CompletableFuture<List<Change<?>>> getDiffs(String projectName, String repositoryName,
@@ -371,8 +419,8 @@ public interface CentralDogma {
      *
      * @return the diffs which would be committed if the specified {@link Change}s were pushed successfully
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
-     *             {@link CentralDogmaRepository#diff(Change...)}.
+     * @deprecated Use {@link PreviewDiffRequest#get(Revision)} via
+     *             {@link CentralDogmaRepository#diff(Change[])}.
      */
     @Deprecated
     default CompletableFuture<List<Change<?>>> getPreviewDiffs(String projectName, String repositoryName,
@@ -384,6 +432,13 @@ public interface CentralDogma {
      * Retrieves the <em>preview diffs</em>, which are hypothetical diffs generated if the specified
      * {@link Change}s were successfully pushed to the specified repository. This operation is useful for
      * pre-checking if the specified {@link Change}s will be applied as expected without any conflicts.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .diff(changes)
+     *      .get(baseRevision);
+     * }</pre>
      *
      * @return the diffs which would be committed if the specified {@link Change}s were pushed successfully
      */
@@ -396,7 +451,7 @@ public interface CentralDogma {
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link CommitRequest#push(Revision)} via
      *             {@link CentralDogmaRepository#commit(String, Change...)}.
      */
     @Deprecated
@@ -411,7 +466,7 @@ public interface CentralDogma {
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link CommitRequest#push(Revision)} via
      *             {@link CentralDogmaRepository#commit(String, Iterable)}.
      */
     @Deprecated
@@ -425,7 +480,7 @@ public interface CentralDogma {
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link CommitRequest#push(Revision)} via
      *             {@link CentralDogmaRepository#commit(String, Change...)}.
      */
     @Deprecated
@@ -438,6 +493,14 @@ public interface CentralDogma {
 
     /**
      * Pushes the specified {@link Change}s to the repository.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .commit(summary, changes)
+     *      .detail(detail, markup)
+     *      .push(baseRevision);
+     * }</pre>
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      */
@@ -450,7 +513,7 @@ public interface CentralDogma {
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link CommitRequest#push(Revision)} via
      *             {@link CentralDogmaRepository#commit(String, Change...)}.
      */
     @Deprecated
@@ -464,7 +527,7 @@ public interface CentralDogma {
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link CommitRequest#push(Revision)} via
      *             {@link CentralDogmaRepository#commit(String, Iterable)}.
      */
     @Deprecated
@@ -479,7 +542,7 @@ public interface CentralDogma {
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
-     * @deprecated Use {@link CentralDogma#forRepo(String, String)} and
+     * @deprecated Use {@link CommitRequest#push(Revision)} via
      *             {@link CentralDogmaRepository#commit(String, Change...)}.
      */
     @Deprecated
@@ -495,7 +558,8 @@ public interface CentralDogma {
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      *
-     * @deprecated Use {@link #push(String, String, Revision, String, String, Markup, Iterable)}.
+     * @deprecated Use {@link CommitRequest#push(Revision)} via
+     *             {@link CentralDogmaRepository#commit(String, Iterable)}.
      */
     @Deprecated
     CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
@@ -510,8 +574,8 @@ public interface CentralDogma {
      * @return the latest known {@link Revision} which contains the changes for the matched files.
      *         {@code null} if the files were not changed for 1 minute since the invocation of this method.
      *
-     * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and
-     *             {@link WatchFilesRequest#await()}.
+     * @deprecated Use {@link WatchFilesRequest#start(Revision)} via
+     *             {@link CentralDogmaRepository#watch(PathPattern)}.
      */
     @Deprecated
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
@@ -532,7 +596,7 @@ public interface CentralDogma {
      *         since the invocation of this method.
      *
      * @deprecated Use {@link CentralDogmaRepository#watch(PathPattern)} and
-     *             {@link WatchFilesRequest#await()}.
+     *             {@link WatchFilesRequest#start(Revision)}.
      */
     @Deprecated
     default CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
@@ -547,6 +611,15 @@ public interface CentralDogma {
      * {@code lastKnownRevision}.  If no changes were made within the specified {@code timeoutMillis}, the
      * returned {@link CompletableFuture} will be completed with {@code null}. It is recommended to specify
      * the largest {@code timeoutMillis} allowed by the server.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .watch(pathPattern)
+     *      .timeoutMillis(timeoutMillis)
+     *      .errorOnEntryNotFound(errorOnEntryNotFound)
+     *      .start(lastKnownRevision);
+     * }</pre>
      *
      * @return the latest known {@link Revision} which contains the changes for the matched files.
      *         {@code null} if the files were not changed for {@code timeoutMillis} milliseconds
@@ -565,8 +638,7 @@ public interface CentralDogma {
      * @return the {@link Entry} which contains the latest known {@link Query} result.
      *         {@code null} if the file was not changed for 1 minute since the invocation of this method.
      *
-     * @deprecated Use {@link CentralDogmaRepository#watch(Query)} and
-     *             {@link WatchRequest#await()}.
+     * @deprecated Use {@link WatchRequest#start(Revision)} via {@link CentralDogmaRepository#watch(Query)}.
      */
     @Deprecated
     default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
@@ -586,8 +658,7 @@ public interface CentralDogma {
      *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
      *         since the invocation of this method.
      *
-     * @deprecated Use {@link CentralDogmaRepository#watch(Query)} and
-     *             {@link WatchRequest#await()}.
+     * @deprecated Use {@link WatchRequest#start(Revision)} via {@link CentralDogmaRepository#watch(Query)}.
      */
     @Deprecated
     default <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
@@ -604,6 +675,15 @@ public interface CentralDogma {
      * {@link EntryNotFoundException}. If no changes were made within the specified {@code timeoutMillis},
      * the returned {@link CompletableFuture} will be completed with {@code null}.
      * It is recommended to specify the largest {@code timeoutMillis} allowed by the server.
+     * This method is equivalent to calling:
+     * <pre>{@code
+     * CentralDogma dogma = ...
+     * dogma.forRepo(projectName, repositoryName)
+     *      .watch(query)
+     *      .timeoutMillis(timeoutMillis)
+     *      .errorOnEntryNotFound(errorOnEntryNotFound)
+     *      .start(lastKnownRevision);
+     * }</pre>
      *
      * @return the {@link Entry} which contains the latest known {@link Query} result.
      *         {@code null} if the file was not changed for {@code timeoutMillis} milliseconds
@@ -625,7 +705,7 @@ public interface CentralDogma {
      *     ...
      * });}</pre>
      *
-     * @deprecated Use {@link CentralDogmaRepository#watcher(Query)}.
+     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(Query)}.
      */
     @Deprecated
     default <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
@@ -648,7 +728,7 @@ public interface CentralDogma {
      * <p>Note that {@link Function} by default is executed by a blocking task executor so that you can
      * safely call a blocking operation.
      *
-     * @deprecated Use {@link CentralDogmaRepository#watcher(Query)} and {@link WatcherRequest#map(Function)}.
+     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(Query)}.
      */
     @Deprecated
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName,
@@ -667,7 +747,7 @@ public interface CentralDogma {
      *     ...
      * });}</pre>
      *
-     * @deprecated Use {@link CentralDogmaRepository#watcher(Query)} and {@link WatcherRequest#map(Function)}.
+     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(Query)}.
      */
     @Deprecated
     <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
@@ -683,7 +763,7 @@ public interface CentralDogma {
      *     ...
      * });}</pre>
      *
-     * @deprecated Use {@link CentralDogmaRepository#watcher(PathPattern)}.
+     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(PathPattern)}.
      */
     @Deprecated
     default Watcher<Revision> repositoryWatcher(String projectName, String repositoryName, String pathPattern) {
@@ -707,8 +787,7 @@ public interface CentralDogma {
      * may have to retry in the above example due to
      * <a href="https://github.com/line/centraldogma/issues/40">a known issue</a>.
      *
-     * @deprecated Use {@link CentralDogmaRepository#watcher(PathPattern)}
-     *             and {@link WatcherRequest#map(Function)}.
+     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(PathPattern)}.
      */
     @Deprecated
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
@@ -731,8 +810,7 @@ public interface CentralDogma {
      *
      * @param executor the {@link Executor} that executes the {@link Function}
      *
-     * @deprecated Use {@link CentralDogmaRepository#watcher(PathPattern)}
-     *             and {@link WatcherRequest#map(Function)}.
+     * @deprecated Use {@link WatcherRequest#start()} via {@link CentralDogmaRepository#watcher(PathPattern)}.
      */
     @Deprecated
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,

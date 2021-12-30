@@ -329,6 +329,11 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                           .add("repositoryName", repositoryName)
                           .add("pathPattern", pathPattern)
                           .add("errorOnEntryNotFound", errorOnEntryNotFound)
+                          .add("delayOnSuccessMillis", delayOnSuccessMillis)
+                          .add("initialDelayMillis", initialDelayMillis)
+                          .add("maxDelayMillis", maxDelayMillis)
+                          .add("multiplier", multiplier)
+                          .add("jitterRate", jitterRate)
                           .add("latest", latest)
                           .toString();
     }

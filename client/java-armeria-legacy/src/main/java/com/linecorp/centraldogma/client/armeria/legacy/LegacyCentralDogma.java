@@ -218,7 +218,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 run(callback -> {
                     client.listFiles(projectName, repositoryName,
                                      RevisionConverter.TO_DATA.convert(revision),
-                                     pathPattern.get(), callback);
+                                     pathPattern.patternString(), callback);
                 });
         return future.thenApply(list -> list.stream().collect(toImmutableMap(
                 com.linecorp.centraldogma.internal.thrift.Entry::getPath,
@@ -291,7 +291,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                     run(callback -> {
                         client.getFiles(projectName, repositoryName,
                                         RevisionConverter.TO_DATA.convert(normRev),
-                                        pathPattern.get(), callback);
+                                        pathPattern.patternString(), callback);
                     });
             return future.thenApply(list -> convertToMap(list, e -> EntryConverter.convert(normRev, e),
                                                          Entry::path, Function.identity()));
@@ -346,7 +346,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 run(callback -> client.getHistory(projectName, repositoryName,
                                                   RevisionConverter.TO_DATA.convert(from),
                                                   RevisionConverter.TO_DATA.convert(to),
-                                                  pathPattern.get(), callback));
+                                                  pathPattern.patternString(), callback));
         return future.thenApply(list -> convertToList(list, CommitConverter.TO_MODEL::convert));
     }
 
@@ -407,7 +407,8 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 run(callback -> {
                     client.getDiffs(projectName, repositoryName,
                                     RevisionConverter.TO_DATA.convert(from),
-                                    RevisionConverter.TO_DATA.convert(to), pathPattern.get(), callback);
+                                    RevisionConverter.TO_DATA.convert(to), pathPattern.patternString(),
+                                    callback);
                 });
         return future.thenApply(list -> convertToList(list, ChangeConverter.TO_MODEL::convert));
     }
@@ -471,7 +472,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
         final CompletableFuture<WatchRepositoryResult> future = run(callback -> {
             client.watchRepository(projectName, repositoryName,
                                    RevisionConverter.TO_DATA.convert(lastKnownRevision),
-                                   pathPattern.get(), timeoutMillis,
+                                   pathPattern.patternString(), timeoutMillis,
                                    callback);
         });
         return future.thenApply(r -> {

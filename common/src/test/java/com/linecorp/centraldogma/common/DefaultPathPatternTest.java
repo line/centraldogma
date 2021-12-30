@@ -32,11 +32,11 @@ class DefaultPathPatternTest {
                                 "/*/ foo.txt",
                                 "*.json")); // /**/ is prepended when the path does not start with /
 
-        assertThat(pathPattern.get()).isEqualTo("/foo/*.json,/*/ foo.txt,/**/*.json");
+        assertThat(pathPattern.patternString()).isEqualTo("/foo/*.json,/*/ foo.txt,/**/*.json");
         assertThat(pathPattern.encoded()).isEqualTo("/foo/*.json,/*/%20foo.txt,/**/*.json");
 
         pathPattern = PathPattern.of(ImmutableSet.of("/foo/*.json", "/*/foo.txt", "/**"));
-        assertThat(pathPattern.get()).isEqualTo("/**");
+        assertThat(pathPattern.patternString()).isEqualTo("/**");
         assertThat(pathPattern.encoded()).isEqualTo("/**");
     }
 

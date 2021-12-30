@@ -41,7 +41,16 @@ public final class FilesRequest {
     }
 
     /**
-     * Retrieves the list of the files matched by the given path pattern.
+     * Retrieves the list of the files matched by the given path pattern at the {@link Revision#HEAD}.
+     *
+     * @return a {@link Map} of file path and type pairs
+     */
+    public CompletableFuture<Map<String, EntryType>> list() {
+        return list(Revision.HEAD);
+    }
+
+    /**
+     * Retrieves the list of the files matched by the given path pattern at the {@link Revision}.
      *
      * @return a {@link Map} of file path and type pairs
      */
@@ -53,7 +62,16 @@ public final class FilesRequest {
     }
 
     /**
-     * Retrieves the files matched by the path pattern.
+     * Retrieves the files matched by the path pattern at the {@link Revision#HEAD}.
+     *
+     * @return a {@link Map} of file path and {@link Entry} pairs
+     */
+    public CompletableFuture<Map<String, Entry<?>>> get() {
+        return get(Revision.HEAD);
+    }
+
+    /**
+     * Retrieves the files matched by the path pattern at the {@link Revision}.
      *
      * @return a {@link Map} of file path and {@link Entry} pairs
      */

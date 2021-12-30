@@ -41,7 +41,21 @@ public final class MergeRequest<T> {
     }
 
     /**
-     * Retrieves the merged entry of the {@link MergeQuery} at the specified revision.
+     * Retrieves the merged entry of the {@link MergeQuery} at the {@link Revision#HEAD}.
+     * Only JSON entry merge is currently supported. The JSON files are merged sequentially as specified in
+     * the {@link MergeQuery}.
+     *
+     * <p>Note that only {@link ObjectNode} is recursively merged traversing the children. Other node types are
+     * simply replaced.
+     *
+     * @return the {@link MergedEntry} which contains the result of the merge
+     */
+    public CompletableFuture<MergedEntry<T>> get() {
+        return get(Revision.HEAD);
+    }
+
+    /**
+     * Retrieves the merged entry of the {@link MergeQuery} at the {@link Revision}.
      * Only JSON entry merge is currently supported. The JSON files are merged sequentially as specified in
      * the {@link MergeQuery}.
      *

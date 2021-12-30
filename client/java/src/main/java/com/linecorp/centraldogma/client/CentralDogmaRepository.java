@@ -236,7 +236,7 @@ public final class CentralDogmaRepository {
     /**
      * Returns a new {@link WatchRequest} that is used to watch the file in the
      * Central Dogma repository.
-     * Call {@link WatchRequest#await()} to perform the same operation as
+     * Call {@link WatchRequest#start(Revision)} to perform the same operation as
      * {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)}.
      */
     public WatchRequest<?> watch(String path) {
@@ -247,7 +247,7 @@ public final class CentralDogmaRepository {
     /**
      * Returns a new {@link WatchRequest} that is used to watch the file in the
      * Central Dogma repository.
-     * Call {@link WatchRequest#await()} to perform the same operation as
+     * Call {@link WatchRequest#start(Revision)} to perform the same operation as
      * {@link CentralDogma#watchFile(String, String, Revision, Query, long, boolean)}.
      */
     public <T> WatchRequest<T> watch(Query<T> query) {
@@ -258,7 +258,7 @@ public final class CentralDogmaRepository {
     /**
      * Returns a new {@link WatchFilesRequest} that is used to watch the files in the
      * Central Dogma repository.
-     * Call {@link WatchFilesRequest#await()} to perform the same operation as
+     * Call {@link WatchFilesRequest#start(Revision)} to perform the same operation as
      * {@link CentralDogma#watchRepository(String, String, Revision, PathPattern, long, boolean)}.
      */
     public WatchFilesRequest watch(PathPattern pathPattern) {

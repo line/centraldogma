@@ -55,14 +55,23 @@ public final class CommitRequest {
     }
 
     /**
-     * Pushes the {@link Change}s to the repository.
+     * Pushes the {@link Change}s to the repository with {@link Revision#HEAD}.
+     *
+     * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
+     */
+    public CompletableFuture<PushResult> push() {
+        return push(Revision.HEAD);
+    }
+
+    /**
+     * Pushes the {@link Change}s to the repository with the {@link Revision}.
      *
      * @return the {@link PushResult} which tells the {@link Revision} and timestamp of the new {@link Commit}
      */
     public CompletableFuture<PushResult> push(Revision baseRevision) {
         requireNonNull(baseRevision, "baseRevision");
         return centralDogmaRepo.centralDogma().push(centralDogmaRepo.projectName(),
-                                                      centralDogmaRepo.repositoryName(),
-                                                      baseRevision, summary, detail, markup, changes);
+                                                    centralDogmaRepo.repositoryName(),
+                                                    baseRevision, summary, detail, markup, changes);
     }
 }

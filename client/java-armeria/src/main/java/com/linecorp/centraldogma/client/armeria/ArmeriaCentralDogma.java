@@ -51,13 +51,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
-import com.google.common.math.IntMath;
 import com.google.common.math.LongMath;
 
 import com.linecorp.armeria.client.Clients;
@@ -957,31 +955,6 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         } catch (UnsupportedEncodingException e) {
             throw new Error(); // Never reaches here.
         }
-    }
-
-    @VisibleForTesting
-    static String encodePathPattern(String pathPattern) {
-        // We do not need full escaping because we validated the path pattern already and thus contains only
-        // -, ' ', /, *, _, ., ',', a-z, A-Z, 0-9.
-        // See Util.isValidPathPattern() for more information.
-        int spacePos = pathPattern.indexOf(' ');
-        if (spacePos < 0) {
-            return pathPattern;
-        }
-
-        final StringBuilder buf = new StringBuilder(IntMath.saturatedMultiply(pathPattern.length(), 2));
-        for (int pos = 0;;) {
-            buf.append(pathPattern, pos, spacePos);
-            buf.append("%20");
-            pos = spacePos + 1;
-            spacePos = pathPattern.indexOf(' ', pos);
-            if (spacePos < 0) {
-                buf.append(pathPattern, pos, pathPattern.length());
-                break;
-            }
-        }
-
-        return buf.toString();
     }
 
     /**

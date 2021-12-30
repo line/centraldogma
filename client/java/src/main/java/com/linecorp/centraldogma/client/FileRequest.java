@@ -38,7 +38,16 @@ public final class FileRequest<T> {
     }
 
     /**
-     * Queries a file at the specified revision and path with the {@link Query}.
+     * Retrieves a file located at {@link Query#path()} at the {@link Revision#HEAD}.
+     *
+     * @return the {@link Entry} that is matched by the given {@link Query}
+     */
+    public CompletableFuture<Entry<T>> get() {
+        return get(Revision.HEAD);
+    }
+
+    /**
+     * Retrieves a file located at {@link Query#path()} at the {@link Revision}.
      *
      * @return the {@link Entry} that is matched by the given {@link Query}
      */
