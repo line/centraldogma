@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.client.armeria;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -103,6 +104,21 @@ class WatcherTest {
                 .newChild(str -> "1".equals(str) ? true : false);
 
         assertThat(watcher.initialValueFuture().join().value()).isTrue();
+        originalWatcher.close();
+    }
+
+    @Test
+    void mapperException() {
+        final Watcher<String> originalWatcher = dogma.client()
+                                                     .forRepo("foo", "bar")
+                                                     .watcher(Query.ofText("/baz.txt"))
+                                                     .start();
+        originalWatcher.initialValueFuture().join();
+        final Watcher<String> watcher = originalWatcher.newChild(unused -> {
+            throw new RuntimeException();
+        }).newChild(val -> "not called");
+        await().untilAsserted(() -> assertThatThrownBy(() -> watcher.initialValueFuture().join())
+                .hasCauseExactlyInstanceOf(RuntimeException.class));
         originalWatcher.close();
     }
 }

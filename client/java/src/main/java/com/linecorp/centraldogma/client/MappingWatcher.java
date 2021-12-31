@@ -76,7 +76,17 @@ final class MappingWatcher<T, U> implements Watcher<U> {
             if (closed) {
                 return;
             }
-            final U mappedValue = mapper.apply(value);
+            final U mappedValue;
+            try {
+                mappedValue = mapper.apply(value);
+            } catch (Exception e) {
+                logger.warn("Unexpected exception is raised from mapper.apply(). mapper: {}", mapper, e);
+                if (!initialValueFuture.isDone()) {
+                    initialValueFuture.completeExceptionally(e);
+                }
+                close();
+                return;
+            }
             final Latest<U> oldLatest = mappedLatest;
             if (oldLatest != null && oldLatest.value() == mappedValue) {
                 return;
