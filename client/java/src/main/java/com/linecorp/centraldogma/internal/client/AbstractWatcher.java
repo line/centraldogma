@@ -106,7 +106,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     }
 
     private final CentralDogma client;
-    private final ScheduledExecutorService watchScheduler;
+    protected final ScheduledExecutorService watchScheduler;
     private final String projectName;
     private final String repositoryName;
     private final String pathPattern;
