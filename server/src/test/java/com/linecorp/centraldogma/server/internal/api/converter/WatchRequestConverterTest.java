@@ -17,19 +17,15 @@
 package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.common.AggregatedHttpRequest;
-import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.internal.api.converter.WatchRequestConverter.WatchRequest;
 
 class WatchRequestConverterTest {
@@ -37,27 +33,60 @@ class WatchRequestConverterTest {
     private static final WatchRequestConverter converter = new WatchRequestConverter();
 
     @Test
-    void convertWatchRequest() throws Exception {
-        final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
-        final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
-        final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/",
-                                                         HttpHeaderNames.IF_NONE_MATCH, "-1",
-                                                         HttpHeaderNames.PREFER, "wait=10");
-        when(request.headers()).thenReturn(headers);
+    void extractValidRevision() {
+        final String firstIfNoneMatch = "-1";
+        final String firstRevision = converter.extractRevision(firstIfNoneMatch);
+        assertThat(firstRevision).isEqualTo(firstIfNoneMatch);
 
-        final WatchRequest watchRequest = convert(ctx, request);
-        assertThat(watchRequest).isNotNull();
-        assertThat(watchRequest.lastKnownRevision()).isEqualTo(Revision.HEAD);
-        assertThat(watchRequest.timeoutMillis()).isEqualTo(10000); // 10 seconds
+        final String secondIfNoneMatch = "\"-1\"";
+        final String secondRevision = converter.extractRevision(secondIfNoneMatch);
+        assertThat(secondRevision).isEqualTo("-1");
+
+        final String thirdIfNoneMatch = "W/\"-1\"";
+        final String thirdRevision = converter.extractRevision(thirdIfNoneMatch);
+        assertThat(thirdRevision).isEqualTo("-1");
+    }
+
+    @Test
+    void extractInvalidRevision() {
+        final String firstIfNoneMatch = "w/\"-1\"";
+        final String firstRevision = converter.extractRevision(firstIfNoneMatch);
+        assertThat(firstRevision).isEqualTo(firstIfNoneMatch);
+
+        final String secondIfNoneMatch = "W\"-1\"";
+        final String secondRevision = converter.extractRevision(secondIfNoneMatch);
+        assertThat(secondRevision).isEqualTo(secondIfNoneMatch);
+
+        final String thirdIfNoneMatch = "/\"-1\"";
+        final String thirdRevision = converter.extractRevision(thirdIfNoneMatch);
+        assertThat(thirdRevision).isEqualTo(thirdIfNoneMatch);
+
+        final String fourthIfNoneMatch = "-1\"";
+        final String fourthRevision = converter.extractRevision(fourthIfNoneMatch);
+        assertThat(fourthRevision).isEqualTo(fourthIfNoneMatch);
+
+        final String fifthIfNoneMatch = "\"-1";
+        final String fifthRevision = converter.extractRevision(fifthIfNoneMatch);
+        assertThat(fifthRevision).isEqualTo(fifthIfNoneMatch);
+
+        final String sixthIfNoneMatch = "W/\"";
+        final String sixthRevision = converter.extractRevision(sixthIfNoneMatch);
+        assertThat(sixthRevision).isEqualTo(sixthIfNoneMatch);
+
+        final String seventhIfNoneMatch = "\"";
+        final String seventhRevision = converter.extractRevision(seventhIfNoneMatch);
+        assertThat(seventhRevision).isEqualTo(seventhIfNoneMatch);
+
+        final String eighthIfNoneMatch = "\"\"";
+        final String eighthRevision = converter.extractRevision(eighthIfNoneMatch);
+        assertThat(eighthRevision).isEqualTo(eighthIfNoneMatch);
     }
 
     @Test
     void emptyHeader() throws Exception {
-        final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
-        final AggregatedHttpRequest request = mock(AggregatedHttpRequest.class);
         final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, "/");
-
-        when(request.headers()).thenReturn(headers);
+        final AggregatedHttpRequest request = AggregatedHttpRequest.of(headers);
+        final ServiceRequestContext ctx = ServiceRequestContext.of(request.toHttpRequest());
 
         final WatchRequest watchRequest = convert(ctx, request);
         assertThat(watchRequest).isNull();
@@ -66,6 +95,6 @@ class WatchRequestConverterTest {
     @Nullable
     private static WatchRequest convert(
             ServiceRequestContext ctx, AggregatedHttpRequest request) throws Exception {
-        return (WatchRequest) converter.convertRequest(ctx, request, null, null);
+        return converter.convertRequest(ctx, request, null, null);
     }
 }
