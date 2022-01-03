@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
@@ -199,9 +201,16 @@ public class RepositoryWrapper implements Repository {
         return unwrap().mergeFiles(revision, query);
     }
 
+    @Nullable
     @Override
-    public void removeOldCommits(int minRetentionCommits, int minRetentionDays) {
-        unwrap().removeOldCommits(minRetentionCommits, minRetentionDays);
+    public Revision shouldCreateRollingRepository(int minRetentionCommits, int minRetentionDays) {
+        return unwrap().shouldCreateRollingRepository(minRetentionCommits, minRetentionDays);
+    }
+
+    @Override
+    public void createRollingRepository(Revision initialRevision, int minRetentionCommits,
+                                        int minRetentionDays) {
+        unwrap().createRollingRepository(initialRevision, minRetentionCommits, minRetentionDays);
     }
 
     @Override

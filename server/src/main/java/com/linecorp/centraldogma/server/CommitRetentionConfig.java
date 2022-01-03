@@ -65,8 +65,8 @@ public final class CommitRetentionConfig {
 
     /**
      * Returns the minimum number of commits that a {@link Repository} should retain. 0 means that
-     * the number of commits are not taken into account when {@link Repository#removeOldCommits(int, int)}
-     * is called.
+     * the number of commits are not taken into account when
+     * {@link Repository#shouldCreateRollingRepository(int, int)} is called.
      */
     public int minRetentionCommits() {
         return minRetentionCommits;
@@ -75,7 +75,7 @@ public final class CommitRetentionConfig {
     /**
      * Returns the minimum number of days of a commit that a {@link Repository} should retain. 0 means that
      * the number of retention days of commits are not taken into account when
-     * {@link Repository#removeOldCommits(int, int)} is called.
+     * {@link Repository#shouldCreateRollingRepository(int, int)} is called.
      */
     public int minRetentionDays() {
         return minRetentionDays;

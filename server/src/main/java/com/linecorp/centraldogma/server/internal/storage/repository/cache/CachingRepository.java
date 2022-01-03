@@ -308,8 +308,14 @@ final class CachingRepository implements Repository {
     }
 
     @Override
-    public void removeOldCommits(int minRetentionCommits, int minRetentionDays) {
-        repo.removeOldCommits(minRetentionCommits, minRetentionDays);
+    public Revision shouldCreateRollingRepository(int minRetentionCommits, int minRetentionDays) {
+        return repo.shouldCreateRollingRepository(minRetentionCommits, minRetentionDays);
+    }
+
+    @Override
+    public void createRollingRepository(Revision initialRevision, int minRetentionCommits,
+                                        int minRetentionDays) {
+        repo.createRollingRepository(initialRevision, minRetentionCommits, minRetentionDays);
     }
 
     @Override

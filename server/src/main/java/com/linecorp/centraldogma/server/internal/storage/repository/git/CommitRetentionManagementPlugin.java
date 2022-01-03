@@ -89,7 +89,7 @@ public final class CommitRetentionManagementPlugin implements Plugin {
                                                     .timeToNextExecution(ZonedDateTime.now());
         final ListeningScheduledExecutorService worker = this.worker;
         assert worker != null;
-        scheduledFuture = worker.schedule(() -> removeOldCommits(context, config), nextExecution);
+        scheduledFuture = worker.schedule(() -> createRollingRepository(context, config), nextExecution);
 
         Futures.addCallback(scheduledFuture, new FutureCallback<Object>() {
             @Override
@@ -105,7 +105,7 @@ public final class CommitRetentionManagementPlugin implements Plugin {
         }, worker);
     }
 
-    private void removeOldCommits(PluginContext context, CommitRetentionConfig config) {
+    private void createRollingRepository(PluginContext context, CommitRetentionConfig config) {
         if (stopping) {
             return;
         }

@@ -454,17 +454,19 @@ final class InternalRepository {
     }
 
     Map<String, Entry<?>> find(Revision normalizedRevision, String pathPattern, Map<FindOption<?>, ?> options) {
+        final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
+        final int maxEntries = FindOption.MAX_ENTRIES.get(options);
+
         try (ObjectReader reader = jGitRepository.newObjectReader();
              TreeWalk treeWalk = new TreeWalk(reader);
              RevWalk revWalk = newRevWalk(reader)) {
+
             final Map<String, Entry<?>> result = new LinkedHashMap<>();
             final ObjectId commitId = commitIdDatabase.get(normalizedRevision);
             final RevCommit revCommit = revWalk.parseCommit(commitId);
-            final PathPatternFilter filter = PathPatternFilter.of(pathPattern);
-
-            final int maxEntries = FindOption.MAX_ENTRIES.get(options);
             final RevTree revTree = revCommit.getTree();
             treeWalk.addTree(revTree.getId());
+
             while (treeWalk.next() && result.size() < maxEntries) {
                 final boolean matches = filter.matches(treeWalk);
                 final String path = '/' + treeWalk.getPathString();

@@ -40,7 +40,7 @@ class GitRepositoryV2WatchTest {
     @BeforeAll
     static void setUp() {
         // The repository contains commits from 10 to 20(inclusive).
-        repo = createRepository(repoDir, 10, 20);
+        repo = createRepository(repoDir);
     }
 
     @AfterAll

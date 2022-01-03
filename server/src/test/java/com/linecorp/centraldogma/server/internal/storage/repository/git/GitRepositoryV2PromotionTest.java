@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.linecorp.centraldogma.server.internal.storage.DirectoryBasedStorageManager.SUFFIX_REMOVED;
+import static com.linecorp.centraldogma.server.storage.repository.Repository.ALL_PATH;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -23,12 +24,16 @@ import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.time.Instant;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.google.common.collect.ImmutableMap;
+
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -49,13 +54,15 @@ class GitRepositoryV2PromotionTest {
         addCommits(repo, 2, 11);
         assertThat(primaryCommitIdDatabase.headRevision().major()).isEqualTo(11);
 
-        repo.removeOldCommits(10, 0);
+        assertThat(repo.shouldCreateRollingRepository(10, 0)).isNull();
         // Nothing happened because 10 commits are made so far.
         assertThat(repo.secondaryRepo).isNull();
 
-        // Add one more commit.
+        // Add one more commit to create a rolling repository.
         addCommits(repo, 12, 12);
-        repo.removeOldCommits(10, 0);
+        assertThat(repo.shouldCreateRollingRepository(10, 0).major()).isEqualTo(12);
+        repo.createRollingRepository(new Revision(12), 1, 0);
+
         assertThat(primaryCommitIdDatabase.headRevision().major()).isEqualTo(12);
         final InternalRepository secondaryRepo = repo.secondaryRepo;
         assertThat(secondaryRepo).isNotNull();
@@ -66,7 +73,7 @@ class GitRepositoryV2PromotionTest {
         // Add ten more commit.
         addCommits(repo, 13, 22);
         // No changes.
-        repo.removeOldCommits(10, 0);
+        assertThat(repo.shouldCreateRollingRepository(10, 0)).isNull();
         assertThat(primaryCommitIdDatabase.headRevision().major()).isEqualTo(22);
         assertThat(secondaryRepo).isEqualTo(repo.secondaryRepo);
         assertThat(repo.primaryRepo).isNotSameAs(repo.secondaryRepo);
@@ -74,9 +81,10 @@ class GitRepositoryV2PromotionTest {
         assertThat(secondaryRepo.commitIdDatabase().headRevision().major()).isEqualTo(22);
         assertThat(secondaryRepo.secondCommitCreationTimeInstant()).isEqualTo(Instant.ofEpochMilli(13 * 1000));
 
-        // Add one more commit.
+        // Add one more commit to create a rolling repository.
         addCommits(repo, 23, 23);
-        repo.removeOldCommits(10, 0);
+        assertThat(repo.shouldCreateRollingRepository(10, 0).major()).isEqualTo(23);
+        repo.createRollingRepository(new Revision(23), 1, 0);
         // The secondary repo is promoted to the primary repo.
         assertThat(repo.primaryRepo).isSameAs(secondaryRepo);
         assertThat(repo.primaryRepo).isNotSameAs(primaryRepo);
@@ -94,6 +102,25 @@ class GitRepositoryV2PromotionTest {
         assertThat(repo.secondaryRepo.commitIdDatabase().headRevision().major()).isEqualTo(23);
         assertThat(repo.secondaryRepo.secondCommitCreationTimeInstant()).isNull();
 
+        // Add 11 commits so that we are ready to create a rolling repository.
+        addCommits(repo, 24, 35);
+        assertThat(repo.shouldCreateRollingRepository(10, 0).major()).isEqualTo(35);
+
+        // Add 5 more commits before creating a rolling repository to check if there are missing commits.
+        addCommits(repo, 36, 40);
+        repo.createRollingRepository(new Revision(35), 1, 0);
+
+        assertThat(repo.primaryRepo.commitIdDatabase().firstRevision().major()).isEqualTo(23);
+        assertThat(repo.primaryRepo.commitIdDatabase().headRevision().major()).isEqualTo(40);
+
+        assertThat(repo.secondaryRepo.commitIdDatabase().firstRevision().major()).isEqualTo(35);
+        assertThat(repo.secondaryRepo.commitIdDatabase().headRevision().major()).isEqualTo(40);
+
+        for (int i = 36; i < 40; i++) {
+            assertThat(entries(repo.primaryRepo, i)).containsExactlyInAnyOrderEntriesOf(
+                    entries(repo.primaryRepo, i));
+        }
+
         repo.internalClose();
     }
 
@@ -105,7 +132,11 @@ class GitRepositoryV2PromotionTest {
     }
 
     static void addCommit(GitRepositoryV2 repo, int index, Change<String> change) {
-        repo.commit(Revision.HEAD, index * 1000, Author.SYSTEM,
+        repo.commit(Revision.HEAD, index * 1000L, Author.SYSTEM,
                     "Summary" + index, "Detail", Markup.PLAINTEXT, change).join();
+    }
+
+    private static Map<String, Entry<?>> entries(InternalRepository repo, int revision) {
+        return repo.find(new Revision(revision), ALL_PATH, ImmutableMap.of());
     }
 }

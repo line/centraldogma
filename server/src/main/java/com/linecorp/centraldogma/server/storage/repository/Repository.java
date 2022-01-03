@@ -524,13 +524,21 @@ public interface Repository {
     }
 
     /**
-     * Removes the old commits that are passed more than the {@code minRetentionDays} and are exceeded the
-     * number of {@code minRetentionCommits}.
+     * Returns the head {@link Revision} of this repository if this repository needs to create a
+     * rolling repository. It should meet following conditions:
+     * - The last created rolling repository should have more than {@code minRetentionCommits}.
+     * - The last created rolling repository should have commits that are older than {@code minRetentionDays}.
      */
-    void removeOldCommits(int minRetentionCommits, int minRetentionDays);
-
     @Nullable
     Revision shouldCreateRollingRepository(int minRetentionCommits, int minRetentionDays);
 
+    /**
+     * Creates the rolling repository. The specified {@code initialRevision} of the current repository will be
+     * the initial revision of the created rolling repository.
+     *
+     * @throws IllegalStateException if {@link #shouldCreateRollingRepository(int, int)} with the specified
+     *                               {@code minRetentionCommits} and {@code minRetentionDays} does not return
+     *                               a valid {@link Revision}.
+     */
     void createRollingRepository(Revision initialRevision, int minRetentionCommits, int minRetentionDays);
 }

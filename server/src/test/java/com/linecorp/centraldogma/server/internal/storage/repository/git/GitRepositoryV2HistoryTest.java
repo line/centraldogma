@@ -44,7 +44,7 @@ class GitRepositoryV2HistoryTest {
     @BeforeAll
     static void setUp() {
         // The repository contains commits from 10 to 20(inclusive).
-        repo = createRepository(repoDir, 10, 20);
+        repo = createRepository(repoDir);
     }
 
     @AfterAll
@@ -96,16 +96,20 @@ class GitRepositoryV2HistoryTest {
         assertThat(commits).hasSize(1);
     }
 
-    static GitRepositoryV2 createRepository(File repoDir, int from, int to) {
+    static GitRepositoryV2 createRepository(File repoDir) {
         final GitRepositoryV2 repo = new GitRepositoryV2(mock(Project.class),
                                                          new File(repoDir, "test_repo"), commonPool(),
                                                          0L, Author.SYSTEM, null);
-        addCommits(repo, 2, from);
-        repo.removeOldCommits(from - 2, 0);
+        addCommits(repo, 2, 10);
+        int minRetentionCommits = 10 - 2;
+        assertThat(repo.shouldCreateRollingRepository(minRetentionCommits, 0).major()).isEqualTo(10);
+        repo.createRollingRepository(new Revision(10), minRetentionCommits, 0);
         // The headRevision of the secondary repository is now from revision.
 
-        addCommits(repo, from + 1, to);
-        repo.removeOldCommits(to - from - 1, 0);
+        addCommits(repo, 11, 20);
+        minRetentionCommits = 9; // 20 - 10 - 1
+        assertThat(repo.shouldCreateRollingRepository(minRetentionCommits, 0).major()).isEqualTo(20);
+        repo.createRollingRepository(new Revision(20), minRetentionCommits, 0);
 
         final CommitIdDatabase commitIdDatabase = repo.primaryRepo.commitIdDatabase();
         assertThat(commitIdDatabase.firstRevision().major()).isSameAs(10);

@@ -31,7 +31,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -122,10 +121,6 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
 
     private final long creationTimeMillis;
     private final Author author;
-
-    // Guarded by the write lock.
-    private boolean isCreatingSecondaryRepo;
-    private final List<LaggedCommit> laggedCommitsForSecondary = new ArrayList<>();
 
     /**
      * The current head revision. Initialized by the constructor and updated by commit().
@@ -483,16 +478,11 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             res = primaryRepo.commit(headRevision, headRevision.forward(1), commitTimeMillis,
                                      author, summary, detail, markup, applyingChanges, false);
             this.headRevision = res.revision;
-            if (isCreatingSecondaryRepo) {
-                laggedCommitsForSecondary.add(new LaggedCommit(headRevision, commitTimeMillis, author, summary,
-                                                               detail, markup, applyingChanges, false));
-            } else {
-                final InternalRepository secondaryRepo = this.secondaryRepo;
-                if (secondaryRepo != null) {
-                    // Push the same commit to the secondary repo.
-                    secondaryRepo.commit(headRevision, headRevision.forward(1), commitTimeMillis,
-                                         author, summary, detail, markup, applyingChanges, false);
-                }
+            final InternalRepository secondaryRepo = this.secondaryRepo;
+            if (secondaryRepo != null) {
+                // Push the same commit to the secondary repo.
+                secondaryRepo.commit(headRevision, headRevision.forward(1), commitTimeMillis,
+                                     author, summary, detail, markup, applyingChanges, false);
             }
         } finally {
             writeUnLock();
@@ -657,12 +647,12 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         requireNonNull(pathPattern, "pathPattern");
 
         final ServiceRequestContext ctx = context();
-        final Revision normLastKnownRevision = normalizeNow(lastKnownRevision, false);
         final CompletableFuture<Revision> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
             failFastIfTimedOut(this, logger, ctx, "watch", lastKnownRevision, pathPattern);
             readLock();
             try {
+                final Revision normLastKnownRevision = normalizeNow(lastKnownRevision, false);
                 // If lastKnownRevision is outdated already and the recent changes match,
                 // there's no need to watch.
                 final Revision latestRevision = blockingFindLatestRevision(normLastKnownRevision, pathPattern,
@@ -713,31 +703,6 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         return primaryRepo.listCommits(ALL_PATH, 1, range).get(0);
     }
 
-    /**
-     * This repository removes the old commits by creating the secondary repository that commits are pushed
-     * together with the primary repository and removing the primary repository if the secondary repository
-     * contains at least the number of {@code minRetentionCommits} and contains the recent
-     * {@code minRetentionDays} commits.
-     */
-    @Override
-    public void removeOldCommits(int minRetentionCommits, int minRetentionDays) {
-        // TODO(minwoox): provide a way to set different minRetentionCommits and minRetentionDays
-        //                in each repository.
-        if (minRetentionCommits == 0 && minRetentionDays == 0) {
-            // Not enabled.
-            return;
-        }
-
-        final InternalRepository secondaryRepo = this.secondaryRepo;
-        if (secondaryRepo != null) {
-            if (exceedsMinRetention(secondaryRepo, headRevision, minRetentionCommits, minRetentionDays)) {
-                promoteSecondaryRepo(secondaryRepo, rollingRepositoryInitialRevision);
-            }
-        } else if (exceedsMinRetention(primaryRepo, headRevision, minRetentionCommits, minRetentionDays)) {
-            createSecondaryRepo(rollingRepositoryInitialRevision);
-        }
-    }
-
     @Override
     public Revision shouldCreateRollingRepository(int minRetentionCommits, int minRetentionDays) {
         final InternalRepository repo = secondaryRepo != null ? secondaryRepo : primaryRepo;
@@ -782,6 +747,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
     @Override
     public void createRollingRepository(Revision rollingRepositoryInitialRevision,
                                         int minRetentionCommits, int minRetentionDays) {
+        requireNonNull(rollingRepositoryInitialRevision, "rollingRepositoryInitialRevision");
         checkState(shouldCreateRollingRepository(rollingRepositoryInitialRevision,
                                                  minRetentionCommits, minRetentionDays) ==
                    rollingRepositoryInitialRevision, "aaa");
@@ -826,40 +792,42 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
     private void createSecondaryRepo(Revision rollingRepositoryInitialRevision) {
         InternalRepository secondaryRepo = null;
         try {
-            writeLock();
-            isCreatingSecondaryRepo = true;
-            writeUnLock();
-
             logger.info("Creating the secondary repository in {}/{}. head revision: {}.",
                         parent.name(), originalRepoName, rollingRepositoryInitialRevision);
-            final Map<String, Entry<?>> entries = find(rollingRepositoryInitialRevision, ALL_PATH,
-                                                       ImmutableMap.of()).join();
-            final List<Change<?>> changes = toChanges(entries);
+            final List<Change<?>> changes = changes(rollingRepositoryInitialRevision);
             final File secondaryRepoDir = repoMetadata.secondaryRepoDir();
             secondaryRepo = InternalRepository.of(parent, originalRepoName, secondaryRepoDir,
                                                   rollingRepositoryInitialRevision, creationTimeMillis,
                                                   author, changes);
             writeLock();
             try {
-                if (laggedCommitsForSecondary.isEmpty()) {
-                    // There were no commits after creating the secondary repo
-                    // so the rollingRepositoryInitialRevision hasn't changed.
-                    assert rollingRepositoryInitialRevision == this.headRevision;
-                } else {
-                    // We should catch up.
-                    for (LaggedCommit c : laggedCommitsForSecondary) {
-                        secondaryRepo.commit(c.revision, c.revision.forward(1), c.commitTimeMillis, c.author,
-                                             c.summary, c.detail, c.markup, c.changes, c.allowEmpty);
+                final Revision headRevision = this.headRevision;
+                if (!rollingRepositoryInitialRevision.equals(headRevision)) {
+                    assert rollingRepositoryInitialRevision.major() < headRevision.major();
+                    // There were commits after the createRollingRepositoryCommand is created
+                    // so we should catch up.
+                    final RevisionRange revisionRange = new RevisionRange(
+                            rollingRepositoryInitialRevision.forward(1), headRevision);
+                    final List<Commit> commits = primaryRepo.listCommits(ALL_PATH, MAX_MAX_COMMITS,
+                                                                         revisionRange);
+                    Revision fromRevision = rollingRepositoryInitialRevision;
+                    for (Commit commit : commits) {
+                        final Revision toRevision = commit.revision();
+                        final Map<String, Change<?>> diffs = primaryRepo.diff(
+                                new RevisionRange(fromRevision, toRevision), ALL_PATH);
+                        secondaryRepo.commit(fromRevision, toRevision, commit.when(), commit.author(),
+                                             commit.summary(), commit.detail(), commit.markup(), diffs.values(),
+                                             false);
+                        fromRevision = toRevision;
                     }
-                    laggedCommitsForSecondary.clear();
                 }
-                isCreatingSecondaryRepo = false;
                 this.secondaryRepo = secondaryRepo;
             } finally {
                 writeUnLock();
             }
             logger.info("The secondary repository {} is created in {}/{}. head revision: {}",
-                        secondaryRepoDir.getName(), parent.name(), originalRepoName, rollingRepositoryInitialRevision);
+                        secondaryRepoDir.getName(), parent.name(), originalRepoName,
+                        rollingRepositoryInitialRevision);
         } catch (Throwable t) {
             logger.warn("Failed to create the secondary repository", t);
             if (secondaryRepo != null) {
@@ -873,7 +841,9 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         }
     }
 
-    private static List<Change<?>> toChanges(Map<String, Entry<?>> entries) {
+    private List<Change<?>> changes(Revision rollingRepositoryInitialRevision) {
+        final Map<String, Entry<?>> entries = primaryRepo.find(
+                rollingRepositoryInitialRevision, ALL_PATH, ImmutableMap.of());
         final Builder<Change<?>> builder = ImmutableList.builder();
         for (Entry<?> entry : entries.values()) {
             final EntryType type = entry.type();
@@ -899,31 +869,6 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
                        .map(File::delete)
                        // Return false if it fails to delete a file.
                        .reduce(true, (a, b) -> a && b);
-        }
-    }
-
-    private static class LaggedCommit {
-
-        private final Revision revision;
-        private final long commitTimeMillis;
-        private final Author author;
-        private final String summary;
-        private final String detail;
-        private final Markup markup;
-        private final Iterable<Change<?>> changes;
-        private final boolean allowEmpty;
-
-        LaggedCommit(Revision revision, long commitTimeMillis, Author author, String summary,
-                     String detail, Markup markup, Iterable<Change<?>> changes,
-                     boolean allowEmpty) {
-            this.revision = revision;
-            this.commitTimeMillis = commitTimeMillis;
-            this.author = author;
-            this.summary = summary;
-            this.detail = detail;
-            this.markup = markup;
-            this.changes = changes;
-            this.allowEmpty = allowEmpty;
         }
     }
 }

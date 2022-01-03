@@ -1647,7 +1647,13 @@ class LegacyGitRepository implements Repository {
     }
 
     @Override
-    public void removeOldCommits(int minRetentionCommits, int minRetentionDays) {
+    public Revision shouldCreateRollingRepository(int minRetentionCommits, int minRetentionDays) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void createRollingRepository(Revision initialRevision, int minRetentionCommits,
+                                        int minRetentionDays) {
         throw new UnsupportedOperationException();
     }
 

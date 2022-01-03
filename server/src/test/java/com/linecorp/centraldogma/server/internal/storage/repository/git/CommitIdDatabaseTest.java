@@ -153,7 +153,7 @@ class CommitIdDatabaseTest {
         assertThat(Files.size(commitIdDatabaseFile.toPath())).isEqualTo((numCommits + 1) * 24L);
     }
 
-    private GitRepositoryV2 createRepoWithFirstRevision(File repoDir, int startRevision) {
+    private static GitRepositoryV2 createRepoWithFirstRevision(File repoDir, int startRevision) {
         final GitRepositoryV2 repo = new GitRepositoryV2(mock(Project.class), repoDir,
                                                          commonPool(),
                                                          0, Author.SYSTEM, null);
@@ -166,14 +166,17 @@ class CommitIdDatabaseTest {
         for (int i = 1; i < startRevision; i++) {
             addCommit(repo, i);
         }
-        repo.removeOldCommits(1, 0);
+        assertThat(repo.shouldCreateRollingRepository(1, 0).major()).isEqualTo(startRevision);
+        repo.createRollingRepository(new Revision(startRevision), 1, 0);
         // Now the first revision of secondary repository is startRevision;
         final InternalRepository secondaryRepo = repo.secondaryRepo;
         assertThat(secondaryRepo.commitIdDatabase().firstRevision().major()).isEqualTo(startRevision);
 
         addCommit(repo, startRevision);
         addCommit(repo, startRevision + 1);
-        repo.removeOldCommits(1, 0);
+        assertThat(repo.shouldCreateRollingRepository(1, 0).major()).isEqualTo(startRevision + 2);
+        repo.createRollingRepository(new Revision(startRevision + 2), 1, 0);
+
         // The secondary repo is promoted.
         assertThat(repo.primaryRepo).isSameAs(secondaryRepo);
         assertThat(repo.primaryRepo.commitIdDatabase().firstRevision().major()).isEqualTo(startRevision);
@@ -181,7 +184,7 @@ class CommitIdDatabaseTest {
         return repo;
     }
 
-    private Revision addCommit(GitRepositoryV2 repo, int i) {
+    private static Revision addCommit(GitRepositoryV2 repo, int i) {
         return repo.commit(Revision.HEAD, 0, Author.SYSTEM, "", Change.ofTextUpsert("/" + i + ".txt", ""))
                    .join()
                    .revision();

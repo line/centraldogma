@@ -19,7 +19,14 @@ import static java.util.Objects.requireNonNull;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.CommitRetentionConfig;
+import com.linecorp.centraldogma.server.storage.repository.Repository;
 
+/**
+ * A {@link Command} which is used for creating a new rolling repository.
+ *
+ * @see CommitRetentionConfig
+ */
 public final class CreateRollingRepositoryCommand extends RepositoryCommand<Void> {
 
     private final Revision initialRevision;
@@ -34,14 +41,27 @@ public final class CreateRollingRepositoryCommand extends RepositoryCommand<Void
         this.minRetentionDays = minRetentionDays;
     }
 
+    /**
+     * Returns a {@link Revision} that will be the initial revision of the rolling repository.
+     */
     public Revision initialRevision() {
         return initialRevision;
     }
 
+    /**
+     * Returns the minimum number of commits that a {@link Repository} should retain. 0 means that
+     * the number of commits are not taken into account when
+     * {@link Repository#shouldCreateRollingRepository(int, int)} is called.
+     */
     public int minRetentionCommits() {
         return minRetentionCommits;
     }
 
+    /**
+     * Returns the minimum number of days of a commit that a {@link Repository} should retain. 0 means that
+     * the number of retention days of commits are not taken into account when
+     * {@link Repository#shouldCreateRollingRepository(int, int)} is called.
+     */
     public int minRetentionDays() {
         return minRetentionDays;
     }
