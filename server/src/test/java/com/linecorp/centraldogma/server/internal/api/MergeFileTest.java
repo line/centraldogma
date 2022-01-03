@@ -56,8 +56,10 @@ class MergeFileTest {
         addFilesForMergeJson(client);
 
         // The property "a" in "/foo.json" is overwritten by the property "a" in "/foo2.json"
+        //// and the property "b" in "/foo.json" is overwritten by the property "b" in "/foo1.json5".
+        //// and the property "c" in "/foo1.json5" is overwritten by the property "c" in "/foo2.json".
         String queryString = "path=/foo.json" + '&' +
-                             "path=/foo1.json" + '&' +
+                             "path=/foo1.json5" + '&' +
                              "path=/foo2.json" + '&' +
                              "optional_path=/foo3.json";
 
@@ -70,14 +72,15 @@ class MergeFileTest {
                 "   \"type\" : \"JSON\"," +
                 "   \"content\" : {" +
                 "       \"a\" : \"new_bar\"," +
-                "       \"b\" : \"baz\" " +
+                "       \"b\" : \"new_baz\"," +
+                "       \"c\" : \"new_qux\"" +
                 "   }," +
-                "   \"paths\" : [\"/foo.json\", \"/foo1.json\", \"/foo2.json\"] " +
+                "   \"paths\" : [\"/foo.json\", \"/foo1.json5\", \"/foo2.json\"] " +
                 '}';
         assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
 
         queryString = "path=/foo.json" + '&' +
-                      "path=/foo1.json" + '&' +
+                      "path=/foo1.json5" + '&' +
                       "path=/foo2.json" + '&' +
                       "path=/foo3.json";
         aRes = client.get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate().join();
@@ -113,9 +116,9 @@ class MergeFileTest {
         final WebClient client = dogma.httpClient();
         addFilesForMergeJson(client);
         String queryString = "path=/foo.json" + '&' +
-                             "path=/foo1.json" + '&' +
+                             "path=/foo1.json5" + '&' +
                              "path=/foo2.json" + '&' +
-                             "jsonpath=$[?(@.b == \"baz\")]&jsonpath=$[0].b";
+                             "jsonpath=$[?(@.b == \"new_baz\")]&jsonpath=$[0].b";
 
         AggregatedHttpResponse aRes = client.get("/api/v1/projects/myPro/repos/myRepo/merge?" +
                                                  queryString).aggregate().join();
@@ -123,21 +126,21 @@ class MergeFileTest {
                 '{' +
                 "   \"revision\" : 4," +
                 "   \"type\" : \"JSON\"," +
-                "   \"content\" : \"baz\"," +
-                "   \"paths\" : [\"/foo.json\", \"/foo1.json\", \"/foo2.json\"] " +
+                "   \"content\" : \"new_baz\"," +
+                "   \"paths\" : [\"/foo.json\", \"/foo1.json5\", \"/foo2.json\"] " +
                 '}';
         assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
 
         queryString = "path=/foo.json" + '&' +
-                      "path=/foo1.json" + '&' +
+                      "path=/foo1.json5" + '&' +
                       "path=/foo2.json" + '&' +
-                      "jsonpath=$.c";
+                      "jsonpath=$.d";
         aRes = client.get("/api/v1/projects/myPro/repos/myRepo/merge?" + queryString).aggregate().join();
         assertThat(aRes.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         expectedJson =
                 '{' +
                 "     \"exception\": \"com.linecorp.centraldogma.common.QueryExecutionException\"," +
-                "     \"message\": \"JSON path evaluation failed: $.c\"" +
+                "     \"message\": \"JSON path evaluation failed: $.d\"" +
                 '}';
         assertThatJson(aRes.contentUtf8()).isEqualTo(expectedJson);
     }
@@ -181,7 +184,7 @@ class MergeFileTest {
             client.execute(headers, body).aggregate().join();
 
             final String queryString = "path=/foo.json" + '&' +
-                                       "path=/foo1.json" + '&' +
+                                       "path=/foo1.json5" + '&' +
                                        "path=/foo2.json" + '&' +
                                        "path=/foo10.json";
 
@@ -220,7 +223,7 @@ class MergeFileTest {
                 '{' +
                 "   \"path\" : \"/foo.json\"," +
                 "   \"type\" : \"UPSERT_JSON\"," +
-                "   \"content\" : {\"a\": \"bar\"}," +
+                "   \"content\" : {\"a\": \"bar\", \"b\": \"baz\"}," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Add foo.json\"" +
                 "   }" +
@@ -228,11 +231,11 @@ class MergeFileTest {
         client.execute(headers, body).aggregate().join();
         body =
                 '{' +
-                "   \"path\" : \"/foo1.json\"," +
+                "   \"path\" : \"/foo1.json5\"," +
                 "   \"type\" : \"UPSERT_JSON\"," +
-                "   \"content\" : {\"b\": \"baz\"}," +
+                "   \"content\" : \"{\\n  // comments\\n  b: 'new_baz',\\n  c: 'qux',\\n}\\n\"," +
                 "   \"commitMessage\" : {" +
-                "       \"summary\" : \"Add foo1.json\"" +
+                "       \"summary\" : \"Add foo1.json5\"" +
                 "   }" +
                 '}';
         client.execute(headers, body).aggregate().join();
@@ -240,7 +243,7 @@ class MergeFileTest {
                 '{' +
                 "   \"path\" : \"/foo2.json\"," +
                 "   \"type\" : \"UPSERT_JSON\"," +
-                "   \"content\" : {\"a\": \"new_bar\"}," +
+                "   \"content\" : {\"a\": \"new_bar\", \"c\": \"new_qux\"}," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Add foo3.json\"" +
                 "   }" +

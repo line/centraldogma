@@ -237,7 +237,8 @@ public final class Entry<T> implements ContentHolder<T> {
         final Entry<T> that = (Entry<T>) o;
 
         return type == that.type && revision.equals(that.revision) && path.equals(that.path) &&
-               Objects.equals(content, that.content);
+               Objects.equals(content, that.content) &&
+               (!maybeJson5(path) || Objects.equals(contentAsText, that.contentAsText));
     }
 
     @Override

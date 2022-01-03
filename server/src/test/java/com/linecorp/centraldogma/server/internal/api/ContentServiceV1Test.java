@@ -47,6 +47,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -304,6 +305,32 @@ class ContentServiceV1Test {
             assertThat(content1.get(0).toString()).isEqualToIgnoringCase(
                     "{\"op\":\"safeReplace\",\"path\":\"/a\",\"oldValue\":\"bar\",\"value\":\"baz\"}");
 
+            addFooJson5(client);
+            final String editJson5Body =
+                    '{' +
+                    "    \"path\": \"/foo.json5\"," +
+                    "    \"type\": \"UPSERT_JSON\"," +
+                    "    \"content\": \"{a: 'baz'}\"," +
+                    "    \"commitMessage\": {" +
+                    "        \"summary\": \"Edit foo.json5\"," +
+                    "        \"detail\": \"Edit because we need it.\"," +
+                    "        \"markup\": \"PLAINTEXT\"" +
+                    "    }" +
+                    '}';
+            client.execute(RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                             HttpHeaderNames.CONTENT_TYPE, MediaType.JSON),
+                           editJson5Body).aggregate().join();
+
+            // check whether the change is right
+            final AggregatedHttpResponse res2 = client
+                    .get("/api/v1/projects/myPro/repos/myRepo/compare?from=4&to=5").aggregate().join();
+            final JsonNode content2 = Jackson.readTree(res2.contentUtf8()).get(0).get("content");
+            assertThat(content2.textValue()).isEqualToIgnoringCase("--- /foo.json5\n" +
+                                                                   "+++ /foo.json5\n" +
+                                                                   "@@ -1,1 +1,1 @@\n" +
+                                                                   "-{a: 'bar'}\n" +
+                                                                   "+{a: 'baz'}");
+
             addBarTxt(client);
             final String editTextBody =
                     '{' +
@@ -321,10 +348,10 @@ class ContentServiceV1Test {
                            editTextBody).aggregate().join();
 
             // check whether the change is right
-            final AggregatedHttpResponse res2 = client
-                    .get("/api/v1/projects/myPro/repos/myRepo/compare?from=4&to=5").aggregate().join();
-            final JsonNode content2 = Jackson.readTree(res2.contentUtf8()).get(0).get("content");
-            assertThat(content2.textValue()).isEqualToIgnoringCase("--- /a/bar.txt\n" +
+            final AggregatedHttpResponse res3 = client
+                    .get("/api/v1/projects/myPro/repos/myRepo/compare?from=6&to=7").aggregate().join();
+            final JsonNode content3 = Jackson.readTree(res3.contentUtf8()).get(0).get("content");
+            assertThat(content3.textValue()).isEqualToIgnoringCase("--- /a/bar.txt\n" +
                                                                    "+++ /a/bar.txt\n" +
                                                                    "@@ -1,1 +1,1 @@\n" +
                                                                    "-text in the file.\n" +
@@ -335,6 +362,7 @@ class ContentServiceV1Test {
         void editFiles() {
             final WebClient client = dogma.httpClient();
             addFooJson(client);
+            addFooJson5(client);
             addBarTxt(client);
             final String body =
                     '{' +
@@ -350,6 +378,11 @@ class ContentServiceV1Test {
                     "           \"content\" : {\"b\": \"bar\"}" +
                     "       }," +
                     "       {" +
+                    "           \"path\" : \"/foo.json5\"," +
+                    "           \"type\" : \"UPSERT_JSON\"," +
+                    "           \"content\" : \"{b: 'bar'}\"" +
+                    "       }," +
+                    "       {" +
                     "           \"path\" : \"/a/bar.txt\"," +
                     "           \"type\" : \"UPSERT_TEXT\"," +
                     "           \"content\" : \"text in a file.\\n\"" +
@@ -360,7 +393,7 @@ class ContentServiceV1Test {
                                                              HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
             client.execute(headers, body).aggregate().join();
             final AggregatedHttpResponse aRes = client
-                    .get("/api/v1/projects/myPro/repos/myRepo/compare?from=3&to=4").aggregate().join();
+                    .get("/api/v1/projects/myPro/repos/myRepo/compare?from=4&to=5").aggregate().join();
             final String expectedJson =
                     '[' +
                     "   {" +
@@ -383,6 +416,15 @@ class ContentServiceV1Test {
                     "           \"path\": \"/b\"," +
                     "           \"value\": \"bar\"" +
                     "       }]" +
+                    "   }," +
+                    "   {" +
+                    "       \"path\": \"/foo.json5\"," +
+                    "       \"type\": \"APPLY_TEXT_PATCH\"," +
+                    "       \"content\": \"--- /foo.json5\\n" +
+                    "+++ /foo.json5\\n" +
+                    "@@ -1,1 +1,1 @@\\n" +
+                    "-{a: 'bar'}\\n" +
+                    "+{b: 'bar'}\"" +
                     "   }" +
                     ']';
             final String actualJson = aRes.contentUtf8();
@@ -393,9 +435,9 @@ class ContentServiceV1Test {
         void getFile() {
             final WebClient client = dogma.httpClient();
             addFooJson(client);
-            final AggregatedHttpResponse aRes = client.get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
+            final AggregatedHttpResponse aRes1 = client.get(CONTENTS_PREFIX + "/foo.json").aggregate().join();
 
-            final String expectedJson =
+            final String expectedJson1 =
                     '{' +
                     "   \"revision\": 2," +
                     "   \"path\": \"/foo.json\"," +
@@ -403,19 +445,33 @@ class ContentServiceV1Test {
                     "   \"content\" : {\"a\":\"bar\"}," +
                     "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                     '}';
-            final String actualJson = aRes.contentUtf8();
-            assertThatJson(actualJson).isEqualTo(expectedJson);
+            final String actualJson1 = aRes1.contentUtf8();
+            assertThatJson(actualJson1).isEqualTo(expectedJson1);
+
+            addFooJson5(client);
+            final AggregatedHttpResponse aRes2 = client.get(CONTENTS_PREFIX + "/foo.json5").aggregate().join();
+
+            final String expectedJson2 =
+                    '{' +
+                    "    \"revision\": 3," +
+                    "    \"path\": \"/foo.json5\"," +
+                    "    \"type\": \"JSON\"," +
+                    "    \"content\": \"{a: 'bar'}\"," +
+                    "    \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json5\"" +
+                    '}';
+            final String actualJson2 = aRes2.contentUtf8();
+            assertThatJson(actualJson2).isEqualTo(expectedJson2);
         }
 
         @Test
         void getFileWithJsonPath() {
             final WebClient client = dogma.httpClient();
             addFooJson(client);
-            final AggregatedHttpResponse aRes = client
+            final AggregatedHttpResponse aRes1 = client
                     .get(CONTENTS_PREFIX + "/foo.json?jsonpath=$[?(@.a == \"bar\")]&jsonpath=$[0].a")
                     .aggregate().join();
 
-            final String expectedJson =
+            final String expectedJson1 =
                     '{' +
                     "   \"revision\": 2," +
                     "   \"path\": \"/foo.json\"," +
@@ -423,14 +479,31 @@ class ContentServiceV1Test {
                     "   \"content\" : \"bar\"," +
                     "   \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                     '}';
-            final String actualJson = aRes.contentUtf8();
-            assertThatJson(actualJson).isEqualTo(expectedJson);
+            final String actualJson1 = aRes1.contentUtf8();
+            assertThatJson(actualJson1).isEqualTo(expectedJson1);
+
+            addFooJson5(client);
+            final AggregatedHttpResponse aRes2 = client
+                    .get(CONTENTS_PREFIX + "/foo.json5?jsonpath=$[?(@.a == \"bar\")]&jsonpath=$[0].a")
+                    .aggregate().join();
+
+            final String expectedJson2 =
+                    '{' +
+                    "    \"revision\": 3," +
+                    "    \"path\": \"/foo.json5\"," +
+                    "    \"type\": \"JSON\"," +
+                    "    \"content\": \"bar\"," +
+                    "    \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json5\"" +
+                    '}';
+            final String actualJson2 = aRes2.contentUtf8();
+            assertThatJson(actualJson2).isEqualTo(expectedJson2);
         }
 
         @Test
         void listFiles() {
             final WebClient client = dogma.httpClient();
             addFooJson(client);
+            addFooJson5(client);
             addBarTxt(client);
             // get the list of all files
             final AggregatedHttpResponse res1 = client
@@ -438,22 +511,28 @@ class ContentServiceV1Test {
             final String expectedJson1 =
                     '[' +
                     "   {" +
-                    "       \"revision\": 3," +
+                    "       \"revision\": 4," +
                     "       \"path\": \"/a\"," +
                     "       \"type\": \"DIRECTORY\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
                     "   }," +
                     "   {" +
-                    "       \"revision\": 3," +
+                    "       \"revision\": 4," +
                     "       \"path\": \"/a/bar.txt\"," +
                     "       \"type\": \"TEXT\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                     "   }," +
                     "   {" +
-                    "       \"revision\": 3," +
+                    "       \"revision\": 4," +
                     "       \"path\": \"/foo.json\"," +
                     "       \"type\": \"JSON\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
+                    "   }," +
+                    "   {" +
+                    "       \"revision\": 4," +
+                    "       \"path\": \"/foo.json5\"," +
+                    "       \"type\": \"JSON\"," +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json5\"" +
                     "   }" +
                     ']';
             assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson1);
@@ -464,16 +543,22 @@ class ContentServiceV1Test {
             final String expectedJson2 =
                     '[' +
                     "   {" +
-                    "       \"revision\": 3," +
+                    "       \"revision\": 4," +
                     "       \"path\": \"/a\"," +
                     "       \"type\": \"DIRECTORY\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
                     "   }," +
                     "   {" +
-                    "       \"revision\": 3," +
+                    "       \"revision\": 4," +
                     "       \"path\": \"/foo.json\"," +
                     "       \"type\": \"JSON\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
+                    "   }," +
+                    "   {" +
+                    "       \"revision\": 4," +
+                    "       \"path\": \"/foo.json5\"," +
+                    "       \"type\": \"JSON\"," +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json5\"" +
                     "   }" +
                     ']';
             assertThatJson(res2.contentUtf8()).isEqualTo(expectedJson2);
@@ -498,7 +583,7 @@ class ContentServiceV1Test {
             final String expectedJson4 =
                     '[' +
                     "   {" +
-                    "       \"revision\": 3," +
+                    "       \"revision\": 4," +
                     "       \"path\": \"/foo.json\"," +
                     "       \"type\": \"JSON\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
@@ -511,6 +596,7 @@ class ContentServiceV1Test {
         void listFilesWithContent() {
             final WebClient client = dogma.httpClient();
             addFooJson(client);
+            addFooJson5(client);
             addBarTxt(client);
 
             // get the list of all files
@@ -518,24 +604,31 @@ class ContentServiceV1Test {
             final String expectedJson1 =
                     '[' +
                     "   {" +
-                    "       \"revision\": 3," +
+                    "       \"revision\": 4," +
                     "       \"path\": \"/a\"," +
                     "       \"type\": \"DIRECTORY\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a\"" +
                     "   }," +
                     "   {" +
-                    "       \"revision\": 3," +
+                    "       \"revision\": 4," +
                     "       \"path\": \"/a/bar.txt\"," +
                     "       \"type\": \"TEXT\"," +
                     "       \"content\" : \"text in the file.\\n\"," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/a/bar.txt\"" +
                     "   }," +
                     "   {" +
-                    "       \"revision\": 3," +
+                    "       \"revision\": 4," +
                     "       \"path\": \"/foo.json\"," +
                     "       \"type\": \"JSON\"," +
                     "       \"content\" : {\"a\":\"bar\"}," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
+                    "   }," +
+                    "   {" +
+                    "       \"revision\": 4," +
+                    "       \"path\": \"/foo.json5\"," +
+                    "       \"type\": \"JSON\"," +
+                    "       \"content\": \"{a: 'bar'}\\n\"," +
+                    "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json5\"" +
                     "   }" +
                     ']';
             assertThatJson(res1.contentUtf8()).isEqualTo(expectedJson1);
@@ -622,6 +715,24 @@ class ContentServiceV1Test {
         }
 
         @Test
+        void editJson5FileWithJsonPatch() throws IOException {
+            final WebClient client = dogma.httpClient();
+            addFooJson5(client);
+            final AggregatedHttpResponse res1 = editFooJson5WithJsonPatch(client);
+            final String expectedJson =
+                    '{' +
+                    "    \"revision\": 3," +
+                    "    \"pushedAt\": \"${json-unit.ignore}\"" +
+                    '}';
+            final String actualJson = res1.contentUtf8();
+            assertThatJson(actualJson).isEqualTo(expectedJson);
+
+            final AggregatedHttpResponse res2 = client.get(CONTENTS_PREFIX + "/foo.json5").aggregate().join();
+            final String json5Content = Jackson.readTree(res2.contentUtf8()).get("content").textValue();
+            assertThat(Json5.readTree(json5Content).get("a").textValue()).isEqualToIgnoringCase("baz");
+        }
+
+        @Test
         void editFileWithTextPatch() throws IOException {
             final WebClient client = dogma.httpClient();
             addBarTxt(client);
@@ -655,6 +766,42 @@ class ContentServiceV1Test {
             final AggregatedHttpResponse res2 = client.get(CONTENTS_PREFIX + "/a/bar.txt").aggregate().join();
             assertThat(Jackson.readTree(res2.contentUtf8()).get("content").textValue())
                     .isEqualTo("text in some file.\n");
+        }
+
+        @Test
+        void editJson5FileWithTextPatch() throws IOException {
+            final WebClient client = dogma.httpClient();
+            addFooJson5(client);
+            final String patch =
+                    '{' +
+                    "   \"path\": \"/foo.json5\"," +
+                    "   \"type\": \"APPLY_TEXT_PATCH\"," +
+                    "   \"content\" : \"--- /foo.json5\\n" +
+                    "+++ /foo.json5\\n" +
+                    "@@ -1,1 +1,1 @@\\n" +
+                    "-{a: 'bar'}\\n" +
+                    "+{a: 'baz'}\\n\"," +
+                    "   \"commitMessage\" : {" +
+                    "       \"summary\" : \"Edit foo.json5\"," +
+                    "       \"detail\": \"Edit because we need it.\"," +
+                    "       \"markup\": \"PLAINTEXT\"" +
+                    "   }" +
+                    '}';
+
+            final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                             HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+            final AggregatedHttpResponse res1 = client.execute(headers, patch).aggregate().join();
+            final String expectedJson =
+                    '{' +
+                    "   \"revision\": 3," +
+                    "   \"pushedAt\": \"${json-unit.ignore}\"" +
+                    '}';
+            final String actualJson = res1.contentUtf8();
+            assertThatJson(actualJson).isEqualTo(expectedJson);
+
+            final AggregatedHttpResponse res2 = client.get(CONTENTS_PREFIX + "/foo.json5").aggregate().join();
+            assertThat(Jackson.readTree(res2.contentUtf8()).get("content").textValue())
+                    .isEqualTo("{a: 'baz'}\n");
         }
 
         @Test
@@ -709,6 +856,31 @@ class ContentServiceV1Test {
                     "       \"content\": {\"a\":\"baz\"}," +
                     "       \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json\"" +
                     "   }" +
+                    '}';
+            final AggregatedHttpResponse res = future.join();
+            final String actualJson = res.contentUtf8();
+            assertThatJson(actualJson).isEqualTo(expectedJson);
+        }
+
+        @Test
+        void watchJson5FileWithIdentityQuery() {
+            final WebClient client = dogma.httpClient();
+            addFooJson5(client);
+            final RequestHeaders headers = RequestHeaders.of(HttpMethod.GET, CONTENTS_PREFIX + "/foo.json5",
+                                                             HttpHeaderNames.IF_NONE_MATCH, "-1");
+            final CompletableFuture<AggregatedHttpResponse> future = client.execute(headers).aggregate();
+
+            editFooJson5WithTextPatch(client);
+            final String expectedJson =
+                    '{' +
+                    "    \"revision\": 3," +
+                    "    \"entry\": {" +
+                    "        \"revision\": 3," +
+                    "        \"path\": \"/foo.json5\"," +
+                    "        \"type\": \"JSON\"," +
+                    "        \"content\": \"{a: 'baz'}\\n\"," +
+                    "        \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json5\"" +
+                    "    }" +
                     '}';
             final AggregatedHttpResponse res = future.join();
             final String actualJson = res.contentUtf8();
@@ -819,6 +991,23 @@ class ContentServiceV1Test {
         return client.execute(headers, body).aggregate().join();
     }
 
+    static AggregatedHttpResponse addFooJson5(WebClient client) {
+        final String body =
+                '{' +
+                "    \"path\" : \"/foo.json5\"," +
+                "    \"type\" : \"UPSERT_JSON\"," +
+                "    \"content\" : \"{a: 'bar'}\"," +
+                "    \"commitMessage\" : {" +
+                "        \"summary\" : \"Add foo.json5\"," +
+                "        \"detail\" : \" Add because we need it.\"," +
+                "        \"markup\" : \"PLAINTEXT\"" +
+                "    }" +
+                '}';
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        return client.execute(headers, body).aggregate().join();
+    }
+
     static AggregatedHttpResponse editFooJson(WebClient client) {
         final String body =
                 '{' +
@@ -832,6 +1021,51 @@ class ContentServiceV1Test {
                 "   }]," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Edit foo.json\"," +
+                "       \"detail\": \"Edit because we need it.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        return client.execute(headers, body).aggregate().join();
+    }
+
+    static AggregatedHttpResponse editFooJson5WithTextPatch(WebClient client) {
+        final String body =
+                '{' +
+                "    \"path\": \"/foo.json5\"," +
+                "    \"type\": \"APPLY_TEXT_PATCH\"," +
+                "    \"content\": \"--- /foo.json5\\n" +
+                "+++ /foo.json5\\n" +
+                "@@ -1,1 +1,1 @@\\n" +
+                "-{a: 'bar'}\\n" +
+                "+{a: 'baz'}\"," +
+                "    \"commitMessage\": {" +
+                "        \"summary\": \"Edit foo.json5\"," +
+                "        \"detail\": \"Edit because we need it.\"," +
+                "        \"markup\": \"PLAINTEXT\"" +
+                "    }" +
+                '}';
+
+        final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                         HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        return client.execute(headers, body).aggregate().join();
+    }
+
+    static AggregatedHttpResponse editFooJson5WithJsonPatch(WebClient client) {
+        final String body =
+                '{' +
+                "   \"path\" : \"/foo.json5\"," +
+                "   \"type\" : \"APPLY_JSON_PATCH\"," +
+                "   \"content\" : [{" +
+                "       \"op\" : \"safeReplace\"," +
+                "       \"path\": \"/a\"," +
+                "       \"oldValue\": \"bar\"," +
+                "       \"value\": \"baz\"" +
+                "   }]," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Edit foo.json5\"," +
                 "       \"detail\": \"Edit because we need it.\"," +
                 "       \"markup\": \"PLAINTEXT\"" +
                 "   }" +

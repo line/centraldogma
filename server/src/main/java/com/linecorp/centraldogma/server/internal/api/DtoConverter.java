@@ -27,6 +27,7 @@ import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.MergedEntry;
+import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.api.v1.ChangeDto;
 import com.linecorp.centraldogma.internal.api.v1.CommitDto;
@@ -61,11 +62,18 @@ final class DtoConverter {
 
     public static <T> EntryDto convert(Repository repository, Revision revision,
                                        Entry<T> entry, boolean withContent) {
+        return convert(repository, revision, entry, withContent, null);
+    }
+
+    public static <T> EntryDto convert(Repository repository, Revision revision,
+                                       Entry<T> entry, boolean withContent, @Nullable QueryType queryType) {
         requireNonNull(entry, "entry");
         if (withContent && entry.hasContent()) {
-            // Not sure DtoConverter having business logic.
+            // TODO(ks-yim): Not sure DtoConverter having business logic and it looks hacky to receive
+            //   queryType to handle JSON_PATH query for JSON5 files.
             return convert(repository, revision, entry.path(), entry.type(),
-                           maybeJson5(entry) ? entry.contentAsText() : entry.content());
+                           maybeJson5(entry) && queryType != QueryType.JSON_PATH ? entry.contentAsText()
+                                                                                 : entry.content());
         }
         return convert(repository, revision, entry.path(), entry.type());
     }

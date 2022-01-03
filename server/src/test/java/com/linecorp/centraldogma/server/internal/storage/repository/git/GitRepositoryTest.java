@@ -59,6 +59,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
@@ -127,8 +128,10 @@ class GitRepositoryTest {
     private String prefix;
     private String allPattern;
     private final String[] jsonPaths = new String[NUM_ITERATIONS];
+    private final String[] json5Paths = new String[NUM_ITERATIONS];
     private final String[] textPaths = new String[NUM_ITERATIONS];
     private final Change<JsonNode>[] jsonUpserts = Util.unsafeCast(new Change[NUM_ITERATIONS]);
+    private final Change<JsonNode>[] json5Upserts = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<String>[] textUpserts = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<JsonNode>[] jsonPatches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<String>[] textPatches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
@@ -140,11 +143,14 @@ class GitRepositoryTest {
 
         for (int i = 0; i < NUM_ITERATIONS; i++) {
             final String jsonPath = prefix + i + ".json";
+            final String json5Path = prefix + i + ".json5";
             final String textPath = prefix + i + ".txt";
 
             jsonPaths[i] = jsonPath;
+            json5Paths[i] = json5Path;
             textPaths[i] = textPath;
             jsonUpserts[i] = Change.ofJsonUpsert(jsonPath, "{ \"" + i + "\": " + i + " }");
+            json5Upserts[i] = Change.ofJsonUpsert(json5Path, "{ \"" + i + "\": '" + i + "' }");
             textUpserts[i] = Change.ofTextUpsert(textPath, "value:\n" + i);
         }
 
@@ -162,16 +168,21 @@ class GitRepositoryTest {
     }
 
     @Test
-    void testJsonUpsert() {
+    void testJsonUpsert() throws JsonParseException {
         testUpsert(jsonUpserts, EntryType.JSON);
     }
 
     @Test
-    void testTextUpsert() {
+    void testJson5Upsert() throws JsonParseException {
+        testUpsert(json5Upserts, EntryType.JSON);
+    }
+
+    @Test
+    void testTextUpsert() throws JsonParseException {
         testUpsert(textUpserts, EntryType.TEXT);
     }
 
-    private void testUpsert(Change<?>[] upserts, EntryType entryType) {
+    private void testUpsert(Change<?>[] upserts, EntryType entryType) throws JsonParseException {
         final Revision oldHeadRev = repo.normalizeNow(HEAD);
         for (int i = 0; i < upserts.length; i++) {
             final Change<?> change = upserts[i];
@@ -201,7 +212,9 @@ class GitRepositoryTest {
                 assertThat(entries).containsEntry(path, Entry.of(headRev, path, EntryType.TEXT,
                                                                  c.content() + "\n"));
             } else {
-                assertThat(entries).containsEntry(path, Entry.of(headRev, path, entryType, c.content()));
+                // JSON5 text must also be sanitized so that the last line ends with \n.
+                // Ordinary JSON file ignores this internally in Entry#ofJson(...).
+                assertThat(entries).containsEntry(path, Entry.ofJson(headRev, path, c.contentAsText() + "\n"));
             }
         }
     }

@@ -36,7 +36,6 @@ import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
@@ -108,13 +107,7 @@ public interface Change<T> {
      * @param jsonNode the content of the file
      */
     static Change<JsonNode> ofJsonUpsert(String path, JsonNode jsonNode) {
-        requireNonNull(jsonNode, "jsonNode");
-        try {
-            return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode,
-                                       Jackson.writeValueAsString(jsonNode));
-        } catch (JsonProcessingException e) {
-            throw new Error();
-        }
+        return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
     }
 
     /**
@@ -153,10 +146,6 @@ public interface Change<T> {
     static Change<String> ofTextPatch(String path, @Nullable String oldText, String newText) {
         validateFilePath(path, "path");
         requireNonNull(newText, "newText");
-        if (EntryType.guessFromPath(path) == EntryType.JSON && !maybeJson5(path)) {
-            throw new ChangeFormatException("invalid file type: " + path +
-                                            " (expected: a non-JSON file). Use Change.ofJsonPatch() instead");
-        }
 
         final List<String> oldLineList = oldText == null ? Collections.emptyList()
                                                          : Util.stringToLines(oldText);
@@ -165,7 +154,7 @@ public interface Change<T> {
         final Patch<String> patch = DiffUtils.diff(oldLineList, newLineList);
         final List<String> unifiedDiff = DiffUtils.generateUnifiedDiff(path, path, oldLineList, patch, 3);
 
-        return new DefaultChange<>(path, ChangeType.APPLY_TEXT_PATCH, String.join("\n", unifiedDiff));
+        return ofTextPatch(path, String.join("\n", unifiedDiff));
     }
 
     /**
@@ -183,7 +172,7 @@ public interface Change<T> {
     static Change<String> ofTextPatch(String path, String textPatch) {
         validateFilePath(path, "path");
         requireNonNull(textPatch, "textPatch");
-        if (EntryType.guessFromPath(path) == EntryType.JSON) {
+        if (EntryType.guessFromPath(path) == EntryType.JSON && !maybeJson5(path)) {
             throw new ChangeFormatException("invalid file type: " + path +
                                             " (expected: a non-JSON file). Use Change.ofJsonPatch() instead");
         }

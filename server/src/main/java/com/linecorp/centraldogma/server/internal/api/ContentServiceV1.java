@@ -266,7 +266,7 @@ public class ContentServiceV1 extends AbstractService {
             // get a file
             return repository.get(normalizedRev, query)
                              .handle(returnOrThrow((Entry<?> result) -> convert(repository, normalizedRev,
-                                                                                result, true)));
+                                                                                result, true, query.type())));
         }
 
         // get files
@@ -287,7 +287,7 @@ public class ContentServiceV1 extends AbstractService {
 
         return future.thenApply(entry -> {
             final Revision revision = entry.revision();
-            final EntryDto entryDto = convert(repository, revision, entry, true);
+            final EntryDto entryDto = convert(repository, revision, entry, true, query.type());
             return (Object) new WatchResultDto(revision, entryDto);
         }).exceptionally(ContentServiceV1::handleWatchFailure);
     }

@@ -17,6 +17,7 @@
 package com.linecorp.centraldogma.server.internal.api.converter;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.internal.Util.maybeJson5;
 
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
@@ -89,6 +90,9 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
             return Change.ofTextUpsert(path, node.get("content").textValue());
         }
         if (changeType == ChangeType.UPSERT_JSON) {
+            if (maybeJson5(path)) {
+                return Change.ofJsonUpsert(path, node.get("content").asText());
+            }
             return Change.ofJsonUpsert(path, node.get("content"));
         }
         if (changeType == ChangeType.REMOVE) {
