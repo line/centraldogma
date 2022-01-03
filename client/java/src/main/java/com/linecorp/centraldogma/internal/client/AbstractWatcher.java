@@ -20,6 +20,7 @@ import static com.google.common.math.LongMath.saturatedAdd;
 import static java.util.Objects.requireNonNull;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -39,6 +40,10 @@ import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.AtomicDouble;
+import com.spotify.futures.CompletableFutures;
+
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
@@ -49,10 +54,12 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractWatcher.class);
-    private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
     private static final long DELAY_ON_SUCCESS_MILLIS = TimeUnit.SECONDS.toMillis(1);
     private static final long MIN_INTERVAL_MILLIS = DELAY_ON_SUCCESS_MILLIS * 2;
@@ -114,6 +121,8 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners;
     private final AtomicReference<State> state;
     private final CompletableFuture<Latest<T>> initialValueFuture;
+    private final AtomicDouble latestNotifiedRevision = new AtomicDouble();
+    private final AtomicDouble latestRevision = new AtomicDouble();
 
     private volatile Latest<T> latest;
     private volatile ScheduledFuture<?> currentScheduleFuture;
@@ -126,6 +135,17 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         this.projectName = requireNonNull(projectName, "projectName");
         this.repositoryName = requireNonNull(repositoryName, "repositoryName");
         this.pathPattern = requireNonNull(pathPattern, "pathPattern");
+
+        final MeterRegistry meterRegistry = client.meterRegistry();
+        if (meterRegistry != null) {
+            final Iterable<Tag> tags = ImmutableList.of(Tag.of("project", projectName),
+                                                        Tag.of("repository", repositoryName),
+                                                        Tag.of("path", pathPattern));
+            meterRegistry.more().counter("centraldogma.client.watcher.notified.revision", tags, this,
+                                         ignored -> latestNotifiedRevision.get());
+            meterRegistry.more().counter("centraldogma.client.watcher.revision", tags, this,
+                                         ignored -> latestRevision.get());
+        }
 
         updateListeners = new CopyOnWriteArrayList<>();
         state = new AtomicReference<>(State.INIT);
@@ -240,6 +260,7 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
                  latest = newLatest;
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
+                 latestRevision.set(latest.revision().major());
                  notifyListeners();
                  if (oldLatest == null) {
                      initialValueFuture.complete(newLatest);
@@ -296,18 +317,29 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
 
         final Latest<T> latest = this.latest;
+        final List<CompletableFuture<Boolean>> futures = new ArrayList<>();
         for (Map.Entry<BiConsumer<? super Revision, ? super T>, Executor> entry : updateListeners) {
             final BiConsumer<? super Revision, ? super T> listener = entry.getKey();
             final Executor executor = entry.getValue();
-            executor.execute(() -> {
+            final CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
                 try {
                     listener.accept(latest.revision(), latest.value());
+                    return true;
                 } catch (Exception e) {
                     logger.warn("Exception thrown for watcher ({}/{}{}): rev={}",
                                 projectName, repositoryName, pathPattern, latest.revision(), e);
+                    return false;
                 }
-            });
+            }, executor);
+            futures.add(future);
         }
+
+        CompletableFutures.allAsList(futures).thenAccept(results -> {
+            final boolean result = results.stream().allMatch(x -> x);
+            if (result) {
+                latestNotifiedRevision.set(latest.revision().major());
+            }
+        });
     }
 
     private void handleExecutorShutdown(Executor executor, RejectedExecutionException e) {

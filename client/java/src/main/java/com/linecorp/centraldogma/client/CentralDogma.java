@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 
@@ -41,6 +43,8 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 /**
  * Central Dogma client.
@@ -591,4 +595,13 @@ public interface CentralDogma {
      */
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                      Function<Revision, ? extends T> function, Executor executor);
+
+    /**
+     * Returns the {@link MeterRegistry} which collects {@link CentralDogma} specific metrics.
+     * If this value is {@code null}, metric collection is disabled.
+     */
+    @Nullable
+    default MeterRegistry meterRegistry() {
+        return null;
+    }
 }
