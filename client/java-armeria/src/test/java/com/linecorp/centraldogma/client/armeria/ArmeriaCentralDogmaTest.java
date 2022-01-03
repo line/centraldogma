@@ -16,31 +16,52 @@
 package com.linecorp.centraldogma.client.armeria;
 
 import static com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogma.encodePathPattern;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
-import java.net.UnknownHostException;
-import java.util.concurrent.CompletionException;
-
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import com.linecorp.armeria.client.WebClient;
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.InvalidPushException;
-import com.linecorp.centraldogma.common.PushResult;
+import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
+import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 
 class ArmeriaCentralDogmaTest {
 
-    @RegisterExtension
-    static CentralDogmaExtension dogma = new CentralDogmaExtension() {
-        @Override
-        protected void scaffold(CentralDogma client) {
-            client.createProject("foo").join();
-        }
-    };
+    private static final String JSON5_STRING =
+            "{\n" +
+            "  // comments\n" +
+            "  unquoted: 'and you can quote me on that',\n" +
+            "  singleQuotes: 'I can use \"double quotes\" here',\n" +
+            "  lineBreaks: \"Look, Mom! \\\n" +
+            "No \\\\n's!\"," +
+            "  leadingDecimalPoint: .8675309," +
+            "  trailingComma: 'in objects', andIn: ['arrays',]," +
+            "  \"backwardsCompatible\": \"with JSON\",\n" +
+            "}\n";
+
+    @Mock
+    private WebClient webClient;
+
+    private CentralDogma client;
+
+    @BeforeEach
+    void setUp() {
+        client = new ArmeriaCentralDogma(newSingleThreadScheduledExecutor(), webClient, "access_token");
+    }
 
     @Test
     void testEncodePathPattern() {
@@ -57,33 +78,94 @@ class ArmeriaCentralDogmaTest {
     }
 
     @Test
-    void pushFileToMetaRepositoryShouldFail() throws UnknownHostException {
-        final CentralDogma client = new ArmeriaCentralDogmaBuilder()
-                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
-                .build();
+    void testGetJson5File() throws Exception {
+        when(webClient.execute(ArgumentMatchers.<RequestHeaders>any())).thenReturn(
+                HttpResponse.ofJson(new MockEntryDto("/foo.json5", "JSON", JSON5_STRING)));
 
-        assertThatThrownBy(() -> client.push("foo",
-                                             "meta",
-                                             Revision.HEAD,
-                                             "summary",
-                                             Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
-                                       .join())
-                .isInstanceOf(CompletionException.class)
-                .hasCauseInstanceOf(InvalidPushException.class);
+        final Entry<?> entry = getFile(client, Query.ofJson("/foo.json5"));
+        validateJson5Entry(entry);
     }
 
     @Test
-    void pushMirrorsJsonFileToMetaRepository() throws UnknownHostException {
-        final CentralDogma client = new ArmeriaCentralDogmaBuilder()
-                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
-                .build();
+    void testGetJson5FileWithJsonPath() throws Exception {
+        final JsonNode node = Jackson.readTree("{\"a\": \"bar\"}");
+        when(webClient.execute(ArgumentMatchers.<RequestHeaders>any())).thenReturn(
+                HttpResponse.ofJson(new MockEntryDto("/foo.json5", "JSON", node)));
 
-        final PushResult result = client.push("foo",
-                                              "meta",
-                                              Revision.HEAD,
-                                              "summary",
-                                              Change.ofJsonUpsert("/mirrors.json", "[]"))
-                                        .join();
-        assertThat(result.revision().major()).isPositive();
+        final Entry<?> entry = getFile(client, Query.ofJsonPath("/foo.json5", "$.a"));
+        assertThat(entry.content()).isEqualTo(node);
+    }
+
+    @Test
+    void testWatchJson5File() throws Exception {
+        final MockEntryDto entryDto = new MockEntryDto("/foo.json5", "JSON", JSON5_STRING);
+        when(webClient.execute(ArgumentMatchers.<RequestHeaders>any())).thenReturn(
+                HttpResponse.ofJson(new MockWatchResultDto(1, entryDto)));
+
+        final Entry<?> entry = watchFile(client, Query.ofJson("/foo.json5"));
+        validateJson5Entry(entry);
+    }
+
+    static <T> Entry<T> getFile(CentralDogma client, Query<T> query) {
+        return client.getFile("foo", "bar", Revision.INIT, query).join();
+    }
+
+    static <T> Entry<T> watchFile(CentralDogma client, Query<T> query) {
+        return client.watchFile("foo", "bar", Revision.INIT, query).join();
+    }
+
+    static void validateJson5Entry(Entry<?> entry) throws JsonParseException {
+        assertThat(entry.path()).isEqualTo("/foo.json5");
+        assertThat(entry.content()).isEqualTo(Json5.readTree(JSON5_STRING));
+        assertThat(entry.contentAsText()).isEqualTo(JSON5_STRING);
+    }
+
+    static class MockEntryDto {
+
+        private final String path;
+        private final String type;
+        private final Object content;
+
+        MockEntryDto(String path, String type, Object content) {
+            this.path = path;
+            this.type = type;
+            this.content = content;
+        }
+
+        @JsonProperty("path")
+        String path() {
+            return path;
+        }
+
+        @JsonProperty("type")
+        String type() {
+            return type;
+        }
+
+        @JsonProperty("content")
+        Object content() {
+            return content;
+        }
+    }
+
+    static class MockWatchResultDto {
+
+        private final int revision;
+        private final MockEntryDto entry;
+
+        MockWatchResultDto(int revision, MockEntryDto entry) {
+            this.revision = revision;
+            this.entry = entry;
+        }
+
+        @JsonProperty("revision")
+        int revision() {
+            return revision;
+        }
+
+        @JsonProperty("entry")
+        MockEntryDto entry() {
+            return entry;
+        }
     }
 }

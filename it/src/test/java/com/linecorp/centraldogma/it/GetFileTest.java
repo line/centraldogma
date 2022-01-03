@@ -46,7 +46,7 @@ class GetFileTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void getJsonAsText(ClientType clientType) throws Exception {
+    void getJsonAsText(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
         client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add a file",
                     Change.ofJsonUpsert("/test/foo.json", "{ \"a\": \"b\" }")).join();

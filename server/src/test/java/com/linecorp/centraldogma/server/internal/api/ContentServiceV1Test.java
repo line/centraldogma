@@ -456,7 +456,7 @@ class ContentServiceV1Test {
                     "    \"revision\": 3," +
                     "    \"path\": \"/foo.json5\"," +
                     "    \"type\": \"JSON\"," +
-                    "    \"content\": \"{a: 'bar'}\"," +
+                    "    \"content\": \"{a: 'bar'}\\n\"," +
                     "    \"url\": \"/api/v1/projects/myPro/repos/myRepo/contents/foo.json5\"" +
                     '}';
             final String actualJson2 = aRes2.contentUtf8();

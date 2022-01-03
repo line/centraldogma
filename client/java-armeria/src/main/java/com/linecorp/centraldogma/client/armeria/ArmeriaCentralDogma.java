@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.linecorp.centraldogma.internal.Util.maybeJson5;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.internal.Util.validatePathPattern;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
@@ -1015,7 +1016,9 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             changeNode.put("path", c.path());
             changeNode.put("type", c.type().name());
             final Class<?> contentType = c.type().contentType();
-            if (contentType == JsonNode.class) {
+            if (maybeJson5(c.path())) {
+                changeNode.put("content", c.contentAsText());
+            } else if (contentType == JsonNode.class) {
                 changeNode.set("content", (JsonNode) c.content());
             } else if (contentType == String.class) {
                 changeNode.put("content", (String) c.content());
@@ -1069,11 +1072,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                     throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
                                                     " (expected: " + queryType + ')');
                 }
-                return entryAsJson(revision, node, entryPath);
+                return entryAsJson(revision, node, entryPath, queryType);
             case IDENTITY:
                 switch (receivedEntryType) {
                     case JSON:
-                        return entryAsJson(revision, node, entryPath);
+                        return entryAsJson(revision, node, entryPath, queryType);
                     case TEXT:
                         return entryAsText(revision, node, entryPath);
                     case DIRECTORY:
@@ -1094,7 +1097,16 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         return unsafeCast(Entry.ofText(revision, entryPath, content0));
     }
 
-    private static <T> Entry<T> entryAsJson(Revision revision, JsonNode node, String entryPath) {
+    private static <T> Entry<T> entryAsJson(Revision revision, JsonNode node, String entryPath,
+                                            QueryType queryType) {
+        if (queryType != QueryType.JSON_PATH && maybeJson5(entryPath)) {
+            final String json5Text = getField(node, "content").asText();
+            try {
+                return unsafeCast(Entry.ofJson(revision, entryPath, json5Text));
+            } catch (JsonParseException e) {
+                throw new CentralDogmaException("failed to parse JSON5 content as JSON: " + json5Text);
+            }
+        }
         return unsafeCast(Entry.ofJson(revision, entryPath, getField(node, "content")));
     }
 
