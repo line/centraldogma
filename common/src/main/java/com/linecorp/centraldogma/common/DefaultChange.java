@@ -96,6 +96,10 @@ final class DefaultChange<T> implements Change<T> {
     private String contentAsText;
 
     DefaultChange(String path, ChangeType type, @Nullable T content) {
+        this(path, type, content, null);
+    }
+
+    DefaultChange(String path, ChangeType type, @Nullable T content, @Nullable String contentAsText) {
         this.type = requireNonNull(type, "type");
 
         if (type.contentType() == JsonNode.class) {
@@ -106,6 +110,7 @@ final class DefaultChange<T> implements Change<T> {
 
         this.path = path;
         this.content = content;
+        this.contentAsText = contentAsText;
     }
 
     @Override

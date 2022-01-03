@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.linecorp.centraldogma.internal.Util.maybeJson5;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.context;
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.failFastIfTimedOut;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -115,6 +116,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
@@ -497,8 +499,7 @@ class GitRepository implements Repository {
                     final byte[] content = reader.open(treeWalk.getObjectId(0)).getBytes();
                     switch (entryType) {
                         case JSON:
-                            final JsonNode jsonNode = Jackson.readTree(content);
-                            entry = Entry.ofJson(normRevision, path, jsonNode);
+                            entry = Entry.ofJson(normRevision, path, content);
                             break;
                         case TEXT:
                             final String strVal = sanitizeText(new String(content, UTF_8));
@@ -751,7 +752,10 @@ class GitRepository implements Repository {
 
                 switch (diffEntry.getChangeType()) {
                     case MODIFY:
-                        final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
+                        // Resolve JSON5 as EntryType.TEXT to modify it with text patch because
+                        // json patch can hardly be applied to JSON5.
+                        final EntryType oldEntryType = !maybeJson5(oldPath) ? EntryType.guessFromPath(oldPath)
+                                                                            : EntryType.TEXT;
                         switch (oldEntryType) {
                             case JSON:
                                 if (!oldPath.equals(newPath)) {
@@ -796,10 +800,10 @@ class GitRepository implements Repository {
                         final EntryType newEntryType = EntryType.guessFromPath(newPath);
                         switch (newEntryType) {
                             case JSON: {
-                                final JsonNode jsonNode = Jackson.readTree(
-                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes());
+                                final String jsonText = new String(
+                                        reader.open(diffEntry.getNewId().toObjectId()).getBytes(), UTF_8);
 
-                                putChange(changeMap, newPath, Change.ofJsonUpsert(newPath, jsonNode));
+                                putChange(changeMap, newPath, Change.ofJsonUpsert(newPath, jsonText));
                                 break;
                             }
                             case TEXT: {
@@ -1001,13 +1005,31 @@ class GitRepository implements Repository {
 
                 switch (change.type()) {
                     case UPSERT_JSON: {
-                        final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
-                        final JsonNode newJsonNode = firstNonNull((JsonNode) change.content(),
-                                                                  JsonNodeFactory.instance.nullNode());
+                        if (!maybeJson5(changePath)) {
+                            final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent)
+                                                                            : null;
+                            final JsonNode newJsonNode = firstNonNull((JsonNode) change.content(),
+                                                                      JsonNodeFactory.instance.nullNode());
+
+                            // Upsert only when the contents are really different.
+                            if (!Objects.equals(newJsonNode, oldJsonNode)) {
+                                applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                                numEdits++;
+                            }
+                            break;
+                        }
+                        final String sanitizedOldText;
+                        if (oldContent != null) {
+                            sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
+                        } else {
+                            sanitizedOldText = null;
+                        }
+
+                        final String sanitizedNewText = sanitizeText(change.contentAsText());
 
                         // Upsert only when the contents are really different.
-                        if (!Objects.equals(newJsonNode, oldJsonNode)) {
-                            applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                        if (!sanitizedNewText.equals(sanitizedOldText)) {
+                            applyPathEdit(dirCache, new InsertText(changePath, inserter, sanitizedNewText));
                             numEdits++;
                         }
                         break;
@@ -1079,7 +1101,8 @@ class GitRepository implements Repository {
                     case APPLY_JSON_PATCH: {
                         final JsonNode oldJsonNode;
                         if (oldContent != null) {
-                            oldJsonNode = Jackson.readTree(oldContent);
+                            oldJsonNode = maybeJson5(changePath) ? Json5.readTree(oldContent)
+                                                                 : Jackson.readTree(oldContent);
                         } else {
                             oldJsonNode = Jackson.nullNode;
                         }

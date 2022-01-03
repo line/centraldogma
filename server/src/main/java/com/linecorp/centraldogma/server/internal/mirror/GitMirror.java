@@ -52,7 +52,6 @@ import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.Cron;
 import com.fasterxml.jackson.core.TreeNode;
-import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -240,8 +239,8 @@ public final class GitMirror extends AbstractMirror {
                     final byte[] content = reader.open(objectId).getBytes();
                     switch (EntryType.guessFromPath(localPath)) {
                         case JSON:
-                            final JsonNode jsonNode = Jackson.readTree(content);
-                            changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, jsonNode));
+                            final String jsonText = new String(content, StandardCharsets.UTF_8);
+                            changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, jsonText));
                             break;
                         case TEXT:
                             final String strVal = new String(content, StandardCharsets.UTF_8);

@@ -57,7 +57,7 @@ clientDependencies {
     installDir = "${project.projectDir}/src/main/resources/webapp/vendor"
     copyExcludes = ['**/Gruntfile.js', 'gulpfile.js', 'source/**', 'test', 'karma.conf.js', 'index.js']
     npm {
-        'ace-builds'('1.2.5', from: 'src-min-noconflict')
+        'ace-builds'('1.4.13', from: 'src-min-noconflict')
         'angular'('1.5.8')
         'angular-cache-buster'('0.4.3')
         'angular-cookies'('1.5.8')

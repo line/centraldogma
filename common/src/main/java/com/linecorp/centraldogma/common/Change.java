@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.linecorp.centraldogma.internal.Util.maybeJson5;
 import static com.linecorp.centraldogma.internal.Util.validateDirPath;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
@@ -34,10 +35,13 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
@@ -85,12 +89,16 @@ public interface Change<T> {
 
         final JsonNode jsonNode;
         try {
-            jsonNode = Jackson.readTree(jsonText);
-        } catch (IOException e) {
+            if (maybeJson5(path)) {
+                jsonNode = Json5.readTree(jsonText);
+                return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode, jsonText);
+            } else {
+                jsonNode = Jackson.readTree(jsonText);
+                return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
+            }
+        } catch (JsonParseException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
-
-        return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
     }
 
     /**
@@ -101,7 +109,12 @@ public interface Change<T> {
      */
     static Change<JsonNode> ofJsonUpsert(String path, JsonNode jsonNode) {
         requireNonNull(jsonNode, "jsonNode");
-        return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
+        try {
+            return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode,
+                                       Jackson.writeValueAsString(jsonNode));
+        } catch (JsonProcessingException e) {
+            throw new Error();
+        }
     }
 
     /**
@@ -140,7 +153,7 @@ public interface Change<T> {
     static Change<String> ofTextPatch(String path, @Nullable String oldText, String newText) {
         validateFilePath(path, "path");
         requireNonNull(newText, "newText");
-        if (EntryType.guessFromPath(path) == EntryType.JSON) {
+        if (EntryType.guessFromPath(path) == EntryType.JSON && !maybeJson5(path)) {
             throw new ChangeFormatException("invalid file type: " + path +
                                             " (expected: a non-JSON file). Use Change.ofJsonPatch() instead");
         }

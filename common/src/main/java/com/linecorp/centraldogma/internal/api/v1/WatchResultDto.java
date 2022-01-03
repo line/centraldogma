@@ -31,9 +31,9 @@ import com.linecorp.centraldogma.common.Revision;
 public class WatchResultDto {
 
     private final Revision revision;
-    private final EntryDto<?> entry;
+    private final EntryDto entry;
 
-    public WatchResultDto(Revision revision, @Nullable EntryDto<?> entry) {
+    public WatchResultDto(Revision revision, @Nullable EntryDto entry) {
         this.revision = requireNonNull(revision, "revision");
         this.entry = entry;
     }
@@ -44,7 +44,7 @@ public class WatchResultDto {
     }
 
     @JsonProperty("entry")
-    public EntryDto<?> entry() {
+    public EntryDto entry() {
         return entry;
     }
 

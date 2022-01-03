@@ -29,7 +29,11 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.common.base.Ascii;
 import com.jayway.jsonpath.JsonPath;
+
+import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryType;
 
 /**
  * This class borrowed some of its methods from a <a href="https://github.com/netty/netty/blob/4.1/common
@@ -42,7 +46,7 @@ public final class Util {
     private static final Pattern FILE_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+$");
     private static final Pattern JSON_FILE_PATH_PATTERN = Pattern.compile(
-            "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+\\.(?i)json$");
+            "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)+\\.(?i)json[5]?$");
     private static final Pattern DIR_PATH_PATTERN = Pattern.compile(
             "^(?:/[-_0-9a-zA-Z](?:[-_.0-9a-zA-Z]*[-_0-9a-zA-Z])?)*/?$");
     private static final Pattern PATH_PATTERN_PATTERN = Pattern.compile("^[- /*_.,0-9a-zA-Z]+$");
@@ -95,6 +99,16 @@ public final class Util {
         requireNonNull(path, "path");
         return !path.isEmpty() && path.charAt(0) == '/' &&
                JSON_FILE_PATH_PATTERN.matcher(path).matches();
+    }
+
+    public static boolean maybeJson5(String path) {
+        requireNonNull(path, "path");
+        return Ascii.toLowerCase(path).endsWith(".json5");
+    }
+
+    public static boolean maybeJson5(Entry<?> entry) {
+        requireNonNull(entry, "entry");
+        return entry.type() == EntryType.JSON && maybeJson5(entry.path());
     }
 
     public static String validateJsonPath(String jsonPath, String paramName) {

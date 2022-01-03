@@ -114,18 +114,18 @@ public class ContentServiceV1 extends AbstractService {
      * <p>Returns the list of files in the path.
      */
     @Get("regex:/projects/(?<projectName>[^/]+)/repos/(?<repoName>[^/]+)/list(?<path>(|/.*))$")
-    public CompletableFuture<List<EntryDto<?>>> listFiles(@Param String path,
-                                                          @Param @Default("-1") String revision,
-                                                          Repository repository) {
+    public CompletableFuture<List<EntryDto>> listFiles(@Param String path,
+                                                       @Param @Default("-1") String revision,
+                                                       Repository repository) {
         final String normalizedPath = normalizePath(path);
         final Revision normalizedRev = repository.normalizeNow(new Revision(revision));
-        final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
+        final CompletableFuture<List<EntryDto>> future = new CompletableFuture<>();
         listFiles(repository, normalizedPath, normalizedRev, false, future);
         return future;
     }
 
     private static void listFiles(Repository repository, String pathPattern, Revision normalizedRev,
-                                  boolean withContent, CompletableFuture<List<EntryDto<?>>> result) {
+                                  boolean withContent, CompletableFuture<List<EntryDto>> result) {
         final Map<FindOption<?>, ?> options = withContent ? FindOptions.FIND_ALL_WITH_CONTENT
                                                           : FindOptions.FIND_ALL_WITHOUT_CONTENT;
 
@@ -270,7 +270,7 @@ public class ContentServiceV1 extends AbstractService {
         }
 
         // get files
-        final CompletableFuture<List<EntryDto<?>>> future = new CompletableFuture<>();
+        final CompletableFuture<List<EntryDto>> future = new CompletableFuture<>();
         listFiles(repository, normalizedPath, normalizedRev, true, future);
         return future;
     }
@@ -287,7 +287,7 @@ public class ContentServiceV1 extends AbstractService {
 
         return future.thenApply(entry -> {
             final Revision revision = entry.revision();
-            final EntryDto<?> entryDto = convert(repository, revision, entry, true);
+            final EntryDto entryDto = convert(repository, revision, entry, true);
             return (Object) new WatchResultDto(revision, entryDto);
         }).exceptionally(ContentServiceV1::handleWatchFailure);
     }

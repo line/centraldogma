@@ -32,7 +32,7 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Revision;
 
 @JsonInclude(Include.NON_NULL)
-public class EntryDto<T> {
+public class EntryDto {
 
     private final Revision revision;
 
@@ -40,12 +40,12 @@ public class EntryDto<T> {
 
     private final EntryType type;
 
-    private final T content;
+    private final Object content;
 
     private final String url;
 
     public EntryDto(Revision revision, String path, EntryType type,
-                    String projectName, String repoName, @Nullable T content) {
+                    String projectName, String repoName, @Nullable Object content) {
         this.revision = requireNonNull(revision, "revision");
         this.path = requireNonNull(path, "path");
         this.type = requireNonNull(type, "type");
@@ -70,7 +70,7 @@ public class EntryDto<T> {
 
     @JsonProperty
     @Nullable
-    public T content() {
+    public Object content() {
         return content;
     }
 

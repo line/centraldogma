@@ -131,7 +131,7 @@ angular.module('CentralDogmaAdmin')
                        var modelist = window.ace.require('ace/ext/modelist');
                        var mode = modelist.getModeForPath(value).mode;
                        session.setMode(mode);
-                       if (mode === 'ace/mode/json') {
+                       if (mode === 'ace/mode/json' || mode === 'ace/mode/json5') {
                          session.setTabSize(2);
                        } else {
                          session.setTabSize(4);

@@ -129,11 +129,13 @@ angular.module('CentralDogmaAdmin')
                         JSON.parse($scope.file.content);
                       } catch (error) {
                         NotificationUtil.error('entities.invalid_json');
-                        $timeout(function() {
+                        $timeout(function () {
                           $scope.editor.focus();
                         });
                         return;
                       }
+                    } else if (StringUtil.endsWith($scope.file.name.toLowerCase(), '.json5')) {
+                      $scope.file.type = 'JSON';
                     } else {
                       $scope.file.type = 'TEXT';
                     }

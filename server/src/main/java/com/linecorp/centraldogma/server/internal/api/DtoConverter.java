@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
+import static com.linecorp.centraldogma.internal.Util.maybeJson5;
 import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
@@ -58,29 +59,31 @@ final class DtoConverter {
                                  repository.creationTimeMillis());
     }
 
-    public static <T> EntryDto<T> convert(Repository repository, Revision revision,
-                                          Entry<T> entry, boolean withContent) {
+    public static <T> EntryDto convert(Repository repository, Revision revision,
+                                       Entry<T> entry, boolean withContent) {
         requireNonNull(entry, "entry");
         if (withContent && entry.hasContent()) {
-            return convert(repository, revision, entry.path(), entry.type(), entry.content());
+            // Not sure DtoConverter having business logic.
+            return convert(repository, revision, entry.path(), entry.type(),
+                           maybeJson5(entry) ? entry.contentAsText() : entry.content());
         }
         return convert(repository, revision, entry.path(), entry.type());
     }
 
-    private static <T> EntryDto<T> convert(Repository repository, Revision revision,
-                                           String path, EntryType type) {
+    private static <T> EntryDto convert(Repository repository, Revision revision,
+                                        String path, EntryType type) {
         return convert(repository, revision, path, type, null);
     }
 
-    private static <T> EntryDto<T> convert(Repository repository, Revision revision, String path,
-                                           EntryType type, @Nullable T content) {
+    private static <T> EntryDto convert(Repository repository, Revision revision, String path,
+                                        EntryType type, @Nullable T content) {
         requireNonNull(repository, "repository");
-        return new EntryDto<>(requireNonNull(revision, "revision"),
-                              requireNonNull(path, "path"),
-                              requireNonNull(type, "type"),
-                              repository.parent().name(),
-                              repository.name(),
-                              content);
+        return new EntryDto(requireNonNull(revision, "revision"),
+                            requireNonNull(path, "path"),
+                            requireNonNull(type, "type"),
+                            repository.parent().name(),
+                            repository.name(),
+                            content);
     }
 
     public static PushResultDto convert(Revision revision, long commitTimeMillis) {

@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.linecorp.centraldogma.internal.Util.maybeJson5;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -51,7 +52,7 @@ public enum EntryType {
             return DIRECTORY;
         }
 
-        if (Ascii.toLowerCase(path).endsWith(".json")) {
+        if (Ascii.toLowerCase(path).endsWith(".json") || maybeJson5(path)) {
             return JSON;
         }
 

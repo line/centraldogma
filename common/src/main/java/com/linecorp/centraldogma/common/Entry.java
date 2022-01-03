@@ -17,8 +17,10 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.linecorp.centraldogma.internal.Util.maybeJson5;
 import static java.util.Objects.requireNonNull;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -29,6 +31,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.Json5;
 
 /**
  * A file or a directory in a repository.
@@ -69,7 +72,22 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, String content)
             throws JsonParseException {
-        return ofJson(revision, path, Jackson.readTree(content));
+        return maybeJson5(path) ? new Entry<>(revision, path, EntryType.JSON, Json5.readTree(content), content)
+                                : new Entry<>(revision, path, EntryType.JSON, Jackson.readTree(content));
+    }
+
+    /**
+     * Returns a newly-created {@link Entry} of a JSON file.
+     *
+     * @param revision the revision of the JSON file
+     * @param path the path of the JSON file
+     * @param content the content of the JSON file in byte array.
+     *
+     * @throws JsonParseException if the {@code content} is not a valid JSON
+     */
+    public static Entry<JsonNode> ofJson(Revision revision, String path, byte[] content)
+            throws JsonParseException {
+        return ofJson(revision, path, new String(content, StandardCharsets.UTF_8));
     }
 
     /**
@@ -93,6 +111,7 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
      */
     public static <T> Entry<T> of(Revision revision, String path, EntryType type, @Nullable T content) {
+        // TODO(ks-yim): should we handle JSON5?
         return new Entry<>(revision, path, type, content);
     }
 
@@ -106,6 +125,10 @@ public final class Entry<T> implements ContentHolder<T> {
     @Nullable
     private String contentAsPrettyText;
 
+    private Entry(Revision revision, String path, EntryType type, @Nullable T content) {
+        this(revision, path, type, content, null);
+    }
+
     /**
      * Creates a new instance.
      *
@@ -114,7 +137,8 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param type the type of given {@code content}
      * @param content an object of given type {@code T}
      */
-    private Entry(Revision revision, String path, EntryType type, @Nullable T content) {
+    private Entry(Revision revision, String path, EntryType type,
+                  @Nullable T content, @Nullable String contentAsText) {
         requireNonNull(revision, "revision");
         checkArgument(!revision.isRelative(), "revision: %s (expected: absolute revision)", revision);
         this.revision = revision;
@@ -126,10 +150,12 @@ public final class Entry<T> implements ContentHolder<T> {
         if (entryContentType == Void.class) {
             checkArgument(content == null, "content: %s (expected: null)", content);
             this.content = null;
+            this.contentAsText = null;
         } else {
             @SuppressWarnings("unchecked")
             final T castContent = (T) entryContentType.cast(requireNonNull(content, "content"));
             this.content = castContent;
+            this.contentAsText = contentAsText;
         }
     }
 
