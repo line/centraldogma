@@ -28,7 +28,6 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.PushResult;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class ArmeriaCentralDogmaTest {
@@ -49,7 +48,7 @@ class ArmeriaCentralDogmaTest {
 
         assertThatThrownBy(() -> client.forRepo("foo", "meta")
                                        .commit("summary", Change.ofJsonUpsert("/bar.json", "{ \"a\": \"b\" }"))
-                                       .push(Revision.HEAD)
+                                       .push()
                                        .join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(InvalidPushException.class);
@@ -63,7 +62,7 @@ class ArmeriaCentralDogmaTest {
 
         final PushResult result = client.forRepo("foo", "meta")
                                         .commit("summary", Change.ofJsonUpsert("/mirrors.json", "[]"))
-                                        .push(Revision.HEAD)
+                                        .push()
                                         .join();
         assertThat(result.revision().major()).isPositive();
     }

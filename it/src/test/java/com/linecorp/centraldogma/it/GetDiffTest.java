@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,7 +45,7 @@ class GetDiffTest {
             final Change<JsonNode> change = Change.ofJsonUpsert(path, String.format("{ \"key\" : \"%d\"}", i));
             client.forRepo(dogma.project(), dogma.repo1())
                   .commit(TestConstants.randomText(), change)
-                  .push(HEAD).join();
+                  .push().join();
         }
 
         final Change<JsonNode> res = client.getDiff(
@@ -72,13 +71,13 @@ class GetDiffTest {
 
         final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
                                     .commit("summary1", Change.ofTextUpsert("/foo.txt", "hello"))
-                                    .push(HEAD)
+                                    .push()
                                     .join()
                                     .revision();
 
         final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
                                     .commit("summary2", Change.ofRemoval("/foo.txt"))
-                                    .push(HEAD)
+                                    .push()
                                     .join()
                                     .revision();
 
@@ -101,13 +100,13 @@ class GetDiffTest {
         try {
             final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
                                         .commit("summary1", Change.ofTextUpsert("/bar.txt", "hello"))
-                                        .push(HEAD)
+                                        .push()
                                         .join()
                                         .revision();
 
             final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
                                         .commit("summary2", Change.ofRename("/bar.txt", "/baz.txt"))
-                                        .push(HEAD)
+                                        .push()
                                         .join()
                                         .revision();
 
@@ -119,7 +118,7 @@ class GetDiffTest {
         } finally {
             client.forRepo(dogma.project(), dogma.repo1())
                   .commit("summary3", Change.ofRemoval("/baz.txt"))
-                  .push(HEAD)
+                  .push()
                   .join();
         }
     }

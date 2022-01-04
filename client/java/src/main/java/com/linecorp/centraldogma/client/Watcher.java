@@ -125,7 +125,7 @@ public interface Watcher<T> extends AutoCloseable {
      *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
      * @throws EntryNotFoundException if {@code errorOnEntryNotFound} is {@code true} and entry isn't found on
-     *         watching the initial value
+     *                                watching the initial value
      * @throws TimeoutException if failed to retrieve the initial value within the specified timeout
      */
     default Latest<T> awaitInitialValue(long timeout, TimeUnit unit) throws InterruptedException,
@@ -156,7 +156,7 @@ public interface Watcher<T> extends AutoCloseable {
      *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
      * @throws EntryNotFoundException if {@code errorOnEntryNotFound} is {@code true} and entry isn't found on
-     *         watching the initial value
+     *                                watching the initial value
      */
     @Nullable
     default T awaitInitialValue(long timeout, TimeUnit unit, @Nullable T defaultValue)

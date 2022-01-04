@@ -49,7 +49,7 @@ class PreviewDiffsTest {
         final Change<?> change = Change.ofJsonPatch("/test/new_json_file.json",
                                                     "{ \"a\": \"apple\" }", "{ \"a\": \"angle\" }");
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "/test/new_json_file.json", () ->
-                client.forRepo(dogma.project(), dogma.repo1()).diff(change).get(Revision.HEAD).join())
+                client.forRepo(dogma.project(), dogma.repo1()).diff(change).get().join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
     }
 
@@ -62,7 +62,7 @@ class PreviewDiffsTest {
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "non_existent_path.txt", () ->
                 client.forRepo(dogma.project(), dogma.repo1())
                       .diff(change)
-                      .get(Revision.HEAD)
+                      .get()
                       .join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
     }
@@ -86,7 +86,7 @@ class PreviewDiffsTest {
         final CentralDogma client = clientType.client(dogma);
         assertThat(client.forRepo(dogma.project(), dogma.repo1())
                          .diff()
-                         .get(Revision.HEAD)
+                         .get()
                          .join()).isEmpty();
     }
 
@@ -99,7 +99,7 @@ class PreviewDiffsTest {
         try {
             client.forRepo(dogma.project(), dogma.repo1())
                   .commit("Add a new JSON file", Change.ofJsonUpsert(jsonPath, "{ \"a\": \"apple\" }"))
-                  .push(Revision.HEAD)
+                  .push()
                   .join();
         } catch (CompletionException e) {
             // Might have been added already in previous run.
@@ -112,7 +112,7 @@ class PreviewDiffsTest {
         final List<Change<?>> returnedList =
                 client.forRepo(dogma.project(), dogma.repo1())
                       .diff(change)
-                      .get(Revision.HEAD)
+                      .get()
                       .join();
 
         assertThat(returnedList).hasSize(1);

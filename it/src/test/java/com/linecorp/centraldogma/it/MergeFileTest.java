@@ -52,7 +52,7 @@ class MergeFileTest {
                           Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }"),
                           Change.ofJsonUpsert("/foo1.json", "{ \"b\": \"baz\" }"),
                           Change.ofJsonUpsert("/foo2.json", "{ \"a\": \"new_bar\" }"))
-                  .push(Revision.HEAD).join();
+                  .push().join();
         }
 
         @Override
@@ -70,7 +70,7 @@ class MergeFileTest {
                                                    MergeSource.ofRequired("/foo1.json"),
                                                    MergeSource.ofRequired("/foo2.json"),
                                                    MergeSource.ofOptional("/foo3.json")) // optional
-                                            .get(Revision.HEAD).join();
+                                            .get().join();
 
         assertThat(merged.paths()).containsExactly("/foo.json", "/foo1.json", "/foo2.json");
         assertThat(merged.revision()).isEqualTo(new Revision(2));
@@ -95,7 +95,7 @@ class MergeFileTest {
                                               MergeSource.ofRequired("/foo1.json"),
                                               MergeSource.ofRequired("/foo2.json"),
                                               MergeSource.ofRequired("/foo3.json")) // required
-                                       .get(Revision.HEAD).join())
+                                       .get().join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(EntryNotFoundException.class);
     }
@@ -107,7 +107,7 @@ class MergeFileTest {
         assertThatThrownBy(() -> client.forRepo("myPro", "myRepo")
                                        .merge(MergeSource.ofOptional("/non_existent1.json"),
                                               MergeSource.ofRequired("/non_existent2.json"))
-                                       .get(Revision.HEAD).join())
+                                       .get().join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(EntryNotFoundException.class);
     }
@@ -118,14 +118,14 @@ class MergeFileTest {
         final CentralDogma client = clientType.client(dogma);
         client.forRepo("myPro", "myRepo")
               .commit("Add /foo10.json", Change.ofJsonUpsert("/foo10.json", "{ \"a\": 1 }"))
-              .push(Revision.HEAD).join();
+              .push().join();
 
         assertThatThrownBy(() -> client.forRepo("myPro", "myRepo")
                                        .merge(MergeSource.ofRequired("/foo.json"),
                                               MergeSource.ofRequired("/foo1.json"),
                                               MergeSource.ofRequired("/foo2.json"),
                                               MergeSource.ofRequired("/foo10.json"))
-                                       .get(Revision.HEAD).join())
+                                       .get().join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(QueryExecutionException.class);
     }

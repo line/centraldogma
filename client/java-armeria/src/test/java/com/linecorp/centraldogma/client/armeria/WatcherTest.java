@@ -28,7 +28,6 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Watcher;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class WatcherTest {
@@ -41,7 +40,7 @@ class WatcherTest {
             client.createRepository("foo", "bar").join();
             client.forRepo("foo", "bar")
                   .commit("Add baz.txt", Change.ofTextUpsert("/baz.txt", ""))
-                  .push(Revision.HEAD).join();
+                  .push().join();
         }
     };
 
@@ -67,7 +66,7 @@ class WatcherTest {
         dogma.client()
              .forRepo("foo", "bar")
              .commit("Modify baz.txt", Change.ofTextUpsert("/baz.txt", "1"))
-             .push(Revision.HEAD)
+             .push()
              .join();
 
         // mapperCount is called only once when the value is updated.

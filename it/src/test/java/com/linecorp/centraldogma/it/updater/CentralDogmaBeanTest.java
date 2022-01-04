@@ -96,7 +96,7 @@ class CentralDogmaBeanTest {
                                           "  \"bar\": \"Y\"," +
                                           "  \"qux\": [\"0\", \"1\"]" +
                                           '}'))
-              .push(Revision.HEAD).join();
+              .push().join();
 
         // Wait until the changes are handled.
         await().atMost(5000, TimeUnit.SECONDS).until(() -> property.getFoo() == 20);
@@ -116,7 +116,7 @@ class CentralDogmaBeanTest {
                                           "  \"bar\": \"Y2\"," +
                                           "  \"qux\": [\"M\", \"N\"]" +
                                           '}'))
-              .push(Revision.HEAD)
+              .push()
               .join();
         // TODO(huydx): this test may be flaky, is there any better way?
         final Throwable thrown = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
@@ -137,7 +137,7 @@ class CentralDogmaBeanTest {
                                           "  \"bar\": \"Y\"," +
                                           "  \"qux\": [\"11\", \"1\"]" +
                                           '}'))
-              .push(Revision.HEAD).join();
+              .push().join();
         // await will fail due to exception is thrown before node get serialized
         // and revision will remain null
         final Throwable thrown2 = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
@@ -158,7 +158,7 @@ class CentralDogmaBeanTest {
                                           "  \"bar\": \"YY\"," +
                                           "  \"qux\": [\"100\", \"200\"]" +
                                           "}]"))
-              .push(Revision.HEAD).join();
+              .push().join();
 
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class,
                                                   (TestProperty x) -> {},
@@ -191,7 +191,7 @@ class CentralDogmaBeanTest {
                                           "  \"bar\": \"Y\"," +
                                           "  \"qux\": [\"0\", \"1\"]" +
                                           '}'))
-              .push(Revision.HEAD)
+              .push()
               .join();
 
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class, update::set);

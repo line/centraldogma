@@ -26,7 +26,6 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.micrometer.prometheus.PrometheusMeterRegistry;
@@ -42,7 +41,7 @@ class MetricsTest {
             client.createRepository("foo", "bar").join();
             client.forRepo("foo", "bar")
                   .commit("Initial file", Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }"))
-                  .push(Revision.HEAD)
+                  .push()
                   .join();
         }
     };

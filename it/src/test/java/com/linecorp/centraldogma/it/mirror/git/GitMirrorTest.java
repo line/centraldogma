@@ -231,7 +231,7 @@ class GitMirrorTest {
 
         client.forRepo(projName, REPO_FOO)
               .commit("Add a file that's not part of mirror", Change.ofTextUpsert("/not_mirrored.txt", ""))
-              .push(Revision.HEAD).join();
+              .push().join();
 
         final Revision rev0 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();
 
@@ -437,7 +437,7 @@ class GitMirrorTest {
                                           "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
                                           ",\"gitignore\": " + firstNonNull(gitignore, "\"\"") +
                                           "}]"))
-              .push(Revision.HEAD).join();
+              .push().join();
     }
 
     private Entry<JsonNode> expectedMirrorState(Revision revision, String localPath) throws IOException {

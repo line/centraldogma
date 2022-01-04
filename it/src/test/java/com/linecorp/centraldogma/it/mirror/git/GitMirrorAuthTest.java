@@ -44,7 +44,6 @@ import com.jcraft.jsch.KeyPair;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -162,7 +161,7 @@ class GitMirrorAuthTest {
                                           "  \"localPath\": \"/\"," +
                                           "  \"remoteUri\": \"" + gitUri + '"' +
                                           "}]"))
-              .push(Revision.HEAD).join();
+              .push().join();
 
         // Try to perform mirroring to see if authentication works as expected.
         mirroringService.mirror().join();

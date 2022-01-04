@@ -40,7 +40,6 @@ import com.linecorp.centraldogma.client.armeria.CentralDogmaEndpointGroup;
 import com.linecorp.centraldogma.client.armeria.EndpointListDecoder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class CentralDogmaEndpointGroupTest {
@@ -71,12 +70,12 @@ class CentralDogmaEndpointGroupTest {
             client.createRepository("directory", "my-service").join();
             client.forRepo("directory", "my-service")
                   .commit("commit", Change.ofJsonUpsert("/endpoint.json", HOST_AND_PORT_LIST_JSON))
-                  .push(Revision.HEAD)
+                  .push()
                   .join();
             client.forRepo("directory", "my-service")
                   .commit("commit", Change.ofTextUpsert("/endpoints.txt",
                                                         String.join("\n", HOST_AND_PORT_LIST)))
-                  .push(Revision.HEAD)
+                  .push()
                   .join();
         }
 
@@ -118,7 +117,7 @@ class CentralDogmaEndpointGroupTest {
             dogma.client()
                  .forRepo("directory", "my-service")
                  .commit("commit", Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
-                 .push(Revision.HEAD)
+                 .push()
                  .join();
 
             await().untilAsserted(() -> assertThat(endpointGroup.endpoints())
@@ -151,7 +150,7 @@ class CentralDogmaEndpointGroupTest {
             dogma.client()
                  .forRepo("directory", "new-service")
                  .commit("commit", Change.ofTextUpsert("/endpoints.txt", "foo.bar:1234"))
-                 .push(Revision.HEAD)
+                 .push()
                  .join();
             endpointGroup.whenReady().get(20, TimeUnit.SECONDS);
 

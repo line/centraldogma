@@ -481,7 +481,7 @@ class WatchTest {
         watcher.watch(watched -> threadName.set(Thread.currentThread().getName()));
         client.forRepo(dogma.project(), dogma.repo1())
               .commit("test", Change.ofTextUpsert("/test/test.txt", "foo"))
-              .push(Revision.HEAD);
+              .push();
 
         await().untilAtomic(threadName, Matchers.startsWith(THREAD_NAME_PREFIX));
         threadName.set(null);
@@ -525,7 +525,7 @@ class WatchTest {
         watcher.watch(watched -> threadName.set(Thread.currentThread().getName()), executor);
         client.forRepo(dogma.project(), dogma.repo1())
               .commit("test", Change.ofTextUpsert("/test/test.txt", "foo"))
-              .push(Revision.HEAD);
+              .push();
 
         await().untilAtomic(threadName, Matchers.startsWith(threadNamePrefix));
         threadName.set(null);
@@ -606,7 +606,7 @@ class WatchTest {
                 filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
         client.forRepo(dogma.project(), dogma.repo1())
               .commit("Add /a /b", change1)
-              .push(Revision.HEAD)
+              .push()
               .join();
 
         // Wait over the timeoutMillis(100) + a
@@ -744,7 +744,7 @@ class WatchTest {
                 filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
         client.forRepo(dogma.project(), dogma.repo1())
               .commit("Add /a /b", change1)
-              .push(Revision.HEAD)
+              .push()
               .join();
 
         // Wait over the timeoutMillis(100) + a
@@ -765,7 +765,7 @@ class WatchTest {
                    .join().isEmpty()) {
             client.forRepo(dogma.project(), dogma.repo1())
                   .commit("Revert test files", changes)
-                  .push(Revision.HEAD)
+                  .push()
                   .join();
         }
 
@@ -775,7 +775,7 @@ class WatchTest {
         if (files.containsKey(change3.path())) {
             client.forRepo(dogma.project(), dogma.repo1())
                   .commit("Remove test files", change3)
-                  .push(Revision.HEAD)
+                  .push()
                   .join();
         }
     }

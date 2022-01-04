@@ -43,7 +43,6 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.Iface;
@@ -70,7 +69,7 @@ class ContentCompressionTest {
             client.createRepository(PROJ, REPO).join();
             client.forRepo(PROJ, REPO)
                   .commit("Create a large file.", Change.ofTextUpsert(PATH, CONTENT))
-                  .push(Revision.HEAD).join();
+                  .push().join();
         }
     };
 

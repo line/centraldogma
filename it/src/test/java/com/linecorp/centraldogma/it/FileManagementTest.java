@@ -49,7 +49,8 @@ class FileManagementTest {
             for (int i = 0; i < NUM_FILES; i++) {
                 client.forRepo(project(), repo1())
                       .commit("Put test files", Change.ofJsonUpsert(TEST_ROOT + i + ".json", "{}"))
-                      .push(Revision.HEAD).join();
+                      .push()
+                      .join();
             }
         }
     };

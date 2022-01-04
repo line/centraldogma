@@ -50,7 +50,7 @@ class GetFileTest {
         final CentralDogma client = clientType.client(dogma);
         client.forRepo(dogma.project(), dogma.repo1())
               .commit("Add a file", Change.ofJsonUpsert("/test/foo.json", "{ \"a\": \"b\" }"))
-              .push(Revision.HEAD).join();
+              .push().join();
         final Entry<JsonNode> json = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                     Query.ofJson("/test/foo.json")).join();
         assertThatJson(json.content()).isEqualTo("{\"a\":\"b\"}");
@@ -60,7 +60,7 @@ class GetFileTest {
         assertThat(text.content()).isEqualTo("{\"a\":\"b\"}");
         client.forRepo(dogma.project(), dogma.repo1())
               .commit("Remove a file", Change.ofRemoval("/test/foo.json"))
-              .push(Revision.HEAD).join();
+              .push().join();
     }
 
     @ParameterizedTest

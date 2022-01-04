@@ -61,7 +61,7 @@ class CacheTest {
         final Map<String, Double> meters1 = metersSupplier.get();
         final PushResult res = client.forRepo(project, REPO_FOO)
                                      .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
-                                     .push(HEAD)
+                                     .push()
                                      .join();
 
         final Map<String, Double> meters2 = metersSupplier.get();
@@ -110,7 +110,8 @@ class CacheTest {
 
         final PushResult res1 = client.forRepo(project, REPO_FOO)
                                       .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
-                                      .push(HEAD).join();
+                                      .push()
+                                      .join();
 
         final Map<String, Double> meters1 = metersSupplier.get();
 
@@ -147,7 +148,8 @@ class CacheTest {
 
         final PushResult res1 = client.forRepo(project, REPO_FOO)
                                       .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
-                                      .push(HEAD).join();
+                                      .push()
+                                      .join();
 
         final Map<String, Double> meters1 = metersSupplier.get();
 

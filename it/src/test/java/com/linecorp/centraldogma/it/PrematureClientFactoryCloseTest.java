@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -47,7 +46,7 @@ class PrematureClientFactoryCloseTest {
             client.createRepository("foo", "bar").join();
             client.forRepo("foo", "bar")
                   .commit("Add baz.txt", Change.ofTextUpsert("/baz.txt", ""))
-                  .push(HEAD).join();
+                  .push().join();
         }
     };
 
