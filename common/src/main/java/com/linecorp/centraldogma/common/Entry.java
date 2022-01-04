@@ -111,7 +111,6 @@ public final class Entry<T> implements ContentHolder<T> {
      * @param <T> the content type. {@link JsonNode} if JSON. {@link String} if text.
      */
     public static <T> Entry<T> of(Revision revision, String path, EntryType type, @Nullable T content) {
-        // TODO(ks-yim): should we handle JSON5?
         return new Entry<>(revision, path, type, content);
     }
 
@@ -238,6 +237,7 @@ public final class Entry<T> implements ContentHolder<T> {
 
         return type == that.type && revision.equals(that.revision) && path.equals(that.path) &&
                Objects.equals(content, that.content) &&
+               // Compare 'contentAsText' for JSON5 entries.
                (!maybeJson5(path) || Objects.equals(contentAsText, that.contentAsText));
     }
 

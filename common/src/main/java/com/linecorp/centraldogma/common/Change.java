@@ -107,6 +107,7 @@ public interface Change<T> {
      * @param jsonNode the content of the file
      */
     static Change<JsonNode> ofJsonUpsert(String path, JsonNode jsonNode) {
+        requireNonNull(jsonNode, "jsonNode");
         return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
     }
 

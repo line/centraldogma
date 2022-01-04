@@ -1099,7 +1099,9 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static <T> Entry<T> entryAsJson(Revision revision, JsonNode node, String entryPath,
                                             QueryType queryType) {
-        if (queryType != QueryType.JSON_PATH && maybeJson5(entryPath)) {
+        // 'content' of the JSON5 identity query response is always 'TextNode' to preserve JSON5 format
+        // while the 'content' of JSON_PATH query can be whatever 'JsonNode'.
+        if (maybeJson5(entryPath) && queryType != QueryType.JSON_PATH) {
             final String json5Text = getField(node, "content").asText();
             try {
                 return unsafeCast(Entry.ofJson(revision, entryPath, json5Text));

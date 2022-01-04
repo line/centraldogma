@@ -1018,22 +1018,9 @@ class GitRepository implements Repository {
                             }
                             break;
                         }
-                        final String sanitizedOldText;
-                        if (oldContent != null) {
-                            sanitizedOldText = sanitizeText(new String(oldContent, UTF_8));
-                        } else {
-                            sanitizedOldText = null;
-                        }
-
-                        final String sanitizedNewText = sanitizeText(change.contentAsText());
-
-                        // Upsert only when the contents are really different.
-                        if (!sanitizedNewText.equals(sanitizedOldText)) {
-                            applyPathEdit(dirCache, new InsertText(changePath, inserter, sanitizedNewText));
-                            numEdits++;
-                        }
-                        break;
                     }
+                    // Fall-through to UPSERT_TEXT for JSON5 entries so that JSON5 format is preserved.
+                    /* fall-thru */
                     case UPSERT_TEXT: {
                         final String sanitizedOldText;
                         if (oldContent != null) {
