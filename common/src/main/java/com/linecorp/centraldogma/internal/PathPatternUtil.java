@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2021 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,15 +13,21 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.client;
+package com.linecorp.centraldogma.internal;
 
-import java.util.concurrent.TimeUnit;
+import static java.util.Objects.requireNonNull;
 
-final class WatchConstants {
+import com.google.common.base.Splitter;
 
-    static final long DEFAULT_WATCH_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(1);
-    static final boolean DEFAULT_WATCH_ERROR_ON_ENTRY_NOT_FOUND = false;
-    static final int RECOMMENDED_AWAIT_TIMEOUT_SECONDS = 20;
+import com.linecorp.centraldogma.common.PathPattern;
 
-    private WatchConstants() {}
+public final class PathPatternUtil {
+
+    private static final Splitter splitter = Splitter.on(',').omitEmptyStrings().trimResults();
+
+    public static PathPattern toPathPattern(String pathPattern) {
+        return PathPattern.of(splitter.split(requireNonNull(pathPattern, "pathPattern")));
+    }
+
+    private PathPatternUtil() {}
 }

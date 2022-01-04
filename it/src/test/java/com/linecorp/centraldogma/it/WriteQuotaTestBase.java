@@ -40,7 +40,6 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.PushResult;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.metadata.ProjectMetadata;
@@ -115,8 +114,10 @@ abstract class WriteQuotaTestBase {
                 ImmutableList.builderWithExpectedSize(iteration);
         final int sleep = 1000 / concurrency + 50;
         for (int i = 0; i < iteration; i++) {
-            builder.add(dogmaClient.push(projectName, repoName, Revision.HEAD, i + ". test commit",
-                                         Change.ofTextUpsert("/foo.txt", "Hello CentralDogma! " + i)));
+            builder.add(dogmaClient.forRepo(projectName, repoName)
+                                   .commit(i + ". test commit",
+                                           Change.ofTextUpsert("/foo.txt", "Hello CentralDogma! " + i))
+                                   .push());
             Thread.sleep(sleep);
         }
         return builder.build();
