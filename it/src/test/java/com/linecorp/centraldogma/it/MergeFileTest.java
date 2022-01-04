@@ -21,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CompletionException;
 
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -50,7 +52,9 @@ class MergeFileTest  {
             client.push("myPro", "myRepo", Revision.HEAD, "Initial files",
                         Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }"),
                         Change.ofJsonUpsert("/foo1.json", "{ \"b\": \"baz\" }"),
-                        Change.ofJsonUpsert("/foo2.json", "{ \"a\": \"new_bar\" }")).join();
+                        Change.ofJsonUpsert("/foo2.json", "{ \"a\": \"new_bar\" }"),
+                        Change.ofJsonUpsert("/foo.json5", "{ a: 'qux' }"),
+                        Change.ofJsonUpsert("/foo1.json5", "{ a: 'new_qux', b: 'quux' }")).join();
         }
 
         @Override
@@ -149,5 +153,32 @@ class MergeFileTest  {
         assertThatThrownBy(() -> client.mergeFiles("myPro", "myRepo", Revision.HEAD, badQuery).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(QueryExecutionException.class);
+    }
+
+    @Nested
+    class MergeFileJson5Test {
+
+        @Test
+        void mergeJson5Files() {
+            final MergedEntry<?> merged = dogma.client().mergeFiles(
+                    "myPro", "myRepo", Revision.HEAD,
+                    MergeSource.ofRequired("/foo.json5"),
+                    MergeSource.ofRequired("/foo1.json5")).join();
+
+            assertThat(merged.paths()).containsExactly("/foo.json5", "/foo1.json5");
+            assertThatJson(merged.content()).isEqualTo("{\"a\": \"new_qux\", \"b\": \"quux\"}");
+        }
+
+        @Test
+        void mergeWithOrdinaryJson() {
+            final MergedEntry<?> merged = dogma.client().mergeFiles(
+                    "myPro", "myRepo", Revision.HEAD,
+                    MergeSource.ofRequired("/foo.json"),
+                    MergeSource.ofRequired("/foo.json5"),
+                    MergeSource.ofRequired("/foo1.json")).join();
+
+            assertThat(merged.paths()).containsExactly("/foo.json", "/foo.json5", "/foo1.json");
+            assertThatJson(merged.content()).isEqualTo("{\"a\": \"qux\", \"b\": \"baz\"}");
+        }
     }
 }

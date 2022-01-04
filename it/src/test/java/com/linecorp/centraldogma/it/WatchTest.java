@@ -16,14 +16,19 @@
 
 package com.linecorp.centraldogma.it;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -34,10 +39,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
@@ -52,6 +60,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Json5;
 
 class WatchTest {
 
@@ -466,6 +475,36 @@ class WatchTest {
                    .join().isEmpty()) {
             client.push(dogma.project(), dogma.repo1(), Revision.HEAD,
                         "Revert test files", changes).join();
+        }
+    }
+
+    @Nested
+    class WatchJson5Test {
+
+        @Test
+        void watchJson5() throws Exception {
+            final CentralDogma client = dogma.client();
+
+            final CompletableFuture<Entry<JsonNode>> future = client.watchFile(
+                    dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test/test1.json5"));
+
+            assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
+
+            // Make change to an irrelevant file.
+            client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add foo.json",
+                        Change.ofJsonUpsert("/test/foo.json", "{}")).join();
+
+            assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
+
+            // Make change to a relevant file.
+            final PushResult result = client.push(
+                    dogma.project(), dogma.repo1(), Revision.HEAD, "Edit test1.json5",
+                    Change.ofJsonUpsert("/test/test1.json5", "{a: 'foo'}")).join();
+
+            assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
+                    Entry.ofJson(result.revision(), "/test/test1.json5", "{a: 'foo'}\n"));
         }
     }
 }

@@ -17,17 +17,25 @@
 package com.linecorp.centraldogma.it;
 
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.concurrent.CompletionException;
 
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
@@ -38,6 +46,7 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Json5;
 
 class GetFileTest {
 
@@ -99,5 +108,40 @@ class GetFileTest {
                 client.getFile("non_exist_proj", dogma.repo1(), Revision.HEAD,
                                Query.ofJsonPath("/test/test2.json", "$.non_exist_path")).join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ProjectNotFoundException.class);
+    }
+
+    @Nested
+    class GetFileJson5Test {
+
+        final String JSON5_CONTENTS = new String(
+                Files.readAllBytes(new File(GetFileJson5Test.class.getClassLoader().getResource(
+                        "com/linecorp/centraldogma/it/import/test1.json5").getPath()).toPath()), UTF_8);
+
+        GetFileJson5Test() throws IOException {}
+
+        @Test
+        void getJson5() throws JsonParseException {
+            final CentralDogma client = dogma.client();
+
+            final Entry<JsonNode> json = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                        Query.ofJson("/test/test1.json5")).join();
+            assertThatJson(json.content()).isEqualTo(Json5.readTree(JSON5_CONTENTS));
+            assertThat(json.contentAsText()).isEqualTo(JSON5_CONTENTS);
+        }
+
+        @Test
+        void jsonPath() {
+            final CentralDogma client = dogma.client();
+
+            final Entry<JsonNode> json1 = client.getFile(
+                    dogma.project(), dogma.repo1(), Revision.HEAD,
+                    Query.ofJsonPath("/test/test1.json5", "$.singleQuotes")).join();
+            assertThat(json1.content().asText()).isEqualTo("I can use \"double quotes\" here");
+
+            final Entry<JsonNode> json2 = client.getFile(
+                    dogma.project(), dogma.repo1(), Revision.HEAD,
+                    Query.ofJsonPath("/test/test1.json5", ImmutableList.of("$.andIn", "$.[0]"))).join();
+            assertThat(json2.content().asText()).isEqualTo("arrays");
+        }
     }
 }
