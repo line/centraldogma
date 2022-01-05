@@ -60,16 +60,16 @@ final class DtoConverter {
                                  repository.creationTimeMillis());
     }
 
-    public static <T> EntryDto convert(Repository repository, Revision revision,
-                                       Entry<T> entry, boolean withContent) {
+    public static EntryDto convert(Repository repository, Revision revision,
+                                   Entry<?> entry, boolean withContent) {
         return convert(repository, revision, entry, withContent, null);
     }
 
-    public static <T> EntryDto convert(Repository repository, Revision revision,
-                                       Entry<T> entry, boolean withContent, @Nullable QueryType queryType) {
+    public static EntryDto convert(Repository repository, Revision revision,
+                                   Entry<?> entry, boolean withContent, @Nullable QueryType queryType) {
         requireNonNull(entry, "entry");
         if (withContent && entry.hasContent()) {
-            // TODO(ks-yim): Not sure DtoConverter having business logic and it looks hacky to receive
+            // TODO(ks-yim): Not sure of 'DtoConverter' having business logic and it looks hacky to receive
             //   queryType to handle JSON_PATH query for JSON5 files.
             return convert(repository, revision, entry.path(), entry.type(),
                            isJson5(entry) && queryType != QueryType.JSON_PATH ? entry.contentAsText()
@@ -78,13 +78,13 @@ final class DtoConverter {
         return convert(repository, revision, entry.path(), entry.type());
     }
 
-    private static <T> EntryDto convert(Repository repository, Revision revision,
-                                        String path, EntryType type) {
+    private static EntryDto convert(Repository repository, Revision revision,
+                                    String path, EntryType type) {
         return convert(repository, revision, path, type, null);
     }
 
-    private static <T> EntryDto convert(Repository repository, Revision revision, String path,
-                                        EntryType type, @Nullable T content) {
+    private static EntryDto convert(Repository repository, Revision revision, String path,
+                                    EntryType type, @Nullable Object content) {
         requireNonNull(repository, "repository");
         return new EntryDto(requireNonNull(revision, "revision"),
                             requireNonNull(path, "path"),

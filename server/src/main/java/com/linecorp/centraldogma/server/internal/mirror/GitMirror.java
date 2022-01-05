@@ -23,7 +23,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -239,12 +238,10 @@ public final class GitMirror extends AbstractMirror {
                     final byte[] content = reader.open(objectId).getBytes();
                     switch (EntryType.guessFromPath(localPath)) {
                         case JSON:
-                            final String jsonText = new String(content, StandardCharsets.UTF_8);
-                            changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, jsonText));
+                            changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, content));
                             break;
                         case TEXT:
-                            final String strVal = new String(content, StandardCharsets.UTF_8);
-                            changes.putIfAbsent(localPath, Change.ofTextUpsert(localPath, strVal));
+                            changes.putIfAbsent(localPath, Change.ofTextUpsert(localPath, content));
                             break;
                     }
                 }

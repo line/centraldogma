@@ -1070,7 +1070,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             try {
                 return unsafeCast(Entry.ofJson(revision, entryPath, json5Text));
             } catch (JsonParseException e) {
-                throw new CentralDogmaException("failed to parse JSON5 content as JSON: " + json5Text);
+                throw new CentralDogmaException("failed to parse JSON5 content as JSON: " + json5Text, e);
             }
         }
         return unsafeCast(Entry.ofJson(revision, entryPath, getField(node, "content")));

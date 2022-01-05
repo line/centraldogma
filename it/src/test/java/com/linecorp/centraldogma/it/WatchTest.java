@@ -796,16 +796,20 @@ class WatchTest {
                     .isInstanceOf(TimeoutException.class);
 
             // Make change to an irrelevant file.
-            client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add foo.json",
-                        Change.ofJsonUpsert("/test/foo.json", "{}")).join();
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit("Edit foo.json", Change.ofJsonUpsert("/test/foo.json", "{}"))
+                  .push(Revision.HEAD)
+                  .join();
 
             assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
                     .isInstanceOf(TimeoutException.class);
 
             // Make change to a relevant file.
-            final PushResult result = client.push(
-                    dogma.project(), dogma.repo1(), Revision.HEAD, "Edit test1.json5",
-                    Change.ofJsonUpsert("/test/test1.json5", "{a: 'foo'}")).join();
+            final PushResult result =
+                    client.forRepo(dogma.project(), dogma.repo1())
+                          .commit("Edit test1.json5", Change.ofJsonUpsert("/test/test1.json5", "{a: 'foo'}"))
+                          .push(Revision.HEAD)
+                          .join();
 
             assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
                     Entry.ofJson(result.revision(), "/test/test1.json5", "{a: 'foo'}\n"));

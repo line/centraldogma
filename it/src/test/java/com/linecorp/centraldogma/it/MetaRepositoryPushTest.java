@@ -33,7 +33,7 @@ import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-public class MetaRepositoryPushTest {
+class MetaRepositoryPushTest {
 
     @RegisterExtension
     static CentralDogmaExtension dogma = new CentralDogmaExtension() {

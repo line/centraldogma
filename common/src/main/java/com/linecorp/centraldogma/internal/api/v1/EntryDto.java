@@ -40,6 +40,7 @@ public class EntryDto {
 
     private final EntryType type;
 
+    @Nullable
     private final Object content;
 
     private final String url;

@@ -62,6 +62,22 @@ public interface Change<T> {
      * valid JSON.
      *
      * @param path the path of the file
+     * @param content UTF-8 encoded text file content
+     * @throws ChangeFormatException if the path ends with {@code ".json"}
+     */
+    static Change<String> ofTextUpsert(String path, byte[] content) {
+        requireNonNull(content, "content");
+        return ofTextUpsert(path, new String(content, StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_TEXT}.
+     *
+     * <p>Note that you should use {@link #ofJsonUpsert(String, String)} if the specified {@code path} ends with
+     * {@code ".json"}. The {@link #ofJsonUpsert(String, String)} will check that the given {@code text} is a
+     * valid JSON.
+     *
+     * @param path the path of the file
      * @param text the content of the file
      * @throws ChangeFormatException if the path ends with {@code ".json"}
      */
@@ -73,6 +89,19 @@ public interface Change<T> {
                                             " (expected: a non-JSON file). Use Change.ofJsonUpsert() instead");
         }
         return new DefaultChange<>(path, ChangeType.UPSERT_TEXT, text);
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_JSON}.
+     *
+     * @param path the path of the file
+     * @param jsonContent the content of the file
+     *
+     * @throws ChangeFormatException if the specified {@code jsonText} is not a valid JSON
+     */
+    static Change<JsonNode> ofJsonUpsert(String path, byte[] jsonContent) {
+        requireNonNull(jsonContent, "jsonContent");
+        return ofJsonUpsert(path, new String(jsonContent, StandardCharsets.UTF_8));
     }
 
     /**
@@ -91,10 +120,9 @@ public interface Change<T> {
             if (isJson5(path)) {
                 jsonNode = Json5.readTree(jsonText);
                 return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode, jsonText);
-            } else {
-                jsonNode = Jackson.readTree(jsonText);
-                return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
             }
+            jsonNode = Jackson.readTree(jsonText);
+            return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
         } catch (JsonParseException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
