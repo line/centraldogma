@@ -101,6 +101,11 @@ public final class Util {
                JSON_FILE_PATH_PATTERN.matcher(path).matches();
     }
 
+    public static boolean isJson(String path) {
+        requireNonNull(path, "path");
+        return Ascii.toLowerCase(path).endsWith(".json");
+    }
+
     public static boolean isJson5(String path) {
         requireNonNull(path, "path");
         return Ascii.toLowerCase(path).endsWith(".json5");

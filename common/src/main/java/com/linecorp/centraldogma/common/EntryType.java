@@ -16,11 +16,11 @@
 
 package com.linecorp.centraldogma.common;
 
+import static com.linecorp.centraldogma.internal.Util.isJson;
 import static com.linecorp.centraldogma.internal.Util.isJson5;
 import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.Ascii;
 
 /**
  * The type of an {@link Entry}.
@@ -52,7 +52,7 @@ public enum EntryType {
             return DIRECTORY;
         }
 
-        if (Ascii.toLowerCase(path).endsWith(".json") || isJson5(path)) {
+        if (isJson(path) || isJson5(path)) {
             return JSON;
         }
 
