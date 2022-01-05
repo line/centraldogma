@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.linecorp.centraldogma.internal.Util.maybeJson5;
+import static com.linecorp.centraldogma.internal.Util.isJson5;
 import static java.util.Objects.requireNonNull;
 
 import java.nio.charset.StandardCharsets;
@@ -72,8 +72,8 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, String content)
             throws JsonParseException {
-        return maybeJson5(path) ? new Entry<>(revision, path, EntryType.JSON, Json5.readTree(content), content)
-                                : new Entry<>(revision, path, EntryType.JSON, Jackson.readTree(content));
+        return isJson5(path) ? new Entry<>(revision, path, EntryType.JSON, Json5.readTree(content), content)
+                             : new Entry<>(revision, path, EntryType.JSON, Jackson.readTree(content));
     }
 
     /**
@@ -238,7 +238,7 @@ public final class Entry<T> implements ContentHolder<T> {
         return type == that.type && revision.equals(that.revision) && path.equals(that.path) &&
                Objects.equals(content, that.content) &&
                // Compare 'contentAsText' for JSON5 entries.
-               (!maybeJson5(path) || Objects.equals(contentAsText, that.contentAsText));
+               (!isJson5(path) || Objects.equals(contentAsText, that.contentAsText));
     }
 
     @Override

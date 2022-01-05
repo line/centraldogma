@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.api;
 
-import static com.linecorp.centraldogma.internal.Util.maybeJson5;
+import static com.linecorp.centraldogma.internal.Util.isJson5;
 import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
@@ -72,8 +72,8 @@ final class DtoConverter {
             // TODO(ks-yim): Not sure DtoConverter having business logic and it looks hacky to receive
             //   queryType to handle JSON_PATH query for JSON5 files.
             return convert(repository, revision, entry.path(), entry.type(),
-                           maybeJson5(entry) && queryType != QueryType.JSON_PATH ? entry.contentAsText()
-                                                                                 : entry.content());
+                           isJson5(entry) && queryType != QueryType.JSON_PATH ? entry.contentAsText()
+                                                                              : entry.content());
         }
         return convert(repository, revision, entry.path(), entry.type());
     }

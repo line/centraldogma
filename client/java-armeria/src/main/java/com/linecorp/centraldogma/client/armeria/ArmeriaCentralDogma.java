@@ -21,7 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.linecorp.centraldogma.internal.Util.maybeJson5;
+import static com.linecorp.centraldogma.internal.Util.isJson5;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.PROJECTS_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.REMOVED;
@@ -980,7 +980,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
             changeNode.put("path", c.path());
             changeNode.put("type", c.type().name());
             final Class<?> contentType = c.type().contentType();
-            if (maybeJson5(c.path())) {
+            if (isJson5(c.path())) {
                 changeNode.put("content", c.contentAsText());
             } else if (contentType == JsonNode.class) {
                 changeNode.set("content", (JsonNode) c.content());
@@ -1065,7 +1065,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                                             QueryType queryType) {
         // 'content' of the JSON5 identity query response is always 'TextNode' to preserve JSON5 format
         // while the 'content' of JSON_PATH query can be whatever 'JsonNode'.
-        if (maybeJson5(entryPath) && queryType != QueryType.JSON_PATH) {
+        if (isJson5(entryPath) && queryType != QueryType.JSON_PATH) {
             final String json5Text = getField(node, "content").asText();
             try {
                 return unsafeCast(Entry.ofJson(revision, entryPath, json5Text));

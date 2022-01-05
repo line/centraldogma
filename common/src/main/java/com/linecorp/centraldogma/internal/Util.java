@@ -101,14 +101,14 @@ public final class Util {
                JSON_FILE_PATH_PATTERN.matcher(path).matches();
     }
 
-    public static boolean maybeJson5(String path) {
+    public static boolean isJson5(String path) {
         requireNonNull(path, "path");
         return Ascii.toLowerCase(path).endsWith(".json5");
     }
 
-    public static boolean maybeJson5(Entry<?> entry) {
+    public static boolean isJson5(Entry<?> entry) {
         requireNonNull(entry, "entry");
-        return entry.type() == EntryType.JSON && maybeJson5(entry.path());
+        return entry.type() == EntryType.JSON && isJson5(entry.path());
     }
 
     public static String validateJsonPath(String jsonPath, String paramName) {

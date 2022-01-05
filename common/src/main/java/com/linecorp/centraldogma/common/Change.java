@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.linecorp.centraldogma.internal.Util.maybeJson5;
+import static com.linecorp.centraldogma.internal.Util.isJson5;
 import static com.linecorp.centraldogma.internal.Util.validateDirPath;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
 import static java.util.Objects.requireNonNull;
@@ -88,7 +88,7 @@ public interface Change<T> {
 
         final JsonNode jsonNode;
         try {
-            if (maybeJson5(path)) {
+            if (isJson5(path)) {
                 jsonNode = Json5.readTree(jsonText);
                 return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode, jsonText);
             } else {
@@ -173,7 +173,7 @@ public interface Change<T> {
     static Change<String> ofTextPatch(String path, String textPatch) {
         validateFilePath(path, "path");
         requireNonNull(textPatch, "textPatch");
-        if (EntryType.guessFromPath(path) == EntryType.JSON && !maybeJson5(path)) {
+        if (EntryType.guessFromPath(path) == EntryType.JSON && !isJson5(path)) {
             throw new ChangeFormatException("invalid file type: " + path +
                                             " (expected: a non-JSON file). Use Change.ofJsonPatch() instead");
         }
