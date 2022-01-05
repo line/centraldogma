@@ -46,8 +46,8 @@ class MergeFileTest {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("myPro").join();
-            client.createRepository("myPro", "myRepo").join();
-            client.forRepo("myPro", "myRepo")
+            client.createRepository("myPro", "myRepo")
+                  .join()
                   .commit("Initial files",
                           Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }"),
                           Change.ofJsonUpsert("/foo1.json", "{ \"b\": \"baz\" }"),

@@ -93,7 +93,7 @@ public interface CentralDogma {
     /**
      * Creates a repository.
      */
-    CompletableFuture<Void> createRepository(String projectName, String repositoryName);
+    CompletableFuture<CentralDogmaRepository> createRepository(String projectName, String repositoryName);
 
     /**
      * Removes a repository. A removed repository can be unremoved using
@@ -109,7 +109,7 @@ public interface CentralDogma {
     /**
      * Unremoves a repository.
      */
-    CompletableFuture<Void> unremoveRepository(String projectName, String repositoryName);
+    CompletableFuture<CentralDogmaRepository> unremoveRepository(String projectName, String repositoryName);
 
     /**
      * Retrieves the list of the repositories.

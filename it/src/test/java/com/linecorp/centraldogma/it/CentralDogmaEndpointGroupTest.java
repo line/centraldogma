@@ -67,8 +67,8 @@ class CentralDogmaEndpointGroupTest {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("directory").join();
-            client.createRepository("directory", "my-service").join();
-            client.forRepo("directory", "my-service")
+            client.createRepository("directory", "my-service")
+                  .join()
                   .commit("commit", Change.ofJsonUpsert("/endpoint.json", HOST_AND_PORT_LIST_JSON))
                   .push()
                   .join();

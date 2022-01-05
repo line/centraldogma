@@ -45,6 +45,7 @@ import com.spotify.futures.CompletableFutures;
 import com.linecorp.armeria.common.thrift.ThriftFuture;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -101,34 +102,26 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> createProject(String projectName) {
-        return run(callback -> {
-            validateProjectName(projectName);
-            client.createProject(projectName, callback);
-        });
+        validateProjectName(projectName);
+        return run(callback -> client.createProject(projectName, callback));
     }
 
     @Override
     public CompletableFuture<Void> removeProject(String projectName) {
-        return run(callback -> {
-            validateProjectName(projectName);
-            client.removeProject(projectName, callback);
-        });
+        validateProjectName(projectName);
+        return run(callback -> client.removeProject(projectName, callback));
     }
 
     @Override
     public CompletableFuture<Void> purgeProject(String projectName) {
-        return run(callback -> {
-            validateProjectName(projectName);
-            client.purgeProject(projectName, callback);
-        });
+        validateProjectName(projectName);
+        return run(callback -> client.purgeProject(projectName, callback));
     }
 
     @Override
     public CompletableFuture<Void> unremoveProject(String projectName) {
-        return run(callback -> {
-            validateProjectName(projectName);
-            client.unremoveProject(projectName, callback);
-        });
+        validateProjectName(projectName);
+        return run(callback -> client.unremoveProject(projectName, callback));
     }
 
     @Override
@@ -143,35 +136,31 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     }
 
     @Override
-    public CompletableFuture<Void> createRepository(String projectName, String repositoryName) {
-        return run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            client.createRepository(projectName, repositoryName, callback);
-        });
+    public CompletableFuture<CentralDogmaRepository> createRepository(String projectName,
+                                                                      String repositoryName) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        return run(callback -> client.createRepository(projectName, repositoryName, callback))
+                .thenApply(unused -> forRepo(projectName, repositoryName));
     }
 
     @Override
     public CompletableFuture<Void> removeRepository(String projectName, String repositoryName) {
-        return run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            client.removeRepository(projectName, repositoryName, callback);
-        });
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        return run(callback -> client.removeRepository(projectName, repositoryName, callback));
     }
 
     @Override
     public CompletableFuture<Void> purgeRepository(String projectName, String repositoryName) {
-        return run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            client.purgeRepository(projectName, repositoryName, callback);
-        });
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        return run(callback -> client.purgeRepository(projectName, repositoryName, callback));
     }
 
     @Override
-    public CompletableFuture<Void> unremoveRepository(String projectName, String repositoryName) {
+    public CompletableFuture<CentralDogmaRepository> unremoveRepository(String projectName,
+                                                                        String repositoryName) {
         validateProjectAndRepositoryName(projectName, repositoryName);
-        return run(callback -> {
-            client.unremoveRepository(projectName, repositoryName, callback);
-        });
+        return run(callback -> client.unremoveRepository(projectName, repositoryName, callback))
+                .thenApply(unused -> forRepo(projectName, repositoryName));
     }
 
     @Override
