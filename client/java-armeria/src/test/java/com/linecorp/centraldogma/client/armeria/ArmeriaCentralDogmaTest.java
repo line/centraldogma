@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.client.armeria;
 
-import static com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogma.encodePathPattern;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -58,23 +57,23 @@ class ArmeriaCentralDogmaTest {
 
     private CentralDogma client;
 
+    static <T> Entry<T> getFile(CentralDogma client, Query<T> query) {
+        return client.getFile("foo", "bar", Revision.INIT, query).join();
+    }
+
+    static <T> Entry<T> watchFile(CentralDogma client, Query<T> query) {
+        return client.watchFile("foo", "bar", Revision.INIT, query).join();
+    }
+
+    static void validateJson5Entry(Entry<?> entry) throws JsonParseException {
+        assertThat(entry.path()).isEqualTo("/foo.json5");
+        assertThat(entry.content()).isEqualTo(Json5.readTree(JSON5_STRING));
+        assertThat(entry.contentAsText()).isEqualTo(JSON5_STRING);
+    }
+
     @BeforeEach
     void setUp() {
         client = new ArmeriaCentralDogma(newSingleThreadScheduledExecutor(), webClient, "access_token");
-    }
-
-    @Test
-    void testEncodePathPattern() {
-        assertThat(encodePathPattern("/")).isEqualTo("/");
-        assertThat(encodePathPattern(" ")).isEqualTo("%20");
-        assertThat(encodePathPattern("  ")).isEqualTo("%20%20");
-        assertThat(encodePathPattern("a b")).isEqualTo("a%20b");
-        assertThat(encodePathPattern(" a ")).isEqualTo("%20a%20");
-
-        // No new string has to be created when escaping is not necessary.
-        final String pathPatternThatDoesNotNeedEscaping = "/*.zip,/**/*.jar";
-        assertThat(encodePathPattern(pathPatternThatDoesNotNeedEscaping))
-                .isSameAs(pathPatternThatDoesNotNeedEscaping);
     }
 
     @Test
@@ -104,20 +103,6 @@ class ArmeriaCentralDogmaTest {
 
         final Entry<?> entry = watchFile(client, Query.ofJson("/foo.json5"));
         validateJson5Entry(entry);
-    }
-
-    static <T> Entry<T> getFile(CentralDogma client, Query<T> query) {
-        return client.getFile("foo", "bar", Revision.INIT, query).join();
-    }
-
-    static <T> Entry<T> watchFile(CentralDogma client, Query<T> query) {
-        return client.watchFile("foo", "bar", Revision.INIT, query).join();
-    }
-
-    static void validateJson5Entry(Entry<?> entry) throws JsonParseException {
-        assertThat(entry.path()).isEqualTo("/foo.json5");
-        assertThat(entry.content()).isEqualTo(Json5.readTree(JSON5_STRING));
-        assertThat(entry.contentAsText()).isEqualTo(JSON5_STRING);
     }
 
     static class MockEntryDto {

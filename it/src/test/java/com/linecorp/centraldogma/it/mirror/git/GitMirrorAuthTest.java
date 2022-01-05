@@ -44,7 +44,6 @@ import com.jcraft.jsch.KeyPair;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirroringService;
@@ -151,16 +150,18 @@ class GitMirrorAuthTest {
 
         // Add /credentials.json and /mirrors.json
         final ArrayNode credentials = JsonNodeFactory.instance.arrayNode().add(credential);
-        client.push(projName, Project.REPO_META, Revision.HEAD, "Add a mirror",
-                    Change.ofJsonUpsert("/credentials.json", credentials),
-                    Change.ofJsonUpsert("/mirrors.json",
-                                        "[{" +
-                                        "  \"type\": \"single\"," +
-                                        "  \"direction\": \"REMOTE_TO_LOCAL\"," +
-                                        "  \"localRepo\": \"main\"," +
-                                        "  \"localPath\": \"/\"," +
-                                        "  \"remoteUri\": \"" + gitUri + '"' +
-                                        "}]")).join();
+        client.forRepo(projName, Project.REPO_META)
+              .commit("Add a mirror",
+                      Change.ofJsonUpsert("/credentials.json", credentials),
+                      Change.ofJsonUpsert("/mirrors.json",
+                                          "[{" +
+                                          "  \"type\": \"single\"," +
+                                          "  \"direction\": \"REMOTE_TO_LOCAL\"," +
+                                          "  \"localRepo\": \"main\"," +
+                                          "  \"localPath\": \"/\"," +
+                                          "  \"remoteUri\": \"" + gitUri + '"' +
+                                          "}]"))
+              .push().join();
 
         // Try to perform mirroring to see if authentication works as expected.
         mirroringService.mirror().join();

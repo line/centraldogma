@@ -13,22 +13,17 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.linecorp.centraldogma.it;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -44,8 +39,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.EnumSource.Mode;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
@@ -57,10 +52,12 @@ import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Json5;
 
 class WatchTest {
 
@@ -96,7 +93,7 @@ class WatchTest {
         final Revision rev1 = client.normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD).join();
 
         final CompletableFuture<Revision> future =
-                client.watchRepository(dogma.project(), dogma.repo1(), rev1, "/**", 3000);
+                client.watchRepository(dogma.project(), dogma.repo1(), rev1, PathPattern.all(), 3000, false);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
@@ -104,8 +101,10 @@ class WatchTest {
                                                             "[" + System.currentTimeMillis() + ", " +
                                                             System.nanoTime() + ']');
 
-        final PushResult result = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Add test3.json", change).join();
+        final PushResult result = client.forRepo(dogma.project(), dogma.repo1())
+                                        .commit("Add test3.json", change)
+                                        .push(rev1)
+                                        .join();
 
         final Revision rev2 = result.revision();
 
@@ -124,15 +123,17 @@ class WatchTest {
                                                             "[" + System.currentTimeMillis() + ", " +
                                                             System.nanoTime() + ']');
 
-        final PushResult result = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Add test3.json", change).join();
+        final PushResult result = client.forRepo(dogma.project(), dogma.repo1())
+                                        .commit("Add test3.json", change)
+                                        .push(rev1)
+                                        .join();
 
         final Revision rev2 = result.revision();
 
         assertThat(rev2).isEqualTo(rev1.forward(1));
 
         final CompletableFuture<Revision> future =
-                client.watchRepository(dogma.project(), dogma.repo1(), rev1, "/**", 3000);
+                client.watchRepository(dogma.project(), dogma.repo1(), rev1, PathPattern.all(), 3000, false);
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(rev2);
     }
 
@@ -144,7 +145,8 @@ class WatchTest {
         final CentralDogma client = clientType.client(dogma);
         final Revision rev0 = client.normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD).join();
         final CompletableFuture<Revision> future =
-                client.watchRepository(dogma.project(), dogma.repo1(), rev0, "/test/test4.json", 3000);
+                client.watchRepository(dogma.project(), dogma.repo1(), rev0,
+                                       PathPattern.of("/test/test4.json"), 3000, false);
 
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test3.json",
                                                              "[" + System.currentTimeMillis() + ", " +
@@ -153,16 +155,20 @@ class WatchTest {
                                                              "[" + System.currentTimeMillis() + ", " +
                                                              System.nanoTime() + ']');
 
-        final PushResult result1 = client.push(
-                dogma.project(), dogma.repo1(), rev0, "Add test3.json", change1).join();
+        final PushResult result1 = client.forRepo(dogma.project(), dogma.repo1())
+                                         .commit("Add test3.json", change1)
+                                         .push(rev0)
+                                         .join();
         final Revision rev1 = result1.revision();
         assertThat(rev1).isEqualTo(rev0.forward(1));
 
         // Ensure that the watcher is not notified because the path pattern does not match test3.json.
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
-        final PushResult result2 = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Add test4.json", change2).join();
+        final PushResult result2 = client.forRepo(dogma.project(), dogma.repo1())
+                                         .commit("Add test4.json", change2)
+                                         .push(rev1)
+                                         .join();
         final Revision rev2 = result2.revision();
         assertThat(rev2).isEqualTo(rev1.forward(1));
 
@@ -177,8 +183,30 @@ class WatchTest {
 
         final CentralDogma client = clientType.client(dogma);
         final Revision rev = client.watchRepository(
-                dogma.project(), dogma.repo1(), Revision.HEAD, "/**", 1000).join();
+                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.all(), 1000, false).join();
         assertThat(rev).isNull();
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchRepositoryWithNotExist(ClientType clientType) throws Exception {
+        final CentralDogma client = clientType.client(dogma);
+        final CompletableFuture<Revision> future1 =
+                client.watchRepository(dogma.project(), dogma.repo1(),
+                                       Revision.HEAD, PathPattern.of("/test_not_found/**"),
+                                       1000, false);
+        assertThat(future1.join()).isNull();
+
+        // Legacy client doesn't support this feature.
+        if (clientType == ClientType.LEGACY) {
+            return;
+        }
+
+        final CompletableFuture<Revision> future2 =
+                client.watchRepository(dogma.project(), dogma.repo1(),
+                                       Revision.HEAD, PathPattern.of("/test_not_found/**"),
+                                       1000, true);
+        assertThatThrownBy(future2::join).getCause().isInstanceOf(EntryNotFoundException.class);
     }
 
     @ParameterizedTest
@@ -193,15 +221,17 @@ class WatchTest {
 
         final CompletableFuture<Entry<JsonNode>> future =
                 client.watchFile(dogma.project(), dogma.repo1(), rev0,
-                                 Query.ofJsonPath("/test/test1.json", "$[0]"), 3000);
+                                 Query.ofJsonPath("/test/test1.json", "$[0]"), 3000, false);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final PushResult res1 = client.push(
-                dogma.project(), dogma.repo1(), rev0, "Add test2.json", change1).join();
+        final PushResult res1 = client.forRepo(dogma.project(), dogma.repo1())
+                                      .commit("Add test2.json", change1)
+                                      .push(rev0)
+                                      .join();
 
         final Revision rev1 = res1.revision();
 
@@ -210,8 +240,10 @@ class WatchTest {
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final PushResult res2 = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Add test1.json", change2).join();
+        final PushResult res2 = client.forRepo(dogma.project(), dogma.repo1())
+                                      .commit("Add test1.json", change2)
+                                      .push(rev1)
+                                      .join();
 
         final Revision rev2 = res2.revision();
 
@@ -232,15 +264,17 @@ class WatchTest {
 
         final CompletableFuture<Entry<JsonNode>> future = client.watchFile(
                 dogma.project(), dogma.repo1(), rev0,
-                Query.ofJson("/test/test1.json"), 3000);
+                Query.ofJson("/test/test1.json"), 3000, false);
 
         assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test2.json", "[ 3, 2, 1 ]");
 
-        final PushResult res1 = client.push(
-                dogma.project(), dogma.repo1(), rev0, "Add test2.json", change1).join();
+        final PushResult res1 = client.forRepo(dogma.project(), dogma.repo1())
+                                      .commit("Add test2.json", change1)
+                                      .push(rev0)
+                                      .join();
 
         final Revision rev1 = res1.revision();
 
@@ -249,8 +283,10 @@ class WatchTest {
         // Make a relevant change now.
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test1.json", "[ -1, -2, -3 ]");
 
-        final PushResult res2 = client.push(
-                dogma.project(), dogma.repo1(), rev1, "Update test1.json", change2).join();
+        final PushResult res2 = client.forRepo(dogma.project(), dogma.repo1())
+                                      .commit("Update test1.json", change2)
+                                      .push(rev1)
+                                      .join();
 
         final Revision rev2 = res2.revision();
 
@@ -267,9 +303,30 @@ class WatchTest {
         final CentralDogma client = clientType.client(dogma);
         final Entry<JsonNode> res = client.watchFile(
                 dogma.project(), dogma.repo1(), Revision.HEAD,
-                Query.ofJsonPath("/test/test1.json", "$"), 1000).join();
+                Query.ofJsonPath("/test/test1.json", "$"), 1000, false).join();
 
         assertThat(res).isNull();
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchFileWithNotExistFile(ClientType clientType) throws Exception {
+        final CentralDogma client = clientType.client(dogma);
+
+        final CompletableFuture<Entry<JsonNode>> future1 = client.watchFile(
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test_not_found/test.json"),
+                1000, false);
+        assertThat(future1.get()).isNull();
+
+        // Legacy client doesn't support this feature.
+        if (clientType == ClientType.LEGACY) {
+            return;
+        }
+
+        final CompletableFuture<Entry<JsonNode>> future2 = client.watchFile(
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test_not_found/test.json"),
+                1000, true);
+        assertThatThrownBy(() -> future2.get()).getCause().isInstanceOf(EntryNotFoundException.class);
     }
 
     @ParameterizedTest
@@ -278,13 +335,17 @@ class WatchTest {
         revertTestFiles(clientType);
 
         final CentralDogma client = clientType.client(dogma);
-        final Watcher<JsonNode> jsonWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
-                                                                 Query.ofJson("/test/test2.json"));
+        final Watcher<JsonNode> jsonWatcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                    .watcher(Query.ofJson("/test/test2.json"))
+                                                    .start();
         assertThatJson(jsonWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
+        jsonWatcher.close();
 
-        final Watcher<String> stringWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
-                                                                 Query.ofText("/test/test2.json"));
+        final Watcher<String> stringWatcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                    .watcher(Query.ofText("/test/test2.json"))
+                                                    .start();
         assertThat(stringWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
+        stringWatcher.close();
     }
 
     @ParameterizedTest
@@ -294,8 +355,9 @@ class WatchTest {
 
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
-        final Watcher<JsonNode> jsonWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
-                                                                 Query.ofJson(filePath));
+        final Watcher<JsonNode> jsonWatcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                    .watcher(Query.ofJson(filePath))
+                                                    .start();
 
         // wait for initial value
         assertThatJson(jsonWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
@@ -315,11 +377,14 @@ class WatchTest {
         // update the json
         final Change<JsonNode> update = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"air\" }");
-        client.push(dogma.project(), dogma.repo1(), rev0, "Modify /a", update)
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Modify /a", update)
+              .push(rev0)
               .join();
 
         // the updated json should be reflected in the second watcher
         await().untilTrue(atomicBoolean);
+        jsonWatcher.close();
     }
 
     @ParameterizedTest
@@ -329,8 +394,9 @@ class WatchTest {
 
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
-        final Watcher<JsonNode> heavyWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
-                                                                  Query.ofJsonPath(filePath));
+        final Watcher<JsonNode> heavyWatcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                     .watcher(Query.ofJsonPath(filePath))
+                                                     .start();
 
         final Watcher<JsonNode> forExisting = Watcher.atJsonPointer(heavyWatcher, "/a");
         final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
@@ -355,7 +421,9 @@ class WatchTest {
         // An irrelevant change should not trigger a notification.
         final Change<JsonNode> unrelatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
-        final Revision rev1 = client.push(dogma.project(), dogma.repo1(), rev0, "Add /b", unrelatedChange)
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Add /b", unrelatedChange)
+                                    .push(rev0)
                                     .join()
                                     .revision();
 
@@ -365,7 +433,9 @@ class WatchTest {
         // An relevant change should trigger a notification.
         final Change<JsonNode> relatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"artichoke\", \"b\": \"banana\" }");
-        final Revision rev2 = client.push(dogma.project(), dogma.repo1(), rev1, "Change /a", relatedChange)
+        final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Change /a", relatedChange)
+                                    .push(rev1)
                                     .join()
                                     .revision();
 
@@ -379,8 +449,9 @@ class WatchTest {
 
         final Change<JsonNode> nextRelatedChange = Change.ofJsonUpsert(
                 filePath, "{ \"a\": \"apricot\", \"b\": \"banana\" }");
-        final Revision rev3 = client.push(dogma.project(), dogma.repo1(), rev2, "Change /a again",
-                                          nextRelatedChange)
+        final Revision rev3 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Change /a again", nextRelatedChange)
+                                    .push(rev2)
                                     .join()
                                     .revision();
 
@@ -390,6 +461,7 @@ class WatchTest {
         assertThat(triggeredCount.get()).isEqualTo(2);
         assertThat(heavyWatcher.latestValue().at("/a")).isEqualTo(new TextNode("apricot"));
         assertThat(heavyWatcher.latest().revision()).isEqualTo(rev3);
+        heavyWatcher.close();
     }
 
     @ParameterizedTest
@@ -398,32 +470,37 @@ class WatchTest {
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test.txt";
         final Watcher<String> watcher =
-                client.fileWatcher(dogma.project(), dogma.repo1(),
-                                   Query.ofText(filePath),
-                                   text -> {
-                                       assertThat(Thread.currentThread().getName())
-                                               .startsWith(THREAD_NAME_PREFIX);
-                                       return text;
-                                   });
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .watcher(Query.ofText(filePath))
+                      .map(text -> {
+                          assertThat(Thread.currentThread().getName())
+                                  .startsWith(THREAD_NAME_PREFIX);
+                          return text;
+                      })
+                      .start();
 
         final AtomicReference<String> threadName = new AtomicReference<>();
         watcher.watch(watched -> threadName.set(Thread.currentThread().getName()));
-        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "test",
-                    Change.ofTextUpsert("/test/test.txt", "foo"));
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("test", Change.ofTextUpsert("/test/test.txt", "foo"))
+              .push();
 
         await().untilAtomic(threadName, Matchers.startsWith(THREAD_NAME_PREFIX));
         threadName.set(null);
+        watcher.close();
 
         final Watcher<Revision> watcher2 =
-                client.repositoryWatcher(dogma.project(), dogma.repo1(),
-                                   filePath,
-                                   revision -> {
-                                       assertThat(Thread.currentThread().getName())
-                                               .startsWith(THREAD_NAME_PREFIX);
-                                       return revision;
-                                   });
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .watcher(PathPattern.of(filePath))
+                      .map(revision -> {
+                          assertThat(Thread.currentThread().getName())
+                                  .startsWith(THREAD_NAME_PREFIX);
+                          return revision;
+                      })
+                      .start();
         watcher2.watch((revision1, revision2) -> threadName.set(Thread.currentThread().getName()));
         await().untilAtomic(threadName, Matchers.startsWith(THREAD_NAME_PREFIX));
+        watcher2.close();
     }
 
     @ParameterizedTest
@@ -436,32 +513,247 @@ class WatchTest {
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test.txt";
         final Watcher<String> watcher =
-                client.fileWatcher(dogma.project(), dogma.repo1(),
-                                   Query.ofText(filePath),
-                                   text -> {
-                                       assertThat(Thread.currentThread().getName())
-                                               .startsWith(threadNamePrefix);
-                                       return text;
-                                   }, executor);
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .watcher(Query.ofText(filePath))
+                      .map(text -> {
+                          assertThat(Thread.currentThread().getName())
+                                  .startsWith(threadNamePrefix);
+                          return text;
+                      })
+                      .mapperExecutor(executor)
+                      .start();
 
         final AtomicReference<String> threadName = new AtomicReference<>();
         watcher.watch(watched -> threadName.set(Thread.currentThread().getName()), executor);
-        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "test",
-                    Change.ofTextUpsert("/test/test.txt", "foo"));
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("test", Change.ofTextUpsert("/test/test.txt", "foo"))
+              .push();
 
         await().untilAtomic(threadName, Matchers.startsWith(threadNamePrefix));
         threadName.set(null);
+        watcher.close();
 
         final Watcher<Revision> watcher2 =
-                client.repositoryWatcher(dogma.project(), dogma.repo1(),
-                                         filePath,
-                                         revision -> {
-                                             assertThat(Thread.currentThread().getName())
-                                                     .startsWith(threadNamePrefix);
-                                             return revision;
-                                         }, executor);
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .watcher(PathPattern.of(filePath))
+                      .map(revision -> {
+                          assertThat(Thread.currentThread().getName())
+                                  .startsWith(threadNamePrefix);
+                          return revision;
+                      })
+                      .mapperExecutor(executor)
+                      .start();
         watcher2.watch((revision1, revision2) -> threadName.set(Thread.currentThread().getName()), executor);
         await().untilAtomic(threadName, Matchers.startsWith(threadNamePrefix));
+        watcher2.close();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void fileWatcher_errorOnEntryNotFound(ClientType clientType) {
+        // prepare test
+        revertTestFiles(clientType);
+        final CentralDogma client = clientType.client(dogma);
+        final String filePath = "/test_not_found/test.json";
+
+        // create watcher
+        final Watcher<JsonNode> watcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                .watcher(Query.ofJson(filePath))
+                                                .errorOnEntryNotFound(true)
+                                                .timeoutMillis(100)
+                                                .start();
+
+        // check entry does not exist when to get initial value
+        assertThatThrownBy(watcher::awaitInitialValue)
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+        assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS))
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+        assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS, new TextNode("test")))
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+
+        // when initialValueFuture throw 'EntryNotFoundException', you can't use 'watch' method.
+        assertThatThrownBy(() -> watcher.watch((rev, node) -> {
+        })).isInstanceOf(IllegalStateException.class);
+        watcher.close();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void fileWatcher_errorOnEntryNotFound_watchIsNotWorking(ClientType clientType) throws Exception {
+        // prepare test
+        revertTestFiles(clientType);
+        final CentralDogma client = clientType.client(dogma);
+        final String filePath = "/test_not_found/test.json";
+
+        // create watcher
+        final Watcher<JsonNode> watcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                .watcher(Query.ofJson(filePath))
+                                                .timeoutMillis(100)
+                                                .errorOnEntryNotFound(true)
+                                                .start();
+
+        final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
+        final AtomicInteger triggeredCount = new AtomicInteger();
+        watcher.watch((rev, node) -> {
+            watchResult.set(new Latest<>(rev, node));
+            triggeredCount.incrementAndGet();
+        });
+
+        // check entry does not exist when to get initial value
+        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(
+                EntryNotFoundException.class);
+
+        // add file
+        final Change<JsonNode> change1 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Add /a /b", change1)
+              .push()
+              .join();
+
+        // Wait over the timeoutMillis(100) + a
+        Thread.sleep(1000);
+        // check watch is not working
+        assertThat(triggeredCount.get()).isEqualTo(0);
+        assertThat(watchResult.get()).isEqualTo(null);
+        watcher.close();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void fileWatcher_errorOnEntryNotFound_EntryIsRemovedOnWatching(ClientType clientType) throws Exception {
+        // prepare test
+        revertTestFiles(clientType);
+        final CentralDogma client = clientType.client(dogma);
+        final String filePath = "/test/test2.json";
+
+        // create watcher
+        final Watcher<JsonNode> watcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                .watcher(Query.ofJson(filePath))
+                                                .timeoutMillis(100)
+                                                .errorOnEntryNotFound(true)
+                                                .start();
+
+        final AtomicReference<Latest<JsonNode>> watchResult = new AtomicReference<>();
+        final AtomicInteger triggeredCount = new AtomicInteger();
+        watcher.initialValueFuture().thenAccept(result -> watcher.watch((rev, node) -> {
+            watchResult.set(new Latest<>(rev, node));
+            triggeredCount.incrementAndGet();
+        }));
+
+        // check initial value
+        assertThatJson(watcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
+        await().untilAtomic(triggeredCount, Matchers.is(1));
+
+        final Revision rev0 = watcher.initialValueFuture().join().revision();
+
+        // change file
+        final Change<JsonNode> change1 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"artichoke\"}");
+        final Revision rev1 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Change /a", change1)
+                                    .push(rev0)
+                                    .join()
+                                    .revision();
+        await().untilAtomic(triggeredCount, Matchers.is(2));
+        assertThat(watchResult.get()).isEqualTo(watcher.latest());
+
+        // remove file
+        final Change<Void> change2 = Change.ofRemoval(filePath);
+        final Revision rev2 = client.forRepo(dogma.project(), dogma.repo1())
+                                    .commit("Removal", change2).push(rev1)
+                                    .join()
+                                    .revision();
+
+        // Wait over the timeoutMillis(100) + a
+        Thread.sleep(1000);
+
+        // check utilize latest data before removal
+        assertThat(triggeredCount.get()).isEqualTo(2);
+        assertThat(watchResult.get()).isEqualTo(watcher.latest());
+
+        // add file
+        final Change<JsonNode> change3 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apricot\", \"b\": \"banana\" }");
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Add /a /b", change3)
+              .push(rev2)
+              .join();
+        await().untilAtomic(triggeredCount, Matchers.is(3));
+        assertThat(watchResult.get()).isEqualTo(watcher.latest());
+        watcher.close();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void repositoryWatcher_errorOnEntryNotFound(ClientType clientType) {
+        // prepare test
+        revertTestFiles(clientType);
+        final CentralDogma client = clientType.client(dogma);
+        final String pathPattern = "/test_not_found/**";
+
+        // create watcher
+        final Watcher<Revision> watcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                .watcher(PathPattern.of(pathPattern))
+                                                .timeoutMillis(100)
+                                                .errorOnEntryNotFound(true)
+                                                .start();
+
+        // check entry does not exist when to get initial value
+        assertThatThrownBy(watcher::awaitInitialValue)
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+        assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS))
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+        assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS, Revision.INIT))
+                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+
+        // when initialValueFuture throw 'EntryNotFoundException', you can't use 'watch' method.
+        await().untilAsserted(() -> assertThatThrownBy(
+                () -> watcher.watch((rev, node) -> {
+                }))
+                .isInstanceOf(IllegalStateException.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
+    void repositoryWatcher_errorOnEntryNotFound_watchIsNotWorking(ClientType clientType) throws Exception {
+        // prepare test
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final String pathPattern = "/test_not_found/**";
+        final String filePath = "/test_not_found/test.json";
+
+        final Watcher<Revision> watcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                .watcher(PathPattern.of(pathPattern))
+                                                .timeoutMillis(100)
+                                                .errorOnEntryNotFound(true)
+                                                .start();
+
+        final AtomicReference<Revision> watchResult = new AtomicReference<>();
+        final AtomicInteger triggeredCount = new AtomicInteger();
+        watcher.watch(rev -> {
+            watchResult.set(rev);
+            triggeredCount.incrementAndGet();
+        });
+
+        // check entry does not exist when to get initial value
+        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(
+                EntryNotFoundException.class);
+
+        // add file
+        final Change<JsonNode> change1 = Change.ofJsonUpsert(
+                filePath, "{ \"a\": \"apple\", \"b\": \"banana\" }");
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Add /a /b", change1)
+              .push()
+              .join();
+
+        // Wait over the timeoutMillis(100) + a
+        Thread.sleep(1000);
+        // check watch is not working
+        assertThat(triggeredCount.get()).isEqualTo(0);
+        assertThat(watchResult.get()).isEqualTo(null);
     }
 
     private static void revertTestFiles(ClientType clientType) {
@@ -473,8 +765,20 @@ class WatchTest {
 
         if (!client.getPreviewDiffs(dogma.project(), dogma.repo1(), Revision.HEAD, changes)
                    .join().isEmpty()) {
-            client.push(dogma.project(), dogma.repo1(), Revision.HEAD,
-                        "Revert test files", changes).join();
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit("Revert test files", changes)
+                  .push()
+                  .join();
+        }
+
+        final Change<Void> change3 = Change.ofRemoval("/test_not_found/test.json");
+        final Map<String, EntryType> files = client.listFiles(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                              PathPattern.of("/test_not_found/**")).join();
+        if (files.containsKey(change3.path())) {
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit("Remove test files", change3)
+                  .push()
+                  .join();
         }
     }
 

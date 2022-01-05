@@ -17,14 +17,10 @@
 package com.linecorp.centraldogma.it;
 
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.concurrent.CompletionException;
 
 import org.junit.jupiter.api.Nested;
@@ -57,8 +53,9 @@ class GetFileTest {
     @EnumSource(ClientType.class)
     void getJsonAsText(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
-        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add a file",
-                    Change.ofJsonUpsert("/test/foo.json", "{ \"a\": \"b\" }")).join();
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Add a file", Change.ofJsonUpsert("/test/foo.json", "{ \"a\": \"b\" }"))
+              .push().join();
         final Entry<JsonNode> json = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                     Query.ofJson("/test/foo.json")).join();
         assertThatJson(json.content()).isEqualTo("{\"a\":\"b\"}");
@@ -66,8 +63,9 @@ class GetFileTest {
         final Entry<String> text = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                   Query.ofText("/test/foo.json")).join();
         assertThat(text.content()).isEqualTo("{\"a\":\"b\"}");
-        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Remove a file",
-                    Change.ofRemoval("/test/foo.json")).join();
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Remove a file", Change.ofRemoval("/test/foo.json"))
+              .push().join();
     }
 
     @ParameterizedTest
@@ -113,11 +111,17 @@ class GetFileTest {
     @Nested
     class GetFileJson5Test {
 
-        final String JSON5_CONTENTS = new String(
-                Files.readAllBytes(new File(GetFileJson5Test.class.getClassLoader().getResource(
-                        "com/linecorp/centraldogma/it/import/test1.json5").getPath()).toPath()), UTF_8);
-
-        GetFileJson5Test() throws IOException {}
+        static final String JSON5_CONTENTS =
+                "{\n" +
+                "  // comments\n" +
+                "  unquoted: 'and you can quote me on that',\n" +
+                "  singleQuotes: 'I can use \"double quotes\" here',\n" +
+                "  lineBreaks: \"Look, Mom! \\\n" +
+                "No \\\\n's!\",\n" +
+                "  leadingDecimalPoint: .8675309,\n" +
+                "  trailingComma: 'in objects', andIn: ['arrays',],\n" +
+                "  \"backwardsCompatible\": \"with JSON\",\n" +
+                "}\n";
 
         @Test
         void getJson5() throws JsonParseException {

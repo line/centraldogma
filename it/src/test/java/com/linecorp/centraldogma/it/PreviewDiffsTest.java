@@ -49,7 +49,7 @@ class PreviewDiffsTest {
         final Change<?> change = Change.ofJsonPatch("/test/new_json_file.json",
                                                     "{ \"a\": \"apple\" }", "{ \"a\": \"angle\" }");
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "/test/new_json_file.json", () ->
-                client.getPreviewDiffs(dogma.project(), dogma.repo1(), Revision.HEAD, change).join())
+                client.forRepo(dogma.project(), dogma.repo1()).diff(change).get().join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
     }
 
@@ -60,7 +60,10 @@ class PreviewDiffsTest {
         // Apply a conflict removal
         final Change<?> change = Change.ofRemoval("/non_existent_path.txt");
         assertThatThrownByWithExpectedException(ChangeConflictException.class, "non_existent_path.txt", () ->
-                client.getPreviewDiffs(dogma.project(), dogma.repo1(), Revision.HEAD, change).join())
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .diff(change)
+                      .get()
+                      .join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(ChangeConflictException.class);
     }
 
@@ -70,8 +73,10 @@ class PreviewDiffsTest {
         final CentralDogma client = clientType.client(dogma);
         final Change<String> change = Change.ofTextUpsert("/a_new_text_file.txt", "text");
         assertThatThrownByWithExpectedException(RevisionNotFoundException.class, "2147483647", () ->
-                client.getPreviewDiffs(
-                        dogma.project(), dogma.repo1(), new Revision(Integer.MAX_VALUE), change).join())
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .diff(change)
+                      .get(new Revision(Integer.MAX_VALUE))
+                      .join())
                 .isInstanceOf(CompletionException.class).hasCauseInstanceOf(RevisionNotFoundException.class);
     }
 
@@ -79,7 +84,10 @@ class PreviewDiffsTest {
     @EnumSource(ClientType.class)
     void emptyChange(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
-        assertThat(client.getPreviewDiffs(dogma.project(), dogma.repo1(), Revision.HEAD).join()).isEmpty();
+        assertThat(client.forRepo(dogma.project(), dogma.repo1())
+                         .diff()
+                         .get()
+                         .join()).isEmpty();
     }
 
     @ParameterizedTest
@@ -89,8 +97,10 @@ class PreviewDiffsTest {
         final String jsonPath = "/a_new_json_file.json";
 
         try {
-            client.push(dogma.project(), dogma.repo1(), Revision.HEAD,
-                        "Add a new JSON file", Change.ofJsonUpsert(jsonPath, "{ \"a\": \"apple\" }")).join();
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit("Add a new JSON file", Change.ofJsonUpsert(jsonPath, "{ \"a\": \"apple\" }"))
+                  .push()
+                  .join();
         } catch (CompletionException e) {
             // Might have been added already in previous run.
             assertThat(e.getCause()).isInstanceOf(RedundantChangeException.class);
@@ -100,8 +110,10 @@ class PreviewDiffsTest {
                 Change.ofJsonPatch(jsonPath, "{ \"a\": \"apple\" }", "{ \"a\": \"angle\" }");
 
         final List<Change<?>> returnedList =
-                client.getPreviewDiffs(dogma.project(), dogma.repo1(),
-                                       Revision.HEAD, change).join();
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .diff(change)
+                      .get()
+                      .join();
 
         assertThat(returnedList).hasSize(1);
         assertThat(returnedList.get(0).type()).isEqualTo(ChangeType.APPLY_JSON_PATCH);

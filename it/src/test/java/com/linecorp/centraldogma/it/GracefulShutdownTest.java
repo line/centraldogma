@@ -27,6 +27,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.ShuttingDownException;
@@ -54,7 +55,7 @@ class GracefulShutdownTest {
     void watchRepositoryGracefulShutdown(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
         testGracefulShutdown(client.watchRepository(
-                dogma.project(), dogma.repo1(), Revision.HEAD, "/**", 60000));
+                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.all(), 60000, false));
     }
 
     @ParameterizedTest
@@ -62,7 +63,7 @@ class GracefulShutdownTest {
     void watchFileGracefulShutdown(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
         testGracefulShutdown(client.watchFile(
-                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000));
+                dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test.json"), 60000, false));
     }
 
     private static void testGracefulShutdown(CompletableFuture<?> future) throws Exception {

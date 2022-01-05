@@ -21,6 +21,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
@@ -32,11 +33,14 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
 
 /**
- * Watches the changes of a repository or a file.
+ * Watches the changes of a repository or a file. The {@link Watcher} must be closed via
+ * {@link Watcher#close()} after use.
  *
  * @param <T> the watch result type
  */
@@ -71,6 +75,11 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
+     * Returns the {@link ScheduledExecutorService} that is used to schedule watch.
+     */
+    ScheduledExecutorService watchScheduler();
+
+    /**
      * Returns the {@link CompletableFuture} which is completed when the initial value retrieval is done
      * successfully.
      */
@@ -83,12 +92,13 @@ public interface Watcher<T> extends AutoCloseable {
      *         the initial value came from.
      *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
+     * @throws EntryNotFoundException if {@code errorOnEntryNotFound} is {@code true} and entry isn't found on
+     *         watching the initial value
      */
     default Latest<T> awaitInitialValue() throws InterruptedException {
         try {
             return initialValueFuture().get();
         } catch (ExecutionException e) {
-            // Should never occur because we never complete this future exceptionally.
             throw new Error(e);
         }
     }
@@ -114,6 +124,8 @@ public interface Watcher<T> extends AutoCloseable {
      *         the initial value came from.
      *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
+     * @throws EntryNotFoundException if {@code errorOnEntryNotFound} is {@code true} and entry isn't found on
+     *                                watching the initial value
      * @throws TimeoutException if failed to retrieve the initial value within the specified timeout
      */
     default Latest<T> awaitInitialValue(long timeout, TimeUnit unit) throws InterruptedException,
@@ -122,7 +134,6 @@ public interface Watcher<T> extends AutoCloseable {
         try {
             return initialValueFuture().get(timeout, unit);
         } catch (ExecutionException e) {
-            // Should never occur because we never complete this future exceptionally.
             throw new Error(e);
         }
     }
@@ -144,6 +155,8 @@ public interface Watcher<T> extends AutoCloseable {
      * @return the initial value, or the default value if timed out.
      *
      * @throws CancellationException if this watcher has been closed by {@link #close()}
+     * @throws EntryNotFoundException if {@code errorOnEntryNotFound} is {@code true} and entry isn't found on
+     *                                watching the initial value
      */
     @Nullable
     default T awaitInitialValue(long timeout, TimeUnit unit, @Nullable T defaultValue)
@@ -156,7 +169,7 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Returns the latest {@link Revision} and value of {@code watchFile()} result.
+     * Returns the latest {@link Revision} and value of {@code watchFile()} or {@code watchRepository()} result.
      *
      * @throws IllegalStateException if the value is not available yet.
      *                               Use {@link #awaitInitialValue(long, TimeUnit)} first or
@@ -165,7 +178,7 @@ public interface Watcher<T> extends AutoCloseable {
     Latest<T> latest();
 
     /**
-     * Returns the latest value of {@code watchFile()} result.
+     * Returns the latest value of {@code watchFile()} or {@code watchRepository()} result.
      *
      * @throws IllegalStateException if the value is not available yet.
      *                               Use {@link #awaitInitialValue(long, TimeUnit)} first or
@@ -177,7 +190,7 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Returns the latest value of {@code watchFile()} result.
+     * Returns the latest value of {@code watchFile()} or {@code watchRepository()} result.
      *
      * @param defaultValue the default value which is returned when the value is not available yet
      */
@@ -192,7 +205,7 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Stops watching the file specified in the {@link Query} or the {@code pathPattern} in the repository.
+     * Stops watching the file specified in the {@link Query} or the {@link PathPattern} in the repository.
      */
     @Override
     void close();
@@ -200,12 +213,22 @@ public interface Watcher<T> extends AutoCloseable {
     /**
      * Registers a {@link BiConsumer} that will be invoked when the value of the watched entry becomes
      * available or changes.
+     *
+     * <p>Note that the specified {@link BiConsumer} is not called when {@code errorOnEntryNotFound} is
+     * {@code true} and the target doesn't exist in the Central Dogma server when this {@link Watcher} sends
+     * the initial watch call. You should use {@link #initialValueFuture()} or {@link #awaitInitialValue()} to
+     * check the target exists or not.
      */
     void watch(BiConsumer<? super Revision, ? super T> listener);
 
     /**
      * Registers a {@link BiConsumer} that will be invoked when the value of the watched entry becomes
      * available or changes.
+     *
+     * <p>Note that the specified {@link BiConsumer} is not called when {@code errorOnEntryNotFound} is
+     * {@code true} and the target doesn't exist in the Central Dogma server when this {@link Watcher} sends
+     * the initial watch call. You should use {@link #initialValueFuture()} or {@link #awaitInitialValue()} to
+     * check the target exists or not.
      *
      * @param executor the {@link Executor} that executes the {@link BiConsumer}
      */
@@ -231,14 +254,18 @@ public interface Watcher<T> extends AutoCloseable {
     }
 
     /**
-     * Forks into a new {@link Watcher}, that reuses the current watcher and applies a transformation.
-     *
-     * @return A {@link Watcher} that is effectively filtering in a sense that,
-     *         its listeners are <b>not</b> notified when a change has no effect on the transformed value.
-     *         Furthermore, it does not need to be closed after use.
+     * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
      */
-    default <U> Watcher<U> newChild(Function<T, U> transformer) {
-        requireNonNull(transformer, "transformer");
-        return new TransformingWatcher<>(this, transformer);
+    default <U> Watcher<U> newChild(Function<? super T, ? extends U> mapper) {
+        return newChild(mapper, watchScheduler());
+    }
+
+    /**
+     * Returns a {@link Watcher} that applies the {@link Function} for the {@link Latest#value()}.
+     */
+    default <U> Watcher<U> newChild(Function<? super T, ? extends U> mapper, Executor executor) {
+        requireNonNull(mapper, "mapper");
+        requireNonNull(executor, "executor");
+        return MappingWatcher.of(this, mapper, executor, false);
     }
 }

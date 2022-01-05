@@ -31,6 +31,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.EntryNoContentException;
 import com.linecorp.centraldogma.common.EntryType;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
 
 class FileManagementTest {
@@ -46,8 +47,10 @@ class FileManagementTest {
             super.scaffold(client);
 
             for (int i = 0; i < NUM_FILES; i++) {
-                client.push(project(), repo1(), Revision.HEAD,
-                            "Put test files", Change.ofJsonUpsert(TEST_ROOT + i + ".json", "{}")).join();
+                client.forRepo(project(), repo1())
+                      .commit("Put test files", Change.ofJsonUpsert(TEST_ROOT + i + ".json", "{}"))
+                      .push()
+                      .join();
             }
         }
     };
@@ -59,7 +62,7 @@ class FileManagementTest {
         final Revision headRev = client.normalizeRevision(
                 dogma.project(), dogma.repo1(), Revision.HEAD).join();
         final Map<String, Entry<?>> files = client.getFiles(
-                dogma.project(), dogma.repo1(), Revision.HEAD, TEST_ROOT + "*.json").join();
+                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.of(TEST_ROOT + "*.json")).join();
         assertThat(files).hasSize(NUM_FILES);
         files.values().forEach(f -> {
             assertThat(f.revision()).isEqualTo(headRev);
@@ -74,7 +77,7 @@ class FileManagementTest {
         final String testRootWithoutSlash = TEST_ROOT.substring(0, TEST_ROOT.length() - 1);
         final Map<String, Entry<?>> files = client.getFiles(
                 dogma.project(), dogma.repo1(), Revision.HEAD,
-                testRootWithoutSlash + ", " + TEST_ROOT + '*').join();
+                PathPattern.of(testRootWithoutSlash, TEST_ROOT + '*')).join();
 
         assertThat(files).hasSize(NUM_FILES + 1);
 
@@ -96,7 +99,7 @@ class FileManagementTest {
     void listFiles(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
         final Map<String, EntryType> files = client.listFiles(
-                dogma.project(), dogma.repo1(), Revision.HEAD, TEST_ROOT + "*.json").join();
+                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.of(TEST_ROOT + "*.json")).join();
         assertThat(files).hasSize(NUM_FILES);
         files.values().forEach(t -> assertThat(t).isEqualTo(EntryType.JSON));
     }
@@ -106,7 +109,7 @@ class FileManagementTest {
     void listFilesEmpty(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
         final Map<String, EntryType> files = client.listFiles(
-                dogma.project(), dogma.repo1(), Revision.HEAD, TEST_ROOT + "*.none").join();
+                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.of(TEST_ROOT + "*.none")).join();
         assertThat(files).isEmpty();
     }
 
@@ -116,7 +119,7 @@ class FileManagementTest {
         final CentralDogma client = clientType.client(dogma);
         final String path = TEST_ROOT + "0.json";
         final Map<String, EntryType> files = client.listFiles(
-                dogma.project(), dogma.repo1(), Revision.HEAD, path).join();
+                dogma.project(), dogma.repo1(), Revision.HEAD, PathPattern.of(path)).join();
         assertThat(files).hasSize(1);
         assertThat(files.get(path)).isEqualTo(EntryType.JSON);
     }

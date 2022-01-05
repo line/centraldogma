@@ -21,6 +21,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
 
 class FileHistoryAndDiffTest {
@@ -37,6 +38,6 @@ class FileHistoryAndDiffTest {
         final CentralDogma client = clientType.client(dogma);
         System.err.println(
                 client.getHistory(dogma.project(), dogma.repo1(),
-                                  new Revision(1), Revision.HEAD, "/**").join());
+                                  new Revision(1), Revision.HEAD, PathPattern.all()).join());
     }
 }

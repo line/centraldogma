@@ -288,20 +288,20 @@ public class CentralDogmaBeanFactory {
         checkState(!isNullOrEmpty(settings.repository().get()), "settings.repositoryName should non-null");
         checkState(!isNullOrEmpty(settings.path().get()), "settings.fileName should non-null");
 
-        final Watcher<T> watcher = dogma.fileWatcher(
-                settings.project().get(),
-                settings.repository().get(),
-                buildQuery(settings),
-                jsonNode -> {
-                    try {
-                        final T value = objectMapper.treeToValue(jsonNode, beanType);
-                        changeListener.accept(value);
-                        return value;
-                    } catch (JsonProcessingException e) {
-                        throw new IllegalStateException(
-                                "Failed to convert a JSON node into: " + beanType.getName(), e);
-                    }
-                });
+        final Watcher<T> watcher =
+                dogma.forRepo(settings.project().get(), settings.repository().get())
+                     .watcher(buildQuery(settings))
+                     .map(jsonNode -> {
+                         try {
+                             final T value = objectMapper.treeToValue(jsonNode, beanType);
+                             changeListener.accept(value);
+                             return value;
+                         } catch (JsonProcessingException e) {
+                             throw new IllegalStateException(
+                                     "Failed to convert a JSON node into: " + beanType.getName(), e);
+                         }
+                     })
+                     .start();
 
         if (initialValueTimeout > 0) {
             final long t0 = System.nanoTime();

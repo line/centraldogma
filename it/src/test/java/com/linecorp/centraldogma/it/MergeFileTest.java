@@ -41,7 +41,7 @@ import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
-class MergeFileTest  {
+class MergeFileTest {
 
     @RegisterExtension
     final CentralDogmaExtension dogma = new CentralDogmaExtension() {
@@ -49,12 +49,14 @@ class MergeFileTest  {
         protected void scaffold(CentralDogma client) {
             client.createProject("myPro").join();
             client.createRepository("myPro", "myRepo").join();
-            client.push("myPro", "myRepo", Revision.HEAD, "Initial files",
-                        Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }"),
-                        Change.ofJsonUpsert("/foo1.json", "{ \"b\": \"baz\" }"),
-                        Change.ofJsonUpsert("/foo2.json", "{ \"a\": \"new_bar\" }"),
-                        Change.ofJsonUpsert("/foo.json5", "{ a: 'qux' }"),
-                        Change.ofJsonUpsert("/foo1.json5", "{ a: 'new_qux', b: 'quux' }")).join();
+            client.forRepo("myPro", "myRepo")
+                  .commit("Initial files",
+                          Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }"),
+                          Change.ofJsonUpsert("/foo1.json", "{ \"b\": \"baz\" }"),
+                          Change.ofJsonUpsert("/foo2.json", "{ \"a\": \"new_bar\" }"),
+                          Change.ofJsonUpsert("/foo.json5", "{ a: 'qux' }"),
+                          Change.ofJsonUpsert("/foo1.json5", "{ a: 'new_qux', b: 'quux' }"))
+                  .push().join();
         }
 
         @Override
@@ -67,13 +69,14 @@ class MergeFileTest  {
     @EnumSource(ClientType.class)
     void mergeJsonFiles(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
-        final MergedEntry<?> merged = client.mergeFiles("myPro", "myRepo", Revision.HEAD,
-                                                        MergeSource.ofRequired("/foo.json"),
-                                                        MergeSource.ofRequired("/foo1.json"),
-                                                        MergeSource.ofRequired("/foo2.json"),
-                                                        MergeSource.ofOptional("/foo3.json")).join();
+        final MergedEntry<?> merged = client.forRepo("myPro", "myRepo")
+                                            .merge(MergeSource.ofRequired("/foo.json"),
+                                                   MergeSource.ofRequired("/foo1.json"),
+                                                   MergeSource.ofRequired("/foo2.json"),
+                                                   MergeSource.ofOptional("/foo3.json")) // optional
+                                            .get().join();
 
-        assertThat(merged.paths()).containsExactly("/foo.json", "/foo1.json","/foo2.json");
+        assertThat(merged.paths()).containsExactly("/foo.json", "/foo1.json", "/foo2.json");
         assertThat(merged.revision()).isEqualTo(new Revision(2));
         assertThatJson(merged.content()).isEqualTo("{ \"a\": \"new_bar\", \"b\": \"baz\" }");
 
@@ -91,11 +94,12 @@ class MergeFileTest  {
                              .content())
                 .isEqualTo("{ \"a\": \"new_bar\" }");
 
-        assertThatThrownBy(() -> client.mergeFiles("myPro", "myRepo", Revision.HEAD,
-                                                   MergeSource.ofRequired("/foo.json"),
-                                                   MergeSource.ofRequired("/foo1.json"),
-                                                   MergeSource.ofRequired("/foo2.json"),
-                                                   MergeSource.ofRequired("/foo3.json")).join())
+        assertThatThrownBy(() -> client.forRepo("myPro", "myRepo")
+                                       .merge(MergeSource.ofRequired("/foo.json"),
+                                              MergeSource.ofRequired("/foo1.json"),
+                                              MergeSource.ofRequired("/foo2.json"),
+                                              MergeSource.ofRequired("/foo3.json")) // required
+                                       .get().join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(EntryNotFoundException.class);
     }
@@ -104,9 +108,10 @@ class MergeFileTest  {
     @EnumSource(ClientType.class)
     void exceptionWhenOnlyOptionalFilesAndDoNotExist(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
-        assertThatThrownBy(() -> client.mergeFiles("myPro", "myRepo", Revision.HEAD,
-                                                   MergeSource.ofOptional("/non_existent1.json"),
-                                                   MergeSource.ofRequired("/non_existent2.json")).join())
+        assertThatThrownBy(() -> client.forRepo("myPro", "myRepo")
+                                       .merge(MergeSource.ofOptional("/non_existent1.json"),
+                                              MergeSource.ofRequired("/non_existent2.json"))
+                                       .get().join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(EntryNotFoundException.class);
     }
@@ -115,14 +120,16 @@ class MergeFileTest  {
     @EnumSource(ClientType.class)
     void mismatchedValueWhileMerging(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
-        client.push("myPro", "myRepo", Revision.HEAD, "Add /foo10.json",
-                    Change.ofJsonUpsert("/foo10.json", "{ \"a\": 1 }")).join();
+        client.forRepo("myPro", "myRepo")
+              .commit("Add /foo10.json", Change.ofJsonUpsert("/foo10.json", "{ \"a\": 1 }"))
+              .push().join();
 
-        assertThatThrownBy(() -> client.mergeFiles("myPro", "myRepo", Revision.HEAD,
-                                                   MergeSource.ofRequired("/foo.json"),
-                                                   MergeSource.ofRequired("/foo1.json"),
-                                                   MergeSource.ofRequired("/foo2.json"),
-                                                   MergeSource.ofRequired("/foo10.json")).join())
+        assertThatThrownBy(() -> client.forRepo("myPro", "myRepo")
+                                       .merge(MergeSource.ofRequired("/foo.json"),
+                                              MergeSource.ofRequired("/foo1.json"),
+                                              MergeSource.ofRequired("/foo2.json"),
+                                              MergeSource.ofRequired("/foo10.json"))
+                                       .get().join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(QueryExecutionException.class);
     }
@@ -140,7 +147,7 @@ class MergeFileTest  {
 
         final MergedEntry<?> merged = client.mergeFiles("myPro", "myRepo", Revision.HEAD, query).join();
 
-        assertThat(merged.paths()).containsExactly("/foo.json", "/foo1.json","/foo2.json");
+        assertThat(merged.paths()).containsExactly("/foo.json", "/foo1.json", "/foo2.json");
         assertThat(merged.revision()).isEqualTo(new Revision(2));
         assertThatJson(merged.content()).isStringEqualTo("baz");
 

@@ -20,6 +20,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
@@ -47,6 +48,7 @@ import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
@@ -323,16 +325,17 @@ class ReplicationLagTolerantCentralDogmaTest {
         final Revision latestRevision = new Revision(3);
         when(delegate.normalizeRevision(any(), any(), any()))
                 .thenReturn(completedFuture(Revision.INIT));
-        when(delegate.watchRepository(any(), any(), any(), any(), anyLong()))
+        when(delegate.watchRepository(any(), any(), any(), any(), anyLong(), anyBoolean()))
                 .thenReturn(completedFuture(latestRevision));
 
-        assertThat(dogma.watchRepository("foo", "bar", Revision.INIT, "/**", 10000L).join())
+        assertThat(dogma.watchRepository("foo", "bar", Revision.INIT, PathPattern.all(), 10000L, false).join())
                 .isEqualTo(latestRevision);
 
         assertThat(dogma.latestKnownRevision("foo", "bar")).isEqualTo(latestRevision);
 
         verify(delegate, times(1)).normalizeRevision("foo", "bar", Revision.INIT);
-        verify(delegate, times(1)).watchRepository("foo", "bar", Revision.INIT, "/**", 10000L);
+        verify(delegate, times(1)).watchRepository("foo", "bar", Revision.INIT, PathPattern.all(),
+                                                   10000L, false);
         verifyNoMoreInteractions(delegate);
         reset(delegate);
 
@@ -358,16 +361,17 @@ class ReplicationLagTolerantCentralDogmaTest {
         final Entry<String> latestEntry = Entry.ofText(latestRevision, "/a.txt", "a");
         when(delegate.normalizeRevision(any(), any(), any()))
                 .thenReturn(completedFuture(Revision.INIT));
-        when(delegate.watchFile(any(), any(), any(), (Query<String>) any(), anyLong()))
+        when(delegate.watchFile(any(), any(), any(), (Query<String>) any(), anyLong(), anyBoolean()))
                 .thenReturn(completedFuture(latestEntry));
 
-        assertThat(dogma.watchFile("foo", "bar", Revision.INIT, Query.ofText("/a.txt"), 10000L).join())
+        assertThat(dogma.watchFile("foo", "bar", Revision.INIT, Query.ofText("/a.txt"), 10000L, false).join())
                 .isEqualTo(latestEntry);
 
         assertThat(dogma.latestKnownRevision("foo", "bar")).isEqualTo(latestRevision);
 
         verify(delegate, times(1)).normalizeRevision("foo", "bar", Revision.INIT);
-        verify(delegate, times(1)).watchFile("foo", "bar", Revision.INIT, Query.ofText("/a.txt"), 10000L);
+        verify(delegate, times(1)).watchFile("foo", "bar", Revision.INIT, Query.ofText("/a.txt"), 10000L,
+                                             false);
         verifyNoMoreInteractions(delegate);
     }
 
@@ -382,7 +386,7 @@ class ReplicationLagTolerantCentralDogmaTest {
                     throw new RevisionNotFoundException();
                 }))
                 .thenReturn(completedFuture(latestEntry));
-        assertThat(dogma.getFile("foo", "bar", Revision.HEAD, "/a.txt").join())
+        assertThat(dogma.forRepo("foo", "bar").file("/a.txt").get(Revision.HEAD).join())
                 .isEqualTo(latestEntry);
 
         verify(delegate).normalizeRevision("foo", "bar", Revision.HEAD);

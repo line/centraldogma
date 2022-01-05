@@ -88,13 +88,15 @@ class CentralDogmaBeanTest {
         final CentralDogma client = dogma.client();
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class, listener);
 
-        client.push("a", "b", Revision.HEAD, "Add c.json",
-                    Change.ofJsonUpsert("/c.json",
-                                        '{' +
-                                        "  \"foo\": 20," +
-                                        "  \"bar\": \"Y\"," +
-                                        "  \"qux\": [\"0\", \"1\"]" +
-                                        '}')).join();
+        client.forRepo("a", "b")
+              .commit("Add c.json",
+                      Change.ofJsonUpsert("/c.json",
+                                          '{' +
+                                          "  \"foo\": 20," +
+                                          "  \"bar\": \"Y\"," +
+                                          "  \"qux\": [\"0\", \"1\"]" +
+                                          '}'))
+              .push().join();
 
         // Wait until the changes are handled.
         await().atMost(5000, TimeUnit.SECONDS).until(() -> property.getFoo() == 20);
@@ -106,13 +108,15 @@ class CentralDogmaBeanTest {
 
         // test that after close a watcher, it could not receive change anymore
         property.closeWatcher();
-        client.push("a", "b", Revision.HEAD, "Modify c.json",
-                    Change.ofJsonUpsert("/c.json",
-                                        '{' +
-                                        "  \"foo\": 50," +
-                                        "  \"bar\": \"Y2\"," +
-                                        "  \"qux\": [\"M\", \"N\"]" +
-                                        '}'))
+        client.forRepo("a", "b")
+              .commit("Modify c.json",
+                      Change.ofJsonUpsert("/c.json",
+                                          '{' +
+                                          "  \"foo\": 50," +
+                                          "  \"bar\": \"Y2\"," +
+                                          "  \"qux\": [\"M\", \"N\"]" +
+                                          '}'))
+              .push()
               .join();
         // TODO(huydx): this test may be flaky, is there any better way?
         final Throwable thrown = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
@@ -125,14 +129,15 @@ class CentralDogmaBeanTest {
             throw new RuntimeException("test runtime exception");
         };
         final TestProperty failProp = factory.get(new TestProperty(), TestProperty.class, failListener);
-        client.push("a", "b", Revision.HEAD, "Add a.json",
-                    Change.ofJsonUpsert("/c.json",
-                                        '{' +
-                                        "  \"foo\": 211," +
-                                        "  \"bar\": \"Y\"," +
-                                        "  \"qux\": [\"11\", \"1\"]" +
-                                        '}'))
-              .join();
+        client.forRepo("a", "b")
+              .commit("Add a.json",
+                      Change.ofJsonUpsert("/c.json",
+                                          '{' +
+                                          "  \"foo\": 211," +
+                                          "  \"bar\": \"Y\"," +
+                                          "  \"qux\": [\"11\", \"1\"]" +
+                                          '}'))
+              .push().join();
         // await will fail due to exception is thrown before node get serialized
         // and revision will remain null
         final Throwable thrown2 = catchThrowable(() -> await().atMost(2, TimeUnit.SECONDS)
@@ -145,14 +150,15 @@ class CentralDogmaBeanTest {
     void overrideSettings() {
         final CentralDogma client = dogma.client();
 
-        client.push("alice", "bob", Revision.HEAD, "Add charlie.json",
-                    Change.ofJsonUpsert("/charlie.json",
-                                        "[{" +
-                                        "  \"foo\": 200," +
-                                        "  \"bar\": \"YY\"," +
-                                        "  \"qux\": [\"100\", \"200\"]" +
-                                        "}]"))
-              .join();
+        client.forRepo("alice", "bob")
+              .commit("Add charlie.json",
+                      Change.ofJsonUpsert("/charlie.json",
+                                          "[{" +
+                                          "  \"foo\": 200," +
+                                          "  \"bar\": \"YY\"," +
+                                          "  \"qux\": [\"100\", \"200\"]" +
+                                          "}]"))
+              .push().join();
 
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class,
                                                   (TestProperty x) -> {},
@@ -177,13 +183,16 @@ class CentralDogmaBeanTest {
         final CentralDogma client = dogma.client();
         final AtomicReference<TestProperty> update = new AtomicReference<>();
 
-        client.push("a", "b", Revision.HEAD, "Add c.json",
-                    Change.ofJsonUpsert("/c.json",
-                                        '{' +
-                                        "  \"foo\": 21," +
-                                        "  \"bar\": \"Y\"," +
-                                        "  \"qux\": [\"0\", \"1\"]" +
-                                        '}')).join();
+        client.forRepo("a", "b")
+              .commit("Add c.json",
+                      Change.ofJsonUpsert("/c.json",
+                                          '{' +
+                                          "  \"foo\": 21," +
+                                          "  \"bar\": \"Y\"," +
+                                          "  \"qux\": [\"0\", \"1\"]" +
+                                          '}'))
+              .push()
+              .join();
 
         final TestProperty property = factory.get(new TestProperty(), TestProperty.class, update::set);
         await().untilAtomic(update, Matchers.notNullValue());
