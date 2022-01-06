@@ -157,7 +157,8 @@ class LegacyCentralDogmaTest {
             callback.onComplete(null);
             return null;
         }).when(iface).createRepository(anyString(), anyString(), any());
-        assertThat(client.createRepository("project", "repo").get()).isNull();
+        assertThat(client.createRepository("project", "repo").get())
+                .isEqualTo(client.forRepo("project", "repo"));
         verify(iface).createRepository(eq("project"), eq("repo"), any());
     }
 
@@ -190,7 +191,8 @@ class LegacyCentralDogmaTest {
             callback.onComplete(null);
             return null;
         }).when(iface).unremoveRepository(anyString(), anyString(), any());
-        assertThat(client.unremoveRepository("project", "repo").get()).isNull();
+        assertThat(client.unremoveRepository("project", "repo").get())
+                .isEqualTo(client.forRepo("project", "repo"));
         verify(iface).unremoveRepository(eq("project"), eq("repo"), any());
     }
 

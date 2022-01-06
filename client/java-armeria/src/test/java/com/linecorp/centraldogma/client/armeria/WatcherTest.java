@@ -37,8 +37,8 @@ class WatcherTest {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("foo").join();
-            client.createRepository("foo", "bar").join();
-            client.forRepo("foo", "bar")
+            client.createRepository("foo", "bar")
+                  .join()
                   .commit("Add baz.txt", Change.ofTextUpsert("/baz.txt", ""))
                   .push().join();
         }
