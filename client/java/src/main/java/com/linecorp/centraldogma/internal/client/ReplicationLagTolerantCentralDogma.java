@@ -296,20 +296,20 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     @Override
     public CompletableFuture<List<Commit>> getHistory(
             String projectName, String repositoryName, Revision from,
-            Revision to, PathPattern pathPattern) {
+            Revision to, PathPattern pathPattern, int maxCommits) {
         return normalizeRevisionsAndExecuteWithRetries(
                 projectName, repositoryName, from, to,
                 new BiFunction<Revision, Revision, CompletableFuture<List<Commit>>>() {
                     @Override
                     public CompletableFuture<List<Commit>> apply(Revision normFromRev, Revision normToRev) {
                         return delegate.getHistory(projectName, repositoryName,
-                                                   normFromRev, normToRev, pathPattern);
+                                                   normFromRev, normToRev, pathPattern, maxCommits);
                     }
 
                     @Override
                     public String toString() {
                         return "getHistory(" + projectName + ", " + repositoryName + ", " +
-                               from + ", " + to + ", " + pathPattern + ')';
+                               from + ", " + to + ", " + pathPattern + ", " + maxCommits + ')';
                     }
                 });
     }

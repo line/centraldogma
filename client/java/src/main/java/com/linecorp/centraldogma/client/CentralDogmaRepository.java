@@ -140,7 +140,7 @@ public final class CentralDogmaRepository {
      * Returns a new {@link HistoryRequest} that is used to retrieve the history of all files in the
      * Central Dogma repository.
      * Call {@link HistoryRequest#get(Revision, Revision)} to perform the same operation as
-     * {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern)}.
+     * {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern, int)}.
      */
     public HistoryRequest history() {
         return history(PathPattern.all());
@@ -150,7 +150,7 @@ public final class CentralDogmaRepository {
      * Returns a new {@link HistoryRequest} that is used to retrieve the history of files in the
      * Central Dogma repository.
      * Call {@link HistoryRequest#get(Revision, Revision)} to perform the same operation as
-     * {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern)}.
+     * {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern, int)}.
      */
     public HistoryRequest history(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");

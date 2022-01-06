@@ -326,7 +326,9 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                                       String repositoryName,
                                                       Revision from,
                                                       Revision to,
-                                                      PathPattern pathPattern) {
+                                                      PathPattern pathPattern,
+                                                      int maxCommits) {
+        // maxCommits is not supported for the legacy client.
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(from, "from");
         requireNonNull(to, "to");

@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.client;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -23,19 +24,34 @@ import java.util.concurrent.CompletableFuture;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.HistoryConstants;
 
 /**
- * Prepares to send a {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern)} request
- * to the Central Dogma repository.
+ * Prepares to send a {@link CentralDogma#getHistory(String, String, Revision, Revision, PathPattern, int)}
+ * request to the Central Dogma repository.
  */
 public final class HistoryRequest {
 
     private final CentralDogmaRepository centralDogmaRepo;
     private final PathPattern pathPattern;
+    private int maxCommits;
 
     HistoryRequest(CentralDogmaRepository centralDogmaRepo, PathPattern pathPattern) {
         this.centralDogmaRepo = centralDogmaRepo;
         this.pathPattern = pathPattern;
+    }
+
+    /**
+     * Sets the maximum number of commits to retrieve. {@code 0} is used by default which means retrieving
+     * all commits. The number of retrieved commits can't be greater than
+     * {@value HistoryConstants#MAX_MAX_COMMITS}.
+     */
+    public HistoryRequest maxCommits(int maxCommits) {
+        checkArgument(maxCommits >= 0 && maxCommits <= HistoryConstants.MAX_MAX_COMMITS,
+                      "maxCommits: %s (expected: 0 <= maxCommits <= %s)",
+                      maxCommits, HistoryConstants.MAX_MAX_COMMITS);
+        this.maxCommits = maxCommits;
+        return this;
     }
 
     /**
@@ -51,6 +67,6 @@ public final class HistoryRequest {
         requireNonNull(to, "to");
         return centralDogmaRepo.centralDogma().getHistory(centralDogmaRepo.projectName(),
                                                           centralDogmaRepo.repositoryName(),
-                                                          from, to, pathPattern);
+                                                          from, to, pathPattern, maxCommits);
     }
 }
