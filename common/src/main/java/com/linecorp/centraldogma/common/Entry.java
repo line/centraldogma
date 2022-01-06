@@ -88,12 +88,7 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, byte[] content)
             throws JsonParseException {
-        requireNonNull(content, "content");
-        if (isJson5(path)) {
-            return new Entry<>(revision, path, EntryType.JSON, Json5.readTree(content),
-                               new String(content, StandardCharsets.UTF_8));
-        }
-        return new Entry<>(revision, path, EntryType.JSON, Jackson.readTree(content));
+        return ofJson(revision, path, new String(content, StandardCharsets.UTF_8));
     }
 
     /**
