@@ -44,7 +44,6 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
-import com.linecorp.centraldogma.internal.HistoryConstants;
 
 /**
  * Central Dogma client.
