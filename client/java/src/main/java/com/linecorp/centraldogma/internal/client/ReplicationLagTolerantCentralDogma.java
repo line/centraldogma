@@ -46,6 +46,7 @@ import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Change;
@@ -132,7 +133,8 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     }
 
     @Override
-    public CompletableFuture<Void> createRepository(String projectName, String repositoryName) {
+    public CompletableFuture<CentralDogmaRepository> createRepository(String projectName,
+                                                                      String repositoryName) {
         return delegate.createRepository(projectName, repositoryName);
     }
 
@@ -147,7 +149,8 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
     }
 
     @Override
-    public CompletableFuture<Void> unremoveRepository(String projectName, String repositoryName) {
+    public CompletableFuture<CentralDogmaRepository> unremoveRepository(String projectName,
+                                                                        String repositoryName) {
         return delegate.unremoveRepository(projectName, repositoryName);
     }
 

@@ -17,9 +17,11 @@ package com.linecorp.centraldogma.client;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.common.Change;
@@ -280,5 +282,34 @@ public final class CentralDogmaRepository {
     public WatcherRequest<Revision> watcher(PathPattern pathPattern) {
         requireNonNull(pathPattern, "pathPattern");
         return new WatcherRequest<>(this, pathPattern, blockingTaskExecutor);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof CentralDogmaRepository)) {
+            return false;
+        }
+        final CentralDogmaRepository that = (CentralDogmaRepository) o;
+        return centralDogma == that.centralDogma &&
+               projectName.equals(that.projectName) && repositoryName.equals(that.repositoryName) &&
+               blockingTaskExecutor == that.blockingTaskExecutor;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(centralDogma, projectName, repositoryName, blockingTaskExecutor);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                          .add("centralDogma", centralDogma)
+                          .add("projectName", projectName)
+                          .add("repositoryName", repositoryName)
+                          .add("blockingTaskExecutor", blockingTaskExecutor)
+                          .toString();
     }
 }

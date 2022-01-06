@@ -34,10 +34,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.EnumSource.Mode;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
@@ -546,10 +546,9 @@ class WatchTest {
         watcher2.close();
     }
 
-    @ParameterizedTest
-    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
-    void fileWatcher_errorOnEntryNotFound(ClientType clientType) {
-        // prepare test
+    @Test
+    void fileWatcher_errorOnEntryNotFound() {
+        final ClientType clientType = ClientType.DEFAULT;
         revertTestFiles(clientType);
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test_not_found/test.json";
@@ -570,15 +569,14 @@ class WatchTest {
                 .getRootCause().isInstanceOf(EntryNotFoundException.class);
 
         // when initialValueFuture throw 'EntryNotFoundException', you can't use 'watch' method.
-        assertThatThrownBy(() -> watcher.watch((rev, node) -> {
-        })).isInstanceOf(IllegalStateException.class);
+        await().untilAsserted(() -> assertThatThrownBy(() -> watcher.watch((rev, node) -> { /* no-op */ }))
+                .isInstanceOf(IllegalStateException.class));
         watcher.close();
     }
 
-    @ParameterizedTest
-    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
-    void fileWatcher_errorOnEntryNotFound_watchIsNotWorking(ClientType clientType) throws Exception {
-        // prepare test
+    @Test
+    void fileWatcher_errorOnEntryNotFound_watchIsNotWorking() throws Exception {
+        final ClientType clientType = ClientType.DEFAULT;
         revertTestFiles(clientType);
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test_not_found/test.json";
@@ -617,10 +615,9 @@ class WatchTest {
         watcher.close();
     }
 
-    @ParameterizedTest
-    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
-    void fileWatcher_errorOnEntryNotFound_EntryIsRemovedOnWatching(ClientType clientType) throws Exception {
-        // prepare test
+    @Test
+    void fileWatcher_errorOnEntryNotFound_EntryIsRemovedOnWatching() throws Exception {
+        final ClientType clientType = ClientType.DEFAULT;
         revertTestFiles(clientType);
         final CentralDogma client = clientType.client(dogma);
         final String filePath = "/test/test2.json";
@@ -682,10 +679,9 @@ class WatchTest {
         watcher.close();
     }
 
-    @ParameterizedTest
-    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
-    void repositoryWatcher_errorOnEntryNotFound(ClientType clientType) {
-        // prepare test
+    @Test
+    void repositoryWatcher_errorOnEntryNotFound() {
+        final ClientType clientType = ClientType.DEFAULT;
         revertTestFiles(clientType);
         final CentralDogma client = clientType.client(dogma);
         final String pathPattern = "/test_not_found/**";
@@ -706,18 +702,14 @@ class WatchTest {
                 .getRootCause().isInstanceOf(EntryNotFoundException.class);
 
         // when initialValueFuture throw 'EntryNotFoundException', you can't use 'watch' method.
-        await().untilAsserted(() -> assertThatThrownBy(
-                () -> watcher.watch((rev, node) -> {
-                }))
+        await().untilAsserted(() -> assertThatThrownBy(() -> watcher.watch((rev, node) -> { /* no-op */ }))
                 .isInstanceOf(IllegalStateException.class));
     }
 
-    @ParameterizedTest
-    @EnumSource(value = ClientType.class, mode = Mode.EXCLUDE, names = "LEGACY")
-    void repositoryWatcher_errorOnEntryNotFound_watchIsNotWorking(ClientType clientType) throws Exception {
-        // prepare test
+    @Test
+    void repositoryWatcher_errorOnEntryNotFound_watchIsNotWorking() throws Exception {
+        final ClientType clientType = ClientType.DEFAULT;
         revertTestFiles(clientType);
-
         final CentralDogma client = clientType.client(dogma);
         final String pathPattern = "/test_not_found/**";
         final String filePath = "/test_not_found/test.json";

@@ -48,8 +48,8 @@ class CentralDogmaRepositoryTest {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("foo").join();
-            client.createRepository("foo", "bar").join();
-            client.forRepo("foo", "bar")
+            client.createRepository("foo", "bar")
+                  .join()
                   .commit("commit2", ImmutableList.of(Change.ofJsonUpsert("/foo.json", "{ \"a\": \"b\" }")))
                   .push()
                   .join();

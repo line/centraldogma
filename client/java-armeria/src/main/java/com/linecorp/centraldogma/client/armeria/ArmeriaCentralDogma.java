@@ -73,6 +73,7 @@ import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.armeria.common.util.SafeCloseable;
 import com.linecorp.armeria.common.util.TimeoutMode;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.AuthorizationException;
@@ -234,7 +235,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Override
-    public CompletableFuture<Void> createRepository(String projectName, String repositoryName) {
+    public CompletableFuture<CentralDogmaRepository> createRepository(String projectName,
+                                                                      String repositoryName) {
         try {
             validateProjectAndRepositoryName(projectName, repositoryName);
 
@@ -244,19 +246,17 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
             return client.execute(headers(HttpMethod.POST, path), toBytes(root))
                          .aggregate()
-                         .thenApply(ArmeriaCentralDogma::createRepository);
+                         .thenApply(res -> {
+                             switch (res.status().code()) {
+                                 case 200:
+                                 case 201:
+                                     return forRepo(projectName, repositoryName);
+                             }
+                             return handleErrorResponse(res);
+                         });
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
-    }
-
-    private static Void createRepository(AggregatedHttpResponse res) {
-        switch (res.status().code()) {
-            case 200:
-            case 201:
-                return null;
-        }
-        return handleErrorResponse(res);
     }
 
     @Override
@@ -304,24 +304,23 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Override
-    public CompletableFuture<Void> unremoveRepository(String projectName, String repositoryName) {
+    public CompletableFuture<CentralDogmaRepository> unremoveRepository(String projectName,
+                                                                        String repositoryName) {
         try {
             validateProjectAndRepositoryName(projectName, repositoryName);
             return client.execute(headers(HttpMethod.PATCH,
                                           pathBuilder(projectName, repositoryName).toString()),
                                   UNREMOVE_PATCH)
                          .aggregate()
-                         .thenApply(ArmeriaCentralDogma::unremoveRepository);
+                         .thenApply(res -> {
+                             if (res.status().code() == 200) {
+                                 return forRepo(projectName, repositoryName);
+                             }
+                             return handleErrorResponse(res);
+                         });
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
-    }
-
-    private static Void unremoveRepository(AggregatedHttpResponse res) {
-        if (res.status().code() == 200) {
-            return null;
-        }
-        return handleErrorResponse(res);
     }
 
     @Override

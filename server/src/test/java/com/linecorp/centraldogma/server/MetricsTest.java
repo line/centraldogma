@@ -38,8 +38,8 @@ class MetricsTest {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("foo").join();
-            client.createRepository("foo", "bar").join();
-            client.forRepo("foo", "bar")
+            client.createRepository("foo", "bar")
+                  .join()
                   .commit("Initial file", Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }"))
                   .push()
                   .join();
