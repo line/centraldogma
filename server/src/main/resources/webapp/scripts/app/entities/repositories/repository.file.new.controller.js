@@ -146,6 +146,8 @@ angular.module('CentralDogmaAdmin')
                           NotificationUtil.success('entities.saved_file', { path: $scope.file.path });
 
                           $scope.back();
+                        }, function (error) {
+                          NotificationUtil.error(error);
                         });
                   };
                 });
