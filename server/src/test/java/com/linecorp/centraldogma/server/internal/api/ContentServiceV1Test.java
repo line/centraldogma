@@ -805,6 +805,36 @@ class ContentServiceV1Test {
         }
 
         @Test
+        void editJson5FileWithTextPatch_invalidSyntax() {
+            final WebClient client = dogma.httpClient();
+            addFooJson5(client);
+            final String patch =
+                    '{' +
+                    "    \"path\": \"/foo.json5\"," +
+                    "    \"type\": \"APPLY_TEXT_PATCH\"," +
+                    "    \"content\": \"--- /foo.json5\\n" +
+                    "+++ foo.json5\\n" +
+                    "@@ -1,1 +1,1 @@\\n" +
+                    "-{a: 'bar'}\\n" +
+                    "+{a: new_bar}\\n\"," + // Invalid JSON5
+                    "    \"commitMessage\": {" +
+                    "        \"summary\": \"Edit foo.json5\"," +
+                    "        \"detail\": \"Edit because we need it.\"," +
+                    "        \"markup\": \"PLAINTEXT\"" +
+                    "    }" +
+                    '}';
+
+            final RequestHeaders headers = RequestHeaders.of(HttpMethod.POST, CONTENTS_PREFIX,
+                                                             HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+            final AggregatedHttpResponse res = client.execute(headers, patch).aggregate().join();
+            assertThatJson(res.contentUtf8()).isEqualTo(
+                    '{' +
+                    "  \"exception\": \"" + ChangeConflictException.class.getName() + "\"," +
+                    "  \"message\": \"${json-unit.ignore}\"" +
+                    '}');
+        }
+
+        @Test
         void watchRepository() {
             final WebClient client = dogma.httpClient();
             addFooJson(client);

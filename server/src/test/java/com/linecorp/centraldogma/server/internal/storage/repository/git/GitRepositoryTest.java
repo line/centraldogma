@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server.internal.storage.repository.git;
 
 import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static com.linecorp.centraldogma.common.Revision.INIT;
+import static com.linecorp.centraldogma.internal.Util.isJson5;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -134,6 +135,7 @@ class GitRepositoryTest {
     private final Change<JsonNode>[] json5Upserts = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<String>[] textUpserts = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<JsonNode>[] jsonPatches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
+    private final Change<String>[] json5Patches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
     private final Change<String>[] textPatches = Util.unsafeCast(new Change[NUM_ITERATIONS]);
 
     @BeforeEach
@@ -150,16 +152,20 @@ class GitRepositoryTest {
             json5Paths[i] = json5Path;
             textPaths[i] = textPath;
             jsonUpserts[i] = Change.ofJsonUpsert(jsonPath, "{ \"" + i + "\": " + i + " }");
-            json5Upserts[i] = Change.ofJsonUpsert(json5Path, "{ \"" + i + "\": '" + i + "' }");
+            json5Upserts[i] = Change.ofJsonUpsert(json5Path, "{ '" + i + "': '" + i + "' }");
             textUpserts[i] = Change.ofTextUpsert(textPath, "value:\n" + i);
         }
 
         jsonPatches[0] = Change.ofJsonPatch(jsonPaths[0], null, jsonUpserts[0].content());
+        // JSON5 patch is converted into text patch, internally.
+        json5Patches[0] = Change.ofTextPatch(json5Paths[0], null, json5Upserts[0].contentAsText());
         textPatches[0] = Change.ofTextPatch(textPaths[0], null, textUpserts[0].content());
 
         for (int i = 1; i < NUM_ITERATIONS; i++) {
             jsonPatches[i] = Change.ofJsonPatch(jsonPaths[0], jsonUpserts[i - 1].content(),
                                                 jsonUpserts[i].content());
+            json5Patches[i] = Change.ofTextPatch(json5Paths[0], json5Upserts[i - 1].contentAsText(),
+                                                 json5Upserts[i].contentAsText());
             textPatches[i] = Change.ofTextPatch(textPaths[0], textUpserts[i - 1].content(),
                                                 textUpserts[i].content());
         }
@@ -242,6 +248,21 @@ class GitRepositoryTest {
         testPatch(textPatches, textUpserts);
     }
 
+    @Test
+    void testJson5Patch() {
+        testPatch(json5Patches, json5Upserts);
+
+        // JSON5 must be validated even though they are internally updated via text patch.
+        final String invalidJson5 = "{a: bar}"; // Invalid syntax
+        assertThatThrownBy(
+                () -> repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                                  Change.ofTextPatch(json5Paths[0],
+                                                     json5Upserts[json5Patches.length - 1].contentAsText(),
+                                                     invalidJson5)).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(ChangeConflictException.class);
+    }
+
     private static void testPatch(Change<?>[] patches, Change<?>[] upserts) {
         final String path = patches[0].path();
         for (int i = 0; i < NUM_ITERATIONS; i++) {
@@ -270,11 +291,16 @@ class GitRepositoryTest {
 
             // Ensure the entry has been patched as expected.
             final Entry<?> e = repo.get(HEAD, path).join();
-            if (e.type() == EntryType.JSON) {
-                assertThatJson(e.content()).isEqualTo(upserts[i].content());
-            } else {
+            if (e.type() == EntryType.TEXT) {
                 // Text must be sanitized so that the last line ends with \n.
                 assertThat(e.content()).isEqualTo(upserts[i].content() + "\n");
+            } else {
+                if (isJson5(e)) {
+                    // JSON5 is treated as text internally so must also be sanitized with \n.
+                    assertThat(e.contentAsText()).isEqualTo(upserts[i].contentAsText() + "\n");
+                } else {
+                    assertThatJson(e.content()).isEqualTo(upserts[i].content());
+                }
             }
         }
     }

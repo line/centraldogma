@@ -94,6 +94,7 @@ import org.eclipse.jgit.treewalk.filter.TreeFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.annotations.VisibleForTesting;
@@ -1138,6 +1139,15 @@ class GitRepository implements Repository {
                             throw new ChangeConflictException("failed to apply text patch: " + change, e);
                         }
 
+                        // JSON5 validation since JSON5 is eventually patched via text patch.
+                        if (isJson5(change.path())) {
+                            try {
+                                Json5.readTree(newText);
+                            } catch (JsonParseException e) {
+                                throw new ChangeConflictException(
+                                        "failed to apply patch to JSON5 file: " + change, e);
+                            }
+                        }
                         // Apply only when the contents are really different.
                         if (!newText.equals(sanitizedOldText)) {
                             applyPathEdit(dirCache, new InsertText(changePath, inserter, newText));
