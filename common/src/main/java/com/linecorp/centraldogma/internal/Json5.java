@@ -63,8 +63,8 @@ public final class Json5 {
 
     public static JsonNode readTree(byte[] data) throws JsonParseException {
         // String conversion is a workaround for Jackson bug with 'ALLOW_SINGLE_QUOTES' feature
-        // when deserializing from byte array source.
-        // If double quotes are used within a single quote string, it either raises JsonParseException or
+        // when it deserializes JSON5 from byte array source.
+        // If double quotes are used within a single quoted string, it either raises JsonParseException or
         // removes double quotes while deserializing.
         // e.g. 'I can use "double quotes" here' deserialized into "I can use double quotes here"
         //      'I can use double quotes "here"' raises JsonParseException.
