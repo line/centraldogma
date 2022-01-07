@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.it;
 
+import static com.linecorp.centraldogma.it.TestConstants.JSON5_CONTENTS;
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -110,18 +111,6 @@ class GetFileTest {
 
     @Nested
     class GetFileJson5Test {
-
-        static final String JSON5_CONTENTS =
-                "{\n" +
-                "  // comments\n" +
-                "  unquoted: 'and you can quote me on that',\n" +
-                "  singleQuotes: 'I can use \"double quotes\" here',\n" +
-                "  lineBreaks: \"Look, Mom! \\\n" +
-                "No \\\\n's!\",\n" +
-                "  leadingDecimalPoint: .8675309,\n" +
-                "  trailingComma: 'in objects', andIn: ['arrays',],\n" +
-                "  \"backwardsCompatible\": \"with JSON\",\n" +
-                "}\n";
 
         @Test
         void getJson5() throws JsonParseException {

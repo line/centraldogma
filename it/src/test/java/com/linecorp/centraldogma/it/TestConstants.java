@@ -16,11 +16,32 @@
 
 package com.linecorp.centraldogma.it;
 
+import static java.util.Objects.requireNonNull;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class TestConstants {
+
+    public static final String JSON5_CONTENTS;
+
+    static {
+        try {
+            final URL json5URL = requireNonNull(TestConstants.class.getClassLoader().getResource(
+                    "com/linecorp/centraldogma/it/import/test1.json5"), "json5URL");
+            JSON5_CONTENTS = new String(Files.readAllBytes(new File(json5URL.toURI()).toPath()),
+                                  StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new Error(e);
+        }
+    }
 
     private static final Set<String> previousRandomTexts = new HashSet<>();
 

@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.it;
 
+import static com.linecorp.centraldogma.it.TestConstants.JSON5_CONTENTS;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
@@ -57,6 +59,7 @@ import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.internal.Json5;
 
 class WatchTest {
 
@@ -780,8 +783,10 @@ class WatchTest {
         void watchJson5() throws Exception {
             final CentralDogma client = dogma.client();
 
-            final CompletableFuture<Entry<JsonNode>> future = client.watchFile(
-                    dogma.project(), dogma.repo1(), Revision.HEAD, Query.ofJson("/test/test1.json5"));
+            final CompletableFuture<Entry<JsonNode>> future =
+                    client.forRepo(dogma.project(), dogma.repo1())
+                          .watch(Query.ofJson("/test/test1.json5"))
+                          .start(Revision.HEAD);
 
             assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
                     .isInstanceOf(TimeoutException.class);
@@ -804,6 +809,28 @@ class WatchTest {
 
             assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
                     Entry.ofJson(result.revision(), "/test/test1.json5", "{a: 'foo'}\n"));
+        }
+
+        @Test
+        void watchJson5_notNotifiedIfJsonContentNotChanged() throws JsonParseException {
+            final CentralDogma client = dogma.client();
+
+            final CompletableFuture<Entry<JsonNode>> future =
+                    client.forRepo(dogma.project(), dogma.repo1())
+                          .watch(Query.ofJson("/test/test1.json5"))
+                          .start(Revision.HEAD);
+
+            // Edit file to the plain JSON, so it doesn't change the actual JSON content in it.
+            final JsonNode plainJson = Json5.readTree(JSON5_CONTENTS);
+                client.forRepo(dogma.project(), dogma.repo1())
+                      .commit("Edit test1.json5",
+                              Change.ofJsonUpsert("/test/test1.json5", plainJson))
+                      .push(Revision.HEAD)
+                      .join();
+
+            // Watcher should not be notified since the JSON content is still the same.
+            assertThatThrownBy(() -> future.get(1000, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
         }
     }
 }
