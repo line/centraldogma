@@ -159,13 +159,24 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             groups.add(EndpointGroup.of(staticEndpoints));
         }
 
-        final EndpointGroup group;
+        EndpointGroup group;
         if (groups.size() == 1) {
             group = groups.get(0);
         } else {
             group = new CompositeEndpointGroup(groups, EndpointSelectionStrategy.roundRobin());
         }
 
+        if (!healthCheckInterval.isZero()) {
+            group = HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
+                                              .clientFactory(clientFactory)
+                                              .protocol(isUseTls() ? SessionProtocol.HTTPS
+                                                                   : SessionProtocol.HTTP)
+                                              .retryInterval(healthCheckInterval)
+                                              .build();
+        }
+
+        // TODO(ikhoon): A workaround for the bug in EndpointSelector. https://github.com/line/armeria/pull/3978
+        //               Remove this workaround after upgrading Armeria to 1.14.0
         if (group instanceof DynamicEndpointGroup) {
             // Wait until the initial endpointGroup list is ready.
             try {
@@ -177,17 +188,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
                 throw cause;
             }
         }
-
-        if (!healthCheckInterval.isZero()) {
-            return HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
-                                             .clientFactory(clientFactory)
-                                             .protocol(isUseTls() ? SessionProtocol.HTTPS
-                                                                  : SessionProtocol.HTTP)
-                                             .retryInterval(healthCheckInterval)
-                                             .build();
-        } else {
-            return group;
-        }
+        return group;
     }
 
     private static Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {

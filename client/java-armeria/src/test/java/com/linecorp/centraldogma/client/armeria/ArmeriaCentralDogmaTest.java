@@ -24,6 +24,8 @@ import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
+import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.InvalidPushException;
@@ -65,5 +67,17 @@ class ArmeriaCentralDogmaTest {
                                         .push()
                                         .join();
         assertThat(result.revision().major()).isPositive();
+    }
+
+    @Test
+    void waitInitialHealthCheckEndpointGroup() throws UnknownHostException {
+        final ArmeriaCentralDogma client = (ArmeriaCentralDogma) new ArmeriaCentralDogmaBuilder()
+                .host(dogma.serverAddress().getHostName(), dogma.serverAddress().getPort())
+                .maxNumRetriesOnReplicationLag(0)
+                .build();
+
+        final EndpointGroup endpointGroup = client.webClient().endpointGroup();
+        assertThat(endpointGroup).isInstanceOf(HealthCheckedEndpointGroup.class);
+        assertThat(endpointGroup.whenReady().isDone()).isTrue();
     }
 }

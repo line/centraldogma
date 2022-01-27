@@ -51,6 +51,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -139,6 +140,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         super(blockingTaskExecutor);
         this.client = requireNonNull(client, "client");
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
+    }
+
+    @VisibleForTesting
+    WebClient webClient() {
+        return client;
     }
 
     @Override
