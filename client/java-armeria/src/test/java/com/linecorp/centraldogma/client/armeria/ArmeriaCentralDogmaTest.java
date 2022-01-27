@@ -18,9 +18,25 @@ package com.linecorp.centraldogma.client.armeria;
 import static com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogma.encodePathPattern;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.UnknownHostException;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
+import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
+import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class ArmeriaCentralDogmaTest {
+
+    @RegisterExtension
+    static CentralDogmaExtension dogma = new CentralDogmaExtension() {
+        @Override
+        protected void scaffold(CentralDogma client) {
+            client.createProject("foo").join();
+        }
+    };
 
     @Test
     void testEncodePathPattern() {
@@ -34,5 +50,17 @@ class ArmeriaCentralDogmaTest {
         final String pathPatternThatDoesNotNeedEscaping = "/*.zip,/**/*.jar";
         assertThat(encodePathPattern(pathPatternThatDoesNotNeedEscaping))
                 .isSameAs(pathPatternThatDoesNotNeedEscaping);
+    }
+
+    @Test
+    void waitInitialHealthCheckEndpointGroup() throws UnknownHostException {
+        final ArmeriaCentralDogma client = (ArmeriaCentralDogma) new ArmeriaCentralDogmaBuilder()
+                .host(dogma.serverAddress().getHostName(), dogma.serverAddress().getPort())
+                .maxNumRetriesOnReplicationLag(0)
+                .build();
+
+        final EndpointGroup endpointGroup = client.webClient().endpointGroup();
+        assertThat(endpointGroup).isInstanceOf(HealthCheckedEndpointGroup.class);
+        assertThat(endpointGroup.whenReady().isDone()).isTrue();
     }
 }
