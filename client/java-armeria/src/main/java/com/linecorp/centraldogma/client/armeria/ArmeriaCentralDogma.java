@@ -140,6 +140,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         authorization = "Bearer " + requireNonNull(accessToken, "accessToken");
     }
 
+    @VisibleForTesting
+    WebClient webClient() {
+        return client;
+    }
+
     @Override
     public CompletableFuture<Void> createProject(String projectName) {
         try {
