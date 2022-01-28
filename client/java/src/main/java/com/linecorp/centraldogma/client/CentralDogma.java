@@ -591,4 +591,11 @@ public interface CentralDogma {
      */
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                      Function<Revision, ? extends T> function, Executor executor);
+
+    /**
+     * Returns a {@link CompletableFuture} which is completed when the initial endpoints of this
+     * client are ready. It is recommended to wait for the initial endpoints in order to send the first request
+     * without additional delay.
+     */
+    CompletableFuture<Void> whenEndpointReady();
 }

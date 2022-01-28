@@ -484,6 +484,11 @@ public final class ReplicationLagTolerantCentralDogma extends AbstractCentralDog
                 });
     }
 
+    @Override
+    public CompletableFuture<Void> whenEndpointReady() {
+        return delegate.whenEndpointReady();
+    }
+
     /**
      * Normalizes the given {@link Revision} and then executes the task by calling {@code taskRunner.apply()}
      * with the normalized {@link Revision}. The task can be executed repetitively when the task failed with

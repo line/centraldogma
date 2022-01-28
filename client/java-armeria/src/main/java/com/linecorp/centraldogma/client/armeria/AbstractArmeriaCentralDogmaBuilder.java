@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import com.google.common.collect.Iterables;
@@ -35,7 +34,6 @@ import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.Endpoint;
-import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
@@ -164,18 +162,6 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             group = groups.get(0);
         } else {
             group = new CompositeEndpointGroup(groups, EndpointSelectionStrategy.roundRobin());
-        }
-
-        if (group instanceof DynamicEndpointGroup) {
-            // Wait until the initial endpointGroup list is ready.
-            try {
-                group.whenReady().get(10, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                final UnknownHostException cause = new UnknownHostException(
-                        "failed to resolve any of: " + hosts);
-                cause.initCause(e);
-                throw cause;
-            }
         }
 
         if (!healthCheckInterval.isZero()) {
