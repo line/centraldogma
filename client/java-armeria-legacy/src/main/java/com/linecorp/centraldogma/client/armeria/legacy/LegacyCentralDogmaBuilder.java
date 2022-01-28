@@ -20,7 +20,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientRequestContext;
-import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.encoding.DecodingClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.HttpHeaderNames;
@@ -30,7 +29,6 @@ import com.linecorp.centraldogma.client.armeria.AbstractArmeriaCentralDogmaBuild
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.client.ReplicationLagTolerantCentralDogma;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.AsyncIface;
-import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.Client;
 
 /**
  * Builds a legacy {@link CentralDogma} client based on Thrift.
