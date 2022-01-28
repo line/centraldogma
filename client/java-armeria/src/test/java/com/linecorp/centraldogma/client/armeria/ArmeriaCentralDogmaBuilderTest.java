@@ -76,9 +76,11 @@ class ArmeriaCentralDogmaBuilderTest {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.healthCheckIntervalMillis(0);
         b.host("1.2.3.4.sslip.io");
-        assertThat(b.endpointGroup()).isInstanceOf(DnsAddressEndpointGroup.class);
-        assertThat(b.endpointGroup().endpoints().size()).isEqualTo(1);
-        assertThat(b.endpointGroup().endpoints().get(0).host()).isEqualTo("1.2.3.4.sslip.io");
+        final EndpointGroup endpointGroup = b.endpointGroup();
+        endpointGroup.whenReady().join();
+        assertThat(endpointGroup).isInstanceOf(DnsAddressEndpointGroup.class);
+        assertThat(endpointGroup.endpoints().size()).isEqualTo(1);
+        assertThat(endpointGroup.endpoints().get(0).host()).isEqualTo("1.2.3.4.sslip.io");
     }
 
     @Test

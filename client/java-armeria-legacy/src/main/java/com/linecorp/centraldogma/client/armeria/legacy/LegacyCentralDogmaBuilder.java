@@ -68,7 +68,7 @@ public class LegacyCentralDogmaBuilder extends AbstractArmeriaCentralDogmaBuilde
 
         final int maxRetriesOnReplicationLag = maxNumRetriesOnReplicationLag();
         final CentralDogma dogma = new LegacyCentralDogma(blockingTaskExecutor,
-                                                          builder.build(AsyncIface.class));
+                                                          builder.build(AsyncIface.class), endpointGroup);
         if (maxRetriesOnReplicationLag <= 0) {
             return dogma;
         } else {
