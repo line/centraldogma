@@ -76,7 +76,6 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.thrift.AuthorConverter;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
-import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.AsyncIface;
 import com.linecorp.centraldogma.internal.thrift.ChangeConverter;
 import com.linecorp.centraldogma.internal.thrift.Comment;
 import com.linecorp.centraldogma.internal.thrift.CommitConverter;
@@ -98,7 +97,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     private final CentralDogmaService.AsyncIface client;
     private final EndpointGroup endpointGroup;
 
-    LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, AsyncIface client,
+    LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, CentralDogmaService.AsyncIface client,
                        EndpointGroup endpointGroup) {
         super(blockingTaskExecutor);
         this.client = requireNonNull(client, "client");
