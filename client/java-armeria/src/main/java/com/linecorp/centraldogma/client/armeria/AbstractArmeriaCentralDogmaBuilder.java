@@ -166,18 +166,6 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             group = new CompositeEndpointGroup(groups, EndpointSelectionStrategy.roundRobin());
         }
 
-        if (group instanceof DynamicEndpointGroup) {
-            // Wait until the initial endpointGroup list is ready.
-            try {
-                group.whenReady().get(10, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                final UnknownHostException cause = new UnknownHostException(
-                        "failed to resolve any of: " + hosts);
-                cause.initCause(e);
-                throw cause;
-            }
-        }
-
         if (!healthCheckInterval.isZero()) {
             return HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
                                              .clientFactory(clientFactory)

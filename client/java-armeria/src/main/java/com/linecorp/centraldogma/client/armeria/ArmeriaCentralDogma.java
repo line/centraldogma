@@ -851,6 +851,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
     }
 
+    @Override
+    public CompletableFuture<Void> whenEndpointReady() {
+        return client.endpointGroup().whenReady().thenRun(() -> {});
+    }
+
     @Nullable
     private static <T> Entry<T> watchFile(AggregatedHttpResponse res, QueryType queryType) {
         switch (res.status().code()) {

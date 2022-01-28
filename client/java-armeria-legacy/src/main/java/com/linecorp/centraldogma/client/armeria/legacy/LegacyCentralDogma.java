@@ -42,6 +42,7 @@ import org.apache.thrift.TException;
 import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.thrift.ThriftFuture;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
@@ -75,6 +76,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.thrift.AuthorConverter;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
+import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.AsyncIface;
 import com.linecorp.centraldogma.internal.thrift.ChangeConverter;
 import com.linecorp.centraldogma.internal.thrift.Comment;
 import com.linecorp.centraldogma.internal.thrift.CommitConverter;
@@ -94,10 +96,13 @@ import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 final class LegacyCentralDogma extends AbstractCentralDogma {
 
     private final CentralDogmaService.AsyncIface client;
+    private final EndpointGroup endpointGroup;
 
-    LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, CentralDogmaService.AsyncIface client) {
+    LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, AsyncIface client,
+                       EndpointGroup endpointGroup) {
         super(blockingTaskExecutor);
         this.client = requireNonNull(client, "client");
+        this.endpointGroup = endpointGroup;
     }
 
     @Override
@@ -499,6 +504,11 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
             return toEntry(query, revision, query.type(), r.getContent(), r.getType());
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> whenEndpointReady() {
+        return endpointGroup.whenReady().thenRun(() -> {});
     }
 
     private static void validateProjectName(String projectName) {
