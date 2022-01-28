@@ -36,6 +36,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
@@ -81,7 +82,7 @@ class LegacyCentralDogmaTest {
 
     @BeforeEach
     void setUp() {
-        client = new LegacyCentralDogma(CommonPools.blockingTaskExecutor(), iface);
+        client = new LegacyCentralDogma(CommonPools.blockingTaskExecutor(), iface, EndpointGroup.of());
     }
 
     @Test

@@ -142,6 +142,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     }
 
     @Override
+    public CompletableFuture<Void> whenEndpointReady() {
+        return client.endpointGroup().whenReady().thenRun(() -> {});
+    }
+
+    @Override
     public CompletableFuture<Void> createProject(String projectName) {
         try {
             validateProjectName(projectName);
