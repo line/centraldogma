@@ -754,7 +754,7 @@ class GitRepository implements Repository {
                 switch (diffEntry.getChangeType()) {
                     case MODIFY:
                         // Resolve JSON5 as EntryType.TEXT to modify it with text patch because
-                        // json patch can hardly be applied to JSON5.
+                        // applying json patch to JSON5 file makes it a plain JSON.
                         final EntryType oldEntryType = !isJson5(oldPath) ? EntryType.guessFromPath(oldPath)
                                                                          : EntryType.TEXT;
                         switch (oldEntryType) {
@@ -798,7 +798,10 @@ class GitRepository implements Repository {
                         }
                         break;
                     case ADD:
-                        final EntryType newEntryType = EntryType.guessFromPath(newPath);
+                        // Resolve JSON5 as EntryType.TEXT so that the JSON5 content can properly be included
+                        // in the serialized ReplicationLog.
+                        final EntryType newEntryType = !isJson5(newPath) ? EntryType.guessFromPath(newPath)
+                                                                         : EntryType.TEXT;
                         switch (newEntryType) {
                             case JSON: {
                                 final String jsonText = new String(

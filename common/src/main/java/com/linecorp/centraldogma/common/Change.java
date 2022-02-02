@@ -84,7 +84,7 @@ public interface Change<T> {
     static Change<String> ofTextUpsert(String path, String text) {
         requireNonNull(text, "text");
         validateFilePath(path, "path");
-        if (EntryType.guessFromPath(path) == EntryType.JSON) {
+        if (EntryType.guessFromPath(path) == EntryType.JSON && !isJson5(path)) {
             throw new ChangeFormatException("invalid file type: " + path +
                                             " (expected: a non-JSON file). Use Change.ofJsonUpsert() instead");
         }
