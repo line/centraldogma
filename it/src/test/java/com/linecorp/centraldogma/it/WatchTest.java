@@ -751,11 +751,15 @@ class WatchTest {
     }
 
     private static void revertTestFiles(ClientType clientType) {
+        revertTestFiles(clientType.client(dogma));
+    }
+
+    private static void revertTestFiles(CentralDogma client) {
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test1.json", "[ 1, 2, 3 ]");
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test2.json", "{ \"a\": \"apple\" }");
+        final Change<JsonNode> change3 = Change.ofJsonUpsert("/test/test1.json5", JSON5_CONTENTS);
 
-        final List<Change<JsonNode>> changes = Arrays.asList(change1, change2);
-        final CentralDogma client = clientType.client(dogma);
+        final List<Change<JsonNode>> changes = Arrays.asList(change1, change2, change3);
 
         if (!client.getPreviewDiffs(dogma.project(), dogma.repo1(), Revision.HEAD, changes)
                    .join().isEmpty()) {
@@ -765,12 +769,12 @@ class WatchTest {
                   .join();
         }
 
-        final Change<Void> change3 = Change.ofRemoval("/test_not_found/test.json");
+        final Change<Void> change4 = Change.ofRemoval("/test_not_found/test.json");
         final Map<String, EntryType> files = client.listFiles(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                               PathPattern.of("/test_not_found/**")).join();
-        if (files.containsKey(change3.path())) {
+        if (files.containsKey(change4.path())) {
             client.forRepo(dogma.project(), dogma.repo1())
-                  .commit("Remove test files", change3)
+                  .commit("Remove test files", change4)
                   .push()
                   .join();
         }
@@ -782,6 +786,7 @@ class WatchTest {
         @Test
         void watchJson5() throws Exception {
             final CentralDogma client = dogma.client();
+            revertTestFiles(client);
 
             final CompletableFuture<Entry<JsonNode>> future =
                     client.forRepo(dogma.project(), dogma.repo1())
@@ -814,6 +819,7 @@ class WatchTest {
         @Test
         void watchJson5_notNotifiedIfJsonContentNotChanged() throws JsonParseException {
             final CentralDogma client = dogma.client();
+            revertTestFiles(client);
 
             final CompletableFuture<Entry<JsonNode>> future =
                     client.forRepo(dogma.project(), dogma.repo1())
@@ -829,7 +835,7 @@ class WatchTest {
                       .join();
 
             // Watcher should not be notified since the JSON content is still the same.
-            assertThatThrownBy(() -> future.get(1000, TimeUnit.MILLISECONDS))
+            assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
                     .isInstanceOf(TimeoutException.class);
         }
     }
