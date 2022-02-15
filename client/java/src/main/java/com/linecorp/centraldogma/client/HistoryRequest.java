@@ -42,7 +42,7 @@ public final class HistoryRequest {
     }
 
     /**
-     * Sets the maximum number of commits to retrieve. {@code 0} is used by default which means retrieving
+     * Sets the maximum number of commits to retrieve. {@code 0} is used by default which means to retreive
      * all commits. The number of retrieved commits can't be greater than
      * {@value HistoryConstants#MAX_MAX_COMMITS}.
      */
