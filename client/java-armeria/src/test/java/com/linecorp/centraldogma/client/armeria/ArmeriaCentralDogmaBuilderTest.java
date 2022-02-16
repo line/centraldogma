@@ -68,8 +68,18 @@ class ArmeriaCentralDogmaBuilderTest {
     @Test
     void buildingWithSingleResolvedHost() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        b.healthCheckIntervalMillis(0);
         b.host("1.2.3.4");
         assertThat(b.endpointGroup()).isEqualTo(Endpoint.of("1.2.3.4", 36462));
+    }
+
+    @Test
+    void buildingSingleResolvedHostWithHealthCheck() throws Exception {
+        final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        b.host("1.2.3.4");
+        try (EndpointGroup endpointGroup = b.endpointGroup()) {
+            assertThat(endpointGroup).isInstanceOf(HealthCheckedEndpointGroup.class);
+        }
     }
 
     @Test
