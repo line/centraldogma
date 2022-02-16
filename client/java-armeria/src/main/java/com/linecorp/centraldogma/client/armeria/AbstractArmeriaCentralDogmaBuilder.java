@@ -130,6 +130,24 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
      * @throws UnknownHostException if failed to resolve the host names from the DNS servers
      */
     protected final EndpointGroup endpointGroup() throws UnknownHostException {
+        final EndpointGroup group = endpointGroup0();
+
+        if (healthCheckInterval != null && healthCheckInterval.isZero()) {
+            return group;
+        }
+
+        final HealthCheckedEndpointGroupBuilder healthCheckedEndpointGroupBuilder =
+                HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
+                                          .clientFactory(clientFactory)
+                                          .protocol(isUseTls() ? SessionProtocol.HTTPS
+                                                               : SessionProtocol.HTTP);
+        if (healthCheckInterval != null) {
+            healthCheckedEndpointGroupBuilder.retryInterval(healthCheckInterval);
+        }
+        return healthCheckedEndpointGroupBuilder.build();
+    }
+
+    private EndpointGroup endpointGroup0() throws UnknownHostException {
         final Set<InetSocketAddress> hosts = hosts();
         checkState(!hosts.isEmpty(), "no hosts were added.");
 
@@ -163,19 +181,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             group = new CompositeEndpointGroup(groups, EndpointSelectionStrategy.roundRobin());
         }
 
-        if (healthCheckInterval != null && healthCheckInterval.isZero()) {
-            return group;
-        } else {
-            final HealthCheckedEndpointGroupBuilder healthCheckedEndpointGroupBuilder =
-                    HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
-                                              .clientFactory(clientFactory)
-                                              .protocol(isUseTls() ? SessionProtocol.HTTPS
-                                                                   : SessionProtocol.HTTP);
-            if (healthCheckInterval != null) {
-                healthCheckedEndpointGroupBuilder.retryInterval(healthCheckInterval);
-            }
-            return healthCheckedEndpointGroupBuilder.build();
-        }
+        return group;
     }
 
     private static Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {
