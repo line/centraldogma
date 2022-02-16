@@ -39,8 +39,10 @@ import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroupBuilder;
 import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
+import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroupBuilder;
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
@@ -51,11 +53,10 @@ import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
 public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentralDogmaBuilder<B>>
         extends AbstractCentralDogmaBuilder<B> {
 
-    private static final int DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS = 15000;
-
     private ClientFactory clientFactory = ClientFactory.ofDefault();
     private ArmeriaClientConfigurator clientConfigurator = cb -> {};
-    private Duration healthCheckInterval = Duration.ofMillis(DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS);
+    @Nullable
+    private Duration healthCheckInterval;
     private DnsAddressEndpointGroupConfigurator dnsAddressEndpointGroupConfigurator = b -> {};
     private ScheduledExecutorService blockingTaskExecutor = CommonPools.blockingTaskExecutor();
 
@@ -97,8 +98,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     }
 
     /**
-     * Sets the interval between health check requests. The default value is
-     * {@value #DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS} seconds.
+     * Sets the interval between health check requests.
      *
      * @param healthCheckInterval the interval between health check requests. {@link Duration#ZERO} disables
      *                            health check requests.
@@ -112,8 +112,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     }
 
     /**
-     * Sets the interval between health check requests in milliseconds. The default value is
-     * {@value #DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS} milliseconds.
+     * Sets the interval between health check requests in milliseconds.
      *
      * @param healthCheckIntervalMillis the interval between health check requests in milliseconds.
      *                                  {@code 0} disables health check requests.
@@ -164,15 +163,18 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             group = new CompositeEndpointGroup(groups, EndpointSelectionStrategy.roundRobin());
         }
 
-        if (!healthCheckInterval.isZero()) {
-            return HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
-                                             .clientFactory(clientFactory)
-                                             .protocol(isUseTls() ? SessionProtocol.HTTPS
-                                                                  : SessionProtocol.HTTP)
-                                             .retryInterval(healthCheckInterval)
-                                             .build();
-        } else {
+        if (healthCheckInterval != null && healthCheckInterval.isZero()) {
             return group;
+        } else {
+            final HealthCheckedEndpointGroupBuilder healthCheckedEndpointGroupBuilder =
+                    HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
+                                              .clientFactory(clientFactory)
+                                              .protocol(isUseTls() ? SessionProtocol.HTTPS
+                                                                   : SessionProtocol.HTTP);
+            if (healthCheckInterval != null) {
+                healthCheckedEndpointGroupBuilder.retryInterval(healthCheckInterval);
+            }
+            return healthCheckedEndpointGroupBuilder.build();
         }
     }
 
