@@ -35,6 +35,7 @@ import com.linecorp.armeria.client.Endpoint;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
+import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
 
 class ArmeriaCentralDogmaBuilderTest {
 
@@ -45,30 +46,40 @@ class ArmeriaCentralDogmaBuilderTest {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.healthCheckIntervalMillis(0);
         b.profile("sslip");
-        final EndpointGroup group = b.endpointGroup();
+        try (EndpointGroup group = b.endpointGroup()) {
+            assertThat(group).isNotNull();
+            assertThat(group).isInstanceOf(CompositeEndpointGroup.class);
+            final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) group;
+            final List<EndpointGroup> childGroups = compositeGroup.groups();
+            assertThat(childGroups).hasSize(2);
+            assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
+            assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
 
-        assertThat(group).isNotNull();
-        assertThat(group).isInstanceOf(CompositeEndpointGroup.class);
-        final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) group;
-        final List<EndpointGroup> childGroups = compositeGroup.groups();
-        assertThat(childGroups).hasSize(2);
-        assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
-        assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
-
-        await().untilAsserted(() -> {
-            final List<Endpoint> endpoints = group.endpoints();
-            assertThat(endpoints).isNotNull();
-            assertThat(endpoints).containsExactlyInAnyOrder(
-                    Endpoint.of("1.2.3.4.sslip.io", 36462).withIpAddr("1.2.3.4"),
-                    Endpoint.of("5.6.7.8.sslip.io", 8080).withIpAddr("5.6.7.8"));
-        });
+            await().untilAsserted(() -> {
+                final List<Endpoint> endpoints = group.endpoints();
+                assertThat(endpoints).isNotNull();
+                assertThat(endpoints).containsExactlyInAnyOrder(
+                        Endpoint.of("1.2.3.4.sslip.io", 36462).withIpAddr("1.2.3.4"),
+                        Endpoint.of("5.6.7.8.sslip.io", 8080).withIpAddr("5.6.7.8"));
+            });
+        }
     }
 
     @Test
     void buildingWithSingleResolvedHost() throws Exception {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        b.healthCheckIntervalMillis(0);
         b.host("1.2.3.4");
         assertThat(b.endpointGroup()).isEqualTo(Endpoint.of("1.2.3.4", 36462));
+    }
+
+    @Test
+    void buildingSingleResolvedHostWithHealthCheck() throws Exception {
+        final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        b.host("1.2.3.4");
+        try (EndpointGroup endpointGroup = b.endpointGroup()) {
+            assertThat(endpointGroup).isInstanceOf(HealthCheckedEndpointGroup.class);
+        }
     }
 
     @Test
@@ -76,11 +87,12 @@ class ArmeriaCentralDogmaBuilderTest {
         final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
         b.healthCheckIntervalMillis(0);
         b.host("1.2.3.4.sslip.io");
-        final EndpointGroup endpointGroup = b.endpointGroup();
-        endpointGroup.whenReady().join();
-        assertThat(endpointGroup).isInstanceOf(DnsAddressEndpointGroup.class);
-        assertThat(endpointGroup.endpoints().size()).isEqualTo(1);
-        assertThat(endpointGroup.endpoints().get(0).host()).isEqualTo("1.2.3.4.sslip.io");
+        try (EndpointGroup endpointGroup = b.endpointGroup()) {
+            endpointGroup.whenReady().join();
+            assertThat(endpointGroup).isInstanceOf(DnsAddressEndpointGroup.class);
+            assertThat(endpointGroup.endpoints().size()).isEqualTo(1);
+            assertThat(endpointGroup.endpoints().get(0).host()).isEqualTo("1.2.3.4.sslip.io");
+        }
     }
 
     @Test
@@ -92,25 +104,26 @@ class ArmeriaCentralDogmaBuilderTest {
         b.host("4.3.2.1", 3); // Resolved host
         b.host("8.7.6.5", 4); // Another resolved host
 
-        final EndpointGroup endpointGroup = b.endpointGroup();
-        assertThat(endpointGroup).isNotNull();
-        assertThat(endpointGroup).isInstanceOf(CompositeEndpointGroup.class);
-        final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) endpointGroup;
-        final List<EndpointGroup> childGroups = compositeGroup.groups();
-        assertThat(childGroups).hasSize(3);
-        assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
-        assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
-        assertThat(childGroups.get(2).toString()).contains("StaticEndpointGroup");
+        try (EndpointGroup endpointGroup = b.endpointGroup()) {
+            assertThat(endpointGroup).isNotNull();
+            assertThat(endpointGroup).isInstanceOf(CompositeEndpointGroup.class);
+            final CompositeEndpointGroup compositeGroup = (CompositeEndpointGroup) endpointGroup;
+            final List<EndpointGroup> childGroups = compositeGroup.groups();
+            assertThat(childGroups).hasSize(3);
+            assertThat(childGroups.get(0)).isInstanceOf(DnsAddressEndpointGroup.class);
+            assertThat(childGroups.get(1)).isInstanceOf(DnsAddressEndpointGroup.class);
+            assertThat(childGroups.get(2).toString()).contains("StaticEndpointGroup");
 
-        await().untilAsserted(() -> {
-            final List<Endpoint> endpoints = endpointGroup.endpoints();
-            assertThat(endpoints).isNotNull();
-            assertThat(endpoints).containsExactlyInAnyOrder(
-                    Endpoint.of("1.2.3.4.sslip.io", 1).withIpAddr("1.2.3.4"),
-                    Endpoint.of("5.6.7.8.sslip.io", 2).withIpAddr("5.6.7.8"),
-                    Endpoint.of("4.3.2.1", 3),
-                    Endpoint.of("8.7.6.5", 4));
-        });
+            await().untilAsserted(() -> {
+                final List<Endpoint> endpoints = endpointGroup.endpoints();
+                assertThat(endpoints).isNotNull();
+                assertThat(endpoints).containsExactlyInAnyOrder(
+                        Endpoint.of("1.2.3.4.sslip.io", 1).withIpAddr("1.2.3.4"),
+                        Endpoint.of("5.6.7.8.sslip.io", 2).withIpAddr("5.6.7.8"),
+                        Endpoint.of("4.3.2.1", 3),
+                        Endpoint.of("8.7.6.5", 4));
+            });
+        }
     }
 
     /**
@@ -145,6 +158,38 @@ class ArmeriaCentralDogmaBuilderTest {
         verify(cf1, times(1)).newClient(any());
         verify(cf2, never()).newClient(any());
         verify(cf3, never()).newClient(any());
+    }
+
+    @Test
+    void testHealthCheckIntervalNotSet() throws Exception {
+        final ArmeriaCentralDogmaBuilder b = new ArmeriaCentralDogmaBuilder();
+        b.host("1.1.1.1");
+        b.host("2.2.2.2");
+        try (EndpointGroup endpointGroup = b.endpointGroup()) {
+            assertThat(endpointGroup).isInstanceOf(HealthCheckedEndpointGroup.class);
+        }
+    }
+
+    @Test
+    void testHealthCheckIntervalSetToZero() throws Exception {
+        final ArmeriaCentralDogmaBuilder b =
+                new ArmeriaCentralDogmaBuilder().healthCheckIntervalMillis(0);
+        b.host("1.1.1.1");
+        b.host("2.2.2.2");
+        try (EndpointGroup endpointGroup = b.endpointGroup()) {
+            assertThat(endpointGroup).isNotInstanceOf(HealthCheckedEndpointGroup.class);
+        }
+    }
+
+    @Test
+    void testHealthCheckIntervalSetToNonZero() throws Exception {
+        final ArmeriaCentralDogmaBuilder b =
+                new ArmeriaCentralDogmaBuilder().healthCheckIntervalMillis(1000);
+        b.host("1.1.1.1");
+        b.host("2.2.2.2");
+        try (EndpointGroup endpointGroup = b.endpointGroup()) {
+            assertThat(endpointGroup).isInstanceOf(HealthCheckedEndpointGroup.class);
+        }
     }
 
     private static final class ArmeriaCentralDogmaBuilder
