@@ -181,7 +181,7 @@ final class CommitIdDatabase implements AutoCloseable {
         if (!(firstRevision.major() <= revision.major() && revision.major() <= headRevision.major())) {
             throw new RevisionNotFoundException(
                     "revision: " + revision +
-                    " (expected: " + firstRevision.major() + " <= revision <= " + headRevision.major() + ")");
+                    " (expected: " + firstRevision.major() + " <= revision <= " + headRevision.major() + ')');
         }
 
         final ByteBuffer buf = threadLocalBuffer.get();
@@ -222,7 +222,7 @@ final class CommitIdDatabase implements AutoCloseable {
         commitId.copyRawTo(buf);
         buf.flip();
 
-        // Append a record to the file.
+        // Append or overwrite a record in the file.
         long pos = (long) (revision.major() - firstRevision.major()) * RECORD_LEN;
         try {
             do {

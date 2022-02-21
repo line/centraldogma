@@ -480,6 +480,8 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             this.headRevision = res.revision;
             final InternalRepository secondaryRepo = this.secondaryRepo;
             if (secondaryRepo != null) {
+                assert headRevision.equals(secondaryRepo.headRevision());
+
                 // Push the same commit to the secondary repo.
                 secondaryRepo.commit(headRevision, headRevision.forward(1), commitTimeMillis,
                                      author, summary, detail, markup, applyingChanges, false);
@@ -748,22 +750,23 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
     public void createRollingRepository(Revision rollingRepositoryInitialRevision,
                                         int minRetentionCommits, int minRetentionDays) {
         requireNonNull(rollingRepositoryInitialRevision, "rollingRepositoryInitialRevision");
-        checkState(shouldCreateRollingRepository(rollingRepositoryInitialRevision,
-                                                 minRetentionCommits, minRetentionDays) ==
-                   rollingRepositoryInitialRevision, "aaa");
+        final Revision rollingRepositoryRevision = shouldCreateRollingRepository(rollingRepositoryInitialRevision,
+                                                                minRetentionCommits, minRetentionDays);
+        checkState(rollingRepositoryRevision == rollingRepositoryInitialRevision,
+                   "shouldCreateRollingRepository() returns %s. (expected: %s)", rollingRepositoryRevision,
+                   rollingRepositoryInitialRevision);
 
-        final InternalRepository secondaryRepo = this.secondaryRepo;
         if (secondaryRepo != null) {
-            promoteSecondaryRepo(secondaryRepo, rollingRepositoryInitialRevision);
-        } else {
-            createSecondaryRepo(rollingRepositoryInitialRevision);
+            promoteSecondaryRepo();
         }
+        createSecondaryRepo(rollingRepositoryInitialRevision);
     }
 
-    private void promoteSecondaryRepo(InternalRepository secondaryRepo,
-                                      Revision rollingRepositoryInitialRevision) {
+    private void promoteSecondaryRepo() {
         writeLock();
         try {
+            checkState(primaryRepo.headRevision().equals(secondaryRepo.headRevision()), "");
+
             logger.info("Promoting the secondary repository in {}/{}.", parent.name(), originalRepoName);
             repoMetadata.setPrimaryRepoDir(secondaryRepo.jGitRepo().getDirectory());
             final InternalRepository primaryRepo = this.primaryRepo;
@@ -785,8 +788,6 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         } finally {
             writeUnLock();
         }
-
-        createSecondaryRepo(rollingRepositoryInitialRevision);
     }
 
     private void createSecondaryRepo(Revision rollingRepositoryInitialRevision) {

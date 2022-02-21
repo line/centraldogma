@@ -53,7 +53,8 @@ final class RepositoryMetadataDatabase implements AutoCloseable {
         return new File(rootDir, rootDir.getName() + '_' + suffix);
     }
 
-    private final File rootDir;
+    @VisibleForTesting
+    final File rootDir;
     private final Path path;
     private final FileChannel channel;
     private String primarySuffix;

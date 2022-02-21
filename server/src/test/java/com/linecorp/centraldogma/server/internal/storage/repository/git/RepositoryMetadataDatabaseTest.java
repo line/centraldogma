@@ -49,6 +49,12 @@ class RepositoryMetadataDatabaseTest {
     }
 
     @Test
+    void writeAndRead() throws Exception {
+        final RepositoryMetadataDatabase other = new RepositoryMetadataDatabase(db.rootDir, false);
+        assertThat(other.primaryRepoDir().getName()).isEqualTo(db.primaryRepoDir().getName());
+    }
+
+    @Test
     void secondaryDirIsGreaterThanPrimaryByOne() {
         assertThat(db.primaryRepoDir().getName()).isEqualTo(tempDir.getName() + "_0000000000");
         assertThat(db.secondaryRepoDir().getName()).isEqualTo(tempDir.getName() + "_0000000001");
