@@ -900,6 +900,14 @@ class ContentServiceV1Test {
                                                              HttpHeaderNames.IF_NONE_MATCH, "-1");
             final CompletableFuture<AggregatedHttpResponse> future = client.execute(headers).aggregate();
 
+            assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
+                    .isExactlyInstanceOf(TimeoutException.class);
+
+            // An irrelevant change should not trigger a notification.
+            addBarTxt(client);
+            assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
+                    .isExactlyInstanceOf(TimeoutException.class);
+
             editFooJson5WithTextPatch(client);
             final String expectedJson =
                     '{' +

@@ -45,8 +45,6 @@ class ArmeriaCentralDogmaTest {
             "  // comments\n" +
             "  unquoted: 'and you can quote me on that',\n" +
             "  singleQuotes: 'I can use \"double quotes\" here',\n" +
-            "  lineBreaks: \"Look, Mom! \\\n" +
-            "No \\\\n's!\"," +
             "  leadingDecimalPoint: .8675309," +
             "  trailingComma: 'in objects', andIn: ['arrays',]," +
             "  \"backwardsCompatible\": \"with JSON\",\n" +
