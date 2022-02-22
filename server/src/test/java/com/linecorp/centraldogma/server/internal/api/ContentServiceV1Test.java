@@ -911,9 +911,9 @@ class ContentServiceV1Test {
             editFooJson5WithTextPatch(client);
             final String expectedJson =
                     '{' +
-                    "    \"revision\": 3," +
+                    "    \"revision\": 4," +
                     "    \"entry\": {" +
-                    "        \"revision\": 3," +
+                    "        \"revision\": 4," +
                     "        \"path\": \"/foo.json5\"," +
                     "        \"type\": \"JSON\"," +
                     "        \"content\": \"{a: 'baz'}\\n\"," +
