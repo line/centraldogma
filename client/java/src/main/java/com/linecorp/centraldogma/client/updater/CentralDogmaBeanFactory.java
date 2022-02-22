@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Query;
 
 import javassist.util.proxy.ProxyFactory;
@@ -322,7 +323,7 @@ public class CentralDogmaBeanFactory {
                             initialTimeoutMillis + " ms. You may want to increase 'initialValueTimeout' or " +
                             "wait for the initial endpoints using 'CentralDogma.whenEndpointReady()' " +
                             "before initiating this " + CentralDogmaBeanFactory.class.getSimpleName() + '.';
-                    throw new IllegalStateException(message, ex);
+                    throw new CentralDogmaException(message, ex);
                 } else {
                     throw ex;
                 }
