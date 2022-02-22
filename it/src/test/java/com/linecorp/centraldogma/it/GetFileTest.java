@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.it.TestConstants.JSON5_CONTENTS;
 import static com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender.assertThatThrownByWithExpectedException;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,11 +114,14 @@ class GetFileTest {
         @Test
         void getJson5() throws JsonParseException {
             final CentralDogma client = dogma.client();
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit("Add a file", Change.ofJsonUpsert("/test/foo.json5", "{ a: 'b' }"))
+                  .push().join();
 
             final Entry<JsonNode> json = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
-                                                        Query.ofJson("/test/test1.json5")).join();
-            assertThatJson(json.content()).isEqualTo(Json5.readTree(JSON5_CONTENTS));
-            assertThat(json.contentAsText()).isEqualTo(JSON5_CONTENTS);
+                                                        Query.ofJson("/test/foo.json5")).join();
+            assertThatJson(json.content()).isEqualTo(Json5.readTree("{ a: 'b' }"));
+            assertThat(json.contentAsText()).isEqualTo("{ a: 'b' }\n");
         }
 
         @Test
@@ -128,13 +130,13 @@ class GetFileTest {
 
             final Entry<JsonNode> json1 = client.getFile(
                     dogma.project(), dogma.repo1(), Revision.HEAD,
-                    Query.ofJsonPath("/test/test1.json5", "$.singleQuotes")).join();
-            assertThat(json1.content().asText()).isEqualTo("I can use \"double quotes\" here");
+                    Query.ofJsonPath("/test/test1.json5", "$.a")).join();
+            assertThat(json1.content().asText()).isEqualTo("apple");
 
             final Entry<JsonNode> json2 = client.getFile(
                     dogma.project(), dogma.repo1(), Revision.HEAD,
-                    Query.ofJsonPath("/test/test1.json5", ImmutableList.of("$.andIn", "$.[0]"))).join();
-            assertThat(json2.content().asText()).isEqualTo("arrays");
+                    Query.ofJsonPath("/test/test1.json5", ImmutableList.of("$.numbers", "$.[0]"))).join();
+            assertThat(json2.content().asInt()).isEqualTo(1);
         }
     }
 }

@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.it.TestConstants.JSON5_CONTENTS;
 import static net.javacrumbs.jsonunit.fluent.JsonFluentAssert.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,7 +40,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
@@ -59,7 +57,6 @@ import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Json5;
 
 class WatchTest {
 
@@ -757,7 +754,11 @@ class WatchTest {
     private static void revertTestFiles(CentralDogma client) {
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test1.json", "[ 1, 2, 3 ]");
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test2.json", "{ \"a\": \"apple\" }");
-        final Change<JsonNode> change3 = Change.ofJsonUpsert("/test/test1.json5", JSON5_CONTENTS);
+        final Change<JsonNode> change3 = Change.ofJsonUpsert("/test/test1.json5", "{\n" +
+                                                                                  "  // comments\n" +
+                                                                                  "  a: 'apple',\n" +
+                                                                                  "  numbers: [1, 2, 3],\n" +
+                                                                                  "}\n");
 
         final List<Change<JsonNode>> changes = Arrays.asList(change1, change2, change3);
 
@@ -817,7 +818,7 @@ class WatchTest {
         }
 
         @Test
-        void watchJson5_notNotifiedIfJsonContentNotChanged() throws JsonParseException {
+        void watchJson5_notNotifiedIfJsonContentNotChanged() {
             final CentralDogma client = dogma.client();
             revertTestFiles(client);
 
@@ -827,12 +828,12 @@ class WatchTest {
                           .start(Revision.HEAD);
 
             // Edit file to the plain JSON, so it doesn't change the actual JSON content in it.
-            final JsonNode plainJson = Json5.readTree(JSON5_CONTENTS);
-                client.forRepo(dogma.project(), dogma.repo1())
-                      .commit("Edit test1.json5",
-                              Change.ofJsonUpsert("/test/test1.json5", plainJson))
-                      .push(Revision.HEAD)
-                      .join();
+            client.forRepo(dogma.project(), dogma.repo1())
+                  .commit("Edit test1.json5",
+                          Change.ofJsonUpsert("/test/test1.json5",
+                                              "{\"a\": \"apple\", \"numbers\": [1,2,3]}"))
+                  .push(Revision.HEAD)
+                  .join();
 
             // Watcher should not be notified since the JSON content is still the same.
             assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS))
