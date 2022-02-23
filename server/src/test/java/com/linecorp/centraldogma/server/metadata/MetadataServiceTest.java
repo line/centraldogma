@@ -160,6 +160,7 @@ class MetadataServiceTest {
         }
         // Do not throw RedundantChangeException when the same metadata are added multiple times.
         CompletableFutures.allAsList(builder.build()).join();
+        assertThat(mds.getProject(project1).join().repo(repo2).creation().user()).isEqualTo(author.email());
     }
 
     @Test
