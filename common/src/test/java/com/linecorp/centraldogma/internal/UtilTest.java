@@ -19,7 +19,7 @@ package com.linecorp.centraldogma.internal;
 import static com.linecorp.centraldogma.internal.Util.validateDirPath;
 import static com.linecorp.centraldogma.internal.Util.validateEmailAddress;
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateJsonOrYamlFilePath;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
@@ -161,11 +161,11 @@ class UtilTest {
     }
 
     private static void assertJsonFilePathValidationSuccess(String path) {
-        validateJsonFilePath(path, "path");
+        validateJsonOrYamlFilePath(path, "path");
     }
 
     private static void assertJsonFilePathValidationFailure(String path) {
-        assertThatThrownBy(() -> validateJsonFilePath(path, "path"))
+        assertThatThrownBy(() -> validateJsonOrYamlFilePath(path, "path"))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 

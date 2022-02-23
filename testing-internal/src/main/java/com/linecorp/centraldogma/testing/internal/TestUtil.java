@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.TestInfo;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 public final class TestUtil {
 
@@ -40,7 +40,7 @@ public final class TestUtil {
     public static <T> void assertJsonConversion(T value, Class<T> valueType, String json) {
         assertThatJson(json).isEqualTo(value);
         try {
-            assertThat(Jackson.readValue(json, valueType)).isEqualTo(value);
+            assertThat(Jackson.ofJson().readValue(json, valueType)).isEqualTo(value);
         } catch (IOException e) {
             throw new IOError(e);
         }

@@ -51,7 +51,12 @@ class MergeFileTest {
                   .commit("Initial files",
                           Change.ofJsonUpsert("/foo.json", "{ \"a\": \"bar\" }"),
                           Change.ofJsonUpsert("/foo1.json", "{ \"b\": \"baz\" }"),
-                          Change.ofJsonUpsert("/foo2.json", "{ \"a\": \"new_bar\" }"))
+                          Change.ofJsonUpsert("/foo2.json", "{ \"a\": \"new_bar\" }"),
+                          Change.ofYamlUpsert("/bar.yml", "c:\n" +
+                                                          "  z: \"foo\""),
+                          Change.ofYamlUpsert("/bar1.yml", "c:\n" +
+                                                           "  x: \"qux\""),
+                          Change.ofYamlUpsert("/bar2.yml", "d: \"bar\""))
                   .push().join();
         }
 
@@ -96,6 +101,56 @@ class MergeFileTest {
                                               MergeSource.ofRequired("/foo2.json"),
                                               MergeSource.ofRequired("/foo3.json")) // required
                                        .get().join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(EntryNotFoundException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void mergeYamlFiles(ClientType clientType) {
+        final CentralDogma client = clientType.client(dogma);
+        final MergedEntry<?> merged = client.mergeFiles("myPro", "myRepo", Revision.HEAD,
+                                                        MergeSource.ofRequired("/bar.yml"),
+                                                        MergeSource.ofRequired("/bar1.yml"),
+                                                        MergeSource.ofRequired("/bar2.yml"),
+                                                        MergeSource.ofOptional("/bar3.yml")).join();
+
+        assertThat(merged.paths()).containsExactly("/bar.yml", "/bar1.yml", "/bar2.yml");
+        assertThat(merged.revision()).isEqualTo(new Revision(2));
+        assertThatJson(merged.content()).isEqualTo('{' +
+                                                   "  \"c\": {" +
+                                                   "    \"z\": \"foo\"," +
+                                                   "    \"x\": \"qux\"" +
+                                                   "  }," +
+                                                   "  \"d\": \"bar\"" +
+                                                   '}');
+
+        /* TODO: Make it work. For now, ContentServiceV1 cannot differentiate
+         *       MergeQuery.ofJson(which is MergeQuery<JsonNode>) and MergeQuery.ofYaml(which is also
+         *       MergeQuery<JsonNode>), so merged entry type is always EntryType.JSON
+        assertThat(merged.type()).isEqualTo(EntryType.YAML);
+         */
+
+        // Check again to see if the original files are changed.
+        // Content is YAML but uses as JsonNode, so use assertThatJson
+        assertThatJson(client.getFile("myPro", "myRepo", Revision.HEAD, Query.ofYaml("/bar.yml"))
+                             .join()
+                             .content())
+                .isEqualTo("{ \"c\": { \"z\": \"foo\" } }");
+        assertThatJson(client.getFile("myPro", "myRepo", Revision.HEAD, Query.ofYaml("/bar1.yml"))
+                             .join()
+                             .content())
+                .isEqualTo("{ \"c\": { \"x\": \"qux\" } }");
+        assertThatJson(client.getFile("myPro", "myRepo", Revision.HEAD, Query.ofYaml("/bar2.yml"))
+                             .join()
+                             .content())
+                .isEqualTo("{ \"d\": \"bar\" }");
+
+        assertThatThrownBy(() -> client.mergeFiles("myPro", "myRepo", Revision.HEAD,
+                                                   MergeSource.ofRequired("/bar.yml"),
+                                                   MergeSource.ofRequired("/bar1.yml"),
+                                                   MergeSource.ofRequired("/bar2.yml"),
+                                                   MergeSource.ofRequired("/bar3.yml")).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(EntryNotFoundException.class);
     }

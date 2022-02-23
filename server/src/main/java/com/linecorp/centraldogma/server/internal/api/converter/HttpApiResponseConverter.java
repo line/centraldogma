@@ -36,7 +36,7 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 /**
@@ -66,7 +66,7 @@ public final class HttpApiResponseConverter implements ResponseConverterFunction
                 resHeaders = headers;
             }
 
-            final HttpData httpData = HttpData.wrap(Jackson.writeValueAsBytes(resObj));
+            final HttpData httpData = HttpData.wrap(Jackson.ofJson().writeValueAsBytes(resObj));
             return HttpResponse.of(resHeaders, httpData, trailingHeaders);
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);

@@ -22,7 +22,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Converter;
 
 import com.linecorp.centraldogma.common.ChangeFormatException;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * Provides a function converting back and forth between {@link Change} and
@@ -43,8 +43,9 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
         switch (change.getType()) {
             case UPSERT_JSON:
             case APPLY_JSON_PATCH:
+            case APPLY_YAML_PATCH:
                 try {
-                    change.setContent(Jackson.writeValueAsString(value.content()));
+                    change.setContent(Jackson.ofJson().writeValueAsString(value.content()));
                 } catch (JsonProcessingException e) {
                     throw new ChangeFormatException("failed to read a JSON tree", e);
                 }
@@ -55,6 +56,13 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
                 change.setContent((String) value.content());
                 break;
             case REMOVE:
+                break;
+            case UPSERT_YAML:
+                try {
+                    change.setContent(Jackson.ofYaml().writeValueAsString(value.content()));
+                } catch (JsonProcessingException e) {
+                    throw new ChangeFormatException("failed to read a YAML tree", e);
+                }
                 break;
         }
         return change;
@@ -77,6 +85,12 @@ public final class ChangeConverter extends Converter<com.linecorp.centraldogma.c
                 return com.linecorp.centraldogma.common.Change.ofJsonPatch(c.getPath(), c.getContent());
             case APPLY_TEXT_PATCH:
                 return com.linecorp.centraldogma.common.Change.ofTextPatch(c.getPath(),
+                                                                           c.getContent());
+            case UPSERT_YAML:
+                return com.linecorp.centraldogma.common.Change.ofYamlUpsert(c.getPath(),
+                                                                            c.getContent());
+            case APPLY_YAML_PATCH:
+                return com.linecorp.centraldogma.common.Change.ofYamlPatch(c.getPath(),
                                                                            c.getContent());
         }
 

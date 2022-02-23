@@ -42,7 +42,7 @@ import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -73,7 +73,7 @@ class RepositoryServiceV1Test {
         final String location = headers.get(HttpHeaderNames.LOCATION);
         assertThat(location).isEqualTo("/api/v1/projects/myPro/repos/myRepo");
 
-        final JsonNode jsonNode = Jackson.readTree(aRes.contentUtf8());
+        final JsonNode jsonNode = Jackson.ofJson().readTree(aRes.contentUtf8());
         assertThat(jsonNode.get("name").asText()).isEqualTo("myRepo");
         assertThat(jsonNode.get("headRevision").asInt()).isOne();
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
@@ -244,7 +244,7 @@ class RepositoryServiceV1Test {
 
             final AggregatedHttpResponse remainedRes = client.get(REPOS_PREFIX).aggregate().join();
             final String remains = remainedRes.contentUtf8();
-            final JsonNode jsonNode = Jackson.readTree(remains);
+            final JsonNode jsonNode = Jackson.ofJson().readTree(remains);
 
             // dogma, meta and trustin repositories are left
             assertThat(jsonNode).hasSize(3);

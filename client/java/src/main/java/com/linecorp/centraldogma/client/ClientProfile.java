@@ -30,7 +30,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.ImmutableSet;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 final class ClientProfile {
 
@@ -66,7 +66,7 @@ final class ClientProfile {
     @Override
     public String toString() {
         try {
-            return Jackson.writeValueAsPrettyString(this);
+            return Jackson.ofJson().writeValueAsPrettyString(this);
         } catch (JsonProcessingException e) {
             // Should never reach here.
             throw new Error(e);
@@ -108,7 +108,7 @@ final class ClientProfile {
         @Override
         public String toString() {
             try {
-                return Jackson.writeValueAsPrettyString(this);
+                return Jackson.ofJson().writeValueAsPrettyString(this);
             } catch (JsonProcessingException e) {
                 // Should never reach here.
                 throw new Error(e);

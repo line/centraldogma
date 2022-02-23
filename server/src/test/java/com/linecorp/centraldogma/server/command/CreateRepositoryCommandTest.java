@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 class CreateRepositoryCommandTest {
 
@@ -44,7 +44,7 @@ class CreateRepositoryCommandTest {
 
     @Test
     void backwardCompatibility() throws Exception {
-        final CreateRepositoryCommand c = (CreateRepositoryCommand) Jackson.readValue(
+        final CreateRepositoryCommand c = (CreateRepositoryCommand) Jackson.ofJson().readValue(
                 '{' +
                 "  \"type\": \"CREATE_REPOSITORY\"," +
                 "  \"projectName\": \"foo\"," +

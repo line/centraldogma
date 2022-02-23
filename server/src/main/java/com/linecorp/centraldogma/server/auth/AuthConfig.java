@@ -35,7 +35,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableSet;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * An authentication configuration for the Central Dogma server.
@@ -205,7 +205,7 @@ public final class AuthConfig {
      */
     @Nullable
     public <T> T properties(Class<T> clazz) throws JsonProcessingException {
-        return properties != null ? Jackson.treeToValue(properties, clazz) : null;
+        return properties != null ? Jackson.ofJson().treeToValue(properties, clazz) : null;
     }
 
     /**
@@ -219,7 +219,7 @@ public final class AuthConfig {
     @Override
     public String toString() {
         try {
-            return Jackson.writeValueAsPrettyString(this);
+            return Jackson.ofJson().writeValueAsPrettyString(this);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }

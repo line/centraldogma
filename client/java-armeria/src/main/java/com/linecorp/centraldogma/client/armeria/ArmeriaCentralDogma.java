@@ -102,9 +102,9 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
@@ -966,7 +966,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
      */
     private static byte[] toBytes(JsonNode content) {
         try {
-            return Jackson.writeValueAsBytes(content);
+            return Jackson.ofJson().writeValueAsBytes(content);
         } catch (JsonProcessingException e) {
             // Should never reach here.
             throw new Error(e);
@@ -1000,7 +1000,7 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         final String content = toString(res);
         final JsonNode node;
         try {
-            node = Jackson.readTree(content);
+            node = Jackson.ofJson().readTree(content);
         } catch (JsonParseException e) {
             throw new CentralDogmaException("failed to parse the response JSON", e);
         }
@@ -1033,15 +1033,17 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 return entryAsText(revision, node, entryPath);
             case IDENTITY_JSON:
             case JSON_PATH:
-                if (receivedEntryType != EntryType.JSON) {
-                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
-                                                    " (expected: " + queryType + ')');
-                }
+                validateEntryType(receivedEntryType, EntryType.JSON);
                 return entryAsJson(revision, node, entryPath);
+            case IDENTITY_YAML:
+                validateEntryType(receivedEntryType, EntryType.YAML);
+                return entryAsYaml(revision, node, entryPath);
             case IDENTITY:
                 switch (receivedEntryType) {
                     case JSON:
                         return entryAsJson(revision, node, entryPath);
+                    case YAML:
+                        return entryAsYaml(revision, node, entryPath);
                     case TEXT:
                         return entryAsText(revision, node, entryPath);
                     case DIRECTORY:
@@ -1055,7 +1057,12 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         final JsonNode content = getField(node, "content");
         final String content0;
         if (content.isContainerNode()) {
-            content0 = content.toString();
+            try {
+                content0 = Jackson.of(EntryType.guessFromPath(entryPath)).writeValueAsString(content);
+            } catch (JsonProcessingException e) {
+                // Should never happen because it's a JSON or YAML tree already.
+                throw new Error(e);
+            }
         } else {
             content0 = content.asText();
         }
@@ -1064,6 +1071,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     private static <T> Entry<T> entryAsJson(Revision revision, JsonNode node, String entryPath) {
         return unsafeCast(Entry.ofJson(revision, entryPath, getField(node, "content")));
+    }
+
+    private static <T> Entry<T> entryAsYaml(Revision revision, JsonNode node, String entryPath) {
+        return unsafeCast(Entry.ofYaml(revision, entryPath, getField(node, "content")));
     }
 
     private static Commit toCommit(JsonNode node) {
@@ -1086,6 +1097,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         switch (type) {
             case UPSERT_JSON:
                 return unsafeCast(Change.ofJsonUpsert(actualPath, getField(node, "content")));
+            case UPSERT_YAML:
+                return unsafeCast(Change.ofYamlUpsert(actualPath, getField(node, "content").asText()));
             case UPSERT_TEXT:
                 return unsafeCast(Change.ofTextUpsert(actualPath, getField(node, "content").asText()));
             case REMOVE:
@@ -1094,6 +1107,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
                 return unsafeCast(Change.ofRename(actualPath, getField(node, "content").asText()));
             case APPLY_JSON_PATCH:
                 return unsafeCast(Change.ofJsonPatch(actualPath, getField(node, "content")));
+            case APPLY_YAML_PATCH:
+                return unsafeCast(Change.ofYamlPatch(actualPath, getField(node, "content")));
             case APPLY_TEXT_PATCH:
                 return unsafeCast(Change.ofTextPatch(actualPath, getField(node, "content").asText()));
         }
@@ -1142,5 +1157,12 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
         }
 
         throw new CentralDogmaException("unexpected response: " + res.headers() + ", " + res.contentUtf8());
+    }
+
+    private static void validateEntryType(EntryType actual, EntryType expected) {
+        if (actual != expected) {
+            throw new CentralDogmaException("invalid entry type. entry type: " + actual +
+                                            " (expected: " + expected + ')');
+        }
     }
 }

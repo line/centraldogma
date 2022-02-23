@@ -29,8 +29,8 @@ import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.JacksonRequestConverterFunction;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.CommitMessageDto;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * A request converter that converts to {@link CommitMessageDto}.
@@ -56,7 +56,8 @@ public final class CommitMessageRequestConverter implements RequestConverterFunc
     }
 
     private static CommitMessageDto convertCommitMessage(JsonNode jsonNode) {
-        final CommitMessageDto commitMessage = Jackson.convertValue(jsonNode, CommitMessageDto.class);
+        final CommitMessageDto commitMessage = Jackson.ofJson()
+                                                      .convertValue(jsonNode, CommitMessageDto.class);
         checkArgument(!isNullOrEmpty(commitMessage.summary()), "summary should be non-null");
         return commitMessage;
     }

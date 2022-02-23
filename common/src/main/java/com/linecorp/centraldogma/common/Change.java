@@ -37,8 +37,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 
@@ -85,7 +85,7 @@ public interface Change<T> {
 
         final JsonNode jsonNode;
         try {
-            jsonNode = Jackson.readTree(jsonText);
+            jsonNode = Jackson.ofJson().readTree(jsonText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
@@ -102,6 +102,36 @@ public interface Change<T> {
     static Change<JsonNode> ofJsonUpsert(String path, JsonNode jsonNode) {
         requireNonNull(jsonNode, "jsonNode");
         return new DefaultChange<>(path, ChangeType.UPSERT_JSON, jsonNode);
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_YAML}.
+     *
+     * @param path the path of the file
+     * @param yamlText the content of the file
+     */
+    static Change<JsonNode> ofYamlUpsert(String path, String yamlText) {
+        requireNonNull(yamlText, "yamlText");
+
+        final JsonNode yamlNode;
+        try {
+            yamlNode = Jackson.ofYaml().readTree(yamlText);
+        } catch (IOException e) {
+            throw new ChangeFormatException("failed to read a value as a YAML tree", e);
+        }
+
+        return new DefaultChange<>(path, ChangeType.UPSERT_YAML, yamlNode);
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#UPSERT_YAML}.
+     *
+     * @param path the path of the file
+     * @param yamlNode the content of the file
+     */
+    static Change<JsonNode> ofYamlUpsert(String path, JsonNode yamlNode) {
+        requireNonNull(yamlNode, "yamlNode");
+        return new DefaultChange<>(path, ChangeType.UPSERT_YAML, yamlNode);
     }
 
     /**
@@ -194,9 +224,8 @@ public interface Change<T> {
         final JsonNode oldJsonNode;
         final JsonNode newJsonNode;
         try {
-            oldJsonNode = oldJsonText == null ? Jackson.nullNode
-                                              : Jackson.readTree(oldJsonText);
-            newJsonNode = Jackson.readTree(newJsonText);
+            oldJsonNode = Jackson.ofJson().readTree(oldJsonText);
+            newJsonNode = Jackson.ofJson().readTree(newJsonText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
@@ -236,7 +265,7 @@ public interface Change<T> {
 
         final JsonNode jsonPatchNode;
         try {
-            jsonPatchNode = Jackson.readTree(jsonPatchText);
+            jsonPatchNode = Jackson.ofJson().readTree(jsonPatchText);
         } catch (IOException e) {
             throw new ChangeFormatException("failed to read a value as a JSON tree", e);
         }
@@ -254,6 +283,84 @@ public interface Change<T> {
         requireNonNull(jsonPatchNode, "jsonPatchNode");
 
         return new DefaultChange<>(path, ChangeType.APPLY_JSON_PATCH, jsonPatchNode);
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_YAML_PATCH}.
+     *
+     * @param path the path of the file
+     * @param oldYamlText the old content of the file
+     * @param newYamlText the new content of the file
+     *
+     * @throws ChangeFormatException if the specified {@code oldYamlText} or {@code newYamlText} is
+     *                               not a valid YAML
+     */
+    static Change<JsonNode> ofYamlPatch(String path, @Nullable String oldYamlText, String newYamlText) {
+        requireNonNull(newYamlText, "newYamlText");
+
+        final JsonNode oldYamlNode;
+        final JsonNode newYamlNode;
+        try {
+            oldYamlNode = Jackson.ofYaml().readTree(oldYamlText);
+            newYamlNode = Jackson.ofYaml().readTree(newYamlText);
+        } catch (IOException e) {
+            throw new ChangeFormatException("failed to read a value as a YAML tree", e);
+        }
+
+        return new DefaultChange<>(path, ChangeType.APPLY_YAML_PATCH,
+                                   JsonPatch.generate(oldYamlNode, newYamlNode, ReplaceMode.SAFE).toJson());
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_YAML_PATCH}.
+     *
+     * @param path the path of the file
+     * @param oldYamlNode the old content of the file
+     * @param newYamlNode the new content of the file
+     */
+    static Change<JsonNode> ofYamlPatch(String path, @Nullable JsonNode oldYamlNode, JsonNode newYamlNode) {
+        requireNonNull(newYamlNode, "newYamlNode");
+
+        if (oldYamlNode == null) {
+            oldYamlNode = Jackson.nullNode;
+        }
+
+        return new DefaultChange<>(path, ChangeType.APPLY_YAML_PATCH,
+                                   JsonPatch.generate(oldYamlNode, newYamlNode, ReplaceMode.SAFE).toJson());
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_YAML_PATCH}.
+     *
+     * @param path the path of the file
+     * @param yamlPatchText the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     *
+     * @throws ChangeFormatException if the specified {@code yamlPatchText} is not a valid JSON
+     */
+    static Change<JsonNode> ofYamlPatch(String path, String yamlPatchText) {
+        requireNonNull(yamlPatchText, "yamlPatchText");
+
+        final JsonNode yamlPatchNode;
+        try {
+            // YAML patch is in JSON format
+            yamlPatchNode = Jackson.ofJson().readTree(yamlPatchText);
+        } catch (IOException e) {
+            throw new ChangeFormatException("failed to read a value as a JSON tree", e);
+        }
+
+        return ofYamlPatch(path, yamlPatchNode);
+    }
+
+    /**
+     * Returns a newly-created {@link Change} whose type is {@link ChangeType#APPLY_YAML_PATCH}.
+     *
+     * @param path the path of the file
+     * @param yamlPatchNode the patch in <a href="https://tools.ietf.org/html/rfc6902">JSON patch format</a>
+     */
+    static Change<JsonNode> ofYamlPatch(String path, JsonNode yamlPatchNode) {
+        requireNonNull(yamlPatchNode, "yamlPatchNode");
+
+        return new DefaultChange<>(path, ChangeType.APPLY_YAML_PATCH, yamlPatchNode);
     }
 
     /**
@@ -323,6 +430,8 @@ public interface Change<T> {
         switch (entryType) {
             case JSON:
                 return ofJsonUpsert(targetPath, content);
+            case YAML:
+                return ofYamlUpsert(targetPath, content);
             case TEXT:
                 return ofTextUpsert(targetPath, content);
             default:

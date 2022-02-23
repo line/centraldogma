@@ -30,6 +30,10 @@ public enum EntryType {
      */
     JSON(JsonNode.class),
     /**
+     * A UTF-8 encoded YAML file.
+     */
+    YAML(JsonNode.class),
+    /**
      * A UTF-8 encoded text file.
      */
     TEXT(String.class),
@@ -51,8 +55,13 @@ public enum EntryType {
             return DIRECTORY;
         }
 
-        if (Ascii.toLowerCase(path).endsWith(".json")) {
+        final String normalizedPath = Ascii.toLowerCase(path);
+        if (normalizedPath.endsWith(".json")) {
             return JSON;
+        }
+
+        if (normalizedPath.endsWith(".yml") || normalizedPath.endsWith(".yaml")) {
+            return YAML;
         }
 
         return TEXT;

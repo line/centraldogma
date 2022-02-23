@@ -27,8 +27,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.NormalizingPushCommand;
 
@@ -68,7 +68,7 @@ public final class ReplicationLog<T> {
         }
 
         assert result != null;
-        return Jackson.treeToValue(result, resultType);
+        return Jackson.ofJson().treeToValue(result, resultType);
     }
 
     ReplicationLog(int replicaId, Command<T> command, @Nullable T result) {

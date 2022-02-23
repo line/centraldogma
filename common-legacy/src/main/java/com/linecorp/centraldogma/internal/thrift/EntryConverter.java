@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * Provides a function converting back and forth between {@link Entry} and
@@ -36,9 +36,10 @@ public final class EntryConverter {
         final Entry file = new Entry(entry.path(), convertEntryType(entry.type()));
         switch (entry.type()) {
             case JSON:
+            case YAML:
                 // FIXME(trustin): Inefficiency
                 try {
-                    file.setContent(Jackson.writeValueAsString(entry.content()));
+                    file.setContent(Jackson.of(entry.type()).writeValueAsString(entry.content()));
                 } catch (JsonProcessingException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -59,7 +60,7 @@ public final class EntryConverter {
         switch (entry.getType()) {
             case JSON:
                 try {
-                    final JsonNode value = Jackson.readTree(entry.getContent());
+                    final JsonNode value = Jackson.ofJson().readTree(entry.getContent());
                     return com.linecorp.centraldogma.common.Entry.ofJson(revision, entry.getPath(), value);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
@@ -69,6 +70,13 @@ public final class EntryConverter {
                                                                      entry.getContent());
             case DIRECTORY:
                 return com.linecorp.centraldogma.common.Entry.ofDirectory(revision, entry.getPath());
+            case YAML:
+                try {
+                    final JsonNode value = Jackson.ofYaml().readTree(entry.getContent());
+                    return com.linecorp.centraldogma.common.Entry.ofYaml(revision, entry.getPath(), value);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
             default:
                 throw new IllegalArgumentException("unsupported entry type: " + entry.getType());
         }
@@ -86,6 +94,8 @@ public final class EntryConverter {
         switch (type) {
             case JSON:
                 return EntryType.JSON;
+            case YAML:
+                return EntryType.YAML;
             case TEXT:
                 return EntryType.TEXT;
             case DIRECTORY:

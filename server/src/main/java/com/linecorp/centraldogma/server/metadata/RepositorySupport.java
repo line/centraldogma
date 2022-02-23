@@ -35,7 +35,7 @@ import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -171,7 +171,7 @@ final class RepositorySupport<T> {
         requireNonNull(entry, "entry");
         requireNonNull(clazz, "clazz");
         try {
-            return Jackson.treeToValue(((Entry<JsonNode>) entry).content(), clazz);
+            return Jackson.ofJson().treeToValue(((Entry<JsonNode>) entry).content(), clazz);
         } catch (Throwable cause) {
             return Exceptions.throwUnsafely(cause);
         }

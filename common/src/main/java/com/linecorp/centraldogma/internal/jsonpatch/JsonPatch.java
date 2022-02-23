@@ -62,7 +62,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * Implementation of JSON Patch.
@@ -137,7 +137,7 @@ public final class JsonPatch implements JsonSerializable {
     public static JsonPatch fromJson(final JsonNode node) throws IOException {
         requireNonNull(node, "node");
         try {
-            return Jackson.treeToValue(node, JsonPatch.class);
+            return Jackson.ofJson().treeToValue(node, JsonPatch.class);
         } catch (JsonMappingException e) {
             throw new JsonPatchException("invalid JSON patch", e);
         }
@@ -356,7 +356,7 @@ public final class JsonPatch implements JsonSerializable {
      * Converts this patch into JSON.
      */
     public ArrayNode toJson() {
-        return (ArrayNode) Jackson.valueToTree(this);
+        return (ArrayNode) Jackson.ofJson().valueToTree(this);
     }
 
     @Override

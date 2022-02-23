@@ -33,6 +33,12 @@ public enum ChangeType {
     UPSERT_JSON(JsonNode.class),
 
     /**
+     * Adds a new YAML file or replaces an existing file. {@link Change#content()} will return
+     * the {@link JsonNode} that represents the content of the file.
+     */
+    UPSERT_YAML(JsonNode.class),
+
+    /**
      * Adds a new text file or replaces an existing file. {@link Change#content()} will return
      * the {@link String} that represents the content of the file.
      */
@@ -53,6 +59,13 @@ public enum ChangeType {
      * as defined in <a href="https://tools.ietf.org/html/rfc6902">RFC 6902</a>.
      */
     APPLY_JSON_PATCH(JsonNode.class),
+
+    /**
+     * Applies a JSON patch to a YAML file. The {@link Change#content()} of this type is a JSON patch object,
+     * as defined in <a href="https://tools.ietf.org/html/rfc6902">RFC 6902</a>.
+     * JSON patch format is used in YAML patch.
+     */
+    APPLY_YAML_PATCH(JsonNode.class),
 
     /**
      * Applies a textual patch to a text file. The {@link Change#content()} of this type is a

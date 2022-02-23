@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableSet;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 class NoneMirrorCredentialTest {
@@ -32,18 +32,18 @@ class NoneMirrorCredentialTest {
     @Test
     void testDeserialization() throws Exception {
         // With hostnamePatterns
-        assertThat(Jackson.readValue('{' +
-                                     "  \"type\": \"none\"," +
-                                     "  \"hostnamePatterns\": [" +
-                                     "    \"^foo\\\\.com$\"" +
-                                     "  ]" +
-                                     '}', MirrorCredential.class))
+        assertThat(Jackson.ofJson().readValue('{' +
+                                              "  \"type\": \"none\"," +
+                                              "  \"hostnamePatterns\": [" +
+                                              "    \"^foo\\\\.com$\"" +
+                                              "  ]" +
+                                              '}', MirrorCredential.class))
                 .isEqualTo(new NoneMirrorCredential(null, ImmutableSet.of(Pattern.compile("^foo\\.com$"))));
         // With ID
-        assertThat(Jackson.readValue('{' +
-                                     "  \"type\": \"none\"," +
-                                     "  \"id\": \"foo\"" +
-                                     '}', MirrorCredential.class))
+        assertThat(Jackson.ofJson().readValue('{' +
+                                              "  \"type\": \"none\"," +
+                                              "  \"id\": \"foo\"" +
+                                              '}', MirrorCredential.class))
                 .isEqualTo(new NoneMirrorCredential("foo", null));
     }
 }

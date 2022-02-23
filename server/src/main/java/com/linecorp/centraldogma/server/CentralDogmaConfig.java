@@ -64,7 +64,7 @@ import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ClientAddressSource;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -459,7 +459,7 @@ public final class CentralDogmaConfig {
     @Override
     public String toString() {
         try {
-            return Jackson.writeValueAsPrettyString(this);
+            return Jackson.ofJson().writeValueAsPrettyString(this);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }

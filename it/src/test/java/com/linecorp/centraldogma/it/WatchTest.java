@@ -252,7 +252,7 @@ class WatchTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
-    void watchFileWithIdentityQuery(ClientType clientType) throws Exception {
+    void watchJsonFileWithIdentityQuery(ClientType clientType) throws Exception {
         revertTestFiles(clientType);
 
         final CentralDogma client = clientType.client(dogma);
@@ -291,6 +291,45 @@ class WatchTest {
         assertThat(rev2).isEqualTo(rev0.forward(2));
         assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
                 Entry.ofJson(rev2, "/test/test1.json", "[-1,-2,-3]"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchYamlFileWithIdentityQuery(ClientType clientType) throws Exception {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Revision rev0 = client
+                .normalizeRevision(dogma.project(), dogma.repo1(), Revision.HEAD)
+                .join();
+
+        final CompletableFuture<Entry<JsonNode>> future = client.watchFile(
+                dogma.project(), dogma.repo1(), rev0,
+                Query.ofYaml("/test/test1.yml"), 3000);
+
+        assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+
+        // An irrelevant change should not trigger a notification.
+        final Change<JsonNode> change1 = Change.ofYamlUpsert("/test/test2.yml", "num: 3");
+
+        final PushResult res1 = client.push(
+                dogma.project(), dogma.repo1(), rev0, "Add test2.yml", change1).join();
+
+        final Revision rev1 = res1.revision();
+
+        assertThatThrownBy(() -> future.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+
+        // Make a relevant change now.
+        final Change<JsonNode> change2 = Change.ofYamlUpsert("/test/test1.yml", "foo: \"bar\"");
+
+        final PushResult res2 = client.push(
+                dogma.project(), dogma.repo1(), rev1, "Update test1.yml", change2).join();
+
+        final Revision rev2 = res2.revision();
+
+        assertThat(rev2).isEqualTo(rev0.forward(2));
+        assertThat(future.get(3, TimeUnit.SECONDS)).isEqualTo(
+                Entry.ofYaml(rev2, "/test/test1.yml", "foo: \"bar\""));
     }
 
     @ParameterizedTest
@@ -344,6 +383,22 @@ class WatchTest {
                                                     .start();
         assertThat(stringWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":\"apple\"}");
         stringWatcher.close();
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
+    void watchYamlAsText(ClientType clientType) throws InterruptedException {
+        revertTestFiles(clientType);
+
+        final CentralDogma client = clientType.client(dogma);
+        final Watcher<JsonNode> yamlWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
+                                                                 Query.ofYaml("/test/test1.yml"));
+        assertThatJson(yamlWatcher.awaitInitialValue().value()).isEqualTo("{\"a\":{\"b\":\"c\"}}");
+
+        final Watcher<String> stringWatcher = client.fileWatcher(dogma.project(), dogma.repo1(),
+                                                                 Query.ofText("/test/test1.yml"));
+        assertThat(stringWatcher.awaitInitialValue().value()).isEqualTo("a:\n" +
+                                                                        "  b: \"c\"\n");
     }
 
     @ParameterizedTest
@@ -749,8 +804,10 @@ class WatchTest {
     private static void revertTestFiles(ClientType clientType) {
         final Change<JsonNode> change1 = Change.ofJsonUpsert("/test/test1.json", "[ 1, 2, 3 ]");
         final Change<JsonNode> change2 = Change.ofJsonUpsert("/test/test2.json", "{ \"a\": \"apple\" }");
+        final Change<JsonNode> change3 = Change.ofYamlUpsert("/test/test1.yml", "a:\n  b: c");
+        final Change<JsonNode> change4 = Change.ofYamlUpsert("/test/test2.yml", "num:\n- 1\n- 2");
 
-        final List<Change<JsonNode>> changes = Arrays.asList(change1, change2);
+        final List<Change<?>> changes = Arrays.asList(change1, change2, change3, change4);
         final CentralDogma client = clientType.client(dogma);
 
         if (!client.getPreviewDiffs(dogma.project(), dogma.repo1(), Revision.HEAD, changes)
@@ -761,12 +818,12 @@ class WatchTest {
                   .join();
         }
 
-        final Change<Void> change3 = Change.ofRemoval("/test_not_found/test.json");
+        final Change<Void> change5 = Change.ofRemoval("/test_not_found/test.json");
         final Map<String, EntryType> files = client.listFiles(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                               PathPattern.of("/test_not_found/**")).join();
-        if (files.containsKey(change3.path())) {
+        if (files.containsKey(change5.path())) {
             client.forRepo(dogma.project(), dogma.repo1())
-                  .commit("Remove test files", change3)
+                  .commit("Remove test files", change5)
                   .push()
                   .join();
         }

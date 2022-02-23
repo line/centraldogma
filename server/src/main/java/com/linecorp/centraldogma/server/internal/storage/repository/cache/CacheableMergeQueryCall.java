@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.server.internal.storage.repository.cache;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateJsonOrYamlFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -49,7 +49,7 @@ final class CacheableMergeQueryCall extends CacheableCall<MergedEntry<?>> {
         this.revision = requireNonNull(revision, "revision");
         this.query = requireNonNull(query, "query");
         // Only JSON files can currently be merged.
-        query.mergeSources().forEach(path -> validateJsonFilePath(path.path(), "path"));
+        query.mergeSources().forEach(path -> validateJsonOrYamlFilePath(path.path(), "path"));
 
         hashCode = Objects.hash(revision, query) * 31 + System.identityHashCode(repo);
 

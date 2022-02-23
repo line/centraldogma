@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 class PublicKeyMirrorCredentialTest {
@@ -112,7 +112,8 @@ class PublicKeyMirrorCredentialTest {
     @Test
     void testDeserialization() throws Exception {
         // plaintext passphrase
-        assertThat(Jackson.readValue('{' +
+        assertThat(Jackson.ofJson()
+                          .readValue('{' +
                                      "  \"type\": \"public_key\"," +
                                      "  \"hostnamePatterns\": [" +
                                      "    \"^foo\\\\.com$\"" +
@@ -126,21 +127,23 @@ class PublicKeyMirrorCredentialTest {
                                                          PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
 
         // base64 passphrase
-        assertThat(Jackson.readValue('{' +
-                                     "  \"type\": \"public_key\"," +
-                                     "  \"hostnamePatterns\": [" +
-                                     "    \"^foo\\\\.com$\"" +
-                                     "  ]," +
-                                     "  \"username\": \"trustin\"," +
-                                     "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
-                                     "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
-                                     "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE_BASE64) + '"' +
-                                     '}', MirrorCredential.class))
+        assertThat(Jackson.ofJson().readValue('{' +
+                                              "  \"type\": \"public_key\"," +
+                                              "  \"hostnamePatterns\": [" +
+                                              "    \"^foo\\\\.com$\"" +
+                                              "  ]," +
+                                              "  \"username\": \"trustin\"," +
+                                              "  \"publicKey\": \"" + Jackson.escapeText(PUBLIC_KEY) + "\"," +
+                                              "  \"privateKey\": \"" + Jackson.escapeText(PRIVATE_KEY) + "\"," +
+                                              "  \"passphrase\": \"" + Jackson.escapeText(PASSPHRASE_BASE64) +
+                                              '"' +
+                                              '}', MirrorCredential.class))
                 .isEqualTo(new PublicKeyMirrorCredential(null, HOSTNAME_PATTERNS, USERNAME,
                                                          PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE));
 
         // ID
-        assertThat(Jackson.readValue('{' +
+        assertThat(Jackson.ofJson()
+                          .readValue('{' +
                                      "  \"type\": \"public_key\"," +
                                      "  \"id\": \"foo\"," +
                                      "  \"username\": \"trustin\"," +

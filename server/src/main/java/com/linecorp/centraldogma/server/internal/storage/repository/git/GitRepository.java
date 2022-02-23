@@ -94,7 +94,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -114,8 +113,8 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 import com.linecorp.centraldogma.server.command.CommitResult;
@@ -497,8 +496,12 @@ class GitRepository implements Repository {
                     final byte[] content = reader.open(treeWalk.getObjectId(0)).getBytes();
                     switch (entryType) {
                         case JSON:
-                            final JsonNode jsonNode = Jackson.readTree(content);
+                            final JsonNode jsonNode = Jackson.ofJson().readTree(content);
                             entry = Entry.ofJson(normRevision, path, jsonNode);
+                            break;
+                        case YAML:
+                            final JsonNode yamlNode = Jackson.ofYaml().readTree(content);
+                            entry = Entry.ofYaml(normRevision, path, yamlNode);
                             break;
                         case TEXT:
                             final String strVal = sanitizeText(new String(content, UTF_8));
@@ -511,6 +514,9 @@ class GitRepository implements Repository {
                     switch (entryType) {
                         case JSON:
                             entry = Entry.ofJson(normRevision, path, Jackson.nullNode);
+                            break;
+                        case YAML:
+                            entry = Entry.ofYaml(normRevision, path, Jackson.nullNode);
                             break;
                         case TEXT:
                             entry = Entry.ofText(normRevision, path, "");
@@ -754,22 +760,30 @@ class GitRepository implements Repository {
                         final EntryType oldEntryType = EntryType.guessFromPath(oldPath);
                         switch (oldEntryType) {
                             case JSON:
+                            case YAML:
+                                final JsonPatch patch;
                                 if (!oldPath.equals(newPath)) {
                                     putChange(changeMap, oldPath, Change.ofRename(oldPath, newPath));
                                 }
 
-                                final JsonNode oldJsonNode =
-                                        Jackson.readTree(
+                                final JsonNode oldJsonOrYamlNode =
+                                        Jackson.of(oldEntryType).readTree(
                                                 reader.open(diffEntry.getOldId().toObjectId()).getBytes());
-                                final JsonNode newJsonNode =
-                                        Jackson.readTree(
+                                final JsonNode newJsonOrYamlNode =
+                                        Jackson.of(oldEntryType).readTree(
                                                 reader.open(diffEntry.getNewId().toObjectId()).getBytes());
-                                final JsonPatch patch =
-                                        JsonPatch.generate(oldJsonNode, newJsonNode, ReplaceMode.SAFE);
+                                patch = JsonPatch.generate(oldJsonOrYamlNode, newJsonOrYamlNode,
+                                                           ReplaceMode.SAFE);
 
                                 if (!patch.isEmpty()) {
-                                    putChange(changeMap, newPath,
-                                              Change.ofJsonPatch(newPath, Jackson.valueToTree(patch)));
+                                    final Change<JsonNode> change;
+                                    final JsonNode patchJsonNode = Jackson.ofJson().valueToTree(patch);
+                                    if (oldEntryType == EntryType.JSON) {
+                                        change = Change.ofJsonPatch(newPath, patchJsonNode);
+                                    } else {
+                                        change = Change.ofYamlPatch(newPath, patchJsonNode);
+                                    }
+                                    putChange(changeMap, newPath, change);
                                 }
                                 break;
                             case TEXT:
@@ -795,11 +809,17 @@ class GitRepository implements Repository {
                     case ADD:
                         final EntryType newEntryType = EntryType.guessFromPath(newPath);
                         switch (newEntryType) {
-                            case JSON: {
-                                final JsonNode jsonNode = Jackson.readTree(
+                            case JSON:
+                            case YAML: {
+                                final JsonNode jsonOrYamlNode = Jackson.of(newEntryType).readTree(
                                         reader.open(diffEntry.getNewId().toObjectId()).getBytes());
-
-                                putChange(changeMap, newPath, Change.ofJsonUpsert(newPath, jsonNode));
+                                final Change<JsonNode> change;
+                                if (newEntryType == EntryType.JSON) {
+                                    change = Change.ofJsonUpsert(newPath, jsonOrYamlNode);
+                                } else {
+                                    change = Change.ofYamlUpsert(newPath, jsonOrYamlNode);
+                                }
+                                putChange(changeMap, newPath, change);
                                 break;
                             }
                             case TEXT: {
@@ -1001,13 +1021,24 @@ class GitRepository implements Repository {
 
                 switch (change.type()) {
                     case UPSERT_JSON: {
-                        final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
+                        final JsonNode oldJsonNode = Jackson.ofJson().readTree(oldContent);
                         final JsonNode newJsonNode = firstNonNull((JsonNode) change.content(),
-                                                                  JsonNodeFactory.instance.nullNode());
+                                                                  Jackson.nullNode);
 
                         // Upsert only when the contents are really different.
                         if (!Objects.equals(newJsonNode, oldJsonNode)) {
                             applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                            numEdits++;
+                        }
+                        break;
+                    }
+                    case UPSERT_YAML: {
+                        final JsonNode oldYamlNode = Jackson.ofYaml().readTree(oldContent);
+                        final JsonNode newYamlNode = firstNonNull((JsonNode) change.content(),
+                                                                  Jackson.nullNode);
+
+                        if (!Objects.equals(oldYamlNode, newYamlNode)) {
+                            applyPathEdit(dirCache, new InsertYaml(changePath, inserter, newYamlNode));
                             numEdits++;
                         }
                         break;
@@ -1077,13 +1108,7 @@ class GitRepository implements Repository {
                         break;
                     }
                     case APPLY_JSON_PATCH: {
-                        final JsonNode oldJsonNode;
-                        if (oldContent != null) {
-                            oldJsonNode = Jackson.readTree(oldContent);
-                        } else {
-                            oldJsonNode = Jackson.nullNode;
-                        }
-
+                        final JsonNode oldJsonNode = Jackson.ofJson().readTree(oldContent);
                         final JsonNode newJsonNode;
                         try {
                             newJsonNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldJsonNode);
@@ -1094,6 +1119,22 @@ class GitRepository implements Repository {
                         // Apply only when the contents are really different.
                         if (!newJsonNode.equals(oldJsonNode)) {
                             applyPathEdit(dirCache, new InsertJson(changePath, inserter, newJsonNode));
+                            numEdits++;
+                        }
+                        break;
+                    }
+                    case APPLY_YAML_PATCH: {
+                        final JsonNode oldYamlNode = Jackson.ofYaml().readTree(oldContent);
+                        final JsonNode newYamlNode;
+                        try {
+                            newYamlNode = JsonPatch.fromJson((JsonNode) change.content()).apply(oldYamlNode);
+                        } catch (Exception e) {
+                            throw new ChangeConflictException("failed to apply YAML patch: " + change, e);
+                        }
+
+                        // Apply only when the contents are really different.
+                        if (!newYamlNode.equals(oldYamlNode)) {
+                            applyPathEdit(dirCache, new InsertYaml(changePath, inserter, newYamlNode));
                             numEdits++;
                         }
                         break;
@@ -1688,10 +1729,33 @@ class GitRepository implements Repository {
         @Override
         public void apply(DirCacheEntry ent) {
             try {
-                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, Jackson.writeValueAsBytes(jsonNode)));
+                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, Jackson.ofJson()
+                                                                           .writeValueAsBytes(jsonNode)));
                 ent.setFileMode(FileMode.REGULAR_FILE);
             } catch (IOException e) {
                 throw new StorageException("failed to create a new JSON blob", e);
+            }
+        }
+    }
+
+    private static final class InsertYaml extends PathEdit {
+        private final ObjectInserter inserter;
+        private final JsonNode yamlNode;
+
+        InsertYaml(String entryPath, ObjectInserter inserter, JsonNode yamlNode) {
+            super(entryPath);
+            this.inserter = inserter;
+            this.yamlNode = yamlNode;
+        }
+
+        @Override
+        public void apply(DirCacheEntry ent) {
+            try {
+                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, Jackson.ofYaml()
+                                                                           .writeValueAsBytes(yamlNode)));
+                ent.setFileMode(FileMode.REGULAR_FILE);
+            } catch (IOException e) {
+                throw new StorageException("failed to create a new YAML blob", e);
             }
         }
     }

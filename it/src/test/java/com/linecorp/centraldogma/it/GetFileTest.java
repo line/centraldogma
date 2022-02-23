@@ -65,6 +65,23 @@ class GetFileTest {
 
     @ParameterizedTest
     @EnumSource(ClientType.class)
+    void getYamlAsText(ClientType clientType) throws Exception {
+        final CentralDogma client = clientType.client(dogma);
+        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add a file",
+                    Change.ofYamlUpsert("/test/foo.yaml", "a: b")).join();
+        final Entry<JsonNode> yaml = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                    Query.ofYaml("/test/foo.yaml")).join();
+        assertThatJson(yaml.content()).isEqualTo("{\"a\":\"b\"}");
+
+        final Entry<String> text = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
+                                                  Query.ofText("/test/foo.yaml")).join();
+        assertThat(text.content()).isEqualTo("a: \"b\"\n");
+        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Remove a file",
+                    Change.ofRemoval("/test/foo.yaml")).join();
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClientType.class)
     void invalidJsonPath(ClientType clientType) {
         final CentralDogma client = clientType.client(dogma);
         assertThatThrownBy(() -> client.getFile(

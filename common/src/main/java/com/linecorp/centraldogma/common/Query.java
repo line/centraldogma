@@ -87,6 +87,15 @@ public interface Query<T> extends Function<T, T> {
     }
 
     /**
+     * Returns a newly-created {@link Query} that retrieves the YAML content as it is.
+     *
+     * @param path the path of a file being queried on
+     */
+    static Query<JsonNode> ofYaml(String path) {
+        return new IdentityQuery<>(path, QueryType.IDENTITY_YAML);
+    }
+
+    /**
      * Returns a newly-created {@link Query} that applies a series of expressions to the content.
      *
      * @param type the type of the {@link Query}
@@ -102,6 +111,8 @@ public interface Query<T> extends Function<T, T> {
                 return new IdentityQuery<>(path, QueryType.IDENTITY_TEXT);
             case IDENTITY_JSON:
                 return new IdentityQuery<>(path, QueryType.IDENTITY_JSON);
+            case IDENTITY_YAML:
+                return new IdentityQuery<>(path, QueryType.IDENTITY_YAML);
             case JSON_PATH:
                 requireNonNull(expressions, "expressions");
                 return ofJsonPath(path, expressions);

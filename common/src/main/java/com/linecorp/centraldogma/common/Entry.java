@@ -28,7 +28,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * A file or a directory in a repository.
@@ -69,7 +69,30 @@ public final class Entry<T> implements ContentHolder<T> {
      */
     public static Entry<JsonNode> ofJson(Revision revision, String path, String content)
             throws JsonParseException {
-        return ofJson(revision, path, Jackson.readTree(content));
+        return ofJson(revision, path, Jackson.ofJson().readTree(content));
+    }
+
+    /**
+     * Returns a newly-created {@link Entry} of a YAML file.
+     *
+     * @param revision the revision of the YAML file
+     * @param path the path of the YAML file
+     * @param content the content of the YAML file
+     */
+    public static Entry<JsonNode> ofYaml(Revision revision, String path, JsonNode content) {
+        return new Entry<>(revision, path, EntryType.YAML, content);
+    }
+
+    /**
+     * Returns a newly-created {@link Entry} of a YAML file.
+     *
+     * @param revision the revision of the YAML file
+     * @param path the path of the YAML file
+     * @param content the content of the YAML file
+     */
+    public static Entry<JsonNode> ofYaml(Revision revision, String path, String content)
+            throws JsonParseException {
+        return ofYaml(revision, path, Jackson.ofYaml().readTree(content));
     }
 
     /**

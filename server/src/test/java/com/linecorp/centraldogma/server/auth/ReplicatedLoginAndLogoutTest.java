@@ -47,8 +47,8 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
@@ -148,7 +148,7 @@ class ReplicatedLoginAndLogoutTest {
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount + 1);
 
         // Ensure authorization works at the 2nd replica.
-        final AccessToken accessToken = Jackson.readValue(loginRes.contentUtf8(), AccessToken.class);
+        final AccessToken accessToken = Jackson.ofJson().readValue(loginRes.contentUtf8(), AccessToken.class);
         final String sessionId = accessToken.accessToken();
         await().pollDelay(Durations.TWO_HUNDRED_MILLISECONDS)
                .pollInterval(Durations.ONE_SECOND)

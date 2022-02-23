@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.auth.AuthConfig;
 import com.linecorp.centraldogma.server.auth.AuthException;
 import com.linecorp.centraldogma.server.auth.Session;
@@ -161,7 +161,7 @@ public final class FileBasedSessionManager implements SessionManager {
         }
         try {
             return CompletableFuture.completedFuture(
-                    Jackson.readValue(Files.readAllBytes(path), Session.class));
+                    Jackson.ofJson().readValue(Files.readAllBytes(path), Session.class));
         } catch (IOException e) {
             return CompletableFuture.completedFuture(null);
         }
@@ -183,7 +183,7 @@ public final class FileBasedSessionManager implements SessionManager {
                 }
 
                 final Path tmpPath = Files.createTempFile(tmpDir, null, null);
-                Files.write(tmpPath, Jackson.writeValueAsBytes(session));
+                Files.write(tmpPath, Jackson.ofJson().writeValueAsBytes(session));
                 Files.move(tmpPath, newPath, StandardCopyOption.ATOMIC_MOVE);
                 return null;
             } catch (FileAlreadyExistsException unused) {
@@ -206,7 +206,7 @@ public final class FileBasedSessionManager implements SessionManager {
 
             try {
                 final Path newPath = Files.createTempFile(tmpDir, null, null);
-                Files.write(newPath, Jackson.writeValueAsBytes(session));
+                Files.write(newPath, Jackson.ofJson().writeValueAsBytes(session));
                 Files.move(newPath, oldPath,
                            StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
                 return null;
@@ -293,7 +293,7 @@ public final class FileBasedSessionManager implements SessionManager {
                      stream.filter(FileBasedSessionManager::isSessionFile)
                      .map(path -> {
                          try {
-                             return Jackson.readValue(Files.readAllBytes(path), Session.class);
+                             return Jackson.ofJson().readValue(Files.readAllBytes(path), Session.class);
                          } catch (FileNotFoundException | NoSuchFileException ignored) {
                              // Session deleted by other party.
                          } catch (Exception e) {

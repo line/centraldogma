@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.common;
 
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateJsonOrYamlFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -27,8 +27,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 final class JsonPathQuery implements Query<JsonNode> {
 
@@ -43,7 +43,7 @@ final class JsonPathQuery implements Query<JsonNode> {
     }
 
     JsonPathQuery(String path, Iterable<String> jsonPaths) {
-        this.path = validateJsonFilePath(path, "path");
+        this.path = validateJsonOrYamlFilePath(path, "path");
         Streams.stream(requireNonNull(jsonPaths, "jsonPaths"))
                .forEach(jsonPath -> Util.validateJsonPath(jsonPath, "jsonPath"));
         this.jsonPaths = ImmutableList.copyOf(jsonPaths);
@@ -92,7 +92,7 @@ final class JsonPathQuery implements Query<JsonNode> {
     @Override
     public JsonNode apply(JsonNode input) {
         requireNonNull(input, "input");
-        return Jackson.extractTree(input, jsonPaths);
+        return Jackson.ofJson().extractTree(input, jsonPaths);
     }
 
     @Override

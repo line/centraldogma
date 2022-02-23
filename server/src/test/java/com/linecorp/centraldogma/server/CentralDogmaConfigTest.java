@@ -26,38 +26,38 @@ import java.util.function.Predicate;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.armeria.server.ClientAddressSource;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 class CentralDogmaConfigTest {
 
     @Test
     void trustedProxyAddress_withCustomClientAddressSources() throws Exception {
         final CentralDogmaConfig cfg =
-                Jackson.readValue("{\n" +
-                                  "  \"dataDir\": \"./data\",\n" +
-                                  "  \"ports\": [\n" +
-                                  "    {\n" +
-                                  "      \"localAddress\": {\n" +
-                                  "        \"host\": \"*\",\n" +
-                                  "        \"port\": 36462\n" +
-                                  "      },\n" +
-                                  "      \"protocols\": [\n" +
-                                  "        \"https\",\n" +
-                                  "        \"http\",\n" +
-                                  "        \"proxy\"\n" +
-                                  "      ]\n" +
-                                  "    }\n" +
-                                  "  ],\n" +
-                                  "  \"trustedProxyAddresses\": [\n" +
-                                  "    \"10.0.0.1\",\n" +
-                                  "    \"11.0.0.1/24\"\n" +
-                                  "  ],\n" +
-                                  "  \"clientAddressSources\": [\n" +
-                                  "    \"custom-client-address-header\",\n" +
-                                  "    \"PROXY_PROTOCOL\"\n" +
-                                  "  ]\n" +
-                                  '}',
-                                  CentralDogmaConfig.class);
+                Jackson.ofJson().readValue("{\n" +
+                                           "  \"dataDir\": \"./data\",\n" +
+                                           "  \"ports\": [\n" +
+                                           "    {\n" +
+                                           "      \"localAddress\": {\n" +
+                                           "        \"host\": \"*\",\n" +
+                                           "        \"port\": 36462\n" +
+                                           "      },\n" +
+                                           "      \"protocols\": [\n" +
+                                           "        \"https\",\n" +
+                                           "        \"http\",\n" +
+                                           "        \"proxy\"\n" +
+                                           "      ]\n" +
+                                           "    }\n" +
+                                           "  ],\n" +
+                                           "  \"trustedProxyAddresses\": [\n" +
+                                           "    \"10.0.0.1\",\n" +
+                                           "    \"11.0.0.1/24\"\n" +
+                                           "  ],\n" +
+                                           "  \"clientAddressSources\": [\n" +
+                                           "    \"custom-client-address-header\",\n" +
+                                           "    \"PROXY_PROTOCOL\"\n" +
+                                           "  ]\n" +
+                                           '}',
+                                           CentralDogmaConfig.class);
         assertThat(cfg.trustedProxyAddresses()).hasSize(2);
         assertThat(cfg.clientAddressSources()).hasSize(2);
 
@@ -79,27 +79,27 @@ class CentralDogmaConfigTest {
     @Test
     void trustedProxyAddress_withDefaultClientAddressSources() throws Exception {
         final CentralDogmaConfig cfg =
-                Jackson.readValue("{\n" +
-                                  "  \"dataDir\": \"./data\",\n" +
-                                  "  \"ports\": [\n" +
-                                  "    {\n" +
-                                  "      \"localAddress\": {\n" +
-                                  "        \"host\": \"*\",\n" +
-                                  "        \"port\": 36462\n" +
-                                  "      },\n" +
-                                  "      \"protocols\": [\n" +
-                                  "        \"https\",\n" +
-                                  "        \"http\",\n" +
-                                  "        \"proxy\"\n" +
-                                  "      ]\n" +
-                                  "    }\n" +
-                                  "  ],\n" +
-                                  "  \"trustedProxyAddresses\": [\n" +
-                                  "    \"10.0.0.1\",\n" +
-                                  "    \"11.0.0.1/24\"\n" +
-                                  "  ]\n" +
-                                  '}',
-                                  CentralDogmaConfig.class);
+                Jackson.ofJson().readValue("{\n" +
+                                           "  \"dataDir\": \"./data\",\n" +
+                                           "  \"ports\": [\n" +
+                                           "    {\n" +
+                                           "      \"localAddress\": {\n" +
+                                           "        \"host\": \"*\",\n" +
+                                           "        \"port\": 36462\n" +
+                                           "      },\n" +
+                                           "      \"protocols\": [\n" +
+                                           "        \"https\",\n" +
+                                           "        \"http\",\n" +
+                                           "        \"proxy\"\n" +
+                                           "      ]\n" +
+                                           "    }\n" +
+                                           "  ],\n" +
+                                           "  \"trustedProxyAddresses\": [\n" +
+                                           "    \"10.0.0.1\",\n" +
+                                           "    \"11.0.0.1/24\"\n" +
+                                           "  ]\n" +
+                                           '}',
+                                           CentralDogmaConfig.class);
         assertThat(cfg.trustedProxyAddresses()).hasSize(2);
         assertThat(cfg.clientAddressSources()).isNull();
 
@@ -116,26 +116,26 @@ class CentralDogmaConfigTest {
     @Test
     void trustedProxyAddress_withDefaultClientAddressSources_withoutProxyProtocol() throws Exception {
         final CentralDogmaConfig cfg =
-                Jackson.readValue("{\n" +
-                                  "  \"dataDir\": \"./data\",\n" +
-                                  "  \"ports\": [\n" +
-                                  "    {\n" +
-                                  "      \"localAddress\": {\n" +
-                                  "        \"host\": \"*\",\n" +
-                                  "        \"port\": 36462\n" +
-                                  "      },\n" +
-                                  "      \"protocols\": [\n" +
-                                  "        \"https\",\n" +
-                                  "        \"http\"\n" +
-                                  "      ]\n" +
-                                  "    }\n" +
-                                  "  ],\n" +
-                                  "  \"trustedProxyAddresses\": [\n" +
-                                  "    \"10.0.0.1\",\n" +
-                                  "    \"11.0.0.1/24\"\n" +
-                                  "  ]\n" +
-                                  '}',
-                                  CentralDogmaConfig.class);
+                Jackson.ofJson().readValue("{\n" +
+                                           "  \"dataDir\": \"./data\",\n" +
+                                           "  \"ports\": [\n" +
+                                           "    {\n" +
+                                           "      \"localAddress\": {\n" +
+                                           "        \"host\": \"*\",\n" +
+                                           "        \"port\": 36462\n" +
+                                           "      },\n" +
+                                           "      \"protocols\": [\n" +
+                                           "        \"https\",\n" +
+                                           "        \"http\"\n" +
+                                           "      ]\n" +
+                                           "    }\n" +
+                                           "  ],\n" +
+                                           "  \"trustedProxyAddresses\": [\n" +
+                                           "    \"10.0.0.1\",\n" +
+                                           "    \"11.0.0.1/24\"\n" +
+                                           "  ]\n" +
+                                           '}',
+                                           CentralDogmaConfig.class);
         assertThat(cfg.trustedProxyAddresses()).hasSize(2);
         assertThat(cfg.clientAddressSources()).isNull();
 
@@ -148,23 +148,23 @@ class CentralDogmaConfigTest {
     @Test
     void noTrustedProxyAddress() throws Exception {
         final CentralDogmaConfig cfg =
-                Jackson.readValue("{\n" +
-                                  "  \"dataDir\": \"./data\",\n" +
-                                  "  \"ports\": [\n" +
-                                  "    {\n" +
-                                  "      \"localAddress\": {\n" +
-                                  "        \"host\": \"*\",\n" +
-                                  "        \"port\": 36462\n" +
-                                  "      },\n" +
-                                  "      \"protocols\": [\n" +
-                                  "        \"https\",\n" +
-                                  "        \"http\",\n" +
-                                  "        \"proxy\"\n" +
-                                  "      ]\n" +
-                                  "    }\n" +
-                                  "  ]\n" +
-                                  '}',
-                                  CentralDogmaConfig.class);
+                Jackson.ofJson().readValue("{\n" +
+                                           "  \"dataDir\": \"./data\",\n" +
+                                           "  \"ports\": [\n" +
+                                           "    {\n" +
+                                           "      \"localAddress\": {\n" +
+                                           "        \"host\": \"*\",\n" +
+                                           "        \"port\": 36462\n" +
+                                           "      },\n" +
+                                           "      \"protocols\": [\n" +
+                                           "        \"https\",\n" +
+                                           "        \"http\",\n" +
+                                           "        \"proxy\"\n" +
+                                           "      ]\n" +
+                                           "    }\n" +
+                                           "  ]\n" +
+                                           '}',
+                                           CentralDogmaConfig.class);
         assertThat(cfg.trustedProxyAddresses()).isNull();
         assertThat(cfg.clientAddressSources()).isNull();
         assertThat(cfg.clientAddressSourceList()).isEmpty();
@@ -173,71 +173,70 @@ class CentralDogmaConfigTest {
     @Test
     void maxRemovedRepositoryAgeMillis() throws Exception {
         final CentralDogmaConfig cfg =
-                Jackson.readValue("{\n" +
-                                  "  \"dataDir\": \"./data\",\n" +
-                                  "  \"ports\": [\n" +
-                                  "    {\n" +
-                                  "      \"localAddress\": {\n" +
-                                  "        \"host\": \"*\",\n" +
-                                  "        \"port\": 36462\n" +
-                                  "      },\n" +
-                                  "      \"protocols\": [\n" +
-                                  "        \"https\",\n" +
-                                  "        \"http\",\n" +
-                                  "        \"proxy\"\n" +
-                                  "      ]\n" +
-                                  "    }\n" +
-                                  "  ],\n" +
-                                  "  \"maxRemovedRepositoryAgeMillis\": 50000 \n" +
-                                  '}',
-                                  CentralDogmaConfig.class);
+                Jackson.ofJson().readValue("{\n" +
+                                           "  \"dataDir\": \"./data\",\n" +
+                                           "  \"ports\": [\n" +
+                                           "    {\n" +
+                                           "      \"localAddress\": {\n" +
+                                           "        \"host\": \"*\",\n" +
+                                           "        \"port\": 36462\n" +
+                                           "      },\n" +
+                                           "      \"protocols\": [\n" +
+                                           "        \"https\",\n" +
+                                           "        \"http\",\n" +
+                                           "        \"proxy\"\n" +
+                                           "      ]\n" +
+                                           "    }\n" +
+                                           "  ],\n" +
+                                           "  \"maxRemovedRepositoryAgeMillis\": 50000 \n" +
+                                           '}',
+                                           CentralDogmaConfig.class);
         assertThat(cfg.maxRemovedRepositoryAgeMillis()).isEqualTo(50000);
     }
 
     @Test
     void maxRemovedRepositoryAgeMillis_withDefault() throws Exception {
         final CentralDogmaConfig cfg =
-                Jackson.readValue("{\n" +
-                                  "  \"dataDir\": \"./data\",\n" +
-                                  "  \"ports\": [\n" +
-                                  "    {\n" +
-                                  "      \"localAddress\": {\n" +
-                                  "        \"host\": \"*\",\n" +
-                                  "        \"port\": 36462\n" +
-                                  "      },\n" +
-                                  "      \"protocols\": [\n" +
-                                  "        \"https\",\n" +
-                                  "        \"http\",\n" +
-                                  "        \"proxy\"\n" +
-                                  "      ]\n" +
-                                  "    }\n" +
-                                  "  ]\n" +
-                                  '}',
-                                  CentralDogmaConfig.class);
+                Jackson.ofJson().readValue("{\n" +
+                                           "  \"dataDir\": \"./data\",\n" +
+                                           "  \"ports\": [\n" +
+                                           "    {\n" +
+                                           "      \"localAddress\": {\n" +
+                                           "        \"host\": \"*\",\n" +
+                                           "        \"port\": 36462\n" +
+                                           "      },\n" +
+                                           "      \"protocols\": [\n" +
+                                           "        \"https\",\n" +
+                                           "        \"http\",\n" +
+                                           "        \"proxy\"\n" +
+                                           "      ]\n" +
+                                           "    }\n" +
+                                           "  ]\n" +
+                                           '}',
+                                           CentralDogmaConfig.class);
         assertThat(cfg.maxRemovedRepositoryAgeMillis()).isEqualTo(DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS);
     }
 
     @Test
     void maxRemovedRepositoryAgeMillis_withNegativeValue() {
-        assertThatThrownBy(() ->
-                Jackson.readValue("{\n" +
-                                  "  \"dataDir\": \"./data\",\n" +
-                                  "  \"ports\": [\n" +
-                                  "    {\n" +
-                                  "      \"localAddress\": {\n" +
-                                  "        \"host\": \"*\",\n" +
-                                  "        \"port\": 36462\n" +
-                                  "      },\n" +
-                                  "      \"protocols\": [\n" +
-                                  "        \"https\",\n" +
-                                  "        \"http\",\n" +
-                                  "        \"proxy\"\n" +
-                                  "      ]\n" +
-                                  "    }\n" +
-                                  "  ],\n" +
-                                  "  \"maxRemovedRepositoryAgeMillis\": -50000 \n" +
-                                  '}',
-                                  CentralDogmaConfig.class)
+        assertThatThrownBy(() -> Jackson.ofJson().readValue("{\n" +
+                                                            "  \"dataDir\": \"./data\",\n" +
+                                                            "  \"ports\": [\n" +
+                                                            "    {\n" +
+                                                            "      \"localAddress\": {\n" +
+                                                            "        \"host\": \"*\",\n" +
+                                                            "        \"port\": 36462\n" +
+                                                            "      },\n" +
+                                                            "      \"protocols\": [\n" +
+                                                            "        \"https\",\n" +
+                                                            "        \"http\",\n" +
+                                                            "        \"proxy\"\n" +
+                                                            "      ]\n" +
+                                                            "    }\n" +
+                                                            "  ],\n" +
+                                                            "  \"maxRemovedRepositoryAgeMillis\": -50000 \n" +
+                                                            '}',
+                                                            CentralDogmaConfig.class)
         ).hasCauseInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -27,8 +27,6 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
@@ -39,7 +37,6 @@ import com.linecorp.armeria.common.auth.BasicToken;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderParameters;
@@ -98,12 +95,7 @@ public class TestAuthProvider implements AuthProvider {
                             new Session(sessionId, username, Duration.ofSeconds(60));
                     loginSessionPropagator.apply(session).join();
                     final AccessToken accessToken = new AccessToken(sessionId, 60);
-                    try {
-                        return HttpResponse.of(HttpStatus.OK, MediaType.JSON_UTF_8,
-                                               Jackson.writeValueAsBytes(accessToken));
-                    } catch (JsonProcessingException e) {
-                        throw new Error(e);
-                    }
+                    return HttpResponse.ofJson(HttpStatus.OK, MediaType.JSON_UTF_8, accessToken);
                 } else {
                     return HttpResponse.of(HttpStatus.UNAUTHORIZED);
                 }

@@ -72,8 +72,8 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
-import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.internal.thrift.AuthorConverter;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
 import com.linecorp.centraldogma.internal.thrift.ChangeConverter;
@@ -245,11 +245,11 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                 return entryAsText(query, normRev, content);
             case IDENTITY_JSON:
             case JSON_PATH:
-                if (receivedEntryType != com.linecorp.centraldogma.internal.thrift.EntryType.JSON) {
-                    throw new CentralDogmaException("invalid entry type. entry type: " + receivedEntryType +
-                                                    " (expected: " + queryType + ')');
-                }
+                validateEntryType(receivedEntryType, com.linecorp.centraldogma.internal.thrift.EntryType.JSON);
                 return entryAsJson(query, normRev, content);
+            case IDENTITY_YAML:
+                validateEntryType(receivedEntryType, com.linecorp.centraldogma.internal.thrift.EntryType.YAML);
+                return entryAsYaml(query, normRev, content);
             case IDENTITY:
                 switch (receivedEntryType) {
                     case JSON:
@@ -258,14 +258,32 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                         return entryAsText(query, normRev, content);
                     case DIRECTORY:
                         return unsafeCast(Entry.ofDirectory(normRev, query.path()));
+                    case YAML:
+                        return entryAsYaml(query, normRev, content);
                 }
         }
         throw new Error(); // Should never reach here.
     }
 
+    private static void validateEntryType(com.linecorp.centraldogma.internal.thrift.EntryType actual,
+                                          com.linecorp.centraldogma.internal.thrift.EntryType expected) {
+        if (actual != expected) {
+            throw new CentralDogmaException("invalid entry type. entry type: " + actual +
+                                            " (expected: " + expected + ')');
+        }
+    }
+
     private static <T> Entry<T> entryAsJson(Query<T> query, Revision normRev, String content) {
         try {
-            return unsafeCast(Entry.ofJson(normRev, query.path(), Jackson.readTree(content)));
+            return unsafeCast(Entry.ofJson(normRev, query.path(), Jackson.ofJson().readTree(content)));
+        } catch (IOException e) {
+            throw new CentralDogmaException("failed to parse the query result: " + query, e);
+        }
+    }
+
+    private static <T> Entry<T> entryAsYaml(Query<T> query, Revision normRev, String content) {
+        try {
+            return unsafeCast(Entry.ofYaml(normRev, query.path(), Jackson.ofYaml().readTree(content)));
         } catch (IOException e) {
             throw new CentralDogmaException("failed to parse the query result: " + query, e);
         }
@@ -309,11 +327,12 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
             assert entryType != null;
             switch (entryType) {
                 case JSON:
+                case YAML:
                     try {
                         @SuppressWarnings("unchecked")
                         final MergedEntry<T> converted = (MergedEntry<T>) MergedEntry.of(
                                 RevisionConverter.TO_MODEL.convert(entry.revision),
-                                entryType, Jackson.readTree(entry.content), entry.paths);
+                                entryType, Jackson.of(entryType).readTree(entry.content), entry.paths);
                         return converted;
                     } catch (IOException e) {
                         throw new CentralDogmaException(
@@ -380,6 +399,12 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                     break;
                 case APPLY_TEXT_PATCH:
                     converted = unsafeCast(Change.ofTextPatch(query.path(), r.getContent()));
+                    break;
+                case UPSERT_YAML:
+                    converted = unsafeCast(Change.ofYamlUpsert(query.path(), r.getContent()));
+                    break;
+                case APPLY_YAML_PATCH:
+                    converted = unsafeCast(Change.ofYamlPatch(query.path(), r.getContent()));
                     break;
                 default:
                     throw new Error("unknown change type: " + r.getType());

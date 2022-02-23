@@ -50,7 +50,7 @@ import com.google.common.collect.Streams;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
@@ -128,7 +128,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
             final ImmutableSet.Builder<Mirror> mirrors = ImmutableSet.builder();
 
             for (JsonNode m : mirrorsJson) {
-                final MirrorConfig c = Jackson.treeToValue(m, MirrorConfig.class);
+                final MirrorConfig c = Jackson.ofJson().treeToValue(m, MirrorConfig.class);
                 if (c == null) {
                     throw new RepositoryMetadataException(PATH_MIRRORS + " contains null.");
                 }
@@ -161,7 +161,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
 
         final ImmutableList.Builder<MirrorCredential> builder = ImmutableList.builder();
         for (JsonNode c : credentialsJson) {
-            final MirrorCredential credential = Jackson.treeToValue(c, MirrorCredential.class);
+            final MirrorCredential credential = Jackson.ofJson().treeToValue(c, MirrorCredential.class);
             if (credential == null) {
                 throw new RepositoryMetadataException(PATH_CREDENTIALS + " contains null.");
             }

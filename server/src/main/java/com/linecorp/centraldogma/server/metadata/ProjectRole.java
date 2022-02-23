@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * Roles of a {@link User} in a project.
@@ -49,7 +49,7 @@ public enum ProjectRole {
     public static ProjectRole of(JsonNode node) {
         requireNonNull(node, "node");
         try {
-            return Jackson.treeToValue(node, ProjectRole.class);
+            return Jackson.ofJson().treeToValue(node, ProjectRole.class);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
         }

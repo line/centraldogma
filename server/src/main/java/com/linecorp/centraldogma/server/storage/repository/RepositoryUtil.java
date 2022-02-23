@@ -20,6 +20,7 @@ import static com.linecorp.armeria.common.util.Functions.voidFunction;
 import static com.linecorp.centraldogma.common.QueryType.IDENTITY;
 import static com.linecorp.centraldogma.common.QueryType.IDENTITY_JSON;
 import static com.linecorp.centraldogma.common.QueryType.IDENTITY_TEXT;
+import static com.linecorp.centraldogma.common.QueryType.IDENTITY_YAML;
 import static com.linecorp.centraldogma.common.QueryType.JSON_PATH;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
 import static java.util.Objects.requireNonNull;
@@ -52,7 +53,7 @@ import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.QuerySyntaxException;
 import com.linecorp.centraldogma.common.QueryType;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 /**
  * Utility methods that are useful when implementing a {@link Repository} implementation.
@@ -101,7 +102,7 @@ final class RepositoryUtil {
                 result = Jackson.mergeTree(jsonNodes);
                 final List<String> expressions = query.expressions();
                 if (!Iterables.isEmpty(expressions)) {
-                    result = Jackson.extractTree(result, expressions);
+                    result = Jackson.ofJson().extractTree(result, expressions);
                 }
             } catch (Exception e) {
                 future.completeExceptionally(e);
@@ -138,7 +139,8 @@ final class RepositoryUtil {
                                               " (query: " + query + ')');
         }
 
-        if (queryType == IDENTITY || queryType == IDENTITY_TEXT || queryType == IDENTITY_JSON) {
+        if (queryType == IDENTITY || queryType == IDENTITY_TEXT || queryType == IDENTITY_JSON ||
+            queryType == IDENTITY_YAML) {
             return entry;
         } else if (queryType == JSON_PATH) {
             return Entry.of(entry.revision(), query.path(), entryType, query.apply(entry.content()));

@@ -42,7 +42,7 @@ import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.ProducesJson;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceOperation;
@@ -212,7 +212,8 @@ public class MetadataApiService {
                                                                     JsonPatch jsonPatch,
                                                                     Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
-        final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
+        final Collection<Permission> permissions = Jackson.ofJson()
+                                                          .convertValue(operation.value(), permissionsTypeRef);
         final User member = new User(loginNameNormalizer.apply(urlDecode(memberId)));
         return mds.findPermissions(projectName, repoName, member)
                   .thenCompose(unused -> mds.updatePerUserPermission(author,
@@ -267,7 +268,8 @@ public class MetadataApiService {
                                                                      JsonPatch jsonPatch,
                                                                      Author author) {
         final ReplaceOperation operation = ensureSingleReplaceOperation(jsonPatch, "/permissions");
-        final Collection<Permission> permissions = Jackson.convertValue(operation.value(), permissionsTypeRef);
+        final Collection<Permission> permissions = Jackson.ofJson()
+                                                          .convertValue(operation.value(), permissionsTypeRef);
         return mds.findTokenByAppId(appId)
                   .thenCompose(token -> mds.updatePerTokenPermission(
                           author, projectName, repoName, appId, permissions));

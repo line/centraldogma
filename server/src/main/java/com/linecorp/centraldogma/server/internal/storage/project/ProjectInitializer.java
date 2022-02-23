@@ -30,7 +30,7 @@ import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Tokens;
@@ -72,7 +72,7 @@ public final class ProjectInitializer {
 
         try {
             final Change<?> change = Change.ofJsonPatch(MetadataService.TOKEN_JSON,
-                                                        null, Jackson.valueToTree(new Tokens()));
+                                                        null, Jackson.ofJson().valueToTree(new Tokens()));
             final String commitSummary = "Initialize the token list file: /" + INTERNAL_PROJECT_DOGMA + '/' +
                                          Project.REPO_DOGMA + MetadataService.TOKEN_JSON;
             executor.execute(push(Author.SYSTEM, INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, Revision.HEAD,

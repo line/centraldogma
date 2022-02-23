@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 class ZooKeeperReplicationConfigTest {
 
@@ -69,7 +69,7 @@ class ZooKeeperReplicationConfigTest {
     @Test
     void testJsonConversionWithoutOptionalProperties() throws Exception {
         final ReplicationConfig defaultCfg =
-                Jackson.readValue(
+                Jackson.ofJson().readValue(
                         '{' +
                         "  \"method\": \"ZOOKEEPER\"," +
                         "  \"serverId\": 10," +
@@ -100,7 +100,7 @@ class ZooKeeperReplicationConfigTest {
 
     @Test
     void autoDetection() throws Exception {
-        final ZooKeeperReplicationConfig cfg = Jackson.readValue(
+        final ZooKeeperReplicationConfig cfg = Jackson.ofJson().readValue(
                 '{' +
                 "  \"method\": \"ZOOKEEPER\"," +
                 "  \"servers\": {" +
@@ -139,7 +139,7 @@ class ZooKeeperReplicationConfigTest {
                 "  }" +
                 '}';
 
-        assertThatThrownBy(() -> Jackson.readValue(json, ZooKeeperReplicationConfig.class))
+        assertThatThrownBy(() -> Jackson.ofJson().readValue(json, ZooKeeperReplicationConfig.class))
                 .hasCauseInstanceOf(IllegalStateException.class)
                 .satisfies(cause -> {
                     assertThat(cause.getCause().getMessage()).contains("more than one IP address match");
@@ -160,7 +160,7 @@ class ZooKeeperReplicationConfigTest {
                 "  }" +
                 '}';
 
-        assertThatThrownBy(() -> Jackson.readValue(json, ZooKeeperReplicationConfig.class))
+        assertThatThrownBy(() -> Jackson.ofJson().readValue(json, ZooKeeperReplicationConfig.class))
                 .hasCauseInstanceOf(IllegalStateException.class)
                 .satisfies(cause -> {
                     assertThat(cause.getCause().getMessage()).contains("no matching IP address");
@@ -170,7 +170,7 @@ class ZooKeeperReplicationConfigTest {
     @Test
     void hierarchicalQuorums() throws Exception {
         final ReplicationConfig defaultCfg =
-                Jackson.readValue(
+                Jackson.ofJson().readValue(
                         '{' +
                         "  \"method\": \"ZOOKEEPER\"," +
                         "  \"serverId\": 10," +

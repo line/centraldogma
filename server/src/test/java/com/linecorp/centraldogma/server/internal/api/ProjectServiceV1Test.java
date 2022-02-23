@@ -38,7 +38,7 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ProjectExistsException;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class ProjectServiceV1Test {
@@ -61,7 +61,7 @@ class ProjectServiceV1Test {
         final String location = headers.get(HttpHeaderNames.LOCATION);
         assertThat(location).isEqualTo("/api/v1/projects/myPro");
 
-        final JsonNode jsonNode = Jackson.readTree(aRes.contentUtf8());
+        final JsonNode jsonNode = Jackson.ofJson().readTree(aRes.contentUtf8());
         assertThat(jsonNode.get("name").asText()).isEqualTo("myPro");
         assertThat(jsonNode.get("createdAt").asText()).isNotNull();
     }
@@ -240,7 +240,7 @@ class ProjectServiceV1Test {
 
             final AggregatedHttpResponse remainedRes = client.get(PROJECTS_PREFIX).aggregate().join();
             final String remains = remainedRes.contentUtf8();
-            final JsonNode jsonNode = Jackson.readTree(remains);
+            final JsonNode jsonNode = Jackson.ofJson().readTree(remains);
 
             // Only trustin project is left
             assertThat(jsonNode.size()).isOne();

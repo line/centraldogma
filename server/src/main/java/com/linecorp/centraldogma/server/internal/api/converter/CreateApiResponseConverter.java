@@ -35,7 +35,7 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 /**
@@ -56,7 +56,7 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
                 builder.contentType(MediaType.JSON_UTF_8);
             }
 
-            final JsonNode jsonNode = Jackson.valueToTree(resObj);
+            final JsonNode jsonNode = Jackson.ofJson().valueToTree(resObj);
             if (builder.get(HttpHeaderNames.LOCATION) == null) {
                 final String url = jsonNode.get("url").asText();
 
@@ -65,7 +65,7 @@ public final class CreateApiResponseConverter implements ResponseConverterFuncti
                 builder.add(HttpHeaderNames.LOCATION, url);
             }
 
-            return HttpResponse.of(builder.build(), HttpData.wrap(Jackson.writeValueAsBytes(jsonNode)),
+            return HttpResponse.of(builder.build(), HttpData.wrap(Jackson.ofJson().writeValueAsBytes(jsonNode)),
                                    trailingHeaders);
         } catch (JsonProcessingException e) {
             logger.debug("Failed to convert a response:", e);

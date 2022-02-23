@@ -32,7 +32,7 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.ResponseConverterFunction;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 /**
@@ -51,7 +51,8 @@ public class RestfulJsonResponseConverter implements ResponseConverterFunction {
             final HttpData httpData =
                     resObj != null &&
                     resObj.getClass() == Object.class ? EMPTY_RESULT
-                                                      : HttpData.wrap(Jackson.writeValueAsBytes(resObj));
+                                                      : HttpData.wrap(Jackson.ofJson()
+                                                                             .writeValueAsBytes(resObj));
 
             final ResponseHeadersBuilder builder = headers.toBuilder();
             if (HttpMethod.POST == request.method()) {

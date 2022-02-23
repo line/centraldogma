@@ -17,7 +17,7 @@
 package com.linecorp.centraldogma.common;
 
 import static com.linecorp.centraldogma.internal.Util.validateFilePath;
-import static com.linecorp.centraldogma.internal.Util.validateJsonFilePath;
+import static com.linecorp.centraldogma.internal.Util.validateJsonOrYamlFilePath;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
@@ -30,7 +30,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
 
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 
 final class DefaultChange<T> implements Change<T> {
 
@@ -99,7 +99,7 @@ final class DefaultChange<T> implements Change<T> {
         this.type = requireNonNull(type, "type");
 
         if (type.contentType() == JsonNode.class) {
-            validateJsonFilePath(path, "path");
+            validateJsonOrYamlFilePath(path, "path");
         } else {
             validateFilePath(path, "path");
         }
@@ -137,9 +137,19 @@ final class DefaultChange<T> implements Change<T> {
             return contentAsText = content.toString();
         }
 
+        if ((type == ChangeType.APPLY_JSON_PATCH || type == ChangeType.APPLY_YAML_PATCH) &&
+            content instanceof JsonNode) {
+            try {
+                return contentAsText = Jackson.ofJson().writeValueAsString(content);
+            } catch (JsonProcessingException e) {
+                // Should never reach here.
+                throw new Error(e);
+            }
+        }
+
         if (content instanceof JsonNode) {
             try {
-                return contentAsText = Jackson.writeValueAsString(content);
+                return contentAsText = Jackson.of(EntryType.guessFromPath(path())).writeValueAsString(content);
             } catch (JsonProcessingException e) {
                 // Should never reach here.
                 throw new Error(e);

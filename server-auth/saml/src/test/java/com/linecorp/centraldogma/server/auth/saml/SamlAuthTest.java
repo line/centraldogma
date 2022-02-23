@@ -24,7 +24,7 @@ import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -38,7 +38,7 @@ class SamlAuthTest {
         // $ keytool -genkey -keyalg RSA -sigalg SHA1withRSA -alias signing
         //      -keystore test.jks -storepass centraldogma
         try {
-            PROPERTIES = Jackson.readValue(
+            PROPERTIES = Jackson.ofJson().readValue(
                     '{' +
                     "\"entityId\": \"test-sp\"," +
                     "\"hostname\": \"dogma-example.linecorp.com\"," +

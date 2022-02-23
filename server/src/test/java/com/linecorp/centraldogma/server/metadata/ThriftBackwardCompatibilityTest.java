@@ -41,7 +41,7 @@ import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.centraldogma.internal.CsrfToken;
-import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.jackson.Jackson;
 import com.linecorp.centraldogma.internal.thrift.Author;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService.Iface;
 import com.linecorp.centraldogma.internal.thrift.Change;
@@ -88,7 +88,7 @@ class ThriftBackwardCompatibilityTest {
         AggregatedHttpResponse res;
         res = webClient.get(PROJECTS_PREFIX + '/' + projectName + REPOS).aggregate().join();
         final List<JsonNode> nodes = new ArrayList<>();
-        Jackson.readTree(res.contentUtf8()).elements().forEachRemaining(nodes::add);
+        Jackson.ofJson().readTree(res.contentUtf8()).elements().forEachRemaining(nodes::add);
 
         assertThat(nodes.stream().map(n -> n.get("name").textValue()).collect(Collectors.toList()))
                 .containsAnyOf(REPO_DOGMA, REPO_META, repo1);
@@ -96,7 +96,7 @@ class ThriftBackwardCompatibilityTest {
         ProjectMetadata metadata;
 
         res = webClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
-        metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
+        metadata = Jackson.ofJson().readValue(res.contentUtf8(), ProjectMetadata.class);
         assertThat(metadata.repos()).hasSize(2);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNull();
@@ -106,7 +106,7 @@ class ThriftBackwardCompatibilityTest {
         client.removeRepository(projectName, repo1);
 
         res = webClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
-        metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
+        metadata = Jackson.ofJson().readValue(res.contentUtf8(), ProjectMetadata.class);
         assertThat(metadata.repos()).hasSize(2);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNotNull();
@@ -116,7 +116,7 @@ class ThriftBackwardCompatibilityTest {
         client.unremoveRepository(projectName, repo1);
 
         res = webClient.get(PROJECTS_PREFIX + '/' + projectName).aggregate().join();
-        metadata = Jackson.readValue(res.contentUtf8(), ProjectMetadata.class);
+        metadata = Jackson.ofJson().readValue(res.contentUtf8(), ProjectMetadata.class);
         assertThat(metadata.repos()).hasSize(2);
         assertThat(metadata.repo(repo1)).isNotNull();
         assertThat(metadata.repo(repo1).removal()).isNull();
