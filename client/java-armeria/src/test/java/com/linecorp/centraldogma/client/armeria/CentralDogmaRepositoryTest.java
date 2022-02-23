@@ -98,7 +98,7 @@ class CentralDogmaRepositoryTest {
         final List<Commit> commits = centralDogmaRepo.history().get(new Revision(2), Revision.HEAD).join();
         assertThat(commits.stream()
                           .map(Commit::summary)
-                          .collect(toImmutableList())).containsExactly("commit3", "commit2");
+                          .collect(toImmutableList())).containsExactly("commit2", "commit3");
         assertThat(centralDogmaRepo.diff("/foo.json")
                                    .get(Revision.INIT, Revision.HEAD)
                                    .join())
