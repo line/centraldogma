@@ -322,7 +322,7 @@ public class CentralDogmaBeanFactory {
                             "Failed to resolve the initial endpoints of the given Central Dogma client in" +
                             initialTimeoutMillis + " ms. You may want to increase 'initialValueTimeout' or " +
                             "wait for the initial endpoints using 'CentralDogma.whenEndpointReady()' " +
-                            "before initiating this " + CentralDogmaBeanFactory.class.getSimpleName() + '.';
+                            "before initializing this " + CentralDogmaBeanFactory.class.getSimpleName() + '.';
                     throw new CentralDogmaException(message, ex);
                 } else {
                     throw ex;
