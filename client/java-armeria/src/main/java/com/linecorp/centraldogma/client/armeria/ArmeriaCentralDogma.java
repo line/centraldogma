@@ -102,6 +102,7 @@ import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.ShuttingDownException;
+import com.linecorp.centraldogma.internal.HistoryConstants;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.api.v1.WatchTimeout;
@@ -148,9 +149,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> createProject(String projectName) {
+        validateProjectName(projectName);
         try {
-            validateProjectName(projectName);
-
             final ObjectNode root = JsonNodeFactory.instance.objectNode();
             root.put("name", projectName);
 
@@ -173,8 +173,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> removeProject(String projectName) {
+        validateProjectName(projectName);
         try {
-            validateProjectName(projectName);
             return client.execute(headers(HttpMethod.DELETE, pathBuilder(projectName).toString()))
                          .aggregate()
                          .thenApply(ArmeriaCentralDogma::removeProject);
@@ -194,10 +194,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> purgeProject(String projectName) {
+        validateProjectName(projectName);
         try {
-            validateProjectName(projectName);
-            return client.execute(
-                    headers(HttpMethod.DELETE, pathBuilder(projectName).append(REMOVED).toString()))
+            return client.execute(headers(HttpMethod.DELETE, pathBuilder(projectName).append(REMOVED)
+                                                                                     .toString()))
                          .aggregate()
                          .thenApply(ArmeriaCentralDogma::handlePurgeResult);
         } catch (Exception e) {
@@ -207,8 +207,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> unremoveProject(String projectName) {
+        validateProjectName(projectName);
         try {
-            validateProjectName(projectName);
             return client.execute(headers(HttpMethod.PATCH, pathBuilder(projectName).toString()),
                                   UNREMOVE_PATCH)
                          .aggregate()
@@ -242,9 +242,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<CentralDogmaRepository> createRepository(String projectName,
                                                                       String repositoryName) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-
             final String path = pathBuilder(projectName).append(REPOS).toString();
             final ObjectNode root = JsonNodeFactory.instance.objectNode();
             root.put("name", repositoryName);
@@ -266,8 +265,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> removeRepository(String projectName, String repositoryName) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
             return client.execute(headers(HttpMethod.DELETE,
                                           pathBuilder(projectName, repositoryName).toString()))
                          .aggregate()
@@ -288,8 +287,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Void> purgeRepository(String projectName, String repositoryName) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
             return client.execute(headers(HttpMethod.DELETE,
                                           pathBuilder(projectName, repositoryName).append(REMOVED).toString()))
                          .aggregate()
@@ -311,8 +310,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<CentralDogmaRepository> unremoveRepository(String projectName,
                                                                         String repositoryName) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
             return client.execute(headers(HttpMethod.PATCH,
                                           pathBuilder(projectName, repositoryName).toString()),
                                   UNREMOVE_PATCH)
@@ -330,8 +329,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Map<String, RepositoryInfo>> listRepositories(String projectName) {
+        validateProjectName(projectName);
         try {
-            validateProjectName(projectName);
             return client.execute(headers(HttpMethod.GET, pathBuilder(projectName).append(REPOS).toString()))
                          .aggregate()
                          .thenApply(ArmeriaCentralDogma::listRepositories);
@@ -359,8 +358,8 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Set<String>> listRemovedRepositories(String projectName) {
+        validateProjectName(projectName);
         try {
-            validateProjectName(projectName);
             return client.execute(headers(HttpMethod.GET,
                                           pathBuilder(projectName).append(REPOS)
                                                                   .append(REMOVED_PARAM).toString()))
@@ -374,10 +373,9 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Revision> normalizeRevision(String projectName, String repositoryName,
                                                          Revision revision) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(revision, "revision");
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(revision, "revision");
-
             final String path = pathBuilder(projectName, repositoryName)
                     .append("/revision/")
                     .append(revision.text())
@@ -401,11 +399,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Map<String, EntryType>> listFiles(String projectName, String repositoryName,
                                                                Revision revision, PathPattern pathPattern) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(revision, "revision");
+        requireNonNull(pathPattern, "pathPattern");
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(revision, "revision");
-            requireNonNull(pathPattern, "pathPattern");
-
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/list").append(pathPattern.encoded()).append("?revision=").append(revision.major());
 
@@ -436,11 +433,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName, Revision revision,
                                                    Query<T> query) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(revision, "revision");
+        requireNonNull(query, "query");
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(revision, "revision");
-            requireNonNull(query, "query");
-
             // TODO(trustin) No need to normalize a revision once server response contains it.
             return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
                 final StringBuilder path = pathBuilder(projectName, repositoryName);
@@ -469,11 +465,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
                                                              Revision revision, PathPattern pathPattern) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(revision, "revision");
+        requireNonNull(pathPattern, "pathPattern");
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(revision, "revision");
-            requireNonNull(pathPattern, "pathPattern");
-
             // TODO(trustin) No need to normalize a revision once server response contains it.
             return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
                 final StringBuilder path = pathBuilder(projectName, repositoryName);
@@ -518,11 +513,10 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<MergedEntry<T>> mergeFiles(String projectName, String repositoryName,
                                                             Revision revision, MergeQuery<T> mergeQuery) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(revision, "revision");
+        requireNonNull(mergeQuery, "mergeQuery");
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(revision, "revision");
-            requireNonNull(mergeQuery, "mergeQuery");
-
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/merge?revision=").append(revision.major());
             mergeQuery.mergeSources().forEach(
@@ -587,17 +581,23 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<List<Commit>> getHistory(String projectName, String repositoryName,
                                                       Revision from, Revision to,
-                                                      PathPattern pathPattern) {
+                                                      PathPattern pathPattern,
+                                                      int maxCommits) {
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        requireNonNull(pathPattern, "pathPattern");
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        checkArgument(maxCommits >= 0 && maxCommits <= HistoryConstants.MAX_MAX_COMMITS,
+                      "maxCommits: %s (expected: 0 <= maxCommits <= %s)",
+                      maxCommits, HistoryConstants.MAX_MAX_COMMITS);
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(from, "from");
-            requireNonNull(to, "to");
-            requireNonNull(pathPattern, "pathPattern");
-
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/commits/").append(from.text());
             path.append("?to=").append(to.text());
             path.append("&path=").append(pathPattern.encoded());
+            if (maxCommits > 0) {
+                path.append("&maxCommits=").append(maxCommits);
+            }
 
             return client.execute(headers(HttpMethod.GET, path.toString()))
                          .aggregate()
@@ -630,12 +630,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Change<T>> getDiff(String projectName, String repositoryName, Revision from,
                                                     Revision to, Query<T> query) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        requireNonNull(query, "query");
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(from, "from");
-            requireNonNull(to, "to");
-            requireNonNull(query, "query");
-
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/compare");
             path.append("?path=").append(encodeParam(query.path()));
@@ -665,12 +664,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<List<Change<?>>> getDiff(String projectName, String repositoryName, Revision from,
                                                       Revision to, PathPattern pathPattern) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        requireNonNull(pathPattern, "pathPattern");
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(from, "from");
-            requireNonNull(to, "to");
-            requireNonNull(pathPattern, "pathPattern");
-
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/compare");
             path.append("?pathPattern=").append(pathPattern.encoded());
@@ -704,24 +702,19 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     public CompletableFuture<List<Change<?>>> getPreviewDiffs(String projectName, String repositoryName,
                                                               Revision baseRevision,
                                                               Iterable<? extends Change<?>> changes) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(baseRevision, "baseRevision");
+        requireNonNull(changes, "changes");
         try {
-            try {
-                validateProjectAndRepositoryName(projectName, repositoryName);
-                requireNonNull(baseRevision, "baseRevision");
-                requireNonNull(changes, "changes");
+            final String path = pathBuilder(projectName, repositoryName)
+                    .append("/preview?revision=")
+                    .append(baseRevision.text())
+                    .toString();
 
-                final String path = pathBuilder(projectName, repositoryName)
-                        .append("/preview?revision=")
-                        .append(baseRevision.text())
-                        .toString();
-
-                final ArrayNode changesNode = toJson(changes);
-                return client.execute(headers(HttpMethod.POST, path), toBytes(changesNode))
-                             .aggregate()
-                             .thenApply(ArmeriaCentralDogma::getPreviewDiffs);
-            } catch (Exception e) {
-                return exceptionallyCompletedFuture(e);
-            }
+            final ArrayNode changesNode = toJson(changes);
+            return client.execute(headers(HttpMethod.POST, path), toBytes(changesNode))
+                         .aggregate()
+                         .thenApply(ArmeriaCentralDogma::getPreviewDiffs);
         } catch (Exception e) {
             return exceptionallyCompletedFuture(e);
         }
@@ -745,15 +738,14 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     public CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
                                               String summary, String detail, Markup markup,
                                               Iterable<? extends Change<?>> changes) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(baseRevision, "baseRevision");
+        requireNonNull(summary, "summary");
+        checkArgument(!summary.isEmpty(), "summary is empty.");
+        requireNonNull(markup, "markup");
+        requireNonNull(changes, "changes");
+        checkArgument(!Iterables.isEmpty(changes), "changes is empty.");
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(baseRevision, "baseRevision");
-            requireNonNull(summary, "summary");
-            checkArgument(!summary.isEmpty(), "summary is empty.");
-            requireNonNull(markup, "markup");
-            requireNonNull(changes, "changes");
-            checkArgument(!Iterables.isEmpty(changes), "changes is empty.");
-
             final String path = pathBuilder(projectName, repositoryName)
                     .append("/contents?revision=")
                     .append(baseRevision.text())
@@ -799,12 +791,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     public CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                        Revision lastKnownRevision, PathPattern pathPattern,
                                                        long timeoutMillis, boolean errorOnEntryNotFound) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(lastKnownRevision, "lastKnownRevision");
+        requireNonNull(pathPattern, "pathPattern");
+        checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(lastKnownRevision, "lastKnownRevision");
-            requireNonNull(pathPattern, "pathPattern");
-            checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
-
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/contents").append(pathPattern.encoded());
 
@@ -832,11 +823,11 @@ final class ArmeriaCentralDogma extends AbstractCentralDogma {
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
                                                      long timeoutMillis, boolean errorOnEntryNotFound) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(lastKnownRevision, "lastKnownRevision");
+        requireNonNull(query, "query");
+        checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
         try {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(lastKnownRevision, "lastKnownRevision");
-            requireNonNull(query, "query");
-            checkArgument(timeoutMillis > 0, "timeoutMillis: %s (expected: > 0)", timeoutMillis);
 
             final StringBuilder path = pathBuilder(projectName, repositoryName);
             path.append("/contents").append(query.path());

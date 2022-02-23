@@ -330,7 +330,9 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                                       String repositoryName,
                                                       Revision from,
                                                       Revision to,
-                                                      PathPattern pathPattern) {
+                                                      PathPattern pathPattern,
+                                                      int maxCommits) {
+        checkArgument(maxCommits == 0, "maxCommits is not supported in LegacyCentralDogma.");
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(from, "from");
         requireNonNull(to, "to");
@@ -458,7 +460,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                                        PathPattern pathPattern,
                                                        long timeoutMillis,
                                                        boolean errorOnEntryNotFound) {
-        // Legacy client does not support 'errorOnEntryNotFound'
+        checkArgument(!errorOnEntryNotFound, "errorOnEntryNotFound is not supported in LegacyCentralDogma.");
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
@@ -481,7 +483,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
                                                      long timeoutMillis, boolean errorOnEntryNotFound) {
-        // Legacy client does not support 'errorOnEntryNotFound'
+        checkArgument(!errorOnEntryNotFound, "errorOnEntryNotFound is not supported in LegacyCentralDogma.");
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(query, "query");
