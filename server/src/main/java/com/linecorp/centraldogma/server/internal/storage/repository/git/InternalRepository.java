@@ -143,9 +143,9 @@ final class InternalRepository {
         }
     }
 
-    static InternalRepository of(Project parent, String originalRepoName, File repoDir,
-                                 Revision nextRevision, long commitTimeMillis,
-                                 Author author, Iterable<Change<?>> changes) {
+    static InternalRepository create(Project parent, String originalRepoName, File repoDir,
+                                     Revision nextRevision, long commitTimeMillis,
+                                     Author author, Iterable<Change<?>> changes) {
         boolean success = false;
         InternalRepository internalRepo = null;
         try {

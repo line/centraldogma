@@ -127,6 +127,9 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
      */
     private volatile Revision headRevision;
 
+    /**
+     * Create a new Git repository.
+     */
     GitRepositoryV2(Project parent, File repositoryDir, Executor repositoryWorker,
                     long creationTimeMillis, Author author, @Nullable RepositoryCache cache) {
         this.parent = requireNonNull(parent, "parent");
@@ -151,8 +154,8 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         repoMetadata = new RepositoryMetadataDatabase(repositoryDir, true);
         final File primaryRepoDir = repoMetadata.primaryRepoDir();
         try {
-            primaryRepo = InternalRepository.of(parent, originalRepoName, primaryRepoDir, Revision.INIT,
-                                                creationTimeMillis, author, ImmutableList.of());
+            primaryRepo = InternalRepository.create(parent, originalRepoName, primaryRepoDir, Revision.INIT,
+                                                    creationTimeMillis, author, ImmutableList.of());
         } catch (Throwable t) {
             repoMetadata.close();
             throw t;
@@ -162,18 +165,9 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
         this.author = author;
     }
 
-    private static boolean isEmpty(File dir) throws IOException {
-        if (!dir.isDirectory()) {
-            return false;
-        }
-        if (!dir.exists()) {
-            return true;
-        }
-        try (Stream<Path> entries = Files.list(dir.toPath())) {
-            return entries.findFirst().isPresent();
-        }
-    }
-
+    /**
+     * Opens the existing Git repository.
+     */
     private GitRepositoryV2(Project parent, File repoDir, Executor repositoryWorker,
                             @Nullable RepositoryCache cache) {
         this.parent = requireNonNull(parent, "parent");
@@ -208,6 +202,18 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             closeInternalRepository(primaryRepo);
             closeInternalRepository(secondaryRepo);
             throw t;
+        }
+    }
+
+    private static boolean isEmpty(File dir) throws IOException {
+        if (!dir.isDirectory()) {
+            return false;
+        }
+        if (!dir.exists()) {
+            return true;
+        }
+        try (Stream<Path> entries = Files.list(dir.toPath())) {
+            return entries.findFirst().isPresent();
         }
     }
 
@@ -318,23 +324,27 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
     }
 
     private Revision normalizeNow(Revision revision, boolean checkFirstRevision) {
-        return normalizeNow(revision, headRevision.major(), checkFirstRevision);
+        return normalizeNow(revision, headRevision, checkFirstRevision);
     }
 
     @Override
     public RevisionRange normalizeNow(Revision from, Revision to) {
-        final int headMajor = headRevision.major();
-        return new RevisionRange(normalizeNow(from, headMajor, true), normalizeNow(to, headMajor, true));
+        final Revision headRevision = this.headRevision;
+        return new RevisionRange(normalizeNow(from, headRevision, true), normalizeNow(to, headRevision, true));
     }
 
-    private Revision normalizeNow(Revision revision, int headMajor, boolean checkFirstRevision) {
+    private Revision normalizeNow(Revision revision, Revision headRevision, boolean checkFirstRevision) {
         requireNonNull(revision, "revision");
         int major = revision.major();
+        final int headMajor = headRevision.major();
+        if (major == -1 || major == headMajor) {
+            return headRevision;
+        }
 
         if (major >= 0) {
             if (major > headMajor) {
                 throw new RevisionNotFoundException(
-                        "revision: " + revision + " (expected: <= " + headMajor + ")");
+                        "revision: " + revision + " (expected: <= " + headMajor + ')');
             }
         } else {
             major = headMajor + major + 1;
@@ -352,17 +362,12 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
                     major = firstRevisionMajor;
                 } else {
                     throw new RevisionNotFoundException(
-                            "revision: " + revision + " (expected: >= " + firstRevisionMajor + ")");
+                            "revision: " + revision + " (expected: >= " + firstRevisionMajor + ')');
                 }
             }
         }
 
-        // Create a new instance only when necessary.
-        if (revision.major() == major) {
-            return revision;
-        } else {
-            return new Revision(major);
-        }
+        return new Revision(major);
     }
 
     @Override
@@ -750,8 +755,8 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
     public void createRollingRepository(Revision rollingRepositoryInitialRevision,
                                         int minRetentionCommits, int minRetentionDays) {
         requireNonNull(rollingRepositoryInitialRevision, "rollingRepositoryInitialRevision");
-        final Revision rollingRepositoryRevision = shouldCreateRollingRepository(rollingRepositoryInitialRevision,
-                                                                minRetentionCommits, minRetentionDays);
+        final Revision rollingRepositoryRevision = shouldCreateRollingRepository(
+                rollingRepositoryInitialRevision, minRetentionCommits, minRetentionDays);
         checkState(rollingRepositoryRevision == rollingRepositoryInitialRevision,
                    "shouldCreateRollingRepository() returns %s. (expected: %s)", rollingRepositoryRevision,
                    rollingRepositoryInitialRevision);
@@ -771,7 +776,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
             repoMetadata.setPrimaryRepoDir(secondaryRepo.jGitRepo().getDirectory());
             final InternalRepository primaryRepo = this.primaryRepo;
             this.primaryRepo = secondaryRepo;
-            this.secondaryRepo = null;
+            secondaryRepo = null;
             repositoryWorker.execute(() -> {
                 closeInternalRepository(primaryRepo);
                 final File repoDir = primaryRepo.repoDir();
@@ -784,7 +789,7 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
                 }
             });
             logger.info("Promotion is done for {}/{}. {} is now the primary.",
-                        parent.name(), originalRepoName, secondaryRepo.repoDir());
+                        parent.name(), originalRepoName, primaryRepo.repoDir());
         } finally {
             writeUnLock();
         }
@@ -797,9 +802,9 @@ class GitRepositoryV2 implements com.linecorp.centraldogma.server.storage.reposi
                         parent.name(), originalRepoName, rollingRepositoryInitialRevision);
             final List<Change<?>> changes = changes(rollingRepositoryInitialRevision);
             final File secondaryRepoDir = repoMetadata.secondaryRepoDir();
-            secondaryRepo = InternalRepository.of(parent, originalRepoName, secondaryRepoDir,
-                                                  rollingRepositoryInitialRevision, creationTimeMillis,
-                                                  author, changes);
+            secondaryRepo = InternalRepository.create(parent, originalRepoName, secondaryRepoDir,
+                                                      rollingRepositoryInitialRevision, creationTimeMillis,
+                                                      author, changes);
             writeLock();
             try {
                 final Revision headRevision = this.headRevision;

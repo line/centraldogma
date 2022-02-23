@@ -228,8 +228,10 @@ Core properties
     ``minRetentionCommits`` when more than ``minRetentionCommits`` are made. The repository also retains
     commits at least ``minRetentionDays``. If both conditions are not satisfied, the commits are not removed.
     For example, when ``minRetentionCommits`` is set to 2000 and ``minRetentionDays`` is set to 14,
-    the commits that are created more than 2000 are not removed until 14 days have passed. Set 0 to retain
-    all commits.
+    the commits that are created more than 2000 will be removed after 14 days have passed.
+    If ``minRetentionCommits`` is set to 2000 and ``minRetentionDays`` is set to 0,
+    the commits that are created more than 2000 will be removed no matter how young the commits are.
+    Set both 0 to retain all commits.
 
   - ``minRetentionCommits`` (integer)
 

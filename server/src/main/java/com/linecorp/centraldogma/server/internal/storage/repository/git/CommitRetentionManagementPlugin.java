@@ -113,13 +113,22 @@ public final class CommitRetentionManagementPlugin implements Plugin {
         final ProjectManager pm = context.projectManager();
         for (Project project : pm.list().values()) {
             for (Repository repo : project.repos().list().values()) {
+                if (stopping) {
+                    return;
+                }
                 final Revision revision = repo.shouldCreateRollingRepository(config.minRetentionCommits(),
                                                                              config.minRetentionDays());
                 if (revision != null) {
-                    context.commandExecutor().execute(
-                            Command.createRollingRepository(project.name(), repo.name(), revision,
-                                                            config.minRetentionCommits(),
-                                                            config.minRetentionDays()));
+                    try {
+                        context.commandExecutor().execute(
+                                Command.createRollingRepository(project.name(), repo.name(), revision,
+                                                                config.minRetentionCommits(),
+                                                                config.minRetentionDays()))
+                               .get(100, TimeUnit.SECONDS);
+                    } catch (Throwable t) {
+                        logger.warn("Failed to create a rolling repository for {}/{} with revision: {}",
+                                    project.name(), repo.name(), revision, t);
+                    }
                 }
             }
         }

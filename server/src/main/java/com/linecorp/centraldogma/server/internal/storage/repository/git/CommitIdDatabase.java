@@ -269,8 +269,8 @@ final class CommitIdDatabase implements AutoCloseable {
             // NB: We did not store the last commit ID until all commit IDs are stored,
             //     so that the partially built database always has mismatching head revision.
 
-            rebuild(gitRepo, revWalk, headRevision, revCommit, true);
-            rebuild(gitRepo, revWalk, headRevision, revCommit, false);
+            findFirstRevisionOrRebuild(gitRepo, revWalk, headRevision, revCommit, true);
+            findFirstRevisionOrRebuild(gitRepo, revWalk, headRevision, revCommit, false);
 
             // All commit IDs except the head have been stored. Store the head finally.
             put(headRevision, headCommitId);
@@ -282,8 +282,9 @@ final class CommitIdDatabase implements AutoCloseable {
                     firstRevision, headRevision);
     }
 
-    private void rebuild(Repository gitRepo, RevWalk revWalk, Revision headRevision,
-                         RevCommit revCommit, boolean findingFirstRevision) throws IOException {
+    private void findFirstRevisionOrRebuild(Repository gitRepo, RevWalk revWalk,
+                                            Revision headRevision, RevCommit revCommit,
+                                            boolean findingFirstRevision) throws IOException {
         ObjectId currentId;
         Revision previousRevision = headRevision;
         loop: for (;;) {
@@ -300,20 +301,20 @@ final class CommitIdDatabase implements AutoCloseable {
 
             revCommit = revWalk.parseCommit(currentId);
 
+            final Revision currentRevision;
             if (findingFirstRevision) {
-                final Revision currentRevision = CommitUtil.extractRevision(revCommit.getFullMessage());
+                currentRevision = CommitUtil.extractRevision(revCommit.getFullMessage());
                 final Revision expectedRevision = previousRevision.backward(1);
                 if (!currentRevision.equals(expectedRevision)) {
                     throw new StorageException("mismatching revision: " + gitRepo.getDirectory() +
                                                " (actual: " + currentRevision.major() +
                                                ", expected: " + expectedRevision.major() + ')');
                 }
-                previousRevision = currentRevision;
             } else {
-                final Revision currentRevision = previousRevision.backward(1);
+                currentRevision = previousRevision.backward(1);
                 put(currentRevision, currentId, false);
-                previousRevision = currentRevision;
             }
+            previousRevision = currentRevision;
         }
         if (findingFirstRevision) {
             firstRevision = previousRevision;
