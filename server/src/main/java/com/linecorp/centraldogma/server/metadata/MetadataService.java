@@ -133,7 +133,8 @@ public class MetadataService {
                 }
 
                 logger.warn("Adding missing repository metadata: {}/{}", projectName, repo);
-                final CompletableFuture<Revision> addRepoFuture = addRepo(Author.SYSTEM, projectName, repo);
+                final Author author = projectManager.get(projectName).repos().get(repo).author();
+                final CompletableFuture<Revision> addRepoFuture = addRepo(author, projectName, repo);
                 addRepoFuture.handle((revision, cause) -> {
                     if (cause != null) {
                         future.completeExceptionally(cause);

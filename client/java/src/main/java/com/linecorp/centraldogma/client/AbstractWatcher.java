@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.internal.client;
+package com.linecorp.centraldogma.client;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.math.LongMath.saturatedAdd;
@@ -28,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -36,14 +35,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.Latest;
-import com.linecorp.centraldogma.client.Watcher;
+import com.google.common.base.MoreObjects;
+
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.RepositoryNotFoundException;
 import com.linecorp.centraldogma.common.Revision;
@@ -52,52 +53,6 @@ import com.linecorp.centraldogma.common.ShuttingDownException;
 abstract class AbstractWatcher<T> implements Watcher<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractWatcher.class);
-    private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
-
-    private static final long DELAY_ON_SUCCESS_MILLIS = TimeUnit.SECONDS.toMillis(1);
-    private static final long MIN_INTERVAL_MILLIS = DELAY_ON_SUCCESS_MILLIS * 2;
-    private static final long MAX_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(1);
-    private static final double JITTER_RATE = 0.2;
-
-    private static long nextDelayMillis(int numAttemptsSoFar) {
-        final long nextDelayMillis;
-        if (numAttemptsSoFar == 1) {
-            nextDelayMillis = MIN_INTERVAL_MILLIS;
-        } else {
-            nextDelayMillis = Math.min(
-                    saturatedMultiply(MIN_INTERVAL_MILLIS, Math.pow(2.0, numAttemptsSoFar - 1)),
-                    MAX_INTERVAL_MILLIS);
-        }
-
-        final long minJitter = (long) (nextDelayMillis * (1 - JITTER_RATE));
-        final long maxJitter = (long) (nextDelayMillis * (1 + JITTER_RATE));
-        final long bound = maxJitter - minJitter + 1;
-        final long millis = random(bound);
-        return Math.max(0, saturatedAdd(minJitter, millis));
-    }
-
-    private static long saturatedMultiply(long left, double right) {
-        final double result = left * right;
-        return result >= Long.MAX_VALUE ? Long.MAX_VALUE : (long) result;
-    }
-
-    private static long random(long bound) {
-        assert bound > 0;
-        final long mask = bound - 1;
-        final Random random = ThreadLocalRandom.current();
-        long result = random.nextLong();
-
-        if ((bound & mask) == 0L) {
-            // power of two
-            result &= mask;
-        } else { // reject over-represented candidates
-            for (long u = result >>> 1; u + mask - (result = u % bound) < 0L; u = random.nextLong() >>> 1) {
-                continue;
-            }
-        }
-
-        return result;
-    }
 
     private enum State {
         INIT,
@@ -105,31 +60,47 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         STOPPED
     }
 
-    private final CentralDogma client;
     private final ScheduledExecutorService watchScheduler;
     private final String projectName;
     private final String repositoryName;
     private final String pathPattern;
+    private final boolean errorOnEntryNotFound;
+    private final long delayOnSuccessMillis;
+    private final long initialDelayMillis;
+    private final long maxDelayMillis;
+    private final double multiplier;
+    private final double jitterRate;
 
-    private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners;
-    private final AtomicReference<State> state;
-    private final CompletableFuture<Latest<T>> initialValueFuture;
+    private final List<Map.Entry<BiConsumer<? super Revision, ? super T>, Executor>> updateListeners =
+            new CopyOnWriteArrayList<>();
+    private final AtomicReference<State> state = new AtomicReference<>(State.INIT);
+    private final CompletableFuture<Latest<T>> initialValueFuture = new CompletableFuture<>();
 
+    @Nullable
     private volatile Latest<T> latest;
+    @Nullable
     private volatile ScheduledFuture<?> currentScheduleFuture;
+    @Nullable
     private volatile CompletableFuture<?> currentWatchFuture;
 
-    protected AbstractWatcher(CentralDogma client, ScheduledExecutorService watchScheduler,
-                              String projectName, String repositoryName, String pathPattern) {
-        this.client = requireNonNull(client, "client");
-        this.watchScheduler = requireNonNull(watchScheduler, "watchScheduler");
-        this.projectName = requireNonNull(projectName, "projectName");
-        this.repositoryName = requireNonNull(repositoryName, "repositoryName");
-        this.pathPattern = requireNonNull(pathPattern, "pathPattern");
+    AbstractWatcher(ScheduledExecutorService watchScheduler, String projectName, String repositoryName,
+                    String pathPattern, boolean errorOnEntryNotFound, long delayOnSuccessMillis,
+                    long initialDelayMillis, long maxDelayMillis, double multiplier, double jitterRate) {
+        this.watchScheduler = watchScheduler;
+        this.projectName = projectName;
+        this.repositoryName = repositoryName;
+        this.pathPattern = pathPattern;
+        this.errorOnEntryNotFound = errorOnEntryNotFound;
+        this.delayOnSuccessMillis = delayOnSuccessMillis;
+        this.initialDelayMillis = initialDelayMillis;
+        this.maxDelayMillis = maxDelayMillis;
+        this.multiplier = multiplier;
+        this.jitterRate = jitterRate;
+    }
 
-        updateListeners = new CopyOnWriteArrayList<>();
-        state = new AtomicReference<>(State.INIT);
-        initialValueFuture = new CompletableFuture<>();
+    @Override
+    public ScheduledExecutorService watchScheduler() {
+        return watchScheduler;
     }
 
     @Override
@@ -147,10 +118,10 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
     }
 
     /**
-     * Starts to watch the file specified in the {@link Query} or the {@code pathPattern}
+     * Starts to watch the file specified in the {@link Query} or the {@link PathPattern}
      * given with the constructor.
      */
-    public void start() {
+    void start() {
         if (state.compareAndSet(State.INIT, State.STARTED)) {
             scheduleWatch(0);
         }
@@ -189,16 +160,16 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         checkState(!isStopped(), "watcher closed");
         updateListeners.add(new SimpleImmutableEntry<>(listener, executor));
 
+        final Latest<T> latest = this.latest;
         if (latest != null) {
-            // Perform initial notification so that the listener always gets the initial value.
-            try {
-                executor.execute(() -> {
-                    final Latest<T> latest = this.latest;
-                    listener.accept(latest.revision(), latest.value());
-                });
-            } catch (RejectedExecutionException e) {
-                handleExecutorShutdown(executor, e);
-            }
+            // There's a chance that listener.accept(...) is called twice for the same value
+            // if this watch method is called:
+            // - after " this.latest = newLatest;" is invoked.
+            // - and before notifyListener() is called.
+            // However, it's such a rare case and we usually call `watch` method right after creating a Watcher,
+            // which means latest is probably not set yet, so we don't use a lock to guarantee
+            // the atomicity.
+            executor.execute(() -> listener.accept(latest.revision(), latest.value()));
         }
     }
 
@@ -209,19 +180,55 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
 
         final long delay;
         if (numAttemptsSoFar == 0) {
-            delay = latest != null ? DELAY_ON_SUCCESS_MILLIS : 0;
+            delay = latest != null ? delayOnSuccessMillis : 0;
         } else {
             delay = nextDelayMillis(numAttemptsSoFar);
         }
 
-        try {
-            currentScheduleFuture = watchScheduler.schedule(() -> {
-                currentScheduleFuture = null;
-                doWatch(numAttemptsSoFar);
-            }, delay, TimeUnit.MILLISECONDS);
-        } catch (RejectedExecutionException e) {
-            handleExecutorShutdown(watchScheduler, e);
+        currentScheduleFuture = watchScheduler.schedule(() -> {
+            currentScheduleFuture = null;
+            doWatch(numAttemptsSoFar);
+        }, delay, TimeUnit.MILLISECONDS);
+    }
+
+    private long nextDelayMillis(int numAttemptsSoFar) {
+        final long nextDelayMillis;
+        if (numAttemptsSoFar == 1) {
+            nextDelayMillis = initialDelayMillis;
+        } else {
+            nextDelayMillis =
+                    Math.min(saturatedMultiply(initialDelayMillis, Math.pow(multiplier, numAttemptsSoFar - 1)),
+                             maxDelayMillis);
         }
+
+        final long minJitter = (long) (nextDelayMillis * (1 - jitterRate));
+        final long maxJitter = (long) (nextDelayMillis * (1 + jitterRate));
+        final long bound = maxJitter - minJitter + 1;
+        final long millis = random(bound);
+        return Math.max(0, saturatedAdd(minJitter, millis));
+    }
+
+    private static long saturatedMultiply(long left, double right) {
+        final double result = left * right;
+        return result >= Long.MAX_VALUE ? Long.MAX_VALUE : (long) result;
+    }
+
+    private static long random(long bound) {
+        assert bound > 0;
+        final long mask = bound - 1;
+        final Random random = ThreadLocalRandom.current();
+        long result = random.nextLong();
+
+        if ((bound & mask) == 0L) {
+            // power of two
+            result &= mask;
+        } else { // reject over-represented candidates
+            for (long u = result >>> 1; u + mask - (result = u % bound) < 0L; u = random.nextLong() >>> 1) {
+                continue;
+            }
+        }
+
+        return result;
     }
 
     private void doWatch(int numAttemptsSoFar) {
@@ -229,19 +236,19 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
             return;
         }
 
+        final Latest<T> latest = this.latest;
         final Revision lastKnownRevision = latest != null ? latest.revision() : Revision.INIT;
-        final CompletableFuture<Latest<T>> f = doWatch(client, projectName, repositoryName, lastKnownRevision);
+        final CompletableFuture<Latest<T>> f = doWatch(lastKnownRevision);
 
         currentWatchFuture = f;
-        f.whenComplete((result, cause) -> currentWatchFuture = null)
-         .thenAccept(newLatest -> {
+        f.thenAccept(newLatest -> {
+             currentWatchFuture = null;
              if (newLatest != null) {
-                 final Latest<T> oldLatest = latest;
-                 latest = newLatest;
+                 this.latest = newLatest;
                  logger.debug("watcher noticed updated file {}/{}{}: rev={}",
                               projectName, repositoryName, pathPattern, newLatest.revision());
-                 notifyListeners();
-                 if (oldLatest == null) {
+                 notifyListeners(newLatest);
+                 if (!initialValueFuture.isDone()) {
                      initialValueFuture.complete(newLatest);
                  }
              }
@@ -250,11 +257,17 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
              scheduleWatch(0);
          })
          .exceptionally(thrown -> {
+             currentWatchFuture = null;
              try {
                  final Throwable cause = thrown instanceof CompletionException ? thrown.getCause() : thrown;
                  boolean logged = false;
                  if (cause instanceof CentralDogmaException) {
                      if (cause instanceof EntryNotFoundException) {
+                         if (!initialValueFuture.isDone() && errorOnEntryNotFound) {
+                             initialValueFuture.completeExceptionally(thrown);
+                             close();
+                             return null;
+                         }
                          logger.info("{}/{}{} does not exist yet; trying again",
                                      projectName, repositoryName, pathPattern);
                          logged = true;
@@ -286,16 +299,14 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
          });
     }
 
-    protected abstract CompletableFuture<Latest<T>> doWatch(
-            CentralDogma client, String projectName, String repositoryName, Revision lastKnownRevision);
+    abstract CompletableFuture<Latest<T>> doWatch(Revision lastKnownRevision);
 
-    private void notifyListeners() {
+    private void notifyListeners(Latest<T> latest) {
         if (isStopped()) {
             // Do not notify after stopped.
             return;
         }
 
-        final Latest<T> latest = this.latest;
         for (Map.Entry<BiConsumer<? super Revision, ? super T>, Executor> entry : updateListeners) {
             final BiConsumer<? super Revision, ? super T> listener = entry.getKey();
             final Executor executor = entry.getValue();
@@ -310,13 +321,20 @@ abstract class AbstractWatcher<T> implements Watcher<T> {
         }
     }
 
-    private void handleExecutorShutdown(Executor executor, RejectedExecutionException e) {
-        if (logger.isTraceEnabled()) {
-            logger.trace("Stopping to watch since the executor is shut down. executor: {}", executor, e);
-        } else {
-            logger.debug("Stopping to watch since the executor is shut down. executor: {}", executor);
-        }
-
-        close();
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("watchScheduler", watchScheduler)
+                          .add("projectName", projectName)
+                          .add("repositoryName", repositoryName)
+                          .add("pathPattern", pathPattern)
+                          .add("errorOnEntryNotFound", errorOnEntryNotFound)
+                          .add("delayOnSuccessMillis", delayOnSuccessMillis)
+                          .add("initialDelayMillis", initialDelayMillis)
+                          .add("maxDelayMillis", maxDelayMillis)
+                          .add("multiplier", multiplier)
+                          .add("jitterRate", jitterRate)
+                          .add("latest", latest)
+                          .toString();
     }
 }

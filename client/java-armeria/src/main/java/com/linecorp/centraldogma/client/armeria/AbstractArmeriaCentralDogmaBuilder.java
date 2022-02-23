@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import com.google.common.collect.Iterables;
@@ -35,14 +34,15 @@ import com.linecorp.armeria.client.ClientBuilder;
 import com.linecorp.armeria.client.ClientFactory;
 import com.linecorp.armeria.client.Clients;
 import com.linecorp.armeria.client.Endpoint;
-import com.linecorp.armeria.client.endpoint.DynamicEndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroupBuilder;
 import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
+import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroupBuilder;
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.client.AbstractCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
@@ -53,11 +53,10 @@ import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
 public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentralDogmaBuilder<B>>
         extends AbstractCentralDogmaBuilder<B> {
 
-    private static final int DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS = 15000;
-
     private ClientFactory clientFactory = ClientFactory.ofDefault();
     private ArmeriaClientConfigurator clientConfigurator = cb -> {};
-    private Duration healthCheckInterval = Duration.ofMillis(DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS);
+    @Nullable
+    private Duration healthCheckInterval;
     private DnsAddressEndpointGroupConfigurator dnsAddressEndpointGroupConfigurator = b -> {};
     private ScheduledExecutorService blockingTaskExecutor = CommonPools.blockingTaskExecutor();
 
@@ -99,8 +98,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     }
 
     /**
-     * Sets the interval between health check requests. The default value is
-     * {@value #DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS} seconds.
+     * Sets the interval between health check requests.
      *
      * @param healthCheckInterval the interval between health check requests. {@link Duration#ZERO} disables
      *                            health check requests.
@@ -114,8 +112,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
     }
 
     /**
-     * Sets the interval between health check requests in milliseconds. The default value is
-     * {@value #DEFAULT_HEALTH_CHECK_INTERVAL_MILLIS} milliseconds.
+     * Sets the interval between health check requests in milliseconds.
      *
      * @param healthCheckIntervalMillis the interval between health check requests in milliseconds.
      *                                  {@code 0} disables health check requests.
@@ -133,6 +130,24 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
      * @throws UnknownHostException if failed to resolve the host names from the DNS servers
      */
     protected final EndpointGroup endpointGroup() throws UnknownHostException {
+        final EndpointGroup group = endpointGroup0();
+
+        if (healthCheckInterval != null && healthCheckInterval.isZero()) {
+            return group;
+        }
+
+        final HealthCheckedEndpointGroupBuilder healthCheckedEndpointGroupBuilder =
+                HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
+                                          .clientFactory(clientFactory)
+                                          .protocol(isUseTls() ? SessionProtocol.HTTPS
+                                                               : SessionProtocol.HTTP);
+        if (healthCheckInterval != null) {
+            healthCheckedEndpointGroupBuilder.retryInterval(healthCheckInterval);
+        }
+        return healthCheckedEndpointGroupBuilder.build();
+    }
+
+    private EndpointGroup endpointGroup0() throws UnknownHostException {
         final Set<InetSocketAddress> hosts = hosts();
         checkState(!hosts.isEmpty(), "no hosts were added.");
 
@@ -166,28 +181,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
             group = new CompositeEndpointGroup(groups, EndpointSelectionStrategy.roundRobin());
         }
 
-        if (group instanceof DynamicEndpointGroup) {
-            // Wait until the initial endpointGroup list is ready.
-            try {
-                group.whenReady().get(10, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                final UnknownHostException cause = new UnknownHostException(
-                        "failed to resolve any of: " + hosts);
-                cause.initCause(e);
-                throw cause;
-            }
-        }
-
-        if (!healthCheckInterval.isZero()) {
-            return HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
-                                             .clientFactory(clientFactory)
-                                             .protocol(isUseTls() ? SessionProtocol.HTTPS
-                                                                  : SessionProtocol.HTTP)
-                                             .retryInterval(healthCheckInterval)
-                                             .build();
-        } else {
-            return group;
-        }
+        return group;
     }
 
     private static Endpoint toResolvedHostEndpoint(InetSocketAddress addr) {

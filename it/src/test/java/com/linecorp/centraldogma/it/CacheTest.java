@@ -34,6 +34,7 @@ import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -58,8 +59,10 @@ class CacheTest {
         client.createRepository(project, REPO_FOO).join();
 
         final Map<String, Double> meters1 = metersSupplier.get();
-        final PushResult res = client.push(project, REPO_FOO, HEAD, "Add a file",
-                                           Change.ofTextUpsert("/foo.txt", "bar")).join();
+        final PushResult res = client.forRepo(project, REPO_FOO)
+                                     .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
+                                     .push()
+                                     .join();
 
         final Map<String, Double> meters2 = metersSupplier.get();
         // Metadata needs to access to check a write quota (one cache miss).
@@ -105,20 +108,23 @@ class CacheTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
-        final PushResult res1 = client.push(project, REPO_FOO, HEAD, "Add a file",
-                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
+        final PushResult res1 = client.forRepo(project, REPO_FOO)
+                                      .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
+                                      .push()
+                                      .join();
 
         final Map<String, Double> meters1 = metersSupplier.get();
 
         // Get the history in various combination of from/to revisions.
         final List<Commit> history1 =
-                client.getHistory(project, REPO_FOO, HEAD, new Revision(-2), "/**").join();
+                client.getHistory(project, REPO_FOO, HEAD, new Revision(-2), PathPattern.all(), 0).join();
         final List<Commit> history2 =
-                client.getHistory(project, REPO_FOO, HEAD, INIT, "/**").join();
+                client.getHistory(project, REPO_FOO, HEAD, INIT, PathPattern.all(), 0).join();
         final List<Commit> history3 =
-                client.getHistory(project, REPO_FOO, res1.revision(), new Revision(-2), "/**").join();
+                client.getHistory(project, REPO_FOO, res1.revision(), new Revision(-2), PathPattern.all(), 0)
+                      .join();
         final List<Commit> history4 =
-                client.getHistory(project, REPO_FOO, res1.revision(), INIT, "/**").join();
+                client.getHistory(project, REPO_FOO, res1.revision(), INIT, PathPattern.all(), 0).join();
 
         // and they should all same.
         assertThat(history1).isEqualTo(history2);
@@ -140,20 +146,22 @@ class CacheTest {
         client.createProject(project).join();
         client.createRepository(project, REPO_FOO).join();
 
-        final PushResult res1 = client.push(project, REPO_FOO, HEAD, "Add a file",
-                                            Change.ofTextUpsert("/foo.txt", "bar")).join();
+        final PushResult res1 = client.forRepo(project, REPO_FOO)
+                                      .commit("Add a file", Change.ofTextUpsert("/foo.txt", "bar"))
+                                      .push()
+                                      .join();
 
         final Map<String, Double> meters1 = metersSupplier.get();
 
         // Get the diffs in various combination of from/to revisions.
         final List<Change<?>> diff1 =
-                client.getDiffs(project, REPO_FOO, HEAD, new Revision(-2), "/**").join();
+                client.getDiff(project, REPO_FOO, HEAD, new Revision(-2), PathPattern.all()).join();
         final List<Change<?>> diff2 =
-                client.getDiffs(project, REPO_FOO, HEAD, INIT, "/**").join();
+                client.getDiff(project, REPO_FOO, HEAD, INIT, PathPattern.all()).join();
         final List<Change<?>> diff3 =
-                client.getDiffs(project, REPO_FOO, res1.revision(), new Revision(-2), "/**").join();
+                client.getDiff(project, REPO_FOO, res1.revision(), new Revision(-2), PathPattern.all()).join();
         final List<Change<?>> diff4 =
-                client.getDiffs(project, REPO_FOO, res1.revision(), INIT, "/**").join();
+                client.getDiff(project, REPO_FOO, res1.revision(), INIT, PathPattern.all()).join();
 
         // and they should all same.
         assertThat(diff1).isEqualTo(diff2);

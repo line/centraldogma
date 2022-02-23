@@ -20,7 +20,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.linecorp.centraldogma.internal.Util.unsafeCast;
-import static com.linecorp.centraldogma.internal.Util.validatePathPattern;
 import static com.linecorp.centraldogma.internal.Util.validateRepositoryName;
 import static java.util.Objects.requireNonNull;
 
@@ -43,9 +42,11 @@ import org.apache.thrift.TException;
 import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.thrift.ThriftFuture;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
+import com.linecorp.centraldogma.client.CentralDogmaRepository;
 import com.linecorp.centraldogma.client.RepositoryInfo;
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -58,6 +59,7 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergedEntry;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.ProjectExistsException;
 import com.linecorp.centraldogma.common.ProjectNotFoundException;
 import com.linecorp.centraldogma.common.PushResult;
@@ -93,42 +95,37 @@ import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 final class LegacyCentralDogma extends AbstractCentralDogma {
 
     private final CentralDogmaService.AsyncIface client;
+    private final EndpointGroup endpointGroup;
 
-    LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, CentralDogmaService.AsyncIface client) {
+    LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, CentralDogmaService.AsyncIface client,
+                       EndpointGroup endpointGroup) {
         super(blockingTaskExecutor);
         this.client = requireNonNull(client, "client");
+        this.endpointGroup = endpointGroup;
     }
 
     @Override
     public CompletableFuture<Void> createProject(String projectName) {
-        return run(callback -> {
-            validateProjectName(projectName);
-            client.createProject(projectName, callback);
-        });
+        validateProjectName(projectName);
+        return run(callback -> client.createProject(projectName, callback));
     }
 
     @Override
     public CompletableFuture<Void> removeProject(String projectName) {
-        return run(callback -> {
-            validateProjectName(projectName);
-            client.removeProject(projectName, callback);
-        });
+        validateProjectName(projectName);
+        return run(callback -> client.removeProject(projectName, callback));
     }
 
     @Override
     public CompletableFuture<Void> purgeProject(String projectName) {
-        return run(callback -> {
-            validateProjectName(projectName);
-            client.purgeProject(projectName, callback);
-        });
+        validateProjectName(projectName);
+        return run(callback -> client.purgeProject(projectName, callback));
     }
 
     @Override
     public CompletableFuture<Void> unremoveProject(String projectName) {
-        return run(callback -> {
-            validateProjectName(projectName);
-            client.unremoveProject(projectName, callback);
-        });
+        validateProjectName(projectName);
+        return run(callback -> client.unremoveProject(projectName, callback));
     }
 
     @Override
@@ -143,41 +140,37 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     }
 
     @Override
-    public CompletableFuture<Void> createRepository(String projectName, String repositoryName) {
-        return run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            client.createRepository(projectName, repositoryName, callback);
-        });
+    public CompletableFuture<CentralDogmaRepository> createRepository(String projectName,
+                                                                      String repositoryName) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        return run(callback -> client.createRepository(projectName, repositoryName, callback))
+                .thenApply(unused -> forRepo(projectName, repositoryName));
     }
 
     @Override
     public CompletableFuture<Void> removeRepository(String projectName, String repositoryName) {
-        return run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            client.removeRepository(projectName, repositoryName, callback);
-        });
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        return run(callback -> client.removeRepository(projectName, repositoryName, callback));
     }
 
     @Override
     public CompletableFuture<Void> purgeRepository(String projectName, String repositoryName) {
-        return run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            client.purgeRepository(projectName, repositoryName, callback);
-        });
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        return run(callback -> client.purgeRepository(projectName, repositoryName, callback));
     }
 
     @Override
-    public CompletableFuture<Void> unremoveRepository(String projectName, String repositoryName) {
-        return run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            client.unremoveRepository(projectName, repositoryName, callback);
-        });
+    public CompletableFuture<CentralDogmaRepository> unremoveRepository(String projectName,
+                                                                        String repositoryName) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        return run(callback -> client.unremoveRepository(projectName, repositoryName, callback))
+                .thenApply(unused -> forRepo(projectName, repositoryName));
     }
 
     @Override
     public CompletableFuture<Map<String, RepositoryInfo>> listRepositories(String projectName) {
+        validateProjectName(projectName);
         final CompletableFuture<List<Repository>> future = run(callback -> {
-            validateProjectName(projectName);
             client.listRepositories(projectName, callback);
         });
         return future.thenApply(list -> convertToMap(
@@ -190,8 +183,8 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Set<String>> listRemovedRepositories(String projectName) {
+        validateProjectName(projectName);
         return run(callback -> {
-            validateProjectName(projectName);
             client.listRemovedRepositories(projectName, callback);
         });
     }
@@ -199,9 +192,9 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Revision> normalizeRevision(String projectName, String repositoryName,
                                                          Revision revision) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(revision, "revision");
         final CompletableFuture<com.linecorp.centraldogma.internal.thrift.Revision> future = run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(revision, "revision");
             client.normalizeRevision(projectName, repositoryName,
                                      RevisionConverter.TO_DATA.convert(revision), callback);
         });
@@ -210,16 +203,15 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Map<String, EntryType>> listFiles(String projectName, String repositoryName,
-                                                               Revision revision, String pathPattern) {
+                                                               Revision revision, PathPattern pathPattern) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(revision, "revision");
+        requireNonNull(pathPattern, "pathPattern");
         final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Entry>> future =
                 run(callback -> {
-                    validateProjectAndRepositoryName(projectName, repositoryName);
-                    requireNonNull(revision, "revision");
-                    validatePathPattern(pathPattern, "pathPattern");
-
                     client.listFiles(projectName, repositoryName,
                                      RevisionConverter.TO_DATA.convert(revision),
-                                     pathPattern, callback);
+                                     pathPattern.patternString(), callback);
                 });
         return future.thenApply(list -> list.stream().collect(toImmutableMap(
                 com.linecorp.centraldogma.internal.thrift.Entry::getPath,
@@ -229,9 +221,9 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> getFile(String projectName, String repositoryName,
                                                    Revision revision, Query<T> query) {
+        requireNonNull(query, "query");
         return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
             final CompletableFuture<GetFileResult> future = run(callback -> {
-                requireNonNull(query, "query");
                 client.getFile(projectName, repositoryName,
                                RevisionConverter.TO_DATA.convert(normRev),
                                QueryConverter.TO_DATA.convert(query), callback);
@@ -285,15 +277,14 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
     @Override
     public CompletableFuture<Map<String, Entry<?>>> getFiles(String projectName, String repositoryName,
-                                                             Revision revision, String pathPattern) {
-
+                                                             Revision revision, PathPattern pathPattern) {
+        requireNonNull(pathPattern, "pathPattern");
         return maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -> {
             final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Entry>> future =
                     run(callback -> {
-                        validatePathPattern(pathPattern, "pathPattern");
                         client.getFiles(projectName, repositoryName,
                                         RevisionConverter.TO_DATA.convert(normRev),
-                                        pathPattern, callback);
+                                        pathPattern.patternString(), callback);
                     });
             return future.thenApply(list -> convertToMap(list, e -> EntryConverter.convert(normRev, e),
                                                          Entry::path, Function.identity()));
@@ -303,11 +294,11 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<MergedEntry<T>> mergeFiles(String projectName, String repositoryName,
                                                             Revision revision, MergeQuery<T> mergeQuery) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(revision, "revision");
+        requireNonNull(mergeQuery, "mergeQuery");
         final CompletableFuture<com.linecorp.centraldogma.internal.thrift.MergedEntry> future =
                 run(callback -> {
-                    validateProjectAndRepositoryName(projectName, repositoryName);
-                    requireNonNull(revision, "revision");
-                    requireNonNull(mergeQuery, "mergeQuery");
                     client.mergeFiles(projectName, repositoryName,
                                       RevisionConverter.TO_DATA.convert(revision),
                                       MergeQueryConverter.TO_DATA.convert(mergeQuery),
@@ -339,30 +330,29 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                                       String repositoryName,
                                                       Revision from,
                                                       Revision to,
-                                                      String pathPattern) {
+                                                      PathPattern pathPattern,
+                                                      int maxCommits) {
+        checkArgument(maxCommits == 0, "maxCommits is not supported in LegacyCentralDogma.");
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        requireNonNull(pathPattern, "pathPattern");
         final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Commit>> future =
-                run(callback -> {
-                    validateProjectAndRepositoryName(projectName, repositoryName);
-                    requireNonNull(from, "from");
-                    requireNonNull(to, "to");
-                    validatePathPattern(pathPattern, "pathPattern");
-
-                    client.getHistory(projectName, repositoryName,
-                                      RevisionConverter.TO_DATA.convert(from),
-                                      RevisionConverter.TO_DATA.convert(to),
-                                      pathPattern, callback);
-                });
+                run(callback -> client.getHistory(projectName, repositoryName,
+                                                  RevisionConverter.TO_DATA.convert(from),
+                                                  RevisionConverter.TO_DATA.convert(to),
+                                                  pathPattern.patternString(), callback));
         return future.thenApply(list -> convertToList(list, CommitConverter.TO_MODEL::convert));
     }
 
     @Override
     public <T> CompletableFuture<Change<T>> getDiff(String projectName, String repositoryName,
                                                     Revision from, Revision to, Query<T> query) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        requireNonNull(query, "query");
         final CompletableFuture<DiffFileResult> future = run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(from, "from");
-            requireNonNull(to, "to");
-            requireNonNull(query, "query");
             client.diffFile(projectName, repositoryName,
                             RevisionConverter.TO_DATA.convert(from),
                             RevisionConverter.TO_DATA.convert(to),
@@ -402,17 +392,18 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     }
 
     @Override
-    public CompletableFuture<List<Change<?>>> getDiffs(String projectName, String repositoryName,
-                                                       Revision from, Revision to, String pathPattern) {
+    public CompletableFuture<List<Change<?>>> getDiff(String projectName, String repositoryName,
+                                                      Revision from, Revision to, PathPattern pathPattern) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(from, "from");
+        requireNonNull(to, "to");
+        requireNonNull(pathPattern, "pathPattern");
         final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Change>> future =
                 run(callback -> {
-                    validateProjectAndRepositoryName(projectName, repositoryName);
-                    requireNonNull(from, "from");
-                    requireNonNull(to, "to");
-                    validatePathPattern(pathPattern, "pathPattern");
                     client.getDiffs(projectName, repositoryName,
                                     RevisionConverter.TO_DATA.convert(from),
-                                    RevisionConverter.TO_DATA.convert(to), pathPattern, callback);
+                                    RevisionConverter.TO_DATA.convert(to), pathPattern.patternString(),
+                                    callback);
                 });
         return future.thenApply(list -> convertToList(list, ChangeConverter.TO_MODEL::convert));
     }
@@ -421,16 +412,14 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     public CompletableFuture<List<Change<?>>> getPreviewDiffs(String projectName, String repositoryName,
                                                               Revision baseRevision,
                                                               Iterable<? extends Change<?>> changes) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(baseRevision, "baseRevision");
+        requireNonNull(changes, "changes");
         final CompletableFuture<List<com.linecorp.centraldogma.internal.thrift.Change>> future =
-                run(callback -> {
-                    validateProjectAndRepositoryName(projectName, repositoryName);
-                    requireNonNull(baseRevision, "baseRevision");
-                    requireNonNull(changes, "changes");
-                    client.getPreviewDiffs(
-                            projectName, repositoryName,
-                            RevisionConverter.TO_DATA.convert(baseRevision),
-                            convertToList(changes, ChangeConverter.TO_DATA::convert), callback);
-                });
+                run(callback -> client.getPreviewDiffs(
+                        projectName, repositoryName,
+                        RevisionConverter.TO_DATA.convert(baseRevision),
+                        convertToList(changes, ChangeConverter.TO_DATA::convert), callback));
         return future.thenApply(LegacyCentralDogma::convertToChangesModel);
     }
 
@@ -446,15 +435,15 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     public CompletableFuture<PushResult> push(String projectName, String repositoryName, Revision baseRevision,
                                               Author author, String summary, String detail, Markup markup,
                                               Iterable<? extends Change<?>> changes) {
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(baseRevision, "baseRevision");
+        requireNonNull(author, "author");
+        requireNonNull(summary, "summary");
+        requireNonNull(detail, "detail");
+        requireNonNull(markup, "markup");
+        requireNonNull(changes, "changes");
+        checkArgument(!Iterables.isEmpty(changes), "changes is empty.");
         final CompletableFuture<com.linecorp.centraldogma.internal.thrift.Commit> future = run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(baseRevision, "baseRevision");
-            requireNonNull(author, "author");
-            requireNonNull(summary, "summary");
-            requireNonNull(detail, "detail");
-            requireNonNull(markup, "markup");
-            requireNonNull(changes, "changes");
-            checkArgument(!Iterables.isEmpty(changes), "changes is empty.");
             client.push(projectName, repositoryName,
                         RevisionConverter.TO_DATA.convert(baseRevision),
                         AuthorConverter.TO_DATA.convert(author), summary,
@@ -468,15 +457,17 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     @Override
     public CompletableFuture<Revision> watchRepository(String projectName, String repositoryName,
                                                        Revision lastKnownRevision,
-                                                       String pathPattern,
-                                                       long timeoutMillis) {
+                                                       PathPattern pathPattern,
+                                                       long timeoutMillis,
+                                                       boolean errorOnEntryNotFound) {
+        checkArgument(!errorOnEntryNotFound, "errorOnEntryNotFound is not supported in LegacyCentralDogma.");
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(lastKnownRevision, "lastKnownRevision");
+        requireNonNull(pathPattern, "pathPattern");
         final CompletableFuture<WatchRepositoryResult> future = run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(lastKnownRevision, "lastKnownRevision");
-            validatePathPattern(pathPattern, "pathPattern");
             client.watchRepository(projectName, repositoryName,
                                    RevisionConverter.TO_DATA.convert(lastKnownRevision),
-                                   pathPattern, timeoutMillis,
+                                   pathPattern.patternString(), timeoutMillis,
                                    callback);
         });
         return future.thenApply(r -> {
@@ -491,12 +482,12 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     @Override
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
-                                                     long timeoutMillis) {
-
+                                                     long timeoutMillis, boolean errorOnEntryNotFound) {
+        checkArgument(!errorOnEntryNotFound, "errorOnEntryNotFound is not supported in LegacyCentralDogma.");
+        validateProjectAndRepositoryName(projectName, repositoryName);
+        requireNonNull(lastKnownRevision, "lastKnownRevision");
+        requireNonNull(query, "query");
         final CompletableFuture<WatchFileResult> future = run(callback -> {
-            validateProjectAndRepositoryName(projectName, repositoryName);
-            requireNonNull(lastKnownRevision, "lastKnownRevision");
-            requireNonNull(query, "query");
             client.watchFile(projectName, repositoryName,
                              RevisionConverter.TO_DATA.convert(lastKnownRevision),
                              QueryConverter.TO_DATA.convert(query),
@@ -514,6 +505,11 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
             return toEntry(query, revision, query.type(), r.getContent(), r.getType());
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> whenEndpointReady() {
+        return endpointGroup.whenReady().thenRun(() -> {});
     }
 
     private static void validateProjectName(String projectName) {

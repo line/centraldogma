@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 
@@ -65,7 +66,7 @@ public final class WatchRequestConverter implements RequestConverterFunction {
             return null;
         }
 
-        final Revision lastKnownRevision = new Revision(ifNoneMatch);
+        final Revision lastKnownRevision = new Revision(extractRevision(ifNoneMatch));
         final String prefer = request.headers().get(HttpHeaderNames.PREFER);
         final long timeoutMillis;
         final boolean notifyEntryNotFound;
@@ -79,6 +80,27 @@ public final class WatchRequestConverter implements RequestConverterFunction {
         }
 
         return new WatchRequest(lastKnownRevision, timeoutMillis, notifyEntryNotFound);
+    }
+
+    @VisibleForTesting
+    String extractRevision(String ifNoneMatch) {
+        final int length = ifNoneMatch.length();
+
+        // Three below cases are valid. See https://github.com/line/centraldogma/issues/415
+        // - <revision> (for backward compatibility)
+        // - "<revision>"
+        // - W/"<revision>"
+        if (length > 2 && ifNoneMatch.charAt(0) == '"' &&
+            ifNoneMatch.charAt(length - 1) == '"') {
+            return ifNoneMatch.substring(1, length - 1);
+        }
+
+        if (length > 4 && ifNoneMatch.startsWith("W/\"") &&
+            ifNoneMatch.charAt(length - 1) == '"') {
+            return ifNoneMatch.substring(3, length - 1);
+        }
+
+        return ifNoneMatch;
     }
 
     // TODO(minwoox) Use https://github.com/line/armeria/issues/1835

@@ -3,21 +3,21 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.fasterxml.jackson:jackson-bom:2.13.0
-- com.linecorp.armeria:armeria-bom:1.13.4
-- io.micrometer:micrometer-bom:1.7.6
+- com.fasterxml.jackson:jackson-bom:2.13.1
+- com.linecorp.armeria:armeria-bom:1.14.1
+- io.micrometer:micrometer-bom:1.8.2
 - org.junit:junit-bom:5.8.2
 
 ch.qos.logback:
   logback-classic:
-    version: '1.2.7'
+    version: '1.2.10'
     javadocs:
-    - https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.7/
+    - https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.10/
 
 com.beust:
   # Please check `jcommander` version of Maven Central Repository before updating
   # https://search.maven.org/artifact/com.beust/jcommander
-  jcommander: { version: '1.81' }
+  jcommander: { version: '1.82' }
 
 com.boazj.gradle:
   gradle-log-plugin: { version: '0.1.0' }
@@ -111,10 +111,10 @@ com.jcraft:
 com.linecorp.armeria:
   armeria:
     javadocs:
-    - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.9.0/
+    - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.14.1/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '9.2' }
+  checkstyle: { version: '9.2.1' }
 
 com.spotify:
   completable-futures:
@@ -169,7 +169,7 @@ net.javacrumbs.json-unit:
   json-unit-fluent: { version: *JSON_UNIT_VERSION }
 
 com.guardsquare:
-  proguard-gradle: { version: '7.1.1' }
+  proguard-gradle: { version: '7.2.0' }
 
 # Ensure that we use the same ZooKeeper version as what Curator depends on.
 # See: https://github.com/apache/curator/blob/master/pom.xml
@@ -203,7 +203,7 @@ org.apache.zookeeper:
     - org.slf4j:slf4j-log4j12
 
 org.assertj:
-  assertj-core: { version: '3.21.0' }
+  assertj-core: { version: '3.22.0' }
 
 org.awaitility:
   awaitility: { version: '4.1.1' }
@@ -225,18 +225,18 @@ org.javassist:
   javassist: { version: '3.28.0-GA' }
 
 org.mockito:
-  mockito-core: { version: &MOCKITO_VERSION '4.1.0' }
+  mockito-core: { version: &MOCKITO_VERSION '4.3.1' }
   mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
   jetty-alpn-agent: { version: '2.0.10' }
 
 org.openjdk.jmh:
-  jmh-core: { version: &JMH_VERSION '1.33' }
+  jmh-core: { version: &JMH_VERSION '1.34' }
   jmh-generator-annprocess: { version: *JMH_VERSION }
 
 org.slf4j:
-  jcl-over-slf4j: { version: &SLF4J_VERSION '1.7.32' }
+  jcl-over-slf4j: { version: &SLF4J_VERSION '1.7.35' }
   jul-to-slf4j: { version: *SLF4J_VERSION }
   log4j-over-slf4j: { version: *SLF4J_VERSION }
   slf4j-api:
@@ -246,7 +246,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.5.5'
+    version: &SPRING_BOOT_VERSION '2.6.3'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }

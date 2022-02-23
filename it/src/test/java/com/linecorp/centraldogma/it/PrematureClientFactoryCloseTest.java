@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.it;
 
-import static com.linecorp.centraldogma.common.Revision.HEAD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -30,8 +29,8 @@ import com.linecorp.armeria.common.metric.MoreMeters;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Query;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 /**
@@ -44,20 +43,29 @@ class PrematureClientFactoryCloseTest {
         @Override
         protected void scaffold(CentralDogma client) {
             client.createProject("foo").join();
-            client.createRepository("foo", "bar").join();
-            client.push("foo", "bar", Revision.HEAD,
-                        "Add baz.txt", Change.ofTextUpsert("/baz.txt", "")).join();
+            client.createRepository("foo", "bar")
+                  .join()
+                  .commit("Add baz.txt", Change.ofTextUpsert("/baz.txt", ""))
+                  .push().join();
         }
     };
 
     @Test
     void watchRepository() throws Exception {
-        test(client -> client.watchRepository("foo", "bar", HEAD, "/**", Long.MAX_VALUE));
+        test(client -> client.forRepo("foo", "bar")
+                             .watch(PathPattern.all())
+                             .timeoutMillis(Long.MAX_VALUE)
+                             .errorOnEntryNotFound(false)
+                             .start());
     }
 
     @Test
     void watchFile() throws Exception {
-        test(client -> client.watchFile("foo", "bar", HEAD, Query.ofText("/baz.txt"), Long.MAX_VALUE));
+        test(client -> client.forRepo("foo", "bar")
+                             .watch(Query.ofText("/baz.txt"))
+                             .timeoutMillis(Long.MAX_VALUE)
+                             .errorOnEntryNotFound(false)
+                             .start());
     }
 
     private static void test(Function<CentralDogma, CompletableFuture<?>> watchAction) throws Exception {

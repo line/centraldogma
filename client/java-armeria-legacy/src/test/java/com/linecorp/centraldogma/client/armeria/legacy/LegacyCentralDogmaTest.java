@@ -36,6 +36,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.CommonPools;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.RepositoryInfo;
@@ -54,6 +55,7 @@ import com.linecorp.centraldogma.common.EntryType;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.MergeQuery;
 import com.linecorp.centraldogma.common.MergeSource;
+import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
@@ -80,7 +82,7 @@ class LegacyCentralDogmaTest {
 
     @BeforeEach
     void setUp() {
-        client = new LegacyCentralDogma(CommonPools.blockingTaskExecutor(), iface);
+        client = new LegacyCentralDogma(CommonPools.blockingTaskExecutor(), iface, EndpointGroup.of());
     }
 
     @Test
@@ -156,7 +158,8 @@ class LegacyCentralDogmaTest {
             callback.onComplete(null);
             return null;
         }).when(iface).createRepository(anyString(), anyString(), any());
-        assertThat(client.createRepository("project", "repo").get()).isNull();
+        assertThat(client.createRepository("project", "repo").get())
+                .isEqualTo(client.forRepo("project", "repo"));
         verify(iface).createRepository(eq("project"), eq("repo"), any());
     }
 
@@ -189,7 +192,8 @@ class LegacyCentralDogmaTest {
             callback.onComplete(null);
             return null;
         }).when(iface).unremoveRepository(anyString(), anyString(), any());
-        assertThat(client.unremoveRepository("project", "repo").get()).isNull();
+        assertThat(client.unremoveRepository("project", "repo").get())
+                .isEqualTo(client.forRepo("project", "repo"));
         verify(iface).unremoveRepository(eq("project"), eq("repo"), any());
     }
 
@@ -242,7 +246,7 @@ class LegacyCentralDogmaTest {
             callback.onComplete(ImmutableList.of(entry));
             return null;
         }).when(iface).listFiles(anyString(), anyString(), any(), anyString(), any());
-        assertThat(client.listFiles("project", "repo", new Revision(1), "/a.txt").get())
+        assertThat(client.listFiles("project", "repo", new Revision(1), PathPattern.of("/a.txt")).get())
                 .isEqualTo(ImmutableMap.of("/a.txt", EntryType.TEXT));
         verify(iface).listFiles(anyString(), anyString(), any(), anyString(), any());
     }
@@ -256,7 +260,7 @@ class LegacyCentralDogmaTest {
             callback.onComplete(ImmutableList.of(entry));
             return null;
         }).when(iface).getFiles(anyString(), anyString(), any(), anyString(), any());
-        assertThat(client.getFiles("project", "repo", new Revision(1), "path").get())
+        assertThat(client.getFiles("project", "repo", new Revision(1), PathPattern.of("path")).get())
                 .isEqualTo(ImmutableMap.of("/b.txt", Entry.ofText(new Revision(1), "/b.txt", "world")));
         verify(iface).getFiles(anyString(), anyString(), any(), anyString(), any());
     }
@@ -274,12 +278,13 @@ class LegacyCentralDogmaTest {
                     ImmutableList.of(new TChange("/a.txt", ChangeType.UPSERT_TEXT).setContent("content")))));
             return null;
         }).when(iface).getHistory(any(), any(), any(), any(), any(), any());
-        assertThat(client.getHistory("project", "repo", new Revision(1), new Revision(3), "path").get())
+        assertThat(client.getHistory("project", "repo", new Revision(1), new Revision(3),
+                                     PathPattern.of("path")).get())
                 .isEqualTo(ImmutableList.of(new Commit(new Revision(1),
                                                        new Author("name", "name@sample.com"),
                                                        Instant.parse(TIMESTAMP).toEpochMilli(),
                                                        "summary", "detail", Markup.PLAINTEXT)));
-        verify(iface).getHistory(eq("project"), eq("repo"), any(), any(), eq("path"), any());
+        verify(iface).getHistory(eq("project"), eq("repo"), any(), any(), eq("/**/path"), any());
     }
 
     @Test
@@ -291,9 +296,10 @@ class LegacyCentralDogmaTest {
             callback.onComplete(ImmutableList.of(change));
             return null;
         }).when(iface).getDiffs(any(), any(), any(), any(), any(), any());
-        assertThat(client.getDiffs("project", "repo", new Revision(1), new Revision(3), "path").get())
+        assertThat(client.getDiff("project", "repo", new Revision(1), new Revision(3), PathPattern.of("path"))
+                         .get())
                 .isEqualTo(ImmutableList.of(Change.ofTextUpsert("/a.txt", "content")));
-        verify(iface).getDiffs(eq("project"), eq("repo"), any(), any(), eq("path"), any());
+        verify(iface).getDiffs(eq("project"), eq("repo"), any(), any(), eq("/**/path"), any());
     }
 
     @Test
@@ -395,7 +401,8 @@ class LegacyCentralDogmaTest {
             callback.onComplete(new WatchRepositoryResult().setRevision(new TRevision(42)));
             return null;
         }).when(iface).watchRepository(any(), any(), any(), anyString(), anyLong(), any());
-        assertThat(client.watchRepository("project", "repo", new Revision(1), "/a.txt", 100).get())
+        assertThat(client.watchRepository("project", "repo", new Revision(1),
+                                          PathPattern.of("/a.txt"), 100, false).get())
                 .isEqualTo(new Revision(42));
         verify(iface).watchRepository(eq("project"), eq("repo"), any(), eq("/a.txt"), eq(100L), any());
     }
@@ -407,7 +414,8 @@ class LegacyCentralDogmaTest {
             callback.onComplete(new WatchRepositoryResult());
             return null;
         }).when(iface).watchRepository(any(), any(), any(), anyString(), anyLong(), any());
-        assertThat(client.watchRepository("project", "repo", new Revision(1), "/a.txt", 100).get())
+        assertThat(client.watchRepository("project", "repo", new Revision(1),
+                                          PathPattern.of("/a.txt"), 100, false).get())
                 .isNull();
         verify(iface).watchRepository(eq("project"), eq("repo"), any(), eq("/a.txt"), eq(100L), any());
     }
@@ -421,7 +429,8 @@ class LegacyCentralDogmaTest {
                                                      .setContent("foo"));
             return null;
         }).when(iface).watchFile(any(), any(), any(), any(), anyLong(), any());
-        assertThat(client.watchFile("project", "repo", new Revision(1), Query.ofText("/a.txt"), 100).get())
+        assertThat(client.watchFile("project", "repo", new Revision(1),
+                                    Query.ofText("/a.txt"), 100, false).get())
                 .isEqualTo(Entry.ofText(new Revision(42), "/a.txt", "foo"));
         verify(iface).watchFile(eq("project"), eq("repo"), any(), any(), eq(100L), any());
     }
@@ -434,7 +443,7 @@ class LegacyCentralDogmaTest {
             return null;
         }).when(iface).watchFile(any(), any(), any(), any(), anyLong(), any());
         assertThat(client.watchFile("project", "repo", new Revision(1),
-                                    Query.ofText("/a.txt"), 100).get()).isNull();
+                                    Query.ofText("/a.txt"), 100, false).get()).isNull();
         verify(iface).watchFile(eq("project"), eq("repo"), any(), any(), eq(100L), any());
     }
 }

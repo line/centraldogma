@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.client;
 
+import static com.linecorp.centraldogma.internal.PathPatternUtil.toPathPattern;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -34,8 +35,6 @@ import com.linecorp.centraldogma.common.MergedEntry;
 import com.linecorp.centraldogma.common.PushResult;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.internal.client.FileWatcher;
-import com.linecorp.centraldogma.internal.client.RepositoryWatcher;
 
 /**
  * A skeletal {@link CentralDogma} implementation.
@@ -61,6 +60,13 @@ public abstract class AbstractCentralDogma implements CentralDogma {
      */
     protected final ScheduledExecutorService executor() {
         return blockingTaskExecutor;
+    }
+
+    @Override
+    public CentralDogmaRepository forRepo(String projectName, String repositoryName) {
+        requireNonNull(projectName, "projectName");
+        requireNonNull(repositoryName, "repositoryName");
+        return new CentralDogmaRepository(this, projectName, repositoryName, blockingTaskExecutor);
     }
 
     @Override
@@ -144,23 +150,6 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     }
 
     @Override
-    public final CompletableFuture<Revision> watchRepository(
-            String projectName, String repositoryName, Revision lastKnownRevision, String pathPattern) {
-        return CentralDogma.super.watchRepository(projectName, repositoryName, lastKnownRevision, pathPattern);
-    }
-
-    @Override
-    public final <T> CompletableFuture<Entry<T>> watchFile(
-            String projectName, String repositoryName, Revision lastKnownRevision, Query<T> query) {
-        return CentralDogma.super.watchFile(projectName, repositoryName, lastKnownRevision, query);
-    }
-
-    @Override
-    public final <T> Watcher<T> fileWatcher(String projectName, String repositoryName, Query<T> query) {
-        return CentralDogma.super.fileWatcher(projectName, repositoryName, query);
-    }
-
-    @Override
     public <T, U> Watcher<U> fileWatcher(
             String projectName, String repositoryName, Query<T> query,
             Function<? super T, ? extends U> function) {
@@ -170,17 +159,11 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     @Override
     public <T, U> Watcher<U> fileWatcher(String projectName, String repositoryName, Query<T> query,
                                          Function<? super T, ? extends U> function, Executor executor) {
-        final FileWatcher<U> watcher =
-                new FileWatcher<>(this, blockingTaskExecutor, executor, projectName, repositoryName, query,
-                                  function);
-        watcher.start();
-        return watcher;
-    }
-
-    @Override
-    public final Watcher<Revision> repositoryWatcher(
-            String projectName, String repositoryName, String pathPattern) {
-        return CentralDogma.super.repositoryWatcher(projectName, repositoryName, pathPattern);
+        //noinspection unchecked
+        return (Watcher<U>) forRepo(projectName, repositoryName).watcher(query)
+                                                                .map(function)
+                                                                .mapperExecutor(executor)
+                                                                .start();
     }
 
     @Override
@@ -193,12 +176,11 @@ public abstract class AbstractCentralDogma implements CentralDogma {
     @Override
     public <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                             Function<Revision, ? extends T> function, Executor executor) {
-
-        final RepositoryWatcher<T> watcher =
-                new RepositoryWatcher<>(this, blockingTaskExecutor, executor,
-                                        projectName, repositoryName, pathPattern, function);
-        watcher.start();
-        return watcher;
+        //noinspection unchecked
+        return (Watcher<T>) forRepo(projectName, repositoryName).watcher(toPathPattern(pathPattern))
+                                                                .map(function)
+                                                                .mapperExecutor(executor)
+                                                                .start();
     }
 
     /**

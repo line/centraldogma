@@ -48,8 +48,9 @@ class GetFileTest {
     @EnumSource(ClientType.class)
     void getJsonAsText(ClientType clientType) throws Exception {
         final CentralDogma client = clientType.client(dogma);
-        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Add a file",
-                    Change.ofJsonUpsert("/test/foo.json", "{ \"a\": \"b\" }")).join();
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Add a file", Change.ofJsonUpsert("/test/foo.json", "{ \"a\": \"b\" }"))
+              .push().join();
         final Entry<JsonNode> json = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                     Query.ofJson("/test/foo.json")).join();
         assertThatJson(json.content()).isEqualTo("{\"a\":\"b\"}");
@@ -57,8 +58,9 @@ class GetFileTest {
         final Entry<String> text = client.getFile(dogma.project(), dogma.repo1(), Revision.HEAD,
                                                   Query.ofText("/test/foo.json")).join();
         assertThat(text.content()).isEqualTo("{\"a\":\"b\"}");
-        client.push(dogma.project(), dogma.repo1(), Revision.HEAD, "Remove a file",
-                    Change.ofRemoval("/test/foo.json")).join();
+        client.forRepo(dogma.project(), dogma.repo1())
+              .commit("Remove a file", Change.ofRemoval("/test/foo.json"))
+              .push().join();
     }
 
     @ParameterizedTest

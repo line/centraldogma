@@ -26,7 +26,6 @@ import java.util.List;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.Change;
-import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 public class CentralDogmaExtensionWithScaffolding extends CentralDogmaExtension {
@@ -90,8 +89,10 @@ public class CentralDogmaExtensionWithScaffolding extends CentralDogmaExtension 
 
         final List<Change<?>> changes = Change.fromDirectory(f.toPath(), targetDir);
 
-        client().push(testProject, testRepository1, Revision.HEAD,
-                      "Import " + resourceDir + " into " + targetDir, changes).join();
+        client().forRepo(testProject, testRepository1)
+                .commit("Import " + resourceDir + " into " + targetDir, changes)
+                .push()
+                .join();
     }
 
     @Override
