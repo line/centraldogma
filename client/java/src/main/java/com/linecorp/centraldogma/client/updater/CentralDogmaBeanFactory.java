@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.Latest;
 import com.linecorp.centraldogma.client.Watcher;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Query;
 
 import javassist.util.proxy.ProxyFactory;
@@ -49,7 +50,12 @@ import javassist.util.proxy.ProxyFactory;
  * If the latest values are not available yet, the revision will be set to null.
  *
  * <pre>{@code
- * > CentralDogmaFactory factory = new CentralDogmaFactory(dogma, new ObjectMapper());
+ * > CentralDogma dogma = ...;
+ *
+ * > // Optionally, waits for the initial endpoints in order to fetch the first value without additional delay.
+ * > dogma.whenEndpointReady().get(10, TimeUnit.SECONDS);
+ *
+ * > CentralDogmaBeanFactory factory = new CentralDogmaBeanFactory(dogma, new ObjectMapper());
  * > Foo mirroredFoo = factory.get(new Foo(), Foo.class);
  * >
  * > @CentralDogmaBean(project = "myProject",
@@ -70,7 +76,7 @@ import javassist.util.proxy.ProxyFactory;
  * <p>In the following example, callback will be called when a property is updated with a new value:
  *
  * <pre>{@code
- * CentralDogmaFactory factory = new CentralDogmaFactory(dogma, new ObjectMapper());
+ * CentralDogmaBeanFactory factory = new CentralDogmaBeanFactory(dogma, new ObjectMapper());
  * Consumer<Foo> fooUpdatedListener = (Foo f) -> {
  *     System.out.println("foo has updated to: " + f);
  * };
@@ -305,7 +311,23 @@ public class CentralDogmaBeanFactory {
 
         if (initialValueTimeout > 0) {
             final long t0 = System.nanoTime();
-            final Latest<T> latest = watcher.awaitInitialValue(initialValueTimeout, initialValueTimeoutUnit);
+            final Latest<T> latest;
+            try {
+                latest = watcher.awaitInitialValue(initialValueTimeout, initialValueTimeoutUnit);
+            } catch (TimeoutException ex) {
+                final long initialTimeoutMillis =
+                        TimeUnit.MILLISECONDS.convert(initialValueTimeout, initialValueTimeoutUnit);
+                if (!dogma.whenEndpointReady().isDone()) {
+                    final String message =
+                            "Failed to resolve the initial endpoints of the given Central Dogma client in " +
+                            initialTimeoutMillis + " ms. You may want to increase 'initialValueTimeout' or " +
+                            "wait for the initial endpoints using 'CentralDogma.whenEndpointReady().get()' " +
+                            "before initializing this " + CentralDogmaBeanFactory.class.getSimpleName() + '.';
+                    throw new CentralDogmaException(message, ex);
+                } else {
+                    throw ex;
+                }
+            }
             final long elapsedMillis = System.nanoTime() - t0;
             logger.debug("Initial value of {} obtained in {} ms: rev={}",
                          settings, elapsedMillis, latest.revision());

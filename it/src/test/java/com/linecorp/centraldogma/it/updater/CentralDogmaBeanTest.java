@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.it.updater;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.ThrowableAssert.catchThrowable;
 import static org.awaitility.Awaitility.await;
 
@@ -38,9 +39,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.client.CentralDogma;
+import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBean;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanConfigBuilder;
 import com.linecorp.centraldogma.client.updater.CentralDogmaBeanFactory;
+import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
@@ -79,6 +82,18 @@ class CentralDogmaBeanTest {
                             "20".equals(property.getBar()) &&
                             property.getQux().equals(ImmutableList.of("x", "y", "z")) &&
                             property.getRevision() == null);
+    }
+
+    @Test
+    void failedToResolveInitialEndpoints() throws Exception {
+        final CentralDogma client = new ArmeriaCentralDogmaBuilder()
+                .host("unknown", 59022)
+                .build();
+        final CentralDogmaBeanFactory factory = new CentralDogmaBeanFactory(client, objectMapper);
+        assertThatThrownBy(() -> {
+            factory.get(new TestPropertyDefault(), TestPropertyDefault.class, 1, TimeUnit.NANOSECONDS);
+        }).isInstanceOf(CentralDogmaException.class)
+          .hasMessageContaining("Failed to resolve the initial endpoints of the given Central Dogma");
     }
 
     @Test
@@ -226,7 +241,7 @@ class CentralDogmaBeanTest {
             return qux;
         }
 
-        public void closeWatcher() { }
+        public void closeWatcher() {}
     }
 
     @CentralDogmaBean(project = "e", repository = "f", path = "/g.json")
