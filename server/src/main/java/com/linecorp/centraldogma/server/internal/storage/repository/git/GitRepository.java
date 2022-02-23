@@ -164,7 +164,10 @@ class GitRepository implements Repository {
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Project parent;
     private final Executor repositoryWorker;
+    private final long creationTimeMillis;
+    private final Author author;
     @VisibleForTesting
+    @Nullable
     final RepositoryCache cache;
     private final String name;
     private final org.eclipse.jgit.lib.Repository jGitRepository;
@@ -211,9 +214,9 @@ class GitRepository implements Repository {
         this.parent = requireNonNull(parent, "parent");
         name = requireNonNull(repoDir, "repoDir").getName();
         this.repositoryWorker = requireNonNull(repositoryWorker, "repositoryWorker");
+        this.creationTimeMillis = creationTimeMillis;
+        this.author = requireNonNull(author, "author");
         this.cache = cache;
-
-        requireNonNull(author, "author");
 
         final RepositoryBuilder repositoryBuilder = new RepositoryBuilder().setGitDir(repoDir).setBare();
         boolean success = false;
@@ -315,6 +318,9 @@ class GitRepository implements Repository {
                 commitIdDatabase.rebuild(jGitRepository);
                 assert headRevision.equals(commitIdDatabase.headRevision());
             }
+            final Commit initialCommit = blockingHistory(Revision.INIT, Revision.INIT, ALL_PATH, 1).get(0);
+            creationTimeMillis = initialCommit.when();
+            author = initialCommit.author();
             success = true;
         } finally {
             if (!success) {
@@ -391,6 +397,16 @@ class GitRepository implements Repository {
     @Override
     public String name() {
         return name;
+    }
+
+    @Override
+    public long creationTimeMillis() {
+        return creationTimeMillis;
+    }
+
+    @Override
+    public Author author() {
+        return author;
     }
 
     @Override
