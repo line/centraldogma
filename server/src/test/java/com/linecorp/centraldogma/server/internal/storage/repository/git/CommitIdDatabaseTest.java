@@ -139,11 +139,11 @@ class CommitIdDatabaseTest {
         final File commitIdDatabaseFile = new File(repoDir, "commit_ids.dat");
 
         // Create a repository which contains some commits.
-        GitRepository repo = new GitRepository(mock(Project.class), repoDir, commonPool(), 0, Author.SYSTEM);
+        GitRepository repo = new GitRepository(mock(Project.class), repoDir, commonPool(), 1000, Author.SYSTEM);
         Revision headRevision = null;
         try {
             for (int i = 1; i <= numCommits; i++) {
-                headRevision = repo.commit(new Revision(i), 0, Author.SYSTEM, "",
+                headRevision = repo.commit(new Revision(i), 0, Author.DEFAULT, "",
                                            Change.ofTextUpsert("/" + i + ".txt", "")).join().revision();
             }
         } finally {
@@ -167,6 +167,8 @@ class CommitIdDatabaseTest {
             repo.internalClose();
         }
 
+        assertThat(repo.creationTimeMillis()).isEqualTo(1000);
+        assertThat(repo.author()).isEqualTo(Author.SYSTEM);
         assertThat(Files.size(commitIdDatabaseFile.toPath())).isEqualTo((numCommits + 1) * 24L);
     }
 

@@ -29,7 +29,6 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -410,14 +409,8 @@ class CachingRepositoryTest {
     }
 
     private Repository newCachingRepo(MeterRegistry meterRegistry) {
-        when(delegateRepo.history(INIT, INIT, Repository.ALL_PATH, 1)).thenReturn(completedFuture(
-                ImmutableList.of(new Commit(INIT, SYSTEM, "", "", Markup.PLAINTEXT))));
-
         final Repository cachingRepo = new CachingRepository(
                 delegateRepo, new RepositoryCache("maximumSize=1000", meterRegistry));
-
-        // Verify that CachingRepository calls delegateRepo.history() once to retrieve the initial commit.
-        verify(delegateRepo, times(1)).history(INIT, INIT, Repository.ALL_PATH, 1);
 
         verifyNoMoreInteractions(delegateRepo);
         clearInvocations(delegateRepo);
