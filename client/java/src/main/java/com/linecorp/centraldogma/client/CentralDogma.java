@@ -322,7 +322,27 @@ public interface CentralDogma {
     @Deprecated
     default CompletableFuture<List<Commit>> getHistory(
             String projectName, String repositoryName, Revision from, Revision to, String pathPattern) {
-        return getHistory(projectName, repositoryName, from, to, toPathPattern(pathPattern));
+        return getHistory(projectName, repositoryName, from, to, toPathPattern(pathPattern), 0);
+    }
+
+    /**
+     * Retrieves the history of the files matched by the given {@link PathPattern} between
+     * two {@link Revision}s.
+     *
+     * <p>Note that this method does not retrieve the diffs but only metadata about the changes.
+     * Use {@link DiffRequest} to retrieve the diffs.
+     *
+     * @return a {@link List} that contains the {@link Commit}s of the files matched by the given
+     *         {@link PathPattern} in the specified repository
+     *
+     * @deprecated Use {@link HistoryRequest#get(Revision, Revision)} via
+     *             {@link CentralDogmaRepository#history(PathPattern)}.
+     */
+    @Deprecated
+    default CompletableFuture<List<Commit>> getHistory(
+            String projectName, String repositoryName, Revision from, Revision to,
+            PathPattern pathPattern) {
+        return getHistory(projectName, repositoryName, from, to, pathPattern, 0);
     }
 
     /**
@@ -333,6 +353,7 @@ public interface CentralDogma {
      * CentralDogma dogma = ...
      * dogma.forRepo(projectName, repositoryName)
      *      .history(pathPattern)
+     *      .maxCommits(maxCommits)
      *      .get(from, to);
      * }</pre>
      *
@@ -343,7 +364,8 @@ public interface CentralDogma {
      *         {@link PathPattern} in the specified repository
      */
     CompletableFuture<List<Commit>> getHistory(
-            String projectName, String repositoryName, Revision from, Revision to, PathPattern pathPattern);
+            String projectName, String repositoryName, Revision from, Revision to,
+            PathPattern pathPattern, int maxCommits);
 
     /**
      * Returns the diff of a file between two {@link Revision}s. This method is a shortcut of
@@ -815,4 +837,11 @@ public interface CentralDogma {
     @Deprecated
     <T> Watcher<T> repositoryWatcher(String projectName, String repositoryName, String pathPattern,
                                      Function<Revision, ? extends T> function, Executor executor);
+
+    /**
+     * Returns a {@link CompletableFuture} which is completed when the initial endpoints of this
+     * client are ready. It is recommended to wait for the initial endpoints in order to send the first request
+     * without additional delay.
+     */
+    CompletableFuture<Void> whenEndpointReady();
 }

@@ -42,6 +42,7 @@ import org.apache.thrift.TException;
 import com.google.common.collect.Iterables;
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.common.thrift.ThriftFuture;
 import com.linecorp.armeria.common.util.Exceptions;
 import com.linecorp.centraldogma.client.AbstractCentralDogma;
@@ -94,10 +95,13 @@ import com.linecorp.centraldogma.internal.thrift.WatchRepositoryResult;
 final class LegacyCentralDogma extends AbstractCentralDogma {
 
     private final CentralDogmaService.AsyncIface client;
+    private final EndpointGroup endpointGroup;
 
-    LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, CentralDogmaService.AsyncIface client) {
+    LegacyCentralDogma(ScheduledExecutorService blockingTaskExecutor, CentralDogmaService.AsyncIface client,
+                       EndpointGroup endpointGroup) {
         super(blockingTaskExecutor);
         this.client = requireNonNull(client, "client");
+        this.endpointGroup = endpointGroup;
     }
 
     @Override
@@ -326,7 +330,9 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                                       String repositoryName,
                                                       Revision from,
                                                       Revision to,
-                                                      PathPattern pathPattern) {
+                                                      PathPattern pathPattern,
+                                                      int maxCommits) {
+        checkArgument(maxCommits == 0, "maxCommits is not supported in LegacyCentralDogma.");
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(from, "from");
         requireNonNull(to, "to");
@@ -454,7 +460,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
                                                        PathPattern pathPattern,
                                                        long timeoutMillis,
                                                        boolean errorOnEntryNotFound) {
-        // Legacy client does not support 'errorOnEntryNotFound'
+        checkArgument(!errorOnEntryNotFound, "errorOnEntryNotFound is not supported in LegacyCentralDogma.");
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(pathPattern, "pathPattern");
@@ -477,7 +483,7 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
     public <T> CompletableFuture<Entry<T>> watchFile(String projectName, String repositoryName,
                                                      Revision lastKnownRevision, Query<T> query,
                                                      long timeoutMillis, boolean errorOnEntryNotFound) {
-        // Legacy client does not support 'errorOnEntryNotFound'
+        checkArgument(!errorOnEntryNotFound, "errorOnEntryNotFound is not supported in LegacyCentralDogma.");
         validateProjectAndRepositoryName(projectName, repositoryName);
         requireNonNull(lastKnownRevision, "lastKnownRevision");
         requireNonNull(query, "query");
@@ -499,6 +505,11 @@ final class LegacyCentralDogma extends AbstractCentralDogma {
 
             return toEntry(query, revision, query.type(), r.getContent(), r.getType());
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> whenEndpointReady() {
+        return endpointGroup.whenReady().thenRun(() -> {});
     }
 
     private static void validateProjectName(String projectName) {

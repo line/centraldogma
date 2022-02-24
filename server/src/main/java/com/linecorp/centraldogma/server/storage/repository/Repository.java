@@ -54,6 +54,7 @@ import com.linecorp.centraldogma.common.QueryExecutionException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.common.RevisionNotFoundException;
 import com.linecorp.centraldogma.common.RevisionRange;
+import com.linecorp.centraldogma.internal.HistoryConstants;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.replication.ReplicationLog;
 import com.linecorp.centraldogma.server.storage.StorageException;
@@ -65,7 +66,7 @@ import com.linecorp.centraldogma.server.storage.project.Project;
 public interface Repository {
 
     int DEFAULT_MAX_COMMITS = 100;
-    int MAX_MAX_COMMITS = 1000;
+    int MAX_MAX_COMMITS = HistoryConstants.MAX_MAX_COMMITS;
 
     String ALL_PATH = "/**";
 

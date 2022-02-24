@@ -84,7 +84,7 @@ class WatcherTest {
                                               .watcher(Query.ofText("/baz.txt"))
                                               .map(txt -> 1)
                                               .map(intValue -> Integer.toString(intValue))
-                                              .map(str -> "1".equals(str) ? true : false)
+                                              .map("1"::equals)
                                               .start();
 
         assertThat(watcher.initialValueFuture().join().value()).isTrue();
@@ -100,7 +100,7 @@ class WatcherTest {
         final Watcher<Boolean> watcher = originalWatcher
                 .newChild(txt -> 1)
                 .newChild(intValue -> Integer.toString(intValue))
-                .newChild(str -> "1".equals(str) ? true : false);
+                .newChild("1"::equals);
 
         assertThat(watcher.initialValueFuture().join().value()).isTrue();
         originalWatcher.close();
