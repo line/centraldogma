@@ -220,7 +220,8 @@ org.eclipse.jgit:
   org.eclipse.jgit.ssh.jsch: { version: *JGIT_VERSION }
 
 org.hibernate.validator:
-  hibernate-validator: { version: '7.0.4.Final' }
+  # Need to wait for spring boot 3 before upgrading to 7.x.x
+  hibernate-validator: { version: '6.2.3.Final' }
 
 org.javassist:
   javassist: { version: '3.28.0-GA' }
