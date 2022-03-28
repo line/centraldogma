@@ -115,7 +115,7 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Build with Gradle
-        run: ./gradlew --no-daemon --stacktrace check
+        run: ./gradlew --no-daemon --stacktrace lint
         shell: bash
 
       - name: Cleanup Gradle Cache
