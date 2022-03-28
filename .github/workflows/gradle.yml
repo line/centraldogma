@@ -48,7 +48,7 @@ jobs:
           ${{ runner.os }}-gradle-
 
     - name: Build with Gradle
-      run: ./gradlew --no-daemon --stacktrace -Pcoverage checkstyle check build
+      run: ./gradlew --no-daemon --stacktrace -Pcoverage -PnoLint build
       shell: bash
 
     - name: Cleanup Gradle Cache
@@ -80,3 +80,48 @@ jobs:
       if: always()
       run: jps | grep -vi "jps" | awk '{ print $1 }' | xargs -I'{}' jstack -l {} || true
       shell: bash
+
+  lint:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      GRADLE_OPTS: -Xmx1280m
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        java: [14]
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: ${{ matrix.java }}
+
+      - name: Restore Gradle Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/wrapper/dists
+            ~/.gradle/caches/jars-3
+            ~/.gradle/caches/modules-2
+            ~/.gradle/caches/package-lists
+            ~/.gradle/caches/sphinx-binary
+            ~/.gradle/go/binary
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build with Gradle
+        run: ./gradlew --no-daemon --stacktrace check
+        shell: bash
+
+      - name: Cleanup Gradle Cache
+        # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
+        # Restoring these files from a GitHub Actions cache might cause problems for future builds.
+        run: |
+          rm -f ~/.gradle/caches/modules-2/modules-2.lock
+          rm -f ~/.gradle/caches/modules-2/gc.properties
+        shell: bash

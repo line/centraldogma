@@ -50,6 +50,7 @@ com.fasterxml.jackson.core:
 
 com.github.ben-manes.caffeine:
   caffeine:
+    # requires jdk 11 for version 3.x.x upgrade
     version: '2.9.1'
     javadocs:
     - https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.9.1/
@@ -114,8 +115,7 @@ com.linecorp.armeria:
     - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.14.1/
 
 com.puppycrawl.tools:
-  # Requires jdk 11
-  checkstyle: { version: '9.2.1' }
+  checkstyle: { version: '10.1' }
 
 com.spotify:
   completable-futures:
