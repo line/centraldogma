@@ -3,7 +3,7 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.fasterxml.jackson:jackson-bom:2.13.2.20220324
+- com.fasterxml.jackson:jackson-bom:2.13.2
 - com.linecorp.armeria:armeria-bom:1.15.0
 - io.micrometer:micrometer-bom:1.8.4
 - org.junit:junit-bom:5.8.2
