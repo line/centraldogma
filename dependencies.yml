@@ -114,7 +114,8 @@ com.linecorp.armeria:
     - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.14.1/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '10.1' }
+  # Requires jdk 11
+  checkstyle: { version: '9.2.1' }
 
 com.spotify:
   completable-futures:
