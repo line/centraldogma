@@ -49,7 +49,7 @@ public class CentralDogmaClientAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaClientAutoConfiguration.class);
 
-    static final long DEFAULT_INITIALIZATION_TIMEOUT_MILLIS = 15;
+    static final long DEFAULT_INITIALIZATION_TIMEOUT_MILLIS = 15000;
 
     /**
      * Returns a newly created {@link CentralDogma} client.
