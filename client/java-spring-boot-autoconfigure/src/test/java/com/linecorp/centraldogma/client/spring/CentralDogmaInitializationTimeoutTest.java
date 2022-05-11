@@ -24,8 +24,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import javax.inject.Inject;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -48,7 +48,7 @@ class CentralDogmaInitializationTimeoutTest {
     private static final Lock lock = new ReentrantLock();
     private static final int TEST_SERVER_PORT = 56463;
 
-    private Server server;
+    private static Server server;
 
     @SpringBootApplication
     static class TestConfiguration {}
@@ -56,8 +56,8 @@ class CentralDogmaInitializationTimeoutTest {
     @Inject
     private CentralDogma client;
 
-    @BeforeEach
-    void setUp() {
+    @BeforeAll
+    static void beforeAll() {
         lock.lock();
         server = Server.builder()
                        .http(TEST_SERVER_PORT)
@@ -65,13 +65,13 @@ class CentralDogmaInitializationTimeoutTest {
                                 (ctx, req) -> HttpResponse.delayed(HttpResponse.of("OK"),
                                                                    Duration.ofSeconds(5)))
                        .build();
-//        server.start().join();
+        server.start().join();
     }
 
-    @AfterEach
-    void tearDown() {
-        // Immediately close the server to release the port quickly.
+    @AfterAll
+    static void afterAll() {
         try {
+            // Immediately close the server to release the port quickly.
             server.close();
         } finally {
             lock.unlock();

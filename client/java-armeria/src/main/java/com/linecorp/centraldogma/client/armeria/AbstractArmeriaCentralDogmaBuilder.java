@@ -139,6 +139,7 @@ public class AbstractArmeriaCentralDogmaBuilder<B extends AbstractArmeriaCentral
         final HealthCheckedEndpointGroupBuilder healthCheckedEndpointGroupBuilder =
                 HealthCheckedEndpointGroup.builder(group, HttpApiV1Constants.HEALTH_CHECK_PATH)
                                           .clientFactory(clientFactory)
+                                          .allowEmptyEndpoints(false)
                                           .protocol(isUseTls() ? SessionProtocol.HTTPS
                                                                : SessionProtocol.HTTP);
         if (healthCheckInterval != null) {

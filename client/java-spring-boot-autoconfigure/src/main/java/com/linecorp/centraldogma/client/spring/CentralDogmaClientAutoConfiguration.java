@@ -139,7 +139,9 @@ public class CentralDogmaClientAutoConfiguration {
             try {
                 centralDogma.whenEndpointReady().get(initializationTimeoutMillis, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                throw new IllegalStateException("Failed to initialize the endpoints of " + centralDogma, e);
+                throw new IllegalStateException(
+                        "Failed to initialize the endpoints of " + centralDogma + " in " +
+                        initializationTimeoutMillis + " milliseconds", e);
             }
         }
         return centralDogma;
