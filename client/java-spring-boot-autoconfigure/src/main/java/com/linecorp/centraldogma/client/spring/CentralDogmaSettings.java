@@ -246,7 +246,7 @@ public class CentralDogmaSettings {
 
     /**
      * Returns the number of milliseconds the Central Dogma client waits for initialization to complete.
-     * If {@code 0} is specified, Central Dogma client is immediately returned without waiting.
+     * If {@code 0} is specified, the Central Dogma client is immediately returned without waiting.
      * If unspecified, defaults to
      * {@value CentralDogmaClientAutoConfiguration#DEFAULT_INITIALIZATION_TIMEOUT_MILLIS}.
      */
