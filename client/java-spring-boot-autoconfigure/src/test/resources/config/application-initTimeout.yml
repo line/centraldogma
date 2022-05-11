@@ -1,0 +1,5 @@
+centraldogma:
+  hosts:
+    - 127.0.0.1:56463
+  initialization-timeout-millis: 15000
+  health-check-interval-millis: 5000

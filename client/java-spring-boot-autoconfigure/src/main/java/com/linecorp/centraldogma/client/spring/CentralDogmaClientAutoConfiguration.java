@@ -18,6 +18,9 @@ package com.linecorp.centraldogma.client.spring;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +48,8 @@ import com.linecorp.centraldogma.client.armeria.DnsAddressEndpointGroupConfigura
 public class CentralDogmaClientAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(CentralDogmaClientAutoConfiguration.class);
+
+    static final long DEFAULT_INITIALIZATION_TIMEOUT_MILLIS = 15;
 
     /**
      * Returns a newly created {@link CentralDogma} client.
@@ -125,6 +130,18 @@ public class CentralDogmaClientAutoConfiguration {
             builder.retryIntervalOnReplicationLagMillis(retryIntervalOnReplicationLagMillis);
         }
 
-        return builder.build();
+        final CentralDogma centralDogma = builder.build();
+        Long initializationTimeoutMillis = settings.initializationTimeoutMillis();
+        if (initializationTimeoutMillis == null) {
+            initializationTimeoutMillis = DEFAULT_INITIALIZATION_TIMEOUT_MILLIS;
+        }
+        if (initializationTimeoutMillis > 0) {
+            try {
+                centralDogma.whenEndpointReady().get(initializationTimeoutMillis, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                throw new IllegalStateException("Failed to initialize the endpoints of " + centralDogma, e);
+            }
+        }
+        return centralDogma;
     }
 }

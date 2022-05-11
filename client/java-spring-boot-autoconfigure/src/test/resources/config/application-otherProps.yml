@@ -4,3 +4,5 @@ centraldogma:
   accessToken: my-dogma-access-token
   max-num-retries-on-replication-lag: 42
   retry-interval-on-replication-lag-millis: 10000
+  # Disable the endpoints initialization
+  initialization-timeout-millis: 0
