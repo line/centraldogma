@@ -65,13 +65,14 @@ class CentralDogmaInitializationTimeoutTest {
                                 (ctx, req) -> HttpResponse.delayed(HttpResponse.of("OK"),
                                                                    Duration.ofSeconds(5)))
                        .build();
+//        server.start().join();
     }
 
     @AfterEach
     void tearDown() {
-        // Wait for the stop to complete to release the port quickly.
+        // Immediately close the server to release the port quickly.
         try {
-            server.stop().join();
+            server.close();
         } finally {
             lock.unlock();
         }
