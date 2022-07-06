@@ -3,3 +3,5 @@ centraldogma:
   - alice.com
   - bob.com:8080
   - charlie.com:36462
+  # Disable the endpoints initialization
+  initialization-timeout-millis: 0

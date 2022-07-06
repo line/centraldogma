@@ -41,6 +41,7 @@ import com.google.common.base.MoreObjects;
  *   - replica3.examples.com:36462
  *   access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
  *   health-check-interval-millis: 15000
+ *   initialization-timeout-millis: 15000
  *   use-tls: false
  * }</pre>
  *
@@ -50,6 +51,7 @@ import com.google.common.base.MoreObjects;
  *   profile: beta
  *   access-token: appToken-cffed349-d573-457f-8f74-4727ad9341ce
  *   health-check-interval-millis: 15000
+ *   initialization-timeout-millis: 15000
  *   use-tls: false
  * }</pre>
  *
@@ -101,6 +103,15 @@ public class CentralDogmaSettings {
      */
     @Nullable
     private Long retryIntervalOnReplicationLagMillis;
+
+    /**
+     * The number of milliseconds the Central Dogma client waits for initialization to complete.
+     * {@code 0} means the Central Dogma client is immediately returned without waiting for the initialization.
+     * If unspecified, defaults to
+     * {@value CentralDogmaClientAutoConfiguration#DEFAULT_INITIALIZATION_TIMEOUT_MILLIS}.
+     */
+    @Nullable
+    private Long initializationTimeoutMillis;
 
     /**
      * Returns the Central Dogma client profile name.
@@ -222,6 +233,27 @@ public class CentralDogmaSettings {
         this.retryIntervalOnReplicationLagMillis = retryIntervalOnReplicationLagMillis;
     }
 
+    /**
+     * Returns the number of milliseconds the Central Dogma client waits for initialization to complete.
+     * If {@code 0} is specified, Central Dogma client is immediately returned without waiting.
+     *
+     * @return {@code null} if not specified.
+     */
+    @Nullable
+    public Long initializationTimeoutMillis() {
+        return initializationTimeoutMillis;
+    }
+
+    /**
+     * Returns the number of milliseconds the Central Dogma client waits for initialization to complete.
+     * If {@code 0} is specified, the Central Dogma client is immediately returned without waiting.
+     * If unspecified, defaults to
+     * {@value CentralDogmaClientAutoConfiguration#DEFAULT_INITIALIZATION_TIMEOUT_MILLIS}.
+     */
+    public void setInitializationTimeoutMillis(@Nullable Long initializationTimeoutMillis) {
+        this.initializationTimeoutMillis = initializationTimeoutMillis;
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).omitNullValues()
@@ -229,6 +261,7 @@ public class CentralDogmaSettings {
                           .add("hosts", hosts)
                           .add("accessToken", accessToken != null ? "********" : null)
                           .add("healthCheckIntervalMillis", healthCheckIntervalMillis)
+                          .add("initializationTimeoutMillis", initializationTimeoutMillis)
                           .add("useTls", useTls)
                           .add("maxNumRetriesOnReplicationLag", maxNumRetriesOnReplicationLag)
                           .add("retryIntervalOnReplicationLagMillis", retryIntervalOnReplicationLagMillis)
