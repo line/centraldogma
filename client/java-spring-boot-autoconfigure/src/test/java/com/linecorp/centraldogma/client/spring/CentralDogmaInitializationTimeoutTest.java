@@ -36,7 +36,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurationWithDnsEndpointGroupConfiguratorTest.TestConfiguration;
+import com.linecorp.centraldogma.client.spring.CentralDogmaInitializationTimeoutTest.TestConfiguration;
 import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
 
 @ExtendWith(SpringExtension.class)
