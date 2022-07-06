@@ -32,7 +32,7 @@ import com.google.common.base.MoreObjects;
 /**
  * Settings for a Central Dogma client.
  *
- * <h3>Example with {@code "hosts"} option</h3>
+ * <h2>Example with {@code "hosts"} option</h2>
  * <pre>{@code
  * centraldogma:
  *   hosts:
@@ -45,7 +45,7 @@ import com.google.common.base.MoreObjects;
  *   use-tls: false
  * }</pre>
  *
- * <h3>Example with {@code "profile"} option</h3>
+ * <h2>Example with {@code "profile"} option</h2>
  * <pre>{@code
  * centraldogma:
  *   profile: beta
