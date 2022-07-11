@@ -4,7 +4,7 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.13.3
-- com.linecorp.armeria:armeria-bom:1.17.0
+- com.linecorp.armeria:armeria-bom:1.17.1
 - io.micrometer:micrometer-bom:1.9.1
 - org.junit:junit-bom:5.8.2
 
@@ -112,7 +112,7 @@ com.jcraft:
 com.linecorp.armeria:
   armeria:
     javadocs:
-    - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.14.1/
+    - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.17.1/
 
 com.puppycrawl.tools:
   checkstyle: { version: '10.3.1' }
