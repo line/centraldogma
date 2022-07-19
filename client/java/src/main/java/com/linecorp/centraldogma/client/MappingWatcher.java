@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
@@ -88,7 +89,7 @@ final class MappingWatcher<T, U> implements Watcher<U> {
                 return;
             }
             final Latest<U> oldLatest = mappedLatest;
-            if (oldLatest != null && oldLatest.value() == mappedValue) {
+            if (oldLatest != null && Objects.equals(oldLatest.value(), mappedValue)) {
                 return;
             }
 
