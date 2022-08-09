@@ -85,7 +85,7 @@ task downloadClientBinaries(group: 'Build',
         ["darwin-amd64", "linux-amd64", "windows-amd64.exe"].each { platform ->
             download.run {
                 src "https://github.com/line/centraldogma-go/releases/download/0.0.1/dogma.$platform"
-                dest "${project.ext.cliDownloadDir}"
+                dest "${project.ext.cliDownloadDir}/dogma.$platform"
             }
         }
     }
@@ -97,7 +97,7 @@ task copyClientBinaries(group: 'Build',
 
     from project.ext.cliDownloadDir
     into "${project.ext.distDir}/bin/native"
-    fileMode 755
+    fileMode 0755
 }
 
 task distDirWithoutClientBinaries(group: 'Build',
