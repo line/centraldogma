@@ -140,6 +140,9 @@ configure(projectsWithFlags('java')) {
             systemProperties 'io.netty.leakDetectionLevel': 'paranoid'
         }
     }
+
+    tasks.sourcesJar.duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    tasks.processResources.duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 // Configure the Javadoc tasks of all projects.

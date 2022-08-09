@@ -14,10 +14,14 @@ buildscript {
     }
 }
 
+// TODO(ikhoon): Migrate dependencies to version catalogs
+plugins {
+    id "de.undercouch.download" version "5.1.0"
+}
+
 apply plugin: 'com.boazj.log'
 apply plugin: 'com.bmuschko.docker-remote-api'
 
-evaluationDependsOn(':cli')
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
@@ -25,6 +29,7 @@ evaluationDependsOn(':server-auth:shiro')
 ext {
     distDir = "${project.buildDir}/dist"
     relativeDistDir = distDir.substring("${rootProject.projectDir}/".length())
+    cliDownloadDir = "${project.buildDir}/cli"
 }
 
 dependencies {
@@ -71,12 +76,28 @@ task copyLib(group: 'Build',
     }
 }
 
+task downloadClientBinaries(group: 'Build',
+        description: "Downloads client binaries into ${project.ext.cliDownloadDir}") {
+
+    outputs.dir("${project.ext.cliDownloadDir}")
+
+    doLast {
+        ["darwin-amd64", "linux-amd64", "windows-amd64.exe"].each { platform ->
+            download.run {
+                src "https://github.com/line/centraldogma-go/releases/download/0.0.1/dogma.$platform"
+                dest "${project.ext.cliDownloadDir}"
+            }
+        }
+    }
+}
+
 task copyClientBinaries(group: 'Build',
-        description: "Copies client binaries into ${project.ext.relativeDistDir}/lib",
-        dependsOn: project(':cli').tasks.assemble,
-        type: Copy) {
-    from project(':cli').ext.clientBinDir
+        description: "Copies client binaries into ${project.ext.relativeDistDir}/lib", type: Copy) {
+    dependsOn tasks.downloadClientBinaries
+
+    from project.ext.cliDownloadDir
     into "${project.ext.distDir}/bin/native"
+    fileMode 755
 }
 
 task distDirWithoutClientBinaries(group: 'Build',
