@@ -29,7 +29,7 @@ evaluationDependsOn(':server-auth:shiro')
 ext {
     distDir = "${project.buildDir}/dist"
     relativeDistDir = distDir.substring("${rootProject.projectDir}/".length())
-    cliDownloadDir = "${project.buildDir}/cli"
+    cliDownloadDir = "${gradle.gradleUserHomeDir}/caches/centraldogma-go/cli"
 }
 
 dependencies {
@@ -76,6 +76,8 @@ task copyLib(group: 'Build',
     }
 }
 
+def cliVersion = "0.0.1"
+
 task downloadClientBinaries(group: 'Build',
         description: "Downloads client binaries into ${project.ext.cliDownloadDir}") {
 
@@ -84,8 +86,9 @@ task downloadClientBinaries(group: 'Build',
     doLast {
         ["darwin-amd64", "linux-amd64", "windows-amd64.exe"].each { platform ->
             download.run {
-                src "https://github.com/line/centraldogma-go/releases/download/0.0.1/dogma.$platform"
-                dest "${project.ext.cliDownloadDir}/dogma.$platform"
+                src "https://github.com/line/centraldogma-go/releases/download/$cliVersion/dogma.$platform"
+                dest "${project.ext.cliDownloadDir}/$cliVersion/dogma.$platform"
+                overwrite false
             }
         }
     }
