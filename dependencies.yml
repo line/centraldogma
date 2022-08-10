@@ -4,9 +4,9 @@
 #
 boms:
 - com.fasterxml.jackson:jackson-bom:2.13.3
-- com.linecorp.armeria:armeria-bom:1.17.2
-- io.micrometer:micrometer-bom:1.9.1
-- org.junit:junit-bom:5.8.2
+- com.linecorp.armeria:armeria-bom:1.18.0
+- io.micrometer:micrometer-bom:1.9.2
+- org.junit:junit-bom:5.9.0
 
 ch.qos.logback:
   logback-classic:
@@ -40,13 +40,13 @@ com.cronutils:
 com.fasterxml.jackson.core:
   jackson-annotations:
     javadocs:
-    - https://fasterxml.github.io/jackson-annotations/javadoc/2.12/
+    - https://fasterxml.github.io/jackson-annotations/javadoc/2.13/
   jackson-core:
     javadocs:
-    - https://fasterxml.github.io/jackson-core/javadoc/2.12/
+    - https://fasterxml.github.io/jackson-core/javadoc/2.13/
   jackson-databind:
     javadocs:
-    - https://fasterxml.github.io/jackson-databind/javadoc/2.12/
+    - https://fasterxml.github.io/jackson-databind/javadoc/2.13/
 
 com.github.ben-manes.caffeine:
   caffeine:
@@ -115,7 +115,7 @@ com.linecorp.armeria:
     - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.17.1/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '10.3.1' }
+  checkstyle: { version: '10.3.2' }
 
 com.spotify:
   completable-futures:
@@ -249,7 +249,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.7.1'
+    version: &SPRING_BOOT_VERSION '2.7.2'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
