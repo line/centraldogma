@@ -81,7 +81,7 @@ def cliVersion = "0.0.1"
 task downloadClientBinaries(group: 'Build',
         description: "Downloads client binaries into ${project.ext.cliDownloadDir}") {
 
-    outputs.dir("${project.ext.cliDownloadDir}")
+    outputs.dir("${project.ext.cliDownloadDir}/$cliVersion")
 
     doLast {
         ["darwin-amd64", "linux-amd64", "windows-amd64.exe"].each { platform ->
@@ -95,7 +95,7 @@ task downloadClientBinaries(group: 'Build',
 }
 
 task copyClientBinaries(group: 'Build',
-        description: "Copies client binaries into ${project.ext.relativeDistDir}/lib", type: Copy) {
+        description: "Copies client binaries into ${project.ext.relativeDistDir}/bin/native", type: Copy) {
     dependsOn tasks.downloadClientBinaries
 
     from project.ext.cliDownloadDir
