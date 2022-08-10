@@ -22,6 +22,7 @@ jobs:
             coverage: true
           - java: 8
             os: ubuntu-latest
+            # TODO(ikhoon): Upgrade JDK version to 17
           - java: 14
             os: ubuntu-latest
     steps:
@@ -48,7 +49,10 @@ jobs:
           ${{ runner.os }}-gradle-
 
     - name: Build with Gradle
-      run: ./gradlew --no-daemon --stacktrace -Pcoverage -PnoLint build
+      run: |
+        ./gradlew --no-daemon --stacktrace -Pcoverage -PnoLint build \
+        -PbuildJdkVersion=${{ matrix.java }} \
+        -PtestJavaVersion=${{ matrix.java }} \
       shell: bash
 
     - name: Cleanup Gradle Cache
@@ -115,7 +119,10 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Build with Gradle
-        run: ./gradlew --no-daemon --stacktrace lint
+        run: |
+          ./gradlew --no-daemon --stacktrace lint \
+          -PbuildJdkVersion=${{ matrix.java }} \
+          -PtestJavaVersion=${{ matrix.java }}
         shell: bash
 
       - name: Cleanup Gradle Cache
