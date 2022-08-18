@@ -21,7 +21,7 @@
     "angular-ui-router": "0.3.2",
     "bootstrap": "3.3.7",
     "bootswatch": "3.3.7",
-    "diff": "3.0.1",
+    "diff": "3.5.0",
     "fast-json-patch": "1.1.1",
     "jquery": "2.2.4",
     "json3": "3.3.2",
