@@ -25,6 +25,6 @@
     "fast-json-patch": "1.1.1",
     "jquery": "2.2.4",
     "json3": "3.3.2",
-    "moment": "2.16.0"
+    "moment": "2.29.4"
   }
 }
