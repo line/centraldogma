@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "ace-builds": "1.2.5",
-    "angular": "1.5.8",
+    "angular": "1.8.3",
     "angular-cache-buster": "0.4.3",
     "angular-cookies": "1.5.8",
     "angular-dynamic-locale": "0.1.32",
