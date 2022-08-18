@@ -1,7 +1,7 @@
 dependencies {
     api project(':client:java')
     // Armeria
-    api 'com.linecorp.armeria:armeria'
+    api libs.armeria
 
-    testImplementation 'com.linecorp.armeria:armeria-junit5'
+    testImplementation libs.armeria.junit5
 }

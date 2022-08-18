@@ -1,10 +1,10 @@
 dependencies {
     // jGit
-    testImplementation 'org.eclipse.jgit:org.eclipse.jgit'
+    testImplementation libs.jgit
     // JSch
-    testImplementation 'com.jcraft:jsch'
+    testImplementation libs.jsch
 
-    testImplementation 'org.apache.curator:curator-test'
+    testImplementation libs.curator.test
 
     testImplementation project(':testing-internal')
     testImplementation project(':server-auth:shiro')

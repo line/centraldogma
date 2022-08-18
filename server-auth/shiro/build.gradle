@@ -3,8 +3,8 @@ dependencies {
     testImplementation project(':testing-internal')
 
     // Caffeine
-    implementation 'com.github.ben-manes.caffeine:caffeine'
+    implementation libs.caffeine
 
     // Shiro
-    implementation 'org.apache.shiro:shiro-core'
+    implementation libs.shiro.core
 }

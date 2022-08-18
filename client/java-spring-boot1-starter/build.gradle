@@ -1,14 +1,4 @@
-final def SPRING_BOOT_VERSION = '1.5.22.RELEASE'
-
 dependencies {
     api project(':client:java-spring-boot1-autoconfigure')
-
-    constraints {
-        api("org.springframework.boot:spring-boot-starter") {
-            version {
-                strictly SPRING_BOOT_VERSION
-            }
-            because 'boot1-autoconfigure downgrades this version'
-        }
-    }
+    api libs.spring.boot1.starter
 }
