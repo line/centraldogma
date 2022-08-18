@@ -1,13 +1,26 @@
 buildscript {
     repositories {
-        jcenter()
+        gradlePluginPortal()
     }
     dependencies {
-        classpath "com.craigburke.gradle:client-dependencies:${managedVersions['com.craigburke.gradle:client-dependencies']}"
+        classpath "com.github.node-gradle:gradle-node-plugin:3.4.0"
     }
 }
 
-apply plugin: 'com.craigburke.client-dependencies'
+apply plugin: 'com.github.node-gradle.node'
+
+node {
+    version = '16.14.0'
+    npmVersion = '8.5.2'
+    download = true
+    npmInstallCommand = "ci"
+
+    // Change the cache location under Gradle user home directory so that it's cached by CI.
+    if (System.getenv('CI') != null) {
+        workDir = file("${gradle.gradleUserHomeDir}/caches/nodejs/${project.name}")
+        npmWorkDir = file("${gradle.gradleUserHomeDir}/caches/npm/${project.name}")
+    }
+}
 
 dependencies {
     implementation project(':common-legacy')
@@ -53,34 +66,50 @@ dependencies {
     optionalImplementation 'org.slf4j:jul-to-slf4j'
 }
 
-clientDependencies {
-    installDir = "${project.projectDir}/src/main/resources/webapp/vendor"
-    copyExcludes = ['**/Gruntfile.js', 'gulpfile.js', 'source/**', 'test', 'karma.conf.js', 'index.js']
-    npm {
-        'ace-builds'('1.2.5', from: 'src-min-noconflict')
-        'angular'('1.5.8')
-        'angular-cache-buster'('0.4.3')
-        'angular-cookies'('1.5.8')
-        'angular-dynamic-locale'('0.1.32')
-        'angular-i18n'('1.5.8')
-        'angular-local-storage'('0.5.0')
-        'angular-resource'('1.5.8')
-        'angular-sanitize'('1.5.8')
-        'angular-translate'('2.13.0', transitive: false)
-        'angular-translate-loader-partial'('2.13.0')
-        'angular-translate-storage-cookie'('2.13.0')
-        'angular-ui-ace'('0.2.3', from: 'src')
-        'angular-ui-bootstrap'('2.2.0')
-        'angular-ui-notification'('0.2.0')
-        'angular-ui-router'('0.3.2')
-        'bootstrap'('3.3.7')
-        'bootswatch'('3.3.7')
-        'diff'('3.0.1')
-        'fast-json-patch'('1.1.1')
-        'jquery'('2.2.4')
-        'json3'('3.3.2', from: 'lib')
-        'moment'('2.16.0', from: 'min')
+def clientRelocations = [
+        'ace-builds/src-min-noconflict/',
+        'angular/angular.min.js',
+        'angular-cache-buster/angular-cache-buster.js',
+        'angular-cookies/angular-cookies.min.js',
+        'angular-dynamic-locale/dist/tmhDynamicLocale.min.js',
+        'angular-ui-ace/src/ui-ace.js',
+        'angular-i18n',
+        'angular-local-storage/dist/angular-local-storage.min.js',
+        'angular-resource/angular-resource.min.js',
+        'angular-sanitize/angular-sanitize.min.js',
+        'angular-translate/dist/angular-translate.min.js',
+        'angular-translate-loader-partial/angular-translate-loader-partial.min.js',
+        'angular-translate-storage-cookie/angular-translate-storage-cookie.min.js',
+        'angular-ui-ace/src/ui-ace.js',
+        'angular-ui-bootstrap/dist/',
+        'angular-ui-notification/dist/',
+        'angular-ui-router/release/angular-ui-router.min.js',
+        'bootstrap/dist/',
+        'bootswatch/cerulean/bootstrap.min.css',
+        'diff/dist/diff.min.js',
+        'fast-json-patch/dist/json-patch-duplex.min.js',
+        'jquery/dist/jquery.min.js',
+        'json3/lib/json3.min.js',
+        'moment/min/moment.min.js'
+]
+
+task copyClientDependencies {
+    dependsOn tasks.npmInstall
+
+    doLast {
+        clientRelocations.each { location ->
+            def paths = location.split('/')
+            def folder = paths[0]
+            copy {
+                from "${project.projectDir}/node_modules/$location"
+                into "${project.projectDir}/src/main/resources/webapp/vendor/$folder"
+            }
+        }
     }
+}
+
+task cleanClientDependencies(type: Delete) {
+    delete "${project.projectDir}/src/main/resources/webapp/vendor"
 }
 
 task copyWebApp(type: Copy) {
@@ -95,7 +124,7 @@ task copyWebApp(type: Copy) {
         delete(dst)
     }
 }
-
-tasks.clean.dependsOn(tasks.clientClean)
-tasks.processResources.dependsOn(tasks.clientInstall, tasks.copyWebApp)
-
+tasks.sourcesJar.dependsOn(tasks.copyWebApp)
+tasks.sourcesJar.dependsOn(tasks.versionProperties)
+tasks.clean.dependsOn(tasks.cleanClientDependencies)
+tasks.processResources.dependsOn(tasks.copyClientDependencies, tasks.copyWebApp)
