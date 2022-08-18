@@ -23,7 +23,7 @@
     "bootswatch": "3.3.7",
     "diff": "3.0.1",
     "fast-json-patch": "1.1.1",
-    "jquery": "2.2.4",
+    "jquery": "3.5.0",
     "json3": "3.3.2",
     "moment": "2.16.0"
   }
