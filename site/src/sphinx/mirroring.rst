@@ -217,6 +217,11 @@ If everything was configured correctly, the repository you specified in ``localR
       "sourceRevision": "22fb176e4d8096d709d34ffe985c5f3acea83ef2"
     }
 
+Setting up a CD-to-Git mirror
+-----------------------------
+It's exactly the same as setting up a Git-to-CD mirror which is described above, except you need to specify
+``direction`` with ``LOCAL_TO_REMOTE``.
+
 Mirror limit settings
 ---------------------
 Central Dogma limits the number of files and the total size of the files in a mirror for its reliability.
