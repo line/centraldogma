@@ -16,17 +16,22 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -34,13 +39,24 @@ import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.dircache.DirCache;
+import org.eclipse.jgit.dircache.DirCacheBuilder;
+import org.eclipse.jgit.dircache.DirCacheEditor;
+import org.eclipse.jgit.dircache.DirCacheEditor.DeletePath;
+import org.eclipse.jgit.dircache.DirCacheEditor.PathEdit;
+import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.ignore.IgnoreNode;
 import org.eclipse.jgit.ignore.IgnoreNode.MatchResult;
+import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
+import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.RefUpdate;
+import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.FetchResult;
 import org.eclipse.jgit.transport.RefSpec;
@@ -51,8 +67,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.cronutils.model.Cron;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -68,11 +86,20 @@ import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirro
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 public final class GitMirror extends AbstractMirror {
 
     private static final Logger logger = LoggerFactory.getLogger(GitMirror.class);
+
+    public static final String LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME = ".mirror_state.json";
+
+    private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
+
+    private static final byte[] EMPTY_BYTE = new byte[0];
+
+    private static final String MIRROR_STATE_FILE_NAME = "mirror_state.json";
 
     private static final Pattern DISALLOWED_CHARS = Pattern.compile("[^-_a-zA-Z]");
     private static final Pattern CONSECUTIVE_UNDERSCORES = Pattern.compile("_+");
@@ -101,7 +128,63 @@ public final class GitMirror extends AbstractMirror {
 
     @Override
     protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
-        throw new UnsupportedOperationException();
+        try (Git git = openGit(workDir)) {
+            final String headBranchRefName = Constants.R_HEADS + remoteBranch();
+            final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
+
+            final org.eclipse.jgit.lib.Repository gitRepository = git.getRepository();
+            try (ObjectReader reader = gitRepository.newObjectReader();
+                 TreeWalk treeWalk = new TreeWalk(reader);
+                 RevWalk revWalk = new RevWalk(reader)) {
+
+                // Prepare to traverse the tree. We can get the tree ID by parsing the object ID.
+                final ObjectId headTreeId = revWalk.parseTree(headCommitId).getId();
+                treeWalk.addTree(headTreeId);
+
+                final String mirrorStatePath = remotePath() + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME;
+                final Revision localHead = localRepo().normalizeNow(Revision.HEAD);
+                final Revision remoteCurrentRevision = remoteCurrentRevision(reader, treeWalk, mirrorStatePath);
+                if (localHead.equals(remoteCurrentRevision)) {
+                    // The remote repository is up-to date.
+                    logger.debug("The remote repository '{}#{}' already at {}. Local repository: '{}'",
+                                 remoteRepoUri(), remoteBranch(), localHead, localRepo().name());
+                    return;
+                }
+
+                // Reset to traverse the tree from the first.
+                treeWalk.reset(headTreeId);
+
+                // The staging area that keeps the entries of the new tree.
+                // It starts with the entries of the tree at the current head and then this method will apply
+                // the requested changes to build the new tree.
+                final DirCache dirCache = DirCache.newInCore();
+                final DirCacheBuilder builder = dirCache.builder();
+                builder.addTree(EMPTY_BYTE, 0, reader, headTreeId);
+                builder.finish();
+
+                try (ObjectInserter inserter = gitRepository.newObjectInserter()) {
+                    addModifiedEntryToCache(localHead, dirCache, reader, inserter,
+                                            treeWalk, mirrorStatePath, maxNumFiles, maxNumBytes);
+                    // Add the mirror state file.
+                    final MirrorState mirrorState = new MirrorState(localHead.text());
+                    applyPathEdit(
+                            dirCache, new InsertText(mirrorStatePath.substring(1), // Strip the leading '/'.
+                                                     inserter,
+                                                     Jackson.writeValueAsPrettyString(mirrorState) + '\n'));
+                }
+
+                final ObjectId nextCommitId =
+                        commit(gitRepository, dirCache, headCommitId, localHead);
+                updateRef(gitRepository, revWalk, headBranchRefName, nextCommitId);
+
+                git.push()
+                   .setRefSpecs(new RefSpec(headBranchRefName))
+                   .setForce(true)
+                   .setAtomic(true)
+                   .setTimeout(GIT_TIMEOUT_SECS)
+                   .call();
+            }
+        }
     }
 
     @Override
@@ -112,20 +195,8 @@ public final class GitMirror extends AbstractMirror {
         final String summary;
 
         try (Git git = openGit(workDir)) {
-            final FetchCommand fetch = git.fetch();
-            final String refName = Constants.R_HEADS + remoteBranch();
-            final FetchResult fetchResult = fetch.setRefSpecs(new RefSpec(refName))
-                                                 .setCheckFetchedObjects(true)
-                                                 .setRemoveDeletedRefs(true)
-                                                 .setTagOpt(TagOpt.NO_TAGS)
-                                                 .setTimeout(GIT_TIMEOUT_SECS)
-                                                 .call();
-
-            final ObjectId id = fetchResult.getAdvertisedRef(refName).getObjectId();
-            final RefUpdate refUpdate = git.getRepository().updateRef(refName);
-            refUpdate.setNewObjectId(id);
-            refUpdate.update();
-
+            final String headBranchRefName = Constants.R_HEADS + remoteBranch();
+            final ObjectId id = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
             final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
 
             try (ObjectReader reader = git.getRepository().newObjectReader();
@@ -136,7 +207,7 @@ public final class GitMirror extends AbstractMirror {
                 treeWalk.addTree(revWalk.parseTree(id).getId());
 
                 // Check if local repository needs update.
-                final String mirrorStatePath = localPath() + "mirror_state.json";
+                final String mirrorStatePath = localPath() + MIRROR_STATE_FILE_NAME;
                 final Entry<?> mirrorState = localRepo().getOrNull(localRev, mirrorStatePath).join();
                 final String localSourceRevision;
                 if (mirrorState == null || mirrorState.type() != EntryType.JSON) {
@@ -175,37 +246,8 @@ public final class GitMirror extends AbstractMirror {
                         continue;
                     }
 
-                    // Recurse into a directory if necessary.
                     if (fileMode == FileMode.TREE) {
-                        // Enter if the directory is under remotePath.
-                        // e.g.
-                        // path == /foo/bar
-                        // remotePath == /foo/
-                        if (path.startsWith(remotePath())) {
-                            treeWalk.enterSubtree();
-                            continue;
-                        }
-
-                        // Enter if the directory is equal to remotePath.
-                        // e.g.
-                        // path == /foo
-                        // remotePath == /foo/
-                        final int pathLen = path.length() + 1; // Include the trailing '/'.
-                        if (pathLen == remotePath().length() && remotePath().startsWith(path)) {
-                            treeWalk.enterSubtree();
-                            continue;
-                        }
-
-                        // Enter if the directory is parent of remotePath.
-                        // e.g.
-                        // path == /foo
-                        // remotePath == /foo/bar/
-                        if (pathLen < remotePath().length() && remotePath().startsWith(path + '/')) {
-                            treeWalk.enterSubtree();
-                            continue;
-                        }
-
-                        // Skip the directory that are not under the remote path.
+                        maybeEnterSubtree(treeWalk, remotePath(), path, false);
                         continue;
                     }
 
@@ -244,7 +286,7 @@ public final class GitMirror extends AbstractMirror {
                             changes.putIfAbsent(localPath, Change.ofJsonUpsert(localPath, jsonNode));
                             break;
                         case TEXT:
-                            final String strVal = new String(content, StandardCharsets.UTF_8);
+                            final String strVal = new String(content, UTF_8);
                             changes.putIfAbsent(localPath, Change.ofTextUpsert(localPath, strVal));
                             break;
                     }
@@ -330,6 +372,324 @@ public final class GitMirror extends AbstractMirror {
         } finally {
             if (!success) {
                 git.close();
+            }
+        }
+    }
+
+    @Nullable
+    private Revision remoteCurrentRevision(
+            ObjectReader reader, TreeWalk treeWalk, String mirrorStatePath) {
+        try {
+            while (treeWalk.next()) {
+                final FileMode fileMode = treeWalk.getFileMode();
+                final String path = '/' + treeWalk.getPathString();
+
+                // Recurse into a directory if necessary.
+                if (fileMode == FileMode.TREE) {
+                    maybeEnterSubtree(treeWalk, remotePath(), path, true);
+                    continue;
+                }
+
+                if (!path.equals(mirrorStatePath)) {
+                    continue;
+                }
+
+                final byte[] content = currentEntryContent(reader, treeWalk);
+                final MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
+                return new Revision(mirrorState.sourceRevision());
+            }
+            // There's no mirror state file which means this is the first mirroring or the file is removed.
+            return null;
+        } catch (Exception e) {
+            logger.warn("Unexpected exception while retrieving the remote source revision", e);
+            return null;
+        }
+    }
+
+    private static ObjectId fetchRemoteHeadAndGetCommitId(
+            Git git, String headBranchRefName) throws GitAPIException, IOException {
+        final FetchCommand fetch = git.fetch();
+        final FetchResult fetchResult = fetch.setRefSpecs(new RefSpec(headBranchRefName))
+                                             .setCheckFetchedObjects(true)
+                                             .setRemoveDeletedRefs(true)
+                                             .setTagOpt(TagOpt.NO_TAGS)
+                                             .setTimeout(GIT_TIMEOUT_SECS)
+                                             .call();
+
+        final ObjectId commitId = fetchResult.getAdvertisedRef(headBranchRefName).getObjectId();
+        final RefUpdate refUpdate = git.getRepository().updateRef(headBranchRefName);
+        refUpdate.setNewObjectId(commitId);
+        refUpdate.update();
+        return commitId;
+    }
+
+    private Map<String, Entry<?>> localHeadEntries(Revision localHead) {
+        final Map<String, Entry<?>> localRawHeadEntries = localRepo().find(localHead, localPath() + "**")
+                                                                     .join();
+
+        final Stream<Map.Entry<String, Entry<?>>> filteredStream =
+                localRawHeadEntries.entrySet()
+                                   .stream()
+                                   .filter(e -> e.getKey().startsWith(localPath()));
+        if (ignoreNode == null) {
+            // Use HashMap to manipulate it.
+            return filteredStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        }
+
+        final Map<String, Entry<?>> sortedMap =
+                filteredStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                                                        (v1, v2) -> v1, LinkedHashMap::new));
+        // Use HashMap to manipulate it.
+        final HashMap<String, Entry<?>> result = new HashMap<>(sortedMap.size());
+        String lastIgnoredDirectory = null;
+        for (Map.Entry<String, ? extends Entry<?>> entry : sortedMap.entrySet()) {
+            final String path = entry.getKey();
+            final boolean isDirectory = entry.getValue().type() == EntryType.DIRECTORY;
+            final MatchResult ignoreResult = ignoreNode.isIgnored(
+                    path.substring(localPath().length()), isDirectory);
+            if (ignoreResult == MatchResult.IGNORED) {
+                if (isDirectory) {
+                    lastIgnoredDirectory = path;
+                }
+                continue;
+            }
+            if (ignoreResult == MatchResult.CHECK_PARENT) {
+                if (lastIgnoredDirectory != null && path.startsWith(lastIgnoredDirectory)) {
+                    continue;
+                }
+            }
+            result.put(path, entry.getValue());
+        }
+
+        return result;
+    }
+
+    private void addModifiedEntryToCache(Revision localHead, DirCache dirCache, ObjectReader reader,
+                                         ObjectInserter inserter, TreeWalk treeWalk,
+                                         String mirrorStatePath, int maxNumFiles,
+                                         long maxNumBytes) throws IOException {
+        final Map<String, Entry<?>> localHeadEntries = localHeadEntries(localHead);
+        long numFiles = 0;
+        long numBytes = 0;
+        while (treeWalk.next()) {
+            final FileMode fileMode = treeWalk.getFileMode();
+            final String pathString = treeWalk.getPathString();
+            final String path = '/' + pathString;
+
+            if (path.equals(mirrorStatePath)) {
+                continue;
+            }
+
+            // Recurse into a directory if necessary.
+            if (fileMode == FileMode.TREE) {
+                maybeEnterSubtree(treeWalk, remotePath(), path, false);
+                continue;
+            }
+
+            // Skip the entries that are not under the remote path.
+            if (!path.startsWith(remotePath())) {
+                continue;
+            }
+
+            if (fileMode != FileMode.REGULAR_FILE && fileMode != FileMode.EXECUTABLE_FILE) {
+                // Remove non-file entries.
+                applyPathEdit(dirCache, new DeletePath(pathString));
+                localHeadEntries.remove(path);
+                continue;
+            }
+
+            final String localFilePath = localPath() + path.substring(remotePath().length());
+            final Entry<?> entry = localHeadEntries.remove(localFilePath);
+            if (entry == null) {
+                // Remove a deleted entry.
+                applyPathEdit(dirCache, new DeletePath(pathString));
+                continue;
+            }
+
+            if (++numFiles > maxNumFiles) {
+                throw new MirrorException("mirror contains more than " + maxNumFiles + " file(s)");
+            }
+
+            final byte[] oldContent = currentEntryContent(reader, treeWalk);
+            final long contentLength = applyPathEdit(dirCache, inserter, pathString, entry, oldContent);
+            numBytes += contentLength;
+            if (numBytes > maxNumBytes) {
+                throw new MirrorException("mirror contains more than " + maxNumBytes + " byte(s)");
+            }
+        }
+
+        // Add newly added entries.
+        for (Map.Entry<String, Entry<?>> entry : localHeadEntries.entrySet()) {
+            final Entry<?> value = entry.getValue();
+            if (value.type() == EntryType.DIRECTORY) {
+                continue;
+            }
+            if (++numFiles > maxNumFiles) {
+                throw new MirrorException("mirror contains more than " + maxNumFiles + " file(s)");
+            }
+
+            final String convertedPath = remotePath().substring(1) + // Strip the leading '/'
+                                         entry.getKey().substring(localPath().length());
+            final long contentLength = applyPathEdit(dirCache, inserter, convertedPath, entry.getValue(), null);
+            numBytes += contentLength;
+            if (numBytes > maxNumBytes) {
+                throw new MirrorException("mirror contains more than " + maxNumBytes + " byte(s)");
+            }
+        }
+    }
+
+    private static long applyPathEdit(DirCache dirCache, ObjectInserter inserter, String pathString,
+                                      Entry<?> entry, @Nullable byte[] oldContent)
+            throws JsonProcessingException {
+        switch (EntryType.guessFromPath(pathString)) {
+            case JSON:
+                final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
+                final JsonNode newJsonNode = firstNonNull((JsonNode) entry.content(),
+                                                          JsonNodeFactory.instance.nullNode());
+
+                // Upsert only when the contents are really different.
+                if (!Objects.equals(newJsonNode, oldJsonNode)) {
+                    // Use InsertText to store the content in pretty format
+                    final String newContent = newJsonNode.toPrettyString() + '\n';
+                    applyPathEdit(dirCache, new InsertText(pathString, inserter, newContent));
+                    return newContent.length();
+                }
+                break;
+            case TEXT:
+                final String sanitizedOldText = oldContent != null ?
+                                                sanitizeText(new String(oldContent, UTF_8)) : null;
+                final String sanitizedNewText = sanitizeText(entry.contentAsText());
+                // Upsert only when the contents are really different.
+                if (!sanitizedNewText.equals(sanitizedOldText)) {
+                    applyPathEdit(dirCache, new InsertText(pathString, inserter, sanitizedNewText));
+                    return sanitizedNewText.length();
+                }
+                break;
+        }
+        return 0;
+    }
+
+    private static byte[] currentEntryContent(ObjectReader reader, TreeWalk treeWalk) throws IOException {
+        final ObjectId objectId = treeWalk.getObjectId(0);
+        return reader.open(objectId).getBytes();
+    }
+
+    private static void maybeEnterSubtree(
+            TreeWalk treeWalk, String remotePath,
+            String path, boolean findingMirrorStateFile) throws IOException {
+        // Enter if the directory is under the remote path.
+        // e.g.
+        // path == /foo/bar
+        // remotePath == /foo/
+        if (path.startsWith(remotePath)) {
+            if (findingMirrorStateFile) {
+                // The mirror state file isn't placed under a subtree.
+                return;
+            }
+            treeWalk.enterSubtree();
+            return;
+        }
+
+        // Enter if the directory is equal to the remote path.
+        // e.g.
+        // path == /foo
+        // remotePath == /foo/
+        final int pathLen = path.length() + 1; // Include the trailing '/'.
+        if (pathLen == remotePath.length() && remotePath.startsWith(path)) {
+            treeWalk.enterSubtree();
+            return;
+        }
+
+        // Enter if the directory is the parent of the remote path.
+        // e.g.
+        // path == /foo
+        // remotePath == /foo/bar/
+        if (pathLen < remotePath.length() && remotePath.startsWith(path + '/')) {
+            treeWalk.enterSubtree();
+        }
+    }
+
+    private static void applyPathEdit(DirCache dirCache, PathEdit edit) {
+        final DirCacheEditor e = dirCache.editor();
+        e.add(edit);
+        e.finish();
+    }
+
+    /**
+     * Removes {@code \r} and appends {@code \n} on the last line if it does not end with {@code \n}.
+     */
+    private static String sanitizeText(String text) {
+        if (text.indexOf('\r') >= 0) {
+            text = CR.matcher(text).replaceAll("");
+        }
+        if (!text.isEmpty() && !text.endsWith("\n")) {
+            text += "\n";
+        }
+        return text;
+    }
+
+    private ObjectId commit(org.eclipse.jgit.lib.Repository gitRepository, DirCache dirCache,
+                            ObjectId headCommitId, Revision localHead) throws IOException {
+        try (ObjectInserter inserter = gitRepository.newObjectInserter()) {
+            // flush the current index to repository and get the result tree object id.
+            final ObjectId nextTreeId = dirCache.writeTree(inserter);
+            // build a commit object
+            final PersonIdent personIdent =
+                    new PersonIdent(MIRROR_AUTHOR.name(), MIRROR_AUTHOR.email(),
+                                    System.currentTimeMillis() / 1000L * 1000L, // Drop the milliseconds
+                                    0);
+
+            final CommitBuilder commitBuilder = new CommitBuilder();
+            commitBuilder.setAuthor(personIdent);
+            commitBuilder.setCommitter(personIdent);
+            commitBuilder.setTreeId(nextTreeId);
+            commitBuilder.setEncoding(UTF_8);
+            commitBuilder.setParentId(headCommitId);
+
+            final String summary = "Mirror '" + localRepo().name() + "' at " + localHead +
+                                   " to the repository '" + remoteRepoUri() + '#' + remoteBranch() + '\'';
+            logger.debug(summary);
+            commitBuilder.setMessage(summary);
+
+            final ObjectId nextCommitId = inserter.insert(commitBuilder);
+            inserter.flush();
+            return nextCommitId;
+        }
+    }
+
+    static void updateRef(org.eclipse.jgit.lib.Repository jGitRepository, RevWalk revWalk,
+                          String ref, ObjectId commitId) throws IOException {
+        final RefUpdate refUpdate = jGitRepository.updateRef(ref);
+        refUpdate.setNewObjectId(commitId);
+
+        final Result res = refUpdate.update(revWalk);
+        switch (res) {
+            case NEW:
+            case FAST_FORWARD:
+                // Expected
+                break;
+            default:
+                throw new StorageException("unexpected refUpdate state: " + res);
+        }
+    }
+
+    private static final class InsertText extends PathEdit {
+        private final ObjectInserter inserter;
+        private final String text;
+
+        InsertText(String entryPath, ObjectInserter inserter, String text) {
+            super(entryPath);
+            this.inserter = inserter;
+            this.text = text;
+        }
+
+        @Override
+        public void apply(DirCacheEntry ent) {
+            try {
+                ent.setObjectId(inserter.insert(Constants.OBJ_BLOB, text.getBytes(UTF_8)));
+                ent.setFileMode(FileMode.REGULAR_FILE);
+            } catch (IOException e) {
+                throw new StorageException("failed to create a new text blob", e);
             }
         }
     }

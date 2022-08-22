@@ -47,7 +47,8 @@ public final class TestUtil {
     }
 
     public static String normalizedDisplayName(TestInfo testInfo) {
-        return DISALLOWED_CHARS.matcher(testInfo.getDisplayName()).replaceAll("");
+        return DISALLOWED_CHARS.matcher(testInfo.getDisplayName() + testInfo.getTestMethod().get().getName())
+                               .replaceAll("");
     }
 
     private TestUtil() {}
