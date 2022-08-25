@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
+import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.DOCS_PATH;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.BUILTIN_WEB_BASE_PATH;
@@ -38,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -88,6 +90,7 @@ import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.TransientServiceOption;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.docs.DocService;
@@ -96,6 +99,7 @@ import com.linecorp.armeria.server.file.FileService;
 import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
+import com.linecorp.armeria.server.logging.LoggingService;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.metric.PrometheusExpositionService;
 import com.linecorp.armeria.server.thrift.THttpService;
@@ -147,11 +151,11 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
-import io.micrometer.core.instrument.binder.jvm.DiskSpaceMetrics;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
+import io.micrometer.core.instrument.binder.system.DiskSpaceMetrics;
 import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
@@ -171,6 +175,7 @@ public class CentralDogma implements AutoCloseable {
     static {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
     }
+
 
     /**
      * Creates a new instance from the given configuration file.
@@ -206,6 +211,8 @@ public class CentralDogma implements AutoCloseable {
     private PrometheusMeterRegistry meterRegistry;
     @Nullable
     private SessionManager sessionManager;
+    @Nullable
+    private JvmGcMetrics jvmGcMetrics;
 
     CentralDogma(CentralDogmaConfig cfg) {
         this.cfg = requireNonNull(cfg, "cfg");
@@ -385,13 +392,13 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("Starting plugins on the leader replica ..");
                 pluginsForLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker).handle((unused, cause) -> {
-                    if (cause == null) {
-                        logger.info("Started plugins on the leader replica.");
-                    } else {
-                        logger.error("Failed to start plugins on the leader replica..", cause);
-                    }
-                    return null;
-                });
+                            if (cause == null) {
+                                logger.info("Started plugins on the leader replica.");
+                            } else {
+                                logger.error("Failed to start plugins on the leader replica..", cause);
+                            }
+                            return null;
+                        });
             }
         };
 
@@ -521,9 +528,68 @@ public class CentralDogma implements AutoCloseable {
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
 
-        sb.service(HEALTH_CHECK_PATH, HealthCheckService.of());
 
-        sb.serviceUnder("/docs/",
+        final RequestLogConfig requestLogConfig = cfg.requestLogConfig();
+        boolean logHealthCheck = false;
+        boolean logMetrics = false;
+        if (requestLogConfig != null) {
+            final Function<? super HttpService, LoggingService> loggingService =
+                    LoggingService.builder()
+                                  .logger(requestLogConfig.loggerName())
+                                  .requestLogLevel(requestLogConfig.requestLogLevel())
+                                  .successfulResponseLogLevel(requestLogConfig.successfulResponseLogLevel())
+                                  .failureResponseLogLevel(requestLogConfig.failureResponseLogLevel())
+                                  .successSamplingRate(requestLogConfig.successSamplingRate())
+                                  .failureSamplingRate(requestLogConfig.failureSamplingRate())
+                                  .newDecorator();
+            final Set<RequestLogGroup> requestLogGroups = requestLogConfig.targetGroups();
+            if (requestLogGroups.contains(RequestLogGroup.ALL)) {
+                sb.decorator(loggingService);
+                logHealthCheck = true;
+                logMetrics = true;
+            } else {
+                for (RequestLogGroup logGroup : requestLogGroups) {
+                    switch (logGroup) {
+                        case API:
+                            sb.decoratorUnder("/api", loggingService);
+                            break;
+                        case METRICS:
+                            sb.decorator(METRICS_PATH, loggingService);
+                            logMetrics = true;
+                            break;
+                        case HEALTH:
+                            sb.decorator(HEALTH_CHECK_PATH, loggingService);
+                            logHealthCheck = true;
+                            break;
+                        case DOCS:
+                            sb.decoratorUnder(DOCS_PATH, loggingService);
+                            break;
+                        case WEB:
+                            for (String webResources : ImmutableList.of("/web", "/vendor",
+                                                                        "/scripts", "/styles")) {
+                                sb.decoratorUnder(webResources, loggingService);
+                            }
+                            break;
+                        case ALL:
+                            // Should never reach here.
+                            throw new Error();
+                    }
+                }
+            }
+        }
+
+        final HealthCheckService healthCheckService;
+        if (logHealthCheck) {
+            healthCheckService =
+                    HealthCheckService.builder()
+                                      .transientServiceOptions(TransientServiceOption.WITH_SERVICE_LOGGING)
+                                      .build();
+        } else {
+            healthCheckService = HealthCheckService.of();
+        }
+        sb.service(HEALTH_CHECK_PATH, healthCheckService);
+
+        sb.serviceUnder(DOCS_PATH,
                         DocService.builder()
                                   .exampleHeaders(CentralDogmaService.class,
                                                   HttpHeaders.of(HttpHeaderNames.AUTHORIZATION,
@@ -532,7 +598,7 @@ public class CentralDogma implements AutoCloseable {
 
         configureHttpApi(sb, pm, executor, watchService, mds, authProvider, sessionManager);
 
-        configureMetrics(sb, meterRegistry);
+        configureMetrics(sb, meterRegistry, logMetrics);
 
         // Configure access log format.
         final String accessLogFormat = cfg.accessLogFormat();
@@ -776,9 +842,18 @@ public class CentralDogma implements AutoCloseable {
                 .build(delegate);
     }
 
-    private void configureMetrics(ServerBuilder sb, PrometheusMeterRegistry registry) {
+    private void configureMetrics(ServerBuilder sb, PrometheusMeterRegistry registry, boolean logMetrics) {
         sb.meterRegistry(registry);
-        sb.service(METRICS_PATH, new PrometheusExpositionService(registry.getPrometheusRegistry()));
+        final PrometheusExpositionService expositionService;
+        if (logMetrics) {
+            expositionService = PrometheusExpositionService.builder(registry.getPrometheusRegistry())
+                                                           .transientServiceOptions(
+                                                                   TransientServiceOption.WITH_SERVICE_LOGGING)
+                                                           .build();
+        } else {
+            expositionService = PrometheusExpositionService.of(registry.getPrometheusRegistry());
+        }
+        sb.service(METRICS_PATH, expositionService);
         sb.decorator(MetricCollectingService.newDecorator(MeterIdPrefixFunction.ofDefault("api")));
 
         // Bind system metrics.
@@ -787,7 +862,8 @@ public class CentralDogma implements AutoCloseable {
         new ClassLoaderMetrics().bindTo(registry);
         new UptimeMetrics().bindTo(registry);
         new DiskSpaceMetrics(cfg.dataDir()).bindTo(registry);
-        new JvmGcMetrics().bindTo(registry);
+        jvmGcMetrics = new JvmGcMetrics();
+        jvmGcMetrics.bindTo(registry);
         new JvmMemoryMetrics().bindTo(registry);
         new JvmThreadMetrics().bindTo(registry);
 
@@ -815,6 +891,11 @@ public class CentralDogma implements AutoCloseable {
         if (meterRegistry != null) {
             meterRegistry.close();
             meterRegistry = null;
+        }
+
+        if (jvmGcMetrics != null) {
+            jvmGcMetrics.close();
+            jvmGcMetrics = null;
         }
 
         logger.info("Stopping the Central Dogma ..");

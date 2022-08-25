@@ -37,5 +37,8 @@
   },
   "csrfTokenRequiredForThrift": null,
   "accessLogFormat": "common",
-  "authentication": null
+  "authentication": null,
+  "requestLog": {
+    "targetGroups": [ "API" ]
+  }
 }

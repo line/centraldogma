@@ -121,6 +121,8 @@ public final class CentralDogmaBuilder {
     private Object authProviderProperties;
     private int writeQuota;
     private int timeWindowSeconds;
+    @Nullable
+    private RequestLogConfig requestLogConfig;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -520,6 +522,12 @@ public final class CentralDogmaBuilder {
         return this;
     }
 
+    public CentralDogmaBuilder requestLogConfig(RequestLogConfig requestLogConfig) {
+        requireNonNull(requestLogConfig, "requestLogConfig");
+        this.requestLogConfig = requestLogConfig;
+        return this;
+    }
+
     /**
      * Returns a newly-created {@link CentralDogma} server.
      */
@@ -553,6 +561,6 @@ public final class CentralDogmaBuilder {
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      null, accessLogFormat, authCfg, quotaConfig);
+                                      null, accessLogFormat, authCfg, quotaConfig, requestLogConfig);
     }
 }
