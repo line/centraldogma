@@ -176,7 +176,6 @@ public class CentralDogma implements AutoCloseable {
         Jackson.registerModules(new SimpleModule().addSerializer(CacheStats.class, new CacheStatsSerializer()));
     }
 
-
     /**
      * Creates a new instance from the given configuration file.
      *
@@ -527,7 +526,6 @@ public class CentralDogma implements AutoCloseable {
         configureThriftService(sb, pm, executor, watchService, mds);
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
-
 
         final RequestLogConfig requestLogConfig = cfg.requestLogConfig();
         boolean logHealthCheck = false;

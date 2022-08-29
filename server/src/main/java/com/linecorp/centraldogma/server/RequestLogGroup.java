@@ -26,19 +26,19 @@ import com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants;
  */
 public enum RequestLogGroup {
     /**
-     * The services served under {@code "/api"}
+     * The services served under {@code "/api"}.
      */
     API,
     /**
-     * The {@link PrometheusExpositionService} served at {@value HttpApiV1Constants#METRICS_PATH}
+     * The {@link PrometheusExpositionService} served at {@value HttpApiV1Constants#METRICS_PATH}.
      */
     METRICS,
     /**
-     * The {@link HealthCheckService} served at {@value HttpApiV1Constants#HEALTH_CHECK_PATH}
+     * The {@link HealthCheckService} served at {@value HttpApiV1Constants#HEALTH_CHECK_PATH}.
      */
     HEALTH,
     /**
-     * The {@link DocService} served under {@value HttpApiV1Constants#DOCS_PATH}
+     * The {@link DocService} served under {@value HttpApiV1Constants#DOCS_PATH}.
      */
     DOCS,
     /**

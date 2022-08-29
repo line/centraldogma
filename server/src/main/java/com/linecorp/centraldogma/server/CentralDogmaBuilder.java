@@ -522,6 +522,10 @@ public final class CentralDogmaBuilder {
         return this;
     }
 
+    /**
+     * Sets the {@link RequestLogConfig} to log requests, responses and exceptions in detail.
+     * If unspecified, request logging is disabled.
+     */
     public CentralDogmaBuilder requestLogConfig(RequestLogConfig requestLogConfig) {
         requireNonNull(requestLogConfig, "requestLogConfig");
         this.requestLogConfig = requestLogConfig;

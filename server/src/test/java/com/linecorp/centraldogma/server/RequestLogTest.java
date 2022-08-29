@@ -48,7 +48,6 @@ import ch.qos.logback.core.read.ListAppender;
 class RequestLogTest {
     private static String LOGGER_NAME = "com.linecorp.centraldogma.test";
 
-
     private ListAppender<ILoggingEvent> logWatcher;
 
     private void setUp() {
@@ -137,7 +136,6 @@ class RequestLogTest {
                     return event.getLevel().equals(Level.DEBUG) &&
                            event.getMessage().contains("{} Request: {}") &&
                            event.getFormattedMessage().contains("/api/v1/projects");
-
                 });
         dogmaExtension.stop();
     }
@@ -155,7 +153,6 @@ class RequestLogTest {
                     return event.getLevel().equals(Level.DEBUG) &&
                            event.getMessage().contains("{} Request: {}") &&
                            event.getFormattedMessage().contains("/api/v1/projects");
-
                 });
         dogmaExtension.stop();
     }
@@ -179,7 +176,6 @@ class RequestLogTest {
                     return event.getLevel().equals(Level.DEBUG) &&
                            event.getMessage().contains("{} Request: {}") &&
                            event.getFormattedMessage().contains("/api/v1/projects");
-
                 });
         dogmaExtension.stop();
     }
