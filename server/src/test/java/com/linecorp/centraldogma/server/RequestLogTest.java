@@ -106,7 +106,7 @@ class RequestLogTest {
     @CsvSource({ "/api/v1/projects", "/monitor/l7check", "/monitor/metrics",
                  "/docs/index.html", "/styles/main.css" })
     @ParameterizedTest
-    void shouldAllLogRequests(String path) throws Exception {
+    void shouldLogAllRequests(String path) throws Exception {
         final CentralDogmaExtension dogmaExtension = newDogmaExtension(RequestLogGroup.ALL);
         final BlockingWebClient client = dogmaExtension.httpClient().blocking();
         setUp();
@@ -160,7 +160,7 @@ class RequestLogTest {
     @CsvSource({ "API, /api/v1/projects", "HEALTH, /monitor/l7check", "METRICS, /monitor/metrics",
                  "DOCS, /docs/index.html", "WEB, /styles/main.css" })
     @ParameterizedTest
-    void shouldNotLogApiRequests(RequestLogGroup logGroup, String path) throws Exception {
+    void shouldNotLogTargetRequests(RequestLogGroup logGroup, String path) throws Exception {
         final RequestLogGroup[] logGroups =
                 Arrays.stream(RequestLogGroup.values())
                       .filter(group -> group != RequestLogGroup.ALL && group != logGroup)
@@ -175,7 +175,7 @@ class RequestLogTest {
                 .noneMatch(event -> {
                     return event.getLevel().equals(Level.DEBUG) &&
                            event.getMessage().contains("{} Request: {}") &&
-                           event.getFormattedMessage().contains("/api/v1/projects");
+                           event.getFormattedMessage().contains(path);
                 });
         dogmaExtension.stop();
     }

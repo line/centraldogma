@@ -239,12 +239,12 @@ Core properties
 
   - ``targetGroups`` (string array)
 
-     - the target :api:`RequestLogGroup`s which should be logged.
+     - the target :apiplural:`RequestLogGroup` which should be logged.
 
        - ``API`` - the services served under ``/api``
-       - ``METRICS` - the :api:`PrometheusExpositionService` served at ``/monitor/metrics``
-       - ``HEALTH` - the :api:`HealthCheckService` served at ``/monitor/l7check``
-       - ``DOCS` - the :api:`DocService` served under ``/docs``
+       - ``METRICS`` - the Prometheus exposition service served at ``/monitor/metrics``
+       - ``HEALTH`` - the health check service served at ``/monitor/l7check``
+       - ``DOCS`` - the documentation service served under ``/docs``
        - ``WEB`` - the static file services served under ``/web``, ``/vendor``, ``/scripts`` and ``/styles``.
        - ``ALL`` - the group that represents all groups.
 
