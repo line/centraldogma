@@ -3,9 +3,9 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 boms:
-- com.fasterxml.jackson:jackson-bom:2.13.3
-- com.linecorp.armeria:armeria-bom:1.18.0
-- io.micrometer:micrometer-bom:1.9.2
+- com.fasterxml.jackson:jackson-bom:2.13.4
+- com.linecorp.armeria:armeria-bom:1.19.0
+- io.micrometer:micrometer-bom:1.9.3
 - org.junit:junit-bom:5.9.0
 
 ch.qos.logback:
@@ -115,7 +115,7 @@ com.linecorp.armeria:
     - https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.17.1/
 
 com.puppycrawl.tools:
-  checkstyle: { version: '10.3.2' }
+  checkstyle: { version: '10.3.3' }
 
 com.spotify:
   completable-futures:
@@ -163,7 +163,7 @@ kr.motd.gradle:
   sphinx-gradle-plugin: { version: '2.10.1' }
 
 me.champeau.jmh:
-  jmh-gradle-plugin: { version: '0.6.6' }
+  jmh-gradle-plugin: { version: '0.6.7' }
 
 # Used only in testing-module.
 net.javacrumbs.json-unit:
@@ -225,10 +225,10 @@ org.hibernate.validator:
   hibernate-validator: { version: '6.2.3.Final' }
 
 org.javassist:
-  javassist: { version: '3.29.0-GA' }
+  javassist: { version: '3.29.1-GA' }
 
 org.mockito:
-  mockito-core: { version: &MOCKITO_VERSION '4.6.1' }
+  mockito-core: { version: &MOCKITO_VERSION '4.8.0' }
   mockito-junit-jupiter: { version: *MOCKITO_VERSION }
 
 org.mortbay.jetty.alpn:
@@ -249,7 +249,7 @@ org.slf4j:
 
 org.springframework.boot:
   spring-boot-starter:
-    version: &SPRING_BOOT_VERSION '2.7.2'
+    version: &SPRING_BOOT_VERSION '2.7.3'
     javadocs:
     - https://docs.spring.io/spring/docs/current/javadoc-api/
   spring-boot-starter-test: { version: *SPRING_BOOT_VERSION }
