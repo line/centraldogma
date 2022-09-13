@@ -143,4 +143,11 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
         instanceListWatcher.close();
         future.complete(null);
     }
+
+    @Override
+    public String toString() {
+        return toStringHelper()
+                .add("instanceListWatcher", instanceListWatcher)
+                .toString();
+    }
 }
