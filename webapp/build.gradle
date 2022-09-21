@@ -1,0 +1,18 @@
+plugins {
+    id 'base'
+    // TODO(ikhoon): Use version catalog once https://github.com/line/centraldogma/pull/716 is merged
+    id "com.github.node-gradle.node" version "3.4.0"
+}
+
+node {
+    version = '16.17.0'
+    npmVersion = '8.15.0'
+    download = true
+    npmInstallCommand = "ci"
+
+    // Change the cache location under Gradle user home directory so that it's cached by CI.
+    if (System.getenv('CI') != null) {
+        workDir = file("${gradle.gradleUserHomeDir}/caches/nodejs/${project.name}")
+        npmWorkDir = file("${gradle.gradleUserHomeDir}/caches/npm/${project.name}")
+    }
+}
