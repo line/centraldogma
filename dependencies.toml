@@ -8,15 +8,15 @@ guava = "31.1-jre"
 jgit = "5.13.0.202109080827-r"
 json-unit = "2.35.0"
 jmh = "1.35"
-micrometer = "1.9.2"
-mockito = "4.6.1"
+micrometer = "1.9.3"
+mockito = "4.8.0"
 slf4j = "1.7.36"
 spring-boot1 = "1.5.22.RELEASE"
-spring-boot2 = "2.7.2"
+spring-boot2 = "2.7.3"
 
 [boms]
-armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.18.0" }
-jackson = { module = "com.fasterxml.jackson:jackson-bom", version = "2.13.3" }
+armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.19.0" }
+jackson = { module = "com.fasterxml.jackson:jackson-bom", version = "2.13.4" }
 junit5 = { module = "org.junit:junit-bom", version = "5.9.0" }
 
 [libraries.armeria]
@@ -47,7 +47,7 @@ javadocs = "https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.
 
 [libraries.checkstyle]
 module = "com.puppycrawl.tools:checkstyle"
-version = "10.3.2"
+version = "10.3.3"
 
 # Don't update `cron-utils` version
 [libraries.cron-utils]
@@ -129,7 +129,7 @@ module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
 
 [libraries.javassist]
 module = "org.javassist:javassist"
-version = "3.29.0-GA"
+version = "3.29.1-GA"
 
 [libraries.javax-annotation]
 module = "javax.annotation:javax.annotation-api"
@@ -307,7 +307,7 @@ exclusions = [
 [plugins]
 docker = { id = "com.bmuschko.docker-remote-api", version = "6.7.0" }
 download = { id = "de.undercouch.download", version = "5.1.0" }
-jmh = { id = "me.champeau.jmh", version = "0.6.6" }
+jmh = { id = "me.champeau.jmh", version = "0.6.7" }
 jxr = { id = "net.davidecavestro.gradle.jxr", version = "0.2.1" }
 log = { id = "com.boazj.log", version = "0.1.0" }
 node-gradle = { id = "com.github.node-gradle.node", version = "3.4.0" }
