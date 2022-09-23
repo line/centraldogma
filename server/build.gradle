@@ -58,6 +58,13 @@ dependencies {
     optionalImplementation libs.slf4j.jul.to.slf4j
 }
 
+// allows illegal access by ExecutorServiceMetrics of Micrometer
+if (rootProject.ext.testJavaVersion >= 16) {
+    tasks.withType(Test) {
+        jvmArgs '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED'
+    }
+}
+
 def clientRelocations = [
         'ace-builds/src-min-noconflict/',
         'angular/angular.min.js',
