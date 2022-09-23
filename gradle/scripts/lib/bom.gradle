@@ -14,6 +14,21 @@ configure(projectsWithFlags('bom')) {
 
     dependencies {
         constraints {
+            def bomGroups, subs
+            if (rootProject.ext.has('bomGroups')) {
+                bomGroups = rootProject.ext.bomGroups
+                if (!(bomGroups instanceof Map)) {
+                    throw new IllegalStateException("bomGroups must be a Map: ${bomGroups}")
+                }
+                if (!bomGroups.containsKey(project.path)) {
+                    logger.warn("{} won't be included to bomGroups property. If not intended, Please check bomGroups property", project.name)
+                }
+                subs = bomGroups.get(project.path)
+                if (!(subs.value instanceof List)) {
+                    throw new IllegalStateException("bomGroups' value must be a List: ${subs.value}")
+                }
+            }
+
             projectsWithFlags('java', 'publish').toList().sort { a, b ->
                 def groupComparison = "${a.group}".compareTo("${b.group}")
                 if (groupComparison != 0) {
@@ -21,7 +36,19 @@ configure(projectsWithFlags('bom')) {
                 }
                 return "${a.ext.artifactId}".compareTo("${b.ext.artifactId}")
             }.each { p ->
-                api "${p.group}:${p.ext.artifactId}:${p.version}"
+                if (rootProject.ext.has('bomGroups')) {
+                    if (!bomGroups.containsKey(project.path)) {
+                        api "${p.group}:${p.ext.artifactId}:${p.version}"
+                    } else {
+                        if (subs.contains(p.path)) {
+                            api "${p.group}:${p.ext.artifactId}:${p.version}"
+                        } else if (p.path.startsWith(project.path)) {
+                            logger.warn("{} won't be included in {} bom. If not intended, Please check bomGroups property", p.name, project.name)
+                        }
+                    }
+                } else {
+                    api "${p.group}:${p.ext.artifactId}:${p.version}"
+                }
             }
         }
     }

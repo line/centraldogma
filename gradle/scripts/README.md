@@ -523,6 +523,17 @@ generate Maven BOM based on the dependencies specified in `dependencies.toml`.
 `bom` flag implies `publish` flag, which means the BOM will be uploaded to a
 Maven repository by `./gradlew publish`.
 
+If you want to publish multiple boms with different subprojects, you can use the `bomGroups` extension property.
+Specify each bom's name with the subprojects:
+```groovy
+ext {
+    bomGroups = [
+            ':module1': [':module1:submodule1', ':module1:submodule2'],
+            ':module2': [':module2:submodule1', ':module2:submodule2']
+    ]
+}
+```
+
 ## Building shaded JARs with `shade` flag
 
 Let's say you have a project that depends on a very old version of Guava and
