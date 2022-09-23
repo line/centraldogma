@@ -14,13 +14,9 @@
  * under the License.
  */
 
-import React from 'react';
-import { Box, ChakraProvider, theme } from '@chakra-ui/react';
-
-export default () => (
-  <ChakraProvider theme={theme}>
-    <Box textAlign="center" fontSize="xl">
-      Hello world!
-    </Box>
-  </ChakraProvider>
-);
+export interface ProjectDto {
+  name: string;
+  url: string;
+  reposUrl: string;
+  createdAt: string;
+}

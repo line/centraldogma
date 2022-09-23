@@ -13,22 +13,23 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+import React, { ReactNode } from 'react';
 
-import React from 'react';
-import ReactDOM from 'react-dom';
-import { Provider } from 'react-redux';
+interface LoadingProps {
+  isLoading: boolean;
+  error: any;
+  children: () => ReactNode;
+}
+export const Deferred = (props: LoadingProps) => {
+  if (props.isLoading) {
+    // TODO(ikhoon): Add a loading indicator/spinner.
+    return <div>Loading...</div>;
+  }
 
-import { ChakraProvider, theme } from '@chakra-ui/react';
-import { store } from 'dogma/store';
-import Dogma from 'dogma/Dogma';
+  if (props.error) {
+    // TODO(ikhoon): Link to an error page.
+    return <div>Link to an error page</div>;
+  }
 
-const rootElement = document.getElementById('root');
-
-ReactDOM.render(
-  <Provider store={store}>
-    <ChakraProvider theme={theme}>
-      <Dogma />
-    </ChakraProvider>
-  </Provider>,
-  rootElement,
-);
+  return <div>{props.children()}</div>;
+};

@@ -13,22 +13,14 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+import React, { ReactNode } from 'react';
+import { Box, Container } from '@chakra-ui/react';
+import { Navbar } from 'dogma/common/components/Navbar';
 
-import React from 'react';
-import ReactDOM from 'react-dom';
-import { Provider } from 'react-redux';
-
-import { ChakraProvider, theme } from '@chakra-ui/react';
-import { store } from 'dogma/store';
-import Dogma from 'dogma/Dogma';
-
-const rootElement = document.getElementById('root');
-
-ReactDOM.render(
-  <Provider store={store}>
-    <ChakraProvider theme={theme}>
-      <Dogma />
-    </ChakraProvider>
-  </Provider>,
-  rootElement,
+export const Layout = ({ children }: { children: ReactNode }) => (
+  <Container maxW="container.xl">
+    <Navbar />
+    {/* TODO(ikhoon): Add side menus */}
+    <Box p={10}>{children}</Box>
+  </Container>
 );

@@ -14,21 +14,9 @@
  * under the License.
  */
 
-import React from 'react';
-import ReactDOM from 'react-dom';
-import { Provider } from 'react-redux';
-
-import { ChakraProvider, theme } from '@chakra-ui/react';
-import { store } from 'dogma/store';
-import Dogma from 'dogma/Dogma';
-
-const rootElement = document.getElementById('root');
-
-ReactDOM.render(
-  <Provider store={store}>
-    <ChakraProvider theme={theme}>
-      <Dogma />
-    </ChakraProvider>
-  </Provider>,
-  rootElement,
-);
+export interface UserDto {
+  login: string;
+  name: string;
+  email: string;
+  roles: string[];
+}
