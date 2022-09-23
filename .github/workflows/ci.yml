@@ -5,6 +5,15 @@ on:
       - master
   pull_request:
 
+concurrency:
+  # Cancel the previous builds in the same PR.
+  # Allow running concurrently for all non-PR commits.
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  LC_ALL: "en_US.UTF-8"
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -22,8 +31,7 @@ jobs:
             coverage: true
           - java: 8
             os: ubuntu-latest
-            # TODO(ikhoon): Upgrade JDK version to 17
-          - java: 14
+          - java: 17
             os: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -31,36 +39,17 @@ jobs:
     - name: Set up JDK ${{ matrix.java }}
       uses: actions/setup-java@v2
       with:
-        distribution: 'adopt'
+        distribution: 'temurin'
         java-version: ${{ matrix.java }}
 
-    - name: Restore Gradle Cache
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.gradle/wrapper/dists
-          ~/.gradle/caches/jars-3
-          ~/.gradle/caches/modules-2
-          ~/.gradle/caches/package-lists
-          ~/.gradle/caches/sphinx-binary
-          ~/.gradle/go/binary
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
 
     - name: Build with Gradle
       run: |
         ./gradlew --no-daemon --stacktrace -Pcoverage -PnoLint build \
         -PbuildJdkVersion=${{ matrix.java }} \
         -PtestJavaVersion=${{ matrix.java }} \
-      shell: bash
-
-    - name: Cleanup Gradle Cache
-      # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
-      # Restoring these files from a GitHub Actions cache might cause problems for future builds.
-      run: |
-        rm -f ~/.gradle/caches/modules-2/modules-2.lock
-        rm -f ~/.gradle/caches/modules-2/gc.properties
       shell: bash
 
     - name: Upload coverage to Codecov
@@ -101,34 +90,15 @@ jobs:
       - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v2
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: ${{ matrix.java }}
 
-      - name: Restore Gradle Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.gradle/wrapper/dists
-            ~/.gradle/caches/jars-3
-            ~/.gradle/caches/modules-2
-            ~/.gradle/caches/package-lists
-            ~/.gradle/caches/sphinx-binary
-            ~/.gradle/go/binary
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
 
       - name: Build with Gradle
         run: |
           ./gradlew --no-daemon --stacktrace lint \
           -PbuildJdkVersion=${{ matrix.java }} \
           -PtestJavaVersion=${{ matrix.java }}
-        shell: bash
-
-      - name: Cleanup Gradle Cache
-        # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
-        # Restoring these files from a GitHub Actions cache might cause problems for future builds.
-        run: |
-          rm -f ~/.gradle/caches/modules-2/modules-2.lock
-          rm -f ~/.gradle/caches/modules-2/gc.properties
         shell: bash
