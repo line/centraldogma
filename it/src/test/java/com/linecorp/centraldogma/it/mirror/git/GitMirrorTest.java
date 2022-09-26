@@ -46,7 +46,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -64,6 +63,7 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -93,8 +93,14 @@ class GitMirrorTest {
         mirroringService = dogma.mirroringService();
     }
 
-    @TempDir
-    File gitRepoDir;
+    @RegisterExtension
+    final TemporaryFolderExtension gitRepoDir = new TemporaryFolderExtension() {
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
+    };
+
     private Git git;
     private File gitWorkTree;
     private String gitUri;
@@ -104,7 +110,7 @@ class GitMirrorTest {
     @BeforeEach
     void initGitRepo(TestInfo testInfo) throws Exception {
         final String repoName = TestUtil.normalizedDisplayName(testInfo);
-        gitWorkTree = new File(gitRepoDir, repoName).getAbsoluteFile();
+        gitWorkTree = new File(gitRepoDir.getRoot().toFile(), repoName).getAbsoluteFile();
         final Repository gitRepo = new FileRepositoryBuilder().setWorkTree(gitWorkTree).build();
         createGitRepo(gitRepo);
 
@@ -328,7 +334,7 @@ class GitMirrorTest {
         // Create a new repository for a submodule.
         final String submoduleName = TestUtil.normalizedDisplayName(testInfo) + ".submodule";
         final File gitSubmoduleWorkTree =
-                new File(gitRepoDir, submoduleName).getAbsoluteFile();
+                new File(gitRepoDir.getRoot().toFile(), submoduleName).getAbsoluteFile();
         final Repository gitSubmoduleRepo =
                 new FileRepositoryBuilder().setWorkTree(gitSubmoduleWorkTree).build();
         createGitRepo(gitSubmoduleRepo);

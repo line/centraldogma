@@ -49,7 +49,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -68,6 +67,7 @@ import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorState;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
+import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -99,8 +99,13 @@ class LocalToRemoteGitMirrorTest {
         mirroringService = dogma.mirroringService();
     }
 
-    @TempDir
-    File gitRepoDir;
+    @RegisterExtension
+    final TemporaryFolderExtension gitRepoDir = new TemporaryFolderExtension() {
+        @Override
+        protected boolean runForEachTest() {
+            return true;
+        }
+    };
 
     private Git git;
     private File gitWorkTree;
@@ -111,7 +116,7 @@ class LocalToRemoteGitMirrorTest {
     @BeforeEach
     void initGitRepo(TestInfo testInfo) throws Exception {
         final String repoName = TestUtil.normalizedDisplayName(testInfo);
-        gitWorkTree = new File(gitRepoDir, repoName).getAbsoluteFile();
+        gitWorkTree = new File(gitRepoDir.getRoot().toFile(), repoName).getAbsoluteFile();
         final Repository gitRepo = new FileRepositoryBuilder().setWorkTree(gitWorkTree).build();
         createGitRepo(gitRepo);
 
