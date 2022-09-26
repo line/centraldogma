@@ -417,7 +417,6 @@ public final class GitMirror extends AbstractMirror {
                                              .setTagOpt(TagOpt.NO_TAGS)
                                              .setTimeout(GIT_TIMEOUT_SECS)
                                              .call();
-        System.err.println(fetchResult.getMessages());
         final ObjectId commitId = fetchResult.getAdvertisedRef(headBranchRefName).getObjectId();
         final RefUpdate refUpdate = git.getRepository().updateRef(headBranchRefName);
         refUpdate.setNewObjectId(commitId);
