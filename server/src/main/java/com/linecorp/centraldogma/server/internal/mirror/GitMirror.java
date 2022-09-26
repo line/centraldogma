@@ -16,7 +16,6 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -70,7 +69,6 @@ import com.cronutils.model.Cron;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Entry;
@@ -93,13 +91,15 @@ public final class GitMirror extends AbstractMirror {
 
     private static final Logger logger = LoggerFactory.getLogger(GitMirror.class);
 
-    public static final String LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME = ".mirror_state.json";
+    // We are going to hide this file from CD UI after we implement UI for mirroring.
+    private static final String MIRROR_STATE_FILE_NAME = "mirror_state.json";
+
+    // Prepend '.' because this file is a metadata.
+    private static final String LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME = '.' + MIRROR_STATE_FILE_NAME;
 
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
 
     private static final byte[] EMPTY_BYTE = new byte[0];
-
-    private static final String MIRROR_STATE_FILE_NAME = "mirror_state.json";
 
     private static final Pattern DISALLOWED_CHARS = Pattern.compile("[^-_a-zA-Z]");
     private static final Pattern CONSECUTIVE_UNDERSCORES = Pattern.compile("_+");
@@ -139,7 +139,7 @@ public final class GitMirror extends AbstractMirror {
 
                 // Prepare to traverse the tree. We can get the tree ID by parsing the object ID.
                 final ObjectId headTreeId = revWalk.parseTree(headCommitId).getId();
-                treeWalk.addTree(headTreeId);
+                treeWalk.reset(headTreeId);
 
                 final String mirrorStatePath = remotePath() + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME;
                 final Revision localHead = localRepo().normalizeNow(Revision.HEAD);
@@ -164,7 +164,7 @@ public final class GitMirror extends AbstractMirror {
 
                 try (ObjectInserter inserter = gitRepository.newObjectInserter()) {
                     addModifiedEntryToCache(localHead, dirCache, reader, inserter,
-                                            treeWalk, mirrorStatePath, maxNumFiles, maxNumBytes);
+                                            treeWalk, maxNumFiles, maxNumBytes);
                     // Add the mirror state file.
                     final MirrorState mirrorState = new MirrorState(localHead.text());
                     applyPathEdit(
@@ -247,7 +247,7 @@ public final class GitMirror extends AbstractMirror {
                     }
 
                     if (fileMode == FileMode.TREE) {
-                        maybeEnterSubtree(treeWalk, remotePath(), path, false);
+                        maybeEnterSubtree(treeWalk, remotePath(), path);
                         continue;
                     }
 
@@ -386,7 +386,9 @@ public final class GitMirror extends AbstractMirror {
 
                 // Recurse into a directory if necessary.
                 if (fileMode == FileMode.TREE) {
-                    maybeEnterSubtree(treeWalk, remotePath(), path, true);
+                    if (remotePath().startsWith(path + '/')) {
+                        treeWalk.enterSubtree();
+                    }
                     continue;
                 }
 
@@ -415,7 +417,7 @@ public final class GitMirror extends AbstractMirror {
                                              .setTagOpt(TagOpt.NO_TAGS)
                                              .setTimeout(GIT_TIMEOUT_SECS)
                                              .call();
-
+        System.err.println(fetchResult.getMessages());
         final ObjectId commitId = fetchResult.getAdvertisedRef(headBranchRefName).getObjectId();
         final RefUpdate refUpdate = git.getRepository().updateRef(headBranchRefName);
         refUpdate.setNewObjectId(commitId);
@@ -466,8 +468,7 @@ public final class GitMirror extends AbstractMirror {
 
     private void addModifiedEntryToCache(Revision localHead, DirCache dirCache, ObjectReader reader,
                                          ObjectInserter inserter, TreeWalk treeWalk,
-                                         String mirrorStatePath, int maxNumFiles,
-                                         long maxNumBytes) throws IOException {
+                                         int maxNumFiles, long maxNumBytes) throws IOException {
         final Map<String, Entry<?>> localHeadEntries = localHeadEntries(localHead);
         long numFiles = 0;
         long numBytes = 0;
@@ -476,13 +477,14 @@ public final class GitMirror extends AbstractMirror {
             final String pathString = treeWalk.getPathString();
             final String path = '/' + pathString;
 
-            if (path.equals(mirrorStatePath)) {
+            // Recurse into a directory if necessary.
+            if (fileMode == FileMode.TREE) {
+                maybeEnterSubtree(treeWalk, remotePath(), path);
                 continue;
             }
 
-            // Recurse into a directory if necessary.
-            if (fileMode == FileMode.TREE) {
-                maybeEnterSubtree(treeWalk, remotePath(), path, false);
+            if (fileMode != FileMode.REGULAR_FILE && fileMode != FileMode.EXECUTABLE_FILE) {
+                // Skip non-file entries.
                 continue;
             }
 
@@ -491,14 +493,13 @@ public final class GitMirror extends AbstractMirror {
                 continue;
             }
 
-            if (fileMode != FileMode.REGULAR_FILE && fileMode != FileMode.EXECUTABLE_FILE) {
-                // Remove non-file entries.
-                applyPathEdit(dirCache, new DeletePath(pathString));
-                localHeadEntries.remove(path);
+            final String localFilePath = localPath() + path.substring(remotePath().length());
+
+            // Skip the entry whose path does not conform to CD's path rule.
+            if (!Util.isValidFilePath(localFilePath)) {
                 continue;
             }
 
-            final String localFilePath = localPath() + path.substring(remotePath().length());
             final Entry<?> entry = localHeadEntries.remove(localFilePath);
             if (entry == null) {
                 // Remove a deleted entry.
@@ -524,13 +525,17 @@ public final class GitMirror extends AbstractMirror {
             if (value.type() == EntryType.DIRECTORY) {
                 continue;
             }
+            if (entry.getKey().endsWith(MIRROR_STATE_FILE_NAME)) {
+                continue;
+            }
+
             if (++numFiles > maxNumFiles) {
                 throw new MirrorException("mirror contains more than " + maxNumFiles + " file(s)");
             }
 
             final String convertedPath = remotePath().substring(1) + // Strip the leading '/'
                                          entry.getKey().substring(localPath().length());
-            final long contentLength = applyPathEdit(dirCache, inserter, convertedPath, entry.getValue(), null);
+            final long contentLength = applyPathEdit(dirCache, inserter, convertedPath, value, null);
             numBytes += contentLength;
             if (numBytes > maxNumBytes) {
                 throw new MirrorException("mirror contains more than " + maxNumBytes + " byte(s)");
@@ -544,8 +549,7 @@ public final class GitMirror extends AbstractMirror {
         switch (EntryType.guessFromPath(pathString)) {
             case JSON:
                 final JsonNode oldJsonNode = oldContent != null ? Jackson.readTree(oldContent) : null;
-                final JsonNode newJsonNode = firstNonNull((JsonNode) entry.content(),
-                                                          JsonNodeFactory.instance.nullNode());
+                final JsonNode newJsonNode = (JsonNode) entry.content();
 
                 // Upsert only when the contents are really different.
                 if (!Objects.equals(newJsonNode, oldJsonNode)) {
@@ -569,23 +573,24 @@ public final class GitMirror extends AbstractMirror {
         return 0;
     }
 
+    private static void applyPathEdit(DirCache dirCache, PathEdit edit) {
+        final DirCacheEditor e = dirCache.editor();
+        e.add(edit);
+        e.finish();
+    }
+
     private static byte[] currentEntryContent(ObjectReader reader, TreeWalk treeWalk) throws IOException {
         final ObjectId objectId = treeWalk.getObjectId(0);
         return reader.open(objectId).getBytes();
     }
 
     private static void maybeEnterSubtree(
-            TreeWalk treeWalk, String remotePath,
-            String path, boolean findingMirrorStateFile) throws IOException {
+            TreeWalk treeWalk, String remotePath, String path) throws IOException {
         // Enter if the directory is under the remote path.
         // e.g.
         // path == /foo/bar
         // remotePath == /foo/
         if (path.startsWith(remotePath)) {
-            if (findingMirrorStateFile) {
-                // The mirror state file isn't placed under a subtree.
-                return;
-            }
             treeWalk.enterSubtree();
             return;
         }
@@ -607,12 +612,6 @@ public final class GitMirror extends AbstractMirror {
         if (pathLen < remotePath.length() && remotePath.startsWith(path + '/')) {
             treeWalk.enterSubtree();
         }
-    }
-
-    private static void applyPathEdit(DirCache dirCache, PathEdit edit) {
-        final DirCacheEditor e = dirCache.editor();
-        e.add(edit);
-        e.finish();
     }
 
     /**
@@ -647,8 +646,8 @@ public final class GitMirror extends AbstractMirror {
             commitBuilder.setParentId(headCommitId);
 
             final String summary = "Mirror '" + localRepo().name() + "' at " + localHead +
-                                   " to the repository '" + remoteRepoUri() + '#' + remoteBranch() + '\'';
-            logger.debug(summary);
+                                   " to the repository '" + remoteRepoUri() + '#' + remoteBranch() + "'\n";
+            logger.info(summary);
             commitBuilder.setMessage(summary);
 
             final ObjectId nextCommitId = inserter.insert(commitBuilder);

@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.it.mirror.git.GitMirrorTest.addToGitIndex;
-import static com.linecorp.centraldogma.server.internal.mirror.GitMirror.LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_COMMIT_SECTION;
@@ -29,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -58,16 +58,22 @@ import com.google.common.base.Strings;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Entry;
+import com.linecorp.centraldogma.common.PathPattern;
+import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorState;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 class LocalToRemoteGitMirrorTest {
+
+    private static final String LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME = ".mirror_state.json";
 
     private static final int MAX_NUM_FILES = 32;
     private static final long MAX_NUM_BYTES = 1048576; // 1 MiB
@@ -267,7 +273,7 @@ class LocalToRemoteGitMirrorTest {
             "/local, /remote/foo",
             "/local/foo, /remote/foo"
     })
-    void LocalToRemote_gitignore(String localPath, String remotePath) throws Exception {
+    void localToRemote_gitignore(String localPath, String remotePath) throws Exception {
         pushMirrorSettings(localPath, remotePath, "\"/exclude_if_root.txt\\n**/exclude_dir\"");
         checkGitignore(localPath, remotePath);
     }
@@ -379,24 +385,24 @@ class LocalToRemoteGitMirrorTest {
     @CsvSource({ "meta", "dogma" })
     @ParameterizedTest
     void cannotMirrorInternalRepositories(String localRepo) {
-        assertThatThrownBy(() -> pushMirrorSettings(localRepo, "/", "/", null))
+        assertThatThrownBy(() -> pushMirrorSettings(localRepo, "/", "/", null, MirrorDirection.LOCAL_TO_REMOTE))
                 .hasCauseInstanceOf(CentralDogmaException.class)
                 .hasMessageContaining("invalid localRepo:");
     }
 
     private void pushMirrorSettings(@Nullable String localPath, @Nullable String remotePath,
                                     @Nullable String gitignore) {
-        pushMirrorSettings(REPO_FOO, localPath, remotePath, gitignore);
+        pushMirrorSettings(REPO_FOO, localPath, remotePath, gitignore, MirrorDirection.LOCAL_TO_REMOTE);
     }
 
     private void pushMirrorSettings(String localRepo, @Nullable String localPath, @Nullable String remotePath,
-                                    @Nullable String gitignore) {
+                                    @Nullable String gitignore, MirrorDirection direction) {
         client.forRepo(projName, Project.REPO_META)
               .commit("Add /mirrors.json",
                       Change.ofJsonUpsert("/mirrors.json",
                                           "[{" +
                                           "  \"type\": \"single\"," +
-                                          "  \"direction\": \"LOCAL_TO_REMOTE\"," +
+                                          "  \"direction\": \"" + direction + "\"," +
                                           "  \"localRepo\": \"" + localRepo + "\"," +
                                           (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
                                           "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
@@ -458,5 +464,56 @@ class LocalToRemoteGitMirrorTest {
         // Make sure the files that match gitignore are not mirrored.
         assertThat(getFileContent(commitId1, remotePath + "/exclude_if_root.txt")).isNull();
         assertThat(getFileContent(commitId1, remotePath + "/subdir/exclude_dir/foo.txt")).isNull();
+    }
+
+    @Test
+    void changeDirection() throws Exception {
+        pushMirrorSettings(null, null, null);
+
+        // Mirror an empty Central Dogma repository, which will;
+        // - Create /.mirror_state.json
+        mirroringService.mirror().join();
+
+        final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        byte[] content = getFileContent(commitId1, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
+        assertThat(mirrorState.sourceRevision()).isEqualTo("1");
+
+        // Create a new commit
+        client.forRepo(projName, REPO_FOO)
+              .commit("Add a commit",
+                      Change.ofJsonUpsert("/foo.json", "{\"a\":\"b\"}"),
+                      Change.ofJsonUpsert("/bar/foo.json", "{\"a\":\"c\"}"),
+                      Change.ofTextUpsert("/baz/foo.txt", "\"a\": \"b\"\n"))
+              .push().join();
+
+        mirroringService.mirror().join();
+
+        final ObjectId commitId2 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
+        content = getFileContent(commitId2, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        mirrorState = Jackson.readValue(content, MirrorState.class);
+        assertThat(mirrorState.sourceRevision()).isEqualTo("2");
+        assertThat(Jackson.writeValueAsString(Jackson.readTree(
+                getFileContent(commitId2, "/foo.json")))).isEqualTo("{\"a\":\"b\"}");
+        assertThat(Jackson.writeValueAsString(Jackson.readTree(
+                getFileContent(commitId2, "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
+        assertThat(new String(getFileContent(commitId2, "/baz/foo.txt")))
+                .isEqualTo("\"a\": \"b\"\n");
+
+        // Change the direction
+        pushMirrorSettings(REPO_FOO, null, null, null, MirrorDirection.REMOTE_TO_LOCAL);
+        addToGitIndex(git, gitWorkTree, "foo.json", "{\"a\":\"foo\"}");
+        git.commit().setMessage("Modify foo.json").call();
+        mirroringService.mirror().join();
+
+        final Map<String, Entry<?>> entries = client.forRepo(projName, REPO_FOO)
+                                                    .file(PathPattern.all())
+                                                    .get()
+                                                    .join();
+        assertThat(entries.size()).isEqualTo(2);
+        assertThat(entries.get("/foo.json")).isEqualTo(
+                Entry.ofJson(new Revision(3), "/foo.json", "{\"a\":\"foo\"}"));
+
+        assertThat(entries.get("/mirror_state.json")).isNotNull();
     }
 }

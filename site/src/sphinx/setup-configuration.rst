@@ -182,7 +182,7 @@ Core properties
 
 - ``mirroringEnabled`` (boolean)
 
-  - whether to enable Git-to-CD mirroring. It's enabled by default. For more information about mirroring,
+  - whether to enable Git mirroring. It's enabled by default. For more information about mirroring,
     refer to :ref:`mirroring`.
 
 - ``numMirroringThreads`` (integer)
