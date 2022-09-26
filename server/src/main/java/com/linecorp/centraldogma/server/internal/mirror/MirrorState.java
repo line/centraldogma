@@ -20,7 +20,9 @@ import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 
+@VisibleForTesting
 public final class MirrorState {
 
     private final String sourceRevision;
