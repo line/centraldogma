@@ -21,7 +21,7 @@ junit5 = { module = "org.junit:junit-bom", version = "5.9.0" }
 
 [libraries.armeria]
 module = "com.linecorp.armeria:armeria"
-javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.18.0/"
+javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.19.0/"
 [libraries.armeria-junit5]
 module = "com.linecorp.armeria:armeria-junit5"
 [libraries.armeria-logback]
