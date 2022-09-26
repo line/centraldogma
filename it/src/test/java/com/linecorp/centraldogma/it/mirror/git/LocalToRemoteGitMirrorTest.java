@@ -144,6 +144,7 @@ class LocalToRemoteGitMirrorTest {
     void destroyDogmaRepo() {
         client.removeProject(projName).join();
         client.purgeProject(projName).join();
+        git.close();
     }
 
     @ParameterizedTest
