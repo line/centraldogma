@@ -26,6 +26,7 @@ import static org.eclipse.jgit.lib.Constants.R_HEADS;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
@@ -141,10 +142,11 @@ class LocalToRemoteGitMirrorTest {
     }
 
     @AfterEach
-    void destroyDogmaRepo() {
+    void destroyDogmaRepo() throws IOException {
         client.removeProject(projName).join();
         client.purgeProject(projName).join();
         git.close();
+        Files.delete(gitWorkTree.toPath());
     }
 
     @ParameterizedTest
