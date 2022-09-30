@@ -28,6 +28,7 @@ import javax.inject.Inject;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -60,6 +61,7 @@ class CentralDogmaInitializationTimeoutTest {
     @Inject
     private CentralDogma client;
 
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     @BeforeAll
     static void beforeAll() {
         lock.lock();
@@ -75,6 +77,7 @@ class CentralDogmaInitializationTimeoutTest {
                               .build();
                 server.start().join();
                 CentralDogmaInitializationTimeoutTest.server = server;
+                break;
             } catch (Exception ex) {
                 if (i < maxAttempts) {
                     // Ignore the exception silently apart from the last attempts.
