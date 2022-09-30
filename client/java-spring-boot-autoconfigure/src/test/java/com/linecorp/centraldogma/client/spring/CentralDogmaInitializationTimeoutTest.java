@@ -19,6 +19,7 @@ package com.linecorp.centraldogma.client.spring;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -33,6 +34,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import com.google.common.util.concurrent.Uninterruptibles;
+
+import com.linecorp.armeria.client.retry.Backoff;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -59,13 +63,26 @@ class CentralDogmaInitializationTimeoutTest {
     @BeforeAll
     static void beforeAll() {
         lock.lock();
-        server = Server.builder()
-                       .http(TEST_SERVER_PORT)
-                       .service(HttpApiV1Constants.HEALTH_CHECK_PATH,
-                                (ctx, req) -> HttpResponse.delayed(HttpResponse.of("OK"),
-                                                                   Duration.ofSeconds(5)))
-                       .build();
-        server.start().join();
+        final int maxAttempts = 8;
+        for (int i = 1; i <= maxAttempts; i++) {
+            try {
+                final Server server =
+                        Server.builder()
+                              .http(TEST_SERVER_PORT)
+                              .service(HttpApiV1Constants.HEALTH_CHECK_PATH,
+                                       (ctx, req) -> HttpResponse.delayed(HttpResponse.of("OK"),
+                                                                          Duration.ofSeconds(5)))
+                              .build();
+                server.start().join();
+                CentralDogmaInitializationTimeoutTest.server = server;
+            } catch (Exception ex) {
+                if (i < maxAttempts) {
+                    // Ignore the exception silently apart from the last attempts.
+                    final long sleep = Backoff.ofDefault().nextDelayMillis(maxAttempts);
+                    Uninterruptibles.sleepUninterruptibly(sleep, TimeUnit.MILLISECONDS);
+                }
+            }
+        }
     }
 
     @AfterAll
