@@ -157,33 +157,7 @@ configure(rootProject) {
 
         doLast {
             f.parentFile.mkdir()
-            def managedVersions = [:]
-            def catalogs = project.extensions.getByType(VersionCatalogsExtension)
-            catalogs.catalogNames.forEach { name ->
-                def catalog = catalogs.named(name)
-                def versions = [:].withDefault { [] }
-                catalog.libraryAliases.forEach { alias ->
-                    def library = catalog.findLibrary(alias).get().get()
-                    versions["libraries"].add([alias: alias, module: library.toString()])
-                }
-
-                catalog.pluginAliases.forEach { alias ->
-                    def plugin = catalog.findPlugin(alias).get().get()
-                    versions["plugins"].add([alias: alias, plugin: plugin.toString()])
-                }
-
-                catalog.versionAliases.forEach { alias ->
-                    def version = catalog.findVersion(alias).get()
-                    versions["versions"].add([alias: alias, version: version.toString()])
-                }
-
-                catalog.bundleAliases.forEach { alias ->
-                    def bundle = catalog.findBundle(alias).get().get()
-                    versions["bundles"].add([alias: alias, bundle: bundle.toString()])
-                }
-                managedVersions[name] = versions
-            }
-
+            def managedVersions = getManagedVersions(rootProject)
             f.withWriter('UTF-8') {
                 new Yaml().dump(managedVersions, it)
             }
