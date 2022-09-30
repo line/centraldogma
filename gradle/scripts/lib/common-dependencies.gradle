@@ -157,7 +157,7 @@ configure(rootProject) {
 
         doLast {
             f.parentFile.mkdir()
-            managedVersions = [:]
+            def managedVersions = [:]
             def catalogs = project.extensions.getByType(VersionCatalogsExtension)
             catalogs.catalogNames.forEach { name ->
                 def catalog = catalogs.named(name)
