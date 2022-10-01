@@ -29,7 +29,8 @@ import com.google.common.collect.Streams;
  *   <li>{@code "*.json"} - all JSON files</li>
  *   <li>{@code "/foo/*.json"} - all JSON files under the directory {@code /foo}</li>
  *   <li><code>"/&#42;/foo.txt"</code> - all files named {@code foo.txt} at the second depth level</li>
- *   <li>{@code "*.json","/bar/*.txt"} - if you have more than one pattern you can supply them as {@code varargs} or {@link Iterable}. 
+ *   <li>{@code "*.json","/bar/*.txt"} - if you have more than one pattern you can supply them as
+ *                                       {@code varargs} or {@link Iterable}.
  *                                       A file will be matched if <em>any</em> pattern matches.</li>
  * </ul>
  */
