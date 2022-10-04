@@ -3,17 +3,10 @@ import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.SimpleFileVisitor
 
-buildscript {
-    repositories {
-        gradlePluginPortal()
-    }
-    dependencies {
-        classpath "com.github.node-gradle:gradle-node-plugin:${managedVersions['com.github.node-gradle:gradle-node-plugin']}"
-    }
+plugins {
+    id 'base'
+    alias libs.plugins.node.gradle
 }
-
-apply plugin: 'base'
-apply plugin: 'com.github.node-gradle.node'
 
 tasks.yarn.doLast {
     // Delete the broken symlinks so that Gradle does not fail the build.

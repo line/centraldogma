@@ -3,5 +3,5 @@ dependencies {
     api project(':client:java-armeria')
 
     // Armeria
-    implementation 'com.linecorp.armeria:armeria-thrift0.9'
+    implementation libs.armeria.thrift09
 }

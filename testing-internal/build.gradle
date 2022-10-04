@@ -2,7 +2,7 @@ dependencies {
     api project(':testing:junit')
     api project(':testing:junit4')
 
-    api 'org.assertj:assertj-core'
-    api 'net.javacrumbs.json-unit:json-unit-fluent'
-    api 'ch.qos.logback:logback-classic'
+    api libs.assertj
+    api libs.json.unit.fluent
+    api libs.logback
 }
