@@ -157,7 +157,33 @@ configure(rootProject) {
 
         doLast {
             f.parentFile.mkdir()
-            def managedVersions = getManagedVersions(rootProject)
+            def managedVersions = [:]
+            def catalogs = project.extensions.getByType(VersionCatalogsExtension)
+            catalogs.catalogNames.forEach { name ->
+                def catalog = catalogs.named(name)
+                def versions = [:].withDefault { [] }
+                catalog.libraryAliases.forEach { alias ->
+                    def library = catalog.findLibrary(alias).get().get()
+                    versions["libraries"].add([alias: alias, module: library.toString()])
+                }
+
+                catalog.pluginAliases.forEach { alias ->
+                    def plugin = catalog.findPlugin(alias).get().get()
+                    versions["plugins"].add([alias: alias, plugin: plugin.toString()])
+                }
+
+                catalog.versionAliases.forEach { alias ->
+                    def version = catalog.findVersion(alias).get()
+                    versions["versions"].add([alias: alias, version: version.toString()])
+                }
+
+                catalog.bundleAliases.forEach { alias ->
+                    def bundle = catalog.findBundle(alias).get().get()
+                    versions["bundles"].add([alias: alias, bundle: bundle.toString()])
+                }
+                managedVersions[name] = versions
+            }
+
             f.withWriter('UTF-8') {
                 new Yaml().dump(managedVersions, it)
             }
@@ -234,7 +260,7 @@ final class GentlePlainTextReporter implements Reporter {
             }
 
             String quickSearchLink = "https://search.maven.org/search?q=g:${old.group}%20a:${old.name}%20v:" +
-                                     "${versionParts[0]}.${versionParts[1]}.*\n"
+                    "${versionParts[0]}.${versionParts[1]}.*\n"
             String projectUrl
             if (old.projectUrl == null) {
                 projectUrl = quickSearchLink
@@ -246,7 +272,7 @@ final class GentlePlainTextReporter implements Reporter {
 
         DependenciesGroup<DependencyOutdated> outdatedWithNote = new DependenciesGroup<>(outdated.count, updated)
         return new Result(result.count, result.current, outdatedWithNote, result.exceeded, result.undeclared,
-                          result.unresolved, result.gradle)
+                result.unresolved, result.gradle)
     }
 
     String getFileExtension() {
