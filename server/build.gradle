@@ -1,13 +1,6 @@
-buildscript {
-    repositories {
-        gradlePluginPortal()
-    }
-    dependencies {
-        classpath "com.github.node-gradle:gradle-node-plugin:3.4.0"
-    }
+plugins {
+    alias libs.plugins.node.gradle
 }
-
-apply plugin: 'com.github.node-gradle.node'
 
 node {
     version = '16.14.0'
@@ -26,44 +19,50 @@ dependencies {
     implementation project(':common-legacy')
 
     // Armeria
-    ['armeria', 'armeria-thrift0.9'].each {
-        api "com.linecorp.armeria:$it"
-    }
-    testImplementation 'com.linecorp.armeria:armeria-junit5'
+    api libs.armeria
+    api libs.armeria.thrift09
+    testImplementation libs.armeria.junit5
 
     // JSch
-    implementation 'com.jcraft:jsch'
+    implementation libs.jsch
 
     // Caffeine
-    implementation 'com.github.ben-manes.caffeine:caffeine'
+    implementation libs.caffeine
 
     // Curator & ZooKeeper
-    implementation 'org.apache.curator:curator-recipes'
-    implementation 'org.apache.zookeeper:zookeeper'
-    testImplementation 'org.apache.curator:curator-test'
+    implementation libs.curator.recipes
+    implementation libs.zookeeper
+    testImplementation libs.curator.test
 
     // DiffUtils
-    implementation 'com.googlecode.java-diff-utils:diffutils'
+    implementation libs.diffutils
 
     // jCommander
-    optionalImplementation 'com.beust:jcommander'
+    optionalImplementation libs.jcommander
 
     // jGit
-    implementation 'org.eclipse.jgit:org.eclipse.jgit'
-    implementation 'org.eclipse.jgit:org.eclipse.jgit.ssh.jsch'
+    implementation libs.jgit
+    implementation libs.jgit.ssh.jsch
 
     // Micrometer
-    implementation 'io.micrometer:micrometer-core'
-    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation libs.micrometer.core
+    implementation libs.micrometer.prometheus
 
     // Quartz
-    implementation 'org.quartz-scheduler:quartz'
+    implementation libs.quartz
 
     // Mockito for mocking a Project
-    jmh 'org.mockito:mockito-core'
+    jmh libs.mockito.core
     // Logging
-    optionalImplementation 'ch.qos.logback:logback-classic'
-    optionalImplementation 'org.slf4j:jul-to-slf4j'
+    optionalImplementation libs.logback
+    optionalImplementation libs.slf4j.jul.to.slf4j
+}
+
+// allows illegal access by ExecutorServiceMetrics of Micrometer
+if (rootProject.ext.testJavaVersion >= 16) {
+    tasks.withType(Test) {
+        jvmArgs '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED'
+    }
 }
 
 def clientRelocations = [
