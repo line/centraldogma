@@ -80,15 +80,10 @@ jobs:
       shell: bash
 
   lint:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       GRADLE_OPTS: -Xmx1280m
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        java: [17]
     steps:
       - uses: actions/checkout@v2
 
@@ -110,15 +105,10 @@ jobs:
         shell: bash
 
   flaky-tests:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       GRADLE_OPTS: -Xmx1280m
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        java: [17]
     steps:
       - uses: actions/checkout@v2
 
