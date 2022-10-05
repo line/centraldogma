@@ -11,7 +11,7 @@ buildscript {
     dependencies {
         // These should be the only dependencies that need hard-coded versions.
         classpath 'com.github.ben-manes:gradle-versions-plugin:0.42.0'
-        classpath 'org.yaml:snakeyaml:1.29'
+        classpath 'org.yaml:snakeyaml:1.33'
     }
 }
 
@@ -86,6 +86,64 @@ configure(rootProject) {
                     reporter.write(pw, result)
                 }
                 logger.lifecycle '\nGenerated report file ' + filename
+            }
+        }
+    }
+}
+
+// Publish version catalog so that other projects can easily align transitive versions of the project by
+// importing the published catalog.
+// https://docs.gradle.org/current/userguide/platforms.html#sec:version-catalog-plugin
+configure(projectsWithFlag('version-catalog')) { catalogProject ->
+    apply plugin: 'version-catalog'
+    apply plugin: 'maven-publish'
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                from components.versionCatalog
+            }
+        }
+    }
+
+    catalog {
+        versionCatalog {
+            def catalogs = rootProject.extensions.getByType(VersionCatalogsExtension).named('libs')
+            catalogs.libraryAliases.forEach { alias ->
+                def dep = catalogs.findLibrary(alias).get().get()
+                if (!dep.versionConstraint.requiredVersion.isEmpty()) {
+                    library(alias, dep.toString())
+                }
+            }
+
+            catalogs.pluginAliases.forEach { alias ->
+                def plug = catalogs.findPlugin(alias).get().get()
+                plugin(alias, plug.pluginId).version(plug.version.requiredVersion)
+            }
+
+            catalogs.versionAliases.forEach { alias ->
+                def ver = catalogs.findVersion(alias).get()
+                version(alias, ver.toString())
+            }
+
+            catalogs.bundleAliases.forEach { alias ->
+                def aliases = catalogs.findBundle(alias).get().get()
+                bundle(alias, aliases.toString())
+            }
+
+            afterEvaluate {
+                projectsWithFlag('publish').each { proj ->
+                    if (proj != catalogProject) {
+                        String alias = proj.ext.artifactId
+                        // Normalize the alias since Gradle prefixes `get` for '.' or '_' followed by a number.
+                        // Replace "armeria-scala_2.12" with "armeria-scala_v2.12"
+                        alias = alias.replaceAll('_(\\d)', '_v$1')
+                        // Replace "armeria-scala_v2.12" with "armeria-scala_v212"
+                        // or "armeria-thrift0.13" with "armeria-thrift013"
+                        alias = alias.replaceAll('\\.(\\d)', '$1')
+                        library(alias, proj.group, proj.ext.artifactId).version(proj.version)
+                    }
+                }
             }
         }
     }
@@ -260,7 +318,7 @@ final class GentlePlainTextReporter implements Reporter {
             }
 
             String quickSearchLink = "https://search.maven.org/search?q=g:${old.group}%20a:${old.name}%20v:" +
-                    "${versionParts[0]}.${versionParts[1]}.*\n"
+                                     "${versionParts[0]}.${versionParts[1]}.*\n"
             String projectUrl
             if (old.projectUrl == null) {
                 projectUrl = quickSearchLink
@@ -272,7 +330,7 @@ final class GentlePlainTextReporter implements Reporter {
 
         DependenciesGroup<DependencyOutdated> outdatedWithNote = new DependenciesGroup<>(outdated.count, updated)
         return new Result(result.count, result.current, outdatedWithNote, result.exceeded, result.undeclared,
-                result.unresolved, result.gradle)
+                          result.unresolved, result.gradle)
     }
 
     String getFileExtension() {
