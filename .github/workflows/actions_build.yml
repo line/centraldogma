@@ -105,8 +105,8 @@ jobs:
       - name: Build with Gradle
         run: |
           ./gradlew --no-daemon --stacktrace lint \
-          -PbuildJdkVersion=${{ matrix.java }} \
-          -PtestJavaVersion=${{ matrix.java }}
+          -PbuildJdkVersion=17 \
+          -PtestJavaVersion=17
         shell: bash
 
   flaky-tests:
