@@ -136,7 +136,6 @@ tasks.check {
 }
 
 tasks.sphinx.dependsOn tasks.javadoc
-tasks.sphinx.dependsOn rootProject.tasks.managedVersions
 
 tasks.build.dependsOn tasks.assemble
 tasks.build.dependsOn tasks.check
