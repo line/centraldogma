@@ -1,31 +1,18 @@
-buildscript {
-    repositories {
-        mavenCentral()
-        google()
-        jcenter()
-    }
-    dependencies {
-        classpath "com.guardsquare:proguard-gradle:${managedVersions['com.guardsquare:proguard-gradle']}"
-    }
-}
-
 dependencies {
     // DiffUtils
-    implementation 'com.googlecode.java-diff-utils:diffutils'
-
-    // Jackson JSR310
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-
-    // Guava
-    implementation 'com.google.guava:guava'
+    implementation libs.diffutils
 
     // Jackson
-    [ 'core', 'annotations', 'databind' ].each {
-        implementation "com.fasterxml.jackson.core:jackson-$it"
-    }
+    implementation libs.jackson.annotations
+    implementation libs.jackson.core
+    implementation libs.jackson.databind
+    implementation libs.jackson.datatype.jsr310
+
+    // Guava
+    implementation libs.guava
 
     // JSON-path
-    implementation 'com.jayway.jsonpath:json-path'
+    implementation libs.json.path
 }
 
 if (tasks.findByName('trimShadedJar')) {

@@ -1,86 +1,114 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath "com.craigburke.gradle:client-dependencies:${managedVersions['com.craigburke.gradle:client-dependencies']}"
-    }
+plugins {
+    alias libs.plugins.node.gradle
 }
 
-apply plugin: 'com.craigburke.client-dependencies'
+node {
+    version = '16.14.0'
+    npmVersion = '8.5.2'
+    download = true
+    npmInstallCommand = "ci"
+
+    // Change the cache location under Gradle user home directory so that it's cached by CI.
+    if (System.getenv('CI') != null) {
+        workDir = file("${gradle.gradleUserHomeDir}/caches/nodejs/${project.name}")
+        npmWorkDir = file("${gradle.gradleUserHomeDir}/caches/npm/${project.name}")
+    }
+}
 
 dependencies {
     implementation project(':common-legacy')
 
     // Armeria
-    ['armeria', 'armeria-thrift0.9'].each {
-        api "com.linecorp.armeria:$it"
-    }
-    testImplementation 'com.linecorp.armeria:armeria-junit5'
+    api libs.armeria
+    api libs.armeria.thrift09
+    testImplementation libs.armeria.junit5
 
     // JSch
-    implementation 'com.jcraft:jsch'
+    implementation libs.jsch
 
     // Caffeine
-    implementation 'com.github.ben-manes.caffeine:caffeine'
+    implementation libs.caffeine
 
     // Curator & ZooKeeper
-    implementation 'org.apache.curator:curator-recipes'
-    implementation 'org.apache.zookeeper:zookeeper'
-    testImplementation 'org.apache.curator:curator-test'
+    implementation libs.curator.recipes
+    implementation libs.zookeeper
+    testImplementation libs.curator.test
 
     // DiffUtils
-    implementation 'com.googlecode.java-diff-utils:diffutils'
+    implementation libs.diffutils
 
     // jCommander
-    optionalImplementation 'com.beust:jcommander'
+    optionalImplementation libs.jcommander
 
     // jGit
-    implementation 'org.eclipse.jgit:org.eclipse.jgit'
-    implementation 'org.eclipse.jgit:org.eclipse.jgit.ssh.jsch'
+    implementation libs.jgit
+    implementation libs.jgit.ssh.jsch
 
     // Micrometer
-    implementation 'io.micrometer:micrometer-core'
-    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation libs.micrometer.core
+    implementation libs.micrometer.prometheus
 
     // Quartz
-    implementation 'org.quartz-scheduler:quartz'
+    implementation libs.quartz
 
     // Mockito for mocking a Project
-    jmh 'org.mockito:mockito-core'
+    jmh libs.mockito.core
     // Logging
-    optionalImplementation 'ch.qos.logback:logback-classic'
-    optionalImplementation 'org.slf4j:jul-to-slf4j'
+    optionalImplementation libs.logback
+    optionalImplementation libs.slf4j.jul.to.slf4j
 }
 
-clientDependencies {
-    installDir = "${project.projectDir}/src/main/resources/webapp/vendor"
-    copyExcludes = ['**/Gruntfile.js', 'gulpfile.js', 'source/**', 'test', 'karma.conf.js', 'index.js']
-    npm {
-        'ace-builds'('1.2.5', from: 'src-min-noconflict')
-        'angular'('1.5.8')
-        'angular-cache-buster'('0.4.3')
-        'angular-cookies'('1.5.8')
-        'angular-dynamic-locale'('0.1.32')
-        'angular-i18n'('1.5.8')
-        'angular-local-storage'('0.5.0')
-        'angular-resource'('1.5.8')
-        'angular-sanitize'('1.5.8')
-        'angular-translate'('2.13.0', transitive: false)
-        'angular-translate-loader-partial'('2.13.0')
-        'angular-translate-storage-cookie'('2.13.0')
-        'angular-ui-ace'('0.2.3', from: 'src')
-        'angular-ui-bootstrap'('2.2.0')
-        'angular-ui-notification'('0.2.0')
-        'angular-ui-router'('0.3.2')
-        'bootstrap'('3.3.7')
-        'bootswatch'('3.3.7')
-        'diff'('3.0.1')
-        'fast-json-patch'('1.1.1')
-        'jquery'('2.2.4')
-        'json3'('3.3.2', from: 'lib')
-        'moment'('2.16.0', from: 'min')
+// allows illegal access by ExecutorServiceMetrics of Micrometer
+if (rootProject.ext.testJavaVersion >= 16) {
+    tasks.withType(Test) {
+        jvmArgs '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED'
     }
+}
+
+def clientRelocations = [
+        'ace-builds/src-min-noconflict/',
+        'angular/angular.min.js',
+        'angular-cache-buster/angular-cache-buster.js',
+        'angular-cookies/angular-cookies.min.js',
+        'angular-dynamic-locale/dist/tmhDynamicLocale.min.js',
+        'angular-ui-ace/src/ui-ace.js',
+        'angular-i18n',
+        'angular-local-storage/dist/angular-local-storage.min.js',
+        'angular-resource/angular-resource.min.js',
+        'angular-sanitize/angular-sanitize.min.js',
+        'angular-translate/dist/angular-translate.min.js',
+        'angular-translate-loader-partial/angular-translate-loader-partial.min.js',
+        'angular-translate-storage-cookie/angular-translate-storage-cookie.min.js',
+        'angular-ui-ace/src/ui-ace.js',
+        'angular-ui-bootstrap/dist/',
+        'angular-ui-notification/dist/',
+        'angular-ui-router/release/angular-ui-router.min.js',
+        'bootstrap/dist/',
+        'bootswatch/cerulean/bootstrap.min.css',
+        'diff/dist/diff.min.js',
+        'fast-json-patch/dist/json-patch-duplex.min.js',
+        'jquery/dist/jquery.min.js',
+        'json3/lib/json3.min.js',
+        'moment/min/moment.min.js'
+]
+
+task copyClientDependencies {
+    dependsOn tasks.npmInstall
+
+    doLast {
+        clientRelocations.each { location ->
+            def paths = location.split('/')
+            def folder = paths[0]
+            copy {
+                from "${project.projectDir}/node_modules/$location"
+                into "${project.projectDir}/src/main/resources/webapp/vendor/$folder"
+            }
+        }
+    }
+}
+
+task cleanClientDependencies(type: Delete) {
+    delete "${project.projectDir}/src/main/resources/webapp/vendor"
 }
 
 task copyWebApp(type: Copy) {
@@ -95,7 +123,7 @@ task copyWebApp(type: Copy) {
         delete(dst)
     }
 }
-
-tasks.clean.dependsOn(tasks.clientClean)
-tasks.processResources.dependsOn(tasks.clientInstall, tasks.copyWebApp)
-
+tasks.sourcesJar.dependsOn(tasks.copyWebApp)
+tasks.sourcesJar.dependsOn(tasks.versionProperties)
+tasks.clean.dependsOn(tasks.cleanClientDependencies)
+tasks.processResources.dependsOn(tasks.copyClientDependencies, tasks.copyWebApp)

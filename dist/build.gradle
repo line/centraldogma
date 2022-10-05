@@ -4,20 +4,21 @@ import com.google.common.base.CaseFormat
 buildscript {
     repositories {
         mavenCentral()
-        jcenter()
         gradlePluginPortal()
     }
     dependencies {
-        classpath "com.boazj.gradle:gradle-log-plugin:${managedVersions['com.boazj.gradle:gradle-log-plugin']}"
-        classpath "com.bmuschko:gradle-docker-plugin:${managedVersions['com.bmuschko:gradle-docker-plugin']}"
-        classpath "com.google.guava:guava:${managedVersions['com.google.guava:guava']}"
+        classpath libs.gradle.log.plugin
+        classpath libs.guava
     }
 }
 
-apply plugin: 'com.boazj.log'
-apply plugin: 'com.bmuschko.docker-remote-api'
+plugins {
+    alias libs.plugins.docker
+    alias libs.plugins.download
+}
 
-evaluationDependsOn(':cli')
+apply plugin: 'com.boazj.log'
+
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
@@ -25,15 +26,16 @@ evaluationDependsOn(':server-auth:shiro')
 ext {
     distDir = "${project.buildDir}/dist"
     relativeDistDir = distDir.substring("${rootProject.projectDir}/".length())
+    cliDownloadDir = "${gradle.gradleUserHomeDir}/caches/centraldogma-go/cli"
 }
 
 dependencies {
     // Logging
-    runtimeOnly 'ch.qos.logback:logback-classic'
-    runtimeOnly 'com.linecorp.armeria:armeria-logback'
-    ['jcl-over-slf4j', 'jul-to-slf4j', 'log4j-over-slf4j'].each {
-        runtimeOnly "org.slf4j:$it"
-    }
+    runtimeOnly libs.logback
+    runtimeOnly libs.armeria.logback
+    runtimeOnly libs.slf4j.jcl.over.slf4j
+    runtimeOnly libs.slf4j.jul.to.slf4j
+    runtimeOnly libs.slf4j.log4j.over.slf4j
 }
 
 // Do not generate a JAR for this project.
@@ -71,12 +73,31 @@ task copyLib(group: 'Build',
     }
 }
 
+def cliVersion = "0.0.1"
+
+task downloadClientBinaries(group: 'Build',
+        description: "Downloads client binaries into ${project.ext.cliDownloadDir}") {
+
+    outputs.dir("${project.ext.cliDownloadDir}/$cliVersion")
+
+    doLast {
+        ["darwin-amd64", "linux-amd64", "windows-amd64.exe"].each { platform ->
+            download.run {
+                src "https://github.com/line/centraldogma-go/releases/download/$cliVersion/dogma.$platform"
+                dest "${project.ext.cliDownloadDir}/$cliVersion/dogma.$platform"
+                overwrite false
+            }
+        }
+    }
+}
+
 task copyClientBinaries(group: 'Build',
-        description: "Copies client binaries into ${project.ext.relativeDistDir}/lib",
-        dependsOn: project(':cli').tasks.assemble,
-        type: Copy) {
-    from project(':cli').ext.clientBinDir
+        description: "Copies client binaries into ${project.ext.relativeDistDir}/bin/native", type: Copy) {
+    dependsOn tasks.downloadClientBinaries
+
+    from project.ext.cliDownloadDir
     into "${project.ext.distDir}/bin/native"
+    fileMode 0755
 }
 
 task distDirWithoutClientBinaries(group: 'Build',

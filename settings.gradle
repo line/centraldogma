@@ -25,9 +25,6 @@ includeWithFlags ':testing:junit4',                         'java', 'publish', '
 // Set correct directory names
 project(':testing:testing-common').projectDir = file('testing/common')
 
-// Command line interface
-include ':cli'
-
 // Unpublished Java projects
 includeWithFlags ':it',               'java', 'relocate'
 includeWithFlags ':testing-internal', 'java', 'relocate'
