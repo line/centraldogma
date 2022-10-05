@@ -61,7 +61,7 @@ public final class MirrorUtil {
      *
      * <p>e.g. git+ssh://foo.com/bar.git/some-path#master is split into:
      * - remoteRepoUri: git+ssh://foo.com/bar.git
-     * - remotePath:    /some-path
+     * - remotePath:    /some-path/
      * - remoteBranch:  master
      *
      * <p>e.g. dogma://foo.com/bar/qux.dogma is split into:

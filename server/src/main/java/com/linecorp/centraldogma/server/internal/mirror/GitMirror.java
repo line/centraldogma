@@ -94,7 +94,7 @@ public final class GitMirror extends AbstractMirror {
     // We are going to hide this file from CD UI after we implement UI for mirroring.
     private static final String MIRROR_STATE_FILE_NAME = "mirror_state.json";
 
-    // Prepend '.' because this file is a metadata.
+    // Prepend '.' because this file is metadata.
     private static final String LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME = '.' + MIRROR_STATE_FILE_NAME;
 
     private static final Pattern CR = Pattern.compile("\r", Pattern.LITERAL);
@@ -269,13 +269,15 @@ public final class GitMirror extends AbstractMirror {
                     }
 
                     if (++numFiles > maxNumFiles) {
-                        throw new MirrorException("mirror contains more than " + maxNumFiles + " file(s)");
+                        throwMirrorException(maxNumFiles, "files");
+                        return;
                     }
 
                     final ObjectId objectId = treeWalk.getObjectId(0);
                     final long contentLength = reader.getObjectSize(objectId, ObjectReader.OBJ_ANY);
                     if (numBytes > maxNumBytes - contentLength) {
-                        throw new MirrorException("mirror contains more than " + maxNumBytes + " byte(s)");
+                        throwMirrorException(maxNumBytes, "bytes");
+                        return;
                     }
                     numBytes += contentLength;
 
@@ -428,17 +430,16 @@ public final class GitMirror extends AbstractMirror {
         final Map<String, Entry<?>> localRawHeadEntries = localRepo().find(localHead, localPath() + "**")
                                                                      .join();
 
-        final Stream<Map.Entry<String, Entry<?>>> filteredStream =
+        final Stream<Map.Entry<String, Entry<?>>> entryStream =
                 localRawHeadEntries.entrySet()
-                                   .stream()
-                                   .filter(e -> e.getKey().startsWith(localPath()));
+                                   .stream();
         if (ignoreNode == null) {
             // Use HashMap to manipulate it.
-            return filteredStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
 
         final Map<String, Entry<?>> sortedMap =
-                filteredStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
                                                         (v1, v2) -> v1, LinkedHashMap::new));
         // Use HashMap to manipulate it.
         final HashMap<String, Entry<?>> result = new HashMap<>(sortedMap.size());
@@ -474,11 +475,11 @@ public final class GitMirror extends AbstractMirror {
         while (treeWalk.next()) {
             final FileMode fileMode = treeWalk.getFileMode();
             final String pathString = treeWalk.getPathString();
-            final String path = '/' + pathString;
+            final String remoteFilePath = '/' + pathString;
 
             // Recurse into a directory if necessary.
             if (fileMode == FileMode.TREE) {
-                maybeEnterSubtree(treeWalk, remotePath(), path);
+                maybeEnterSubtree(treeWalk, remotePath(), remoteFilePath);
                 continue;
             }
 
@@ -488,11 +489,11 @@ public final class GitMirror extends AbstractMirror {
             }
 
             // Skip the entries that are not under the remote path.
-            if (!path.startsWith(remotePath())) {
+            if (!remoteFilePath.startsWith(remotePath())) {
                 continue;
             }
 
-            final String localFilePath = localPath() + path.substring(remotePath().length());
+            final String localFilePath = localPath() + remoteFilePath.substring(remotePath().length());
 
             // Skip the entry whose path does not conform to CD's path rule.
             if (!Util.isValidFilePath(localFilePath)) {
@@ -507,14 +508,16 @@ public final class GitMirror extends AbstractMirror {
             }
 
             if (++numFiles > maxNumFiles) {
-                throw new MirrorException("mirror contains more than " + maxNumFiles + " file(s)");
+                throwMirrorException(maxNumFiles, "files");
+                return;
             }
 
             final byte[] oldContent = currentEntryContent(reader, treeWalk);
             final long contentLength = applyPathEdit(dirCache, inserter, pathString, entry, oldContent);
             numBytes += contentLength;
             if (numBytes > maxNumBytes) {
-                throw new MirrorException("mirror contains more than " + maxNumBytes + " byte(s)");
+                throwMirrorException(maxNumBytes, "bytes");
+                return;
             }
         }
 
@@ -529,7 +532,8 @@ public final class GitMirror extends AbstractMirror {
             }
 
             if (++numFiles > maxNumFiles) {
-                throw new MirrorException("mirror contains more than " + maxNumFiles + " file(s)");
+                throwMirrorException(maxNumFiles, "files");
+                return;
             }
 
             final String convertedPath = remotePath().substring(1) + // Strip the leading '/'
@@ -537,7 +541,7 @@ public final class GitMirror extends AbstractMirror {
             final long contentLength = applyPathEdit(dirCache, inserter, convertedPath, value, null);
             numBytes += contentLength;
             if (numBytes > maxNumBytes) {
-                throw new MirrorException("mirror contains more than " + maxNumBytes + " byte(s)");
+                throwMirrorException(maxNumBytes, "bytes");
             }
         }
     }
@@ -561,7 +565,7 @@ public final class GitMirror extends AbstractMirror {
             case TEXT:
                 final String sanitizedOldText = oldContent != null ?
                                                 sanitizeText(new String(oldContent, UTF_8)) : null;
-                final String sanitizedNewText = sanitizeText(entry.contentAsText());
+                final String sanitizedNewText = entry.contentAsText(); // Already sanitized when committing.
                 // Upsert only when the contents are really different.
                 if (!sanitizedNewText.equals(sanitizedOldText)) {
                     applyPathEdit(dirCache, new InsertText(pathString, inserter, sanitizedNewText));
@@ -653,6 +657,11 @@ public final class GitMirror extends AbstractMirror {
             inserter.flush();
             return nextCommitId;
         }
+    }
+
+    private <T> T throwMirrorException(long number, String filesOrBytes) {
+        throw new MirrorException("mirror (" + remoteRepoUri() + '#' + remoteBranch() +
+                                  ") contains more than " + number + ' ' + filesOrBytes);
     }
 
     static void updateRef(org.eclipse.jgit.lib.Repository jGitRepository, RevWalk revWalk,
