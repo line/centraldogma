@@ -47,10 +47,12 @@ import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
 import com.linecorp.centraldogma.server.ZooKeeperServerConfig;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
+import com.linecorp.centraldogma.testing.internal.FlakyTest;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthMessageUtil;
 import com.linecorp.centraldogma.testing.internal.auth.TestAuthProviderFactory;
 
+@FlakyTest
 class ReplicationWriteQuotaTest extends WriteQuotaTestBase {
 
     private static final AuthProviderFactory factory = new TestAuthProviderFactory();

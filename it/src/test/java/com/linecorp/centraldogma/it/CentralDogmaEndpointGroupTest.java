@@ -40,8 +40,10 @@ import com.linecorp.centraldogma.client.armeria.CentralDogmaEndpointGroup;
 import com.linecorp.centraldogma.client.armeria.EndpointListDecoder;
 import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Query;
+import com.linecorp.centraldogma.testing.internal.FlakyTest;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
+@FlakyTest
 class CentralDogmaEndpointGroupTest {
 
     private static final List<String> HOST_AND_PORT_LIST = ImmutableList.of(
