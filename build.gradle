@@ -1,4 +1,5 @@
 plugins {
+    alias libs.plugins.nexus.publish
     alias libs.plugins.osdetector apply false
     alias libs.plugins.jmh apply false
 }
