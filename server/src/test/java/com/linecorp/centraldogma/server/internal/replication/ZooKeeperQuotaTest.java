@@ -44,7 +44,7 @@ class ZooKeeperQuotaTest {
     @Test
     void testLimitation() throws Exception {
         try (Cluster cluster = Cluster.builder()
-                                      .writeQuota(new QuotaConfig(MAX_QUOTA, 1))
+                                      .writeQuota(new QuotaConfig(MAX_QUOTA, 3))
                                       .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
             final int iteration = MAX_QUOTA * 5;
             final ImmutableList.Builder<CompletableFuture<?>> resultsBuilder =
