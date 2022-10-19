@@ -20,6 +20,7 @@ import static com.linecorp.centraldogma.server.internal.mirror.MirroringTestUtil
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
+import static org.assertj.core.data.Percentage.withPercentage;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -81,6 +82,6 @@ class MirroringTaskTest {
                 .hasEntrySatisfying(
                         "mirroring.task#total{direction=LOCAL_TO_REMOTE,localPath=/," +
                         "localRepo=bar,remoteBranch=master,remotePath=/," +
-                        "remoteRepo=git://a.com/b.git}", v -> assertThat(v).isGreaterThanOrEqualTo(1));
+                        "remoteRepo=git://a.com/b.git}", v -> assertThat(v).isCloseTo(1, withPercentage(30)));
     }
 }
