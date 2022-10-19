@@ -52,7 +52,7 @@ final class MirroringTask {
     }
 
     private Counter counter(boolean success) {
-        return Counter.builder("mirror.result")
+        return Counter.builder("mirroring.result")
                       .tags(tags)
                       .tag("success", Boolean.toString(success))
                       .register(meterRegistry);

@@ -39,9 +39,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import com.linecorp.centraldogma.server.MirrorException;
@@ -71,7 +69,7 @@ public final class DefaultMirroringService implements MirroringService {
     private final long maxNumBytesPerMirror;
 
     private volatile CommandExecutor commandExecutor;
-    private volatile ListeningScheduledExecutorService scheduler;
+    private volatile ScheduledExecutorService scheduler;
     private volatile ListeningExecutorService worker;
 
     private ZonedDateTime lastExecutionTime;
@@ -105,11 +103,10 @@ public final class DefaultMirroringService implements MirroringService {
 
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
 
-        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor(
+        final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("mirroring-scheduler", true));
-        executorService = ExecutorServiceMetrics.monitor(meterRegistry, executorService,
+        scheduler = ExecutorServiceMetrics.monitor(meterRegistry, executorService,
                                                          "mirroringScheduler");
-        scheduler = MoreExecutors.listeningDecorator(executorService);
 
         // Use SynchronousQueue to prevent the work queue from growing infinitely
         // when the workers cannot handle the mirroring tasks fast enough.
@@ -128,19 +125,9 @@ public final class DefaultMirroringService implements MirroringService {
                     }
                 }));
 
-        final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
+        scheduler.scheduleWithFixedDelay(
                 this::schedulePendingMirrors,
                 TICK.getSeconds(), TICK.getSeconds(), TimeUnit.SECONDS);
-
-        Futures.addCallback(future, new FutureCallback<Object>() {
-            @Override
-            public void onSuccess(@Nullable Object result) {}
-
-            @Override
-            public void onFailure(Throwable cause) {
-                logger.error("Git-to-CD mirroring scheduler stopped due to an unexpected exception:", cause);
-            }
-        }, MoreExecutors.directExecutor());
     }
 
     public synchronized void stop() {
