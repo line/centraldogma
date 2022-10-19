@@ -179,7 +179,6 @@ public final class GitMirror extends AbstractMirror {
 
                 git.push()
                    .setRefSpecs(new RefSpec(headBranchRefName))
-                   .setForce(true)
                    .setAtomic(true)
                    .setTimeout(GIT_TIMEOUT_SECS)
                    .call();

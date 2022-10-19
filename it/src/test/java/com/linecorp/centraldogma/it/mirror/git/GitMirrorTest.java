@@ -426,6 +426,8 @@ class GitMirrorTest {
 
     private void pushMirrorSettings(String localRepo, @Nullable String localPath, @Nullable String remotePath,
                                     @Nullable String gitignore) {
+        final String localPath0 = localPath == null ? "/" : localPath;
+        final String remoteUri = gitUri + firstNonNull(remotePath, "");
         client.forRepo(projName, Project.REPO_META)
               .commit("Add /mirrors.json",
                       Change.ofJsonUpsert("/mirrors.json",
@@ -433,9 +435,10 @@ class GitMirrorTest {
                                           "  \"type\": \"single\"," +
                                           "  \"direction\": \"REMOTE_TO_LOCAL\"," +
                                           "  \"localRepo\": \"" + localRepo + "\"," +
-                                          (localPath != null ? "\"localPath\": \"" + localPath + "\"," : "") +
-                                          "  \"remoteUri\": \"" + gitUri + firstNonNull(remotePath, "") + '"' +
-                                          ",\"gitignore\": " + firstNonNull(gitignore, "\"\"") +
+                                          "  \"localPath\": \"" + localPath0 + "\"," +
+                                          "  \"remoteUri\": \"" + remoteUri + "\"," +
+                                          "  \"schedule\": \"0 0 0 1 1 ? 2099\"," +
+                                          "  \"gitignore\": " + firstNonNull(gitignore, "\"\"") +
                                           "}]"))
               .push().join();
     }
