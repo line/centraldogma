@@ -46,7 +46,7 @@ class MirroringTaskTest {
         doNothing().when(mirror).mirror(any(), any(), anyInt(), anyLong());
         new MirroringTask(mirror, meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
-                .contains(entry("mirror.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
+                .contains(entry("mirroring.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
                                 "localRepo=bar,remoteBranch=master,remotePath=/," +
                                 "remoteRepo=git://a.com/b.git,success=true}", 1.0));
     }
@@ -62,7 +62,7 @@ class MirroringTaskTest {
         assertThatThrownBy(() -> task.run(null, null, 0, 0L))
                 .isSameAs(e);
         assertThat(MoreMeters.measureAll(meterRegistry))
-                .contains(entry("mirror.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
+                .contains(entry("mirroring.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
                                 "localRepo=bar,remoteBranch=master,remotePath=/," +
                                 "remoteRepo=git://a.com/b.git,success=false}", 1.0));
     }
