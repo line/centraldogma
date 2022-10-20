@@ -36,7 +36,9 @@ import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.client.endpoint.EndpointGroup;
 import com.linecorp.armeria.client.endpoint.dns.DnsAddressEndpointGroup;
 import com.linecorp.armeria.client.endpoint.healthcheck.HealthCheckedEndpointGroup;
+import com.linecorp.centraldogma.testing.internal.FlakyTest;
 
+@FlakyTest
 class ArmeriaCentralDogmaBuilderTest {
 
     // Note: This test case relies on https://sslip.io/

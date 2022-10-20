@@ -1,25 +1,14 @@
-1. Upload the artifacts to the staging repository and prepare the web site:
+1. Wait until the publish job is finished and the artifacts are up in the Maven Central.
 
-   git checkout $tag
-   ./gradlew --no-daemon clean publish tarball site
+   - Publish job: https://github.com/line/centraldogma/actions/workflows/publish-release.yml
+   - Sonatype repository: https://oss.sonatype.org/
+   - Maven Central: https://repo.maven.apache.org/maven2/com/linecorp/centraldogma/centraldogma-bom/${releaseVersion}/
+   - Site job: https://github.com/line/centraldogma/actions/workflows/publish-site.yml
 
-2. Close and release the staging repository at:
-
-   https://oss.sonatype.org/
-
-3. Close the milestone and set its release date at:
+2. Close the milestone and set its release date at:
 
    https://github.com/line/centraldogma/milestones
 
-4. Update the release note and upload the tarball at:
+3. Update the release note at:
 
    https://github.com/line/centraldogma/releases/tag/${tag}
-
-5. Copy the web site generated to the 'gh-pages' branch. e.g.
-
-   cd ../site-centraldogma
-   rm -fr .buildinfo .doctrees .gradle *
-   rsync -aiP --exclude '.*' ../upstream-centraldogma/site/build/site/ .
-   git add -A .
-   git commit --amend -m 'Deploy the web site'
-   git push --force

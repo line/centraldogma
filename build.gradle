@@ -1,15 +1,12 @@
 plugins {
-    id 'com.google.osdetector' version '1.6.2' apply false
-    id 'me.champeau.jmh' version '0.6.5' apply false
+    alias libs.plugins.nexus.publish
+    alias libs.plugins.osdetector apply false
+    alias libs.plugins.jmh apply false
 }
 
 allprojects {
     repositories {
         mavenCentral()
-        jcenter()
-        //maven {
-        //    url 'https://oss.sonatype.org/content/repositories/snapshots/'
-        //}
     }
 }
 
@@ -50,48 +47,47 @@ configure(projectsWithFlags('java')) {
         testImplementation project(':testing-internal')
 
         // completable-futures
-        implementation 'com.spotify:completable-futures'
+        implementation libs.futures.completable
 
         // cron-utils
-        implementation 'com.cronutils:cron-utils'
+        implementation libs.cron.utils
 
         // Guava
-        implementation 'com.google.guava:guava'
+        implementation libs.guava
 
         // Jackson
-        ['annotations', 'core', 'databind'].each {
-            implementation "com.fasterxml.jackson.core:jackson-$it"
-        }
+        implementation libs.jackson.annotations
+        implementation libs.jackson.core
+        implementation libs.jackson.databind
 
         // javax.inject
-        api 'javax.inject:javax.inject'
+        api libs.javax.inject
 
         // JSR305
-        implementation 'com.google.code.findbugs:jsr305'
+        implementation libs.findbugs
 
         // Jetty ALPN support
-        compileOnly 'org.eclipse.jetty.alpn:alpn-api'
+        compileOnly libs.jetty.alpn.api
 
         // Logging
-        implementation 'org.slf4j:slf4j-api'
-        testImplementation 'org.slf4j:jul-to-slf4j'
-        testRuntimeOnly 'ch.qos.logback:logback-classic'
-        ['jcl-over-slf4j', 'log4j-over-slf4j'].each {
-            testRuntimeOnly "org.slf4j:$it"
-        }
+        implementation libs.slf4j.api
+        testImplementation libs.slf4j.jul.to.slf4j
+        testImplementation libs.slf4j.jcl.over.slf4j
+        testImplementation libs.slf4j.log4j.over.slf4j
+        testRuntimeOnly libs.logback
 
         // Test-time dependencies
-        testImplementation 'net.javacrumbs.json-unit:json-unit-fluent'
-        testImplementation 'org.awaitility:awaitility'
-        testImplementation 'org.hamcrest:hamcrest-library'
-        testImplementation 'org.assertj:assertj-core'
-        testImplementation 'org.mockito:mockito-core'
-        testImplementation 'org.mockito:mockito-junit-jupiter'
-        testImplementation 'org.junit.jupiter:junit-jupiter-api'
-        testImplementation 'org.junit.jupiter:junit-jupiter-params'
-        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
-        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-        testRuntimeOnly 'org.junit.vintage:junit-vintage-engine'
+        testImplementation libs.json.unit.fluent
+        testImplementation libs.awaitility
+        testImplementation libs.hamcrest.library
+        testImplementation libs.assertj
+        testImplementation libs.mockito.core
+        testImplementation libs.mockito.junit.jupiter
+        testImplementation libs.junit5.jupiter.api
+        testImplementation libs.junit5.jupiter.params
+        testRuntimeOnly libs.junit5.jupiter.engine
+        testRuntimeOnly libs.junit5.platform.launcher
+        testRuntimeOnly libs.junit5.vintage.engine
     }
 
     // Target Java 8.
@@ -106,7 +102,7 @@ configure(projectsWithFlags('java')) {
         forceGC = true
         includeTests = false
         duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-        jmhVersion = managedVersions['org.openjdk.jmh:jmh-core']
+        jmhVersion = libs.versions.jmh.get()
 
         if (rootProject.hasProperty('jmh.fork')) {
             fork = Integer.parseInt(String.valueOf(rootProject.findProperty('jmh.fork')))
@@ -156,9 +152,9 @@ allprojects {
     }
 }
 
-// Require to use JDK 13 when releasing.
+// Require to use JDK 17 when releasing.
 tasks.release.doFirst {
-    if (JavaVersion.current() != JavaVersion.VERSION_13) {
-        throw new IllegalStateException("You must release using JDK 13.")
+    if (JavaVersion.current() != JavaVersion.VERSION_17) {
+        throw new IllegalStateException("You must release using JDK 17.")
     }
 }

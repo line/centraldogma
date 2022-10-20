@@ -4,23 +4,20 @@ import com.google.common.base.CaseFormat
 buildscript {
     repositories {
         mavenCentral()
-        jcenter()
         gradlePluginPortal()
     }
     dependencies {
-        classpath "com.boazj.gradle:gradle-log-plugin:${managedVersions['com.boazj.gradle:gradle-log-plugin']}"
-        classpath "com.bmuschko:gradle-docker-plugin:${managedVersions['com.bmuschko:gradle-docker-plugin']}"
-        classpath "com.google.guava:guava:${managedVersions['com.google.guava:guava']}"
+        classpath libs.gradle.log.plugin
+        classpath libs.guava
     }
 }
 
-// TODO(ikhoon): Migrate dependencies to version catalogs
 plugins {
-    id "de.undercouch.download" version "5.1.0"
+    alias libs.plugins.docker
+    alias libs.plugins.download
 }
 
 apply plugin: 'com.boazj.log'
-apply plugin: 'com.bmuschko.docker-remote-api'
 
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
@@ -34,11 +31,11 @@ ext {
 
 dependencies {
     // Logging
-    runtimeOnly 'ch.qos.logback:logback-classic'
-    runtimeOnly 'com.linecorp.armeria:armeria-logback'
-    ['jcl-over-slf4j', 'jul-to-slf4j', 'log4j-over-slf4j'].each {
-        runtimeOnly "org.slf4j:$it"
-    }
+    runtimeOnly libs.logback
+    runtimeOnly libs.armeria.logback
+    runtimeOnly libs.slf4j.jcl.over.slf4j
+    runtimeOnly libs.slf4j.jul.to.slf4j
+    runtimeOnly libs.slf4j.log4j.over.slf4j
 }
 
 // Do not generate a JAR for this project.

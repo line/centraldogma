@@ -1,4 +1,4 @@
 dependencies {
     api project(':testing:testing-common')
-    api 'junit:junit'
+    api libs.junit4
 }
