@@ -34,7 +34,9 @@ import com.linecorp.centraldogma.common.TooManyRequestsException;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.testing.internal.FlakyTest;
 
+@FlakyTest
 class ZooKeeperQuotaTest {
 
     private static final int MAX_QUOTA = 3;

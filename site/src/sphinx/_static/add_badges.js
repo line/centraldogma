@@ -42,9 +42,9 @@ function addBadges(parent) {
     'https://codecov.io/gh/line/centraldogma');
 
   var ciImg = new Image();
-  ciImg.src = 'https://github.com/line/centraldogma/actions/workflows/gradle.yml/badge.svg';
+  ciImg.src = 'https://github.com/line/centraldogma/actions/workflows/actions_build.yml/badge.svg';
   addBadge(div, ciImg,
-    'https://github.com/line/centraldogma/actions/workflows/gradle.yml');
+    'https://github.com/line/centraldogma/actions/workflows/actions_build.yml');
 
   li.appendChild(div);
   parent.appendChild(li);

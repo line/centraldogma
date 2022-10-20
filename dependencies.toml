@@ -1,0 +1,316 @@
+#
+# NB: Update NOTICE.txt and add/remove LICENSE.*.txt when adding/removing a dependency.
+#     If its classes are exposed in Javadoc, update offline links as well.
+#
+[versions]
+curator = "5.3.0"
+guava = "31.1-jre"
+jgit = "5.13.0.202109080827-r"
+json-unit = "2.35.0"
+jmh = "1.35"
+micrometer = "1.9.4"
+mockito = "4.8.0"
+slf4j = "1.7.36"
+spring-boot1 = "1.5.22.RELEASE"
+spring-boot2 = "2.7.4"
+
+[boms]
+armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.20.1" }
+jackson = { module = "com.fasterxml.jackson:jackson-bom", version = "2.13.4" }
+junit5 = { module = "org.junit:junit-bom", version = "5.9.1" }
+
+[libraries.armeria]
+module = "com.linecorp.armeria:armeria"
+javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.19.0/"
+[libraries.armeria-junit5]
+module = "com.linecorp.armeria:armeria-junit5"
+[libraries.armeria-logback]
+module = "com.linecorp.armeria:armeria-logback"
+[libraries.armeria-saml]
+module = "com.linecorp.armeria:armeria-saml"
+[libraries.armeria-thrift09]
+module = "com.linecorp.armeria:armeria-thrift0.9"
+
+[libraries.assertj]
+module = "org.assertj:assertj-core"
+version = "3.23.1"
+
+[libraries.awaitility]
+module = "org.awaitility:awaitility"
+version = "4.2.0"
+
+# Don"t upgrade Caffeine to 3.x that requires Java 11.
+[libraries.caffeine]
+module = "com.github.ben-manes.caffeine:caffeine"
+version = "2.9.3"
+javadocs = "https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.9.3/"
+
+[libraries.checkstyle]
+module = "com.puppycrawl.tools:checkstyle"
+version = "10.3.3"
+
+# Don't update `cron-utils` version
+[libraries.cron-utils]
+module = "com.cronutils:cron-utils"
+version = "5.0.5"
+relocations = { from = "com.cronutils", to = "com.linecorp.centraldogma.internal.shaded.cronutils" }
+
+# Ensure that we use the same ZooKeeper version as what Curator depends on.
+# See: https://github.com/apache/curator/blob/master/pom.xml
+#      (Switch to the right tag to find out the right version.)
+[libraries.curator-recipes]
+module = "org.apache.curator:curator-recipes"
+version.ref = "curator"
+exclusions = "org.apache.zookeeper:zookeeper"
+[libraries.curator-test]
+module = "org.apache.curator:curator-test"
+version.ref = "curator"
+
+[libraries.diffutils]
+module = "com.googlecode.java-diff-utils:diffutils"
+version = "1.3.0"
+relocations = { from = "difflib", to = "com.linecorp.centraldogma.internal.shaded.difflib" }
+
+[libraries.findbugs]
+module = "com.google.code.findbugs:jsr305"
+version = "3.0.2"
+
+[libraries.futures-completable]
+module = "com.spotify:completable-futures"
+version = "0.3.5"
+relocations = { from = "com.spotify.futures", to = "com.linecorp.centraldogma.internal.shaded.futures" }
+
+[libraries.gradle-log-plugin]
+module = "com.boazj.gradle:gradle-log-plugin"
+version = "0.1.0"
+
+[libraries.guava]
+module = "com.google.guava:guava"
+version.ref = "guava"
+exclusions = [
+    "com.google.errorprone:error_prone_annotations",
+    "com.google.j2objc:j2objc-annotations",
+    "org.codehaus.mojo:animal-sniffer-annotations"]
+relocations = [
+    { from = "com.google.common", to = "com.linecorp.centraldogma.internal.shaded.guava" },
+    { from = "com.google.thirdparty.publicsuffix", to = "com.linecorp.centraldogma.internal.shaded.publicsuffix" }]
+[libraries.guava-testlib]
+module = "com.google.guava:guava-testlib"
+version.ref = "guava"
+exclusions = ["com.google.errorprone:error_prone_annotations", "com.google.j2objc:j2objc-annotations"]
+relocations = { from = "com.google.common", to = "com.linecorp.centraldogma.internal.shaded.guava" }
+# A transitive dependency of Guava which needs relocation as well.
+[libraries.guava-failureaccess]
+module = "com.google.guava:failureaccess"
+version = "1.0.1"
+exclusions = ["com.google.errorprone:error_prone_annotations", "com.google.j2objc:j2objc-annotations"]
+relocations = { from = "com.google.common", to = "com.linecorp.centraldogma.internal.shaded.guava" }
+
+[libraries.hamcrest-library]
+module = "org.hamcrest:hamcrest-library"
+version = "2.2"
+
+# Need to wait for spring boot 3 before upgrading to 7.x.x
+[libraries.hibernate-validator]
+module = "org.hibernate.validator:hibernate-validator"
+version = "6.2.3.Final"
+
+[libraries.jackson-annotations]
+module = "com.fasterxml.jackson.core:jackson-annotations"
+javadocs = "https://fasterxml.github.io/jackson-annotations/javadoc/2.13/"
+[libraries.jackson-core]
+module = "com.fasterxml.jackson.core:jackson-core"
+javadocs = "https://fasterxml.github.io/jackson-core/javadoc/2.13/"
+[libraries.jackson-databind]
+module = "com.fasterxml.jackson.core:jackson-databind"
+javadocs = "https://fasterxml.github.io/jackson-databind/javadoc/2.13/"
+[libraries.jackson-datatype-jsr310]
+module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+
+[libraries.javassist]
+module = "org.javassist:javassist"
+version = "3.29.2-GA"
+
+[libraries.javax-annotation]
+module = "javax.annotation:javax.annotation-api"
+version = "1.3.2"
+[libraries.javax-inject]
+module = "javax.inject:javax.inject"
+version = "1"
+[libraries.javax-validation]
+module = "javax.validation:validation-api"
+version = "2.0.1.Final"
+
+[libraries.jcommander]
+module = "com.beust:jcommander"
+version = "1.82"
+
+[libraries.jetty-alpn-api]
+module = "org.eclipse.jetty.alpn:alpn-api"
+version = "1.1.3.v20160715"
+[libraries.jetty-alpn-agent]
+module = "org.mortbay.jetty.alpn:jetty-alpn-agent"
+version = "2.0.10"
+
+[libraries.jgit]
+module = "org.eclipse.jgit:org.eclipse.jgit"
+version.ref = "jgit"
+[libraries.jgit-ssh-jsch]
+module = "org.eclipse.jgit:org.eclipse.jgit.ssh.jsch"
+version.ref = "jgit"
+
+[libraries.jmh-core]
+module = "org.openjdk.jmh:jmh-core"
+version.ref = "jmh"
+[libraries.jmh-generator-annprocess]
+module = "org.openjdk.jmh:jmh-generator-annproces"
+version.ref = "jmh"
+
+[libraries.jsch]
+module = "com.jcraft:jsch"
+version = "0.1.55"
+
+# Don't update `json-path` version
+[libraries.json-path]
+module = "com.jayway.jsonpath:json-path"
+version = "2.2.0"
+relocations = { from = "com.jayway.jsonpath", to = "com.linecorp.centraldogma.internal.shaded.jsonpath" }
+
+[libraries.json-unit]
+module = "net.javacrumbs.json-unit:json-unit"
+version.ref = "json-unit"
+[libraries.json-unit-fluent]
+module = "net.javacrumbs.json-unit:json-unit-fluent"
+version.ref = "json-unit"
+
+[libraries.junit4]
+module = "junit:junit"
+version = "4.13.2"
+javadocs = "https://junit.org/junit4/javadoc/4.13/"
+
+[libraries.junit5-jupiter-api]
+module = "org.junit.jupiter:junit-jupiter-api"
+# ":site:javadoc" fails when we use a newer version of Javadoc.
+javadocs = "https://junit.org/junit5/docs/5.5.2/api/"
+[libraries.junit5-jupiter-params]
+module = "org.junit.jupiter:junit-jupiter-params"
+[libraries.junit5-jupiter-engine]
+module = "org.junit.jupiter:junit-jupiter-engine"
+[libraries.junit5-vintage-engine]
+module = "org.junit.vintage:junit-vintage-engine"
+[libraries.junit5-platform-commons]
+module = "org.junit.platform:junit-platform-commons"
+[libraries.junit5-platform-launcher]
+module = "org.junit.platform:junit-platform-launcher"
+
+[libraries.logback]
+module = "ch.qos.logback:logback-classic"
+version = "1.2.11"
+javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.11/"
+
+[libraries.micrometer-core]
+module = "io.micrometer:micrometer-core"
+version.ref = "micrometer"
+javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.9.1/"
+[libraries.micrometer-prometheus]
+module = "io.micrometer:micrometer-registry-prometheus"
+version.ref = "micrometer"
+javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-registry-prometheus/1.9.1/"
+
+[libraries.mockito-core]
+module = "org.mockito:mockito-core"
+version.ref = "mockito"
+[libraries.mockito-junit-jupiter]
+module = "org.mockito:mockito-junit-jupiter"
+version.ref = "mockito"
+
+[libraries.proguard]
+module = "com.guardsquare:proguard-gradle"
+version = "7.2.2"
+
+[libraries.quartz]
+module = "org.quartz-scheduler:quartz"
+version = "2.3.2"
+
+[libraries.shadow-gradle-plugin]
+module = "com.github.jengelman.gradle.plugins:shadow"
+version = "6.1.0"
+
+# Don't update `shiro` version
+[libraries.shiro-core]
+module = "org.apache.shiro:shiro-core"
+version = "1.3.2"
+javadocs = "https://shiro.apache.org/static/1.3.2/apidocs/"
+
+[libraries.slf4j-api]
+module = "org.slf4j:slf4j-api"
+version.ref = "slf4j"
+javadocs = "https://www.javadoc.io/doc/org.slf4j/slf4j-api/1.7.36/"
+[libraries.slf4j-jcl-over-slf4j]
+module = "org.slf4j:jcl-over-slf4j"
+version.ref = "slf4j"
+[libraries.slf4j-jul-to-slf4j]
+module = "org.slf4j:jul-to-slf4j"
+version.ref = "slf4j"
+[libraries.slf4j-log4j-over-slf4j]
+module = "org.slf4j:log4j-over-slf4j"
+version.ref = "slf4j"
+
+[libraries.spring-boot1-autoconfigure]
+module = "org.springframework.boot:spring-boot-autoconfigure"
+version.ref = "spring-boot1"
+[libraries.spring-boot1-configuration-processor]
+module = "org.springframework.boot:spring-boot-configuration-processor"
+version.ref = "spring-boot1"
+[libraries.spring-boot1-starter]
+module = "org.springframework.boot:spring-boot-starter"
+version.ref = "spring-boot1"
+[libraries.spring-boot1-starter-test]
+module = "org.springframework.boot:spring-boot-starter-test"
+version.ref = "spring-boot1"
+
+[libraries.spring-boot2-autoconfigure]
+module = "org.springframework.boot:spring-boot-autoconfigure"
+version.ref = "spring-boot2"
+[libraries.spring-boot2-starter]
+module = "org.springframework.boot:spring-boot-starter"
+version.ref = "spring-boot2"
+javadocs = "https://docs.spring.io/spring/docs/current/javadoc-api/"
+[libraries.spring-boot2-starter-test]
+module = "org.springframework.boot:spring-boot-starter-test"
+version.ref = "spring-boot2"
+[libraries.spring-boot2-configuration-processor]
+module = "org.springframework.boot:spring-boot-configuration-processor"
+version.ref = "spring-boot2"
+
+[libraries.spring-test-junit5]
+module = "com.github.sbrannen:spring-test-junit5"
+version = "1.5.0"
+
+
+[libraries.thrift09]
+module = "org.apache.thrift:libthrift"
+version = { strictly = "0.9.3-1" }
+
+# Ensure that we use the same ZooKeeper version as what Curator depends on.
+# See: https://github.com/apache/curator/blob/master/pom.xml
+#      (Switch to the right tag to find out the right version.)
+[libraries.zookeeper]
+module = "org.apache.zookeeper:zookeeper"
+version = "3.5.8"
+exclusions = [
+    "io.netty:netty-all",
+    "log4j:log4j",
+    "org.apache.yetus:audience-annotations",
+    "org.slf4j:slf4j-log4j12"]
+
+[plugins]
+docker = { id = "com.bmuschko.docker-remote-api", version = "6.7.0" }
+download = { id = "de.undercouch.download", version = "5.2.1" }
+jmh = { id = "me.champeau.jmh", version = "0.6.8" }
+jxr = { id = "net.davidecavestro.gradle.jxr", version = "0.2.1" }
+log = { id = "com.boazj.log", version = "0.1.0" }
+nexus-publish = { id = "io.github.gradle-nexus.publish-plugin", version = "1.1.0" }
+node-gradle = { id = "com.github.node-gradle.node", version = "3.4.0" }
+osdetector = { id = "com.google.osdetector", version = "1.7.1" }
+sphinx = { id = "kr.motd.sphinx", version = "2.10.1" }
