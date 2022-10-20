@@ -1,7 +1,6 @@
 plugins {
     id 'base'
-    // TODO(ikhoon): Use version catalog once https://github.com/line/centraldogma/pull/716 is merged
-    id "com.github.node-gradle.node" version "3.4.0"
+    alias(libs.plugins.node.gradle)
 }
 
 node {
