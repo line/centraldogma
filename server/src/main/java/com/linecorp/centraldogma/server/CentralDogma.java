@@ -362,10 +362,10 @@ public class CentralDogma implements AutoCloseable {
             server = startServer(pm, executor, meterRegistry, sessionManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
             logger.info("Started the Central Dogma successfully.");
-            serverHealth.setHealthy(true);
             success = true;
         } finally {
             if (success) {
+                serverHealth.setHealthy(true);
                 this.repositoryWorker = repositoryWorker;
                 this.purgeWorker = purgeWorker;
                 this.pm = pm;
