@@ -154,8 +154,8 @@ class LocalToRemoteGitMirrorTest {
     @CsvSource({
             "'', ''",
             "/local/foo, /remote",
-            "/local, /remote/foo",
-            "/local/foo, /remote/foo"
+            "/local, /remote/bar",
+            "/local/foo, /remote/bar"
     })
     void localToRemote(String localPath, String remotePath) throws Exception {
         pushMirrorSettings(localPath, remotePath, null);
@@ -274,8 +274,8 @@ class LocalToRemoteGitMirrorTest {
     @CsvSource({
             "'', ''",
             "/local/foo, /remote",
-            "/local, /remote/foo",
-            "/local/foo, /remote/foo"
+            "/local, /remote/bar",
+            "/local/foo, /remote/bar"
     })
     void localToRemote_gitignore(String localPath, String remotePath) throws Exception {
         pushMirrorSettings(localPath, remotePath, "\"/exclude_if_root.txt\\n**/exclude_dir\"");
@@ -286,8 +286,8 @@ class LocalToRemoteGitMirrorTest {
     @CsvSource({
             "'', ''",
             "/local/foo, /remote",
-            "/local, /remote/foo",
-            "/local/foo, /remote/foo"
+            "/local, /remote/bar",
+            "/local/foo, /remote/bar"
     })
     void localToRemote_gitignore_with_array(String localPath, String remotePath) throws Exception {
         pushMirrorSettings(localPath, remotePath, "[\"/exclude_if_root.txt\", \"exclude_dir\"]");
