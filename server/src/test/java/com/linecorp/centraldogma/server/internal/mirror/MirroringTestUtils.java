@@ -38,8 +38,6 @@ final class MirroringTestUtils {
     static final Cron EVERY_MINUTE = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ)).parse("0 * * * * ?");
 
-    private MirroringTestUtils() {}
-
     static <T extends Mirror> T newMirror(String remoteUri, Class<T> mirrorType) {
         return newMirror(remoteUri, EVERY_MINUTE, mock(Repository.class), mirrorType);
     }
@@ -70,4 +68,6 @@ final class MirroringTestUtils {
         final T castMirror = (T) mirror;
         return castMirror;
     }
+
+    private MirroringTestUtils() {}
 }
