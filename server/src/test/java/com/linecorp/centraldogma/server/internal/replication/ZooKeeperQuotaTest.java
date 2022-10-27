@@ -44,7 +44,7 @@ class ZooKeeperQuotaTest {
     @Test
     void testLimitation() throws Exception {
         try (Cluster cluster = Cluster.builder()
-                                      .writeQuota(new QuotaConfig(MAX_QUOTA, 1))
+                                      .writeQuota(new QuotaConfig(MAX_QUOTA, 3))
                                       .build(ZooKeeperCommandExecutorTest::newMockDelegate)) {
             final int iteration = MAX_QUOTA * 5;
             final ImmutableList.Builder<CompletableFuture<?>> resultsBuilder =
@@ -59,7 +59,8 @@ class ZooKeeperQuotaTest {
             final ImmutableList<CompletableFuture<?>> results = resultsBuilder.build();
             int limited = 0;
             int succeeded = 0;
-            final String expectedMessage = String.format("'/project/repo1' (quota limit: %d.0/sec)", MAX_QUOTA);
+            final String expectedMessage = String.format("'/project/repo1' (quota limit: %d.0/sec)",
+                                                         MAX_QUOTA / 3);
             for (int i = 0; i < iteration; i++) {
                 try {
                     results.get(i).join();

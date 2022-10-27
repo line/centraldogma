@@ -126,5 +126,5 @@ jobs:
 
       - name: Run flaky tests
         run: |
-          ./gradlew --no-daemon --stacktrace -PnoLint -PflakyTests=true
+          ./gradlew --no-daemon --stacktrace check -PnoLint -PflakyTests=true
         shell: bash
