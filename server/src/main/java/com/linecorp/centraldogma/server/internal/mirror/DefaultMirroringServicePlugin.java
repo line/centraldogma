@@ -49,6 +49,7 @@ public final class DefaultMirroringServicePlugin implements Plugin {
             final CentralDogmaConfig cfg = context.config();
             mirroringService = new DefaultMirroringService(new File(cfg.dataDir(), "_mirrors"),
                                                            context.projectManager(),
+                                                           context.meterRegistry(),
                                                            cfg.numMirroringThreads(),
                                                            cfg.maxNumFilesPerMirror(),
                                                            cfg.maxNumBytesPerMirror());

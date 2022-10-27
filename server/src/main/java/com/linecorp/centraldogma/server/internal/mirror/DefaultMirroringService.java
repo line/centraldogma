@@ -25,6 +25,7 @@ import java.time.ZonedDateTime;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -50,6 +51,8 @@ import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public final class DefaultMirroringService implements MirroringService {
@@ -72,12 +75,14 @@ public final class DefaultMirroringService implements MirroringService {
     private volatile ListeningExecutorService worker;
 
     private ZonedDateTime lastExecutionTime;
+    private final MeterRegistry meterRegistry;
 
-    public DefaultMirroringService(File workDir, ProjectManager projectManager,
+    public DefaultMirroringService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
                                    int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");
+        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
 
         checkArgument(numThreads > 0, "numThreads: %s (expected: > 0)", numThreads);
         checkArgument(maxNumFilesPerMirror > 0,
@@ -100,8 +105,11 @@ public final class DefaultMirroringService implements MirroringService {
 
         this.commandExecutor = requireNonNull(commandExecutor, "commandExecutor");
 
-        scheduler = MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("mirroring-scheduler", true)));
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("mirroring-scheduler", true));
+        executorService = ExecutorServiceMetrics.monitor(meterRegistry, executorService,
+                                                         "mirroringScheduler");
+        scheduler = MoreExecutors.listeningDecorator(executorService);
 
         // Use SynchronousQueue to prevent the work queue from growing infinitely
         // when the workers cannot handle the mirroring tasks fast enough.
@@ -221,7 +229,8 @@ public final class DefaultMirroringService implements MirroringService {
     private void run(Mirror m, boolean logOnFailure) {
         logger.info("Mirroring: {}", m);
         try {
-            m.mirror(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
+            new MirroringTask(m, meterRegistry)
+                    .run(workDir, commandExecutor, maxNumFilesPerMirror, maxNumBytesPerMirror);
         } catch (Exception e) {
             if (logOnFailure) {
                 logger.warn("Unexpected exception while mirroring: {}", m, e);

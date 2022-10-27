@@ -43,6 +43,8 @@ import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 class DefaultMirroringServiceTest {
 
     @TempDir
@@ -81,7 +83,8 @@ class DefaultMirroringServiceTest {
 
         when(mr.mirrors()).thenReturn(ImmutableSet.of(mirror));
 
-        final DefaultMirroringService service = new DefaultMirroringService(temporaryFolder, pm, 1, 1, 1);
+        final DefaultMirroringService service = new DefaultMirroringService(
+                temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1);
         service.start(mock(CommandExecutor.class));
 
         try {
