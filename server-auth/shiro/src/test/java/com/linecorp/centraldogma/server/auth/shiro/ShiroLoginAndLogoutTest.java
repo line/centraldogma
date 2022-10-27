@@ -30,20 +30,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.apache.shiro.config.Ini;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
-
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.SessionProtocol;
-import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.client.CentralDogma;
-import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
@@ -56,7 +48,6 @@ class ShiroLoginAndLogoutTest {
     final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.port(new ServerPort(36462, SessionProtocol.HTTP));
             builder.authProviderFactory(new ShiroAuthProviderFactory(unused -> {
                 final Ini iniConfig = new Ini();
                 iniConfig.addSection("users").put(USERNAME, PASSWORD);
@@ -65,12 +56,10 @@ class ShiroLoginAndLogoutTest {
             builder.webAppEnabled(true);
         }
 
-
         @Override
         protected boolean runForEachTest() {
             return true;
         }
-
     };
 
     private WebClient client;
@@ -80,28 +69,8 @@ class ShiroLoginAndLogoutTest {
         client = dogma.httpClient();
     }
 
-    @Timeout(Long.MAX_VALUE)
-    @Test
-    void scaffold() throws Exception {
-        final AggregatedHttpResponse response = login(client, USERNAME, PASSWORD);
-        assertThat(response.status()).isEqualTo(HttpStatus.OK);
-
-        // Ensure authorization works.
-        final AccessToken accessToken = Jackson.readValue(response.contentUtf8(), AccessToken.class);
-        final String sessionId = accessToken.accessToken();
-        final CentralDogma centralDogma = new ArmeriaCentralDogmaBuilder()
-                .host(dogma.serverAddress().getHostString(), dogma.serverAddress().getPort())
-                .accessToken(sessionId)
-                .build();
-        centralDogma.createProject("foo-project").join();
-        centralDogma.createProject("bar-project").join();
-        Thread.sleep(Long.MAX_VALUE);
-    }
-
-    @Timeout(Long.MAX_VALUE)
     @Test
     void password() throws Exception { // grant_type=password
-        Thread.sleep(Long.MAX_VALUE);
         loginAndLogout(login(client, USERNAME, PASSWORD));
     }
 
