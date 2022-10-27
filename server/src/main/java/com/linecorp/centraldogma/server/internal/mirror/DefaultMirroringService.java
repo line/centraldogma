@@ -138,7 +138,7 @@ public final class DefaultMirroringService implements MirroringService {
 
             @Override
             public void onFailure(Throwable cause) {
-                logger.error("Git-to-CD mirroring scheduler stopped due to an unexpected exception:", cause);
+                logger.error("Git mirroring scheduler stopped due to an unexpected exception:", cause);
             }
         }, MoreExecutors.directExecutor());
     }
@@ -207,7 +207,7 @@ public final class DefaultMirroringService implements MirroringService {
 
                               @Override
                               public void onFailure(Throwable cause) {
-                                  logger.warn("Unexpected Git-to-CD mirroring failure: {}", m, cause);
+                                  logger.warn("Unexpected Git mirroring failure: {}", m, cause);
                               }
                           }, MoreExecutors.directExecutor());
                       });

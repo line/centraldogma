@@ -42,7 +42,7 @@ Concepts
   - Meta repository
 
     - A *meta repository* is a repository whose name is ``meta`` in a project. It is dedicated to store the
-      metadata related with the project it belongs to, such as Git-to-CD mirroring settings.
+      metadata related with the project it belongs to, such as Git mirroring settings.
 
 - Commit
 
