@@ -52,7 +52,10 @@ defaults:
         "timeWindowSeconds": 1
       },
       "accessLogFormat": "common",
-      "authentication": null
+      "authentication": null,
+      "requestLog": {
+        "targetGroups": [ "API" ]
+      }
     }
 
 Core properties
@@ -228,6 +231,56 @@ Core properties
 
   - the authentication configuration. If ``null``, the authentication is disabled.
     See :ref:`auth` to learn how to configure the authentication layer.
+
+-  ``requestLog``
+
+  - the request log configuration. If this option is enabled, request and response duration, headers and status
+    are logged. If a request is failed with an exception, the stack trace of the exception is logged as well.
+
+  - ``targetGroups`` (string array)
+
+     - the target :apiplural:`RequestLogGroup` which should be logged.
+
+       - ``API`` - the services served under ``/api``
+       - ``METRICS`` - the Prometheus exposition service served at ``/monitor/metrics``
+       - ``HEALTH`` - the health check service served at ``/monitor/l7check``
+       - ``DOCS`` - the documentation service served under ``/docs``
+       - ``WEB`` - the static file services served under ``/web``, ``/vendor``, ``/scripts`` and ``/styles``.
+       - ``ALL`` - the group that represents all groups.
+
+  - ``loggerName`` (string)
+
+     - the logger name to use when logging.
+       If ``null``, defaults to ``com.linecorp.centraldogma.request.log``
+
+  - ``requestLogLevel`` (string)
+
+     - the :api:`com.linecorp.armeria.common.logging.LogLevel` to use when logging incoming requests.
+       If ``null``, defaults to ``TRACE``
+
+  - ``successfulResponseLogLevel`` (string)
+
+    - the :api:`com.linecorp.armeria.common.logging.LogLevel` to use when logging successful responses (e.g., an HTTP status is less than 400).
+      If ``null``, defaults to ``TRACE``
+
+  - ``failureResponseLogLevel`` (string)
+
+    - the :api:`com.linecorp.armeria.common.logging.LogLevel` to use when logging failed responses (e.g., an HTTP status is 4xx or 5xx).
+      If ``null``, defaults to ``WARN``
+
+  - ``successSamplingRate`` (float)
+
+    - the rate at which to sample success requests to log. Any number between
+      ``0.0`` and ``1.0`` will cause a random sample of the requests to
+      be logged.
+      If ``null``, defaults to ``1.0``
+
+  - ``failureSamplingRate`` (float)
+
+    - the rate at which to sample failed requests to log. Any number between
+      ``0.0`` and ``1.0`` will cause a random sample of the requests to
+      be logged.
+      If ``null``, defaults to ``1.0``
 
 .. _replication:
 
