@@ -95,6 +95,7 @@ import com.linecorp.armeria.server.encoding.EncodingService;
 import com.linecorp.armeria.server.file.FileService;
 import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
+import com.linecorp.armeria.server.healthcheck.SettableHealthChecker;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.metric.PrometheusExpositionService;
@@ -182,6 +183,7 @@ public class CentralDogma implements AutoCloseable {
         return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class));
     }
 
+    private final SettableHealthChecker serverHealth = new SettableHealthChecker(false);
     private final CentralDogmaStartStop startStop;
 
     private final AtomicInteger numPendingStopRequests = new AtomicInteger();
@@ -302,6 +304,7 @@ public class CentralDogma implements AutoCloseable {
      * Stops the server. This method does nothing if the server is stopped already.
      */
     public CompletableFuture<Void> stop() {
+        serverHealth.setHealthy(false);
         numPendingStopRequests.incrementAndGet();
         return startStop.stop().thenRun(numPendingStopRequests::decrementAndGet);
     }
@@ -362,6 +365,7 @@ public class CentralDogma implements AutoCloseable {
             success = true;
         } finally {
             if (success) {
+                serverHealth.setHealthy(true);
                 this.repositoryWorker = repositoryWorker;
                 this.purgeWorker = purgeWorker;
                 this.pm = pm;
@@ -521,7 +525,9 @@ public class CentralDogma implements AutoCloseable {
 
         sb.service("/title", webAppTitleFile(cfg.webAppTitle(), SystemInfo.hostname()).asService());
 
-        sb.service(HEALTH_CHECK_PATH, HealthCheckService.of());
+        sb.service(HEALTH_CHECK_PATH, HealthCheckService.builder()
+                                                        .checkers(serverHealth)
+                                                        .build());
 
         sb.serviceUnder("/docs/",
                         DocService.builder()
