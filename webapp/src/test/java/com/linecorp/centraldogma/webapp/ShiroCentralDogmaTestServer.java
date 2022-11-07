@@ -27,13 +27,10 @@ import java.nio.file.Path;
 
 import org.apache.shiro.config.Ini;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
-import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -42,10 +39,14 @@ import com.linecorp.centraldogma.server.CentralDogma;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.auth.shiro.ShiroAuthProviderFactory;
 
-public final class ShiroCentralDogmaTestServer {
+final class ShiroCentralDogmaTestServer {
 
     private static final int PORT = 36462;
 
+    /**
+     * Start a new Central Dogma server with Apache Shiro.
+     */
+    @SuppressWarnings("UncommentedMain")
     public static void main(String[] args) throws IOException {
         final Path rooDir = Files.createTempDirectory("dogma-test");
         final CentralDogma server = new CentralDogmaBuilder(rooDir.toFile())
@@ -79,4 +80,6 @@ public final class ShiroCentralDogmaTestServer {
         final AccessToken accessToken = Jackson.readValue(response.contentUtf8(), AccessToken.class);
         return accessToken.accessToken();
     }
+
+    private ShiroCentralDogmaTestServer() {}
 }

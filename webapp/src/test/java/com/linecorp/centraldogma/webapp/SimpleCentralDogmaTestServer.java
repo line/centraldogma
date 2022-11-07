@@ -30,6 +30,10 @@ final class SimpleCentralDogmaTestServer {
 
     private static final int PORT = 36462;
 
+    /**
+     * Start a new Central Dogma server.
+     */
+    @SuppressWarnings("UncommentedMain")
     public static void main(String[] args) throws IOException {
         final Path rooDir = Files.createTempDirectory("dogma-test");
         final CentralDogma server = new CentralDogmaBuilder(rooDir.toFile())
@@ -49,4 +53,6 @@ final class SimpleCentralDogmaTestServer {
         client.createProject("foo").join();
         client.createRepository("foo", "bar").join();
     }
+
+    private SimpleCentralDogmaTestServer() {}
 }
