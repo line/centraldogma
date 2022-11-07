@@ -24,6 +24,7 @@ import { useAppDispatch } from 'dogma/store';
 export const LoginForm = () => {
   const dispatch = useAppDispatch();
 
+  // Redux => state
   // TODO(ikhoon): Beautify
   return (
     <Flex bg="gray.100" align="center" justify="center" h="100vh">

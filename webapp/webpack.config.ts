@@ -51,7 +51,7 @@ const config: webpack.Configuration = {
             pathname !== '/' && ['/app', '/assets', '/web/auth'].every((prefix) => !pathname.startsWith(prefix))
           );
         },
-        target: `http://dogma.line-apps-beta.com:${centralDogmaPort}`,
+        target: `http://localhost:${centralDogmaPort}`,
         changeOrigin: true,
       },
     ],
