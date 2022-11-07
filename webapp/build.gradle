@@ -15,3 +15,24 @@ node {
         npmWorkDir = file("${gradle.gradleUserHomeDir}/caches/npm/${project.name}")
     }
 }
+
+dependencies {
+    // Dependencies to run test servers for testing the web application
+    testImplementation(project(":server"))
+    testImplementation(project(":server-auth:shiro"))
+    testImplementation libs.shiro.core
+}
+
+task simpleTestServer(type: JavaExec) {
+    group = "Execution"
+    description = "Run the simple Central Dogma server"
+    classpath = sourceSets.test.runtimeClasspath
+    main = "com.linecorp.centraldogma.webapp.SimpleCentralDogmaTestServer"
+}
+
+task simpleTestShiroServer(type: JavaExec) {
+    group = "Execution"
+    description = "Run the Central Dogma server with Apache Shiro"
+    classpath = sourceSets.test.runtimeClasspath
+    main = "com.linecorp.centraldogma.webapp.ShiroCentralDogmaTestServer"
+}
