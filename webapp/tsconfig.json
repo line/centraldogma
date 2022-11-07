@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
+    "baseUrl": "src",
     "sourceMap": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
@@ -10,5 +10,6 @@
     "allowJs": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true
-  }
+  },
+  "include": ["src"]
 }

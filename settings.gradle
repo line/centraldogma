@@ -29,8 +29,8 @@ project(':testing:testing-common').projectDir = file('testing/common')
 includeWithFlags ':it',               'java', 'relocate'
 includeWithFlags ':testing-internal', 'java', 'relocate'
 
-// Unpublished non-Java projects
-includeWithFlags ':webapp'
+// Unpublished projects
+includeWithFlags ':webapp', 'java'
 includeWithFlags ':server-auth:webapp'
 
 // Site generation project

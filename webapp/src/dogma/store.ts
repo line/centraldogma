@@ -1,0 +1,46 @@
+/*
+ * Copyright 2022 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { configureStore } from '@reduxjs/toolkit';
+import { createReduxHistoryContext } from 'redux-first-history';
+import { createBrowserHistory } from 'history';
+import { authReducer } from 'dogma/features/auth/authSlice';
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
+import { apiSlice } from 'dogma/features/api/apiSlice';
+import { setupListeners } from '@reduxjs/toolkit/query';
+
+const { createReduxHistory, routerMiddleware, routerReducer } = createReduxHistoryContext({
+  history: createBrowserHistory(),
+});
+
+const reducer = {
+  router: routerReducer,
+  auth: authReducer,
+  [apiSlice.reducerPath]: apiSlice.reducer,
+};
+export const store = configureStore({
+  reducer,
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(routerMiddleware, apiSlice.middleware),
+});
+
+setupListeners(store.dispatch);
+
+export const history = createReduxHistory(store);
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+
+export const useAppDispatch: () => AppDispatch = useDispatch;
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
