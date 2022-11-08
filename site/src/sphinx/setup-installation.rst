@@ -50,12 +50,6 @@ To stop the server, use the ``bin/shutdown`` script:
         $ ./gradlew startup
         $ ./gradlew shutdown
 
-    You can also tail the log file:
-
-    .. code-block:: shell
-
-        $ ./gradlew tail
-
 Running on Docker
 -----------------
 You can also pull Central Dogma image from `Docker Hub <https://hub.docker.com/r/line/centraldogma/>`_
