@@ -48,8 +48,7 @@ class MirroringTaskTest {
         new MirroringTask(mirror, meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .contains(entry("mirroring.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
-                                "localRepo=bar,remoteBranch=master,remotePath=/," +
-                                "remoteRepo=git://a.com/b.git,success=true}", 1.0));
+                                "localRepo=bar,remoteBranch=master,remotePath=/,success=true}", 1.0));
     }
 
     @Test
@@ -65,7 +64,7 @@ class MirroringTaskTest {
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .contains(entry("mirroring.result#count{direction=LOCAL_TO_REMOTE,localPath=/," +
                                 "localRepo=bar,remoteBranch=master,remotePath=/," +
-                                "remoteRepo=git://a.com/b.git,success=false}", 1.0));
+                                "success=false}", 1.0));
     }
 
     @Test
@@ -81,7 +80,7 @@ class MirroringTaskTest {
         assertThat(MoreMeters.measureAll(meterRegistry))
                 .hasEntrySatisfying(
                         "mirroring.task#total{direction=LOCAL_TO_REMOTE,localPath=/," +
-                        "localRepo=bar,remoteBranch=master,remotePath=/," +
-                        "remoteRepo=git://a.com/b.git}", v -> assertThat(v).isCloseTo(1, withPercentage(30)));
+                        "localRepo=bar,remoteBranch=master,remotePath=/}",
+                        v -> assertThat(v).isCloseTo(1, withPercentage(30)));
     }
 }
