@@ -47,7 +47,8 @@ class MirroringTaskTest {
         doNothing().when(mirror).mirror(any(), any(), anyInt(), anyLong());
         new MirroringTask(mirror, meterRegistry).run(null, null, 0, 0L);
         assertThat(MoreMeters.measureAll(meterRegistry))
-                .contains(entry("mirroring.result#value{direction=LOCAL_TO_REMOTE,localPath=/,localRepo=bar}", 1.0));
+                .contains(entry("mirroring.result#value{direction=LOCAL_TO_REMOTE," +
+                                "localPath=/,localRepo=bar}", 1.0));
     }
 
     @Test
@@ -61,7 +62,8 @@ class MirroringTaskTest {
         assertThatThrownBy(() -> task.run(null, null, 0, 0L))
                 .isSameAs(e);
         assertThat(MoreMeters.measureAll(meterRegistry))
-                .contains(entry("mirroring.result#value{direction=LOCAL_TO_REMOTE,localPath=/,localRepo=bar}", -1.0));
+                .contains(entry("mirroring.result#value{direction=LOCAL_TO_REMOTE," +
+                                "localPath=/,localRepo=bar}", -1.0));
     }
 
     @Test
