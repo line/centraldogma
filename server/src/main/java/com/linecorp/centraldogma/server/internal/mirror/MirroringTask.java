@@ -16,60 +16,55 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+
 import java.io.File;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 
-import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 
 final class MirroringTask {
 
-    private static List<Tag> generateTags(Mirror mirror) {
+    private static Iterable<Tag> generateTags(Mirror mirror) {
         return ImmutableList.of(
                 Tag.of("direction", mirror.direction().name()),
+                Tag.of("remoteRepo", mirror.remoteRepoUri().toString()),
+                Tag.of("remoteBranch", firstNonNull(mirror.remoteBranch(), "")),
+                Tag.of("remotePath", mirror.remotePath()),
                 Tag.of("localRepo", mirror.localRepo().name()),
                 Tag.of("localPath", mirror.localPath()));
     }
 
-    // -1: failure, 1: success
-    private static final Map<List<Tag>, AtomicLong> lastSuccess = new ConcurrentHashMap<>();
-
     private final MeterRegistry meterRegistry;
     private final Mirror mirror;
-    private final List<Tag> tags;
+    private final Iterable<Tag> tags;
 
     MirroringTask(Mirror mirror, MeterRegistry meterRegistry) {
         this.mirror = mirror;
         this.meterRegistry = meterRegistry;
         tags = generateTags(mirror);
-        lastSuccess.putIfAbsent(tags, new AtomicLong());
-        tryRegisterGauge();
     }
 
-    // 1: success, -1: failure, NaN: not registered yet
-    private Gauge tryRegisterGauge() {
-        return Gauge.builder("mirroring.result", () -> lastSuccess.get(tags))
-                    .tags(tags)
-                    .register(meterRegistry);
+    private Counter counter(boolean success) {
+        return Counter.builder("mirroring.result")
+                      .tags(tags)
+                      .tag("success", Boolean.toString(success))
+                      .register(meterRegistry);
     }
 
     void run(File workDir, CommandExecutor executor, int maxNumFiles, long maxNumBytes) {
-        final AtomicLong result = lastSuccess.get(tags);
         try {
             meterRegistry.timer("mirroring.task", tags)
                          .record(() -> mirror.mirror(workDir, executor, maxNumFiles, maxNumBytes));
-            result.set(1);
+            counter(true).increment();
         } catch (Exception e) {
-            result.set(-1);
+            counter(false).increment();
             throw e;
         }
     }
