@@ -34,7 +34,6 @@ final class MirroringTask {
     private static Iterable<Tag> generateTags(Mirror mirror) {
         return ImmutableList.of(
                 Tag.of("direction", mirror.direction().name()),
-                Tag.of("remoteRepo", mirror.remoteRepoUri().toString()),
                 Tag.of("remoteBranch", firstNonNull(mirror.remoteBranch(), "")),
                 Tag.of("remotePath", mirror.remotePath()),
                 Tag.of("localRepo", mirror.localRepo().name()),
