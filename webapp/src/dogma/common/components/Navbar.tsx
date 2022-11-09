@@ -38,7 +38,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { AddIcon, CloseIcon, HamburgerIcon, MoonIcon, SearchIcon, SunIcon } from '@chakra-ui/icons';
-import { Link as RouteLink } from 'react-router-dom';
+import {default as RouteLink} from 'next/link';
 import { useAppSelector } from 'dogma/store';
 
 interface TopMenu {
@@ -59,7 +59,7 @@ const NavLink = ({ link, children }: { link: string; children: ReactNode }) => (
       textDecoration: 'none',
       bg: useColorModeValue('gray.200', 'gray.700'),
     }}
-    to={link}
+    href={link}
   >
     {children}
   </Link>

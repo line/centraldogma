@@ -6,10 +6,27 @@
     "noImplicitAny": true,
     "module": "esnext",
     "target": "esnext",
-    "jsx": "react",
+    "jsx": "preserve",
     "allowJs": true,
     "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "skipLibCheck": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
   },
-  "include": ["src"]
+  "include": [
+    "src", "next-env.d.ts", "**/*.ts", "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

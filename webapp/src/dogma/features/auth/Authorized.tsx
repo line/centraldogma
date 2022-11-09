@@ -15,12 +15,12 @@
  */
 
 import React from 'react';
-import { Outlet } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { validateSession } from 'dogma/features/auth/authSlice';
 
 import axios from 'axios';
 import { Layout } from 'dogma/common/components/Layout';
+import Router from 'next/router';
 
 export function getSessionId(): string | null {
   return localStorage.getItem('sessionId');
@@ -31,7 +31,7 @@ export function removeSessionId() {
 }
 
 export function goToLoginPage() {
-  window.location.href = '/link/auth/login';
+  Router.push('/')
 }
 
 axios.interceptors.request.use((config) => {
@@ -52,7 +52,6 @@ export const Authorized = () => {
   if (auth.isAuthenticated) {
     return (
       <Layout>
-        <Outlet />
       </Layout>
     );
   }

@@ -17,10 +17,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 import qs from 'qs';
-import { history } from 'dogma/store';
 import { UserDto } from 'dogma/features/auth/UserDto';
 import { getSessionId, goToLoginPage, removeSessionId } from 'dogma/features/auth/Authorized';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
+import Router from 'next/router';
 
 const getUser = createAsyncThunk('/auth/user', async () => {
   // TODO(ikhoon): Just use fetch API?
@@ -39,11 +39,11 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
   });
   if (response.status === HttpStatusCode.Ok) {
     localStorage.setItem('sessionId', response.data.access_token);
-    thunkAPI.dispatch(getUser());
+    await thunkAPI.dispatch(getUser());
     // TODO(ikhoon):
     //  - Link to the landing page
     //  - Link back to the original referer?
-    history.push('/');
+    Router.push('/project');
     return true;
   }
 
