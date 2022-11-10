@@ -53,6 +53,19 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
   return false;
 });
 
+export const logout = createAsyncThunk('/auth/logout', async () => {
+  const response = await axios.post('/api/v1/logout', null, {
+    validateStatus: (status) => status < 500,
+  });
+  if (response.status === HttpStatusCode.Ok) {
+    localStorage.removeItem('sessionId');
+    Router.push('/');
+    return true;
+  }
+  alert('Problem logging out. Please try again.');
+  return false;
+});
+
 interface UserSessionResponse {
   isAuthorized: boolean;
   user?: UserDto;
