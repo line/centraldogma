@@ -4,10 +4,9 @@
   "license": "Apache-2.0",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" next --watch",
-    "dev": "cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" next dev",
-    "build": "cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" next build",
-    "start": "cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" next start",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "lint": "tsc --project . && eslint --ext .json,.js,.jsx,.ts,.tsx .",
     "lint:fix": "eslint --fix --ext .json,.js,.jsx,.ts,.tsx .",
     "analyze": "ANALYZE=true next build"
