@@ -15,7 +15,7 @@ spring-boot1 = "1.5.22.RELEASE"
 spring-boot2 = "2.7.4"
 
 [boms]
-armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.20.2" }
+armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.20.3" }
 jackson = { module = "com.fasterxml.jackson:jackson-bom", version = "2.13.4" }
 junit5 = { module = "org.junit:junit-bom", version = "5.9.1" }
 
