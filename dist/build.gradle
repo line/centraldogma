@@ -83,7 +83,7 @@ task copyClientBinaries(group: 'Build',
         description: "Copies client binaries into ${project.ext.relativeDistDir}/bin/native", type: Copy) {
     dependsOn tasks.downloadClientBinaries
 
-    from project.ext.cliDownloadDir
+    from "${project.ext.cliDownloadDir}/$cliVersion"
     into "${project.ext.distDir}/bin/native"
     fileMode 0755
 }
