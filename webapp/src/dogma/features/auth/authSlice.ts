@@ -18,9 +18,14 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 import qs from 'qs';
 import { UserDto } from 'dogma/features/auth/UserDto';
-import { getSessionId, goToLoginPage, removeSessionId } from 'dogma/features/auth/Authorized';
+import {
+  getSessionId,
+  goToLoginPage,
+  goToPage,
+  removeSessionId,
+  setSessionId,
+} from 'dogma/features/auth/Authorized';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
-import Router from 'next/router';
 
 const getUser = createAsyncThunk('/auth/user', async () => {
   // TODO(ikhoon): Just use fetch API?
@@ -38,12 +43,12 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
     validateStatus: (status) => status < 500,
   });
   if (response.status === HttpStatusCode.Ok) {
-    localStorage.setItem('sessionId', response.data.access_token);
+    setSessionId(response.data.access_token);
     await thunkAPI.dispatch(getUser());
     // TODO(ikhoon):
     //  - Link to the landing page
     //  - Link back to the original referer?
-    Router.push('/project');
+    goToPage('/project');
     return true;
   }
 
@@ -58,8 +63,8 @@ export const logout = createAsyncThunk('/auth/logout', async () => {
     validateStatus: (status) => status < 500,
   });
   if (response.status === HttpStatusCode.Ok) {
-    localStorage.removeItem('sessionId');
-    Router.push('/');
+    removeSessionId();
+    goToLoginPage();
     return true;
   }
   alert('Problem logging out. Please try again.');
@@ -139,6 +144,12 @@ export const authSlice = createSlice({
       })
       .addCase(getUser.fulfilled, (status, action) => {
         status.user = action.payload;
+      })
+      .addCase(logout.fulfilled, (status, action) => {
+        if (action.payload) {
+          status.isAuthenticated = false;
+          status.user = null;
+        }
       });
   },
 });

@@ -22,16 +22,31 @@ import axios from 'axios';
 import { Layout } from 'dogma/common/components/Layout';
 import Router from 'next/router';
 
+export function setSessionId(id: string) {
+  if (typeof window !== 'undefined') {
+     localStorage.setItem('sessionId', id);
+  }
+}
+
 export function getSessionId(): string | null {
-  return localStorage.getItem('sessionId');
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('sessionId');
+  }
+  return null;
 }
 
 export function removeSessionId() {
-  localStorage.removeItem('sessionId');
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('sessionId');
+  }
 }
 
 export function goToLoginPage() {
-  Router.push('/')
+  Router.push('/');
+}
+
+export function goToPage(page: string) {
+  Router.push(page);
 }
 
 axios.interceptors.request.use((config) => {
