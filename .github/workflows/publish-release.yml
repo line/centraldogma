@@ -46,6 +46,6 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/build/${{ github.ref }}.tgz
-          asset_name: ${{ github.ref }}.tgz
+          file: dist/build/${{ github.ref_name }}.tgz
+          asset_name: ${{ github.ref_name }}.tgz
           tag: ${{ github.ref }}
