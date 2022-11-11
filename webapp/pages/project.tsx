@@ -1,6 +1,7 @@
 import Head from 'next/head';
 import { Projects } from 'dogma/features/project/Projects';
-import { GetStaticProps } from 'next';
+import { Layout } from 'dogma/common/components/Layout';
+import { ReactElement } from 'react';
 
 const Project = () => {
   return (
@@ -8,13 +9,17 @@ const Project = () => {
       <Head>
           <link rel="icon" href="favicon.ico" />
           <meta
-            name="Central Dogma"
-            content="Keeping your config ... "
+            name="Central Dogma | Project"
+            content="Projects ... "
           />
       </Head>
       <Projects />
     </>
   )
 };
+
+Project.getLayout = function getLayout(page: ReactElement) {
+  return <Layout>{page}</Layout>;
+}
 
 export default Project;

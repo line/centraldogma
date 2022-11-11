@@ -3,17 +3,28 @@ import { store } from 'dogma/store';
 import { Provider } from 'react-redux';
 import { ChakraProvider, theme } from '@chakra-ui/react';
 import { Authorized } from "dogma/features/auth/Authorized";
+import { NextPage } from "next";
+import { ReactElement, ReactNode } from "react";
 
-function MyApp({ Component, pageProps }: AppProps) {
+export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
+  getLayout?: (page: ReactElement) => ReactNode
+}
+
+type AppPropsWithLayout = AppProps & {
+  Component: NextPageWithLayout
+}
+
+function MyApp({ Component, pageProps }: AppPropsWithLayout) {
+    const getLayout = Component.getLayout ?? ((page) => page)
     return (
             <Provider store={store}>
                 <ChakraProvider theme={theme}>
                     <Authorized>
-                        <Component {...pageProps} />
+                        { getLayout(<Component {...pageProps} />)}
                     </Authorized>
                 </ChakraProvider>
             </Provider>
-    );
+    ); 
 }
 
 export default MyApp;

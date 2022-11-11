@@ -64,7 +64,7 @@ export const Authorized = (props: { children: ReactNode }) => {
 
   const auth = useAppSelector((state) => state.auth);
   if (auth.isAuthenticated) {
-    return <Layout>{props.children}</Layout>;
+    return <>{props.children}</>;
   }
 
   dispatch(validateSession());
