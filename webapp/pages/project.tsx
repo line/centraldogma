@@ -2,7 +2,7 @@ import Head from 'next/head';
 import { Projects } from 'dogma/features/project/Projects';
 import { GetStaticProps } from 'next';
 
-const HomePage = () => {
+const Project = () => {
   return (
     <>
       <Head>
@@ -17,12 +17,4 @@ const HomePage = () => {
   )
 };
 
-export const getStaticProps: GetStaticProps = async (_context) => {
-  return {
-    props: {
-      protected: true
-    }
-  }
-}
-
-export default HomePage;
+export default Project;

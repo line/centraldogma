@@ -14,7 +14,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { validateSession } from 'dogma/features/auth/authSlice';
 
@@ -59,16 +59,12 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
-export const Authorized = () => {
+export const Authorized = (props: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
 
   const auth = useAppSelector((state) => state.auth);
-
   if (auth.isAuthenticated) {
-    return (
-      <Layout>
-      </Layout>
-    );
+    return <Layout>{props.children}</Layout>;
   }
 
   dispatch(validateSession());
