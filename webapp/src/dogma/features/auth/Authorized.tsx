@@ -19,7 +19,6 @@ import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { validateSession } from 'dogma/features/auth/authSlice';
 
 import axios from 'axios';
-import { Layout } from 'dogma/common/components/Layout';
 import Router from 'next/router';
 
 export function setSessionId(id: string) {
