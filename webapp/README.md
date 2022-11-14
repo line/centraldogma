@@ -23,5 +23,5 @@ Login with ID `foo` and password `bar`
 npm install
 
 # Start Next.js dev server and automatically reload changed files
-npm run dev
+npm run develop
 ```

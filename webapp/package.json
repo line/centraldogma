@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "next dev",
+    "develop": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "tsc --project . && eslint --ext .json,.js,.jsx,.ts,.tsx .",
