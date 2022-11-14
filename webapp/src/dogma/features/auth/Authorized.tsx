@@ -14,13 +14,14 @@
  * under the License.
  */
 
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { validateSession } from 'dogma/features/auth/authSlice';
 
 import axios from 'axios';
 import Router, { useRouter } from 'next/router';
-import { WEB_AUTH_LOGIN } from '../../../../pages/_app';
+
+export const WEB_AUTH_LOGIN = '/web/auth/login';
 
 export function setSessionId(id: string) {
   if (typeof window !== 'undefined') {
@@ -71,5 +72,5 @@ export const Authorized = (props: { children: ReactNode }) => {
     return <>{props.children}</>;
   }
   dispatch(validateSession());
-  return null;
+  return <></>;
 };
