@@ -48,7 +48,7 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
     // TODO(ikhoon):
     //  - Link to the landing page
     //  - Link back to the original referer?
-    goToPage('/project');
+    goToPage('/app/projects');
     return true;
   }
 

@@ -21,6 +21,8 @@ import { validateSession } from 'dogma/features/auth/authSlice';
 import axios from 'axios';
 import Router, { useRouter } from 'next/router';
 
+const WEB_AUTH_LOGIN = '/web/auth/login';
+
 export function setSessionId(id: string) {
   if (typeof window !== 'undefined') {
      localStorage.setItem('sessionId', id);
@@ -41,7 +43,7 @@ export function removeSessionId() {
 }
 
 export function goToLoginPage() {
-  Router.push('/');
+  Router.push(WEB_AUTH_LOGIN);
 }
 
 export function goToPage(page: string) {
@@ -66,7 +68,7 @@ export const Authorized = (props: { children: ReactNode }) => {
     return <>{props.children}</>;
   }
   const router = useRouter();
-  if (router.pathname === '/') {
+  if (router.pathname === WEB_AUTH_LOGIN) {
     return <>{props.children}</>;
   }
   dispatch(validateSession());

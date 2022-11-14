@@ -48,7 +48,7 @@ interface TopMenu {
 }
 
 // TODO(ikhoon): Add more top menus
-const Links: TopMenu[] = [{ name: 'Projects', path: '/project' }];
+const Links: TopMenu[] = [{ name: 'Projects', path: '/app/projects' }];
 
 const NavLink = ({ link, children }: { link: string; children: ReactNode }) => (
   <Link
