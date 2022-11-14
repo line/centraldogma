@@ -19,7 +19,7 @@ import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { validateSession } from 'dogma/features/auth/authSlice';
 
 import axios from 'axios';
-import Router from 'next/router';
+import Router, { useRouter } from 'next/router';
 
 export function setSessionId(id: string) {
   if (typeof window !== 'undefined') {
@@ -65,7 +65,10 @@ export const Authorized = (props: { children: ReactNode }) => {
   if (auth.isAuthenticated) {
     return <>{props.children}</>;
   }
-
+  const router = useRouter();
+  if (router.pathname === '/') {
+    return <>{props.children}</>;
+  }
   dispatch(validateSession());
   return null;
 };
