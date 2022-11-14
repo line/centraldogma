@@ -15,7 +15,7 @@
  */
 
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { getSessionId } from 'dogma/features/auth/Authorized';
+import { getSessionId } from 'dogma/features/auth/util';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 
 export const apiSlice = createApi({

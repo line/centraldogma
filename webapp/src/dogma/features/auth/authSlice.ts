@@ -18,14 +18,9 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 import qs from 'qs';
 import { UserDto } from 'dogma/features/auth/UserDto';
-import {
-  getSessionId,
-  goToLoginPage,
-  goToPage,
-  removeSessionId,
-  setSessionId,
-} from 'dogma/features/auth/Authorized';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
+import { setSessionId, removeSessionId, getSessionId, WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
+import Router from 'next/router';
 
 const getUser = createAsyncThunk('/auth/user', async () => {
   // TODO(ikhoon): Just use fetch API?
@@ -48,12 +43,12 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
     // TODO(ikhoon):
     //  - Link to the landing page
     //  - Link back to the original referer?
-    goToPage('/app/projects');
+    Router.push('/app/projects');
     return true;
   }
 
   // TODO(ikhoon): Replace alert with Modal
-  // eslint-disable-next-line no-alert
+
   alert('Cannot sign in Central Dogma web console. Please check your account and password again.');
   return false;
 });
@@ -64,7 +59,6 @@ export const logout = createAsyncThunk('/auth/logout', async () => {
   });
   if (response.status === HttpStatusCode.Ok) {
     removeSessionId();
-    goToLoginPage();
     return true;
   }
   alert('Problem logging out. Please try again.');
@@ -88,7 +82,7 @@ export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/vali
 
   if (response.status === HttpStatusCode.Ok) {
     if (getSessionId() === null) {
-      goToLoginPage();
+      Router.push(WEB_AUTH_LOGIN);
       return { isAuthorized: false };
     }
 
@@ -103,13 +97,13 @@ export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/vali
 
     if (userResponse.status === HttpStatusCode.Unauthorized) {
       removeSessionId();
-      goToLoginPage();
+      Router.push(WEB_AUTH_LOGIN);
       return { isAuthorized: false };
     }
   }
 
   // Should not reach here in the normal case.
-  goToLoginPage();
+  Router.push(WEB_AUTH_LOGIN);
   return { isAuthorized: false };
 });
 

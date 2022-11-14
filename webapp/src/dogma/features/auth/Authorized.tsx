@@ -19,36 +19,8 @@ import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { validateSession } from 'dogma/features/auth/authSlice';
 
 import axios from 'axios';
-import Router, { useRouter } from 'next/router';
-
-export const WEB_AUTH_LOGIN = '/web/auth/login';
-
-export function setSessionId(id: string) {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('sessionId', id);
-  }
-}
-
-export function getSessionId(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('sessionId');
-  }
-  return null;
-}
-
-export function removeSessionId() {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('sessionId');
-  }
-}
-
-export function goToLoginPage() {
-  Router.push(WEB_AUTH_LOGIN);
-}
-
-export function goToPage(page: string) {
-  Router.push(page);
-}
+import { useRouter } from 'next/router';
+import { getSessionId, WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
 
 axios.interceptors.request.use((config) => {
   if (config.url !== '/api/v1/login') {
