@@ -20,12 +20,11 @@ import { validateSession } from 'dogma/features/auth/authSlice';
 
 import axios from 'axios';
 import Router, { useRouter } from 'next/router';
-
-const WEB_AUTH_LOGIN = '/web/auth/login';
+import { WEB_AUTH_LOGIN } from '../../../../pages/_app';
 
 export function setSessionId(id: string) {
   if (typeof window !== 'undefined') {
-     localStorage.setItem('sessionId', id);
+    localStorage.setItem('sessionId', id);
   }
 }
 
