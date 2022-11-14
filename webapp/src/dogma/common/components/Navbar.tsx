@@ -38,7 +38,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { AddIcon, CloseIcon, HamburgerIcon, MoonIcon, SearchIcon, SunIcon } from '@chakra-ui/icons';
-import {default as RouteLink} from 'next/link';
+import { default as RouteLink } from 'next/link';
 import { useAppSelector, useAppDispatch } from 'dogma/store';
 import { logout } from 'dogma/features/auth/authSlice';
 

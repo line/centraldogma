@@ -4,16 +4,14 @@ import { useAppSelector } from 'dogma/store';
 const LoginPage = () => {
   const user = useAppSelector((state) => state.auth.user);
   return (
-  <>
-    <Head>
+    <>
+      <Head>
         <link rel="icon" href="/static/favicon.ico" />
-        <meta
-          name="Central Dogma | Login"
-          content="Login ..."
-        />
-    </Head>
-    {user ? <h1>You've logged in.</h1> : <LoginForm />}
-  </>
-)};
+        <meta name="Central Dogma | Login" content="Login ..." />
+      </Head>
+      {user ? <h1>You are logged in.</h1> : <LoginForm />}
+    </>
+  );
+};
 
 export default LoginPage;

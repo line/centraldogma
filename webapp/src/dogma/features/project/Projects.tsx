@@ -18,7 +18,7 @@ import React from 'react';
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { Heading, Link, Table, TableCaption, TableContainer, Tbody, Td, Tr } from '@chakra-ui/react';
-import {default as RoutingLink} from 'next/link';
+import { default as RoutingLink } from 'next/link';
 import { SettingsIcon } from '@chakra-ui/icons';
 
 // TODO(ikhoon):
@@ -27,7 +27,6 @@ import { SettingsIcon } from '@chakra-ui/icons';
 //   - Paginate projects?
 export const Projects = () => {
   const { data: projects, error, isLoading } = useGetProjectsQuery();
-  
   return (
     <Deferred isLoading={isLoading} error={error}>
       {() => {
