@@ -19,8 +19,7 @@ import axios from 'axios';
 import qs from 'qs';
 import { UserDto } from 'dogma/features/auth/UserDto';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
-import { setSessionId, removeSessionId, getSessionId, WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
-import Router from 'next/router';
+import { setSessionId, removeSessionId, getSessionId } from 'dogma/features/auth/util';
 
 const getUser = createAsyncThunk('/auth/user', async () => {
   // TODO(ikhoon): Just use fetch API?
@@ -40,15 +39,10 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
   if (response.status === HttpStatusCode.Ok) {
     setSessionId(response.data.access_token);
     await thunkAPI.dispatch(getUser());
-    // TODO(ikhoon):
-    //  - Link to the landing page
-    //  - Link back to the original referer?
-    Router.push('/app/projects');
     return true;
   }
 
   // TODO(ikhoon): Replace alert with Modal
-
   alert('Cannot sign in Central Dogma web console. Please check your account and password again.');
   return false;
 });
@@ -82,7 +76,6 @@ export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/vali
 
   if (response.status === HttpStatusCode.Ok) {
     if (getSessionId() === null) {
-      Router.push(WEB_AUTH_LOGIN);
       return { isAuthorized: false };
     }
 
@@ -97,13 +90,11 @@ export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/vali
 
     if (userResponse.status === HttpStatusCode.Unauthorized) {
       removeSessionId();
-      Router.push(WEB_AUTH_LOGIN);
       return { isAuthorized: false };
     }
   }
 
   // Should not reach here in the normal case.
-  Router.push(WEB_AUTH_LOGIN);
   return { isAuthorized: false };
 });
 

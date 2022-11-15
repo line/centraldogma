@@ -14,10 +14,9 @@
  * under the License.
  */
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { validateSession } from 'dogma/features/auth/authSlice';
-
 import axios from 'axios';
 import { useRouter } from 'next/router';
 import { getSessionId, WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
@@ -34,7 +33,9 @@ axios.interceptors.request.use((config) => {
 
 export const Authorized = (props: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
-
+  useEffect(() => {
+    dispatch(validateSession());
+  }, [dispatch]);
   const auth = useAppSelector((state) => state.auth);
   if (auth.isAuthenticated) {
     return <>{props.children}</>;
@@ -43,6 +44,8 @@ export const Authorized = (props: { children: ReactNode }) => {
   if (router.pathname === WEB_AUTH_LOGIN) {
     return <>{props.children}</>;
   }
-  dispatch(validateSession());
+  if (typeof window !== 'undefined') {
+    router.push(WEB_AUTH_LOGIN);
+  }
   return <></>;
 };
