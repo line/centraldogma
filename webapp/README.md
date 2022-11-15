@@ -16,6 +16,11 @@ Login with ID `foo` and password `bar`
 ./gradlew simpleTestShiroServer
 ```
 
+## Testing without a test server (using API Routes instead)
+
+Rename `pages/temp` to `pages/api`
+The webapp will treat anything under this directory as a route.
+
 ## Building and start a client application
 
 ```sh
