@@ -44,7 +44,7 @@ export const Authorized = (props: { children: ReactNode }) => {
   if (router.pathname === WEB_AUTH_LOGIN) {
     return <>{props.children}</>;
   }
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !auth.isAuthenticated) {
     router.push(WEB_AUTH_LOGIN);
   }
   return <></>;

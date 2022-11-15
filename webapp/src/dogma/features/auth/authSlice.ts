@@ -65,7 +65,7 @@ interface UserSessionResponse {
 }
 
 export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/validate_session', async () => {
-  const response = await axios.get('/api/v1/security_enabled', {
+  const response = await axios.get('/security_enabled', {
     validateStatus: (status) => status < 500,
   });
   if (response.status === HttpStatusCode.NotFound) {
