@@ -37,10 +37,10 @@ export const Authorized = (props: { children: ReactNode }) => {
     dispatch(validateSession());
   }, [dispatch]);
   const auth = useAppSelector((state) => state.auth);
+  const router = useRouter();
   if (auth.isAuthenticated) {
     return <>{props.children}</>;
   }
-  const router = useRouter();
   if (router.pathname === WEB_AUTH_LOGIN) {
     return <>{props.children}</>;
   }
