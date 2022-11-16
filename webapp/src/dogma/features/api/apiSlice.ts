@@ -21,7 +21,7 @@ import { ProjectDto } from 'dogma/features/project/ProjectDto';
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: '/api',
+    baseUrl: `${process.env.NEXT_PUBLIC_HOST}/api`,
     prepareHeaders: (headers) => {
       const sessionId = getSessionId() || 'anonymous';
       headers.set('Authorization', `Bearer ${sessionId}`);

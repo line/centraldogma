@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "develop": "next dev",
+    "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

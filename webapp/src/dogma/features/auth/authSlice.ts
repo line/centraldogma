@@ -23,7 +23,7 @@ import { setSessionId, removeSessionId, getSessionId } from 'dogma/features/auth
 
 const getUser = createAsyncThunk('/auth/user', async () => {
   // TODO(ikhoon): Just use fetch API?
-  const response = await axios.get('/api/v0/users/me');
+  const response = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`);
   return response.data as UserDto;
 });
 
@@ -33,7 +33,7 @@ export interface LoginParams {
 }
 
 export const login = createAsyncThunk('/auth/login', async (params: LoginParams, thunkAPI) => {
-  const response = await axios.post('/api/v1/login', qs.stringify(params), {
+  const response = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/login`, qs.stringify(params), {
     validateStatus: (status) => status < 500,
   });
   if (response.status === HttpStatusCode.Ok) {
@@ -48,7 +48,7 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
 });
 
 export const logout = createAsyncThunk('/auth/logout', async () => {
-  const response = await axios.post('/api/v1/logout', null, {
+  const response = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/logout`, null, {
     validateStatus: (status) => status < 500,
   });
   if (response.status === HttpStatusCode.Ok) {
@@ -65,7 +65,7 @@ interface UserSessionResponse {
 }
 
 export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/validate_session', async () => {
-  const response = await axios.get('/security_enabled', {
+  const response = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/security_enabled`, {
     validateStatus: (status) => status < 500,
   });
   if (response.status === HttpStatusCode.NotFound) {
@@ -79,7 +79,7 @@ export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/vali
       return { isAuthorized: false };
     }
 
-    const userResponse = await axios.get('/api/v0/users/me', {
+    const userResponse = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`, {
       validateStatus: (status) => status < 500,
     });
 
