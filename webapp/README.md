@@ -16,17 +16,17 @@ Login with ID `foo` and password `bar`
 ./gradlew simpleTestShiroServer
 ```
 
-## Testing without a test server (using API Routes instead)
-
-Rename `pages/temp` to `pages/api`
-The webapp will treat anything under this directory as a route.
-
 ## Building and start a client application
 
 ```sh
 # Install dependencies
 npm install
 
-# Start Next.js dev server and automatically reload changed files
+# Communicate with a test Central Dogma server
+# An alias for `"NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" next dev"`
 npm run develop
+
+# Use nextjs server and the API routes under pages/api
+# An alias for `NEXT_PUBLIC_HOST='' next dev`
+npm run mock
 ```

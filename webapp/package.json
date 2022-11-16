@@ -5,6 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" next dev",
+    "mock": "NEXT_PUBLIC_HOST='' next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
