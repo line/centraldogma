@@ -4,8 +4,8 @@ plugins {
 }
 
 node {
-    version = '16.17.0'
-    npmVersion = '8.15.0'
+    version = '18.11.0'
+    npmVersion = '9.1.1'
     download = true
     npmInstallCommand = "ci"
 
@@ -21,6 +21,25 @@ dependencies {
     testImplementation(project(":server"))
     testImplementation(project(":server-auth:shiro"))
     testImplementation libs.shiro.core
+}
+
+task buildWeb(type: NpmTask) {
+    dependsOn tasks.npmInstall
+    args = ['run', 'build']
+    inputs.dir('src')
+    inputs.dir('pages')
+    inputs.file('package.json')
+    inputs.file('package-lock.json')
+    inputs.file('next.config.js')
+
+    outputs.dir('build/web')
+}
+
+task copyWeb(type: Copy) {
+    dependsOn buildWeb
+
+    from 'build/web'
+    into 'build/javaweb/com/linecorp/centraldogma/webapp'
 }
 
 task simpleTestServer(type: JavaExec) {
