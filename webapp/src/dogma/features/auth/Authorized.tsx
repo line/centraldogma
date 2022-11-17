@@ -14,25 +14,12 @@
  * under the License.
  */
 
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { ReactNode, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { validateSession } from 'dogma/features/auth/authSlice';
-
 import axios from 'axios';
-import { Layout } from 'dogma/common/components/Layout';
-
-export function getSessionId(): string | null {
-  return localStorage.getItem('sessionId');
-}
-
-export function removeSessionId() {
-  localStorage.removeItem('sessionId');
-}
-
-export function goToLoginPage() {
-  window.location.href = '/link/auth/login';
-}
+import { useRouter } from 'next/router';
+import { getSessionId, WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
 
 axios.interceptors.request.use((config) => {
   if (config.url !== '/api/v1/login') {
@@ -44,19 +31,21 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
-export const Authorized = () => {
+export const Authorized = (props: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
-
+  useEffect(() => {
+    dispatch(validateSession());
+  }, [dispatch]);
   const auth = useAppSelector((state) => state.auth);
-
+  const router = useRouter();
   if (auth.isAuthenticated) {
-    return (
-      <Layout>
-        <Outlet />
-      </Layout>
-    );
+    return <>{props.children}</>;
   }
-
-  dispatch(validateSession());
-  return null;
+  if (router.pathname === WEB_AUTH_LOGIN) {
+    return <>{props.children}</>;
+  }
+  if (typeof window !== 'undefined' && !auth.isAuthenticated) {
+    router.push(WEB_AUTH_LOGIN);
+  }
+  return <></>;
 };

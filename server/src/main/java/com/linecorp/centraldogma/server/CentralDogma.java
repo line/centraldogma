@@ -69,6 +69,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
+import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -90,12 +91,14 @@ import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
+import com.linecorp.armeria.server.cors.CorsService;
 import com.linecorp.armeria.server.docs.DocService;
 import com.linecorp.armeria.server.encoding.EncodingService;
 import com.linecorp.armeria.server.file.FileService;
 import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
+import com.linecorp.armeria.server.logging.LoggingService;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.metric.PrometheusExpositionService;
 import com.linecorp.armeria.server.thrift.THttpService;
@@ -665,6 +668,7 @@ public class CentralDogma implements AutoCloseable {
                     .andThen(AuthService.newDecorator(new CsrfTokenAuthorizer()));
         }
 
+        sb.decorator(LoggingService.newDecorator());
         final SafeProjectManager safePm = new SafeProjectManager(pm);
 
         final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(safePm);
@@ -752,6 +756,13 @@ public class CentralDogma implements AutoCloseable {
                                        .cacheControl(ServerCacheControl.REVALIDATED)
                                        .build());
         }
+
+        // TODO(ikhoon): A temporary workaround to allow CORS requests.
+        //               Add a way to CORS configurations to CentralDogmaBuilder and CentralDogmaConfig.
+        sb.decorator(CorsService.builderForAnyOrigin()
+                                .allowRequestMethods(HttpMethod.knownMethods())
+                                .allowAllRequestHeaders(true)
+                                .newDecorator());
     }
 
     private static Function<? super HttpService, EncodingService> contentEncodingDecorator() {

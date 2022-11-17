@@ -17,14 +17,13 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 import qs from 'qs';
-import { history } from 'dogma/store';
 import { UserDto } from 'dogma/features/auth/UserDto';
-import { getSessionId, goToLoginPage, removeSessionId } from 'dogma/features/auth/Authorized';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
+import { setSessionId, removeSessionId, getSessionId } from 'dogma/features/auth/util';
 
 const getUser = createAsyncThunk('/auth/user', async () => {
   // TODO(ikhoon): Just use fetch API?
-  const response = await axios.get('/api/v0/users/me');
+  const response = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`);
   return response.data as UserDto;
 });
 
@@ -34,22 +33,29 @@ export interface LoginParams {
 }
 
 export const login = createAsyncThunk('/auth/login', async (params: LoginParams, thunkAPI) => {
-  const response = await axios.post('/api/v1/login', qs.stringify(params), {
+  const response = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/login`, qs.stringify(params), {
     validateStatus: (status) => status < 500,
   });
   if (response.status === HttpStatusCode.Ok) {
-    localStorage.setItem('sessionId', response.data.access_token);
-    thunkAPI.dispatch(getUser());
-    // TODO(ikhoon):
-    //  - Link to the landing page
-    //  - Link back to the original referer?
-    history.push('/');
+    setSessionId(response.data.access_token);
+    await thunkAPI.dispatch(getUser());
     return true;
   }
 
   // TODO(ikhoon): Replace alert with Modal
-  // eslint-disable-next-line no-alert
   alert('Cannot sign in Central Dogma web console. Please check your account and password again.');
+  return false;
+});
+
+export const logout = createAsyncThunk('/auth/logout', async () => {
+  const response = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/logout`, null, {
+    validateStatus: (status) => status < 500,
+  });
+  if (response.status === HttpStatusCode.Ok) {
+    removeSessionId();
+    return true;
+  }
+  alert('Problem logging out. Please try again.');
   return false;
 });
 
@@ -59,7 +65,7 @@ interface UserSessionResponse {
 }
 
 export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/validate_session', async () => {
-  const response = await axios.get('/security_enabled', {
+  const response = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/security_enabled`, {
     validateStatus: (status) => status < 500,
   });
   if (response.status === HttpStatusCode.NotFound) {
@@ -70,11 +76,10 @@ export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/vali
 
   if (response.status === HttpStatusCode.Ok) {
     if (getSessionId() === null) {
-      goToLoginPage();
       return { isAuthorized: false };
     }
 
-    const userResponse = await axios.get('/api/v0/users/me', {
+    const userResponse = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`, {
       validateStatus: (status) => status < 500,
     });
 
@@ -85,13 +90,11 @@ export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/vali
 
     if (userResponse.status === HttpStatusCode.Unauthorized) {
       removeSessionId();
-      goToLoginPage();
       return { isAuthorized: false };
     }
   }
 
   // Should not reach here in the normal case.
-  goToLoginPage();
   return { isAuthorized: false };
 });
 
@@ -126,6 +129,12 @@ export const authSlice = createSlice({
       })
       .addCase(getUser.fulfilled, (status, action) => {
         status.user = action.payload;
+      })
+      .addCase(logout.fulfilled, (status, action) => {
+        if (action.payload) {
+          status.isAuthenticated = false;
+          status.user = null;
+        }
       });
   },
 });
