@@ -100,6 +100,7 @@ import com.linecorp.armeria.server.file.HttpFile;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import com.linecorp.armeria.server.healthcheck.SettableHealthChecker;
 import com.linecorp.armeria.server.logging.AccessLogWriter;
+import com.linecorp.armeria.server.logging.LoggingService;
 import com.linecorp.armeria.server.metric.MetricCollectingService;
 import com.linecorp.armeria.server.metric.PrometheusExpositionService;
 import com.linecorp.armeria.server.thrift.THttpService;
@@ -677,6 +678,7 @@ public class CentralDogma implements AutoCloseable {
                     .andThen(AuthService.newDecorator(new CsrfTokenAuthorizer()));
         }
 
+        sb.decorator(LoggingService.newDecorator());
         final SafeProjectManager safePm = new SafeProjectManager(pm);
 
         final HttpApiRequestConverter v1RequestConverter = new HttpApiRequestConverter(safePm);
@@ -764,6 +766,13 @@ public class CentralDogma implements AutoCloseable {
                                        .cacheControl(ServerCacheControl.REVALIDATED)
                                        .build());
         }
+
+        // TODO(ikhoon): A temporary workaround to allow CORS requests.
+        //               Add a way to CORS configurations to CentralDogmaBuilder and CentralDogmaConfig.
+        sb.decorator(CorsService.builderForAnyOrigin()
+                                .allowRequestMethods(HttpMethod.knownMethods())
+                                .allowAllRequestHeaders(true)
+                                .newDecorator());
     }
 
     private static void configCors(ServerBuilder sb, @Nullable CorsConfig corsConfig) {

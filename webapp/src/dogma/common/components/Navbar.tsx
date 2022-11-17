@@ -38,8 +38,9 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { AddIcon, CloseIcon, HamburgerIcon, MoonIcon, SearchIcon, SunIcon } from '@chakra-ui/icons';
-import { Link as RouteLink } from 'react-router-dom';
-import { useAppSelector } from 'dogma/store';
+import { default as RouteLink } from 'next/link';
+import { useAppSelector, useAppDispatch } from 'dogma/store';
+import { logout } from 'dogma/features/auth/authSlice';
 
 interface TopMenu {
   name: string;
@@ -59,7 +60,7 @@ const NavLink = ({ link, children }: { link: string; children: ReactNode }) => (
       textDecoration: 'none',
       bg: useColorModeValue('gray.200', 'gray.700'),
     }}
-    to={link}
+    href={link}
   >
     {children}
   </Link>
@@ -69,6 +70,7 @@ export const Navbar = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { colorMode, toggleColorMode } = useColorMode();
   const user = useAppSelector((state) => state.auth.user);
+  const dispatch = useAppDispatch();
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
@@ -116,7 +118,7 @@ export const Navbar = () => {
                 <MenuItem>Application tokens</MenuItem>
                 <MenuItem>Add ...</MenuItem>
                 <MenuDivider />
-                <MenuItem>Log out</MenuItem>
+                <MenuItem onClick={() => dispatch(logout())}>Log out</MenuItem>
               </MenuList>
             </Menu>
           ) : (

@@ -4,11 +4,13 @@
   "license": "Apache-2.0",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" webpack --watch",
-    "develop": "cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" webpack serve --open",
-    "build": "cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" webpack",
-    "lint": "tsc --project . && eslint --ext .json,.js,.jsx,.ts,.tsx .",
-    "lint:fix": "eslint --fix --ext .json,.js,.jsx,.ts,.tsx ."
+    "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" next dev",
+    "mock": "NEXT_PUBLIC_HOST='' next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix --ext .json,.js,.jsx,.ts,.tsx .",
+    "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.0.10",
@@ -17,17 +19,17 @@
     "@emotion/styled": "^11.10.4",
     "@reduxjs/toolkit": "^1.8.5",
     "axios": "^1.1.3",
+    "eslint-config-next": "^13.0.2",
     "formik": "^2.2.9",
     "framer-motion": "^7.3.6",
-    "history": "^5.3.0",
+    "next": "^13.0.2",
     "qs": "^6.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-redux": "^8.0.4",
-    "react-router-dom": "^6.4.2",
-    "redux-first-history": "^5.1.1"
+    "react-redux": "^8.0.4"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^13.0.2",
     "@types/node": "^18.7.18",
     "@types/react": "^18.0.20",
     "@types/react-dom": "^18.0.6",
@@ -41,9 +43,10 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-json": "^3.1.0",
     "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-next": "^0.0.0",
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-react": "^7.29.4",
-    "eslint-plugin-react-hooks": "^4.4.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "html-webpack-plugin": "^5.5.0",
     "ts-loader": "^9.4.1",
     "ts-node": "^10.9.1",

@@ -22,6 +22,11 @@ Login with ID `foo` and password `bar`
 # Install dependencies
 npm install
 
-# Start Next.js dev server and automatically reload changed files
-npm run dev
+# Communicate with a test Central Dogma server
+# An alias for `"NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" next dev"`
+npm run develop
+
+# Use nextjs server and the API routes under pages/api
+# An alias for `NEXT_PUBLIC_HOST='' next dev`
+npm run mock
 ```
