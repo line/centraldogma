@@ -49,7 +49,7 @@ export const Authorized = (props: { children: ReactNode }) => {
   }
   if (typeof window !== 'undefined' && !auth.isAuthenticated) {
     if (process.env.NEXT_PUBLIC_HOST) {
-      router.push(`${process.env.NEXT_PUBLIC_HOST}/link/auth/login/?return_to=http://127.0.0.1:3000`);
+      router.push(`${process.env.NEXT_PUBLIC_HOST}/link/auth/login/?return_to=${window.location.origin}`);
     } else {
       router.push(`/link/auth/login/`);
     }
