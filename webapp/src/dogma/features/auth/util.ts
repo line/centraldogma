@@ -1,4 +1,4 @@
-export const WEB_AUTH_LOGIN = '/web/auth/login/';
+export const WEB_AUTH_LOGIN = '/web/auth/login';
 
 export function setSessionId(id: string) {
   if (typeof window !== 'undefined') {
