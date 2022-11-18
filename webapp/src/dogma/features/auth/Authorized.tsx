@@ -38,6 +38,9 @@ export const Authorized = (props: { children: ReactNode }) => {
   }, [dispatch]);
   const auth = useAppSelector((state) => state.auth);
   const router = useRouter();
+  if (!auth.ready) {
+    return <p>Loading...</p>;
+  }
   if (auth.isAuthenticated) {
     return <>{props.children}</>;
   }

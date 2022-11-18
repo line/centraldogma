@@ -27,7 +27,6 @@ task buildWeb(type: NpmTask) {
     dependsOn tasks.npmInstall
     args = ['run', 'build']
     inputs.dir('src')
-    inputs.dir('pages')
     inputs.file('package.json')
     inputs.file('package-lock.json')
     inputs.file('next.config.js')

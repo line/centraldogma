@@ -101,11 +101,13 @@ export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/vali
 export interface AuthState {
   isAuthenticated: boolean;
   user: UserDto;
+  ready: boolean;
 }
 
 const initialState: AuthState = {
   isAuthenticated: false,
   user: null,
+  ready: false,
 };
 
 export const authSlice = createSlice({
@@ -126,6 +128,7 @@ export const authSlice = createSlice({
         if (action.payload.user != null) {
           status.user = action.payload.user;
         }
+        status.ready = true;
       })
       .addCase(getUser.fulfilled, (status, action) => {
         status.user = action.payload;
