@@ -744,22 +744,16 @@ public class CentralDogma implements AutoCloseable {
                 sb.service(LOGIN_PATH, authProvider.webLoginService());
                 // Will redirect to /web/auth/logout by default.
                 sb.service(LOGOUT_PATH, authProvider.webLogoutService());
-
-                sb.serviceUnder(BUILTIN_WEB_BASE_PATH, new OrElseDefaultHttpFileService(
-                        FileService.builder(CentralDogma.class.getClassLoader(), "auth-webapp")
-                                   .cacheControl(ServerCacheControl.REVALIDATED)
-                                   .build(),
-                        "/index.html"));
             }
-
-            sb.serviceUnder("/legacy-web",
-                            FileService.builder(CentralDogma.class.getClassLoader(), "webapp")
-                                       .cacheControl(ServerCacheControl.REVALIDATED)
-                                       .build());
 
             sb.serviceUnder("/",
                             FileService.builder(CentralDogma.class.getClassLoader(),
                                                 "com/linecorp/centraldogma/webapp")
+                                       .cacheControl(ServerCacheControl.REVALIDATED)
+                                       .build());
+
+            sb.serviceUnder("/legacy-web",
+                            FileService.builder(CentralDogma.class.getClassLoader(), "webapp")
                                        .cacheControl(ServerCacheControl.REVALIDATED)
                                        .build());
         }
