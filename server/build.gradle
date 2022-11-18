@@ -69,6 +69,14 @@ if (rootProject.ext.testJavaVersion >= 16) {
     }
 }
 
+if (!rootProject.hasProperty('noWeb')) {
+    sourceSets {
+        main {
+            output.dir project(':webapp').file('build/javaweb'), builtBy: ':webapp:copyWeb'
+        }
+    }
+}
+
 def clientRelocations = [
         'ace-builds/src-min-noconflict/',
         'angular/angular.min.js',

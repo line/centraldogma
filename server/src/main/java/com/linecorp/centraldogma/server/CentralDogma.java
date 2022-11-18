@@ -761,8 +761,15 @@ public class CentralDogma implements AutoCloseable {
                                    .build(),
                         "/index.html"));
             }
-            sb.serviceUnder("/",
+
+            sb.serviceUnder("/legacy-web",
                             FileService.builder(CentralDogma.class.getClassLoader(), "webapp")
+                                       .cacheControl(ServerCacheControl.REVALIDATED)
+                                       .build());
+
+            sb.serviceUnder("/",
+                            FileService.builder(CentralDogma.class.getClassLoader(),
+                                                "com/linecorp/centraldogma/webapp")
                                        .cacheControl(ServerCacheControl.REVALIDATED)
                                        .build());
         }
