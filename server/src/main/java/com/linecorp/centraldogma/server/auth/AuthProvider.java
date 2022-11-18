@@ -88,9 +88,15 @@ public interface AuthProvider {
      */
     default HttpService webLoginService() {
         // Redirect to the default page: /link/auth/login -> /web/auth/login/
-        return (ctx, req) -> HttpResponse.of(
-                ResponseHeaders.of(HttpStatus.MOVED_PERMANENTLY, HttpHeaderNames.LOCATION,
-                                   BUILTIN_WEB_LOGIN_PATH));
+        return (ctx, req) -> {
+            String returnTo = ctx.queryParam("return_to");
+            if (returnTo != null) {
+                returnTo += BUILTIN_WEB_LOGIN_PATH;
+            } else {
+                returnTo = BUILTIN_WEB_LOGIN_PATH;
+            }
+            return HttpResponse.ofRedirect(HttpStatus.MOVED_PERMANENTLY, returnTo);
+        };
     }
 
     /**
@@ -99,10 +105,16 @@ public interface AuthProvider {
      * {@value BUILTIN_WEB_LOGOUT_PATH}.
      */
     default HttpService webLogoutService() {
-        // Redirect to the default page: /link/auth/logout -> /web/auth/logout
-        return (ctx, req) -> HttpResponse.of(
-                ResponseHeaders.of(HttpStatus.MOVED_PERMANENTLY, HttpHeaderNames.LOCATION,
-                                   BUILTIN_WEB_LOGOUT_PATH));
+        // Redirect to the default page: /link/auth/logout -> /web/auth/logout/
+        return (ctx, req) -> {
+            String returnTo = ctx.queryParam("return_to");
+            if (returnTo != null) {
+                returnTo += BUILTIN_WEB_LOGOUT_PATH;
+            } else {
+                returnTo = BUILTIN_WEB_LOGOUT_PATH;
+            }
+            return HttpResponse.ofRedirect(HttpStatus.MOVED_PERMANENTLY, returnTo);
+        };
     }
 
     /**

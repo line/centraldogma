@@ -23,6 +23,7 @@ dependencies {
     testImplementation libs.shiro.core
 }
 
+// Set `NEXT_ENV=development` to `.env.local` file to produce source maps for the minified JavaScript files.
 task buildWeb(type: NpmTask) {
     dependsOn tasks.npmInstall
     args = ['run', 'build']
