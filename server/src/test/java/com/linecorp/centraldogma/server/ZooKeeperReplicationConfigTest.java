@@ -35,7 +35,7 @@ class ZooKeeperReplicationConfigTest {
                 6, new ZooKeeperServerConfig("7", 8, 9, 10, /* groupId */ null, /* weight */ 1));
         final ZooKeeperReplicationConfig cfg = new ZooKeeperReplicationConfig(
                 1, servers,
-                "11", ImmutableMap.of("12", "13", "14", "15"), 16, 17, 18, 19);
+                "11", ImmutableMap.of("12", "13", "14", "15", "quorumListenOnAllIPs", "true"), 16, 17, 18, 19);
         assertJsonConversion(cfg, ReplicationConfig.class,
                              '{' +
                              "  \"method\": \"ZOOKEEPER\"," +
@@ -58,7 +58,8 @@ class ZooKeeperReplicationConfigTest {
                              "      \"weight\": 1" +
                              "    }" +
                              "  }," + // NB: secret is not serialized.
-                             "  \"additionalProperties\": { \"12\": \"13\", \"14\": \"15\" }," +
+                             "  \"additionalProperties\":" +
+                             " { \"12\": \"13\", \"14\": \"15\", \"quorumListenOnAllIPs\": \"true\"  }," +
                              "  \"timeoutMillis\": 16," +
                              "  \"numWorkers\": 17," +
                              "  \"maxLogCount\": 18," +
