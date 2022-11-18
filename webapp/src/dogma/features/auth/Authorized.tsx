@@ -48,7 +48,7 @@ export const Authorized = (props: { children: ReactNode }) => {
     return <>{props.children}</>;
   }
   if (typeof window !== 'undefined' && !auth.isAuthenticated) {
-    router.push(`${process.env.NEXT_PUBLIC_HOST}/link/auth/login`);
+    router.push(`${process.env.NEXT_PUBLIC_HOST}/link/auth/login/`);
   }
   return <></>;
 };
