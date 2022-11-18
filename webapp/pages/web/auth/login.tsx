@@ -9,7 +9,7 @@ const LoginPage = () => {
   const user = useAppSelector((state) => state.auth.user);
   useEffect(() => {
     if (user) {
-      router.push('/app/projects');
+      router.push('/');
     }
   }, [router, user]);
   return (
