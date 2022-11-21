@@ -47,18 +47,6 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
   return false;
 });
 
-export const logout = createAsyncThunk('/auth/logout', async () => {
-  const response = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/logout`, null, {
-    validateStatus: (status) => status < 500,
-  });
-  if (response.status === HttpStatusCode.Ok) {
-    removeSessionId();
-    return true;
-  }
-  alert('Problem logging out. Please try again.');
-  return false;
-});
-
 interface UserSessionResponse {
   isAuthorized: boolean;
   user?: UserDto;
@@ -113,7 +101,16 @@ const initialState: AuthState = {
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
-  reducers: {},
+  reducers: {
+    logout: (state) => {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('sessionId');
+      }
+      state.isAuthenticated = false;
+      state.user = null;
+      state.ready = true;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(login.fulfilled, (status, action) => {
@@ -132,14 +129,9 @@ export const authSlice = createSlice({
       })
       .addCase(getUser.fulfilled, (status, action) => {
         status.user = action.payload;
-      })
-      .addCase(logout.fulfilled, (status, action) => {
-        if (action.payload) {
-          status.isAuthenticated = false;
-          status.user = null;
-        }
       });
   },
 });
 
+export const { logout } = authSlice.actions;
 export const authReducer = authSlice.reducer;
