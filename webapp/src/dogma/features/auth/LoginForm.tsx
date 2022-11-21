@@ -18,12 +18,8 @@ import React from 'react';
 
 import { Box, Button, Flex, FormControl, Input, VStack } from '@chakra-ui/react';
 import { Field, Form, Formik } from 'formik';
-import { login } from 'dogma/features/auth/authSlice';
-import { useAppDispatch } from 'dogma/store';
 
-export const LoginForm = () => {
-  const dispatch = useAppDispatch();
-
+export const LoginForm = (props: { handleSubmit: (arg0: { username: string; password: string }) => void }) => {
   // Redux => state
   // TODO(ikhoon): Beautify
   return (
@@ -34,9 +30,7 @@ export const LoginForm = () => {
             username: '',
             password: '',
           }}
-          onSubmit={(values) => {
-            dispatch(login({ username: values.username, password: values.password }));
-          }}
+          onSubmit={(values) => props.handleSubmit({ username: values.username, password: values.password })}
         >
           <Form>
             <VStack spacing={4} align="flex-start">

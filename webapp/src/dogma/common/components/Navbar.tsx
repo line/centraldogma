@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import {
   Avatar,
   Box,
@@ -40,7 +40,8 @@ import {
 import { AddIcon, CloseIcon, HamburgerIcon, MoonIcon, SearchIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
 import { useAppSelector, useAppDispatch } from 'dogma/store';
-import { logout } from 'dogma/features/auth/authSlice';
+import { getUser, logout } from 'dogma/features/auth/authSlice';
+import { useRouter } from 'next/router';
 
 interface TopMenu {
   name: string;
@@ -69,8 +70,17 @@ const NavLink = ({ link, children }: { link: string; children: ReactNode }) => (
 export const Navbar = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { colorMode, toggleColorMode } = useColorMode();
+  const sessionId = useAppSelector((state) => state.auth.sessionId);
   const user = useAppSelector((state) => state.auth.user);
   const dispatch = useAppDispatch();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (sessionId) {
+      dispatch(getUser());
+    }
+  }, [sessionId, dispatch]);
+
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
@@ -118,7 +128,20 @@ export const Navbar = () => {
                 <MenuItem>Application tokens</MenuItem>
                 <MenuItem>Add ...</MenuItem>
                 <MenuDivider />
-                <MenuItem onClick={() => dispatch(logout())}>Log out</MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    dispatch(logout());
+                    if (typeof window !== 'undefined') {
+                      router.push(
+                        process.env.NEXT_PUBLIC_HOST
+                          ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login/?return_to=${window.location.origin}`
+                          : `/link/auth/login/`,
+                      );
+                    }
+                  }}
+                >
+                  Log out
+                </MenuItem>
               </MenuList>
             </Menu>
           ) : (

@@ -17,13 +17,26 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { UserDto } from 'dogma/features/auth/UserDto';
-import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
-import { removeSessionId, getSessionId } from 'dogma/features/auth/util';
 
-const getUser = createAsyncThunk('/auth/user', async () => {
-  // TODO(ikhoon): Just use fetch API?
-  const response = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`);
-  return response.data as UserDto;
+export const getUser = createAsyncThunk('/auth/user', async (_, { getState, rejectWithValue }) => {
+  try {
+    const { auth } = getState() as { auth: AuthState };
+    if (!auth.sessionId) {
+      return rejectWithValue('Session id not provided');
+    }
+    const { data } = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`, {
+      headers: {
+        Authorization: `Bearer ${auth.sessionId}`,
+      },
+    });
+    return data as UserDto;
+  } catch (error) {
+    if (error.response && error.response.data.message) {
+      return rejectWithValue(error.response.data.message);
+    } else {
+      return rejectWithValue(error.message);
+    }
+  }
 });
 
 export interface LoginParams {
@@ -33,7 +46,12 @@ export interface LoginParams {
 
 export const login = createAsyncThunk('/auth/login', async (params: LoginParams, { rejectWithValue }) => {
   try {
-    const { data } = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/login`, params);
+    const config = {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    };
+    const { data } = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/login`, params, config);
     return data;
   } catch (error) {
     // TODO(ikhoon): Replace alert with Modal
@@ -51,48 +69,32 @@ interface UserSessionResponse {
   user?: UserDto;
 }
 
-export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/validate_session', async () => {
-  const response = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/security_enabled`, {
-    validateStatus: (status) => status < 500,
-  });
-  if (response.status === HttpStatusCode.NotFound) {
-    // Anonymous mode
-    removeSessionId();
-    return { isAuthorized: true };
-  }
-
-  if (response.status === HttpStatusCode.Ok) {
-    if (getSessionId() === null) {
-      return { isAuthorized: false };
+export const validateSession = createAsyncThunk<UserSessionResponse>(
+  '/auth/validate_session',
+  async (_, { rejectWithValue }) => {
+    try {
+      await axios.get(`${process.env.NEXT_PUBLIC_HOST}/security_enabled`);
+    } catch (error) {
+      if (error.response && error.response.data.message) {
+        return rejectWithValue(error.response.data.message);
+      } else {
+        return rejectWithValue(error.message);
+      }
     }
+  },
+);
 
-    const userResponse = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`, {
-      validateStatus: (status) => status < 500,
-    });
-
-    if (userResponse.status === HttpStatusCode.Ok) {
-      // The current session ID is valid. Login is not required.
-      return { isAuthorized: true, user: userResponse.data as UserDto };
-    }
-
-    if (userResponse.status === HttpStatusCode.Unauthorized) {
-      removeSessionId();
-      return { isAuthorized: false };
-    }
-  }
-
-  // Should not reach here in the normal case.
-  return { isAuthorized: false };
-});
-
+const sessionId = typeof window !== 'undefined' && localStorage.getItem('sessionId');
 export interface AuthState {
-  isAuthenticated: boolean;
+  isInAnonymousMode: boolean;
+  sessionId: string;
   user: UserDto;
   ready: boolean;
 }
 
 const initialState: AuthState = {
-  isAuthenticated: false,
+  isInAnonymousMode: true,
+  sessionId,
   user: null,
   ready: false,
 };
@@ -105,7 +107,8 @@ export const authSlice = createSlice({
       if (typeof window !== 'undefined') {
         localStorage.removeItem('sessionId');
       }
-      state.isAuthenticated = false;
+      state.isInAnonymousMode = true;
+      state.sessionId = '';
       state.user = null;
       state.ready = true;
     },
@@ -116,26 +119,35 @@ export const authSlice = createSlice({
         if (typeof window !== 'undefined') {
           localStorage.setItem('sessionId', payload.access_token);
         }
-        state.isAuthenticated = true;
-        getUser();
+        state.sessionId = payload.access_token;
       })
       .addCase(login.rejected, (state) => {
-        state.isAuthenticated = false;
         if (typeof window !== 'undefined') {
           localStorage.removeItem('sessionId');
         }
+        state.sessionId = '';
       })
-      .addCase(validateSession.fulfilled, (status, action) => {
-        if (action.payload.isAuthorized) {
-          status.isAuthenticated = true;
-        }
-        if (action.payload.user != null) {
-          status.user = action.payload.user;
-        }
-        status.ready = true;
+      .addCase(validateSession.fulfilled, (state) => {
+        state.isInAnonymousMode = false;
+        state.ready = true;
       })
-      .addCase(getUser.fulfilled, (status, action) => {
-        status.user = action.payload;
+      .addCase(validateSession.rejected, (state) => {
+        state.isInAnonymousMode = true;
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('sessionId');
+        }
+        state.sessionId = '';
+        state.ready = true;
+      })
+      .addCase(getUser.fulfilled, (state, { payload }) => {
+        state.user = payload;
+      })
+      .addCase(getUser.rejected, (state) => {
+        state.user = null;
+        state.sessionId = '';
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('sessionId');
+        }
       });
   },
 });
