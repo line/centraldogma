@@ -15,7 +15,6 @@
  */
 
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { getSessionId } from 'dogma/features/auth/util';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 
 export const apiSlice = createApi({
@@ -23,7 +22,7 @@ export const apiSlice = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: `${process.env.NEXT_PUBLIC_HOST}/api`,
     prepareHeaders: (headers) => {
-      const sessionId = getSessionId() || 'anonymous';
+      const sessionId = (typeof window !== 'undefined' && localStorage.getItem('sessionId')) || 'anonymous';
       headers.set('Authorization', `Bearer ${sessionId}`);
       return headers;
     },
