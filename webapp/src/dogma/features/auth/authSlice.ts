@@ -16,10 +16,9 @@
 
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
-import qs from 'qs';
 import { UserDto } from 'dogma/features/auth/UserDto';
 import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
-import { setSessionId, removeSessionId, getSessionId } from 'dogma/features/auth/util';
+import { removeSessionId, getSessionId } from 'dogma/features/auth/util';
 
 const getUser = createAsyncThunk('/auth/user', async () => {
   // TODO(ikhoon): Just use fetch API?
@@ -32,19 +31,19 @@ export interface LoginParams {
   password: string;
 }
 
-export const login = createAsyncThunk('/auth/login', async (params: LoginParams, thunkAPI) => {
-  const response = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/login`, qs.stringify(params), {
-    validateStatus: (status) => status < 500,
-  });
-  if (response.status === HttpStatusCode.Ok) {
-    setSessionId(response.data.access_token);
-    await thunkAPI.dispatch(getUser());
-    return true;
+export const login = createAsyncThunk('/auth/login', async (params: LoginParams, { rejectWithValue }) => {
+  try {
+    const { data } = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/login`, params);
+    return data;
+  } catch (error) {
+    // TODO(ikhoon): Replace alert with Modal
+    alert('Cannot sign in Central Dogma web console. Please check your account and password again.');
+    if (error.response && error.response.data.message) {
+      return rejectWithValue(error.response.data.message);
+    } else {
+      return rejectWithValue(error.message);
+    }
   }
-
-  // TODO(ikhoon): Replace alert with Modal
-  alert('Cannot sign in Central Dogma web console. Please check your account and password again.');
-  return false;
 });
 
 interface UserSessionResponse {
@@ -113,9 +112,17 @@ export const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(login.fulfilled, (status, action) => {
-        if (action.payload != null) {
-          status.isAuthenticated = true;
+      .addCase(login.fulfilled, (state, { payload }) => {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('sessionId', payload.access_token);
+        }
+        state.isAuthenticated = true;
+        getUser();
+      })
+      .addCase(login.rejected, (state) => {
+        state.isAuthenticated = false;
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('sessionId');
         }
       })
       .addCase(validateSession.fulfilled, (status, action) => {
