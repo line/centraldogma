@@ -23,7 +23,7 @@ import { isFulfilled } from '@reduxjs/toolkit';
 
 export const Authorized = (props: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
-  const auth = useAppSelector((state) => state.auth);
+  const { ready, isInAnonymousMode, user } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     const validateSession = async () => {
@@ -36,10 +36,10 @@ export const Authorized = (props: { children: ReactNode }) => {
   }, [dispatch]);
 
   const router = useRouter();
-  if (!auth.ready) {
+  if (!ready) {
     return <p>Loading...</p>;
   }
-  if (auth.isInAnonymousMode || router.pathname === WEB_AUTH_LOGIN || auth.user) {
+  if (isInAnonymousMode || router.pathname === WEB_AUTH_LOGIN || user) {
     return <>{props.children}</>;
   }
   if (typeof window !== 'undefined') {

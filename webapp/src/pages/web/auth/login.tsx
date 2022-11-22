@@ -7,8 +7,7 @@ import { login } from 'dogma/features/auth/authSlice';
 
 const LoginPage = () => {
   const router = useRouter();
-  const isInAnonymousMode = useAppSelector((state) => state.auth.isInAnonymousMode);
-  const sessionId = useAppSelector((state) => state.auth.sessionId);
+  const { isInAnonymousMode, sessionId } = useAppSelector((state) => state.auth);
   useEffect(() => {
     if (isInAnonymousMode || sessionId) {
       router.push('/');
