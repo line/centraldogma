@@ -69,8 +69,8 @@ interface UserSessionResponse {
   user?: UserDto;
 }
 
-export const validateSession = createAsyncThunk<UserSessionResponse>(
-  '/auth/validate_session',
+export const checkSecurityEnabled = createAsyncThunk<UserSessionResponse>(
+  '/auth/security_enabled',
   async (_, { rejectWithValue }) => {
     try {
       await axios.get(`${process.env.NEXT_PUBLIC_HOST}/security_enabled`);
@@ -127,11 +127,10 @@ export const authSlice = createSlice({
         }
         state.sessionId = '';
       })
-      .addCase(validateSession.fulfilled, (state) => {
+      .addCase(checkSecurityEnabled.fulfilled, (state) => {
         state.isInAnonymousMode = false;
-        state.ready = true;
       })
-      .addCase(validateSession.rejected, (state) => {
+      .addCase(checkSecurityEnabled.rejected, (state) => {
         state.isInAnonymousMode = true;
         if (typeof window !== 'undefined') {
           localStorage.removeItem('sessionId');
@@ -141,9 +140,11 @@ export const authSlice = createSlice({
       })
       .addCase(getUser.fulfilled, (state, { payload }) => {
         state.user = payload;
+        state.ready = true;
       })
       .addCase(getUser.rejected, (state) => {
         state.user = null;
+        state.ready = true;
         state.sessionId = '';
         if (typeof window !== 'undefined') {
           localStorage.removeItem('sessionId');

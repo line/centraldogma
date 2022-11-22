@@ -16,22 +16,30 @@
 
 import { ReactNode, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from 'dogma/store';
-import { validateSession } from 'dogma/features/auth/authSlice';
+import { getUser, checkSecurityEnabled } from 'dogma/features/auth/authSlice';
 import { useRouter } from 'next/router';
 import { WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
+import { isFulfilled } from '@reduxjs/toolkit';
 
 export const Authorized = (props: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
-  useEffect(() => {
-    dispatch(validateSession());
-  }, [dispatch]);
   const auth = useAppSelector((state) => state.auth);
-  const sessionId = useAppSelector((state) => state.auth.sessionId);
+
+  useEffect(() => {
+    const validateSession = async () => {
+      const action = await dispatch(checkSecurityEnabled());
+      if (isFulfilled(action)) {
+        dispatch(getUser());
+      }
+    };
+    validateSession();
+  }, [dispatch]);
+
   const router = useRouter();
   if (!auth.ready) {
     return <p>Loading...</p>;
   }
-  if (auth.isInAnonymousMode || router.pathname === WEB_AUTH_LOGIN || sessionId) {
+  if (auth.isInAnonymousMode || router.pathname === WEB_AUTH_LOGIN || auth.user) {
     return <>{props.children}</>;
   }
   if (typeof window !== 'undefined') {
