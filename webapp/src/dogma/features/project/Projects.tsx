@@ -13,8 +13,6 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
-import React from 'react';
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { Heading, Link, Table, TableCaption, TableContainer, Tbody, Td, Tr } from '@chakra-ui/react';
