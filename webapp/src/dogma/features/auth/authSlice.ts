@@ -18,13 +18,13 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { UserDto } from 'dogma/features/auth/UserDto';
 import axios from 'axios';
 
-axios.defaults.baseURL = process.env.NEXT_PUBLIC_HOST;
+axios.defaults.baseURL = process.env.NEXT_PUBLIC_HOST || '';
 
 export const getUser = createAsyncThunk('/auth/user', async (_, { getState, rejectWithValue }) => {
   try {
     const { auth } = getState() as { auth: AuthState };
     if (!auth.sessionId) {
-      return rejectWithValue('Session id not provided');
+      return rejectWithValue('Login required');
     }
     const { data } = await axios.get(`/api/v0/users/me`, {
       headers: {
