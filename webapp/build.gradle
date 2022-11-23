@@ -55,3 +55,21 @@ task simpleTestShiroServer(type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     main = "com.linecorp.centraldogma.webapp.ShiroCentralDogmaTestServer"
 }
+
+if (!rootProject.hasProperty('noLint')) {
+    task eslint(type: NpmTask) {
+        dependsOn tasks.npmInstall
+
+        args = ['run', 'lint']
+
+        inputs.dir('src')
+        inputs.file('package.json')
+        inputs.file('package-lock.json')
+        inputs.file('next.config.js')
+        outputs.upToDateWhen { true }
+    }
+
+    Task lintTask = project.ext.getLintTask()
+    lintTask.dependsOn(tasks.eslint)
+    tasks.buildWeb.dependsOn(lintTask)
+}

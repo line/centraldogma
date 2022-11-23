@@ -16,43 +16,38 @@
 
 import { ReactNode, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from 'dogma/store';
-import { validateSession } from 'dogma/features/auth/authSlice';
-import axios from 'axios';
+import { getUser, checkSecurityEnabled } from 'dogma/features/auth/authSlice';
 import { useRouter } from 'next/router';
-import { getSessionId, WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
-
-axios.interceptors.request.use((config) => {
-  if (config.url !== '/api/v1/login') {
-    const sessionId = getSessionId();
-    if (sessionId != null) {
-      config.headers.Authorization = `Bearer ${sessionId}`;
-    }
-  }
-  return config;
-});
+import { WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
+import { isFulfilled } from '@reduxjs/toolkit';
 
 export const Authorized = (props: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
+  const { ready, isInAnonymousMode, user } = useAppSelector((state) => state.auth);
+
   useEffect(() => {
-    dispatch(validateSession());
+    const validateSession = async () => {
+      const action = await dispatch(checkSecurityEnabled());
+      if (isFulfilled(action)) {
+        dispatch(getUser());
+      }
+    };
+    validateSession();
   }, [dispatch]);
-  const auth = useAppSelector((state) => state.auth);
+
   const router = useRouter();
-  if (!auth.ready) {
+  if (!ready) {
     return <p>Loading...</p>;
   }
-  if (auth.isAuthenticated) {
+  if (isInAnonymousMode || router.pathname === WEB_AUTH_LOGIN || user) {
     return <>{props.children}</>;
   }
-  if (router.pathname === WEB_AUTH_LOGIN) {
-    return <>{props.children}</>;
-  }
-  if (typeof window !== 'undefined' && !auth.isAuthenticated) {
-    if (process.env.NEXT_PUBLIC_HOST) {
-      router.push(`${process.env.NEXT_PUBLIC_HOST}/link/auth/login/?return_to=${window.location.origin}`);
-    } else {
-      router.push(`/link/auth/login/`);
-    }
+  if (typeof window !== 'undefined') {
+    router.push(
+      process.env.NEXT_PUBLIC_HOST
+        ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login/?return_to=${window.location.origin}`
+        : `/link/auth/login/`,
+    );
   }
   return <></>;
 };

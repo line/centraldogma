@@ -15,16 +15,16 @@
  */
 
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { getSessionId } from 'dogma/features/auth/util';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
+import { AuthState } from '../auth/authSlice';
 
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: `${process.env.NEXT_PUBLIC_HOST}/api`,
-    prepareHeaders: (headers) => {
-      const sessionId = getSessionId() || 'anonymous';
-      headers.set('Authorization', `Bearer ${sessionId}`);
+    baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/api`,
+    prepareHeaders: (headers, { getState }) => {
+      const { auth } = getState() as { auth: AuthState };
+      headers.set('Authorization', `Bearer ${auth.sessionId}`);
       return headers;
     },
   }),

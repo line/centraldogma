@@ -23,7 +23,6 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.HEALTH_CHECK_PATH;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.METRICS_PATH;
-import static com.linecorp.centraldogma.server.auth.AuthProvider.BUILTIN_WEB_BASE_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_API_ROUTES;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGIN_PATH;
 import static com.linecorp.centraldogma.server.auth.AuthProvider.LOGOUT_API_ROUTES;
@@ -118,7 +117,6 @@ import com.linecorp.centraldogma.server.internal.admin.auth.CachedSessionManager
 import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.ExpiredSessionDeletingSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.FileBasedSessionManager;
-import com.linecorp.centraldogma.server.internal.admin.auth.OrElseDefaultHttpFileService;
 import com.linecorp.centraldogma.server.internal.admin.auth.SessionTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.service.DefaultLogoutService;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;

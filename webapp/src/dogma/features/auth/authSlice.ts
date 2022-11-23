@@ -15,16 +15,33 @@
  */
 
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import axios from 'axios';
-import qs from 'qs';
 import { UserDto } from 'dogma/features/auth/UserDto';
-import { HttpStatusCode } from 'dogma/features/api/HttpStatusCode';
-import { setSessionId, removeSessionId, getSessionId } from 'dogma/features/auth/util';
+import axios from 'axios';
 
-const getUser = createAsyncThunk('/auth/user', async () => {
-  // TODO(ikhoon): Just use fetch API?
-  const response = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`);
-  return response.data as UserDto;
+axios.defaults.baseURL = process.env.NEXT_PUBLIC_HOST || '';
+
+export const getUser = createAsyncThunk('/auth/user', async (_, { getState, rejectWithValue }) => {
+  try {
+    const { auth } = getState() as { auth: AuthState };
+    if (!auth.sessionId) {
+      return rejectWithValue('Login required');
+    }
+    const { data } = await axios.get(`/api/v0/users/me`, {
+      headers: {
+        Authorization: `Bearer ${auth.sessionId}`,
+      },
+    });
+    return data as UserDto;
+  } catch (error) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sessionId');
+    }
+    if (error.response && error.response.data.message) {
+      return rejectWithValue(error.response.data.message);
+    } else {
+      return rejectWithValue(error.message);
+    }
+  }
 });
 
 export interface LoginParams {
@@ -32,80 +49,80 @@ export interface LoginParams {
   password: string;
 }
 
-export const login = createAsyncThunk('/auth/login', async (params: LoginParams, thunkAPI) => {
-  const response = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/login`, qs.stringify(params), {
-    validateStatus: (status) => status < 500,
-  });
-  if (response.status === HttpStatusCode.Ok) {
-    setSessionId(response.data.access_token);
-    await thunkAPI.dispatch(getUser());
-    return true;
-  }
-
-  // TODO(ikhoon): Replace alert with Modal
-  alert('Cannot sign in Central Dogma web console. Please check your account and password again.');
-  return false;
-});
-
-export const logout = createAsyncThunk('/auth/logout', async () => {
-  const response = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/logout`, null, {
-    validateStatus: (status) => status < 500,
-  });
-  if (response.status === HttpStatusCode.Ok) {
-    removeSessionId();
-    return true;
-  }
-  alert('Problem logging out. Please try again.');
-  return false;
-});
-
-interface UserSessionResponse {
-  isAuthorized: boolean;
-  user?: UserDto;
-}
-
-export const validateSession = createAsyncThunk<UserSessionResponse>('/auth/validate_session', async () => {
-  const response = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/security_enabled`, {
-    validateStatus: (status) => status < 500,
-  });
-  if (response.status === HttpStatusCode.NotFound) {
-    // Anonymous mode
-    removeSessionId();
-    return { isAuthorized: true };
-  }
-
-  if (response.status === HttpStatusCode.Ok) {
-    if (getSessionId() === null) {
-      return { isAuthorized: false };
-    }
-
-    const userResponse = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`, {
-      validateStatus: (status) => status < 500,
+export const login = createAsyncThunk('/auth/login', async (params: LoginParams, { rejectWithValue }) => {
+  try {
+    const { data } = await axios.post(`/api/v1/login`, params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
     });
-
-    if (userResponse.status === HttpStatusCode.Ok) {
-      // The current session ID is valid. Login is not required.
-      return { isAuthorized: true, user: userResponse.data as UserDto };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sessionId', data.access_token);
     }
-
-    if (userResponse.status === HttpStatusCode.Unauthorized) {
-      removeSessionId();
-      return { isAuthorized: false };
+    return data;
+  } catch (error) {
+    // TODO(ikhoon): Replace alert with Modal
+    alert('Cannot sign in Central Dogma web console. Please check your account and password again.');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sessionId');
+    }
+    if (error.response && error.response.data.message) {
+      return rejectWithValue(error.response.data.message);
+    } else {
+      return rejectWithValue(error.message);
     }
   }
-
-  // Should not reach here in the normal case.
-  return { isAuthorized: false };
 });
 
+export const checkSecurityEnabled = createAsyncThunk(
+  '/auth/securityEnabled',
+  async (_, { rejectWithValue }) => {
+    try {
+      await axios.get(`/security_enabled`);
+    } catch (error) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('sessionId');
+      }
+      if (error.response && error.response.data.message) {
+        return rejectWithValue(error.response.data.message);
+      } else {
+        return rejectWithValue(error.message);
+      }
+    }
+  },
+);
+
+export const logout = createAsyncThunk('/auth/logout', async (_, { getState, rejectWithValue }) => {
+  try {
+    const { auth } = getState() as { auth: AuthState };
+    await axios.post(`/api/v1/logout`, _, {
+      headers: {
+        Authorization: `Bearer ${auth.sessionId}`,
+      },
+    });
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sessionId');
+    }
+  } catch (error) {
+    if (error.response && error.response.data.message) {
+      return rejectWithValue(error.response.data.message);
+    } else {
+      return rejectWithValue(error.message);
+    }
+  }
+});
+
+const sessionId = typeof window !== 'undefined' && localStorage.getItem('sessionId');
 export interface AuthState {
-  isAuthenticated: boolean;
+  isInAnonymousMode: boolean;
+  sessionId: string;
   user: UserDto;
   ready: boolean;
 }
 
 const initialState: AuthState = {
-  isAuthenticated: false,
+  isInAnonymousMode: true,
+  sessionId,
   user: null,
   ready: false,
 };
@@ -116,28 +133,33 @@ export const authSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(login.fulfilled, (status, action) => {
-        if (action.payload != null) {
-          status.isAuthenticated = true;
-        }
+      .addCase(login.fulfilled, (state, { payload }) => {
+        state.sessionId = payload.access_token;
       })
-      .addCase(validateSession.fulfilled, (status, action) => {
-        if (action.payload.isAuthorized) {
-          status.isAuthenticated = true;
-        }
-        if (action.payload.user != null) {
-          status.user = action.payload.user;
-        }
-        status.ready = true;
+      .addCase(login.rejected, (state) => {
+        state.sessionId = '';
       })
-      .addCase(getUser.fulfilled, (status, action) => {
-        status.user = action.payload;
+      .addCase(logout.fulfilled, (state) => {
+        state.isInAnonymousMode = true;
+        state.sessionId = '';
+        state.user = null;
       })
-      .addCase(logout.fulfilled, (status, action) => {
-        if (action.payload) {
-          status.isAuthenticated = false;
-          status.user = null;
-        }
+      .addCase(checkSecurityEnabled.fulfilled, (state) => {
+        state.isInAnonymousMode = false;
+      })
+      .addCase(checkSecurityEnabled.rejected, (state) => {
+        state.isInAnonymousMode = true;
+        state.sessionId = '';
+        state.ready = true;
+      })
+      .addCase(getUser.fulfilled, (state, { payload }) => {
+        state.user = payload;
+        state.ready = true;
+      })
+      .addCase(getUser.rejected, (state) => {
+        state.user = null;
+        state.ready = true;
+        state.sessionId = '';
       });
   },
 });
