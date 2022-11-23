@@ -31,6 +31,9 @@ export const getUser = createAsyncThunk('/auth/user', async (_, { getState, reje
     });
     return data as UserDto;
   } catch (error) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sessionId');
+    }
     if (error.response && error.response.data.message) {
       return rejectWithValue(error.response.data.message);
     } else {
@@ -52,10 +55,16 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
       },
     };
     const { data } = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/login`, params, config);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sessionId', data.access_token);
+    }
     return data;
   } catch (error) {
     // TODO(ikhoon): Replace alert with Modal
     alert('Cannot sign in Central Dogma web console. Please check your account and password again.');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sessionId');
+    }
     if (error.response && error.response.data.message) {
       return rejectWithValue(error.response.data.message);
     } else {
@@ -75,6 +84,9 @@ export const checkSecurityEnabled = createAsyncThunk<UserSessionResponse>(
     try {
       await axios.get(`${process.env.NEXT_PUBLIC_HOST}/security_enabled`);
     } catch (error) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('sessionId');
+      }
       if (error.response && error.response.data.message) {
         return rejectWithValue(error.response.data.message);
       } else {
@@ -116,15 +128,9 @@ export const authSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(login.fulfilled, (state, { payload }) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('sessionId', payload.access_token);
-        }
         state.sessionId = payload.access_token;
       })
       .addCase(login.rejected, (state) => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('sessionId');
-        }
         state.sessionId = '';
       })
       .addCase(checkSecurityEnabled.fulfilled, (state) => {
@@ -132,9 +138,6 @@ export const authSlice = createSlice({
       })
       .addCase(checkSecurityEnabled.rejected, (state) => {
         state.isInAnonymousMode = true;
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('sessionId');
-        }
         state.sessionId = '';
         state.ready = true;
       })
@@ -146,9 +149,6 @@ export const authSlice = createSlice({
         state.user = null;
         state.ready = true;
         state.sessionId = '';
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('sessionId');
-        }
       });
   },
 });
