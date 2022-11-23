@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import { Projects } from 'dogma/features/project/Projects';
 
-const Project = () => {
+const ProjectsPage = () => {
   return (
     <>
       <Head>
@@ -13,4 +13,4 @@ const Project = () => {
   );
 };
 
-export default Project;
+export default ProjectsPage;

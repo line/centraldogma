@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { Box, Container } from '@chakra-ui/react';
 // TODO(ikhoon): ESLINT
 import { Navbar } from 'dogma/common/components/Navbar';

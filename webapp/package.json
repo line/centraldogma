@@ -5,8 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "develop": "NEXT_PUBLIC_HOST=\"http://127.0.0.1:36462\" next dev",
-    "mock": "NEXT_PUBLIC_HOST='' next dev",
-    "build": "NEXT_PUBLIC_HOST='' next build && next export -o build/web/",
+    "mock": "next dev",
+    "build": "next build && next export -o build/web/",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix --ext .json,.js,.jsx,.ts,.tsx .",
@@ -23,7 +23,6 @@
     "formik": "^2.2.9",
     "framer-motion": "^7.3.6",
     "next": "^13.0.2",
-    "qs": "^6.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-redux": "^8.0.4"
@@ -47,12 +46,9 @@
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-react": "^7.29.4",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "html-webpack-plugin": "^5.5.0",
     "ts-loader": "^9.4.1",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.1.0",
-    "typescript": "^4.8.3",
-    "webpack-cli": "^4.10.0",
-    "webpack-dev-server": "^4.11.1"
+    "typescript": "^4.8.3"
   }
 }
