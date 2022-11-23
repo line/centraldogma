@@ -15,8 +15,10 @@
  */
 
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import axios from 'axios';
 import { UserDto } from 'dogma/features/auth/UserDto';
+import axios from 'axios';
+
+axios.defaults.baseURL = process.env.NEXT_PUBLIC_HOST;
 
 export const getUser = createAsyncThunk('/auth/user', async (_, { getState, rejectWithValue }) => {
   try {
@@ -24,7 +26,7 @@ export const getUser = createAsyncThunk('/auth/user', async (_, { getState, reje
     if (!auth.sessionId) {
       return rejectWithValue('Session id not provided');
     }
-    const { data } = await axios.get(`${process.env.NEXT_PUBLIC_HOST}/api/v0/users/me`, {
+    const { data } = await axios.get(`/api/v0/users/me`, {
       headers: {
         Authorization: `Bearer ${auth.sessionId}`,
       },
@@ -49,12 +51,11 @@ export interface LoginParams {
 
 export const login = createAsyncThunk('/auth/login', async (params: LoginParams, { rejectWithValue }) => {
   try {
-    const config = {
+    const { data } = await axios.post(`/api/v1/login`, params, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-    };
-    const { data } = await axios.post(`${process.env.NEXT_PUBLIC_HOST}/api/v1/login`, params, config);
+    });
     if (typeof window !== 'undefined') {
       localStorage.setItem('sessionId', data.access_token);
     }
@@ -79,10 +80,10 @@ interface UserSessionResponse {
 }
 
 export const checkSecurityEnabled = createAsyncThunk<UserSessionResponse>(
-  '/auth/security_enabled',
+  '/auth/securityEnabled',
   async (_, { rejectWithValue }) => {
     try {
-      await axios.get(`${process.env.NEXT_PUBLIC_HOST}/security_enabled`);
+      await axios.get(`/security_enabled`);
     } catch (error) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('sessionId');
