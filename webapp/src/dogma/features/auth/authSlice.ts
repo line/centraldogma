@@ -143,7 +143,6 @@ export const authSlice = createSlice({
         state.isInAnonymousMode = true;
         state.sessionId = '';
         state.user = null;
-        state.ready = true;
       })
       .addCase(checkSecurityEnabled.fulfilled, (state) => {
         state.isInAnonymousMode = false;
