@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import {
   Avatar,
   Box,
@@ -121,8 +121,8 @@ export const Navbar = () => {
                 <MenuItem>Add ...</MenuItem>
                 <MenuDivider />
                 <MenuItem
-                  onClick={() => {
-                    dispatch(logout());
+                  onClick={async () => {
+                    await dispatch(logout());
                     if (typeof window !== 'undefined') {
                       router.push(
                         process.env.NEXT_PUBLIC_HOST

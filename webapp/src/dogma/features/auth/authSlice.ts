@@ -74,12 +74,7 @@ export const login = createAsyncThunk('/auth/login', async (params: LoginParams,
   }
 });
 
-interface UserSessionResponse {
-  isAuthorized: boolean;
-  user?: UserDto;
-}
-
-export const checkSecurityEnabled = createAsyncThunk<UserSessionResponse>(
+export const checkSecurityEnabled = createAsyncThunk(
   '/auth/securityEnabled',
   async (_, { rejectWithValue }) => {
     try {
@@ -96,6 +91,26 @@ export const checkSecurityEnabled = createAsyncThunk<UserSessionResponse>(
     }
   },
 );
+
+export const logout = createAsyncThunk('/auth/logout', async (_, { getState, rejectWithValue }) => {
+  try {
+    const { auth } = getState() as { auth: AuthState };
+    await axios.post(`/api/v1/logout`, _, {
+      headers: {
+        Authorization: `Bearer ${auth.sessionId}`,
+      },
+    });
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sessionId');
+    }
+  } catch (error) {
+    if (error.response && error.response.data.message) {
+      return rejectWithValue(error.response.data.message);
+    } else {
+      return rejectWithValue(error.message);
+    }
+  }
+});
 
 const sessionId = typeof window !== 'undefined' && localStorage.getItem('sessionId');
 export interface AuthState {
@@ -115,17 +130,7 @@ const initialState: AuthState = {
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
-  reducers: {
-    logout: (state) => {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('sessionId');
-      }
-      state.isInAnonymousMode = true;
-      state.sessionId = '';
-      state.user = null;
-      state.ready = true;
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
       .addCase(login.fulfilled, (state, { payload }) => {
@@ -133,6 +138,12 @@ export const authSlice = createSlice({
       })
       .addCase(login.rejected, (state) => {
         state.sessionId = '';
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.isInAnonymousMode = true;
+        state.sessionId = '';
+        state.user = null;
+        state.ready = true;
       })
       .addCase(checkSecurityEnabled.fulfilled, (state) => {
         state.isInAnonymousMode = false;
@@ -154,5 +165,4 @@ export const authSlice = createSlice({
   },
 });
 
-export const { logout } = authSlice.actions;
 export const authReducer = authSlice.reducer;
