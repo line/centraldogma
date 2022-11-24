@@ -84,7 +84,7 @@ export const checkSecurityEnabled = createAsyncThunk(
         localStorage.removeItem('sessionId');
       }
       const error: string = ErrorHandler.handle(err);
-      dispatch(createMessageError(error));
+      dispatch(createMessageInfo('Currently in anonymous mode'));
       return rejectWithValue(error);
     }
   },
