@@ -22,8 +22,12 @@ export const messageSlice = createSlice({
       state.errorText = action.payload;
       state.errorType = 'warning';
     },
+    createMessageInfo(state: MessageState, action: PayloadAction<string>) {
+      state.errorText = action.payload;
+      state.errorType = 'info';
+    },
   },
 });
 
-export const { createMessageError, createMessageWarning } = messageSlice.actions;
+export const { createMessageError, createMessageWarning, createMessageInfo } = messageSlice.actions;
 export const messageReducer = messageSlice.reducer;
