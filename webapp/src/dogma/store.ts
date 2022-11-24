@@ -19,9 +19,11 @@ import { authReducer } from 'dogma/features/auth/authSlice';
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import { apiSlice } from 'dogma/features/api/apiSlice';
 import { setupListeners } from '@reduxjs/toolkit/query';
+import { messageReducer } from 'dogma/features/message/messageSlice';
 
 const reducer = {
   auth: authReducer,
+  message: messageReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
 };
 export const store = configureStore({
