@@ -13,23 +13,23 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { ReactNode, useEffect } from 'react';
-import { useToast } from '@chakra-ui/react';
-import { useAppSelector } from 'dogma/store';
+import { ReactNode } from 'react';
 
-export const Deferred = (props: { children: ReactNode }) => {
-  const { errorText, errorType } = useAppSelector((state) => state.message);
-  const toast = useToast();
-  useEffect(() => {
-    if (errorText) {
-      toast({
-        title: errorType,
-        description: errorText,
-        status: errorType,
-        duration: 10000,
-        isClosable: true,
-      });
-    }
-  });
-  return <>{props.children}</>;
+interface LoadingProps {
+  isLoading: boolean;
+  error: any;
+  children: () => ReactNode;
+}
+export const Deferred = (props: LoadingProps) => {
+  if (props.isLoading) {
+    // TODO(ikhoon): Add a loading indicator/spinner.
+    return <div>Loading...</div>;
+  }
+
+  if (props.error) {
+    // TODO(ikhoon): Link to an error page.
+    return <div>Link to an error page</div>;
+  }
+
+  return <div>{props.children()}</div>;
 };

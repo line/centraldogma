@@ -8,7 +8,7 @@ import { ReactElement, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { Layout } from 'dogma/common/components/Layout';
 import { WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
-import { Deferred } from 'dogma/common/components/Deferred';
+import { ErrorWrapper } from 'dogma/common/components/ErrorWrapper';
 
 export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
   getLayout?: (page: ReactElement) => ReactNode;
@@ -27,9 +27,9 @@ const MyApp = ({ Component, pageProps }: AppPropsWithLayout) => {
   return (
     <Provider store={store}>
       <ChakraProvider theme={theme}>
-        <Deferred>
+        <ErrorWrapper>
           <Authorized>{getLayout(<Component {...pageProps} />)}</Authorized>
-        </Deferred>
+        </ErrorWrapper>
       </ChakraProvider>
     </Provider>
   );
