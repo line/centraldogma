@@ -7,8 +7,9 @@ import { NextPage } from 'next';
 import { ReactElement, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { Layout } from 'dogma/common/components/Layout';
-import { WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
 import { ErrorWrapper } from 'dogma/common/components/ErrorWrapper';
+
+const WEB_AUTH_LOGIN = '/web/auth/login';
 
 export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
   getLayout?: (page: ReactElement) => ReactNode;
@@ -24,6 +25,7 @@ const MyApp = ({ Component, pageProps }: AppPropsWithLayout) => {
     router.pathname === WEB_AUTH_LOGIN
       ? (page: ReactElement) => page
       : (page: ReactElement) => <Layout>{page}</Layout>;
+
   return (
     <Provider store={store}>
       <ChakraProvider theme={theme}>

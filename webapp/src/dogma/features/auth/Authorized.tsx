@@ -18,8 +18,9 @@ import { ReactNode, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { getUser, checkSecurityEnabled } from 'dogma/features/auth/authSlice';
 import { useRouter } from 'next/router';
-import { WEB_AUTH_LOGIN } from 'dogma/features/auth/util';
 import { isFulfilled } from '@reduxjs/toolkit';
+
+const WEB_AUTH_LOGIN = '/web/auth/login';
 
 export const Authorized = (props: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
