@@ -65,6 +65,7 @@ exclusions = "org.apache.zookeeper:zookeeper"
 [libraries.curator-test]
 module = "org.apache.curator:curator-test"
 version.ref = "curator"
+exclusions = "org.apache.zookeeper:zookeeper"
 
 [libraries.diffutils]
 module = "com.googlecode.java-diff-utils:diffutils"
