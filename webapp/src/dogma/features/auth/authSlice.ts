@@ -17,10 +17,12 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { UserDto } from 'dogma/features/auth/UserDto';
 import axios from 'axios';
+import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { createMessage } from 'dogma/features/message/messageSlice';
 
 axios.defaults.baseURL = process.env.NEXT_PUBLIC_HOST || '';
 
-export const getUser = createAsyncThunk('/auth/user', async (_, { getState, rejectWithValue }) => {
+export const getUser = createAsyncThunk('/auth/user', async (_, { getState, dispatch, rejectWithValue }) => {
   try {
     const { auth } = getState() as { auth: AuthState };
     if (!auth.sessionId) {
@@ -32,15 +34,13 @@ export const getUser = createAsyncThunk('/auth/user', async (_, { getState, reje
       },
     });
     return data as UserDto;
-  } catch (error) {
+  } catch (err) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('sessionId');
     }
-    if (error.response && error.response.data.message) {
-      return rejectWithValue(error.response.data.message);
-    } else {
-      return rejectWithValue(error.message);
-    }
+    const error: string = ErrorHandler.handle(err);
+    dispatch(createMessage({ title: '', text: error, type: 'error' }));
+    return rejectWithValue(error);
   }
 });
 
@@ -49,50 +49,47 @@ export interface LoginParams {
   password: string;
 }
 
-export const login = createAsyncThunk('/auth/login', async (params: LoginParams, { rejectWithValue }) => {
-  try {
-    const { data } = await axios.post(`/api/v1/login`, params, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('sessionId', data.access_token);
-    }
-    return data;
-  } catch (error) {
-    // TODO(ikhoon): Replace alert with Modal
-    alert('Cannot sign in Central Dogma web console. Please check your account and password again.');
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('sessionId');
-    }
-    if (error.response && error.response.data.message) {
-      return rejectWithValue(error.response.data.message);
-    } else {
-      return rejectWithValue(error.message);
-    }
-  }
-});
-
-export const checkSecurityEnabled = createAsyncThunk(
-  '/auth/securityEnabled',
-  async (_, { rejectWithValue }) => {
+export const login = createAsyncThunk(
+  '/auth/login',
+  async (params: LoginParams, { dispatch, rejectWithValue }) => {
     try {
-      await axios.get(`/security_enabled`);
-    } catch (error) {
+      const { data } = await axios.post(`/api/v1/login`, params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sessionId', data.access_token);
+      }
+      return data;
+    } catch (err) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('sessionId');
       }
-      if (error.response && error.response.data.message) {
-        return rejectWithValue(error.response.data.message);
-      } else {
-        return rejectWithValue(error.message);
-      }
+      const error: string = ErrorHandler.handle(err);
+      dispatch(createMessage({ title: '', text: error, type: 'error' }));
+      return rejectWithValue(error);
     }
   },
 );
 
-export const logout = createAsyncThunk('/auth/logout', async (_, { getState, rejectWithValue }) => {
+export const checkSecurityEnabled = createAsyncThunk(
+  '/auth/securityEnabled',
+  async (_, { dispatch, rejectWithValue }) => {
+    try {
+      await axios.get(`/security_enabled`);
+    } catch (err) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('sessionId');
+      }
+      const error: string = ErrorHandler.handle(err);
+      dispatch(createMessage({ title: '', text: error, type: 'error' }));
+      return rejectWithValue(error);
+    }
+  },
+);
+
+export const logout = createAsyncThunk('/auth/logout', async (_, { getState, dispatch, rejectWithValue }) => {
   try {
     const { auth } = getState() as { auth: AuthState };
     await axios.post(`/api/v1/logout`, _, {
@@ -103,12 +100,10 @@ export const logout = createAsyncThunk('/auth/logout', async (_, { getState, rej
     if (typeof window !== 'undefined') {
       localStorage.removeItem('sessionId');
     }
-  } catch (error) {
-    if (error.response && error.response.data.message) {
-      return rejectWithValue(error.response.data.message);
-    } else {
-      return rejectWithValue(error.message);
-    }
+  } catch (err) {
+    const error: string = ErrorHandler.handle(err);
+    dispatch(createMessage({ title: '', text: error, type: 'error' }));
+    return rejectWithValue(error);
   }
 });
 
@@ -121,7 +116,7 @@ export interface AuthState {
 }
 
 const initialState: AuthState = {
-  isInAnonymousMode: true,
+  isInAnonymousMode: false,
   sessionId,
   user: null,
   ready: false,
@@ -133,6 +128,11 @@ export const authSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      .addCase(checkSecurityEnabled.rejected, (state) => {
+        state.isInAnonymousMode = true;
+        state.sessionId = '';
+        state.ready = true;
+      })
       .addCase(login.fulfilled, (state, { payload }) => {
         state.sessionId = payload.access_token;
       })
@@ -140,17 +140,8 @@ export const authSlice = createSlice({
         state.sessionId = '';
       })
       .addCase(logout.fulfilled, (state) => {
-        state.isInAnonymousMode = true;
         state.sessionId = '';
         state.user = null;
-      })
-      .addCase(checkSecurityEnabled.fulfilled, (state) => {
-        state.isInAnonymousMode = false;
-      })
-      .addCase(checkSecurityEnabled.rejected, (state) => {
-        state.isInAnonymousMode = true;
-        state.sessionId = '';
-        state.ready = true;
       })
       .addCase(getUser.fulfilled, (state, { payload }) => {
         state.user = payload;
@@ -158,8 +149,8 @@ export const authSlice = createSlice({
       })
       .addCase(getUser.rejected, (state) => {
         state.user = null;
-        state.ready = true;
         state.sessionId = '';
+        state.ready = true;
       });
   },
 });
