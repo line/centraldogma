@@ -18,7 +18,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { UserDto } from 'dogma/features/auth/UserDto';
 import axios from 'axios';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { createMessageError, createMessageInfo } from 'dogma/features/message/messageSlice';
+import { createMessage } from 'dogma/features/message/messageSlice';
 
 axios.defaults.baseURL = process.env.NEXT_PUBLIC_HOST || '';
 
@@ -26,7 +26,6 @@ export const getUser = createAsyncThunk('/auth/user', async (_, { getState, disp
   try {
     const { auth } = getState() as { auth: AuthState };
     if (!auth.sessionId) {
-      dispatch(createMessageInfo('Login required'));
       return rejectWithValue('Login required');
     }
     const { data } = await axios.get(`/api/v0/users/me`, {
@@ -40,7 +39,7 @@ export const getUser = createAsyncThunk('/auth/user', async (_, { getState, disp
       localStorage.removeItem('sessionId');
     }
     const error: string = ErrorHandler.handle(err);
-    dispatch(createMessageError(error));
+    dispatch(createMessage({ title: '', text: error, type: 'error' }));
     return rejectWithValue(error);
   }
 });
@@ -68,7 +67,7 @@ export const login = createAsyncThunk(
         localStorage.removeItem('sessionId');
       }
       const error: string = ErrorHandler.handle(err);
-      dispatch(createMessageError(error));
+      dispatch(createMessage({ title: '', text: error, type: 'error' }));
       return rejectWithValue(error);
     }
   },
@@ -84,7 +83,7 @@ export const checkSecurityEnabled = createAsyncThunk(
         localStorage.removeItem('sessionId');
       }
       const error: string = ErrorHandler.handle(err);
-      dispatch(createMessageInfo('Currently in anonymous mode'));
+      dispatch(createMessage({ title: '', text: error, type: 'error' }));
       return rejectWithValue(error);
     }
   },
@@ -103,7 +102,7 @@ export const logout = createAsyncThunk('/auth/logout', async (_, { getState, dis
     }
   } catch (err) {
     const error: string = ErrorHandler.handle(err);
-    dispatch(createMessageError(error));
+    dispatch(createMessage({ title: '', text: error, type: 'error' }));
     return rejectWithValue(error);
   }
 });
