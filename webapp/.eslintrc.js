@@ -3,5 +3,14 @@ const defaultConfig = require('../settings/eslint/eslintrc');
 module.exports = {
   ...defaultConfig,
   ignorePatterns: [...defaultConfig.ignorePatterns],
-  extends: ['next', 'prettier', 'plugin:@next/next/recommended'],
+  extends: [
+    'next',
+    'prettier',
+    'plugin:@next/next/recommended',
+    'airbnb',
+    'airbnb-typescript',
+  ],
+  parserOptions: {
+    project: './tsconfig.json',
+  },
 };
