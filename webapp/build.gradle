@@ -73,3 +73,16 @@ if (!rootProject.hasProperty('noLint')) {
     lintTask.dependsOn(tasks.eslint)
     tasks.buildWeb.dependsOn(lintTask)
 }
+
+task testWeb(type: NpmTask) {
+    dependsOn tasks.npmInstall
+
+    args = ['run', 'test:ci']
+
+    inputs.dir('src')
+    inputs.file('package.json')
+    inputs.file('package-lock.json')
+    inputs.file('next.config.js')
+    outputs.upToDateWhen { true }
+}
+tasks.test.dependsOn(tasks.testWeb)
