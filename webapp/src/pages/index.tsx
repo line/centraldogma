@@ -14,11 +14,10 @@
  * under the License.
  */
 
-const Index = () => {
+const HomePage = () => {
   // TODO(ikhoon):
-  //  - Move pages folder under 'src/' directory. https://nextjs.org/docs/advanced-features/src-directory
   //  - Implement index page.
-  return <div>Welcome to Central Dogma!</div>;
+  return <h1>Welcome to Central Dogma!</h1>;
 };
 
-export default Index;
+export default HomePage;
