@@ -8,6 +8,7 @@ import { ReactElement, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { Layout } from 'dogma/common/components/Layout';
 import { ErrorWrapper } from 'dogma/common/components/ErrorWrapper';
+import dynamic from 'next/dynamic';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
@@ -37,4 +38,6 @@ const MyApp = ({ Component, pageProps }: AppPropsWithLayout) => {
   );
 };
 
-export default MyApp;
+export default dynamic(() => Promise.resolve(MyApp), {
+  ssr: false,
+});
