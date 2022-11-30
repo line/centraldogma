@@ -25,12 +25,12 @@ export const mockRepos = [
 ];
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { repo } = req.body;
   switch (req.method) {
     case 'GET':
       res.status(200).json(mockRepos);
       break;
     case 'POST':
-      const { repo } = req.body;
       mockRepos.push(repo);
       res.status(200).json(mockRepos);
       break;

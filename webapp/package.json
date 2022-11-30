@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix --ext .json,.js,.jsx,.ts,.tsx .",
+    "pretest": "npm run lint",
     "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
