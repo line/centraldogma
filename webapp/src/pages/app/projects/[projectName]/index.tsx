@@ -1,5 +1,3 @@
-import { useGetReposByProjectNameQuery } from 'dogma/features/api/apiSlice';
-import RepositoryList from 'dogma/features/repository/RepositoryList';
 import { AddIcon } from '@chakra-ui/icons';
 import {
   Box,
@@ -15,19 +13,21 @@ import {
   Tag,
   TagLabel,
 } from '@chakra-ui/react';
+import { useGetReposByProjectNameQuery } from 'dogma/features/api/apiSlice';
+import RepositoryList from 'dogma/features/repository/RepositoryList';
 import { useRouter } from 'next/router';
 
 const ProjectDetailPage = () => {
   const router = useRouter();
-  const { name } = router.query;
-  const { data = [] } = useGetReposByProjectNameQuery(name as string, {
+  const { projectName } = router.query;
+  const { data = [] } = useGetReposByProjectNameQuery(projectName as string, {
     refetchOnMountOrArgChange: true,
     skip: false,
   });
   return (
     <Box p="2">
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">Project {name}</Heading>
+        <Heading size="lg">Project {projectName}</Heading>
         <Spacer />
         <ButtonGroup gap="2">
           <Tag size="lg" variant="subtle" colorScheme="blue">
@@ -56,7 +56,7 @@ const ProjectDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <RepositoryList data={data} name={name as string} />
+            <RepositoryList data={data} name={projectName as string} />
           </TabPanel>
           <TabPanel>TODO: Permissions</TabPanel>
           <TabPanel>TODO: Members</TabPanel>
