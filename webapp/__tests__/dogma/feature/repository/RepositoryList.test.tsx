@@ -1,7 +1,7 @@
 import { fireEvent, render } from '@testing-library/react';
-import RepositoryList, { RepositoryListProps } from '@/dogma/features/repository/RepositoryList';
-import { mockRepos } from '@/pages/api/v1/projects/abcd';
-import { RepoDto } from '@/dogma/features/repository/RepoDto';
+import RepositoryList, { RepositoryListProps } from 'dogma/features/repository/RepositoryList';
+import { mockRepos } from 'pages/api/v1/projects/abcd';
+import { RepoDto } from 'dogma/features/repository/RepoDto';
 
 const useRouter = jest.spyOn(require('next/router'), 'useRouter');
 

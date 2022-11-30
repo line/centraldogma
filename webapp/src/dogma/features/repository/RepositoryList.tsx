@@ -1,7 +1,7 @@
-import { RepoDataTableDto, RepoDto } from '@/dogma/features/repository/RepoDto';
+import { RepoDataTableDto, RepoDto } from 'dogma/features/repository/RepoDto';
 import { useRouter } from 'next/router';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
-import { DataTable } from '@/dogma/common/components/DataTable';
+import { DataTable } from 'dogma/common/components/table/DataTable';
 
 export type RepositoryListProps<Data extends object> = {
   data: Data[];
@@ -25,7 +25,7 @@ const RepositoryList = <Data extends object>({ data, name }: RepositoryListProps
     }),
     columnHelper.accessor('headRevision', {
       cell: (info) => info.getValue(),
-      header: 'HEAD Revision',
+      header: 'HEAD',
       meta: {
         isNumeric: true,
       },

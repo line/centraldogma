@@ -1,5 +1,5 @@
 import { Column } from '@tanstack/react-table';
-import { DebouncedInput } from '@/dogma/common/components/DebouncedInput';
+import { DebouncedInput } from 'dogma/common/components/table/DebouncedInput';
 import { useMemo } from 'react';
 
 export const Filter = ({ column }: { column: Column<any, unknown> }) => {

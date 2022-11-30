@@ -1,5 +1,5 @@
-import { useGetReposByProjectNameQuery } from '@/dogma/features/api/apiSlice';
-import RepositoryList from '@/dogma/features/repository/RepositoryList';
+import { useGetReposByProjectNameQuery } from 'dogma/features/api/apiSlice';
+import RepositoryList from 'dogma/features/repository/RepositoryList';
 import { AddIcon } from '@chakra-ui/icons';
 import {
   Box,
@@ -50,6 +50,9 @@ const ProjectDetailPage = () => {
           <Tab>
             <Heading size="sm">Tokens</Heading>
           </Tab>
+          <Tab>
+            <Heading size="sm">Mirror</Heading>
+          </Tab>
         </TabList>
         <TabPanels>
           <TabPanel>
@@ -58,6 +61,7 @@ const ProjectDetailPage = () => {
           <TabPanel>TODO: Permissions</TabPanel>
           <TabPanel>TODO: Members</TabPanel>
           <TabPanel>TODO: Tokens</TabPanel>
+          <TabPanel>TODO: Mirror</TabPanel>
         </TabPanels>
       </Tabs>
     </Box>

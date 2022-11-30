@@ -10,7 +10,7 @@ import {
   ColumnFiltersState,
   getFilteredRowModel,
 } from '@tanstack/react-table';
-import { Filter } from './Filter';
+import { Filter } from 'dogma/common/components/table/Filter';
 import { useState } from 'react';
 
 export type DataTableProps<Data extends object> = {
