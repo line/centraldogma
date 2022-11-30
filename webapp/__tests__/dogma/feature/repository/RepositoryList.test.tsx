@@ -1,7 +1,6 @@
 import { fireEvent, render } from '@testing-library/react';
-import RepositoryList, { RepositoryListProps } from 'dogma/features/repository/RepositoryList';
-import { mockRepos } from 'pages/api/v1/projects/abcd';
 import { RepoDto } from 'dogma/features/repository/RepoDto';
+import RepositoryList, { RepositoryListProps } from 'dogma/features/repository/RepositoryList';
 
 const useRouter = jest.spyOn(require('next/router'), 'useRouter');
 
@@ -17,6 +16,29 @@ describe('Repository List', () => {
         },
       };
     });
+    const mockRepos = [
+      {
+        name: 'meta',
+        creator: { name: 'System', email: 'system@localhost.localdomain' },
+        headRevision: 1,
+        url: '/api/v1/projects/abcd/repos/meta',
+        createdAt: '2022-11-23T03:13:49.581Z',
+      },
+      {
+        name: 'repo1',
+        creator: { name: 'dummy', email: 'dummy@localhost.localdomain' },
+        headRevision: 6,
+        url: '/api/v1/projects/abcd/repos/repo1',
+        createdAt: '2022-11-23T03:16:17.880Z',
+      },
+      {
+        name: 'repo2',
+        creator: { name: 'dummy', email: 'dummy@localhost.localdomain' },
+        headRevision: 1,
+        url: '/api/v1/projects/abcd/repos/repo2',
+        createdAt: '2022-11-28T03:01:47.262Z',
+      },
+    ];
     expectedProps = {
       data: mockRepos,
       name: 'ProjectAlpha',
@@ -34,13 +56,20 @@ describe('Repository List', () => {
 
   it('renders a table with a row for each repo', () => {
     const { getByTestId } = render(<RepositoryList {...expectedProps} />);
-    expect(getByTestId('table-body').children.length).toBe(mockRepos.length);
+    expect(getByTestId('table-body').children.length).toBe(3);
   });
 
-  it('generates `${projectName}/repos/${repositoryName}` url when the table row is clicked', () => {
+  it('does not generates `${projectName}/repos/${repositoryName}` url when the table row is clicked', () => {
     const { getByTestId } = render(<RepositoryList {...expectedProps} />);
     const row = getByTestId('table-body').children[0];
     fireEvent.click(row);
-    expect(pathName).toEqual(`ProjectAlpha/repos/${mockRepos[0].name}`);
+    expect(pathName).toEqual('');
+  });
+
+  it('generates `${projectName}/repos/${repositoryName}` url when the view icon is clicked', () => {
+    const { getByTestId } = render(<RepositoryList {...expectedProps} />);
+    const repositoryName = 'repo1';
+    const repoViewLink = getByTestId('view-repo-repo1');
+    expect(repoViewLink).toHaveAttribute('href', `ProjectAlpha/repos/${repositoryName}`);
   });
 });

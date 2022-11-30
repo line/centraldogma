@@ -1,25 +1,27 @@
-import { Table, Thead, Tbody, Tr, Th, Td, chakra, Text } from '@chakra-ui/react';
-import { TriangleDownIcon, TriangleUpIcon } from '@chakra-ui/icons';
+import { DeleteIcon, TriangleDownIcon, TriangleUpIcon, ViewIcon } from '@chakra-ui/icons';
+import { chakra, IconButton, Table, Tbody, Td, Text, Th, Thead, Tr, Wrap, WrapItem } from '@chakra-ui/react';
 import {
-  useReactTable,
+  ColumnDef,
+  ColumnFiltersState,
   flexRender,
   getCoreRowModel,
-  ColumnDef,
-  SortingState,
-  getSortedRowModel,
-  ColumnFiltersState,
   getFilteredRowModel,
+  getSortedRowModel,
+  SortingState,
+  useReactTable,
 } from '@tanstack/react-table';
 import { Filter } from 'dogma/common/components/table/Filter';
+import { RepoDataTableDto } from 'dogma/features/repository/RepoDto';
+import Link from 'next/link';
 import { useState } from 'react';
 
 export type DataTableProps<Data extends object> = {
   data: Data[];
+  name: string;
   columns: ColumnDef<Data, any>[];
-  handleOnClick: Function;
 };
 
-export const DataTable = <Data extends object>({ data, columns, handleOnClick }: DataTableProps<Data>) => {
+export const DataTable = <Data extends object>({ data, name, columns }: DataTableProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const table = useReactTable({
@@ -69,13 +71,14 @@ export const DataTable = <Data extends object>({ data, columns, handleOnClick }:
                   </Th>
                 );
               })}
+              <Th>Actions</Th>
             </Tr>
           ))}
         </Thead>
         <Tbody data-testid="table-body">
           {table.getRowModel().rows.map((row) => {
             return (
-              <Tr key={row.id} onClick={() => handleOnClick(row.original)}>
+              <Tr key={row.id} data-testid="table-row">
                 {row.getVisibleCells().map((cell) => {
                   // see https://tanstack.com/table/v8/docs/api/core/column-def#meta to type this correctly
                   const meta: any = cell.column.columnDef.meta;
@@ -85,6 +88,21 @@ export const DataTable = <Data extends object>({ data, columns, handleOnClick }:
                     </Td>
                   );
                 })}
+                <Td>
+                  <Wrap>
+                    <WrapItem>
+                      <Link
+                        data-testid={`view-repo-${(row.original as RepoDataTableDto).name}`}
+                        href={`${name}/repos/${(row.original as RepoDataTableDto).name}`}
+                      >
+                        <IconButton colorScheme="blue" aria-label="View" size="md" icon={<ViewIcon />} />
+                      </Link>
+                    </WrapItem>
+                    <WrapItem>
+                      <IconButton colorScheme="blue" aria-label="Delete" size="md" icon={<DeleteIcon />} />
+                    </WrapItem>
+                  </Wrap>
+                </Td>
               </Tr>
             );
           })}

@@ -1,7 +1,6 @@
-import { RepoDataTableDto, RepoDto } from 'dogma/features/repository/RepoDto';
-import { useRouter } from 'next/router';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DataTable } from 'dogma/common/components/table/DataTable';
+import { RepoDto } from 'dogma/features/repository/RepoDto';
 
 export type RepositoryListProps<Data extends object> = {
   data: Data[];
@@ -31,12 +30,7 @@ const RepositoryList = <Data extends object>({ data, name }: RepositoryListProps
       },
     }),
   ];
-  const router = useRouter();
-  const navigate = (row: RepoDataTableDto) => {
-    router.push(`${name}/repos/${row.name}`);
-  };
-
-  return <DataTable columns={columns as ColumnDef<Data, any>[]} data={data} handleOnClick={navigate} />;
+  return <DataTable columns={columns as ColumnDef<Data, any>[]} data={data} name={name} />;
 };
 
 export default RepositoryList;
