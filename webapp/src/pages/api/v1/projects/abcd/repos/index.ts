@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-export const mockRepos = [
+const mockRepos = [
   {
     name: 'meta',
     creator: { name: 'System', email: 'system@localhost.localdomain' },

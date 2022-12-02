@@ -118,7 +118,7 @@ export const DynamicDataTable = <Data extends object>({
                     <WrapItem>
                       <Link
                         data-testid={`${urlPrefix}-${row.getVisibleCells()[0].getValue()}`}
-                        href={`${urlPrefix}/${row.getVisibleCells()[0].getValue()}`}
+                        href={`${urlPrefix}${row.getVisibleCells()[0].getValue()}`}
                       >
                         <IconButton colorScheme="blue" aria-label="View" size="sm" icon={<ViewIcon />} />
                       </Link>

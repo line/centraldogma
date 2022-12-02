@@ -38,7 +38,7 @@ const ProjectDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <RepoList data={data} name={projectName as string} />
+            <RepoList data={data} projectName={projectName as string} />
           </TabPanel>
           <TabPanel>TODO: Permissions</TabPanel>
           <TabPanel>TODO: Members</TabPanel>

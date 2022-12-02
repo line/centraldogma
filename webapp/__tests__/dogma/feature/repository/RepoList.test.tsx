@@ -41,7 +41,7 @@ describe('RepoList', () => {
     ];
     expectedProps = {
       data: mockRepos,
-      name: 'ProjectAlpha',
+      projectName: 'ProjectAlpha',
     };
   });
 
@@ -69,7 +69,10 @@ describe('RepoList', () => {
   it('generates `${projectName}/repos/${repoName}` url when the view icon is clicked', () => {
     const { getByTestId } = render(<RepoList {...expectedProps} />);
     const repoName = 'repo1';
-    const repoViewLink = getByTestId('ProjectAlpha/repos-repo1');
-    expect(repoViewLink).toHaveAttribute('href', `ProjectAlpha/repos/${repoName}`);
+    const repoViewLink = getByTestId(`/app/projects/${expectedProps.projectName}/repos/-${repoName}`);
+    expect(repoViewLink).toHaveAttribute(
+      'href',
+      `/app/projects/${expectedProps.projectName}/repos/${repoName}`,
+    );
   });
 });

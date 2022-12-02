@@ -5,10 +5,10 @@ import { RepoDto } from 'dogma/features/repo/RepoDto';
 
 export type RepoListProps<Data extends object> = {
   data: Data[];
-  name: string;
+  projectName: string;
 };
 
-const RepoList = <Data extends object>({ data, name }: RepoListProps<Data>) => {
+const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data>) => {
   const columnHelper = createColumnHelper<RepoDto>();
   const columns = [
     columnHelper.accessor((row: RepoDto) => row.name, {
@@ -33,7 +33,11 @@ const RepoList = <Data extends object>({ data, name }: RepoListProps<Data>) => {
     }),
   ];
   return (
-    <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} urlPrefix={name + '/repos'} />
+    <DynamicDataTable
+      columns={columns as ColumnDef<Data, any>[]}
+      data={data}
+      urlPrefix={`/app/projects/${projectName}/repos/`}
+    />
   );
 };
 
