@@ -1,5 +1,27 @@
 import { DeleteIcon, TriangleDownIcon, TriangleUpIcon, ViewIcon } from '@chakra-ui/icons';
-import { chakra, IconButton, Table, Tbody, Td, Text, Th, Thead, Tr, Wrap, WrapItem } from '@chakra-ui/react';
+import {
+  Button,
+  ButtonGroup,
+  chakra,
+  IconButton,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverCloseButton,
+  PopoverContent,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTrigger,
+  Table,
+  Tbody,
+  Td,
+  Text,
+  Th,
+  Thead,
+  Tr,
+  Wrap,
+  WrapItem,
+} from '@chakra-ui/react';
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -11,17 +33,17 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { Filter } from 'dogma/common/components/table/Filter';
-import { RepoDataTableDto } from 'dogma/features/repository/RepoDto';
 import Link from 'next/link';
 import { useState } from 'react';
 
 export type DataTableProps<Data extends object> = {
   data: Data[];
   name: string;
+  urlPrefix: string;
   columns: ColumnDef<Data, any>[];
 };
 
-export const DataTable = <Data extends object>({ data, name, columns }: DataTableProps<Data>) => {
+export const DataTable = <Data extends object>({ data, name, urlPrefix, columns }: DataTableProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const table = useReactTable({
@@ -92,14 +114,30 @@ export const DataTable = <Data extends object>({ data, name, columns }: DataTabl
                   <Wrap>
                     <WrapItem>
                       <Link
-                        data-testid={`view-repo-${(row.original as RepoDataTableDto).name}`}
-                        href={`${name}/repos/${(row.original as RepoDataTableDto).name}`}
+                        data-testid={`${urlPrefix}-${row.getVisibleCells()[0].getValue()}`}
+                        href={`${urlPrefix}/${row.getVisibleCells()[0].getValue()}`}
                       >
-                        <IconButton colorScheme="blue" aria-label="View" size="md" icon={<ViewIcon />} />
+                        <IconButton colorScheme="blue" aria-label="View" size="sm" icon={<ViewIcon />} />
                       </Link>
                     </WrapItem>
                     <WrapItem>
-                      <IconButton colorScheme="blue" aria-label="Delete" size="md" icon={<DeleteIcon />} />
+                      <Popover>
+                        <PopoverTrigger>
+                          <IconButton colorScheme="red" aria-label="Delete" size="sm" icon={<DeleteIcon />} />
+                        </PopoverTrigger>
+                        <PopoverContent>
+                          <PopoverHeader fontWeight="semibold">Danger</PopoverHeader>
+                          <PopoverArrow />
+                          <PopoverCloseButton />
+                          <PopoverBody>Are you sure you want to continue with your action?</PopoverBody>
+                          <PopoverFooter display="flex" justifyContent="flex-end">
+                            <ButtonGroup size="sm">
+                              <Button variant="outline">Cancel</Button>
+                              <Button colorScheme="red">Delete</Button>
+                            </ButtonGroup>
+                          </PopoverFooter>
+                        </PopoverContent>
+                      </Popover>
                     </WrapItem>
                   </Wrap>
                 </Td>

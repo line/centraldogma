@@ -10,10 +10,3 @@ export interface RepoDto {
   url: string;
   createdAt: string;
 }
-
-export interface RepoDataTableDto {
-  name: string;
-  creatorName: string;
-  creatorEmail: string;
-  headRevision: number;
-}

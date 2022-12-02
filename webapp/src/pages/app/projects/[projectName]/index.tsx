@@ -1,20 +1,7 @@
-import { AddIcon } from '@chakra-ui/icons';
-import {
-  Box,
-  ButtonGroup,
-  Flex,
-  Heading,
-  Spacer,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
-  Tag,
-  TagLabel,
-} from '@chakra-ui/react';
+import { Box, Flex, Heading, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
+import { NewItemCard } from 'dogma/common/components/NewItemCard';
 import { useGetReposByProjectNameQuery } from 'dogma/features/api/apiSlice';
-import RepositoryList from 'dogma/features/repository/RepositoryList';
+import RepoList from 'dogma/features/repo/RepoList';
 import { useRouter } from 'next/router';
 
 const ProjectDetailPage = () => {
@@ -29,12 +16,7 @@ const ProjectDetailPage = () => {
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
         <Heading size="lg">Project {projectName}</Heading>
         <Spacer />
-        <ButtonGroup gap="2">
-          <Tag size="lg" variant="subtle" colorScheme="blue">
-            <AddIcon mr={2} />
-            <TagLabel>New Repository</TagLabel>
-          </Tag>
-        </ButtonGroup>
+        <NewItemCard title="New Repository" label="Name" placeholder="New name here..." />
       </Flex>
       <Tabs variant="enclosed-colored" size="lg">
         <TabList>
@@ -56,7 +38,7 @@ const ProjectDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <RepositoryList data={data} name={projectName as string} />
+            <RepoList data={data} name={projectName as string} />
           </TabPanel>
           <TabPanel>TODO: Permissions</TabPanel>
           <TabPanel>TODO: Members</TabPanel>
