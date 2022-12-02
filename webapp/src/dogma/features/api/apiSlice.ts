@@ -14,9 +14,10 @@
  * under the License.
  */
 
+import { RepoDto } from 'dogma/features/repo/RepoDto';
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
-import { AuthState } from '../auth/authSlice';
+import { AuthState } from 'dogma/features/auth/authSlice';
 
 export const apiSlice = createApi({
   reducerPath: 'api',
@@ -32,7 +33,10 @@ export const apiSlice = createApi({
     getProjects: builder.query<ProjectDto[], void>({
       query: () => '/v1/projects',
     }),
+    getReposByProjectName: builder.query<RepoDto[], string>({
+      query: (name) => `/v1/projects/${name}`,
+    }),
   }),
 });
 
-export const { useGetProjectsQuery } = apiSlice;
+export const { useGetProjectsQuery, useGetReposByProjectNameQuery } = apiSlice;

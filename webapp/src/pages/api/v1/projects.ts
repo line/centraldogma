@@ -22,12 +22,12 @@ const projects = [
 ];
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { project } = req.body;
   switch (req.method) {
     case 'GET':
       res.status(200).json(projects);
       break;
     case 'POST':
-      const { project } = req.body;
       projects.push(project);
       res.status(200).json(projects);
       break;

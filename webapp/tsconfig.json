@@ -1,9 +1,6 @@
 {
   "compilerOptions": {
     "baseUrl": "src",
-    "paths": {
-      "@/*": ["*"]
-    },
     "sourceMap": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
