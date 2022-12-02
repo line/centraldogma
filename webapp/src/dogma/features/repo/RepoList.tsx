@@ -32,14 +32,7 @@ const RepoList = <Data extends object>({ data, name }: RepoListProps<Data>) => {
       },
     }),
   ];
-  return (
-    <DataTable
-      columns={columns as ColumnDef<Data, any>[]}
-      data={data}
-      name={name}
-      urlPrefix={name + '/repos'}
-    />
-  );
+  return <DataTable columns={columns as ColumnDef<Data, any>[]} data={data} urlPrefix={name + '/repos'} />;
 };
 
 export default RepoList;
