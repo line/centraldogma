@@ -14,7 +14,7 @@
  * under the License.
  */
 
-import { RepoDto } from 'dogma/features/repository/RepoDto';
+import { RepoDto } from 'dogma/features/repo/RepoDto';
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { AuthState } from 'dogma/features/auth/authSlice';

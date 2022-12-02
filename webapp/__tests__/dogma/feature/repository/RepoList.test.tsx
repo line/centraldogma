@@ -45,7 +45,7 @@ describe('RepoList', () => {
     };
   });
 
-  it('renders the repository names', () => {
+  it('renders the repo names', () => {
     const { getByText } = render(<RepoList {...expectedProps} />);
     let name;
     expectedProps.data.forEach((repo: RepoDto) => {
@@ -59,14 +59,14 @@ describe('RepoList', () => {
     expect(getByTestId('table-body').children.length).toBe(3);
   });
 
-  it('does not generates `${projectName}/repos/${repositoryName}` url when the table row is clicked', () => {
+  it('does not generates `${projectName}/repos/${repoName}` url when the table row is clicked', () => {
     const { getByTestId } = render(<RepoList {...expectedProps} />);
     const row = getByTestId('table-body').children[0];
     fireEvent.click(row);
     expect(pathName).toEqual('');
   });
 
-  it('generates `${projectName}/repos/${repositoryName}` url when the view icon is clicked', () => {
+  it('generates `${projectName}/repos/${repoName}` url when the view icon is clicked', () => {
     const { getByTestId } = render(<RepoList {...expectedProps} />);
     const repoName = 'repo1';
     const repoViewLink = getByTestId('ProjectAlpha/repos-repo1');
