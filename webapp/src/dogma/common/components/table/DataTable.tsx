@@ -38,12 +38,11 @@ import { useState } from 'react';
 
 export type DataTableProps<Data extends object> = {
   data: Data[];
-  name: string;
   urlPrefix: string;
   columns: ColumnDef<Data, any>[];
 };
 
-export const DataTable = <Data extends object>({ data, name, urlPrefix, columns }: DataTableProps<Data>) => {
+export const DataTable = <Data extends object>({ data, urlPrefix, columns }: DataTableProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const table = useReactTable({
