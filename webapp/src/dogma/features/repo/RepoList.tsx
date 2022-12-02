@@ -1,6 +1,6 @@
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { formatDistance } from 'date-fns';
-import { DataTable } from 'dogma/common/components/table/DataTable';
+import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 
 export type RepoListProps<Data extends object> = {
@@ -32,7 +32,9 @@ const RepoList = <Data extends object>({ data, name }: RepoListProps<Data>) => {
       },
     }),
   ];
-  return <DataTable columns={columns as ColumnDef<Data, any>[]} data={data} urlPrefix={name + '/repos'} />;
+  return (
+    <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} urlPrefix={name + '/repos'} />
+  );
 };
 
 export default RepoList;

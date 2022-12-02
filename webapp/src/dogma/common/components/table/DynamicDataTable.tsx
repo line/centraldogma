@@ -36,13 +36,17 @@ import { Filter } from 'dogma/common/components/table/Filter';
 import Link from 'next/link';
 import { useState } from 'react';
 
-export type DataTableProps<Data extends object> = {
+export type DynamicDataTableProps<Data extends object> = {
   data: Data[];
   urlPrefix: string;
   columns: ColumnDef<Data, any>[];
 };
 
-export const DataTable = <Data extends object>({ data, urlPrefix, columns }: DataTableProps<Data>) => {
+export const DynamicDataTable = <Data extends object>({
+  data,
+  urlPrefix,
+  columns,
+}: DynamicDataTableProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const table = useReactTable({
