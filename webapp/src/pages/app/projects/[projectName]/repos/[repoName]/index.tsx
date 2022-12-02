@@ -1,7 +1,9 @@
 import { AddIcon } from '@chakra-ui/icons';
 import {
   Box,
-  ButtonGroup,
+  Button,
+  Drawer,
+  DrawerOverlay,
   Flex,
   Heading,
   Spacer,
@@ -10,12 +12,12 @@ import {
   TabPanel,
   TabPanels,
   Tabs,
-  Tag,
-  TagLabel,
+  useDisclosure,
 } from '@chakra-ui/react';
 import { useGetFilesByProjectAndRepoNameQuery } from 'dogma/features/api/apiSlice';
 import FileList from 'dogma/features/file/FileList';
 import { useRouter } from 'next/router';
+import { NewFileForm } from 'dogma/common/components/NewFileForm';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -28,17 +30,19 @@ const RepositoryDetailPage = () => {
       skip: false,
     },
   );
+  const { isOpen, onOpen, onClose } = useDisclosure();
   return (
     <Box p="2">
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
         <Heading size="lg">Repository {repoName}</Heading>
         <Spacer />
-        <ButtonGroup gap="2">
-          <Tag size="lg" variant="subtle" colorScheme="blue">
-            <AddIcon mr={2} />
-            <TagLabel>New File</TagLabel>
-          </Tag>
-        </ButtonGroup>
+        <Button leftIcon={<AddIcon />} colorScheme="teal" onClick={onOpen} variant="ghost">
+          New File
+        </Button>
+        <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="xl">
+          <DrawerOverlay />
+          <NewFileForm />
+        </Drawer>
       </Flex>
       <Tabs variant="enclosed-colored" size="lg">
         <TabList>
