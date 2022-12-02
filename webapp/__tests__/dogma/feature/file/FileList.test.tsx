@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 import FileList, { FileListProps } from 'dogma/features/file/FileList';
-import { FileDto } from '../../../../src/dogma/features/file/FileDto';
+import { FileDto } from 'dogma/features/file/FileDto';
 
 describe('FileList', () => {
   let expectedProps: JSX.IntrinsicAttributes & FileListProps<object>;
