@@ -11,15 +11,15 @@ export type FileListProps<Data extends object> = {
 const FileList = <Data extends object>({ data, projectName, repoName }: FileListProps<Data>) => {
   const columnHelper = createColumnHelper<FileDto>();
   const columns = [
-    columnHelper.accessor('path', {
+    columnHelper.accessor((row: FileDto) => row.path, {
       cell: (info) => info.getValue(),
       header: 'Path',
     }),
-    columnHelper.accessor('revision', {
+    columnHelper.accessor((row: FileDto) => row.revision, {
       cell: (info) => info.getValue(),
       header: 'Revision',
     }),
-    columnHelper.accessor('type', {
+    columnHelper.accessor((row: FileDto) => row.type, {
       cell: (info) => info.getValue(),
       header: 'Type',
     }),
