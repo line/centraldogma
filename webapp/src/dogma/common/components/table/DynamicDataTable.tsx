@@ -1,27 +1,5 @@
-import { DeleteIcon, TriangleDownIcon, TriangleUpIcon, ViewIcon } from '@chakra-ui/icons';
-import {
-  Button,
-  ButtonGroup,
-  chakra,
-  IconButton,
-  Popover,
-  PopoverArrow,
-  PopoverBody,
-  PopoverCloseButton,
-  PopoverContent,
-  PopoverFooter,
-  PopoverHeader,
-  PopoverTrigger,
-  Table,
-  Tbody,
-  Td,
-  Text,
-  Th,
-  Thead,
-  Tr,
-  Wrap,
-  WrapItem,
-} from '@chakra-ui/react';
+import { TriangleDownIcon, TriangleUpIcon } from '@chakra-ui/icons';
+import { chakra, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -33,20 +11,14 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { Filter } from 'dogma/common/components/table/Filter';
-import Link from 'next/link';
 import { useState } from 'react';
 
 export type DynamicDataTableProps<Data extends object> = {
   data: Data[];
-  urlPrefix: string;
   columns: ColumnDef<Data, any>[];
 };
 
-export const DynamicDataTable = <Data extends object>({
-  data,
-  urlPrefix,
-  columns,
-}: DynamicDataTableProps<Data>) => {
+export const DynamicDataTable = <Data extends object>({ data, columns }: DynamicDataTableProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const table = useReactTable({
@@ -96,11 +68,10 @@ export const DynamicDataTable = <Data extends object>({
                   </Th>
                 );
               })}
-              <Th>Actions</Th>
             </Tr>
           ))}
         </Thead>
-        <Tbody data-testid="table-body">
+        <Tbody>
           {table.getRowModel().rows.map((row) => {
             return (
               <Tr key={row.id} data-testid="table-row">
@@ -113,37 +84,6 @@ export const DynamicDataTable = <Data extends object>({
                     </Td>
                   );
                 })}
-                <Td>
-                  <Wrap>
-                    <WrapItem>
-                      <Link
-                        data-testid={`${urlPrefix}-${row.getVisibleCells()[0].getValue()}`}
-                        href={`${urlPrefix}${row.getVisibleCells()[0].getValue()}`}
-                      >
-                        <IconButton colorScheme="blue" aria-label="View" size="sm" icon={<ViewIcon />} />
-                      </Link>
-                    </WrapItem>
-                    <WrapItem>
-                      <Popover>
-                        <PopoverTrigger>
-                          <IconButton colorScheme="red" aria-label="Delete" size="sm" icon={<DeleteIcon />} />
-                        </PopoverTrigger>
-                        <PopoverContent>
-                          <PopoverHeader fontWeight="semibold">Danger</PopoverHeader>
-                          <PopoverArrow />
-                          <PopoverCloseButton />
-                          <PopoverBody>Are you sure you want to continue with your action?</PopoverBody>
-                          <PopoverFooter display="flex" justifyContent="flex-end">
-                            <ButtonGroup size="sm">
-                              <Button variant="outline">Cancel</Button>
-                              <Button colorScheme="red">Delete</Button>
-                            </ButtonGroup>
-                          </PopoverFooter>
-                        </PopoverContent>
-                      </Popover>
-                    </WrapItem>
-                  </Wrap>
-                </Td>
               </Tr>
             );
           })}

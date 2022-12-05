@@ -50,19 +50,27 @@ describe('FileList', () => {
   });
 
   it('renders a table with a row for each file', () => {
-    const { getByTestId } = render(<FileList {...expectedProps} />);
-    expect(getByTestId('table-body').children.length).toBe(5);
+    const { container } = render(<FileList {...expectedProps} />);
+    expect(container.querySelector('tbody').children.length).toBe(5);
   });
 
-  it('generates `${projectName}/repos/${repoName}/files/head{fileName}` url when the view icon is clicked', () => {
-    const { getByTestId } = render(<FileList {...expectedProps} />);
-    const fileName = '/zzzzz';
-    const repoViewLink = getByTestId(
-      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/files/head-${fileName}`,
-    );
-    expect(repoViewLink).toHaveAttribute(
+  it('has `${projectName}/repos/${repoName}/files/head{fileName}` on the view icon', () => {
+    const { container } = render(<FileList {...expectedProps} />);
+    const actionCell = container.querySelector('tbody').firstChild.firstChild.lastChild;
+    const firstFileName = '/123456';
+    expect(actionCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/files/head${fileName}`,
+      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/files/head${firstFileName}`,
+    );
+  });
+
+  it('has `${projectName}/repos/${repoName}/files/head{fileName}` on the file path cell', () => {
+    const { container } = render(<FileList {...expectedProps} />);
+    const firstCell = container.querySelector('tbody').firstChild.firstChild.firstChild;
+    const firstFileName = '/123456';
+    expect(firstCell).toHaveAttribute(
+      'href',
+      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/files/head${firstFileName}`,
     );
   });
 });

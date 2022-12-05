@@ -1,6 +1,9 @@
+import { DeleteIcon, ViewIcon } from '@chakra-ui/icons';
+import { Button, Wrap, WrapItem } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { FileDto } from 'dogma/features/file/FileDto';
+import Link from 'next/link';
 
 export type FileListProps<Data extends object> = {
   data: Data[];
@@ -11,10 +14,15 @@ export type FileListProps<Data extends object> = {
 const FileList = <Data extends object>({ data, projectName, repoName }: FileListProps<Data>) => {
   const columnHelper = createColumnHelper<FileDto>();
   const columns = [
-    columnHelper.accessor((row: FileDto) => row.path, {
-      cell: (info) => info.getValue(),
-      header: 'Path',
-    }),
+    columnHelper.accessor(
+      (row: FileDto) => (
+        <Link href={`/app/projects/${projectName}/repos/${repoName}/files/head${row.path}`}>{row.path}</Link>
+      ),
+      {
+        cell: (info) => info.getValue(),
+        header: 'Path',
+      },
+    ),
     columnHelper.accessor((row: FileDto) => row.revision, {
       cell: (info) => info.getValue(),
       header: 'Revision',
@@ -23,14 +31,30 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
       cell: (info) => info.getValue(),
       header: 'Type',
     }),
+    columnHelper.accessor(
+      (row: FileDto) => (
+        <Wrap>
+          <WrapItem>
+            <Link href={`/app/projects/${projectName}/repos/${repoName}/files/head${row.path}`}>
+              <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
+                View
+              </Button>
+            </Link>
+          </WrapItem>
+          <WrapItem>
+            <Button leftIcon={<DeleteIcon />} colorScheme="red" size="sm">
+              Delete
+            </Button>
+          </WrapItem>
+        </Wrap>
+      ),
+      {
+        cell: (info) => info.getValue(),
+        header: 'Actions',
+      },
+    ),
   ];
-  return (
-    <DynamicDataTable
-      columns={columns as ColumnDef<Data, any>[]}
-      data={data}
-      urlPrefix={`/app/projects/${projectName}/repos/${repoName}/files/head`}
-    />
-  );
+  return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
 };
 
 export default FileList;
