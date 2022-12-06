@@ -1,9 +1,10 @@
 import { ViewIcon, DeleteIcon } from '@chakra-ui/icons';
-import { Wrap, WrapItem, Link, Button } from '@chakra-ui/react';
+import { Wrap, WrapItem, Button } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { formatDistance } from 'date-fns';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
+import Link from 'next/link';
 
 export type RepoListProps<Data extends object> = {
   data: Data[];
