@@ -14,13 +14,12 @@ export type RepoListProps<Data extends object> = {
 const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data>) => {
   const columnHelper = createColumnHelper<RepoDto>();
   const columns = [
-    columnHelper.accessor(
-      (row: RepoDto) => <Link href={`/app/projects/${projectName}/repos/${row.name}`}>{row.name}</Link>,
-      {
-        cell: (info) => info.getValue(),
-        header: 'Name',
-      },
-    ),
+    columnHelper.accessor((row: RepoDto) => row.name, {
+      cell: (info) => (
+        <Link href={`/app/projects/${projectName}/repos/${info.getValue()}`}>{info.getValue()}</Link>
+      ),
+      header: 'Name',
+    }),
     columnHelper.accessor((row: RepoDto) => row.creator.name, {
       cell: (info) => info.getValue(),
       header: 'Creator',
@@ -57,6 +56,7 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       {
         cell: (info) => info.getValue(),
         header: 'Actions',
+        enableSorting: false,
       },
     ),
   ];

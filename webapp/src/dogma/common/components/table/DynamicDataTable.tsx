@@ -61,9 +61,7 @@ export const DynamicDataTable = <Data extends object>({ data, columns }: Dynamic
                         ) : (
                           <TriangleUpIcon aria-label="sorted ascending" />
                         )
-                      ) : (
-                        <TriangleUpIcon aria-label="sorted ascending" />
-                      )}
+                      ) : null}
                     </chakra.span>
                   </Th>
                 );

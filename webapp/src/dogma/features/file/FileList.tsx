@@ -14,15 +14,14 @@ export type FileListProps<Data extends object> = {
 const FileList = <Data extends object>({ data, projectName, repoName }: FileListProps<Data>) => {
   const columnHelper = createColumnHelper<FileDto>();
   const columns = [
-    columnHelper.accessor(
-      (row: FileDto) => (
-        <Link href={`/app/projects/${projectName}/repos/${repoName}/files/head${row.path}`}>{row.path}</Link>
+    columnHelper.accessor((row: FileDto) => row.path, {
+      cell: (info) => (
+        <Link href={`/app/projects/${projectName}/repos/${repoName}/files/head${info.getValue()}`}>
+          {info.getValue()}
+        </Link>
       ),
-      {
-        cell: (info) => info.getValue(),
-        header: 'Path',
-      },
-    ),
+      header: 'Path',
+    }),
     columnHelper.accessor((row: FileDto) => row.revision, {
       cell: (info) => info.getValue(),
       header: 'Revision',
@@ -51,6 +50,7 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
       {
         cell: (info) => info.getValue(),
         header: 'Actions',
+        enableSorting: false,
       },
     ),
   ];
