@@ -41,7 +41,7 @@ describe('RepoList', () => {
     ];
     expectedProps = {
       data: mockRepos,
-      name: 'ProjectAlpha',
+      projectName: 'ProjectAlpha',
     };
   });
 
@@ -55,21 +55,27 @@ describe('RepoList', () => {
   });
 
   it('renders a table with a row for each repo', () => {
-    const { getByTestId } = render(<RepoList {...expectedProps} />);
-    expect(getByTestId('table-body').children.length).toBe(3);
+    const { container } = render(<RepoList {...expectedProps} />);
+    expect(container.querySelector('tbody').children.length).toBe(3);
   });
 
-  it('does not generates `${projectName}/repos/${repoName}` url when the table row is clicked', () => {
-    const { getByTestId } = render(<RepoList {...expectedProps} />);
-    const row = getByTestId('table-body').children[0];
-    fireEvent.click(row);
-    expect(pathName).toEqual('');
+  it('has `${projectName}/repos/${repoName}/files/head{fileName}` on the view icon', () => {
+    const { container } = render(<RepoList {...expectedProps} />);
+    const actionCell = container.querySelector('tbody').firstChild.firstChild.lastChild;
+    const firstRepoName = 'meta';
+    expect(actionCell).toHaveAttribute(
+      'href',
+      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}`,
+    );
   });
 
-  it('generates `${projectName}/repos/${repoName}` url when the view icon is clicked', () => {
-    const { getByTestId } = render(<RepoList {...expectedProps} />);
-    const repoName = 'repo1';
-    const repoViewLink = getByTestId('ProjectAlpha/repos-repo1');
-    expect(repoViewLink).toHaveAttribute('href', `ProjectAlpha/repos/${repoName}`);
+  it('has `${projectName}/repos/${repoName}/files/head{fileName}` on the file path cell', () => {
+    const { container } = render(<RepoList {...expectedProps} />);
+    const firstCell = container.querySelector('tbody').firstChild.firstChild.firstChild;
+    const firstRepoName = 'meta';
+    expect(firstCell).toHaveAttribute(
+      'href',
+      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}`,
+    );
   });
 });

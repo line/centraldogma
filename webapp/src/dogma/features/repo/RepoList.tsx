@@ -1,18 +1,23 @@
+import { ViewIcon, DeleteIcon } from '@chakra-ui/icons';
+import { Wrap, WrapItem, Button } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { formatDistance } from 'date-fns';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
+import Link from 'next/link';
 
 export type RepoListProps<Data extends object> = {
   data: Data[];
-  name: string;
+  projectName: string;
 };
 
-const RepoList = <Data extends object>({ data, name }: RepoListProps<Data>) => {
+const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data>) => {
   const columnHelper = createColumnHelper<RepoDto>();
   const columns = [
     columnHelper.accessor((row: RepoDto) => row.name, {
-      cell: (info) => info.getValue(),
+      cell: (info) => (
+        <Link href={`/app/projects/${projectName}/repos/${info.getValue()}`}>{info.getValue()}</Link>
+      ),
       header: 'Name',
     }),
     columnHelper.accessor((row: RepoDto) => row.creator.name, {
@@ -31,10 +36,31 @@ const RepoList = <Data extends object>({ data, name }: RepoListProps<Data>) => {
         isNumeric: true,
       },
     }),
+    columnHelper.accessor(
+      (row: RepoDto) => (
+        <Wrap>
+          <WrapItem>
+            <Link href={`/app/projects/${projectName}/repos/${row.name}`}>
+              <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
+                View
+              </Button>
+            </Link>
+          </WrapItem>
+          <WrapItem>
+            <Button leftIcon={<DeleteIcon />} colorScheme="red" size="sm">
+              Delete
+            </Button>
+          </WrapItem>
+        </Wrap>
+      ),
+      {
+        cell: (info) => info.getValue(),
+        header: 'Actions',
+        enableSorting: false,
+      },
+    ),
   ];
-  return (
-    <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} urlPrefix={name + '/repos'} />
-  );
+  return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
 };
 
 export default RepoList;
