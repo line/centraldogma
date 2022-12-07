@@ -5,7 +5,7 @@ import { faker } from '@faker-js/faker';
 
 const newRepo = (id: number): RepoDto => {
   return {
-    name: `${id}-${faker.animal.dog().replaceAll(' ', '-').toLowerCase()}`,
+    name: `${id}-${faker.animal.bird().replaceAll(' ', '-').toLowerCase()}`,
     creator: {
       name: faker.name.firstName(),
       email: faker.internet.email(),
@@ -23,13 +23,6 @@ const mockRepos = [
     headRevision: 1,
     url: '/api/v1/projects/abcd/repos/meta',
     createdAt: '2022-11-23T03:13:49.581Z',
-  },
-  {
-    name: 'repo1',
-    creator: { name: 'dummy', email: 'dummy@localhost.localdomain' },
-    headRevision: 6,
-    url: '/api/v1/projects/abcd/repos/repo1',
-    createdAt: '2022-11-23T03:16:17.880Z',
   },
 ];
 
