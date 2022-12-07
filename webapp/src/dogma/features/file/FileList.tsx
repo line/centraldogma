@@ -33,11 +33,14 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
       cell: (info) => info.getValue(),
       header: 'Type',
     }),
-    columnHelper.accessor(
-      (row: FileDto) => (
+    columnHelper.accessor((row: FileDto) => row.path, {
+      cell: (info) => (
         <Wrap>
           <WrapItem>
-            <Link as={NextLink} href={`/app/projects/${projectName}/repos/${repoName}/files/head${row.path}`}>
+            <Link
+              as={NextLink}
+              href={`/app/projects/${projectName}/repos/${repoName}/files/head${info.getValue()}`}
+            >
               <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
                 View
               </Button>
@@ -50,12 +53,9 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
           </WrapItem>
         </Wrap>
       ),
-      {
-        cell: (info) => info.getValue(),
-        header: 'Actions',
-        enableSorting: false,
-      },
-    ),
+      header: 'Actions',
+      enableSorting: false,
+    }),
   ];
   return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
 };
