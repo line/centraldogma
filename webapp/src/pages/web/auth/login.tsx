@@ -2,17 +2,16 @@ import Head from 'next/head';
 import { LoginForm } from 'dogma/features/auth/LoginForm';
 import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { useEffect } from 'react';
-import { useRouter } from 'next/router';
+import Router from 'next/router';
 import { login } from 'dogma/features/auth/authSlice';
 
 const LoginPage = () => {
-  const router = useRouter();
   const { isInAnonymousMode, sessionId } = useAppSelector((state) => state.auth);
   useEffect(() => {
     if (isInAnonymousMode || sessionId) {
-      router.push('/');
+      Router.replace('/');
     }
-  }, [isInAnonymousMode, router, sessionId]);
+  }, [isInAnonymousMode, sessionId]);
   const dispatch = useAppDispatch();
   const submitForm = (data: { username: string; password: string }) => {
     dispatch(login({ username: data.username, password: data.password }));
