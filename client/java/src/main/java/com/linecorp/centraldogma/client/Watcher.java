@@ -137,9 +137,9 @@ public interface Watcher<T> extends AutoCloseable {
             final long initialTimeoutMillis = TimeUnit.MILLISECONDS.convert(timeout, unit);
             throw new TimeoutException("Failed to get the initial value in " + initialTimeoutMillis + " ms. " +
                                        "It's probably because the timeout value is too small or " +
-                                       "the target entry doesn't exist. Please consider using " +
-                                       "'errorOnEntryNotFound option' to get " +
-                                       EntryNotFoundException.class.getSimpleName() + " for that case.");
+                                       "the target entry doesn't exist. Please consider using the " +
+                                       "'errorOnEntryNotFound' option to get an " +
+                                       EntryNotFoundException.class.getSimpleName() + " for a missing entry.");
         } catch (ExecutionException e) {
             throw new Error(e);
         }
