@@ -5,21 +5,21 @@ const repoDetail = {
   repos: {
     meta: {
       name: 'meta',
-      perRolePermissions: { owner: ['READ', 'WRITE'], member: [], guest: [] },
+      perRolePermissions: { owner: ['READ', 'WRITE'], member: [] as string[], guest: [] as string[] },
       perUserPermissions: {},
       perTokenPermissions: {},
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-23T03:13:50.129903Z' },
     },
     repo1: {
       name: 'repo1',
-      perRolePermissions: { owner: ['READ', 'WRITE'], member: ['READ', 'WRITE'], guest: [] },
+      perRolePermissions: { owner: ['READ', 'WRITE'], member: ['READ', 'WRITE'], guest: [] as string[] },
       perUserPermissions: {},
       perTokenPermissions: {},
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-23T03:16:18.853509Z' },
     },
     repo2: {
       name: 'repo2',
-      perRolePermissions: { owner: ['READ', 'WRITE'], member: ['READ', 'WRITE'], guest: [] },
+      perRolePermissions: { owner: ['READ', 'WRITE'], member: ['READ', 'WRITE'], guest: [] as string[] },
       perUserPermissions: {},
       perTokenPermissions: {},
       creation: { user: 'lb56789@localhost.localdomain', timestamp: '2022-11-28T03:01:48.202144Z' },
