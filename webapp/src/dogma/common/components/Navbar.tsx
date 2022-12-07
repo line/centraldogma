@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -21,11 +21,6 @@ import {
   Flex,
   HStack,
   IconButton,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  InputRightElement,
-  Kbd,
   Link,
   Menu,
   MenuButton,
@@ -37,11 +32,14 @@ import {
   useColorModeValue,
   useDisclosure,
 } from '@chakra-ui/react';
-import { AddIcon, CloseIcon, HamburgerIcon, MoonIcon, SearchIcon, SunIcon } from '@chakra-ui/icons';
+import { AddIcon, CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
 import { useAppSelector, useAppDispatch } from 'dogma/store';
 import { logout } from 'dogma/features/auth/authSlice';
-import { useRouter } from 'next/router';
+import Router from 'next/router';
+import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
+import { ProjectDto } from 'dogma/features/project/ProjectDto';
+import { OptionBase, Select } from 'chakra-react-select';
 
 interface TopMenu {
   name: string;
@@ -67,12 +65,37 @@ const NavLink = ({ link, children }: { link: string; children: ReactNode }) => (
   </Link>
 );
 
+export interface ProjectOptionType extends OptionBase {
+  value: string;
+  label: string;
+}
+
+const initialState: ProjectOptionType = {
+  value: '',
+  label: '',
+};
+
 export const Navbar = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { colorMode, toggleColorMode } = useColorMode();
-  const user = useAppSelector((state) => state.auth.user);
+  const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
-  const router = useRouter();
+  const { data: projects } = useGetProjectsQuery();
+  const projectOptions: ProjectOptionType[] =
+    projects &&
+    projects.map((project: ProjectDto) => ({
+      value: project.name,
+      label: project.name,
+    }));
+  const [selectedOption, setSelectedOption] = useState(initialState);
+  const handleChange = (option: ProjectOptionType) => {
+    setSelectedOption(option);
+  };
+  useEffect(() => {
+    if (selectedOption && typeof window !== 'undefined') {
+      Router.push(`/app/projects/${selectedOption.value}`);
+    }
+  }, [selectedOption]);
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
@@ -93,18 +116,19 @@ export const Navbar = () => {
             ))}
           </HStack>
         </HStack>
-        <HStack>
-          <InputGroup size="md">
-            <InputLeftElement>
-              <SearchIcon />
-            </InputLeftElement>
-            <Input width="sm" placeholder="Jump to..." />
-            <InputRightElement>
-              {/* TODO(ikhoon): focus on the search bar with `/` key press */}
-              <Kbd>/</Kbd>
-            </InputRightElement>
-          </InputGroup>
-        </HStack>
+        <Box w="40%">
+          <Select
+            id="color-select"
+            name="project-search"
+            options={projectOptions}
+            value={selectedOption}
+            onChange={(option) => handleChange(option as ProjectOptionType)}
+            placeholder="Jump to project ..."
+            closeMenuOnSelect={true}
+            isClearable={true}
+            isSearchable={true}
+          />
+        </Box>
         <Flex alignItems="center">
           <Button variant="solid" colorScheme="teal" size="sm" mr={4} leftIcon={<AddIcon />}>
             New Project
@@ -124,7 +148,7 @@ export const Navbar = () => {
                   onClick={async () => {
                     await dispatch(logout());
                     if (typeof window !== 'undefined') {
-                      router.push(
+                      Router.push(
                         process.env.NEXT_PUBLIC_HOST
                           ? `${process.env.NEXT_PUBLIC_HOST}/link/auth/login/?return_to=${window.location.origin}`
                           : `/link/auth/login/`,
