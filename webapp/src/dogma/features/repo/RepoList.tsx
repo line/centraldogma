@@ -1,10 +1,10 @@
 import { ViewIcon, DeleteIcon } from '@chakra-ui/icons';
-import { Wrap, WrapItem, Button } from '@chakra-ui/react';
+import { Wrap, WrapItem, Button, Link } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { formatDistance } from 'date-fns';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
-import Link from 'next/link';
+import NextLink from 'next/link';
 
 export type RepoListProps<Data extends object> = {
   data: Data[];
@@ -16,7 +16,9 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
   const columns = [
     columnHelper.accessor((row: RepoDto) => row.name, {
       cell: (info) => (
-        <Link href={`/app/projects/${projectName}/repos/${info.getValue()}`}>{info.getValue()}</Link>
+        <Link as={NextLink} href={`/app/projects/${projectName}/repos/${info.getValue()}`}>
+          {info.getValue()}
+        </Link>
       ),
       header: 'Name',
     }),
@@ -40,7 +42,7 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       (row: RepoDto) => (
         <Wrap>
           <WrapItem>
-            <Link href={`/app/projects/${projectName}/repos/${row.name}`}>
+            <Link as={NextLink} href={`/app/projects/${projectName}/repos/${row.name}`}>
               <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
                 View
               </Button>

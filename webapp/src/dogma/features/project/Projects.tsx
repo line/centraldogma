@@ -16,7 +16,7 @@
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import { Heading, Link, Table, TableCaption, TableContainer, Tbody, Td, Tr } from '@chakra-ui/react';
-import { default as RoutingLink } from 'next/link';
+import NextLink from 'next/link';
 import { SettingsIcon } from '@chakra-ui/icons';
 
 // TODO(ikhoon):
@@ -38,7 +38,7 @@ export const Projects = () => {
                   {projects.map((project) => (
                     <Tr key={project.name}>
                       <Td>
-                        <Link as={RoutingLink} href={`/app/projects/${project.name}`} fontSize="md">
+                        <Link as={NextLink} href={`/app/projects/${project.name}`} fontSize="md">
                           {project.name}
                         </Link>
                       </Td>
