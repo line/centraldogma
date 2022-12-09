@@ -17,7 +17,7 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
   const columns = [
     columnHelper.accessor((row: RepoDto) => row.name, {
       cell: (info) => (
-        <ChakraLink href={`/app/projects/${projectName}/repos/${info.getValue()}/list/head`}>
+        <ChakraLink href={`/app/projects/${projectName}/repos/${info.getValue()}`}>
           {info.getValue()}
         </ChakraLink>
       ),
@@ -43,7 +43,7 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       cell: (info) => (
         <Wrap>
           <WrapItem>
-            <NextLink href={`/app/projects/${projectName}/repos/${info.getValue()}/list/head`}>
+            <NextLink href={`/app/projects/${projectName}/repos/${info.getValue()}s`}>
               <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
                 View
               </Button>
