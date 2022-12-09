@@ -1,6 +1,7 @@
-import { DeleteIcon, ViewIcon } from '@chakra-ui/icons';
-import { Button, Link, Wrap, WrapItem } from '@chakra-ui/react';
+import { ViewIcon } from '@chakra-ui/icons';
+import { Button, Wrap, WrapItem } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { FileDto } from 'dogma/features/file/FileDto';
 import NextLink from 'next/link';
@@ -16,12 +17,12 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
   const columns = [
     columnHelper.accessor((row: FileDto) => row.path, {
       cell: (info) => (
-        <Link
-          as={NextLink}
+        <ChakraLink
+          fontWeight={'semibold'}
           href={`/app/projects/${projectName}/repos/${repoName}/files/head${info.getValue()}`}
         >
           {info.getValue()}
-        </Link>
+        </ChakraLink>
       ),
       header: 'Path',
     }),
@@ -37,19 +38,11 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
       cell: (info) => (
         <Wrap>
           <WrapItem>
-            <Link
-              as={NextLink}
-              href={`/app/projects/${projectName}/repos/${repoName}/files/head${info.getValue()}`}
-            >
+            <NextLink href={`/app/projects/${projectName}/repos/${repoName}/files/head${info.getValue()}`}>
               <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
                 View
               </Button>
-            </Link>
-          </WrapItem>
-          <WrapItem>
-            <Button leftIcon={<DeleteIcon />} colorScheme="red" size="sm">
-              Delete
-            </Button>
+            </NextLink>
           </WrapItem>
         </Wrap>
       ),
