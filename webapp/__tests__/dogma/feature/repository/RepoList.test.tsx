@@ -1,21 +1,11 @@
-import { fireEvent, render } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 import RepoList, { RepoListProps } from 'dogma/features/repo/RepoList';
 
-const useRouter = jest.spyOn(require('next/router'), 'useRouter');
-
 describe('RepoList', () => {
   let expectedProps: JSX.IntrinsicAttributes & RepoListProps<object>;
-  let pathName = '';
 
   beforeEach(() => {
-    useRouter.mockImplementationOnce(() => {
-      return {
-        push: async (newPathname: string) => {
-          pathName = newPathname;
-        },
-      };
-    });
     const mockRepos = [
       {
         name: 'meta',
@@ -59,23 +49,23 @@ describe('RepoList', () => {
     expect(container.querySelector('tbody').children.length).toBe(3);
   });
 
-  it('has `${projectName}/repos/${repoName}/files/head{fileName}` on the view icon', () => {
+  it('has `${projectName}/repos/${repoName}/files/head{fileName}/list/head` on the view icon', () => {
     const { container } = render(<RepoList {...expectedProps} />);
     const actionCell = container.querySelector('tbody').firstChild.firstChild.lastChild;
     const firstRepoName = 'meta';
     expect(actionCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}`,
+      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}/list/head`,
     );
   });
 
-  it('has `${projectName}/repos/${repoName}/files/head{fileName}` on the file path cell', () => {
+  it('has `${projectName}/repos/${repoName}/files/head{fileName}/list/head` on the file path cell', () => {
     const { container } = render(<RepoList {...expectedProps} />);
     const firstCell = container.querySelector('tbody').firstChild.firstChild.firstChild;
     const firstRepoName = 'meta';
     expect(firstCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}`,
+      `/app/projects/${expectedProps.projectName}/repos/${firstRepoName}/list/head`,
     );
   });
 });
