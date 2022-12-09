@@ -80,13 +80,11 @@ export const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
-  const { data: projects } = useGetProjectsQuery();
-  const projectOptions: ProjectOptionType[] =
-    projects &&
-    projects.map((project: ProjectDto) => ({
-      value: project.name,
-      label: project.name,
-    }));
+  const { data: projects = [] } = useGetProjectsQuery();
+  const projectOptions: ProjectOptionType[] = projects.map((project: ProjectDto) => ({
+    value: project.name,
+    label: project.name,
+  }));
   const [selectedOption, setSelectedOption] = useState(initialState);
   const handleChange = (option: ProjectOptionType) => {
     setSelectedOption(option);
