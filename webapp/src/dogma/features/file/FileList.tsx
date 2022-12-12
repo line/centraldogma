@@ -1,9 +1,10 @@
-import { DeleteIcon, ViewIcon } from '@chakra-ui/icons';
+import { ViewIcon } from '@chakra-ui/icons';
 import { Button, Wrap, WrapItem } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { FileDto } from 'dogma/features/file/FileDto';
-import Link from 'next/link';
+import NextLink from 'next/link';
 
 export type FileListProps<Data extends object> = {
   data: Data[];
@@ -16,9 +17,12 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
   const columns = [
     columnHelper.accessor((row: FileDto) => row.path, {
       cell: (info) => (
-        <Link href={`/app/projects/${projectName}/repos/${repoName}/files/head${info.getValue()}`}>
+        <ChakraLink
+          fontWeight={'semibold'}
+          href={`/app/projects/${projectName}/repos/${repoName}/files/head${info.getValue()}`}
+        >
           {info.getValue()}
-        </Link>
+        </ChakraLink>
       ),
       header: 'Path',
     }),
@@ -30,29 +34,21 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
       cell: (info) => info.getValue(),
       header: 'Type',
     }),
-    columnHelper.accessor(
-      (row: FileDto) => (
+    columnHelper.accessor((row: FileDto) => row.path, {
+      cell: (info) => (
         <Wrap>
           <WrapItem>
-            <Link href={`/app/projects/${projectName}/repos/${repoName}/files/head${row.path}`}>
+            <NextLink href={`/app/projects/${projectName}/repos/${repoName}/files/head${info.getValue()}`}>
               <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
                 View
               </Button>
-            </Link>
-          </WrapItem>
-          <WrapItem>
-            <Button leftIcon={<DeleteIcon />} colorScheme="red" size="sm">
-              Delete
-            </Button>
+            </NextLink>
           </WrapItem>
         </Wrap>
       ),
-      {
-        cell: (info) => info.getValue(),
-        header: 'Actions',
-        enableSorting: false,
-      },
-    ),
+      header: 'Actions',
+      enableSorting: false,
+    }),
   ];
   return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
 };

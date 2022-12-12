@@ -1,4 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { faker } from '@faker-js/faker';
+import { ProjectDto } from 'dogma/features/project/ProjectDto';
+
+const newProject = (id: number): ProjectDto => {
+  return {
+    name: `${id}-${faker.animal.cat().replaceAll(' ', '-').toLowerCase()}`,
+    creator: {
+      name: faker.name.firstName(),
+      email: faker.internet.email(),
+    },
+    url: faker.internet.url(),
+    createdAt: faker.datatype.datetime().toString(),
+  };
+};
 
 const projects = [
   {
@@ -13,13 +28,15 @@ const projects = [
     url: '/api/v1/projects/xyz',
     createdAt: '2022-11-02T04:16:03.175Z',
   },
-  {
-    name: 'test',
-    creator: { name: 'System', email: 'system@localhost.localdomain' },
-    url: '/api/v1/projects/test',
-    createdAt: '2022-11-01T06:51:50.553Z',
-  },
 ];
+
+const makeData = (len: number) => {
+  for (let i = 0; i < len; i++) {
+    projects.push(newProject(i));
+  }
+};
+
+makeData(200);
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { project } = req.body;

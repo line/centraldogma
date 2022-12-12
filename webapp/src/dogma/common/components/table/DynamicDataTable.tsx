@@ -39,7 +39,7 @@ export const DynamicDataTable = <Data extends object>({ data, columns }: Dynamic
     <>
       <Text mb="8px">Filter by {table.getHeaderGroups()[0].headers[0].id /* Filter by the 1st column */} </Text>
       <Filter column={table.getHeaderGroups()[0].headers[0].column /* Filter by the 1st column */} />
-      <Table variant="striped">
+      <Table>
         <Thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <Tr key={headerGroup.id}>

@@ -15,9 +15,10 @@
  */
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
-import { Heading, Link, Table, TableCaption, TableContainer, Tbody, Td, Tr } from '@chakra-ui/react';
-import { default as RoutingLink } from 'next/link';
+import { Heading, Table, TableCaption, TableContainer, Tbody, Td, Tr } from '@chakra-ui/react';
 import { SettingsIcon } from '@chakra-ui/icons';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { ProjectDto } from 'dogma/features/project/ProjectDto';
 
 // TODO(ikhoon):
 //   - Add more information to the projects table.
@@ -35,12 +36,12 @@ export const Projects = () => {
               <Table variant="simple">
                 <TableCaption>Projects</TableCaption>
                 <Tbody>
-                  {projects.map((project) => (
+                  {projects.map((project: ProjectDto) => (
                     <Tr key={project.name}>
                       <Td>
-                        <Link as={RoutingLink} href={`/app/projects/${project.name}`} fontSize="md">
+                        <ChakraLink href={`/app/projects/${project.name}`} fontSize="md">
                           {project.name}
-                        </Link>
+                        </ChakraLink>
                       </Td>
                       <Td>
                         <SettingsIcon />

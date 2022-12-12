@@ -2,9 +2,10 @@ import { ViewIcon, DeleteIcon } from '@chakra-ui/icons';
 import { Wrap, WrapItem, Button } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { formatDistance } from 'date-fns';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
-import Link from 'next/link';
+import NextLink from 'next/link';
 
 export type RepoListProps<Data extends object> = {
   data: Data[];
@@ -16,7 +17,9 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
   const columns = [
     columnHelper.accessor((row: RepoDto) => row.name, {
       cell: (info) => (
-        <Link href={`/app/projects/${projectName}/repos/${info.getValue()}`}>{info.getValue()}</Link>
+        <ChakraLink href={`/app/projects/${projectName}/repos/${info.getValue()}`}>
+          {info.getValue()}
+        </ChakraLink>
       ),
       header: 'Name',
     }),
@@ -36,15 +39,15 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
         isNumeric: true,
       },
     }),
-    columnHelper.accessor(
-      (row: RepoDto) => (
+    columnHelper.accessor((row: RepoDto) => row.name, {
+      cell: (info) => (
         <Wrap>
           <WrapItem>
-            <Link href={`/app/projects/${projectName}/repos/${row.name}`}>
+            <NextLink href={`/app/projects/${projectName}/repos/${info.getValue()}s`}>
               <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
                 View
               </Button>
-            </Link>
+            </NextLink>
           </WrapItem>
           <WrapItem>
             <Button leftIcon={<DeleteIcon />} colorScheme="red" size="sm">
@@ -53,12 +56,9 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
           </WrapItem>
         </Wrap>
       ),
-      {
-        cell: (info) => info.getValue(),
-        header: 'Actions',
-        enableSorting: false,
-      },
-    ),
+      header: 'Actions',
+      enableSorting: false,
+    }),
   ];
   return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
 };
