@@ -1,21 +1,11 @@
-import { fireEvent, render } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 import RepoList, { RepoListProps } from 'dogma/features/repo/RepoList';
 
-const useRouter = jest.spyOn(require('next/router'), 'useRouter');
-
 describe('RepoList', () => {
   let expectedProps: JSX.IntrinsicAttributes & RepoListProps<object>;
-  let pathName = '';
 
   beforeEach(() => {
-    useRouter.mockImplementationOnce(() => {
-      return {
-        push: async (newPathname: string) => {
-          pathName = newPathname;
-        },
-      };
-    });
     const mockRepos = [
       {
         name: 'meta',
