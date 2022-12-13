@@ -5,7 +5,7 @@ const ProjectsPage = () => {
   return (
     <>
       <Head>
-        <link rel="icon" href="/static/favicon.ico" />
+        <link rel="icon" href="/favicon.ico" />
         <meta name="Central Dogma | Project" content="Projects ... " />
       </Head>
       <Projects />

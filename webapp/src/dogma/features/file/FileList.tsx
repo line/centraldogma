@@ -1,10 +1,11 @@
-import { ViewIcon } from '@chakra-ui/icons';
-import { Button, Wrap, WrapItem } from '@chakra-ui/react';
+import { EditIcon, ViewIcon } from '@chakra-ui/icons';
+import { Button, Wrap, WrapItem, Box, HStack } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { FileDto } from 'dogma/features/file/FileDto';
 import NextLink from 'next/link';
+import { FcFile, FcOpenedFolder } from 'react-icons/fc';
 
 export type FileListProps<Data extends object> = {
   data: Data[];
@@ -21,7 +22,10 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
           fontWeight={'semibold'}
           href={`/app/projects/${projectName}/repos/${repoName}/files/head${info.getValue()}`}
         >
-          {info.getValue()}
+          <HStack>
+            <Box>{info.row.original.type === 'DIRECTORY' ? <FcOpenedFolder /> : <FcFile />}</Box>
+            <Box>{info.getValue()}</Box>
+          </HStack>
         </ChakraLink>
       ),
       header: 'Path',
@@ -29,10 +33,6 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
     columnHelper.accessor((row: FileDto) => row.revision, {
       cell: (info) => info.getValue(),
       header: 'Revision',
-    }),
-    columnHelper.accessor((row: FileDto) => row.type, {
-      cell: (info) => info.getValue(),
-      header: 'Type',
     }),
     columnHelper.accessor((row: FileDto) => row.path, {
       cell: (info) => (
@@ -43,6 +43,11 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
                 View
               </Button>
             </NextLink>
+          </WrapItem>
+          <WrapItem>
+            <Button leftIcon={<EditIcon />} colorScheme="gray" size="sm">
+              Edit
+            </Button>
           </WrapItem>
         </Wrap>
       ),
