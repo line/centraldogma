@@ -90,10 +90,10 @@ export const Navbar = () => {
     setSelectedOption(option);
   };
   useEffect(() => {
-    if (selectedOption.value && typeof window !== 'undefined') {
+    if (selectedOption?.value) {
       Router.push(`/app/projects/${selectedOption.value}`);
     }
-  }, [selectedOption.value]);
+  }, [selectedOption?.value]);
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
