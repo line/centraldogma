@@ -10,7 +10,7 @@ const newFile = (id: number): FileDto => {
       max: 10,
     }),
     path: `/${id}-${faker.animal.rabbit().replaceAll(' ', '-').toLowerCase()}`,
-    type: 'TEXT',
+    type: faker.helpers.arrayElement(['TEXT', 'DIRECTORY', 'JSON', 'YML']),
     url: faker.internet.url(),
   };
 };
@@ -29,7 +29,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const revisionNumber = parseInt(revision as string);
   const filtered = isNaN(revisionNumber)
     ? fileList
-    : fileList.filter((file: FileDto) => file.revision == revisionNumber);
+    : fileList.filter((file: FileDto) => file.revision <= revisionNumber);
   switch (req.method) {
     case 'GET':
       res.status(200).json(filtered);
