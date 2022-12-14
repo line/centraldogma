@@ -2,10 +2,10 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { formatDistance } from 'date-fns';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
-import { ViewIcon } from '@chakra-ui/icons';
 import { Badge, Box, Button, HStack, Tag } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { FaHistory } from 'react-icons/fa';
 
 export type HistoryListProps<Data extends object> = {
   data: Data[];
@@ -57,7 +57,7 @@ const HistoryList = <Data extends object>({
     columnHelper.accessor((row: HistoryDto) => row.revision.revisionNumber, {
       cell: (info) => (
         <NextLink href={`/app/projects/${projectName}/repos/${repoName}/list/${info.getValue()}/`}>
-          <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm" onClick={() => handleTabChange(0)}>
+          <Button leftIcon={<FaHistory />} size="sm" onClick={() => handleTabChange(0)}>
             View
           </Button>
         </NextLink>
