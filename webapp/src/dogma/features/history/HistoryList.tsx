@@ -3,7 +3,7 @@ import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { formatDistance } from 'date-fns';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { ViewIcon } from '@chakra-ui/icons';
-import { Button } from '@chakra-ui/react';
+import { Badge, Box, Button, HStack, Tag } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 
@@ -22,29 +22,36 @@ const HistoryList = <Data extends object>({
 }: HistoryListProps<Data>) => {
   const columnHelper = createColumnHelper<HistoryDto>();
   const columns = [
-    columnHelper.accessor((row: HistoryDto) => parseInt(row.revision.revisionNumber), {
+    columnHelper.accessor((row: HistoryDto) => `${row.revision.revisionNumber} ${row.summary}`, {
       cell: (info) => (
         <ChakraLink
           fontWeight="semibold"
           href={`/app/projects/${projectName}/repos/${repoName}/list/${info.getValue()}/`}
           onClick={() => handleTabChange(0)}
         >
-          {info.getValue()}
+          <HStack>
+            <Box>
+              <Tag colorScheme="blue">{info.row.original.revision.revisionNumber}</Tag>
+            </Box>
+            <Box>{info.row.original.summary}</Box>
+          </HStack>
         </ChakraLink>
       ),
-      header: 'Revision',
-    }),
-    columnHelper.accessor((row: HistoryDto) => row.summary, {
-      cell: (info) => info.getValue(),
       header: 'Summary',
     }),
-
     columnHelper.accessor((row: HistoryDto) => row.author.name, {
       cell: (info) => info.getValue(),
       header: 'Author',
     }),
     columnHelper.accessor((row: HistoryDto) => row.timestamp, {
-      cell: (info) => formatDistance(new Date(info.getValue()), new Date(), { addSuffix: true }),
+      cell: (info) => (
+        <Box>
+          {info.getValue()}
+          <Badge colorScheme="blue">
+            {formatDistance(new Date(info.getValue()), new Date(), { addSuffix: true })}
+          </Badge>
+        </Box>
+      ),
       header: 'Timestamp',
     }),
     columnHelper.accessor((row: HistoryDto) => row.revision.revisionNumber, {

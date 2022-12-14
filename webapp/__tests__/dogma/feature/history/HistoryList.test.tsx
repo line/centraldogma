@@ -38,12 +38,12 @@ describe('HistoryList', () => {
     expect(container.querySelector('tbody').children.length).toBe(2);
   });
 
-  it('links the view icon to `${projectName}/repos/${repoName}/list/${revisionNumber}`', () => {
+  it('links the view icon to `${projectName}/repos/${repoName}/list/${revisionNumber} ${summary}`', () => {
     const { container } = render(<HistoryList {...expectedProps} />);
     const actionCell = container.querySelector('tbody').firstChild.firstChild.lastChild;
     expect(actionCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/list/${8}`,
+      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/list/${8} Edit /zzzzz`,
     );
   });
 
@@ -54,12 +54,12 @@ describe('HistoryList', () => {
     expect(expectedProps.handleTabChange).toHaveBeenCalledTimes(1);
   });
 
-  it('links the revision cell to `${projectName}/repos/${repoName}/list/${revisionNumber}`', () => {
+  it('links the revision cell to `${projectName}/repos/${repoName}/list/${revisionNumber} ${summary}`', () => {
     const { container } = render(<HistoryList {...expectedProps} />);
     const firstCell = container.querySelector('tbody').firstChild.firstChild.firstChild;
     expect(firstCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/list/${8}`,
+      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/list/${8} Edit /zzzzz`,
     );
   });
 

@@ -3,18 +3,18 @@ import { HistoryDto } from 'dogma/features/history/HistoryDto';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { faker } from '@faker-js/faker';
 
-const newHistory = (): HistoryDto => {
+const newHistory = (i: number): HistoryDto => {
   return {
     revision: {
       major: faker.datatype.number({ min: 0, max: 10 }),
       minor: faker.datatype.number({ min: 0, max: 10 }),
-      revisionNumber: faker.datatype.number({ min: 1, max: 10 }).toString(),
+      revisionNumber: i.toString(),
     },
     author: {
       name: faker.internet.userName(),
       email: faker.internet.email(),
     },
-    timestamp: faker.datatype.datetime().toString(),
+    timestamp: '2022-11-23T03:13:49.581Z',
     summary: faker.lorem.sentence(),
     detail: {
       content: faker.lorem.paragraph(),
@@ -26,8 +26,8 @@ const newHistory = (): HistoryDto => {
 
 const historyList: HistoryDto[] = [];
 const makeData = (len: number) => {
-  for (let i = 0; i < len; i++) {
-    historyList.push(newHistory());
+  for (let i = len; i > 0; i--) {
+    historyList.push(newHistory(i));
   }
 };
 makeData(10);
