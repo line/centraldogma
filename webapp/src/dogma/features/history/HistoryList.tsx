@@ -26,7 +26,7 @@ const HistoryList = <Data extends object>({
       cell: (info) => (
         <ChakraLink
           fontWeight="semibold"
-          href={`/app/projects/${projectName}/repos/${repoName}/list/${info.getValue()}/`}
+          href={`/app/projects/${projectName}/repos/${repoName}/list/${info.row.original.revision.revisionNumber}/`}
           onClick={() => handleTabChange(0)}
         >
           <HStack>
@@ -56,7 +56,9 @@ const HistoryList = <Data extends object>({
     }),
     columnHelper.accessor((row: HistoryDto) => row.revision.revisionNumber, {
       cell: (info) => (
-        <NextLink href={`/app/projects/${projectName}/repos/${repoName}/list/${info.getValue()}/`}>
+        <NextLink
+          href={`/app/projects/${projectName}/repos/${repoName}/list/${info.row.original.revision.revisionNumber}/`}
+        >
           <Button leftIcon={<FaHistory />} size="sm" onClick={() => handleTabChange(0)}>
             View
           </Button>
