@@ -1,5 +1,5 @@
 import { ViewIcon, DeleteIcon } from '@chakra-ui/icons';
-import { Wrap, WrapItem, Button, Box, HStack } from '@chakra-ui/react';
+import { Wrap, WrapItem, Button, Box, HStack, Badge } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { formatDistance } from 'date-fns';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
@@ -37,7 +37,14 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       header: 'Creator',
     }),
     columnHelper.accessor((row: RepoDto) => row.createdAt, {
-      cell: (info) => formatDistance(new Date(info.getValue()), new Date(), { addSuffix: true }),
+      cell: (info) => (
+        <Box>
+          <Box alignItems="baseline">{info.getValue()}</Box>
+          <Badge alignItems="baseline" colorScheme="blue">
+            {formatDistance(new Date(info.getValue()), new Date(), { addSuffix: true })}
+          </Badge>
+        </Box>
+      ),
       header: 'Created',
     }),
     columnHelper.accessor((row: RepoDto) => row.headRevision, {

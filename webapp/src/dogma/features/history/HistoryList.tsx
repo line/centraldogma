@@ -37,7 +37,7 @@ const HistoryList = <Data extends object>({
           </HStack>
         </ChakraLink>
       ),
-      header: 'Summary',
+      header: 'Revision',
     }),
     columnHelper.accessor((row: HistoryDto) => row.author.name, {
       cell: (info) => info.getValue(),

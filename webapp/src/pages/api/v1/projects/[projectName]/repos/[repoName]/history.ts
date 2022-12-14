@@ -14,7 +14,7 @@ const newHistory = (i: number): HistoryDto => {
       name: faker.internet.userName(),
       email: faker.internet.email(),
     },
-    timestamp: '2022-11-23T03:13:49.581Z',
+    timestamp: faker.datatype.datetime().toISOString(),
     summary: faker.lorem.sentence(),
     detail: {
       content: faker.lorem.paragraph(),
