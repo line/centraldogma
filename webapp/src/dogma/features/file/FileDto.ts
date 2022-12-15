@@ -1,6 +1,6 @@
 export interface FileDto {
   path: string;
   revision: number;
-  type: string;
+  type: 'TEXT' | 'DIRECTORY' | 'JSON' | 'YML';
   url: string;
 }

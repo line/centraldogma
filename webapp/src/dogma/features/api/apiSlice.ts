@@ -19,10 +19,12 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { AuthState } from 'dogma/features/auth/authSlice';
 import { FileDto } from 'dogma/features/file/FileDto';
+import { HistoryDto } from 'dogma/features/history/HistoryDto';
 
 export type GetFilesByProjectAndRepoName = {
   projectName: string;
   repoName: string;
+  revision?: string;
 };
 
 export const apiSlice = createApi({
@@ -45,8 +47,20 @@ export const apiSlice = createApi({
     getFilesByProjectAndRepoName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/list`,
     }),
+    getFilesByProjectAndRepoAndRevisionName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
+      query: ({ projectName, repoName, revision }) =>
+        `/v1/projects/${projectName}/repos/${repoName}/list/?revision=${revision}`,
+    }),
+    getHistoryByProjectAndRepoName: builder.query<HistoryDto[], GetFilesByProjectAndRepoName>({
+      query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/history`,
+    }),
   }),
 });
 
-export const { useGetProjectsQuery, useGetReposByProjectNameQuery, useGetFilesByProjectAndRepoNameQuery } =
-  apiSlice;
+export const {
+  useGetProjectsQuery,
+  useGetReposByProjectNameQuery,
+  useGetFilesByProjectAndRepoNameQuery,
+  useGetFilesByProjectAndRepoAndRevisionNameQuery,
+  useGetHistoryByProjectAndRepoNameQuery,
+} = apiSlice;
