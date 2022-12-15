@@ -12,7 +12,7 @@ const newRepo = (id: number): RepoDto => {
     },
     headRevision: parseInt(faker.random.numeric()),
     url: faker.internet.url(),
-    createdAt: faker.datatype.datetime().toString(),
+    createdAt: faker.datatype.datetime().toISOString(),
   };
 };
 

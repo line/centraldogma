@@ -6,8 +6,8 @@ import { useRouter } from 'next/router';
 
 const ProjectDetailPage = () => {
   const router = useRouter();
-  const { projectName } = router.query;
-  const { data = [] } = useGetReposByProjectNameQuery(projectName as string, {
+  const projectName = router.query.projectName as string;
+  const { data = [] } = useGetReposByProjectNameQuery(projectName, {
     refetchOnMountOrArgChange: true,
     skip: false,
   });
@@ -38,7 +38,7 @@ const ProjectDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <RepoList data={data} projectName={projectName as string} />
+            <RepoList data={data} projectName={projectName} />
           </TabPanel>
           <TabPanel>TODO: Permissions</TabPanel>
           <TabPanel>TODO: Members</TabPanel>

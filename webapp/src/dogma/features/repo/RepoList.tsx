@@ -1,11 +1,12 @@
 import { ViewIcon, DeleteIcon } from '@chakra-ui/icons';
-import { Wrap, WrapItem, Button } from '@chakra-ui/react';
+import { Wrap, WrapItem, Button, Box, HStack, Badge, Tooltip } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
-import { formatDistance } from 'date-fns';
+import { format, formatDistance } from 'date-fns';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 import NextLink from 'next/link';
+import { RiGitRepositoryFill } from 'react-icons/ri';
 
 export type RepoListProps<Data extends object> = {
   data: Data[];
@@ -17,8 +18,16 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
   const columns = [
     columnHelper.accessor((row: RepoDto) => row.name, {
       cell: (info) => (
-        <ChakraLink href={`/app/projects/${projectName}/repos/${info.getValue()}`}>
-          {info.getValue()}
+        <ChakraLink
+          fontWeight={'semibold'}
+          href={`/app/projects/${projectName}/repos/${info.getValue()}/list/head`}
+        >
+          <HStack>
+            <Box>
+              <RiGitRepositoryFill />
+            </Box>
+            <Box>{info.getValue()}</Box>
+          </HStack>
         </ChakraLink>
       ),
       header: 'Name',
@@ -28,7 +37,13 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       header: 'Creator',
     }),
     columnHelper.accessor((row: RepoDto) => row.createdAt, {
-      cell: (info) => formatDistance(new Date(info.getValue()), new Date(), { addSuffix: true }),
+      cell: (info) => (
+        <Box>
+          <Tooltip label={format(new Date(info.getValue()), 'dd MMM yyyy HH:mm z')}>
+            <Badge>{formatDistance(new Date(info.getValue()), new Date(), { addSuffix: true })}</Badge>
+          </Tooltip>
+        </Box>
+      ),
       header: 'Created',
     }),
     columnHelper.accessor((row: RepoDto) => row.headRevision, {
@@ -43,7 +58,7 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       cell: (info) => (
         <Wrap>
           <WrapItem>
-            <NextLink href={`/app/projects/${projectName}/repos/${info.getValue()}s`}>
+            <NextLink href={`/app/projects/${projectName}/repos/${info.getValue()}/list/head`}>
               <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
                 View
               </Button>
