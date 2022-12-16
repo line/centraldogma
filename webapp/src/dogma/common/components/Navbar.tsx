@@ -146,7 +146,7 @@ export const Navbar = () => {
             id="color-select"
             name="project-search"
             options={projectOptions}
-            value={selectedOption}
+            value={selectedOption?.value}
             onChange={(option) => handleChange(option as ProjectOptionType)}
             placeholder="Jump to project ..."
             closeMenuOnSelect={true}
