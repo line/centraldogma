@@ -20,6 +20,7 @@ import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { AuthState } from 'dogma/features/auth/authSlice';
 import { FileDto } from 'dogma/features/file/FileDto';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
+import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 
 export type GetFilesByProjectAndRepoName = {
   projectName: string;
@@ -41,8 +42,11 @@ export const apiSlice = createApi({
     getProjects: builder.query<ProjectDto[], void>({
       query: () => '/v1/projects',
     }),
+    getMetadataByProjectName: builder.query<ProjectMetadataDto, string>({
+      query: (projectName) => `/v1/projects/${projectName}/`,
+    }),
     getReposByProjectName: builder.query<RepoDto[], string>({
-      query: (name) => `/v1/projects/${name}/repos`,
+      query: (projectName) => `/v1/projects/${projectName}/repos`,
     }),
     getFilesByProjectAndRepoName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/list`,
@@ -59,6 +63,7 @@ export const apiSlice = createApi({
 
 export const {
   useGetProjectsQuery,
+  useGetMetadataByProjectNameQuery,
   useGetReposByProjectNameQuery,
   useGetFilesByProjectAndRepoNameQuery,
   useGetFilesByProjectAndRepoAndRevisionNameQuery,
