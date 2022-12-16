@@ -141,7 +141,7 @@ export const Navbar = () => {
             ))}
           </HStack>
         </HStack>
-        <Box w="40%">
+        <Box w="40%" bgColor={colorMode === 'light' ? 'white' : 'whiteAlpha.50'}>
           <Select
             id="color-select"
             name="project-search"
