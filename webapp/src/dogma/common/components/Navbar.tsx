@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useRef } from 'react';
 import {
   Avatar,
   Box,
@@ -39,7 +39,8 @@ import { logout } from 'dogma/features/auth/authSlice';
 import Router from 'next/router';
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
-import { OptionBase, Select } from 'chakra-react-select';
+import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } from 'chakra-react-select';
+import { RxSlash } from 'react-icons/rx';
 
 interface TopMenu {
   name: string;
@@ -75,6 +76,16 @@ const initialState: ProjectOptionType = {
   label: '',
 };
 
+const DropdownIndicator = (
+  props: JSX.IntrinsicAttributes & DropdownIndicatorProps<unknown, boolean, GroupBase<unknown>>,
+) => {
+  return (
+    <components.DropdownIndicator {...props}>
+      <RxSlash />
+    </components.DropdownIndicator>
+  );
+};
+
 export const Navbar = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { colorMode, toggleColorMode } = useColorMode();
@@ -94,6 +105,22 @@ export const Navbar = () => {
       Router.push(`/app/projects/${selectedOption.value}`);
     }
   }, [selectedOption?.value]);
+
+  const selectRef = useRef(null);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/') {
+        e.preventDefault();
+        selectRef.current.clearValue();
+        selectRef.current.focus();
+      } else if (e.key === 'Escape') {
+        selectRef.current.blur();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
       <Flex h={16} alignItems="center" justifyContent="space-between" fontWeight="semibold">
@@ -119,12 +146,21 @@ export const Navbar = () => {
             id="color-select"
             name="project-search"
             options={projectOptions}
-            value={selectedOption}
+            value={selectedOption?.value}
             onChange={(option) => handleChange(option as ProjectOptionType)}
             placeholder="Jump to project ..."
             closeMenuOnSelect={true}
+            openMenuOnFocus={true}
             isClearable={true}
             isSearchable={true}
+            ref={selectRef}
+            components={{ DropdownIndicator }}
+            chakraStyles={{
+              control: (baseStyles) => ({
+                ...baseStyles,
+                backgroundColor: colorMode === 'light' ? 'white' : 'whiteAlpha.50',
+              }),
+            }}
           />
         </Box>
         <Flex alignItems="center">
