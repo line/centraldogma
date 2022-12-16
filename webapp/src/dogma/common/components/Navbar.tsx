@@ -113,6 +113,8 @@ export const Navbar = () => {
         e.preventDefault();
         selectRef.current.clearValue();
         selectRef.current.focus();
+      } else if (e.key === 'Escape') {
+        selectRef.current.blur();
       }
     };
     document.addEventListener('keydown', handleKeyDown);
