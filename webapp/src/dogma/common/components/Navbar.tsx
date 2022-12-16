@@ -141,7 +141,7 @@ export const Navbar = () => {
             ))}
           </HStack>
         </HStack>
-        <Box w="40%" bgColor={colorMode === 'light' ? 'white' : 'whiteAlpha.50'}>
+        <Box w="40%">
           <Select
             id="color-select"
             name="project-search"
@@ -155,6 +155,12 @@ export const Navbar = () => {
             isSearchable={true}
             ref={selectRef}
             components={{ DropdownIndicator }}
+            chakraStyles={{
+              control: (baseStyles) => ({
+                ...baseStyles,
+                backgroundColor: colorMode === 'light' ? 'white' : 'whiteAlpha.50',
+              }),
+            }}
           />
         </Box>
         <Flex alignItems="center">
