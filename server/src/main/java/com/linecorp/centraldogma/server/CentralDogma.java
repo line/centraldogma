@@ -147,6 +147,7 @@ import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
 import io.micrometer.core.instrument.binder.jvm.DiskSpaceMetrics;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
@@ -156,6 +157,7 @@ import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -205,7 +207,7 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private CommandExecutor executor;
     @Nullable
-    private PrometheusMeterRegistry meterRegistry;
+    private CompositeMeterRegistry meterRegistry;
     @Nullable
     private SessionManager sessionManager;
 
@@ -320,13 +322,14 @@ public class CentralDogma implements AutoCloseable {
         ScheduledExecutorService purgeWorker = null;
         ProjectManager pm = null;
         CommandExecutor executor = null;
-        PrometheusMeterRegistry meterRegistry = null;
+        CompositeMeterRegistry meterRegistry = null;
         Server server = null;
         SessionManager sessionManager = null;
         try {
-            meterRegistry = PrometheusMeterRegistries.newRegistry();
+            meterRegistry = new CompositeMeterRegistry();
 
             logger.info("Starting the Central Dogma ..");
+
             final ThreadPoolExecutor repositoryWorkerImpl = new ThreadPoolExecutor(
                     cfg.numRepositoryWorkers(), cfg.numRepositoryWorkers(),
                     60, TimeUnit.SECONDS, new LinkedTransferQueue<>(),
@@ -371,6 +374,7 @@ public class CentralDogma implements AutoCloseable {
                 this.pm = pm;
                 this.executor = executor;
                 this.meterRegistry = meterRegistry;
+                Metrics.globalRegistry.add(meterRegistry);
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
@@ -485,7 +489,7 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private Server startServer(ProjectManager pm, CommandExecutor executor,
-                               PrometheusMeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
+                               CompositeMeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = Server.builder();
         sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
@@ -782,9 +786,14 @@ public class CentralDogma implements AutoCloseable {
                 .build(delegate);
     }
 
-    private void configureMetrics(ServerBuilder sb, PrometheusMeterRegistry registry) {
+    private void configureMetrics(ServerBuilder sb, CompositeMeterRegistry registry) {
         sb.meterRegistry(registry);
-        sb.service(METRICS_PATH, new PrometheusExpositionService(registry.getPrometheusRegistry()));
+
+        final PrometheusMeterRegistry prometheusMeterRegistry = PrometheusMeterRegistries.newRegistry();
+        registry.add(prometheusMeterRegistry);
+        sb.service(METRICS_PATH,
+                   PrometheusExpositionService.of(prometheusMeterRegistry.getPrometheusRegistry()));
+
         sb.decorator(MetricCollectingService.newDecorator(MeterIdPrefixFunction.ofDefault("api")));
 
         // Bind system metrics.
@@ -819,6 +828,7 @@ public class CentralDogma implements AutoCloseable {
         this.repositoryWorker = null;
         this.sessionManager = null;
         if (meterRegistry != null) {
+            Metrics.globalRegistry.remove(meterRegistry);
             meterRegistry.close();
             meterRegistry = null;
         }
