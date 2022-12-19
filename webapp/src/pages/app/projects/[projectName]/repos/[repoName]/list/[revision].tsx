@@ -26,7 +26,7 @@ import HistoryList from 'dogma/features/history/HistoryList';
 import { useState } from 'react';
 import { Tag } from '@chakra-ui/react';
 import { createMessage } from 'dogma/features/message/messageSlice';
-import { store } from 'dogma/store';
+import { useAppDispatch } from 'dogma/store';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 
 const RepositoryDetailPage = () => {
@@ -50,6 +50,7 @@ const RepositoryDetailPage = () => {
   );
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
+  const dispatch = useAppDispatch();
 
   const handleTabChange = (index: number) => {
     setTabIndex(index);
@@ -57,10 +58,10 @@ const RepositoryDetailPage = () => {
   const handleCopyApiUrl = async (apiUrl: string) => {
     try {
       await navigator.clipboard.writeText(apiUrl);
-      store.dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
+      dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
     } catch (err) {
       const error: string = ErrorHandler.handle(err);
-      store.dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
+      dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
     }
   };
   return (
