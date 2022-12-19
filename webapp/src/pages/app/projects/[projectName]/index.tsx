@@ -50,19 +50,19 @@ const ProjectDetailPage = () => {
       </Flex>
       <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={(index) => setTabIndex(index)}>
         <TabList>
-          <Tab as={Link} href="#repositories">
+          <Tab as={Link} href="#repositories" shallow={true}>
             <Heading size="sm">Repositories</Heading>
           </Tab>
-          <Tab as={Link} href="#permissions">
+          <Tab as={Link} href="#permissions" shallow={true}>
             <Heading size="sm">Permissions</Heading>
           </Tab>
-          <Tab as={Link} href="#members">
+          <Tab as={Link} href="#members" shallow={true}>
             <Heading size="sm">Members</Heading>
           </Tab>
-          <Tab as={Link} href="#tokens">
+          <Tab as={Link} href="#tokens" shallow={true}>
             <Heading size="sm">Tokens</Heading>
           </Tab>
-          <Tab as={Link} href="#mirror">
+          <Tab as={Link} href="#mirror" shallow={true}>
             <Heading size="sm">Mirror</Heading>
           </Tab>
         </TabList>
