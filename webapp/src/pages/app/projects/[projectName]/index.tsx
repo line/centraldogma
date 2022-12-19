@@ -2,6 +2,7 @@ import { Box, Flex, Heading, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } f
 import { NewItemCard } from 'dogma/common/components/NewItemCard';
 import { useGetMetadataByProjectNameQuery, useGetReposByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import RepoList from 'dogma/features/repo/RepoList';
+import RepoMemberList from 'dogma/features/repo/RepoMemberList';
 import RepoPermissionList from 'dogma/features/repo/RepoPermissionList';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -72,7 +73,9 @@ const ProjectDetailPage = () => {
           <TabPanel>
             <RepoPermissionList data={Array.from(Object.values(metadata.repos))} projectName={projectName} />
           </TabPanel>
-          <TabPanel>TODO: Members</TabPanel>
+          <TabPanel>
+            <RepoMemberList data={Array.from(Object.values(metadata.members))} />
+          </TabPanel>
           <TabPanel>TODO: Tokens</TabPanel>
           <TabPanel>TODO: Mirror</TabPanel>
         </TabPanels>
