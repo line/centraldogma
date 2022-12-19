@@ -1,4 +1,4 @@
-import { EditIcon, ViewIcon } from '@chakra-ui/icons';
+import { EditIcon, ViewIcon, CopyIcon } from '@chakra-ui/icons';
 import { Button, Wrap, WrapItem, Box, HStack } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
@@ -11,9 +11,15 @@ export type FileListProps<Data extends object> = {
   data: Data[];
   projectName: string;
   repoName: string;
+  handleCopyApiUrl: Function;
 };
 
-const FileList = <Data extends object>({ data, projectName, repoName }: FileListProps<Data>) => {
+const FileList = <Data extends object>({
+  data,
+  projectName,
+  repoName,
+  handleCopyApiUrl,
+}: FileListProps<Data>) => {
   const columnHelper = createColumnHelper<FileDto>();
   const columns = [
     columnHelper.accessor((row: FileDto) => row.path, {
@@ -47,6 +53,18 @@ const FileList = <Data extends object>({ data, projectName, repoName }: FileList
           <WrapItem>
             <Button leftIcon={<EditIcon />} colorScheme="gray" size="sm">
               Edit
+            </Button>
+          </WrapItem>
+          <WrapItem>
+            <Button
+              leftIcon={<CopyIcon />}
+              colorScheme="gray"
+              size="sm"
+              onClick={() =>
+                handleCopyApiUrl(`/api/v1/projects/${projectName}/repos/${repoName}/contents${info.getValue()}`)
+              }
+            >
+              Copy API URL
             </Button>
           </WrapItem>
         </Wrap>

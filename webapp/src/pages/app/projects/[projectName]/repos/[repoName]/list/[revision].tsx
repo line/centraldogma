@@ -24,7 +24,7 @@ import { useRouter } from 'next/router';
 import { NewFileForm } from 'dogma/common/components/NewFileForm';
 import HistoryList from 'dogma/features/history/HistoryList';
 import { useState } from 'react';
-import { Tag } from '@chakra-ui/react';
+import { Tag, useToast } from '@chakra-ui/react';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -47,8 +47,29 @@ const RepositoryDetailPage = () => {
   );
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
+  const toast = useToast();
+
   const handleTabChange = (index: number) => {
     setTabIndex(index);
+  };
+  const handleCopyApiUrl = async (apiUrl: string) => {
+    try {
+      await navigator.clipboard.writeText(apiUrl);
+      toast({
+        title: 'copied to clipboard',
+        status: 'success',
+        duration: 1000,
+        isClosable: true,
+      });
+    } catch (err) {
+      toast({
+        title: 'failed to copy to clipboard',
+        description: err.message,
+        status: 'error',
+        duration: 10000,
+        isClosable: true,
+      });
+    }
   };
   return (
     <Box p="2">
@@ -79,7 +100,12 @@ const RepositoryDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <FileList data={fileData} projectName={projectName as string} repoName={repoName as string} />
+            <FileList
+              data={fileData}
+              projectName={projectName as string}
+              repoName={repoName as string}
+              handleCopyApiUrl={handleCopyApiUrl}
+            />
           </TabPanel>
           <TabPanel>
             <HistoryList
