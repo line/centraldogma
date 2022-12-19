@@ -24,7 +24,10 @@ import { useRouter } from 'next/router';
 import { NewFileForm } from 'dogma/common/components/NewFileForm';
 import HistoryList from 'dogma/features/history/HistoryList';
 import { useState } from 'react';
-import { Tag, useToast } from '@chakra-ui/react';
+import { Tag } from '@chakra-ui/react';
+import { createMessage } from 'dogma/features/message/messageSlice';
+import { store } from 'dogma/store';
+import ErrorHandler from 'dogma/features/services/ErrorHandler';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -47,7 +50,6 @@ const RepositoryDetailPage = () => {
   );
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
-  const toast = useToast();
 
   const handleTabChange = (index: number) => {
     setTabIndex(index);
@@ -55,20 +57,10 @@ const RepositoryDetailPage = () => {
   const handleCopyApiUrl = async (apiUrl: string) => {
     try {
       await navigator.clipboard.writeText(apiUrl);
-      toast({
-        title: 'copied to clipboard',
-        status: 'success',
-        duration: 1000,
-        isClosable: true,
-      });
+      store.dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
     } catch (err) {
-      toast({
-        title: 'failed to copy to clipboard',
-        description: err.message,
-        status: 'error',
-        duration: 10000,
-        isClosable: true,
-      });
+      const error: string = ErrorHandler.handle(err);
+      store.dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
     }
   };
   return (
