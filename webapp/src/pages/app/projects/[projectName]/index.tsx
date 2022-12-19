@@ -1,16 +1,24 @@
 import { Box, Flex, Heading, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import { NewItemCard } from 'dogma/common/components/NewItemCard';
-import { useGetReposByProjectNameQuery } from 'dogma/features/api/apiSlice';
+import { useGetMetadataByProjectNameQuery, useGetReposByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import RepoList from 'dogma/features/repo/RepoList';
+import RepoPermissionList from 'dogma/features/repo/RepoPermissionList';
 import { useRouter } from 'next/router';
 
 const ProjectDetailPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
-  const { data = [] } = useGetReposByProjectNameQuery(projectName, {
+  const { data: repoData = [] } = useGetReposByProjectNameQuery(projectName, {
     refetchOnMountOrArgChange: true,
     skip: false,
   });
+  const { data: metadata, isLoading } = useGetMetadataByProjectNameQuery(projectName, {
+    refetchOnMountOrArgChange: true,
+    skip: false,
+  });
+  if (isLoading) {
+    return <>Loading...</>;
+  }
   return (
     <Box p="2">
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
@@ -38,9 +46,11 @@ const ProjectDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <RepoList data={data} projectName={projectName} />
+            <RepoList data={repoData} projectName={projectName} />
           </TabPanel>
-          <TabPanel>TODO: Permissions</TabPanel>
+          <TabPanel>
+            <RepoPermissionList data={Array.from(Object.values(metadata.repos))} projectName={projectName} />
+          </TabPanel>
           <TabPanel>TODO: Members</TabPanel>
           <TabPanel>TODO: Tokens</TabPanel>
           <TabPanel>TODO: Mirror</TabPanel>
