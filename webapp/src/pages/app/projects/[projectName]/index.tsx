@@ -18,7 +18,7 @@ const ProjectDetailPage = () => {
     skip: false,
   });
   const { data: metadata, isLoading } = useGetMetadataByProjectNameQuery(projectName, {
-    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
     skip: false,
   });
   const [tabIndex, setTabIndex] = useState(0);
