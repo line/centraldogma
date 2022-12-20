@@ -6,7 +6,9 @@ import RepoMemberList from 'dogma/features/repo/RepoMemberList';
 import RepoPermissionList from 'dogma/features/repo/RepoPermissionList';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+
+const tabs = ['repositories', 'permissions', 'members', 'tokens', 'mirror'];
 
 const ProjectDetailPage = () => {
   const router = useRouter();
@@ -20,7 +22,6 @@ const ProjectDetailPage = () => {
     skip: false,
   });
   const [tabIndex, setTabIndex] = useState(0);
-  const tabs = useMemo(() => ['repositories', 'permissions', 'members', 'tokens', 'mirror'], []);
   const switchTab = (index: number) => {
     setTabIndex(index);
     window.location.hash = tabs[index];
@@ -30,7 +31,7 @@ const ProjectDetailPage = () => {
     if (index !== -1) {
       setTabIndex(index);
     }
-  }, [tabs]);
+  }, []);
   if (isLoading) {
     return <>Loading...</>;
   }
