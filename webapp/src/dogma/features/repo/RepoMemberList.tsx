@@ -17,7 +17,11 @@ const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>
       header: 'Login ID',
     }),
     columnHelper.accessor((row: RepoMemberDetailDto) => row.role, {
-      cell: (info) => info.getValue(),
+      cell: (info) => (
+        <Badge colorScheme={info.getValue().toLowerCase() === 'owner' ? 'blue' : 'gray'}>
+          {info.getValue()}
+        </Badge>
+      ),
       header: 'Role',
     }),
     columnHelper.accessor((row: RepoMemberDetailDto) => row.creation.user, {

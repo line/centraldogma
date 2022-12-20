@@ -1,8 +1,9 @@
 import { act, fireEvent, render } from '@testing-library/react';
 import RepoMemberList, { RepoMemberListProps } from 'dogma/features/repo/RepoMemberList';
 import { RepoMemberDetailDto } from 'dogma/features/repo/RepoMemberDto';
+import { formatDistance } from 'date-fns';
 
-describe('RepoPermissionList', () => {
+describe('RepoMemberList', () => {
   let expectedProps: JSX.IntrinsicAttributes & RepoMemberListProps<object>;
 
   beforeEach(() => {
@@ -54,7 +55,9 @@ describe('RepoPermissionList', () => {
     const { container } = render(<RepoMemberList {...expectedProps} />);
     const tbody = container.querySelector('tbody');
     const timestamp = tbody.children[0].children[3].firstChild;
-    expect(timestamp).toHaveTextContent('19 days ago');
+    expect(timestamp).toHaveTextContent(
+      formatDistance(new Date('2022-11-30T02:43:04.655753Z'), new Date(), { addSuffix: true }),
+    );
   });
 
   it('renders the delete button', () => {
