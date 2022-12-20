@@ -1,11 +1,11 @@
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
-import { format, formatDistance } from 'date-fns';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
-import { Badge, Box, Button, HStack, Tag, Tooltip } from '@chakra-ui/react';
+import { Box, Button, HStack, Tag } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { FaHistory } from 'react-icons/fa';
+import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 
 export type HistoryListProps<Data extends object> = {
   data: Data[];
@@ -44,13 +44,7 @@ const HistoryList = <Data extends object>({
       header: 'Author',
     }),
     columnHelper.accessor((row: HistoryDto) => row.timestamp, {
-      cell: (info) => (
-        <Box>
-          <Tooltip label={format(new Date(info.getValue()), 'dd MMM yyyy HH:mm z')}>
-            <Badge>{formatDistance(new Date(info.getValue()), new Date(), { addSuffix: true })}</Badge>
-          </Tooltip>
-        </Box>
-      ),
+      cell: (info) => <DateWithTooltip date={info.getValue()} />,
       header: 'Timestamp',
     }),
     columnHelper.accessor((row: HistoryDto) => row.revision.revisionNumber, {

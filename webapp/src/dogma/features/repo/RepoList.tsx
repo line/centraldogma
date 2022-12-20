@@ -1,8 +1,8 @@
 import { ViewIcon, DeleteIcon } from '@chakra-ui/icons';
-import { Wrap, WrapItem, Button, Box, HStack, Badge, Tooltip } from '@chakra-ui/react';
+import { Wrap, WrapItem, Button, Box, HStack } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
-import { format, formatDistance } from 'date-fns';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 import NextLink from 'next/link';
@@ -37,13 +37,7 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       header: 'Creator',
     }),
     columnHelper.accessor((row: RepoDto) => row.createdAt, {
-      cell: (info) => (
-        <Box>
-          <Tooltip label={format(new Date(info.getValue()), 'dd MMM yyyy HH:mm z')}>
-            <Badge>{formatDistance(new Date(info.getValue()), new Date(), { addSuffix: true })}</Badge>
-          </Tooltip>
-        </Box>
-      ),
+      cell: (info) => <DateWithTooltip date={info.getValue()} />,
       header: 'Created',
     }),
     columnHelper.accessor((row: RepoDto) => row.headRevision, {

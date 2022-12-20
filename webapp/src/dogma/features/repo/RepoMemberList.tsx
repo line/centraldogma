@@ -1,7 +1,7 @@
 import { DeleteIcon } from '@chakra-ui/icons';
-import { Box, Button, Badge, Tooltip } from '@chakra-ui/react';
+import { Button, Badge } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
-import { format, formatDistance } from 'date-fns';
+import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoMemberDetailDto } from 'dogma/features/repo/RepoMemberDto';
 
@@ -29,13 +29,7 @@ const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>
       header: 'Added By',
     }),
     columnHelper.accessor((row: RepoMemberDetailDto) => row.creation.timestamp, {
-      cell: (info) => (
-        <Box>
-          <Tooltip label={format(new Date(info.getValue()), 'dd MMM yyyy HH:mm z')}>
-            <Badge>{formatDistance(new Date(info.getValue()), new Date(), { addSuffix: true })}</Badge>
-          </Tooltip>
-        </Box>
-      ),
+      cell: (info) => <DateWithTooltip date={info.getValue()} />,
       header: 'Added At',
     }),
     columnHelper.accessor((row: RepoMemberDetailDto) => row.login, {
