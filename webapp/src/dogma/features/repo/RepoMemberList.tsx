@@ -18,7 +18,7 @@ const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>
     }),
     columnHelper.accessor((row: RepoMemberDetailDto) => row.role, {
       cell: (info) => (
-        <Badge colorScheme={info.getValue().toLowerCase() === 'owner' ? 'blue' : 'gray'}>
+        <Badge colorScheme={info.getValue().toLowerCase() === 'owner' ? 'blue' : 'green'}>
           {info.getValue()}
         </Badge>
       ),
