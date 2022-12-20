@@ -6,7 +6,7 @@ import RepoMemberList from 'dogma/features/repo/RepoMemberList';
 import RepoPermissionList from 'dogma/features/repo/RepoPermissionList';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const ProjectDetailPage = () => {
   const router = useRouter();
@@ -20,24 +20,17 @@ const ProjectDetailPage = () => {
     skip: false,
   });
   const [tabIndex, setTabIndex] = useState(0);
+  const tabs = useMemo(() => ['repositories', 'permissions', 'members', 'tokens', 'mirror'], []);
+  const switchTab = (index: number) => {
+    setTabIndex(index);
+    window.location.hash = tabs[index];
+  };
   useEffect(() => {
-    switch (window.location.hash) {
-      case '#permissions':
-        setTabIndex(1);
-        break;
-      case '#members':
-        setTabIndex(2);
-        break;
-      case '#tokens':
-        setTabIndex(3);
-        break;
-      case '#mirror':
-        setTabIndex(4);
-        break;
-      default:
-        break;
+    const index = tabs.findIndex((tab) => tab === window.location.hash?.slice(1));
+    if (index !== -1) {
+      setTabIndex(index);
     }
-  }, []);
+  }, [tabs]);
   if (isLoading) {
     return <>Loading...</>;
   }
@@ -48,23 +41,16 @@ const ProjectDetailPage = () => {
         <Spacer />
         <NewItemCard title="New Repository" label="Name" placeholder="New name here..." />
       </Flex>
-      <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={(index) => setTabIndex(index)}>
+      <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={switchTab}>
         <TabList>
-          <Tab as={Link} href="#repositories" shallow={true}>
-            <Heading size="sm">Repositories</Heading>
-          </Tab>
-          <Tab as={Link} href="#permissions" shallow={true}>
-            <Heading size="sm">Permissions</Heading>
-          </Tab>
-          <Tab as={Link} href="#members" shallow={true}>
-            <Heading size="sm">Members</Heading>
-          </Tab>
-          <Tab as={Link} href="#tokens" shallow={true}>
-            <Heading size="sm">Tokens</Heading>
-          </Tab>
-          <Tab as={Link} href="#mirror" shallow={true}>
-            <Heading size="sm">Mirror</Heading>
-          </Tab>
+          {tabs.map((tab) => (
+            <Tab as={Link} key={tab} href={`#${tab}`} shallow={true}>
+              <Heading size="sm">
+                {tab.charAt(0).toUpperCase()}
+                {tab.slice(1)}
+              </Heading>
+            </Tab>
+          ))}
         </TabList>
         <TabPanels>
           <TabPanel>
