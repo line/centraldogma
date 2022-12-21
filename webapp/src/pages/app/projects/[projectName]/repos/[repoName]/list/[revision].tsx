@@ -55,14 +55,24 @@ const RepositoryDetailPage = () => {
   const handleTabChange = (index: number) => {
     setTabIndex(index);
   };
-  const handleCopyApiUrl = async (apiUrl: string) => {
+
+  const copyToClipboard = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(apiUrl);
+      await navigator.clipboard.writeText(text);
       dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
     } catch (err) {
       const error: string = ErrorHandler.handle(err);
       dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
     }
+  };
+
+  const handleCopyApiUrl = async (apiUrl: string) => {
+    copyToClipboard(apiUrl);
+  };
+
+  const handleCopyAsCurlCommand = async (apiUrl: string) => {
+    // TODO(clavinjune): copy a whole curl command
+    copyToClipboard(apiUrl);
   };
   return (
     <Box p="2">
@@ -98,6 +108,7 @@ const RepositoryDetailPage = () => {
               projectName={projectName as string}
               repoName={repoName as string}
               handleCopyApiUrl={handleCopyApiUrl}
+              handleCopyAsCurlCommand={handleCopyAsCurlCommand}
             />
           </TabPanel>
           <TabPanel>

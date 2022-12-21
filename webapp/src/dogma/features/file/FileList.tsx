@@ -12,6 +12,7 @@ export type FileListProps<Data extends object> = {
   projectName: string;
   repoName: string;
   handleCopyApiUrl: Function;
+  handleCopyAsCurlCommand: Function;
 };
 
 const FileList = <Data extends object>({
@@ -19,6 +20,7 @@ const FileList = <Data extends object>({
   projectName,
   repoName,
   handleCopyApiUrl,
+  handleCopyAsCurlCommand,
 }: FileListProps<Data>) => {
   const columnHelper = createColumnHelper<FileDto>();
   const columns = [
@@ -69,6 +71,22 @@ const FileList = <Data extends object>({
               }
             >
               Copy API URL
+            </Button>
+          </WrapItem>
+          <WrapItem>
+            <Button
+              leftIcon={<CopyIcon />}
+              colorScheme="gray"
+              size="sm"
+              onClick={() =>
+                handleCopyAsCurlCommand(
+                  `${
+                    window.location.origin
+                  }/api/v1/projects/${projectName}/repos/${repoName}/contents${info.getValue()}`,
+                )
+              }
+            >
+              Copy as a curl command
             </Button>
           </WrapItem>
         </Wrap>
