@@ -61,7 +61,11 @@ const FileList = <Data extends object>({
               colorScheme="gray"
               size="sm"
               onClick={() =>
-                handleCopyApiUrl(`/api/v1/projects/${projectName}/repos/${repoName}/contents${info.getValue()}`)
+                handleCopyApiUrl(
+                  `${
+                    window.location.origin
+                  }/api/v1/projects/${projectName}/repos/${repoName}/contents${info.getValue()}`,
+                )
               }
             >
               Copy API URL
