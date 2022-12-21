@@ -62,13 +62,7 @@ const FileList = <Data extends object>({
               leftIcon={<CopyIcon />}
               colorScheme="gray"
               size="sm"
-              onClick={() =>
-                handleCopyApiUrl(
-                  `${
-                    window.location.origin
-                  }/api/v1/projects/${projectName}/repos/${repoName}/contents${info.getValue()}`,
-                )
-              }
+              onClick={() => handleCopyApiUrl(projectName, repoName, info.getValue())}
             >
               Copy API URL
             </Button>
@@ -78,13 +72,7 @@ const FileList = <Data extends object>({
               leftIcon={<CopyIcon />}
               colorScheme="gray"
               size="sm"
-              onClick={() =>
-                handleCopyAsCurlCommand(
-                  `${
-                    window.location.origin
-                  }/api/v1/projects/${projectName}/repos/${repoName}/contents${info.getValue()}`,
-                )
-              }
+              onClick={() => handleCopyAsCurlCommand(projectName, repoName, info.getValue())}
             >
               Copy as a curl command
             </Button>

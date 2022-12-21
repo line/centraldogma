@@ -68,11 +68,15 @@ const RepositoryDetailPage = () => {
     }
   };
 
-  const handleCopyApiUrl = async (apiUrl: string) => {
+  const constructApiUrl = (project: string, repo: string, path: string): string => {
+    return `${window.location.origin}/api/v1/projects/${project}/repos/${repo}/contents${path}`;
+  };
+  const handleCopyApiUrl = async (project: string, repo: string, path: string) => {
+    const apiUrl: string = constructApiUrl(project, repo, path);
     copyToClipboard(apiUrl);
   };
-
-  const handleCopyAsCurlCommand = async (apiUrl: string) => {
+  const handleCopyAsCurlCommand = async (project: string, repo: string, path: string) => {
+    const apiUrl: string = constructApiUrl(project, repo, path);
     const curlCommand = `curl -XGET "${apiUrl}"`;
     copyToClipboard(curlCommand);
   };
