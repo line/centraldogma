@@ -21,8 +21,11 @@ export const messageSlice = createSlice({
       state.text = action.payload.text;
       state.type = action.payload.type;
     },
+    resetState(state: MessageState) {
+      Object.assign(state, initialState);
+    },
   },
 });
 
-export const { createMessage } = messageSlice.actions;
+export const { createMessage, resetState } = messageSlice.actions;
 export const messageReducer = messageSlice.reducer;

@@ -25,7 +25,7 @@ import { NewFileForm } from 'dogma/common/components/NewFileForm';
 import HistoryList from 'dogma/features/history/HistoryList';
 import { useState } from 'react';
 import { Tag } from '@chakra-ui/react';
-import { createMessage } from 'dogma/features/message/messageSlice';
+import { createMessage, resetState } from 'dogma/features/message/messageSlice';
 import { useAppDispatch } from 'dogma/store';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 
@@ -59,10 +59,12 @@ const RepositoryDetailPage = () => {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
+      await dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
     } catch (err) {
       const error: string = ErrorHandler.handle(err);
-      dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
+      await dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
+    } finally {
+      dispatch(resetState());
     }
   };
 
@@ -71,9 +73,10 @@ const RepositoryDetailPage = () => {
   };
 
   const handleCopyAsCurlCommand = async (apiUrl: string) => {
-    // TODO(clavinjune): copy a whole curl command
-    copyToClipboard(apiUrl);
+    const curlCommand = `curl -XGET "${apiUrl}"`;
+    copyToClipboard(curlCommand);
   };
+
   return (
     <Box p="2">
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
