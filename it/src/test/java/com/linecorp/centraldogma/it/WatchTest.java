@@ -562,11 +562,11 @@ class WatchTest {
 
         // check entry does not exist when to get initial value
         assertThatThrownBy(watcher::awaitInitialValue)
-                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+                .rootCause().isInstanceOf(EntryNotFoundException.class);
         assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS))
-                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+                .rootCause().isInstanceOf(EntryNotFoundException.class);
         assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS, new TextNode("test")))
-                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+                .rootCause().isInstanceOf(EntryNotFoundException.class);
 
         // when initialValueFuture throw 'EntryNotFoundException', you can't use 'watch' method.
         await().untilAsserted(() -> assertThatThrownBy(() -> watcher.watch((rev, node) -> { /* no-op */ }))
@@ -596,7 +596,7 @@ class WatchTest {
         });
 
         // check entry does not exist when to get initial value
-        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(
+        assertThatThrownBy(watcher::awaitInitialValue).rootCause().isInstanceOf(
                 EntryNotFoundException.class);
 
         // add file
@@ -680,6 +680,24 @@ class WatchTest {
     }
 
     @Test
+    void repositoryWatcher_noEntry() {
+        final ClientType clientType = ClientType.DEFAULT;
+        revertTestFiles(clientType);
+        final CentralDogma client = clientType.client(dogma);
+        final String pathPattern = "/test_not_found/**";
+
+        // create watcher
+        final Watcher<Revision> watcher = client.forRepo(dogma.project(), dogma.repo1())
+                                                .watcher(PathPattern.of(pathPattern))
+                                                .timeoutMillis(100)
+                                                .start();
+
+        assertThatThrownBy(() -> watcher.awaitInitialValue(500, TimeUnit.MILLISECONDS))
+                .isInstanceOf(TimeoutException.class)
+                .hasMessageContaining("Failed to get the initial value in 500 ms.");
+    }
+
+    @Test
     void repositoryWatcher_errorOnEntryNotFound() {
         final ClientType clientType = ClientType.DEFAULT;
         revertTestFiles(clientType);
@@ -695,11 +713,11 @@ class WatchTest {
 
         // check entry does not exist when to get initial value
         assertThatThrownBy(watcher::awaitInitialValue)
-                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+                .rootCause().isInstanceOf(EntryNotFoundException.class);
         assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS))
-                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+                .rootCause().isInstanceOf(EntryNotFoundException.class);
         assertThatThrownBy(() -> watcher.awaitInitialValue(100, TimeUnit.MILLISECONDS, Revision.INIT))
-                .getRootCause().isInstanceOf(EntryNotFoundException.class);
+                .rootCause().isInstanceOf(EntryNotFoundException.class);
 
         // when initialValueFuture throw 'EntryNotFoundException', you can't use 'watch' method.
         await().untilAsserted(() -> assertThatThrownBy(() -> watcher.watch((rev, node) -> { /* no-op */ }))
@@ -728,7 +746,7 @@ class WatchTest {
         });
 
         // check entry does not exist when to get initial value
-        assertThatThrownBy(watcher::awaitInitialValue).getRootCause().isInstanceOf(
+        assertThatThrownBy(watcher::awaitInitialValue).rootCause().isInstanceOf(
                 EntryNotFoundException.class);
 
         // add file
