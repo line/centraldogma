@@ -326,7 +326,11 @@ public class CentralDogma implements AutoCloseable {
         Server server = null;
         SessionManager sessionManager = null;
         try {
-            meterRegistry = new CompositeMeterRegistry();
+            if (Flags.meterRegistry() instanceof CompositeMeterRegistry) {
+                meterRegistry = (CompositeMeterRegistry) Flags.meterRegistry();
+            } else {
+                meterRegistry = new CompositeMeterRegistry();
+            }
 
             logger.info("Starting the Central Dogma ..");
 
@@ -374,9 +378,6 @@ public class CentralDogma implements AutoCloseable {
                 this.pm = pm;
                 this.executor = executor;
                 this.meterRegistry = meterRegistry;
-                if (Flags.meterRegistry() instanceof CompositeMeterRegistry) {
-                    ((CompositeMeterRegistry) Flags.meterRegistry()).add(meterRegistry);
-                }
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
@@ -829,12 +830,9 @@ public class CentralDogma implements AutoCloseable {
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
-        if (meterRegistry != null) {
-            if (Flags.meterRegistry() instanceof CompositeMeterRegistry) {
-                ((CompositeMeterRegistry) Flags.meterRegistry()).remove(meterRegistry);
-            }
+        if (meterRegistry != null && meterRegistry != Flags.meterRegistry()) {
+            // clean up if the meterRegistry isn't global
             meterRegistry.close();
-            meterRegistry = null;
         }
 
         logger.info("Stopping the Central Dogma ..");
