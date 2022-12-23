@@ -6,17 +6,17 @@
 curator = "5.3.0"
 guava = "31.1-jre"
 jgit = "5.13.0.202109080827-r"
-json-unit = "2.35.0"
-jmh = "1.35"
-micrometer = "1.9.4"
-mockito = "4.8.0"
+json-unit = "2.36.0"
+jmh = "1.36"
+micrometer = "1.10.2"
+mockito = "4.10.0"
 slf4j = "1.7.36"
 spring-boot1 = "1.5.22.RELEASE"
 spring-boot2 = "2.7.4"
 
 [boms]
-armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.20.3" }
-jackson = { module = "com.fasterxml.jackson:jackson-bom", version = "2.13.4" }
+armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.21.0" }
+jackson = { module = "com.fasterxml.jackson:jackson-bom", version = "2.14.1" }
 junit5 = { module = "org.junit:junit-bom", version = "5.9.1" }
 
 [libraries.armeria]
@@ -303,10 +303,10 @@ exclusions = [
 
 [plugins]
 docker = { id = "com.bmuschko.docker-remote-api", version = "6.7.0" }
-download = { id = "de.undercouch.download", version = "5.2.1" }
+download = { id = "de.undercouch.download", version = "5.3.0" }
 jmh = { id = "me.champeau.jmh", version = "0.6.8" }
 jxr = { id = "net.davidecavestro.gradle.jxr", version = "0.2.1" }
 nexus-publish = { id = "io.github.gradle-nexus.publish-plugin", version = "1.1.0" }
-node-gradle = { id = "com.github.node-gradle.node", version = "3.4.0" }
+node-gradle = { id = "com.github.node-gradle.node", version = "3.5.0" }
 osdetector = { id = "com.google.osdetector", version = "1.7.1" }
 sphinx = { id = "kr.motd.sphinx", version = "2.10.1" }
