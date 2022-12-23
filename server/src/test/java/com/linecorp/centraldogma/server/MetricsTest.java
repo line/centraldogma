@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -29,7 +30,6 @@ import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
@@ -52,7 +52,7 @@ class MetricsTest {
     @Test
     void metrics() {
         final MeterRegistry meterRegistry = dogma.dogma().meterRegistry().get();
-        assertThat(Metrics.globalRegistry.getRegistries()).contains(meterRegistry);
+        assertThat(((CompositeMeterRegistry) Flags.meterRegistry()).getRegistries()).contains(meterRegistry);
         assertThat(meterRegistry).isInstanceOf(CompositeMeterRegistry.class);
         assertThat(((CompositeMeterRegistry) meterRegistry).getRegistries())
                 .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class);

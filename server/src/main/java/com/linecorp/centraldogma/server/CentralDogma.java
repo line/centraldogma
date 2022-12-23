@@ -66,6 +66,7 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
@@ -147,7 +148,6 @@ import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
 import io.micrometer.core.instrument.binder.jvm.DiskSpaceMetrics;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
@@ -374,7 +374,9 @@ public class CentralDogma implements AutoCloseable {
                 this.pm = pm;
                 this.executor = executor;
                 this.meterRegistry = meterRegistry;
-                Metrics.globalRegistry.add(meterRegistry);
+                if (Flags.meterRegistry() instanceof CompositeMeterRegistry) {
+                    ((CompositeMeterRegistry) Flags.meterRegistry()).add(meterRegistry);
+                }
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
@@ -828,7 +830,9 @@ public class CentralDogma implements AutoCloseable {
         this.repositoryWorker = null;
         this.sessionManager = null;
         if (meterRegistry != null) {
-            Metrics.globalRegistry.remove(meterRegistry);
+            if (Flags.meterRegistry() instanceof CompositeMeterRegistry) {
+                ((CompositeMeterRegistry) Flags.meterRegistry()).remove(meterRegistry);
+            }
             meterRegistry.close();
             meterRegistry = null;
         }
