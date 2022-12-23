@@ -182,7 +182,8 @@ public class CentralDogma implements AutoCloseable {
      */
     public static CentralDogma forConfig(File configFile) throws IOException {
         requireNonNull(configFile, "configFile");
-        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class));
+        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class),
+                                Flags.meterRegistry());
     }
 
     private final SettableHealthChecker serverHealth = new SettableHealthChecker(false);
@@ -206,18 +207,18 @@ public class CentralDogma implements AutoCloseable {
     private ScheduledExecutorService purgeWorker;
     @Nullable
     private CommandExecutor executor;
-    @Nullable
-    private CompositeMeterRegistry meterRegistry;
+    private final MeterRegistry meterRegistry;
     @Nullable
     private SessionManager sessionManager;
 
-    CentralDogma(CentralDogmaConfig cfg) {
+    CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
         this.cfg = requireNonNull(cfg, "cfg");
         pluginsForAllReplicas = PluginGroup.loadPlugins(
                 CentralDogma.class.getClassLoader(), PluginTarget.ALL_REPLICAS, cfg);
         pluginsForLeaderOnly = PluginGroup.loadPlugins(
                 CentralDogma.class.getClassLoader(), PluginTarget.LEADER_ONLY, cfg);
         startStop = new CentralDogmaStartStop(pluginsForAllReplicas);
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -322,16 +323,9 @@ public class CentralDogma implements AutoCloseable {
         ScheduledExecutorService purgeWorker = null;
         ProjectManager pm = null;
         CommandExecutor executor = null;
-        CompositeMeterRegistry meterRegistry = null;
         Server server = null;
         SessionManager sessionManager = null;
         try {
-            if (Flags.meterRegistry() instanceof CompositeMeterRegistry) {
-                meterRegistry = (CompositeMeterRegistry) Flags.meterRegistry();
-            } else {
-                meterRegistry = new CompositeMeterRegistry();
-            }
-
             logger.info("Starting the Central Dogma ..");
 
             final ThreadPoolExecutor repositoryWorkerImpl = new ThreadPoolExecutor(
@@ -377,7 +371,6 @@ public class CentralDogma implements AutoCloseable {
                 this.purgeWorker = purgeWorker;
                 this.pm = pm;
                 this.executor = executor;
-                this.meterRegistry = meterRegistry;
                 this.server = server;
                 this.sessionManager = sessionManager;
             } else {
@@ -492,7 +485,7 @@ public class CentralDogma implements AutoCloseable {
     }
 
     private Server startServer(ProjectManager pm, CommandExecutor executor,
-                               CompositeMeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
+                               MeterRegistry meterRegistry, @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = Server.builder();
         sb.verboseResponses(true);
         cfg.ports().forEach(sb::port);
@@ -789,13 +782,23 @@ public class CentralDogma implements AutoCloseable {
                 .build(delegate);
     }
 
-    private void configureMetrics(ServerBuilder sb, CompositeMeterRegistry registry) {
+    private void configureMetrics(ServerBuilder sb, MeterRegistry registry) {
         sb.meterRegistry(registry);
 
-        final PrometheusMeterRegistry prometheusMeterRegistry = PrometheusMeterRegistries.newRegistry();
-        registry.add(prometheusMeterRegistry);
-        sb.service(METRICS_PATH,
-                   PrometheusExpositionService.of(prometheusMeterRegistry.getPrometheusRegistry()));
+        // expose the prometheus endpoint if the registry is either a PrometheusMeterRegistry or
+        // CompositeMeterRegistry
+        if (registry instanceof PrometheusMeterRegistry) {
+            final PrometheusMeterRegistry prometheusMeterRegistry = (PrometheusMeterRegistry) registry;
+            sb.service(METRICS_PATH,
+                       PrometheusExpositionService.of(prometheusMeterRegistry.getPrometheusRegistry()));
+        } else if (registry instanceof CompositeMeterRegistry) {
+            final PrometheusMeterRegistry prometheusMeterRegistry = PrometheusMeterRegistries.newRegistry();
+            ((CompositeMeterRegistry) registry).add(prometheusMeterRegistry);
+            sb.service(METRICS_PATH,
+                       PrometheusExpositionService.of(prometheusMeterRegistry.getPrometheusRegistry()));
+        } else {
+            logger.info("Not exposing a prometheus endpoint for the type: {}", registry.getClass());
+        }
 
         sb.decorator(MetricCollectingService.newDecorator(MeterIdPrefixFunction.ofDefault("api")));
 
@@ -830,10 +833,6 @@ public class CentralDogma implements AutoCloseable {
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
-        if (meterRegistry != null && meterRegistry != Flags.meterRegistry()) {
-            // clean up if the meterRegistry isn't global
-            meterRegistry.close();
-        }
 
         logger.info("Stopping the Central Dogma ..");
         if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager)) {

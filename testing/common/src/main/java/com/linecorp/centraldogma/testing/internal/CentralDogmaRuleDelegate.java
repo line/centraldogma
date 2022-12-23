@@ -40,6 +40,7 @@ import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.TlsConfig;
 
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.netty.util.NetUtil;
 
 /**
@@ -98,6 +99,10 @@ public class CentralDogmaRuleDelegate {
                 Exceptions.throwUnsafely(e);
             }
         }
+
+        // specify a new meterRegistry since multiple instances writing to a single meterRegistry
+        // can be a source of flakiness
+        builder.meterRegistry(new CompositeMeterRegistry());
 
         configure(builder);
 
