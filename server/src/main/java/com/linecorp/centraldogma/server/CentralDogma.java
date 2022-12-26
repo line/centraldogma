@@ -209,6 +209,8 @@ public class CentralDogma implements AutoCloseable {
     private CommandExecutor executor;
     private final MeterRegistry meterRegistry;
     @Nullable
+    MeterRegistry meterRegistryToBeClosed;
+    @Nullable
     private SessionManager sessionManager;
 
     CentralDogma(CentralDogmaConfig cfg, MeterRegistry meterRegistry) {
@@ -796,6 +798,7 @@ public class CentralDogma implements AutoCloseable {
             ((CompositeMeterRegistry) registry).add(prometheusMeterRegistry);
             sb.service(METRICS_PATH,
                        PrometheusExpositionService.of(prometheusMeterRegistry.getPrometheusRegistry()));
+            meterRegistryToBeClosed = prometheusMeterRegistry;
         } else {
             logger.info("Not exposing a prometheus endpoint for the type: {}", registry.getClass());
         }
@@ -833,6 +836,12 @@ public class CentralDogma implements AutoCloseable {
         this.pm = null;
         this.repositoryWorker = null;
         this.sessionManager = null;
+        if (meterRegistryToBeClosed != null) {
+            assert meterRegistry instanceof CompositeMeterRegistry;
+            ((CompositeMeterRegistry) meterRegistry).remove(meterRegistryToBeClosed);
+            meterRegistryToBeClosed.close();
+            meterRegistryToBeClosed = null;
+        }
 
         logger.info("Stopping the Central Dogma ..");
         if (!doStop(server, executor, pm, repositoryWorker, purgeWorker, sessionManager)) {
