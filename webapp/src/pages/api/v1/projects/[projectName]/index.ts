@@ -38,7 +38,12 @@ const projectMetadata = {
     },
     'lb56789@localhost.localdomain': {
       login: 'lb56789@localhost.localdomain',
-      role: 'OWNER',
+      role: 'MEMBER',
+      creation: { user: 'lz123456@localhost.localdomain', timestamp: '2022-12-16T02:54:12.431395Z' },
+    },
+    'la88888@localhost.localdomain': {
+      login: 'la88888@localhost.localdomain',
+      role: 'MEMBER',
       creation: { user: 'lz123456@localhost.localdomain', timestamp: '2022-12-16T02:54:12.431395Z' },
     },
   },
