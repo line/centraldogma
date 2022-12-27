@@ -83,7 +83,9 @@ const RepositoryDetailPage = () => {
   };
 
   const handleCopyAsCliCommand = async (project: string, repo: string, path: string) => {
-    const cliCommand = `dogma --connect ${window.location.origin} cat ${project}/${repo}${path}`;
+    const cliCommand = `dogma --connect "${window.location.origin}" \\
+--token "<access-token>" \\
+cat ${project}/${repo}${path}`;
     copyToClipboard(cliCommand);
   };
 
