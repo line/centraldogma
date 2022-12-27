@@ -71,13 +71,26 @@ const RepositoryDetailPage = () => {
   const constructApiUrl = (project: string, repo: string, path: string): string => {
     return `${window.location.origin}/api/v1/projects/${project}/repos/${repo}/contents${path}`;
   };
+
   const handleCopyApiUrl = async (project: string, repo: string, path: string) => {
     const apiUrl: string = constructApiUrl(project, repo, path);
     copyToClipboard(apiUrl);
   };
+
+  const handleCopyWebUrl = async (project: string, repo: string, path: string) => {
+    const webUrl = `${window.location.origin}/app/projects/${project}/repos/${repo}/files/head${path}`;
+    copyToClipboard(webUrl);
+  };
+
+  const handleCopyAsCliCommand = async (project: string, repo: string, path: string) => {
+    const cliCommand = `dogma --connect ${window.location.origin} cat ${project}/${repo}${path}`;
+    copyToClipboard(cliCommand);
+  };
+
   const handleCopyAsCurlCommand = async (project: string, repo: string, path: string) => {
     const apiUrl: string = constructApiUrl(project, repo, path);
-    const curlCommand = `curl -XGET "${apiUrl}"`;
+    const curlCommand = `curl -XGET "${apiUrl}" \\
+-H "Authorization: Bearer <access-token>"`;
     copyToClipboard(curlCommand);
   };
 
@@ -115,6 +128,8 @@ const RepositoryDetailPage = () => {
               projectName={projectName as string}
               repoName={repoName as string}
               handleCopyApiUrl={handleCopyApiUrl}
+              handleCopyWebUrl={handleCopyWebUrl}
+              handleCopyAsCliCommand={handleCopyAsCliCommand}
               handleCopyAsCurlCommand={handleCopyAsCurlCommand}
             />
           </TabPanel>

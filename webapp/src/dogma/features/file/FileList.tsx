@@ -1,5 +1,5 @@
-import { EditIcon, ViewIcon, CopyIcon } from '@chakra-ui/icons';
-import { Button, Wrap, WrapItem, Box, HStack } from '@chakra-ui/react';
+import { EditIcon, ViewIcon, CopyIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import { Button, Wrap, WrapItem, Box, HStack, Menu, MenuButton, MenuItem, MenuList } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
@@ -12,6 +12,8 @@ export type FileListProps<Data extends object> = {
   projectName: string;
   repoName: string;
   handleCopyApiUrl: Function;
+  handleCopyWebUrl: Function;
+  handleCopyAsCliCommand: Function;
   handleCopyAsCurlCommand: Function;
 };
 
@@ -20,6 +22,8 @@ const FileList = <Data extends object>({
   projectName,
   repoName,
   handleCopyApiUrl,
+  handleCopyWebUrl,
+  handleCopyAsCliCommand,
   handleCopyAsCurlCommand,
 }: FileListProps<Data>) => {
   const columnHelper = createColumnHelper<FileDto>();
@@ -58,24 +62,25 @@ const FileList = <Data extends object>({
             </Button>
           </WrapItem>
           <WrapItem>
-            <Button
-              leftIcon={<CopyIcon />}
-              colorScheme="gray"
-              size="sm"
-              onClick={() => handleCopyApiUrl(projectName, repoName, info.getValue())}
-            >
-              Copy API URL
-            </Button>
-          </WrapItem>
-          <WrapItem>
-            <Button
-              leftIcon={<CopyIcon />}
-              colorScheme="gray"
-              size="sm"
-              onClick={() => handleCopyAsCurlCommand(projectName, repoName, info.getValue())}
-            >
-              Copy as a curl command
-            </Button>
+            <Menu>
+              <MenuButton as={Button} size="sm" leftIcon={<CopyIcon />} rightIcon={<ChevronDownIcon />}>
+                Copy
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={() => handleCopyApiUrl(projectName, repoName, info.getValue())}>
+                  API URL
+                </MenuItem>
+                <MenuItem onClick={() => handleCopyWebUrl(projectName, repoName, info.getValue())}>
+                  Web URL
+                </MenuItem>
+                <MenuItem onClick={() => handleCopyAsCliCommand(projectName, repoName, info.getValue())}>
+                  CLI Command
+                </MenuItem>
+                <MenuItem onClick={() => handleCopyAsCurlCommand(projectName, repoName, info.getValue())}>
+                  cURL Command
+                </MenuItem>
+              </MenuList>
+            </Menu>
           </WrapItem>
         </Wrap>
       ),

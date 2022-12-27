@@ -38,6 +38,8 @@ describe('FileList', () => {
       projectName: 'ProjectAlpha',
       repoName: 'repo1',
       handleCopyApiUrl: jest.fn(),
+      handleCopyWebUrl: jest.fn(),
+      handleCopyAsCliCommand: jest.fn(),
       handleCopyAsCurlCommand: jest.fn(),
     };
   });
@@ -78,14 +80,29 @@ describe('FileList', () => {
 
   it('calls handleCopyApiUrl when copy API URL button is clicked', () => {
     const { getAllByText } = render(<FileList {...expectedProps} />);
-    const firstButton = getAllByText('Copy API URL', { selector: 'button' })[0];
+    const firstButton = getAllByText('API URL', { selector: 'button' })[0];
     fireEvent.click(firstButton);
     expect(expectedProps.handleCopyApiUrl).toHaveBeenCalledTimes(1);
   });
 
+
+  it('calls handleCopyWebUrl when copy Web URL button is clicked', () => {
+    const { getAllByText } = render(<FileList {...expectedProps} />);
+    const firstButton = getAllByText('Web URL', { selector: 'button' })[0];
+    fireEvent.click(firstButton);
+    expect(expectedProps.handleCopyWebUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls handleCopyAsCurlCommand when copy as a CLI command button is clicked', () => {
+    const { getAllByText } = render(<FileList {...expectedProps} />);
+    const firstButton = getAllByText('CLI Command', { selector: 'button' })[0];
+    fireEvent.click(firstButton);
+    expect(expectedProps.handleCopyAsCliCommand).toHaveBeenCalledTimes(1);
+  });
+
   it('calls handleCopyAsCurlCommand when copy as a curl command button is clicked', () => {
     const { getAllByText } = render(<FileList {...expectedProps} />);
-    const firstButton = getAllByText('Copy as a curl command', { selector: 'button' })[0];
+    const firstButton = getAllByText('cURL Command', { selector: 'button' })[0];
     fireEvent.click(firstButton);
     expect(expectedProps.handleCopyAsCurlCommand).toHaveBeenCalledTimes(1);
   });
