@@ -41,6 +41,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 
+import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -49,6 +50,8 @@ import com.linecorp.centraldogma.server.auth.AuthProvider;
 import com.linecorp.centraldogma.server.auth.AuthProviderFactory;
 import com.linecorp.centraldogma.server.auth.Session;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 /**
  * Builds a {@link CentralDogma} server.
@@ -121,6 +124,7 @@ public final class CentralDogmaBuilder {
     private Object authProviderProperties;
     private int writeQuota;
     private int timeWindowSeconds;
+    private MeterRegistry meterRegistry = Flags.meterRegistry();
 
     /**
      * Creates a new builder with the specified data directory.
@@ -521,10 +525,18 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the {@link MeterRegistry} used to collect metrics.
+     */
+    public CentralDogmaBuilder meterRegistry(MeterRegistry meterRegistry) {
+        this.meterRegistry = requireNonNull(meterRegistry, "meterRegistry");
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
-        return new CentralDogma(buildConfig());
+        return new CentralDogma(buildConfig(), meterRegistry);
     }
 
     private CentralDogmaConfig buildConfig() {
