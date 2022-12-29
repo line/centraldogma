@@ -81,7 +81,7 @@ const RepositoryDetailPage = () => {
   };
 
   const handleCopyWebUrl = async (project: string, repo: string, path: string) => {
-    const webUrl = `${window.location.origin}/app/projects/${project}/repos/${repo}/files/head${path}`;
+    const webUrl = `${window.location.origin}/app/projects/${project}/repos/${repo}/files/${revision}${path}`;
     copyToClipboard(webUrl);
   };
 
