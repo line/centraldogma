@@ -73,6 +73,8 @@ const RepositoryDetailPage = () => {
     if (revision !== 'head') {
       apiUrl += `?revision=${revision}`;
     }
+
+    return apiUrl;
   };
 
   const handleCopyApiUrl = async (project: string, repo: string, path: string) => {
@@ -86,9 +88,13 @@ const RepositoryDetailPage = () => {
   };
 
   const handleCopyAsCliCommand = async (project: string, repo: string, path: string) => {
-    const cliCommand = `dogma --connect "${window.location.origin}" \\
+    let cliCommand = `dogma --connect "${window.location.origin}" \\
 --token "<access-token>" \\
 cat ${project}/${repo}${path}`;
+
+  if (revision !== 'head') {
+    cliCommand += ` --revision=${revision}`;
+  }
     copyToClipboard(cliCommand);
   };
 
