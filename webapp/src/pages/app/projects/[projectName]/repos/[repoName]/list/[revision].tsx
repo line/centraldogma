@@ -95,7 +95,7 @@ const RepositoryDetailPage = () => {
 cat ${project}/${repo}${path}`;
 
       if (revision !== 'head') {
-        cliCommand += ` --revision=${revision}`;
+        cliCommand += ` --revision ${revision}`;
       }
 
       copyToClipboard(cliCommand);
