@@ -74,10 +74,10 @@ const FileList = <Data extends object>({
                   Web URL
                 </MenuItem>
                 <MenuItem onClick={() => handleCopyAsCliCommand(projectName, repoName, info.getValue())}>
-                  CLI Command
+                  CLI command
                 </MenuItem>
                 <MenuItem onClick={() => handleCopyAsCurlCommand(projectName, repoName, info.getValue())}>
-                  cURL Command
+                  cURL command
                 </MenuItem>
               </MenuList>
             </Menu>
