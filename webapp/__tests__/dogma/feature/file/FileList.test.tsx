@@ -1,6 +1,7 @@
 import { fireEvent, render } from '@testing-library/react';
 import FileList, { FileListProps } from 'dogma/features/file/FileList';
 import { FileDto } from 'dogma/features/file/FileDto';
+import { CopySupport } from 'dogma/features/file/CopySupport';
 
 describe('FileList', () => {
   let expectedProps: JSX.IntrinsicAttributes & FileListProps<object>;
@@ -33,14 +34,19 @@ describe('FileList', () => {
         url: '/api/v1/projects/Gamma/repos/repo1/contents/zzzzz',
       },
     ];
+
+    const mockCopySupport: CopySupport = {
+      handleApiUrl: jest.fn(),
+      handleWebUrl: jest.fn(),
+      handleAsCliCommand: jest.fn(),
+      handleAsCurlCommand: jest.fn(),
+    };
+
     expectedProps = {
       data: mockfileList,
       projectName: 'ProjectAlpha',
       repoName: 'repo1',
-      handleCopyApiUrl: jest.fn(),
-      handleCopyWebUrl: jest.fn(),
-      handleCopyAsCliCommand: jest.fn(),
-      handleCopyAsCurlCommand: jest.fn(),
+      copySupport: mockCopySupport,
     };
   });
 
@@ -82,7 +88,7 @@ describe('FileList', () => {
     const { getAllByText } = render(<FileList {...expectedProps} />);
     const firstButton = getAllByText('API URL', { selector: 'button' })[0];
     fireEvent.click(firstButton);
-    expect(expectedProps.handleCopyApiUrl).toHaveBeenCalledTimes(1);
+    expect(expectedProps.copySupport.handleApiUrl).toHaveBeenCalledTimes(1);
   });
 
 
@@ -90,20 +96,20 @@ describe('FileList', () => {
     const { getAllByText } = render(<FileList {...expectedProps} />);
     const firstButton = getAllByText('Web URL', { selector: 'button' })[0];
     fireEvent.click(firstButton);
-    expect(expectedProps.handleCopyWebUrl).toHaveBeenCalledTimes(1);
+    expect(expectedProps.copySupport.handleWebUrl).toHaveBeenCalledTimes(1);
   });
 
   it('calls handleCopyAsCurlCommand when copy as a CLI command button is clicked', () => {
     const { getAllByText } = render(<FileList {...expectedProps} />);
-    const firstButton = getAllByText('CLI Command', { selector: 'button' })[0];
+    const firstButton = getAllByText('CLI command', { selector: 'button' })[0];
     fireEvent.click(firstButton);
-    expect(expectedProps.handleCopyAsCliCommand).toHaveBeenCalledTimes(1);
+    expect(expectedProps.copySupport.handleAsCliCommand).toHaveBeenCalledTimes(1);
   });
 
   it('calls handleCopyAsCurlCommand when copy as a curl command button is clicked', () => {
     const { getAllByText } = render(<FileList {...expectedProps} />);
-    const firstButton = getAllByText('cURL Command', { selector: 'button' })[0];
+    const firstButton = getAllByText('cURL command', { selector: 'button' })[0];
     fireEvent.click(firstButton);
-    expect(expectedProps.handleCopyAsCurlCommand).toHaveBeenCalledTimes(1);
+    expect(expectedProps.copySupport.handleAsCurlCommand).toHaveBeenCalledTimes(1);
   });
 });

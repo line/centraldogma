@@ -6,26 +6,16 @@ import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable
 import { FileDto } from 'dogma/features/file/FileDto';
 import NextLink from 'next/link';
 import { FcFile, FcOpenedFolder } from 'react-icons/fc';
+import { CopySupport } from './CopySupport';
 
 export type FileListProps<Data extends object> = {
   data: Data[];
   projectName: string;
   repoName: string;
-  handleCopyApiUrl: Function;
-  handleCopyWebUrl: Function;
-  handleCopyAsCliCommand: Function;
-  handleCopyAsCurlCommand: Function;
+  copySupport: CopySupport;
 };
 
-const FileList = <Data extends object>({
-  data,
-  projectName,
-  repoName,
-  handleCopyApiUrl,
-  handleCopyWebUrl,
-  handleCopyAsCliCommand,
-  handleCopyAsCurlCommand,
-}: FileListProps<Data>) => {
+const FileList = <Data extends object>({ data, projectName, repoName, copySupport }: FileListProps<Data>) => {
   const columnHelper = createColumnHelper<FileDto>();
   const columns = [
     columnHelper.accessor((row: FileDto) => row.path, {
@@ -67,16 +57,20 @@ const FileList = <Data extends object>({
                 Copy
               </MenuButton>
               <MenuList>
-                <MenuItem onClick={() => handleCopyApiUrl(projectName, repoName, info.getValue())}>
+                <MenuItem onClick={() => copySupport.handleApiUrl(projectName, repoName, info.getValue())}>
                   API URL
                 </MenuItem>
-                <MenuItem onClick={() => handleCopyWebUrl(projectName, repoName, info.getValue())}>
+                <MenuItem onClick={() => copySupport.handleWebUrl(projectName, repoName, info.getValue())}>
                   Web URL
                 </MenuItem>
-                <MenuItem onClick={() => handleCopyAsCliCommand(projectName, repoName, info.getValue())}>
+                <MenuItem
+                  onClick={() => copySupport.handleAsCliCommand(projectName, repoName, info.getValue())}
+                >
                   CLI command
                 </MenuItem>
-                <MenuItem onClick={() => handleCopyAsCurlCommand(projectName, repoName, info.getValue())}>
+                <MenuItem
+                  onClick={() => copySupport.handleAsCurlCommand(projectName, repoName, info.getValue())}
+                >
                   cURL command
                 </MenuItem>
               </MenuList>

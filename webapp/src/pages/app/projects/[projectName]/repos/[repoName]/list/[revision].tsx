@@ -28,6 +28,7 @@ import { Tag } from '@chakra-ui/react';
 import { createMessage, resetState } from 'dogma/features/message/messageSlice';
 import { useAppDispatch } from 'dogma/store';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { CopySupport } from 'dogma/features/file/CopySupport';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -77,32 +78,35 @@ const RepositoryDetailPage = () => {
     return apiUrl;
   };
 
-  const handleCopyApiUrl = async (project: string, repo: string, path: string) => {
-    const apiUrl: string = constructApiUrl(project, repo, path);
-    copyToClipboard(apiUrl);
-  };
+  const clipboardCopySupport: CopySupport = {
+    async handleApiUrl(project: string, repo: string, path: string) {
+      const apiUrl: string = constructApiUrl(project, repo, path);
+      copyToClipboard(apiUrl);
+    },
 
-  const handleCopyWebUrl = async (project: string, repo: string, path: string) => {
-    const webUrl = `${window.location.origin}/app/projects/${project}/repos/${repo}/files/${revision}${path}`;
-    copyToClipboard(webUrl);
-  };
+    async handleWebUrl(project: string, repo: string, path: string) {
+      const webUrl = `${window.location.origin}/app/projects/${project}/repos/${repo}/files/${revision}${path}`;
+      copyToClipboard(webUrl);
+    },
 
-  const handleCopyAsCliCommand = async (project: string, repo: string, path: string) => {
-    let cliCommand = `dogma --connect "${window.location.origin}" \\
+    async handleAsCliCommand(project: string, repo: string, path: string) {
+      let cliCommand = `dogma --connect "${window.location.origin}" \\
 --token "<access-token>" \\
 cat ${project}/${repo}${path}`;
 
-  if (revision !== 'head') {
-    cliCommand += ` --revision=${revision}`;
-  }
-    copyToClipboard(cliCommand);
-  };
+      if (revision !== 'head') {
+        cliCommand += ` --revision=${revision}`;
+      }
 
-  const handleCopyAsCurlCommand = async (project: string, repo: string, path: string) => {
-    const apiUrl: string = constructApiUrl(project, repo, path);
-    const curlCommand = `curl -XGET "${apiUrl}" \\
+      copyToClipboard(cliCommand);
+    },
+
+    async handleAsCurlCommand(project: string, repo: string, path: string) {
+      const apiUrl: string = constructApiUrl(project, repo, path);
+      const curlCommand = `curl -XGET "${apiUrl}" \\
 -H "Authorization: Bearer <access-token>"`;
-    copyToClipboard(curlCommand);
+      copyToClipboard(curlCommand);
+    },
   };
 
   return (
@@ -138,10 +142,7 @@ cat ${project}/${repo}${path}`;
               data={fileData}
               projectName={projectName as string}
               repoName={repoName as string}
-              handleCopyApiUrl={handleCopyApiUrl}
-              handleCopyWebUrl={handleCopyWebUrl}
-              handleCopyAsCliCommand={handleCopyAsCliCommand}
-              handleCopyAsCurlCommand={handleCopyAsCurlCommand}
+              copySupport={clipboardCopySupport as CopySupport}
             />
           </TabPanel>
           <TabPanel>
