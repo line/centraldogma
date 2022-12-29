@@ -69,7 +69,10 @@ const RepositoryDetailPage = () => {
   };
 
   const constructApiUrl = (project: string, repo: string, path: string): string => {
-    return `${window.location.origin}/api/v1/projects/${project}/repos/${repo}/contents${path}`;
+    let apiUrl = `${window.location.origin}/api/v1/projects/${project}/repos/${repo}/contents${path}`;
+    if (revision !== 'head') {
+      apiUrl += `?revision=${revision}`;
+    }
   };
 
   const handleCopyApiUrl = async (project: string, repo: string, path: string) => {
