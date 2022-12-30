@@ -69,11 +69,6 @@ const FileList = <Data extends object>({
             </NextLink>
           </WrapItem>
           <WrapItem>
-            <Button leftIcon={<EditIcon />} colorScheme="gray" size="sm">
-              Edit
-            </Button>
-          </WrapItem>
-          <WrapItem>
             <Menu>
               <MenuButton as={Button} size="sm" leftIcon={<CopyIcon />} rightIcon={<ChevronDownIcon />}>
                 Copy
