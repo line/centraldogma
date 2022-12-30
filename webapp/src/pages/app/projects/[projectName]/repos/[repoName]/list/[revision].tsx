@@ -25,6 +25,10 @@ import { NewFileForm } from 'dogma/common/components/NewFileForm';
 import HistoryList from 'dogma/features/history/HistoryList';
 import { useState } from 'react';
 import { Tag } from '@chakra-ui/react';
+import { createMessage, resetState } from 'dogma/features/message/messageSlice';
+import { useAppDispatch } from 'dogma/store';
+import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { CopySupport } from 'dogma/features/file/CopySupport';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -47,9 +51,64 @@ const RepositoryDetailPage = () => {
   );
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
+  const dispatch = useAppDispatch();
+
   const handleTabChange = (index: number) => {
     setTabIndex(index);
   };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      await dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
+    } catch (err) {
+      const error: string = ErrorHandler.handle(err);
+      await dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
+    } finally {
+      dispatch(resetState());
+    }
+  };
+
+  const constructApiUrl = (project: string, repo: string, path: string): string => {
+    let apiUrl = `${window.location.origin}/api/v1/projects/${project}/repos/${repo}/contents${path}`;
+    if (revision !== 'head') {
+      apiUrl += `?revision=${revision}`;
+    }
+
+    return apiUrl;
+  };
+
+  const clipboardCopySupport: CopySupport = {
+    async handleApiUrl(project: string, repo: string, path: string) {
+      const apiUrl: string = constructApiUrl(project, repo, path);
+      copyToClipboard(apiUrl);
+    },
+
+    async handleWebUrl(project: string, repo: string, path: string) {
+      const webUrl = `${window.location.origin}/app/projects/${project}/repos/${repo}/files/${revision}${path}`;
+      copyToClipboard(webUrl);
+    },
+
+    async handleAsCliCommand(project: string, repo: string, path: string) {
+      let cliCommand = `dogma --connect "${window.location.origin}" \\
+--token "<access-token>" \\
+cat ${project}/${repo}${path}`;
+
+      if (revision !== 'head') {
+        cliCommand += ` --revision ${revision}`;
+      }
+
+      copyToClipboard(cliCommand);
+    },
+
+    async handleAsCurlCommand(project: string, repo: string, path: string) {
+      const apiUrl: string = constructApiUrl(project, repo, path);
+      const curlCommand = `curl -XGET "${apiUrl}" \\
+-H "Authorization: Bearer <access-token>"`;
+      copyToClipboard(curlCommand);
+    },
+  };
+
   return (
     <Box p="2">
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
@@ -79,7 +138,12 @@ const RepositoryDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <FileList data={fileData} projectName={projectName as string} repoName={repoName as string} />
+            <FileList
+              data={fileData}
+              projectName={projectName as string}
+              repoName={repoName as string}
+              copySupport={clipboardCopySupport as CopySupport}
+            />
           </TabPanel>
           <TabPanel>
             <HistoryList
