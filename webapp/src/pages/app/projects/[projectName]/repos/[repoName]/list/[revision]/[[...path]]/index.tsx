@@ -12,6 +12,7 @@ import {
   TabPanel,
   TabPanels,
   Tabs,
+  Tag,
   Tooltip,
   useDisclosure,
 } from '@chakra-ui/react';
@@ -24,7 +25,6 @@ import { useRouter } from 'next/router';
 import { NewFileForm } from 'dogma/common/components/NewFileForm';
 import HistoryList from 'dogma/features/history/HistoryList';
 import { useState } from 'react';
-import { Tag } from '@chakra-ui/react';
 import { createMessage, resetState } from 'dogma/features/message/messageSlice';
 import { useAppDispatch } from 'dogma/store';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
@@ -35,6 +35,8 @@ const RepositoryDetailPage = () => {
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const revision = router.query.revision ? (router.query.revision as string) : 'head';
+  const filePath = router.query.path ? `/${Array.from(router.query.path).join('/')}` : '';
+  const directoryPath = router.asPath;
   const { data: fileData = [] } = useGetFilesByProjectAndRepoAndRevisionNameQuery(
     { projectName, repoName, revision },
     {
@@ -140,16 +142,19 @@ cat ${project}/${repo}${path}`;
           <TabPanel>
             <FileList
               data={fileData}
-              projectName={projectName as string}
-              repoName={repoName as string}
+              projectName={projectName}
+              repoName={repoName}
+              path={filePath}
+              directoryPath={directoryPath}
+              revision={revision}
               copySupport={clipboardCopySupport as CopySupport}
             />
           </TabPanel>
           <TabPanel>
             <HistoryList
               data={historyData}
-              projectName={projectName as string}
-              repoName={repoName as string}
+              projectName={projectName}
+              repoName={repoName}
               handleTabChange={handleTabChange}
             />
           </TabPanel>

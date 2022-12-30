@@ -108,6 +108,7 @@ export const Navbar = () => {
 
   const selectRef = useRef(null);
   useEffect(() => {
+    // TODO: Exclude hotkey from input elements
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === '/') {
         e.preventDefault();
@@ -147,7 +148,7 @@ export const Navbar = () => {
             name="project-search"
             options={projectOptions}
             value={selectedOption?.value}
-            onChange={(option) => handleChange(option as ProjectOptionType)}
+            onChange={(option: ProjectOptionType) => handleChange(option)}
             placeholder="Jump to project ..."
             closeMenuOnSelect={true}
             openMenuOnFocus={true}
