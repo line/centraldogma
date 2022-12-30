@@ -1,4 +1,4 @@
-import { EditIcon, ViewIcon, CopyIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import { ViewIcon, CopyIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import { Button, Wrap, WrapItem, Box, HStack, Menu, MenuButton, MenuItem, MenuList } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
