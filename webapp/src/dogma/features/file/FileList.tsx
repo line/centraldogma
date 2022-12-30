@@ -6,7 +6,7 @@ import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable
 import { FileDto } from 'dogma/features/file/FileDto';
 import NextLink from 'next/link';
 import { FcFile, FcOpenedFolder } from 'react-icons/fc';
-import { CopySupport } from './CopySupport';
+import { CopySupport } from 'dogma/features/file/CopySupport';
 
 export type FileListProps<Data extends object> = {
   data: Data[];
