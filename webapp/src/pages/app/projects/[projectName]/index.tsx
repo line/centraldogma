@@ -4,6 +4,7 @@ import { useGetMetadataByProjectNameQuery, useGetReposByProjectNameQuery } from 
 import RepoList from 'dogma/features/repo/RepoList';
 import RepoMemberList from 'dogma/features/repo/RepoMemberList';
 import RepoPermissionList from 'dogma/features/repo/RepoPermissionList';
+import RepoTokenList from 'dogma/features/repo/RepoTokenList';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
@@ -63,7 +64,9 @@ const ProjectDetailPage = () => {
           <TabPanel>
             <RepoMemberList data={Array.from(Object.values(metadata.members))} />
           </TabPanel>
-          <TabPanel>TODO: Tokens</TabPanel>
+          <TabPanel>
+            <RepoTokenList data={Array.from(Object.values(metadata.tokens))} />
+          </TabPanel>
           <TabPanel>TODO: Mirror</TabPanel>
         </TabPanels>
       </Tabs>
