@@ -43,9 +43,7 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
     setFileContent(
-      language === 'json'
-        ? JSON.stringify(JSON.parse(originalContent), null, 2)
-        : originalContent,
+      language === 'json' ? JSON.stringify(JSON.parse(originalContent), null, 2) : originalContent,
     );
   };
   const { isOpen, onOpen, onClose } = useDisclosure();
