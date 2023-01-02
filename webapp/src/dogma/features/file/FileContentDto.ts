@@ -3,5 +3,5 @@ export interface FileContentDto {
   name: string;
   path: string;
   revision: string;
-  type: 'TEXT' | 'DIRECTORY' | 'JSON' | 'YML';
+  type: 'TEXT' | 'DIRECTORY' | 'JSON' | 'YAML';
 }
