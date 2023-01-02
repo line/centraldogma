@@ -21,11 +21,19 @@ import { AuthState } from 'dogma/features/auth/authSlice';
 import { FileDto } from 'dogma/features/file/FileDto';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
+import { FileContentDto } from 'dogma/features/file/FileContentDto';
 
 export type GetFilesByProjectAndRepoName = {
   projectName: string;
   repoName: string;
   revision?: string;
+};
+
+export type GetFileContent = {
+  projectName: string;
+  repoName: string;
+  revision: string;
+  filePath: string;
 };
 
 export const apiSlice = createApi({
@@ -55,6 +63,10 @@ export const apiSlice = createApi({
       query: ({ projectName, repoName, revision }) =>
         `/v1/projects/${projectName}/repos/${repoName}/list/?revision=${revision}`,
     }),
+    getFileContent: builder.query<FileContentDto, GetFileContent>({
+      query: ({ projectName, repoName, revision, filePath }) =>
+        `/v1/projects/${projectName}/repos/${repoName}/files/revisions/${revision}/${filePath}?queryType=IDENTITY`,
+    }),
     getHistoryByProjectAndRepoName: builder.query<HistoryDto[], GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/history`,
     }),
@@ -67,5 +79,6 @@ export const {
   useGetReposByProjectNameQuery,
   useGetFilesByProjectAndRepoNameQuery,
   useGetFilesByProjectAndRepoAndRevisionNameQuery,
+  useGetFileContentQuery,
   useGetHistoryByProjectAndRepoNameQuery,
 } = apiSlice;

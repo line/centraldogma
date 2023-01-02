@@ -19,6 +19,7 @@
     "@chakra-ui/react": "^2.4.1",
     "@emotion/react": "^11.10.5",
     "@emotion/styled": "^11.10.5",
+    "@monaco-editor/react": "^4.4.6",
     "@reduxjs/toolkit": "^1.8.5",
     "@tanstack/react-table": "^8.7.0",
     "axios": "^1.1.3",
