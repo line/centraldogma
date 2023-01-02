@@ -43,7 +43,7 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
     setFileContent(
-      language.toLowerCase() === 'json'
+      language === 'json'
         ? JSON.stringify(JSON.parse(originalContent), null, 2)
         : originalContent,
     );
