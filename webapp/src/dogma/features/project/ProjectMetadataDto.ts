@@ -1,5 +1,6 @@
 import { RepoMemberDto } from 'dogma/features/repo/RepoMemberDto';
 import { RepoPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
+import { RepoTokenDto } from 'dogma/features/repo/RepoTokenDto';
 
 export interface ProjectCreatorDto {
   user: string;
@@ -11,12 +12,5 @@ export interface ProjectMetadataDto {
   repos: RepoPermissionDto;
   members: RepoMemberDto;
   tokens: RepoTokenDto;
-  creation: ProjectCreatorDto;
-}
-
-type RepoTokenDto = Map<string, RepoTokenDetailDto>;
-export interface RepoTokenDetailDto {
-  appId: string;
-  role: 'MEMBER' | 'OWNER';
   creation: ProjectCreatorDto;
 }
