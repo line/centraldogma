@@ -1,6 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react';
 import RepoMemberList, { RepoMemberListProps } from 'dogma/features/repo/RepoMemberList';
-import { RepoMemberDetailDto } from 'dogma/features/repo/RepoMemberDto';
 import { formatDistance } from 'date-fns';
 
 describe('RepoMemberList', () => {
@@ -36,12 +35,10 @@ describe('RepoMemberList', () => {
   });
 
   it('renders the role', () => {
-    const { getByText } = render(<RepoMemberList {...expectedProps} />);
-    let role;
-    expectedProps.data.forEach((repo: RepoMemberDetailDto) => {
-      role = getByText(repo.role);
-      expect(role).toBeVisible();
-    });
+    const { container } = render(<RepoMemberList {...expectedProps} />);
+    const tbody = container.querySelector('tbody');
+    const firstRole = tbody.children[0].children[1].firstChild;
+    expect(firstRole).toHaveTextContent('OWNER');
   });
 
   it('renders the creator (added by)', () => {

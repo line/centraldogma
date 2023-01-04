@@ -1,7 +1,8 @@
 import { DeleteIcon } from '@chakra-ui/icons';
-import { Button, Badge } from '@chakra-ui/react';
+import { Button } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
+import { UserRole } from 'dogma/common/components/UserRole';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoMemberDetailDto } from 'dogma/features/repo/RepoMemberDto';
 
@@ -17,11 +18,7 @@ const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>
       header: 'Login ID',
     }),
     columnHelper.accessor((row: RepoMemberDetailDto) => row.role, {
-      cell: (info) => (
-        <Badge colorScheme={info.getValue().toLowerCase() === 'owner' ? 'blue' : 'green'}>
-          {info.getValue()}
-        </Badge>
-      ),
+      cell: (info) => <UserRole user={info.getValue()} />,
       header: 'Role',
     }),
     columnHelper.accessor((row: RepoMemberDetailDto) => row.creation.user, {
