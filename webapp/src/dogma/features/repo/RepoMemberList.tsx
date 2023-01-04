@@ -18,7 +18,7 @@ const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>
       header: 'Login ID',
     }),
     columnHelper.accessor((row: RepoMemberDetailDto) => row.role, {
-      cell: (info) => <UserRole user={info.getValue()} />,
+      cell: (info) => <UserRole role={info.getValue()} />,
       header: 'Role',
     }),
     columnHelper.accessor((row: RepoMemberDetailDto) => row.creation.user, {
