@@ -27,6 +27,11 @@ import Editor, { DiffEditor, OnMount } from '@monaco-editor/react';
 import { EditModeToggle } from 'dogma/common/components/editor/EditModeToggle';
 import React, { useState, useRef } from 'react';
 import { FcEditImage, FcCancel } from 'react-icons/fc';
+import jp from 'jsonpath';
+import { createMessage, resetState } from 'dogma/features/message/messageSlice';
+import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { useAppDispatch } from 'dogma/store';
+import { JsonPath } from 'dogma/common/components/editor/JsonPath';
 
 export type FileEditorProps = {
   language: string;
@@ -34,6 +39,7 @@ export type FileEditorProps = {
 };
 
 const FileEditor = ({ language, originalContent }: FileEditorProps) => {
+  const jsonContent = language === 'json' ? JSON.parse(originalContent) : '';
   const [tabIndex, setTabIndex] = useState(0);
   const handleTabChange = (index: number) => {
     setTabIndex(index);
@@ -42,13 +48,20 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
   const editorRef = useRef(null);
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
-    setFileContent(
-      language === 'json' ? JSON.stringify(JSON.parse(originalContent), null, 2) : originalContent,
-    );
+    setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
   };
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [readOnly, setReadOnly] = useState(true);
-  const returnToViewMode = () => (readOnly ? setReadOnly(false) : onOpen());
+  const switchMode = () => {
+    if (readOnly) {
+      setReadOnly(false);
+      setFileContent(
+        language === 'json' ? JSON.stringify(JSON.parse(originalContent), null, 2) : originalContent,
+      );
+    } else {
+      onOpen();
+    }
+  };
   const resetViewEditor = () => {
     editorRef.current.setValue(fileContent);
     setReadOnly(true);
@@ -58,12 +71,25 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
   const { colorMode } = useColorMode();
   const [diffSideBySide, setDiffSideBySide] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
+  const dispatch = useAppDispatch();
+  const handleJsonQuery = (value: string) => {
+    if (value) {
+      try {
+        setFileContent(JSON.stringify(jp.query(jsonContent, value), null, 2));
+      } catch (err) {
+        const error: string = ErrorHandler.handle(err);
+        dispatch(createMessage({ title: `Failed to query JSON path ${value}`, text: error, type: 'error' }));
+      } finally {
+        dispatch(resetState());
+      }
+    }
+  };
   return (
     <Box>
       <Flex>
         <Spacer />
         <Button
-          onClick={returnToViewMode}
+          onClick={switchMode}
           leftIcon={readOnly ? <FcEditImage /> : <FcCancel />}
           colorScheme={readOnly ? 'teal' : 'blue'}
           variant="ghost"
@@ -97,6 +123,7 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
                   label="Expand"
                 />
               </Flex>
+              {readOnly && language === 'json' ? <JsonPath handleQuery={handleJsonQuery} /> : ''}
               <Editor
                 height={editorExpanded ? editorRef.current.getModel().getLineCount() * 20 : '50vh'}
                 language={language}
@@ -148,7 +175,7 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
         <Textarea placeholder="Add an optional extended description..." />
         <Stack direction="row" spacing={4} mt={2}>
           <Button colorScheme="teal">Commit</Button>
-          <Button variant="outline" onClick={returnToViewMode}>
+          <Button variant="outline" onClick={switchMode}>
             Cancel
           </Button>
         </Stack>
