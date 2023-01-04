@@ -1,5 +1,5 @@
 import { Badge } from '@chakra-ui/react';
 
-export const UserRole = ({ user }: { user: string }) => {
-  return <Badge colorScheme={user.toLowerCase() === 'owner' ? 'blue' : 'green'}>{user}</Badge>;
+export const UserRole = ({ role }: { role: string }) => {
+  return <Badge colorScheme={role.toLowerCase() === 'owner' ? 'blue' : 'green'}>{role}</Badge>;
 };
