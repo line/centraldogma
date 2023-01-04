@@ -4,32 +4,32 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { UserRole } from 'dogma/common/components/UserRole';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
-import { RepoMemberDetailDto } from 'dogma/features/repo/RepoMemberDto';
+import { RepoTokenDetailDto } from 'dogma/features/repo/RepoTokenDto';
 
-export type RepoMemberListProps<Data extends object> = {
+export type RepoTokenListProps<Data extends object> = {
   data: Data[];
 };
 
-const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>) => {
-  const columnHelper = createColumnHelper<RepoMemberDetailDto>();
+const RepoTokenList = <Data extends object>({ data }: RepoTokenListProps<Data>) => {
+  const columnHelper = createColumnHelper<RepoTokenDetailDto>();
   const columns = [
-    columnHelper.accessor((row: RepoMemberDetailDto) => row.login, {
+    columnHelper.accessor((row: RepoTokenDetailDto) => row.appId, {
       cell: (info) => info.getValue(),
-      header: 'Login ID',
+      header: 'App ID',
     }),
-    columnHelper.accessor((row: RepoMemberDetailDto) => row.role, {
+    columnHelper.accessor((row: RepoTokenDetailDto) => row.role, {
       cell: (info) => <UserRole user={info.getValue()} />,
       header: 'Role',
     }),
-    columnHelper.accessor((row: RepoMemberDetailDto) => row.creation.user, {
+    columnHelper.accessor((row: RepoTokenDetailDto) => row.creation.user, {
       cell: (info) => info.getValue(),
       header: 'Added By',
     }),
-    columnHelper.accessor((row: RepoMemberDetailDto) => row.creation.timestamp, {
+    columnHelper.accessor((row: RepoTokenDetailDto) => row.creation.timestamp, {
       cell: (info) => <DateWithTooltip date={info.getValue()} />,
       header: 'Added At',
     }),
-    columnHelper.accessor((row: RepoMemberDetailDto) => row.login, {
+    columnHelper.accessor((row: RepoTokenDetailDto) => row.appId, {
       cell: () => (
         <Button leftIcon={<DeleteIcon />} size="sm" colorScheme="red">
           Delete
@@ -42,4 +42,4 @@ const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>
   return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
 };
 
-export default RepoMemberList;
+export default RepoTokenList;
