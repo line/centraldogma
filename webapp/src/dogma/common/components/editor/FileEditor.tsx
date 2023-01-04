@@ -54,10 +54,8 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
   const [readOnly, setReadOnly] = useState(true);
   const switchMode = () => {
     if (readOnly) {
+      setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
       setReadOnly(false);
-      setFileContent(
-        language === 'json' ? JSON.stringify(JSON.parse(originalContent), null, 2) : originalContent,
-      );
     } else {
       onOpen();
     }
@@ -73,15 +71,17 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
   const [editorExpanded, setEditorExpanded] = useState(false);
   const dispatch = useAppDispatch();
   const handleJsonQuery = (value: string) => {
-    if (value) {
-      try {
+    try {
+      if (value) {
         setFileContent(JSON.stringify(jp.query(jsonContent, value), null, 2));
-      } catch (err) {
-        const error: string = ErrorHandler.handle(err);
-        dispatch(createMessage({ title: `Failed to query JSON path ${value}`, text: error, type: 'error' }));
-      } finally {
-        dispatch(resetState());
+      } else if (value === '') {
+        setFileContent(JSON.stringify(jsonContent, null, 2));
       }
+    } catch (err) {
+      const error: string = ErrorHandler.handle(err);
+      dispatch(createMessage({ title: `Failed to query JSON path ${value}`, text: error, type: 'error' }));
+    } finally {
+      dispatch(resetState());
     }
   };
   return (
@@ -125,7 +125,9 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
               </Flex>
               {readOnly && language === 'json' ? <JsonPath handleQuery={handleJsonQuery} /> : ''}
               <Editor
-                height={editorExpanded ? editorRef.current.getModel().getLineCount() * 20 : '50vh'}
+                height={
+                  editorExpanded ? Math.max(editorRef.current.getModel().getLineCount() * 20, 1000) : '50vh'
+                }
                 language={language}
                 theme={colorMode === 'light' ? 'light' : 'vs-dark'}
                 value={fileContent}
