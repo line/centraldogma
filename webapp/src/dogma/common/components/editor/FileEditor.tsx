@@ -28,7 +28,7 @@ import { EditModeToggle } from 'dogma/common/components/editor/EditModeToggle';
 import React, { useState, useRef } from 'react';
 import { FcEditImage, FcCancel } from 'react-icons/fc';
 import jp from 'jsonpath';
-import { createMessage, resetState } from 'dogma/features/message/messageSlice';
+import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/store';
 import { JsonPath } from 'dogma/common/components/editor/JsonPath';
@@ -80,8 +80,6 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
     } catch (err) {
       const error: string = ErrorHandler.handle(err);
       dispatch(createMessage({ title: `Failed to query JSON path ${value}`, text: error, type: 'error' }));
-    } finally {
-      dispatch(resetState());
     }
   };
   return (
