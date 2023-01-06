@@ -47,7 +47,7 @@ export const JsonPathLegend = () => {
         </AccordionButton>
         <AccordionPanel pb={4}>
           <TableContainer>
-            <Table size="sm">
+            <Table size="sm" whiteSpace="normal">
               <TableCaption>
                 <ChakraLink href="https://goessner.net/articles/JsonPath/index.html#e2" target="_blank">
                   https://goessner.net/articles/JsonPath/index.html#e2
@@ -63,7 +63,9 @@ export const JsonPathLegend = () => {
                 {legends.map((legend, i) => (
                   <Tr key={i}>
                     <Td>{legend.path}</Td>
-                    <Td>{legend.description}</Td>
+                    <Td>
+                      <Text noOfLines={2}>{legend.description}</Text>
+                    </Td>
                   </Tr>
                 ))}
               </Tbody>
