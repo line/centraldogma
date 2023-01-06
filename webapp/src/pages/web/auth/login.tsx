@@ -1,9 +1,8 @@
 import Head from 'next/head';
 import { LoginForm } from 'dogma/features/auth/LoginForm';
-import { useAppDispatch, useAppSelector } from 'dogma/store';
+import { useAppSelector } from 'dogma/store';
 import { useEffect } from 'react';
 import Router from 'next/router';
-import { login } from 'dogma/features/auth/authSlice';
 
 const LoginPage = () => {
   const { isInAnonymousMode, sessionId } = useAppSelector((state) => state.auth);
@@ -12,17 +11,13 @@ const LoginPage = () => {
       Router.replace('/');
     }
   }, [isInAnonymousMode, sessionId]);
-  const dispatch = useAppDispatch();
-  const submitForm = (data: { username: string; password: string }) => {
-    dispatch(login({ username: data.username, password: data.password }));
-  };
   return (
     <>
       <Head>
         <link rel="icon" href="/favicon.ico" />
         <meta name="Central Dogma | Login" content="Login ..." />
       </Head>
-      <LoginForm handleSubmit={submitForm} />
+      <LoginForm />
     </>
   );
 };
