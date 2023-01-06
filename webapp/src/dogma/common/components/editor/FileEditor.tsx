@@ -27,6 +27,8 @@ import Editor, { DiffEditor, OnMount } from '@monaco-editor/react';
 import { EditModeToggle } from 'dogma/common/components/editor/EditModeToggle';
 import React, { useState, useRef } from 'react';
 import { FcEditImage, FcCancel } from 'react-icons/fc';
+import { JsonPath } from 'dogma/common/components/editor/JsonPath';
+import { JsonPathLegend } from 'dogma/common/components/JsonPathLegend';
 
 export type FileEditorProps = {
   language: string;
@@ -34,6 +36,7 @@ export type FileEditorProps = {
 };
 
 const FileEditor = ({ language, originalContent }: FileEditorProps) => {
+  const jsonContent = language === 'json' ? JSON.parse(originalContent) : '';
   const [tabIndex, setTabIndex] = useState(0);
   const handleTabChange = (index: number) => {
     setTabIndex(index);
@@ -42,13 +45,18 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
   const editorRef = useRef(null);
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
-    setFileContent(
-      language === 'json' ? JSON.stringify(JSON.parse(originalContent), null, 2) : originalContent,
-    );
+    setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
   };
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [readOnly, setReadOnly] = useState(true);
-  const returnToViewMode = () => (readOnly ? setReadOnly(false) : onOpen());
+  const switchMode = () => {
+    if (readOnly) {
+      setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
+      setReadOnly(false);
+    } else {
+      onOpen();
+    }
+  };
   const resetViewEditor = () => {
     editorRef.current.setValue(fileContent);
     setReadOnly(true);
@@ -63,7 +71,7 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
       <Flex>
         <Spacer />
         <Button
-          onClick={returnToViewMode}
+          onClick={switchMode}
           leftIcon={readOnly ? <FcEditImage /> : <FcCancel />}
           colorScheme={readOnly ? 'teal' : 'blue'}
           variant="ghost"
@@ -89,16 +97,27 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
         <TabPanels>
           <TabPanel>
             <Box>
-              <Flex mb="2">
+              <Flex gap={4}>
+                <Flex mb={2}>
+                  <Spacer />
+                  <EditModeToggle
+                    switchMode={() => setEditorExpanded(!editorExpanded)}
+                    value={!editorExpanded}
+                    label="Expand File"
+                  />
+                </Flex>
                 <Spacer />
-                <EditModeToggle
-                  switchMode={() => setEditorExpanded(!editorExpanded)}
-                  value={!editorExpanded}
-                  label="Expand"
-                />
+                {readOnly && language === 'json' ? <JsonPathLegend /> : ''}
               </Flex>
+              {readOnly && language === 'json' ? (
+                <JsonPath setFileContent={setFileContent} jsonContent={jsonContent} />
+              ) : (
+                ''
+              )}
               <Editor
-                height={editorExpanded ? editorRef.current.getModel().getLineCount() * 20 : '50vh'}
+                height={
+                  editorExpanded ? Math.max(editorRef.current.getModel().getLineCount() * 20, 1000) : '50vh'
+                }
                 language={language}
                 theme={colorMode === 'light' ? 'light' : 'vs-dark'}
                 value={fileContent}
@@ -148,7 +167,7 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
         <Textarea placeholder="Add an optional extended description..." />
         <Stack direction="row" spacing={4} mt={2}>
           <Button colorScheme="teal">Commit</Button>
-          <Button variant="outline" onClick={returnToViewMode}>
+          <Button variant="outline" onClick={switchMode}>
             Cancel
           </Button>
         </Stack>
