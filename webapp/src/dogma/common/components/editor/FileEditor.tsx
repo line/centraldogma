@@ -27,11 +27,8 @@ import Editor, { DiffEditor, OnMount } from '@monaco-editor/react';
 import { EditModeToggle } from 'dogma/common/components/editor/EditModeToggle';
 import React, { useState, useRef } from 'react';
 import { FcEditImage, FcCancel } from 'react-icons/fc';
-import jp from 'jsonpath';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch } from 'dogma/store';
 import { JsonPath } from 'dogma/common/components/editor/JsonPath';
+import { JsonPathLegend } from 'dogma/common/components/JsonPathLegend';
 
 export type FileEditorProps = {
   language: string;
@@ -69,19 +66,6 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
   const { colorMode } = useColorMode();
   const [diffSideBySide, setDiffSideBySide] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
-  const dispatch = useAppDispatch();
-  const handleJsonQuery = (value: string) => {
-    try {
-      if (value) {
-        setFileContent(JSON.stringify(jp.query(jsonContent, value), null, 2));
-      } else if (value === '') {
-        setFileContent(JSON.stringify(jsonContent, null, 2));
-      }
-    } catch (err) {
-      const error: string = ErrorHandler.handle(err);
-      dispatch(createMessage({ title: `Failed to query JSON path ${value}`, text: error, type: 'error' }));
-    }
-  };
   return (
     <Box>
       <Flex>
@@ -113,15 +97,23 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
         <TabPanels>
           <TabPanel>
             <Box>
-              <Flex mb="2">
+              <Flex gap={4}>
+                <Flex mb={2}>
+                  <Spacer />
+                  <EditModeToggle
+                    switchMode={() => setEditorExpanded(!editorExpanded)}
+                    value={!editorExpanded}
+                    label="Expand File"
+                  />
+                </Flex>
                 <Spacer />
-                <EditModeToggle
-                  switchMode={() => setEditorExpanded(!editorExpanded)}
-                  value={!editorExpanded}
-                  label="Expand"
-                />
+                {readOnly && language === 'json' ? <JsonPathLegend /> : ''}
               </Flex>
-              {readOnly && language === 'json' ? <JsonPath handleQuery={handleJsonQuery} /> : ''}
+              {readOnly && language === 'json' ? (
+                <JsonPath setFileContent={setFileContent} jsonContent={jsonContent} />
+              ) : (
+                ''
+              )}
               <Editor
                 height={
                   editorExpanded ? Math.max(editorRef.current.getModel().getLineCount() * 20, 1000) : '50vh'
