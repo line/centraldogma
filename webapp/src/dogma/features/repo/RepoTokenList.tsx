@@ -18,7 +18,7 @@ const RepoTokenList = <Data extends object>({ data }: RepoTokenListProps<Data>) 
       header: 'App ID',
     }),
     columnHelper.accessor((row: RepoTokenDetailDto) => row.role, {
-      cell: (info) => <UserRole user={info.getValue()} />,
+      cell: (info) => <UserRole role={info.getValue()} />,
       header: 'Role',
     }),
     columnHelper.accessor((row: RepoTokenDetailDto) => row.creation.user, {
