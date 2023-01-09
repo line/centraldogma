@@ -13,41 +13,49 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, FormControl, Input, VStack } from '@chakra-ui/react';
-import { Field, Form, Formik } from 'formik';
+import { Box, Button, Flex, FormControl, Input, VStack, useColorMode } from '@chakra-ui/react';
+import { login } from 'dogma/features/auth/authSlice';
+import { useAppDispatch } from 'dogma/store';
+import { useForm } from 'react-hook-form';
 
-export const LoginForm = (props: { handleSubmit: (arg0: { username: string; password: string }) => void }) => {
-  // Redux => state
-  // TODO(ikhoon): Beautify
+type FormData = {
+  username: string;
+  password: string;
+};
+
+export const LoginForm = () => {
+  const { register, handleSubmit } = useForm<FormData>();
+  const dispatch = useAppDispatch();
+  const onSubmit = (data: FormData) => dispatch(login({ username: data.username, password: data.password }));
+  const { colorMode } = useColorMode();
   return (
-    <Flex bg="gray.100" align="center" justify="center" h="100vh">
-      <Box bg="white" p={6} rounded="md" w={64}>
-        <Formik
-          initialValues={{
-            username: '',
-            password: '',
-          }}
-          onSubmit={(values) => props.handleSubmit({ username: values.username, password: values.password })}
-        >
-          <Form>
-            <VStack spacing={4} align="flex-start">
-              <FormControl isRequired>
-                <Field as={Input} id="username" name="username" type="text" variant="filled" placeholder="ID" />
-              </FormControl>
-              <FormControl isRequired>
-                <Field
-                  as={Input}
-                  id="password"
-                  name="password"
-                  type="password"
-                  variant="filled"
-                  placeholder="Password"
-                />
-              </FormControl>
-              <Button type="submit">Submit</Button>
-            </VStack>
-          </Form>
-        </Formik>
+    <Flex bg={colorMode === 'light' && 'gray.100'} align="center" justify="center" h="100vh">
+      <Box bg={colorMode === 'light' && 'white'} p={6} rounded="md" w={64}>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <VStack spacing={4} align="flex-start">
+            <FormControl isRequired>
+              <Input
+                id="username"
+                name="username"
+                type="text"
+                variant="filled"
+                placeholder="ID"
+                {...register('username', { required: true })}
+              />
+            </FormControl>
+            <FormControl isRequired>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                variant="filled"
+                placeholder="Password"
+                {...register('password', { required: true })}
+              />
+            </FormControl>
+            <Button type="submit">Submit</Button>
+          </VStack>
+        </form>
       </Box>
     </Flex>
   );
