@@ -46,7 +46,7 @@ export const LoginForm = () => {
       <Box bg={colorMode === 'light' && 'white'} p={6} rounded="md" w={64}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <VStack spacing={4} align="flex-start">
-            <FormControl isRequired isInvalid={errors.username ? true : false}>
+            <FormControl isRequired>
               <Input
                 id="username"
                 name="username"
@@ -55,9 +55,8 @@ export const LoginForm = () => {
                 placeholder="ID"
                 {...register('username', { required: true })}
               />
-              {errors.username && <FormErrorMessage>Username is required</FormErrorMessage>}
             </FormControl>
-            <FormControl isRequired isInvalid={errors.password ? true : false}>
+            <FormControl isRequired>
               <Input
                 id="password"
                 name="password"
@@ -66,7 +65,6 @@ export const LoginForm = () => {
                 placeholder="Password"
                 {...register('password', { required: true })}
               />
-              {errors.password && <FormErrorMessage>Password is required</FormErrorMessage>}
             </FormControl>
             <Button type="submit">Submit</Button>
           </VStack>
