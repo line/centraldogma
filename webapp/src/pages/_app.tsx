@@ -12,7 +12,7 @@ import dynamic from 'next/dynamic';
 
 const WEB_AUTH_LOGIN = '/web/auth/login';
 
-export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
+export type NextPageWithLayout = NextPage & {
   getLayout?: (page: ReactElement) => ReactNode;
 };
 

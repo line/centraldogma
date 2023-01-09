@@ -11,7 +11,7 @@ export type HistoryListProps<Data extends object> = {
   data: Data[];
   projectName: string;
   repoName: string;
-  handleTabChange: Function;
+  handleTabChange: (index: number) => void;
 };
 
 const HistoryList = <Data extends object>({
