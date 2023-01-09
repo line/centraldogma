@@ -13,16 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Button,
-  Flex,
-  FormControl,
-  FormErrorMessage,
-  Input,
-  VStack,
-  useColorMode,
-} from '@chakra-ui/react';
+import { Box, Button, Flex, FormControl, Input, VStack, useColorMode } from '@chakra-ui/react';
 import { login } from 'dogma/features/auth/authSlice';
 import { useAppDispatch } from 'dogma/store';
 import { useForm } from 'react-hook-form';
@@ -33,11 +24,7 @@ type FormData = {
 };
 
 export const LoginForm = () => {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>();
+  const { register, handleSubmit } = useForm<FormData>();
   const dispatch = useAppDispatch();
   const onSubmit = (data: FormData) => dispatch(login({ username: data.username, password: data.password }));
   const { colorMode } = useColorMode();
