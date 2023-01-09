@@ -37,20 +37,6 @@ const RepositoryDetailPage = () => {
   const revision = router.query.revision ? (router.query.revision as string) : 'head';
   const filePath = router.query.path ? `/${Array.from(router.query.path).join('/')}` : '';
   const directoryPath = router.asPath;
-  const { data: fileData = [] } = useGetFilesByProjectAndRepoAndRevisionNameQuery(
-    { projectName, repoName, revision },
-    {
-      refetchOnMountOrArgChange: true,
-      skip: false,
-    },
-  );
-  const { data: historyData = [] } = useGetHistoryByProjectAndRepoNameQuery(
-    { projectName, repoName },
-    {
-      refetchOnMountOrArgChange: true,
-      skip: false,
-    },
-  );
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
   const dispatch = useAppDispatch();
@@ -62,10 +48,10 @@ const RepositoryDetailPage = () => {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      await dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
+      dispatch(createMessage({ title: '', text: 'copied to clipboard', type: 'success' }));
     } catch (err) {
       const error: string = ErrorHandler.handle(err);
-      await dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
+      dispatch(createMessage({ title: 'failed to copy to clipboard', text: error, type: 'error' }));
     } finally {
       dispatch(resetState());
     }
@@ -110,6 +96,35 @@ cat ${project}/${repo}${path}`;
       copyToClipboard(curlCommand);
     },
   };
+
+  const {
+    data: fileData = [],
+    isLoading: isFileDataLoading,
+    error: fileError,
+  } = useGetFilesByProjectAndRepoAndRevisionNameQuery(
+    { projectName, repoName, revision },
+    {
+      refetchOnMountOrArgChange: true,
+      skip: false,
+    },
+  );
+  const {
+    data: historyData,
+    isLoading,
+    error,
+  } = useGetHistoryByProjectAndRepoNameQuery(
+    { projectName, repoName },
+    {
+      refetchOnMountOrArgChange: true,
+      skip: false,
+    },
+  );
+  if (isFileDataLoading || isLoading) {
+    return <>Loading...</>;
+  }
+  if (fileError || error) {
+    return <>{JSON.stringify(fileError || error)}</>;
+  }
 
   return (
     <Box p="2">

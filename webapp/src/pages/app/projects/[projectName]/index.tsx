@@ -59,13 +59,16 @@ const ProjectDetailPage = () => {
             <RepoList data={repoData} projectName={projectName} />
           </TabPanel>
           <TabPanel>
-            <RepoPermissionList data={Array.from(Object.values(metadata.repos))} projectName={projectName} />
+            <RepoPermissionList
+              data={metadata ? Array.from(Object.values(metadata.repos)) : []}
+              projectName={projectName}
+            />
           </TabPanel>
           <TabPanel>
-            <RepoMemberList data={Array.from(Object.values(metadata.members))} />
+            <RepoMemberList data={metadata ? Array.from(Object.values(metadata.members)) : []} />
           </TabPanel>
           <TabPanel>
-            <RepoTokenList data={Array.from(Object.values(metadata.tokens))} />
+            <RepoTokenList data={metadata ? Array.from(Object.values(metadata.tokens)) : []} />
           </TabPanel>
           <TabPanel>TODO: Mirror</TabPanel>
         </TabPanels>

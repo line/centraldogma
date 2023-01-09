@@ -22,8 +22,8 @@ export const DynamicDataTable = <Data extends object>({ data, columns }: Dynamic
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const table = useReactTable({
-    columns,
-    data,
+    columns: columns || [],
+    data: data || [],
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
