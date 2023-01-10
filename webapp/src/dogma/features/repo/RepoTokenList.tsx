@@ -39,7 +39,7 @@ const RepoTokenList = <Data extends object>({ data }: RepoTokenListProps<Data>) 
       enableSorting: false,
     }),
   ];
-  return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
+  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
 export default RepoTokenList;

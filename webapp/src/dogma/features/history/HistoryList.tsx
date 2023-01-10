@@ -61,7 +61,7 @@ const HistoryList = <Data extends object>({
       enableSorting: false,
     }),
   ];
-  return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
+  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
 export default HistoryList;

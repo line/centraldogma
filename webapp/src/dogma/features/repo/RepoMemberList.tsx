@@ -39,7 +39,7 @@ const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>
       enableSorting: false,
     }),
   ];
-  return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
+  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
 export default RepoMemberList;

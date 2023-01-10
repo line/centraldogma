@@ -15,7 +15,7 @@ import { useState } from 'react';
 
 export type DynamicDataTableProps<Data extends object> = {
   data: Data[];
-  columns: ColumnDef<Data, any>[];
+  columns: ColumnDef<Data>[];
 };
 
 export const DynamicDataTable = <Data extends object>({ data, columns }: DynamicDataTableProps<Data>) => {

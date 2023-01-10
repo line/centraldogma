@@ -13,11 +13,12 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+import Error from 'next/error';
 import { ReactNode } from 'react';
 
 interface LoadingProps {
   isLoading: boolean;
-  error: any;
+  error: Error;
   children: () => ReactNode;
 }
 export const Deferred = (props: LoadingProps) => {
