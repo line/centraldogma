@@ -1,16 +1,8 @@
 export interface HistoryDto {
-  revision: HistoryRevisionDto;
+  revision: string;
   author: HistoryAuthorDto;
-  timestamp: string;
-  summary: string;
-  detail: HistoryDetailDto;
-  diffs: string[];
-}
-
-export interface HistoryRevisionDto {
-  major: number;
-  minor: number;
-  revisionNumber: string;
+  commitMessage: HistoryDetailDto;
+  pushedAt: string;
 }
 
 export interface HistoryAuthorDto {
@@ -19,6 +11,7 @@ export interface HistoryAuthorDto {
 }
 
 export interface HistoryDetailDto {
+  summary: string;
   content: string;
   markup: string;
 }
