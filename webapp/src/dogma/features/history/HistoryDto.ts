@@ -1,5 +1,5 @@
 export interface HistoryDto {
-  revision: string;
+  revision: number;
   author: HistoryAuthorDto;
   commitMessage: HistoryDetailDto;
   pushedAt: string;
@@ -12,6 +12,6 @@ export interface HistoryAuthorDto {
 
 export interface HistoryDetailDto {
   summary: string;
-  content: string;
+  detail: string;
   markup: string;
 }

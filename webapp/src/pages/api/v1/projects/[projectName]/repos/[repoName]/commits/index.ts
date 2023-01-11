@@ -5,9 +5,9 @@ import { faker } from '@faker-js/faker';
 
 const newHistory = (i: number): HistoryDto => {
   return {
-    revision: i.toString(),
+    revision: i,
     author: { name: faker.internet.userName(), email: faker.internet.email() },
-    commitMessage: { summary: faker.lorem.sentence(), content: faker.lorem.paragraph(), markup: 'PLAINTEXT' },
+    commitMessage: { summary: faker.lorem.sentence(), detail: faker.lorem.paragraph(), markup: 'PLAINTEXT' },
     pushedAt: faker.datatype.datetime().toISOString(),
   };
 };
