@@ -23,6 +23,7 @@ import { useForm } from 'react-hook-form';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { IoMdArrowDropdown } from 'react-icons/io';
 
 const ENTITY_NAME_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z.]*[0-9A-Za-z])?$/;
 
@@ -66,7 +67,7 @@ export const NewProject = () => {
   return (
     <Popover placement="bottom" isOpen={isOpen} onClose={onClose}>
       <PopoverTrigger>
-        <Button colorScheme="teal" size="sm" mr={4} onClick={onToggle}>
+        <Button colorScheme="teal" size="sm" mr={4} onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
           New Project
         </Button>
       </PopoverTrigger>
