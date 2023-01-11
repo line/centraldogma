@@ -2,14 +2,18 @@ import { Column } from '@tanstack/react-table';
 import { DebouncedInput } from 'dogma/common/components/table/DebouncedInput';
 import { useMemo } from 'react';
 
-export const Filter = ({ column }: { column: Column<any, unknown> }) => {
+export type FilterProps<Data> = {
+  column: Column<Data, unknown>;
+};
+
+export const Filter = <Data extends object>({ column }: FilterProps<Data>) => {
   const columnFilterValue = column.getFilterValue();
   const sortedUniqueValues = useMemo(() => Array.from(column.getFacetedUniqueValues().keys()).sort(), [column]);
 
   return (
     <>
       <datalist id={column.id + 'list'}>
-        {sortedUniqueValues.slice(0, 5000).map((value: any) => (
+        {sortedUniqueValues.slice(0, 5000).map((value: string | number) => (
           <option value={value} key={value} />
         ))}
       </datalist>

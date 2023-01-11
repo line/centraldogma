@@ -32,7 +32,7 @@ import {
   useColorModeValue,
   useDisclosure,
 } from '@chakra-ui/react';
-import { AddIcon, CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
+import { CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { default as RouteLink } from 'next/link';
 import { useAppSelector, useAppDispatch } from 'dogma/store';
 import { logout } from 'dogma/features/auth/authSlice';
@@ -41,6 +41,7 @@ import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } from 'chakra-react-select';
 import { RxSlash } from 'react-icons/rx';
+import { NewProject } from 'dogma/common/components/NewProject';
 
 interface TopMenu {
   name: string;
@@ -148,7 +149,7 @@ export const Navbar = () => {
             name="project-search"
             options={projectOptions}
             value={selectedOption?.value}
-            onChange={(option: ProjectOptionType) => handleChange(option)}
+            onChange={(option: ProjectOptionType) => option && handleChange(option)}
             placeholder="Jump to project ..."
             closeMenuOnSelect={true}
             openMenuOnFocus={true}
@@ -164,11 +165,14 @@ export const Navbar = () => {
             }}
           />
         </Box>
-        <Flex alignItems="center">
-          <Button variant="solid" colorScheme="teal" size="sm" mr={4} leftIcon={<AddIcon />}>
-            New Project
-          </Button>
-          <Button onClick={toggleColorMode}>{colorMode === 'light' ? <MoonIcon /> : <SunIcon />}</Button>
+        <Flex alignItems="center" gap={2}>
+          <NewProject />
+          <IconButton
+            aria-label="Toggle color mode"
+            icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
+            onClick={toggleColorMode}
+            mr={2}
+          />
           {user ? (
             <Menu>
               <MenuButton as={Button} rounded="full" variant="link" cursor="pointer" minW={0}>

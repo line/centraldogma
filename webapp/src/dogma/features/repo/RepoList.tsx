@@ -69,7 +69,7 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       enableSorting: false,
     }),
   ];
-  return <DynamicDataTable columns={columns as ColumnDef<Data, any>[]} data={data} />;
+  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
 export default RepoList;

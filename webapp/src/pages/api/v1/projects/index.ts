@@ -39,13 +39,21 @@ const makeData = (len: number) => {
 makeData(200);
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { project } = req.body;
+  const { name } = req.body;
   switch (req.method) {
     case 'GET':
       res.status(200).json(projects);
       break;
     case 'POST':
-      projects.push(project);
+      projects.push({
+        name: name,
+        creator: {
+          name: faker.name.firstName(),
+          email: faker.internet.email(),
+        },
+        url: faker.internet.url(),
+        createdAt: faker.datatype.datetime().toString(),
+      });
       res.status(200).json(projects);
       break;
     default:
