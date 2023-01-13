@@ -63,7 +63,7 @@ const HistoryList = <Data extends object>({
     ],
     [columnHelper, handleTabChange, projectName, repoName],
   );
-  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />;
+  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} pagination={true} />;
 };
 
 export default HistoryList;

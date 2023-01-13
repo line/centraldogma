@@ -6,19 +6,26 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
 import { Filter } from 'dogma/common/components/table/Filter';
+import { PaginationBar } from 'dogma/common/components/table/PaginationBar';
 import { useState } from 'react';
 
 export type DynamicDataTableProps<Data extends object> = {
   data: Data[];
   columns: ColumnDef<Data>[];
+  pagination?: boolean;
 };
 
-export const DynamicDataTable = <Data extends object>({ data, columns }: DynamicDataTableProps<Data>) => {
+export const DynamicDataTable = <Data extends object>({
+  data,
+  columns,
+  pagination = false,
+}: DynamicDataTableProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const table = useReactTable({
@@ -29,6 +36,7 @@ export const DynamicDataTable = <Data extends object>({ data, columns }: Dynamic
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       sorting,
       columnFilters,
@@ -87,6 +95,7 @@ export const DynamicDataTable = <Data extends object>({ data, columns }: Dynamic
           })}
         </Tbody>
       </Table>
+      {pagination && <PaginationBar table={table} />}
     </>
   );
 };

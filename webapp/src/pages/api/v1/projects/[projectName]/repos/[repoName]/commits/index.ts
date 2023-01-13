@@ -18,7 +18,7 @@ const makeData = (len: number) => {
     historyList.push(newHistory(i));
   }
 };
-makeData(10);
+makeData(30);
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { historyItem } = req.body;
