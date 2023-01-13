@@ -81,7 +81,7 @@ export const apiSlice = createApi({
         `/v1/projects/${projectName}/repos/${repoName}/files/revisions/${revision}/${filePath}?queryType=IDENTITY`,
     }),
     getHistoryByProjectAndRepoName: builder.query<HistoryDto[], GetFilesByProjectAndRepoName>({
-      query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/commits/`,
+      query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/commits`,
     }),
   }),
 });
