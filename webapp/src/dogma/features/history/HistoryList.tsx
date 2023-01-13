@@ -52,8 +52,8 @@ const HistoryList = <Data extends object>({
       columnHelper.accessor((row: HistoryDto) => row.revision, {
         cell: (info) => (
           <NextLink href={`/app/projects/${projectName}/repos/${repoName}/list/${info.row.original.revision}/`}>
-            <Button leftIcon={<FaHistory />} size="sm" onClick={() => handleTabChange(0)}>
-              View
+            <Button colorScheme="blue" leftIcon={<FaHistory />} size="sm" onClick={() => handleTabChange(0)}>
+              View Revision {info.row.original.revision}
             </Button>
           </NextLink>
         ),
