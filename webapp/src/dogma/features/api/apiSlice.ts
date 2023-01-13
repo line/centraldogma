@@ -64,7 +64,7 @@ export const apiSlice = createApi({
       invalidatesTags: ['Project'],
     }),
     getMetadataByProjectName: builder.query<ProjectMetadataDto, string>({
-      query: (projectName) => `/v1/projects/${projectName}/`,
+      query: (projectName) => `/v1/projects/${projectName}`,
     }),
     getReposByProjectName: builder.query<RepoDto[], string>({
       query: (projectName) => `/v1/projects/${projectName}/repos`,
@@ -81,7 +81,7 @@ export const apiSlice = createApi({
         `/v1/projects/${projectName}/repos/${repoName}/files/revisions/${revision}/${filePath}?queryType=IDENTITY`,
     }),
     getHistoryByProjectAndRepoName: builder.query<HistoryDto[], GetFilesByProjectAndRepoName>({
-      query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/history`,
+      query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/commits`,
     }),
   }),
 });

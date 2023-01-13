@@ -5,22 +5,10 @@ import { faker } from '@faker-js/faker';
 
 const newHistory = (i: number): HistoryDto => {
   return {
-    revision: {
-      major: faker.datatype.number({ min: 0, max: 10 }),
-      minor: faker.datatype.number({ min: 0, max: 10 }),
-      revisionNumber: i.toString(),
-    },
-    author: {
-      name: faker.internet.userName(),
-      email: faker.internet.email(),
-    },
-    timestamp: faker.datatype.datetime().toISOString(),
-    summary: faker.lorem.sentence(),
-    detail: {
-      content: faker.lorem.paragraph(),
-      markup: 'PLAINTEXT',
-    },
-    diffs: [],
+    revision: i,
+    author: { name: faker.internet.userName(), email: faker.internet.email() },
+    commitMessage: { summary: faker.lorem.sentence(), detail: faker.lorem.paragraph(), markup: 'PLAINTEXT' },
+    pushedAt: faker.datatype.datetime().toISOString(),
   };
 };
 
@@ -30,7 +18,7 @@ const makeData = (len: number) => {
     historyList.push(newHistory(i));
   }
 };
-makeData(10);
+makeData(30);
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { historyItem } = req.body;

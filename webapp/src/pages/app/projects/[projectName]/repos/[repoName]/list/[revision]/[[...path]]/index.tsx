@@ -98,7 +98,7 @@ cat ${project}/${repo}${path}`;
   };
 
   const {
-    data: fileData = [],
+    data: fileData,
     isLoading: isFileDataLoading,
     error: fileError,
   } = useGetFilesByProjectAndRepoAndRevisionNameQuery(
@@ -156,7 +156,7 @@ cat ${project}/${repo}${path}`;
         <TabPanels>
           <TabPanel>
             <FileList
-              data={fileData}
+              data={fileData || []}
               projectName={projectName}
               repoName={repoName}
               path={filePath}
