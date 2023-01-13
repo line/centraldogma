@@ -9,20 +9,16 @@ describe('HistoryList', () => {
   beforeEach(() => {
     const mockHistoryList: HistoryDto[] = [
       {
-        revision: { major: 8, minor: 0, revisionNumber: '8' },
-        author: { name: 'ldap123456', email: 'ldap123456@localhost.localdomain' },
-        timestamp: '2022-11-30T11:48:57Z',
-        summary: 'Edit /zzzzz',
-        detail: { content: '', markup: 'PLAINTEXT' },
-        diffs: [],
+        revision: 2,
+        author: { name: 'System', email: 'system@localhost.localdomain' },
+        commitMessage: { summary: 'Update repository', detail: '', markup: 'PLAINTEXT' },
+        pushedAt: '2023-01-11T08:17:22Z',
       },
       {
-        revision: { major: 7, minor: 0, revisionNumber: '7' },
-        author: { name: 'ldap123456', email: 'ldap123456@localhost.localdomain' },
-        timestamp: '2022-11-30T10:57:41Z',
-        summary: 'Add /test',
-        detail: { content: 'zzz', markup: 'PLAINTEXT' },
-        diffs: [],
+        revision: 1,
+        author: { name: 'System', email: 'system@localhost.localdomain' },
+        commitMessage: { summary: 'Create a new repository', detail: '', markup: 'PLAINTEXT' },
+        pushedAt: '2023-01-10T08:17:22Z',
       },
     ];
     expectedProps = {
@@ -43,7 +39,7 @@ describe('HistoryList', () => {
     const actionCell = container.querySelector('tbody').firstChild.firstChild.lastChild;
     expect(actionCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/list/${8}`,
+      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/list/${2}`,
     );
   });
 
@@ -59,7 +55,7 @@ describe('HistoryList', () => {
     const firstCell = container.querySelector('tbody').firstChild.firstChild.firstChild;
     expect(firstCell).toHaveAttribute(
       'href',
-      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/list/${8}`,
+      `/app/projects/${expectedProps.projectName}/repos/${expectedProps.repoName}/list/${2}`,
     );
   });
 
