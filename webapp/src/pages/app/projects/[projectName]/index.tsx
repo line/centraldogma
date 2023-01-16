@@ -1,5 +1,5 @@
 import { Box, Flex, Heading, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
-import { NewItemCard } from 'dogma/common/components/NewItemCard';
+import { NewRepository } from 'dogma/common/components/NewRepository';
 import { useGetMetadataByProjectNameQuery, useGetReposByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import RepoList from 'dogma/features/repo/RepoList';
 import RepoMemberList from 'dogma/features/repo/RepoMemberList';
@@ -40,8 +40,6 @@ const ProjectDetailPage = () => {
     <Box p="2">
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
         <Heading size="lg">Project {projectName}</Heading>
-        <Spacer />
-        <NewItemCard title="New Repository" label="Name" placeholder="New name here..." />
       </Flex>
       <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={switchTab}>
         <TabList>
@@ -56,6 +54,10 @@ const ProjectDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
+            <Flex>
+              <Spacer />
+              <NewRepository projectName={projectName} />
+            </Flex>
             <RepoList data={repoData} projectName={projectName} />
           </TabPanel>
           <TabPanel>

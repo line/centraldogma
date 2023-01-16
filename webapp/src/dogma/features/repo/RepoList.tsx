@@ -1,11 +1,10 @@
-import { ViewIcon, DeleteIcon } from '@chakra-ui/icons';
+import { DeleteIcon } from '@chakra-ui/icons';
 import { Wrap, WrapItem, Button, Box, HStack } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
-import NextLink from 'next/link';
 import { RiGitRepositoryFill } from 'react-icons/ri';
 
 export type RepoListProps<Data extends object> = {
@@ -49,15 +48,8 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
       },
     }),
     columnHelper.accessor((row: RepoDto) => row.name, {
-      cell: (info) => (
+      cell: () => (
         <Wrap>
-          <WrapItem>
-            <NextLink href={`/app/projects/${projectName}/repos/${info.getValue()}/list/head`}>
-              <Button leftIcon={<ViewIcon />} colorScheme="blue" size="sm">
-                View
-              </Button>
-            </NextLink>
-          </WrapItem>
           <WrapItem>
             <Button leftIcon={<DeleteIcon />} colorScheme="red" size="sm">
               Delete
