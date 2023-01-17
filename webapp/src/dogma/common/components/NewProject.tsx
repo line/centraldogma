@@ -93,7 +93,13 @@ export const NewProject = () => {
           </PopoverBody>
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
-            <Button type="submit" colorScheme="teal" size="sm" isLoading={isLoading} loadingText="Creating">
+            <Button
+              type="submit"
+              colorScheme="teal"
+              variant="ghost"
+              isLoading={isLoading}
+              loadingText="Creating"
+            >
               Create
             </Button>
           </PopoverFooter>
