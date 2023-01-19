@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2023 LINE Corporation
+  ~
+  ~ LINE Corporation licenses this file to you under the Apache License,
+  ~ version 2.0 (the "License"); you may not use this file except in compliance
+  ~ with the License. You may obtain a copy of the License at:
+  ~
+  ~   https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+  ~ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+  ~ License for the specific language governing permissions and limitations
+  ~ under the License.
+  -->
+<configuration>
+  <appender name="NOP" class="ch.qos.logback.core.helpers.NOPAppender" />
+  <appender name="RCEA" class="com.linecorp.armeria.common.logback.RequestContextExportingAppender">
+    <appender-ref ref="NOP" />
+    <export>
+      attrs.app_id:com.linecorp.centraldogma.server.internal.admin.auth.AuthUtil#CURRENT_USER:com.linecorp.centraldogma.server.metadata.LoginStringifier
+    </export>
+  </appender>
+
+  <logger name="RCEA" level="TRACE">
+    <appender-ref ref="RCEA" />
+  </logger>
+
+  <!-- Copied from testing-internal/src/main/resources/logback-test.xml -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%date{yyyy-MM-dd HH:mm:ss.SSS} [%-5level]\(%logger{1}\) [%thread] %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="EEA" class="com.linecorp.centraldogma.testing.internal.ExpectedExceptionAppender">
+    <appender-ref ref="CONSOLE"/>
+  </appender>
+
+  <logger name="com.linecorp" level="DEBUG" />
+  <logger name="io.netty" level="INFO" />
+  <!-- Disable the 'Invalid config event received' log messages. -->
+  <logger name="org.apache.curator.framework.imps.EnsembleTracker" level="OFF" />
+
+  <root level="WARN">
+    <appender-ref ref="EEA" />
+  </root>
+</configuration>

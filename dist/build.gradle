@@ -26,6 +26,16 @@ ext {
     cliDownloadDir = "${gradle.gradleUserHomeDir}/caches/centraldogma-go/cli"
 }
 
+
+dependencies {
+    // Logging
+    runtimeOnly libs.logback
+    runtimeOnly libs.armeria.logback
+    runtimeOnly libs.slf4j.jcl.over.slf4j
+    runtimeOnly libs.slf4j.jul.to.slf4j
+    runtimeOnly libs.slf4j.log4j.over.slf4j
+}
+
 // Do not generate a JAR for this project.
 tasks.jar.enabled = false
 
