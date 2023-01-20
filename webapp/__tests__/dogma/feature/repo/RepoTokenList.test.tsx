@@ -1,7 +1,7 @@
 import { act, fireEvent, render } from '@testing-library/react';
 import RepoTokenList, { RepoTokenListProps } from 'dogma/features/repo/RepoTokenList';
 
-describe('RepoMemberList', () => {
+describe('RepoTokenList', () => {
   let expectedProps: JSX.IntrinsicAttributes & RepoTokenListProps<object>;
 
   beforeEach(() => {
