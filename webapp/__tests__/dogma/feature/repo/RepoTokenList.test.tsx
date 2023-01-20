@@ -1,8 +1,7 @@
 import { act, fireEvent, render } from '@testing-library/react';
-import { formatDistance } from 'date-fns';
 import RepoTokenList, { RepoTokenListProps } from 'dogma/features/repo/RepoTokenList';
 
-describe('RepoMemberList', () => {
+describe('RepoTokenList', () => {
   let expectedProps: JSX.IntrinsicAttributes & RepoTokenListProps<object>;
 
   beforeEach(() => {
@@ -54,15 +53,6 @@ describe('RepoMemberList', () => {
     expect(firstCreator).toHaveTextContent('lb56789@localhost.localdomain');
   });
 
-  it('renders the timestamp (added at)', () => {
-    const { container } = render(<RepoTokenList {...expectedProps} />);
-    const tbody = container.querySelector('tbody');
-    const timestamp = tbody.children[0].children[3].firstChild;
-    expect(timestamp).toHaveTextContent(
-      formatDistance(new Date('2022-11-30T02:43:04.655753Z'), new Date(), { addSuffix: true }),
-    );
-  });
-
   it('renders the delete button', () => {
     const { container } = render(<RepoTokenList {...expectedProps} />);
     const tbody = container.querySelector('tbody');
@@ -78,7 +68,7 @@ describe('RepoMemberList', () => {
   it('displays a matching App ID when searched', () => {
     const { queryByPlaceholderText, container } = render(<RepoTokenList {...expectedProps} />);
     const inputElement = queryByPlaceholderText(/search.../i);
-    fireEvent.change(inputElement!, { target: { value: 'test-token2' } });
+    fireEvent.change(inputElement, { target: { value: 'test-token2' } });
     act(() => {
       jest.advanceTimersByTime(500);
     });

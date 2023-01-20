@@ -46,7 +46,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Project'],
+  tagTypes: ['Project', 'Repo'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], void>({
       query: () => '/v1/projects',
@@ -69,6 +69,17 @@ export const apiSlice = createApi({
     getReposByProjectName: builder.query<RepoDto[], string>({
       query: (projectName) => `/v1/projects/${projectName}/repos`,
     }),
+    addNewRepo: builder.mutation({
+      query: ({ projectName, data }) => ({
+        url: `/v1/projects/${projectName}/repos`,
+        method: 'POST',
+        body: data,
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Repo'],
+    }),
     getFilesByProjectAndRepoName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/list`,
     }),
@@ -87,8 +98,9 @@ export const apiSlice = createApi({
 });
 
 export const {
-  useGetProjectsQuery,
   useAddNewProjectMutation,
+  useAddNewRepoMutation,
+  useGetProjectsQuery,
   useGetMetadataByProjectNameQuery,
   useGetReposByProjectNameQuery,
   useGetFilesByProjectAndRepoNameQuery,
