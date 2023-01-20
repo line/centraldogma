@@ -19,9 +19,11 @@ import { Box, Container } from '@chakra-ui/react';
 import { Navbar } from 'dogma/common/components/Navbar';
 
 export const Layout = ({ children }: { children: ReactNode }) => (
-  <Container maxW="container.xl">
+  <Box>
     <Navbar />
     {/* TODO(ikhoon): Add side menus */}
-    <Box p={10}>{children}</Box>
-  </Container>
+    <Container p={10} maxW="container.xl">
+      {children}
+    </Container>
+  </Box>
 );

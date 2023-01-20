@@ -15,7 +15,7 @@ import {
   Spacer,
   useDisclosure,
 } from '@chakra-ui/react';
-import { useAddNewProjectMutation } from 'dogma/features/api/apiSlice';
+import { useAddNewRepoMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import { useAppDispatch } from 'dogma/store';
 import Router from 'next/router';
@@ -31,8 +31,8 @@ type FormData = {
   name: string;
 };
 
-export const NewProject = () => {
-  const [addNewProject, { isLoading }] = useAddNewProjectMutation();
+export const NewRepository = ({ projectName }: { projectName: string }) => {
+  const [addNewRepo, { isLoading }] = useAddNewRepoMutation();
   const {
     register,
     handleSubmit,
@@ -42,48 +42,51 @@ export const NewProject = () => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const onSubmit = async (data: FormData) => {
-    const response = await addNewProject(data);
-    if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
+    try {
+      const response = await addNewRepo({ projectName, data }).unwrap();
+      if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
+        throw (response as { error: FetchBaseQueryError | SerializedError }).error;
+      }
+      Router.push(`/app/projects/${projectName}/repos/${data.name}/list/head/`);
+      reset();
+      onClose();
       dispatch(
         createMessage({
-          title: 'Failed to create a new project',
-          text: ErrorHandler.handle((response as { error: FetchBaseQueryError | SerializedError }).error),
+          title: 'New repository created',
+          text: `Successfully created ${data.name}`,
+          type: 'success',
+        }),
+      );
+    } catch (error) {
+      dispatch(
+        createMessage({
+          title: 'Failed to create a new repository',
+          text: ErrorHandler.handle(error),
           type: 'error',
         }),
       );
-      return;
     }
-    Router.push(`/app/projects/${data.name}/`);
-    reset();
-    onClose();
-    dispatch(
-      createMessage({
-        title: 'New project created',
-        text: `Successfully created ${data.name}`,
-        type: 'success',
-      }),
-    );
   };
   return (
     <Popover placement="bottom" isOpen={isOpen} onClose={onClose}>
       <PopoverTrigger>
-        <Button colorScheme="teal" size="sm" mr={4} onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
-          New Project
+        <Button size="sm" onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
+          New Repository
         </Button>
       </PopoverTrigger>
       <PopoverContent minWidth="max-content">
         <PopoverHeader pt={4} fontWeight="bold" border={0} mb={3}>
-          Create a new project
+          Project {projectName}
         </PopoverHeader>
         <PopoverArrow />
         <PopoverCloseButton />
         <form onSubmit={handleSubmit(onSubmit)}>
           <PopoverBody minWidth="max-content">
             <FormControl isInvalid={errors.name ? true : false} isRequired>
-              <FormLabel>Project name</FormLabel>
+              <FormLabel>Repository name</FormLabel>
               <Input
                 type="text"
-                placeholder="my-project-name"
+                placeholder="my-repo-name"
                 {...register('name', { pattern: ENTITY_NAME_PATTERN })}
               />
               {errors.name && (
