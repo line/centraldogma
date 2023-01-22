@@ -13,6 +13,7 @@ mockito = "4.10.0"
 slf4j = "1.7.36"
 spring-boot1 = "1.5.22.RELEASE"
 spring-boot2 = "2.7.4"
+sshd = "2.9.2"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.21.0" }
@@ -284,6 +285,9 @@ version.ref = "spring-boot2"
 module = "com.github.sbrannen:spring-test-junit5"
 version = "1.5.0"
 
+[libraries.sshd]
+module = "org.apache.sshd:sshd-git"
+version.ref = "sshd"
 
 [libraries.thrift09]
 module = "org.apache.thrift:libthrift"

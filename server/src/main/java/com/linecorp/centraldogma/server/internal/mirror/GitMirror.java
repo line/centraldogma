@@ -667,11 +667,13 @@ public final class GitMirror extends AbstractMirror {
                           String ref, ObjectId commitId) throws IOException {
         final RefUpdate refUpdate = jGitRepository.updateRef(ref);
         refUpdate.setNewObjectId(commitId);
+        refUpdate.setForceUpdate(true);
 
         final Result res = refUpdate.update(revWalk);
         switch (res) {
             case NEW:
             case FAST_FORWARD:
+            case FORCED:
                 // Expected
                 break;
             default:
