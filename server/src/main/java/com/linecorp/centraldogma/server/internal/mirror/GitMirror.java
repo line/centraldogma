@@ -673,6 +673,7 @@ public final class GitMirror extends AbstractMirror {
         switch (res) {
             case NEW:
             case FAST_FORWARD:
+                // Expected
                 break;
             default:
                 throw new StorageException("unexpected refUpdate state: " + res);
