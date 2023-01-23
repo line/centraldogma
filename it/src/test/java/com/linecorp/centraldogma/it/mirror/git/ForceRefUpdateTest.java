@@ -150,8 +150,9 @@ class ForceRefUpdateTest {
             dogma.client().forRepo(projName, REPO_FOO)
                  .commit("Add a commit", Change.ofJsonUpsert("/foo.json", "{\"a\":\"c\"}"))
                  .push().join();
-            assertThatThrownBy(() -> mirroringService.mirror().join()).isInstanceOf(CompletionException.class)
-                                                                      .hasCauseInstanceOf(MirrorException.class);
+            assertThatThrownBy(() -> mirroringService.mirror().join())
+                    .isInstanceOf(CompletionException.class)
+                    .hasCauseInstanceOf(MirrorException.class);
             assertRevisionAndContent("2", "{\"a\":\"b\"}");
 
             // 4. Turn off throttling, mirror should succeed

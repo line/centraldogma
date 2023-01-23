@@ -43,7 +43,7 @@ class GitFolderExtension extends AbstractAllOrEachExtension {
     @Nullable
     private String fileUri;
 
-    public GitFolderExtension() {
+    GitFolderExtension() {
         tempDir = new TemporaryFolder();
     }
 
