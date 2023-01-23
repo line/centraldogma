@@ -33,7 +33,7 @@ import com.jcraft.jsch.JSch;
 
 class KeyPairUtilsTest {
 
-    public static String toPemFormat(PrivateKey privateKey) {
+    static String toPemFormat(PrivateKey privateKey) {
         assert "PKCS#8".equalsIgnoreCase(privateKey.getFormat());
 
         String key = "-----BEGIN PRIVATE KEY-----";
@@ -46,7 +46,7 @@ class KeyPairUtilsTest {
         return key;
     }
 
-    public static String toPemFormat(PublicKey publicKey) {
+    static String toPemFormat(PublicKey publicKey) {
         final StringBuilder sb = new StringBuilder();
         try {
             PublicKeyEntry.appendPublicKeyEntry(sb, publicKey);

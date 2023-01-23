@@ -145,8 +145,7 @@ class LocalToRemoteGitMirrorTest {
 
         final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
         assertThat(commitId).isNotEqualTo(commitId1);
-        byte[] content = getFileContent(commitId1,
-                                        remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        byte[] content = getFileContent(commitId1, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("1");
 
@@ -480,7 +479,7 @@ class LocalToRemoteGitMirrorTest {
         assertThat(entries.get("/mirror_state.json")).isNotNull();
     }
 
-    public byte[] getFileContent(ObjectId commitId, String fileName) throws IOException {
+    byte[] getFileContent(ObjectId commitId, String fileName) throws IOException {
         return MirrorTestUtils.getFileContent(git, commitId, fileName);
     }
 }
