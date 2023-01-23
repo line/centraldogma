@@ -155,10 +155,30 @@ class ForceRefUpdateTest {
                     .hasCauseInstanceOf(MirrorException.class);
             assertRevisionAndContent("2", "{\"a\":\"b\"}");
 
-            // 4. Turn off throttling, mirror should succeed
+            // 4. Turn off throttling, ref update should succeed with NO_CHANGE
             throttleGitPush.set(false);
             mirroringService.mirror().join();
             assertRevisionAndContent("3", "{\"a\":\"c\"}");
+
+            // 5. Turn on throttling again
+            throttleGitPush.set(true);
+            dogma.client().forRepo(projName, REPO_FOO)
+                 .commit("Add a commit", Change.ofJsonUpsert("/foo.json", "{\"a\":\"d\"}"))
+                 .push().join();
+            assertThatThrownBy(() -> mirroringService.mirror().join())
+                    .isInstanceOf(CompletionException.class)
+                    .hasCauseInstanceOf(MirrorException.class);
+            assertRevisionAndContent("3", "{\"a\":\"c\"}");
+
+            // 6. push another commit to make commits diverge
+            dogma.client().forRepo(projName, REPO_FOO)
+                 .commit("Add a commit", Change.ofJsonUpsert("/foo.json", "{\"a\":\"e\"}"))
+                 .push().join();
+
+            // 7. Turn off throttling, ref update should succeed with FORCED
+            throttleGitPush.set(false);
+            mirroringService.mirror().join();
+            assertRevisionAndContent("5", "{\"a\":\"e\"}");
         }
     }
 

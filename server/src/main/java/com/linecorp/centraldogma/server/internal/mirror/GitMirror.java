@@ -421,6 +421,7 @@ public final class GitMirror extends AbstractMirror {
         final ObjectId commitId = fetchResult.getAdvertisedRef(headBranchRefName).getObjectId();
         final RefUpdate refUpdate = git.getRepository().updateRef(headBranchRefName);
         refUpdate.setNewObjectId(commitId);
+        refUpdate.setForceUpdate(true);
         refUpdate.update();
         return commitId;
     }
@@ -667,15 +668,11 @@ public final class GitMirror extends AbstractMirror {
                           String ref, ObjectId commitId) throws IOException {
         final RefUpdate refUpdate = jGitRepository.updateRef(ref);
         refUpdate.setNewObjectId(commitId);
-        refUpdate.setForceUpdate(true);
 
         final Result res = refUpdate.update(revWalk);
         switch (res) {
             case NEW:
             case FAST_FORWARD:
-            case FORCED:
-            case NO_CHANGE:
-                // Expected
                 break;
             default:
                 throw new StorageException("unexpected refUpdate state: " + res);

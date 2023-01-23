@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.it.mirror.git.GitMirrorTest.addToGitIndex;
-import static com.linecorp.centraldogma.it.mirror.git.MirrorTestUtils.getFileContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.eclipse.jgit.lib.Constants.R_HEADS;
@@ -138,7 +137,7 @@ class LocalToRemoteGitMirrorTest {
         pushMirrorSettings(localPath, remotePath, null);
 
         final ObjectId commitId = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
-        assertThat(getFileContent(git, commitId, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME))
+        assertThat(getFileContent(commitId, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME))
                 .isNull();
         // Mirror an empty Central Dogma repository, which will;
         // - Create /.mirror_state.json
@@ -146,7 +145,7 @@ class LocalToRemoteGitMirrorTest {
 
         final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
         assertThat(commitId).isNotEqualTo(commitId1);
-        byte[] content = getFileContent(git, commitId1,
+        byte[] content = getFileContent(commitId1,
                                         remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("1");
@@ -157,7 +156,7 @@ class LocalToRemoteGitMirrorTest {
         // Make sure no commit was added thus the source revision wasn't changed.
         final ObjectId commitId2 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
         assertThat(commitId2).isEqualTo(commitId1);
-        content = getFileContent(git, commitId2, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        content = getFileContent(commitId2, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("1");
 
@@ -172,14 +171,14 @@ class LocalToRemoteGitMirrorTest {
         mirroringService.mirror().join();
         final ObjectId commitId3 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
         assertThat(commitId3).isNotEqualTo(commitId2);
-        content = getFileContent(git, commitId3, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        content = getFileContent(commitId3, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("2");
         assertThat(Jackson.writeValueAsString(Jackson.readTree(
-                getFileContent(git, commitId3, remotePath + "/foo.json")))).isEqualTo("{\"a\":\"b\"}");
+                getFileContent(commitId3, remotePath + "/foo.json")))).isEqualTo("{\"a\":\"b\"}");
         assertThat(Jackson.writeValueAsString(Jackson.readTree(
-                getFileContent(git, commitId3, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
-        assertThat(new String(getFileContent(git, commitId3, remotePath + "/baz/foo.txt")))
+                getFileContent(commitId3, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
+        assertThat(new String(getFileContent(commitId3, remotePath + "/baz/foo.txt")))
                 .isEqualTo("\"a\": \"b\"\n");
 
         // Mirror once again without adding a commit.
@@ -188,7 +187,7 @@ class LocalToRemoteGitMirrorTest {
         // Make sure no commit was added thus the source revision wasn't changed.
         final ObjectId commitId4 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
         assertThat(commitId4).isEqualTo(commitId3);
-        content = getFileContent(git, commitId4, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        content = getFileContent(commitId4, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("2");
 
@@ -202,29 +201,29 @@ class LocalToRemoteGitMirrorTest {
         mirroringService.mirror().join();
         final ObjectId commitId5 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
         assertThat(commitId5).isNotEqualTo(commitId4);
-        content = getFileContent(git, commitId5, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        content = getFileContent(commitId5, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("3");
-        assertThat(getFileContent(git, commitId5, remotePath + "/foo.json")).isNull();
-        assertThat(getFileContent(git, commitId5, remotePath + "/baz/foo.txt")).isNull();
+        assertThat(getFileContent(commitId5, remotePath + "/foo.json")).isNull();
+        assertThat(getFileContent(commitId5, remotePath + "/baz/foo.txt")).isNull();
         assertThat(Jackson.writeValueAsString(Jackson.readTree(
-                getFileContent(git, commitId5, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
+                getFileContent(commitId5, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
 
         addToGitIndex(git, gitWorkTree, (remotePath + "/bar/foo.json").substring(1), "{\"a\":\"d\"}");
         git.commit().setMessage("Change the file arbitrarily").call();
         final ObjectId commitId6 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
         assertThat(Jackson.writeValueAsString(Jackson.readTree(
-                getFileContent(git, commitId6, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"d\"}");
+                getFileContent(commitId6, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"d\"}");
 
         mirroringService.mirror().join();
         final ObjectId commitId7 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
         assertThat(commitId7).isNotEqualTo(commitId6);
-        content = getFileContent(git, commitId7, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        content = getFileContent(commitId7, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("3");
         // The arbitrarily changed file is overwritten.
         assertThat(Jackson.writeValueAsString(Jackson.readTree(
-                getFileContent(git, commitId7, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
+                getFileContent(commitId7, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
     }
 
     @ParameterizedTest
@@ -264,7 +263,7 @@ class LocalToRemoteGitMirrorTest {
         mirroringService.mirror().join();
 
         final ObjectId commitId = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
-        byte[] content = getFileContent(git, commitId, "/target/" + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        byte[] content = getFileContent(commitId, "/target/" + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("2");
 
@@ -281,14 +280,14 @@ class LocalToRemoteGitMirrorTest {
         mirroringService.mirror().join();
 
         final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
-        content = getFileContent(git, commitId1, "/target/" + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        content = getFileContent(commitId1, "/target/" + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("3");
 
         files = listFiles(commitId1);
         assertThat(files.size()).isSameAs(2); // mirror state file and target/first/light.txt
         // Make sure 'target/first/light.txt' is mirrored.
-        assertThat(new String(getFileContent(git, commitId1, "/target/first/light.txt")))
+        assertThat(new String(getFileContent(commitId1, "/target/first/light.txt")))
                 .isEqualTo("26-Aug-2014\n");
     }
 
@@ -400,7 +399,7 @@ class LocalToRemoteGitMirrorTest {
 
         // Make sure /mirror_state.json exists
         final ObjectId commitId = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
-        byte[] content = getFileContent(git, commitId,
+        byte[] content = getFileContent(commitId,
                                         remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("1");
@@ -418,18 +417,18 @@ class LocalToRemoteGitMirrorTest {
 
         final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
         assertThat(commitId1).isNotEqualTo(commitId);
-        content = getFileContent(git, commitId1, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        content = getFileContent(commitId1, remotePath + '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("2");
         // Remove first directory because it's localPath().
-        assertThat(new String(getFileContent(git, commitId1, remotePath + "/light.txt")))
+        assertThat(new String(getFileContent(commitId1, remotePath + "/light.txt")))
                 .isEqualTo("26-Aug-2014\n");
-        assertThat(new String(getFileContent(git, commitId1, remotePath + "/subdir/exclude_if_root.txt")))
+        assertThat(new String(getFileContent(commitId1, remotePath + "/subdir/exclude_if_root.txt")))
                 .isEqualTo("26-Aug-2014\n");
 
         // Make sure the files that match gitignore are not mirrored.
-        assertThat(getFileContent(git, commitId1, remotePath + "/exclude_if_root.txt")).isNull();
-        assertThat(getFileContent(git, commitId1, remotePath + "/subdir/exclude_dir/foo.txt")).isNull();
+        assertThat(getFileContent(commitId1, remotePath + "/exclude_if_root.txt")).isNull();
+        assertThat(getFileContent(commitId1, remotePath + "/subdir/exclude_dir/foo.txt")).isNull();
     }
 
     @Test
@@ -441,7 +440,7 @@ class LocalToRemoteGitMirrorTest {
         mirroringService.mirror().join();
 
         final ObjectId commitId1 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
-        byte[] content = getFileContent(git, commitId1, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        byte[] content = getFileContent(commitId1, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("1");
 
@@ -456,14 +455,14 @@ class LocalToRemoteGitMirrorTest {
         mirroringService.mirror().join();
 
         final ObjectId commitId2 = git.getRepository().exactRef(R_HEADS + "master").getObjectId();
-        content = getFileContent(git, commitId2, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+        content = getFileContent(commitId2, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo("2");
         assertThat(Jackson.writeValueAsString(Jackson.readTree(
-                getFileContent(git, commitId2, "/foo.json")))).isEqualTo("{\"a\":\"b\"}");
+                getFileContent(commitId2, "/foo.json")))).isEqualTo("{\"a\":\"b\"}");
         assertThat(Jackson.writeValueAsString(Jackson.readTree(
-                getFileContent(git, commitId2, "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
-        assertThat(new String(getFileContent(git, commitId2, "/baz/foo.txt")))
+                getFileContent(commitId2, "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
+        assertThat(new String(getFileContent(commitId2, "/baz/foo.txt")))
                 .isEqualTo("\"a\": \"b\"\n");
 
         // Change the direction
@@ -481,5 +480,9 @@ class LocalToRemoteGitMirrorTest {
                 Entry.ofJson(new Revision(3), "/foo.json", "{\"a\":\"foo\"}"));
 
         assertThat(entries.get("/mirror_state.json")).isNotNull();
+    }
+
+    public byte[] getFileContent(ObjectId commitId, String fileName) throws IOException {
+        return MirrorTestUtils.getFileContent(git, commitId, fileName);
     }
 }
