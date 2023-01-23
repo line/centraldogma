@@ -674,6 +674,7 @@ public final class GitMirror extends AbstractMirror {
             case NEW:
             case FAST_FORWARD:
             case FORCED:
+            case NO_CHANGE:
                 // Expected
                 break;
             default:
