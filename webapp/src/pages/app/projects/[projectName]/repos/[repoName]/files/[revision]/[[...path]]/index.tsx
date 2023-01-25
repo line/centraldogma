@@ -3,6 +3,7 @@ import { Box, Flex, Heading, Tag, Tooltip } from '@chakra-ui/react';
 import { useGetFileContentQuery } from 'dogma/features/api/apiSlice';
 import { useRouter } from 'next/router';
 import FileEditor from 'dogma/common/components/editor/FileEditor';
+import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 
 const FileContentPage = () => {
   const router = useRouter();
@@ -22,8 +23,12 @@ const FileContentPage = () => {
   }
   return (
     <Box p="2">
+      <Breadcrumbs path={router.asPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/list/head' }} />
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">{`${filePath}`}</Heading>
+        <Heading size="lg">{`${router.asPath
+          .split('/')
+          .filter((v) => v.length > 0)
+          .pop()}`}</Heading>
         <Tooltip label="Go to History to view all revisions">
           <Tag borderRadius="full" colorScheme="blue">
             Revision {revision} <InfoIcon ml={2} />

@@ -29,6 +29,7 @@ import { createMessage, resetState } from 'dogma/features/message/messageSlice';
 import { useAppDispatch } from 'dogma/store';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { CopySupport } from 'dogma/features/file/CopySupport';
+import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -128,8 +129,9 @@ cat ${project}/${repo}${path}`;
 
   return (
     <Box p="2">
+      <Breadcrumbs path={directoryPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/list/head' }} />
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">Repository {repoName} </Heading>
+        <Heading size="lg">{filePath || repoName} </Heading>
         <Tooltip label="Go to History to view all revisions">
           <Tag borderRadius="full" colorScheme="blue">
             Revision {revision} <InfoIcon ml={2} />
