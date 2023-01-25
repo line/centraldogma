@@ -50,9 +50,6 @@ describe('FileList', () => {
       directoryPath: '/app/projects/ProjectAlpha/repos/repo1/list/head/',
       revision: 'head',
       copySupport: mockCopySupport,
-      path: '',
-      directoryPath: '/app/projects/ProjectAlpha/repos/repo1/list/head/',
-      revision: 'head',
     };
   });
 
