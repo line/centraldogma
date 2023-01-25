@@ -118,7 +118,7 @@ cat ${project}/${repo}${path}`;
     return <>Loading...</>;
   }
   if (error || isError) {
-    return <>{JSON.stringify(error)}</>;
+    return <>{JSON.stringify(error || isError)}</>;
   }
 
   return (
