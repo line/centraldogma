@@ -22,6 +22,20 @@ import { FileDto } from 'dogma/features/file/FileDto';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import { FileContentDto } from 'dogma/features/file/FileContentDto';
+import { RevisionDto } from 'dogma/features/history/RevisionDto';
+
+export type GetHistory = {
+  projectName: string;
+  repoName: string;
+  revision: number;
+  size: number;
+};
+
+export type GetNormalisedRevision = {
+  projectName: string;
+  repoName: string;
+  revision: number;
+};
 
 export type GetFilesByProjectAndRepoName = {
   projectName: string;
@@ -42,7 +56,7 @@ export const apiSlice = createApi({
     baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/api`,
     prepareHeaders: (headers, { getState }) => {
       const { auth } = getState() as { auth: AuthState };
-      headers.set('Authorization', `Bearer ${auth.sessionId}`);
+      headers.set('Authorization', `Bearer ${auth?.sessionId}`);
       return headers;
     },
   }),
@@ -91,8 +105,13 @@ export const apiSlice = createApi({
       query: ({ projectName, repoName, revision, filePath }) =>
         `/v1/projects/${projectName}/repos/${repoName}/files/revisions/${revision}/${filePath}?queryType=IDENTITY`,
     }),
-    getHistoryByProjectAndRepoName: builder.query<HistoryDto[], GetFilesByProjectAndRepoName>({
-      query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/commits`,
+    getHistory: builder.query<HistoryDto[], GetHistory>({
+      query: ({ projectName, repoName, revision, size }) =>
+        `/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?to=${size}`,
+    }),
+    getNormalisedRevision: builder.query<RevisionDto, GetNormalisedRevision>({
+      query: ({ projectName, repoName, revision }) =>
+        `/v1/projects/${projectName}/repos/${repoName}/revision/${revision}`,
     }),
   }),
 });
@@ -106,5 +125,6 @@ export const {
   useGetFilesByProjectAndRepoNameQuery,
   useGetFilesByProjectAndRepoAndRevisionNameQuery,
   useGetFileContentQuery,
-  useGetHistoryByProjectAndRepoNameQuery,
+  useGetHistoryQuery,
+  useGetNormalisedRevisionQuery,
 } = apiSlice;

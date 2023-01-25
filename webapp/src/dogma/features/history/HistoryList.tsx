@@ -1,26 +1,20 @@
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
+import { PaginationState, createColumnHelper } from '@tanstack/react-table';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
-import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
-import { Badge, Box, Button, HStack } from '@chakra-ui/react';
-import NextLink from 'next/link';
+import { Badge, Box, HStack } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
-import { FaHistory } from 'react-icons/fa';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useGetHistoryQuery } from 'dogma/features/api/apiSlice';
+import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 
-export type HistoryListProps<Data extends object> = {
-  data: Data[];
+export type HistoryListProps = {
   projectName: string;
   repoName: string;
   handleTabChange: (index: number) => void;
+  totalRevision: number;
 };
 
-const HistoryList = <Data extends object>({
-  data,
-  projectName,
-  repoName,
-  handleTabChange,
-}: HistoryListProps<Data>) => {
+const HistoryList = ({ projectName, repoName, handleTabChange, totalRevision }: HistoryListProps) => {
   const columnHelper = createColumnHelper<HistoryDto>();
   const columns = useMemo(
     () => [
@@ -49,21 +43,48 @@ const HistoryList = <Data extends object>({
         cell: (info) => <DateWithTooltip date={info.getValue()} />,
         header: 'Timestamp',
       }),
-      columnHelper.accessor((row: HistoryDto) => row.revision, {
-        cell: (info) => (
-          <NextLink href={`/app/projects/${projectName}/repos/${repoName}/list/${info.row.original.revision}/`}>
-            <Button colorScheme="blue" leftIcon={<FaHistory />} size="sm" onClick={() => handleTabChange(0)}>
-              View Revision {info.row.original.revision}
-            </Button>
-          </NextLink>
-        ),
-        header: 'Actions',
-        enableSorting: false,
-      }),
     ],
     [columnHelper, handleTabChange, projectName, repoName],
   );
-  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} pagination={true} />;
+  const [{ pageIndex, pageSize }, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  const pagination = useMemo(
+    () => ({
+      pageIndex,
+      pageSize,
+    }),
+    [pageIndex, pageSize],
+  );
+  const {
+    data = [],
+    isLoading,
+    error,
+  } = useGetHistoryQuery({
+    projectName,
+    repoName,
+    //  revision starts from -1, for example for pageSize=20
+    //  The first page  /projects/{projectName}/repos/{repoName}/commits/-1?to=20
+    //  The second page /projects/{projectName}/repos/{repoName}/commits/-21?to=20
+    revision: -pageIndex * pageSize - 1,
+    size: Math.min(pageSize, totalRevision - pageIndex * pageSize),
+  });
+  if (isLoading) {
+    return <>Loading...</>;
+  }
+  if (error) {
+    return <>{JSON.stringify(error)}</>;
+  }
+  return (
+    <DynamicDataTable
+      data={data}
+      columns={columns}
+      setPagination={setPagination}
+      pagination={pagination}
+      pageCount={Math.ceil(totalRevision / pageSize)}
+    />
+  );
 };
 
 export default HistoryList;

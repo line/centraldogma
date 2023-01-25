@@ -18,7 +18,7 @@ import {
 } from '@chakra-ui/react';
 import {
   useGetFilesByProjectAndRepoAndRevisionNameQuery,
-  useGetHistoryByProjectAndRepoNameQuery,
+  useGetNormalisedRevisionQuery,
 } from 'dogma/features/api/apiSlice';
 import FileList from 'dogma/features/file/FileList';
 import { useRouter } from 'next/router';
@@ -100,8 +100,8 @@ cat ${project}/${repo}${path}`;
 
   const {
     data: fileData,
-    isLoading: isFileDataLoading,
-    error: fileError,
+    isLoading,
+    error,
   } = useGetFilesByProjectAndRepoAndRevisionNameQuery(
     { projectName, repoName, revision },
     {
@@ -110,21 +110,15 @@ cat ${project}/${repo}${path}`;
     },
   );
   const {
-    data: historyData,
-    isLoading,
-    error,
-  } = useGetHistoryByProjectAndRepoNameQuery(
-    { projectName, repoName },
-    {
-      refetchOnMountOrArgChange: true,
-      skip: false,
-    },
-  );
-  if (isFileDataLoading || isLoading) {
+    data: revisionData,
+    isLoading: isNormalRevisionLoading,
+    error: isError,
+  } = useGetNormalisedRevisionQuery({ projectName, repoName, revision: -1 });
+  if (isLoading || isNormalRevisionLoading) {
     return <>Loading...</>;
   }
-  if (fileError || error) {
-    return <>{JSON.stringify(fileError || error)}</>;
+  if (error || isError) {
+    return <>{JSON.stringify(error)}</>;
   }
 
   return (
@@ -169,10 +163,10 @@ cat ${project}/${repo}${path}`;
           </TabPanel>
           <TabPanel>
             <HistoryList
-              data={historyData}
               projectName={projectName}
               repoName={repoName}
               handleTabChange={handleTabChange}
+              totalRevision={revisionData?.revision || 0}
             />
           </TabPanel>
         </TabPanels>
