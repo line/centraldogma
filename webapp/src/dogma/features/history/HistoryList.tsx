@@ -66,7 +66,7 @@ const HistoryList = ({ projectName, repoName, handleTabChange, totalRevision }: 
     repoName,
     //  revision starts from -1, for example for pageSize=20
     //  The first page  /projects/{projectName}/repos/{repoName}/commits/-1?to=-20
-    //  The second page /projects/{projectName}/repos/{repoName}/commits/-21?to=-40
+    //  The second page /projects/{projectName}/repos/{repoName}/commits/-20?to=-40
     revision: -pageIndex * pageSize - 1,
     to: Math.max(-totalRevision, -(pageIndex + 1) * pageSize),
   });
