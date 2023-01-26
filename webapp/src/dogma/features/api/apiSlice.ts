@@ -28,7 +28,7 @@ export type GetHistory = {
   projectName: string;
   repoName: string;
   revision: number;
-  size: number;
+  to: number;
 };
 
 export type GetNormalisedRevision = {
@@ -106,8 +106,8 @@ export const apiSlice = createApi({
         `/v1/projects/${projectName}/repos/${repoName}/files/revisions/${revision}/${filePath}?queryType=IDENTITY`,
     }),
     getHistory: builder.query<HistoryDto[], GetHistory>({
-      query: ({ projectName, repoName, revision, size }) =>
-        `/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?to=${size}`,
+      query: ({ projectName, repoName, revision, to }) =>
+        `/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?to=${to}`,
     }),
     getNormalisedRevision: builder.query<RevisionDto, GetNormalisedRevision>({
       query: ({ projectName, repoName, revision }) =>

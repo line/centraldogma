@@ -28,10 +28,9 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     query: { revision, to },
     method,
   } = req;
-  const start = -parseInt(revision as string) - 1;
   switch (method) {
     case 'GET':
-      res.status(200).json(historyList.slice(start, start + parseInt(to as string)));
+      res.status(200).json(historyList.slice(-parseInt(revision as string) - 1, -parseInt(to as string)));
       break;
     default:
       res.setHeader('Allow', ['GET']);
