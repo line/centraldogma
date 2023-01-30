@@ -180,8 +180,9 @@ export const Navbar = () => {
                 <Avatar name={user.login} size="sm" />
               </MenuButton>
               <MenuList>
-                <MenuItem>Application tokens</MenuItem>
-                <MenuItem>Add ...</MenuItem>
+                <MenuItem>
+                  <RouteLink href="/app/settings/tokens">Application tokens</RouteLink>
+                </MenuItem>
                 <MenuDivider />
                 <MenuItem
                   onClick={async () => {
