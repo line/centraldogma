@@ -37,11 +37,11 @@ class KeyPairUtilsTest {
         assert "PKCS#8".equalsIgnoreCase(privateKey.getFormat());
 
         String key = "-----BEGIN PRIVATE KEY-----";
-        key += System.lineSeparator();
+        key += "\r\n";
         key += Base64.getMimeEncoder().encodeToString(privateKey.getEncoded());
-        key += System.lineSeparator();
+        key += "\r\n";
         key += "-----END PRIVATE KEY-----";
-        key += System.lineSeparator();
+        key += "\r\n";
 
         return key;
     }

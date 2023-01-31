@@ -27,7 +27,7 @@ import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
 
-public final class MirrorTestUtils {
+public final class GitTestUtil {
 
     @Nullable
     public static byte[] getFileContent(Git git, ObjectId commitId, String fileName) throws IOException {
@@ -50,5 +50,5 @@ public final class MirrorTestUtils {
         return null;
     }
 
-    private MirrorTestUtils() {}
+    private GitTestUtil() {}
 }

@@ -16,7 +16,7 @@
 
 package com.linecorp.centraldogma.it.mirror.git;
 
-import static com.linecorp.centraldogma.it.mirror.git.MirrorTestUtils.getFileContent;
+import static com.linecorp.centraldogma.it.mirror.git.GitTestUtil.getFileContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.eclipse.jgit.lib.Constants.R_HEADS;
@@ -61,7 +61,7 @@ class ForceRefUpdateTest {
     private static final String LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME = ".mirror_state.json";
 
     @RegisterExtension
-    static GitFolderExtension git = new GitFolderExtension() {
+    static TemporaryGitRepoExtension git = new TemporaryGitRepoExtension() {
         @Override
         protected boolean runForEachTest() {
             return true;
@@ -134,18 +134,18 @@ class ForceRefUpdateTest {
             pushMirror(gitUri, MirrorDirection.LOCAL_TO_REMOTE);
             pushCredentials(publicKey, privateKey);
 
-            // 1. initial mirroring
+            // 1. Perform the initial mirroring.
             mirroringService.mirror().join();
             assertRevisionAndContent("1", null);
 
-            // 2. Create a new commit
+            // 2. Create a new commit.
             dogma.client().forRepo(projName, REPO_FOO)
                  .commit("Add a commit", Change.ofJsonUpsert("/foo.json", "{\"a\":\"b\"}"))
                  .push().join();
             mirroringService.mirror().join();
             assertRevisionAndContent("2", "{\"a\":\"b\"}");
 
-            // 3. Turn on throttling
+            // 3. Turn on throttling so that local is ahead of remote.
             throttleGitPush.set(true);
             dogma.client().forRepo(projName, REPO_FOO)
                  .commit("Add a commit", Change.ofJsonUpsert("/foo.json", "{\"a\":\"c\"}"))
@@ -155,12 +155,12 @@ class ForceRefUpdateTest {
                     .hasCauseInstanceOf(MirrorException.class);
             assertRevisionAndContent("2", "{\"a\":\"b\"}");
 
-            // 4. Turn off throttling, ref update should succeed with NO_CHANGE
+            // 4. Turn off throttling, ref update should succeed.
             throttleGitPush.set(false);
             mirroringService.mirror().join();
             assertRevisionAndContent("3", "{\"a\":\"c\"}");
 
-            // 5. Turn on throttling again
+            // 5. Turn on throttling again so that local is ahead of remote.
             throttleGitPush.set(true);
             dogma.client().forRepo(projName, REPO_FOO)
                  .commit("Add a commit", Change.ofJsonUpsert("/foo.json", "{\"a\":\"d\"}"))
@@ -170,12 +170,12 @@ class ForceRefUpdateTest {
                     .hasCauseInstanceOf(MirrorException.class);
             assertRevisionAndContent("3", "{\"a\":\"c\"}");
 
-            // 6. push another commit to make commits diverge
+            // 6. Push another commit to make commits diverge.
             dogma.client().forRepo(projName, REPO_FOO)
                  .commit("Add a commit", Change.ofJsonUpsert("/foo.json", "{\"a\":\"e\"}"))
                  .push().join();
 
-            // 7. Turn off throttling, ref update should succeed with FORCED
+            // 7. Turn off throttling, ref update should succeed.
             throttleGitPush.set(false);
             mirroringService.mirror().join();
             assertRevisionAndContent("5", "{\"a\":\"e\"}");
@@ -184,12 +184,12 @@ class ForceRefUpdateTest {
 
     private static void assertRevisionAndContent(String expectedRevision,
                                                  @Nullable String expectedContent) throws Exception {
-        final ObjectId commitId4 = git.git().getRepository().exactRef(R_HEADS + "master").getObjectId();
+        final ObjectId commitId = git.git().getRepository().exactRef(R_HEADS + "master").getObjectId();
         final byte[] content =
-                getFileContent(git.git(), commitId4, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
+                getFileContent(git.git(), commitId, '/' + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME);
         final MirrorState mirrorState = Jackson.readValue(content, MirrorState.class);
         assertThat(mirrorState.sourceRevision()).isEqualTo(expectedRevision);
-        final byte[] fileContent = getFileContent(git.git(), commitId4, "/foo.json");
+        final byte[] fileContent = getFileContent(git.git(), commitId, "/foo.json");
         if (fileContent == null) {
             assertThat(expectedContent).isNull();
         } else {

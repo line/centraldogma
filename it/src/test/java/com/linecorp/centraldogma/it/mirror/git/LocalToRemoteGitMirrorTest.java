@@ -94,7 +94,7 @@ class LocalToRemoteGitMirrorTest {
     }
 
     @RegisterExtension
-    static final GitFolderExtension gitExtension = new GitFolderExtension() {
+    static final TemporaryGitRepoExtension gitExtension = new TemporaryGitRepoExtension() {
         @Override
         protected boolean runForEachTest() {
             return true;
@@ -480,6 +480,6 @@ class LocalToRemoteGitMirrorTest {
     }
 
     byte[] getFileContent(ObjectId commitId, String fileName) throws IOException {
-        return MirrorTestUtils.getFileContent(git, commitId, fileName);
+        return GitTestUtil.getFileContent(git, commitId, fileName);
     }
 }

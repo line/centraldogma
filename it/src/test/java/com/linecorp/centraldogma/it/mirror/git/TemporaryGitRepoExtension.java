@@ -33,7 +33,7 @@ import com.linecorp.centraldogma.testing.internal.TemporaryFolder;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.AbstractAllOrEachExtension;
 
-class GitFolderExtension extends AbstractAllOrEachExtension {
+class TemporaryGitRepoExtension extends AbstractAllOrEachExtension {
 
     private final TemporaryFolder tempDir;
     @Nullable
@@ -43,7 +43,7 @@ class GitFolderExtension extends AbstractAllOrEachExtension {
     @Nullable
     private String fileUri;
 
-    GitFolderExtension() {
+    TemporaryGitRepoExtension() {
         tempDir = new TemporaryFolder();
     }
 
@@ -84,17 +84,17 @@ class GitFolderExtension extends AbstractAllOrEachExtension {
         gitWorkTree = null;
     }
 
-    public Git git() {
+    Git git() {
         assert git != null;
         return git;
     }
 
-    public String fileUri() {
+    String fileUri() {
         assert fileUri != null;
         return fileUri;
     }
 
-    public File gitWorkTree() {
+    File gitWorkTree() {
         assert gitWorkTree != null;
         return gitWorkTree;
     }
