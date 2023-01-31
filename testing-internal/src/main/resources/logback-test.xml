@@ -12,7 +12,6 @@
 
   <logger name="com.linecorp" level="DEBUG" />
   <logger name="io.netty" level="INFO" />
-  <logger name="org.apache.sshd" level="INFO" />
   <!-- Disable the 'Invalid config event received' log messages. -->
   <logger name="org.apache.curator.framework.imps.EnsembleTracker" level="OFF" />
 
