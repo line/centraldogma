@@ -1,4 +1,4 @@
-import { Flex, IconButton, Text } from '@chakra-ui/react';
+import { Text } from '@chakra-ui/react';
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -13,7 +13,6 @@ import { DataTable } from 'dogma/common/components/table/DataTable';
 import { DebouncedInput } from 'dogma/common/components/table/DebouncedInput';
 import { PaginationBar } from 'dogma/common/components/table/PaginationBar';
 import { useMemo, useState } from 'react';
-import { RxReset } from 'react-icons/rx';
 
 export type DataTableClientPaginationProps<Data extends object> = {
   data: Data[];
@@ -52,21 +51,15 @@ export const DataTableClientPagination = <Data extends object>({
           <option value={value} key={value} />
         ))}
       </datalist>
-      <Flex gap={2}>
-        <DebouncedInput
-          type="text"
-          value={(columnFilterValue ?? '') as string}
-          onChange={(value) => value && column.setFilterValue(value)}
-          placeholder={`Search...`}
-          list={column.id + 'list'}
-        />
-        <IconButton
-          aria-label="reset"
-          icon={<RxReset />}
-          colorScheme="teal"
-          onClick={() => column.setFilterValue('')}
-        />
-      </Flex>
+      <DebouncedInput
+        type="text"
+        value={
+          columnFilterValue === undefined ? JSON.stringify(columnFilterValue) : (columnFilterValue as string)
+        }
+        onChange={(value) => value !== undefined && column.setFilterValue(value)}
+        placeholder={`Search...`}
+        list={column.id + 'list'}
+      />
       <DataTable table={table} aria-label={''} />
       <PaginationBar table={table} />
     </>
