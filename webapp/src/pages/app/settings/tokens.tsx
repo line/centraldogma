@@ -78,7 +78,7 @@ const TokenPage = () => {
         <Spacer />
         <NewToken />
       </Flex>
-      <DataTableClientPagination columns={columns} data={data} clientPagination={true} />
+      <DataTableClientPagination columns={columns} data={data} showPagination={true} />
     </Box>
   );
 };

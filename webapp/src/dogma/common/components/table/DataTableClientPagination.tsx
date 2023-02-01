@@ -15,17 +15,17 @@ import { PaginationBar } from 'dogma/common/components/table/PaginationBar';
 import { useMemo, useState } from 'react';
 import { RxReset } from 'react-icons/rx';
 
-export type DynamicDataTableProps<Data extends object> = {
+export type DataTableClientPaginationProps<Data extends object> = {
   data: Data[];
   columns: ColumnDef<Data>[];
-  clientPagination?: boolean;
+  showPagination?: boolean;
 };
 
 export const DataTableClientPagination = <Data extends object>({
   data,
   columns,
-  clientPagination = false,
-}: DynamicDataTableProps<Data>) => {
+  showPagination = false,
+}: DataTableClientPaginationProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const table = useReactTable({
@@ -70,7 +70,7 @@ export const DataTableClientPagination = <Data extends object>({
         />
       </Flex>
       <DataTable table={table} aria-label={''} />
-      {clientPagination && <PaginationBar table={table} />}
+      {showPagination && <PaginationBar table={table} />}
     </>
   );
 };
