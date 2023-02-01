@@ -18,13 +18,11 @@ import { RxReset } from 'react-icons/rx';
 export type DataTableClientPaginationProps<Data extends object> = {
   data: Data[];
   columns: ColumnDef<Data>[];
-  showPagination?: boolean;
 };
 
 export const DataTableClientPagination = <Data extends object>({
   data,
   columns,
-  showPagination = false,
 }: DataTableClientPaginationProps<Data>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -70,7 +68,7 @@ export const DataTableClientPagination = <Data extends object>({
         />
       </Flex>
       <DataTable table={table} aria-label={''} />
-      {showPagination && <PaginationBar table={table} />}
+      <PaginationBar table={table} />
     </>
   );
 };
