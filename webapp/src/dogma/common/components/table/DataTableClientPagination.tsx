@@ -10,9 +10,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { DataTable } from 'dogma/common/components/table/DataTable';
-import { DebouncedInput } from 'dogma/common/components/table/DebouncedInput';
+import { Filter } from 'dogma/common/components/table/Filter';
 import { PaginationBar } from 'dogma/common/components/table/PaginationBar';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 export type DataTableClientPaginationProps<Data extends object> = {
   data: Data[];
@@ -34,32 +34,18 @@ export const DataTableClientPagination = <Data extends object>({
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: false,
+    autoResetPageIndex: false,
     state: {
       sorting,
       columnFilters,
     },
   });
-  const column = table.getHeaderGroups()[0].headers[0].column; // Filter by the 1st column
-  const columnFilterValue = column.getFilterValue();
-  const sortedUniqueValues = useMemo(() => Array.from(column.getFacetedUniqueValues().keys()).sort(), [column]);
 
   return (
     <>
-      <Text mb={4}>Filter by {table.getHeaderGroups()[0].headers[0].id} </Text>
-      <datalist id={column.id + 'list'}>
-        {sortedUniqueValues.slice(0, 5000).map((value: string | number) => (
-          <option value={value} key={value} />
-        ))}
-      </datalist>
-      <DebouncedInput
-        type="text"
-        value={
-          columnFilterValue === undefined ? JSON.stringify(columnFilterValue) : (columnFilterValue as string)
-        }
-        onChange={(value) => value !== undefined && column.setFilterValue(value)}
-        placeholder={`Search...`}
-        list={column.id + 'list'}
-      />
+      <Text mb="8px">Filter by {table.getHeaderGroups()[0].headers[0].id} </Text>
+      <Filter column={table.getHeaderGroups()[0].headers[0].column /* Filter by the 1st column */} />
       <DataTable table={table} aria-label={''} />
       <PaginationBar table={table} />
     </>
