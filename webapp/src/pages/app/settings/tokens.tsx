@@ -4,7 +4,7 @@ import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { NewToken } from 'dogma/common/components/NewToken';
 import { SecretWrapper } from 'dogma/common/components/SecretWrapper';
 import { UserRole } from 'dogma/common/components/UserRole';
-import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
+import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { useGetTokensQuery } from 'dogma/features/api/apiSlice';
 import { TokenDto } from 'dogma/features/token/TokenDto';
 import { useMemo } from 'react';
@@ -78,7 +78,7 @@ const TokenPage = () => {
         <Spacer />
         <NewToken />
       </Flex>
-      <DynamicDataTable columns={columns} data={data} />
+      <DataTableClientPagination columns={columns} data={data} clientPagination={true} />
     </Box>
   );
 };

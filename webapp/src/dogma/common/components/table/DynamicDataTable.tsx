@@ -1,9 +1,7 @@
-import { TriangleDownIcon, TriangleUpIcon } from '@chakra-ui/icons';
-import { chakra, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
+import { Text } from '@chakra-ui/react';
 import {
   ColumnDef,
   ColumnFiltersState,
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -12,6 +10,7 @@ import {
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
+import { DataTable } from 'dogma/common/components/table/DataTable';
 import { Filter } from 'dogma/common/components/table/Filter';
 import { PaginationBar } from 'dogma/common/components/table/PaginationBar';
 import { Dispatch, SetStateAction, useState } from 'react';
@@ -54,56 +53,9 @@ export const DynamicDataTable = <Data extends object>({
 
   return (
     <>
-      <Text mb="8px">Filter by {table.getHeaderGroups()[0].headers[0].id /* Filter by the 1st column */} </Text>
+      <Text mb="8px">Filter by {table.getHeaderGroups()[0].headers[0].id} </Text>
       <Filter column={table.getHeaderGroups()[0].headers[0].column /* Filter by the 1st column */} />
-      <Table>
-        <Thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <Tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                // see https://tanstack.com/table/v8/docs/api/core/column-def#meta to type this correctly
-                const meta: any = header.column.columnDef.meta;
-                return (
-                  <Th
-                    key={header.id}
-                    onClick={header.column.getToggleSortingHandler()}
-                    isNumeric={meta?.isNumeric}
-                  >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-
-                    <chakra.span pl="4">
-                      {header.column.getIsSorted() ? (
-                        header.column.getIsSorted() === 'desc' ? (
-                          <TriangleDownIcon aria-label="sorted descending" />
-                        ) : (
-                          <TriangleUpIcon aria-label="sorted ascending" />
-                        )
-                      ) : null}
-                    </chakra.span>
-                  </Th>
-                );
-              })}
-            </Tr>
-          ))}
-        </Thead>
-        <Tbody>
-          {table.getRowModel().rows.map((row) => {
-            return (
-              <Tr key={row.id} data-testid="table-row">
-                {row.getVisibleCells().map((cell) => {
-                  // see https://tanstack.com/table/v8/docs/api/core/column-def#meta to type this correctly
-                  const meta: any = cell.column.columnDef.meta;
-                  return (
-                    <Td key={cell.id} isNumeric={meta?.isNumeric}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </Td>
-                  );
-                })}
-              </Tr>
-            );
-          })}
-        </Tbody>
-      </Table>
+      <DataTable table={table} />
       {pagination && <PaginationBar table={table} />}
     </>
   );

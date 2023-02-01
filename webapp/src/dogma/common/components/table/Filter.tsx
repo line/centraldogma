@@ -22,10 +22,8 @@ export const Filter = <Data extends object>({ column }: FilterProps<Data>) => {
         value={(columnFilterValue ?? '') as string}
         onChange={(value) => column.setFilterValue(value)}
         placeholder={`Search...`}
-        className="w-36 border shadow rounded"
         list={column.id + 'list'}
       />
-      <div className="h-1" />
     </>
   );
 };
