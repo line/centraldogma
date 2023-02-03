@@ -10,7 +10,8 @@ const FileContentPage = () => {
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const revision = router.query.revision ? (router.query.revision as string) : 'head';
-  const filePath = router.query.path ? `/${Array.from(router.query.path).join('/')}` : '';
+  const filePath = router.query.path ? `${Array.from(router.query.path).join('/')}`.replace(/\/\//g, '/') : '';
+
   const { data, isLoading } = useGetFileContentQuery(
     { projectName, repoName, revision, filePath },
     {
