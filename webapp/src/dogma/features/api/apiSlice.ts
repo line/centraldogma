@@ -61,7 +61,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Project', 'Repo', 'Token'],
+  tagTypes: ['Project', 'Repo', 'File', 'Token'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], void>({
       query: () => '/v1/projects',
@@ -106,6 +106,17 @@ export const apiSlice = createApi({
       query: ({ projectName, repoName, revision, filePath }) =>
         `/v1/projects/${projectName}/repos/${repoName}/files/revisions/${revision}/${filePath}?queryType=IDENTITY`,
     }),
+    addNewFile: builder.mutation({
+      query: ({ projectName, repoName, data }) => ({
+        url: `/v1/projects/${projectName}/repos/${repoName}/contents`,
+        method: 'POST',
+        body: data,
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['File'],
+    }),
     getHistory: builder.query<HistoryDto[], GetHistory>({
       query: ({ projectName, repoName, revision, to }) =>
         `/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?to=${to}`,
@@ -124,6 +135,7 @@ export const apiSlice = createApi({
 export const {
   useAddNewProjectMutation,
   useAddNewRepoMutation,
+  useAddNewFileMutation,
   useGetProjectsQuery,
   useGetMetadataByProjectNameQuery,
   useGetReposByProjectNameQuery,
