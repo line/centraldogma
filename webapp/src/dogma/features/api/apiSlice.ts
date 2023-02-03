@@ -23,6 +23,7 @@ import { HistoryDto } from 'dogma/features/history/HistoryDto';
 import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
+import { TokenDto } from 'dogma/features/token/TokenDto';
 
 export type GetHistory = {
   projectName: string;
@@ -60,7 +61,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Project', 'Repo'],
+  tagTypes: ['Project', 'Repo', 'Token'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], void>({
       query: () => '/v1/projects',
@@ -113,6 +114,10 @@ export const apiSlice = createApi({
       query: ({ projectName, repoName, revision }) =>
         `/v1/projects/${projectName}/repos/${repoName}/revision/${revision}`,
     }),
+    getTokens: builder.query<TokenDto[], void>({
+      query: () => '/v1/tokens',
+      providesTags: ['Token'],
+    }),
   }),
 });
 
@@ -127,4 +132,5 @@ export const {
   useGetFileContentQuery,
   useGetHistoryQuery,
   useGetNormalisedRevisionQuery,
+  useGetTokensQuery,
 } = apiSlice;
