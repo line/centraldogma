@@ -97,10 +97,12 @@ export const apiSlice = createApi({
     }),
     getFilesByProjectAndRepoName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/list`,
+      providesTags: ['File'],
     }),
     getFilesByProjectAndRepoAndRevisionName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName, revision }) =>
         `/v1/projects/${projectName}/repos/${repoName}/list/?revision=${revision}`,
+      providesTags: ['File'],
     }),
     getFileContent: builder.query<FileContentDto, GetFileContent>({
       query: ({ projectName, repoName, revision, filePath }) =>
@@ -120,10 +122,12 @@ export const apiSlice = createApi({
     getHistory: builder.query<HistoryDto[], GetHistory>({
       query: ({ projectName, repoName, revision, to }) =>
         `/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?to=${to}`,
+      providesTags: ['File'],
     }),
     getNormalisedRevision: builder.query<RevisionDto, GetNormalisedRevision>({
       query: ({ projectName, repoName, revision }) =>
         `/v1/projects/${projectName}/repos/${repoName}/revision/${revision}`,
+      providesTags: ['File'],
     }),
     getTokens: builder.query<TokenDto[], void>({
       query: () => '/v1/tokens',

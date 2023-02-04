@@ -69,7 +69,6 @@ export const NewFile = ({
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      // TODO: Reload so the history is updated
       Router.push(`/app/projects/${projectName}/repos/${repoName}/list/head/`);
       reset();
       dispatch(
