@@ -12,8 +12,8 @@ const FileContentPage = () => {
   const revision = router.query.revision ? (router.query.revision as string) : 'head';
   const filePath = router.query.path ? `${Array.from(router.query.path).join('/')}`.replace(/\/\//g, '/') : '';
 
-  const { data, isLoading } = useGetFileContentQuery(
-    { projectName, repoName, revision, filePath },
+  const { data, isLoading, error } = useGetFileContentQuery(
+    { projectName, repoName, filePath },
     {
       refetchOnMountOrArgChange: true,
       skip: false,
@@ -21,6 +21,9 @@ const FileContentPage = () => {
   );
   if (isLoading) {
     return <>Loading...</>;
+  }
+  if (error) {
+    return <>{JSON.stringify(error)}</>;
   }
   return (
     <Box p="2">

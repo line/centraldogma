@@ -58,11 +58,16 @@ export const NewFile = ({
     const data = {
       commitMessage: {
         summary: formData.summary,
-        detail: { content: formData.detail, markup: markup },
+        detail: formData.detail,
+        markup: markup,
       },
-      path: '/' + formData.name, // TODO: Construct a proper path
-      type: formData.type,
-      content: editorRef.current.getValue(),
+      changes: [
+        {
+          path: '/' + formData.name, // TODO: Allow the actual path in the input form i.e. allow slash /
+          type: formData.type,
+          content: editorRef.current.getValue(),
+        },
+      ],
     };
     try {
       const response = await addNewFle({ projectName, repoName, data }).unwrap();
