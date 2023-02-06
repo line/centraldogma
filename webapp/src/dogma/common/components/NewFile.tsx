@@ -1,3 +1,4 @@
+/* eslint-disable react/no-children-prop */
 import {
   Box,
   Button,
@@ -8,6 +9,8 @@ import {
   FormLabel,
   Heading,
   Input,
+  InputGroup,
+  InputLeftAddon,
   Radio,
   RadioGroup,
   Spacer,
@@ -105,11 +108,14 @@ export const NewFile = ({
         <VStack>
           <FormControl isInvalid={errors.name ? true : false} isRequired>
             <FormLabel>Path</FormLabel>
-            <Input
-              type="text"
-              placeholder="my-file-name"
-              {...register('name', { pattern: FILE_PATH_PATTERN })}
-            />
+            <InputGroup>
+              <InputLeftAddon children="/" />
+              <Input
+                type="text"
+                placeholder="my-file-name"
+                {...register('name', { pattern: FILE_PATH_PATTERN })}
+              />
+            </InputGroup>
             {errors.name && <FormErrorMessage>Invalid file name</FormErrorMessage>}
           </FormControl>
           <FormControl>
