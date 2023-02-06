@@ -31,14 +31,14 @@ const FileList = <Data extends object>({
   const slug = `/app/projects/${projectName}/repos/${repoName}/files/${revision}${path}`;
   const columns = useMemo(
     () => [
-      columnHelper.accessor((row: FileDto) => row.path, {
+      columnHelper.accessor((row: FileDto) => row.path.split('/').pop(), {
         cell: (info) => (
           <ChakraLink
             fontWeight={'semibold'}
             href={
               info.row.original.type === 'DIRECTORY'
-                ? `${directoryPath}${info.getValue().slice(1)}`
-                : `${slug}${info.getValue()}`
+                ? `${directoryPath}${info.getValue()}`
+                : `${slug}/${info.getValue()}`
             }
           >
             <HStack>

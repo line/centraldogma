@@ -28,7 +28,7 @@ import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import Editor, { OnMount } from '@monaco-editor/react';
-import { useRef, useState } from 'react';
+import { ChangeEvent, KeyboardEvent, useRef, useState } from 'react';
 
 const FILE_PATH_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 
@@ -55,7 +55,9 @@ export const NewFile = ({
     formState: { errors },
   } = useForm<FormData>();
   const dispatch = useAppDispatch();
+  const [prefixes] = useState([]);
   const onSubmit = async (formData: FormData) => {
+    const path = `${prefixes.join('/')}/${formData.name}`;
     const data = {
       commitMessage: {
         summary: formData.summary,
@@ -64,7 +66,7 @@ export const NewFile = ({
       },
       changes: [
         {
-          path: '/' + formData.name, // TODO: Allow the actual path in the input form i.e. allow slash /
+          path: path.startsWith('/') ? path : `/${path}`,
           type: formData.name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
           content: editorRef.current.getValue(),
         },
@@ -99,6 +101,22 @@ export const NewFile = ({
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
   };
+  const [fileName, setFileName] = useState('');
+  const handleFileNameInput = (e: ChangeEvent<HTMLInputElement>) => {
+    setFileName(e.target.value);
+  };
+  const handleShortcut = (e: KeyboardEvent) => {
+    if (e.key === '/') {
+      e.preventDefault();
+      if (fileName) {
+        prefixes.push(fileName);
+      }
+      setFileName('');
+    } else if (e.key === 'Backspace' && !fileName.length && prefixes.length) {
+      e.preventDefault();
+      setFileName(prefixes.pop());
+    }
+  };
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Flex minWidth="max-content" alignItems="center" mb={4}>
@@ -109,11 +127,14 @@ export const NewFile = ({
           <FormControl isInvalid={errors.name ? true : false} isRequired>
             <FormLabel>Path</FormLabel>
             <InputGroup>
-              <InputLeftAddon children="/" />
+              <InputLeftAddon children={`/${prefixes.join('/')}`} />
               <Input
                 type="text"
-                placeholder="my-file-name"
+                value={fileName}
+                placeholder="Type 1) a file name 2) a directory name and '/' key or 3) 'backspace' key to go one directory up."
                 {...register('name', { pattern: FILE_PATH_PATTERN })}
+                onChange={handleFileNameInput}
+                onKeyDown={handleShortcut}
               />
             </InputGroup>
             {errors.name && <FormErrorMessage>Invalid file name</FormErrorMessage>}

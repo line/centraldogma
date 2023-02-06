@@ -100,7 +100,7 @@ cat ${project}/${repo}${path}`;
     isLoading,
     error,
   } = useGetFilesByProjectAndRepoAndRevisionNameQuery(
-    { projectName, repoName, revision },
+    { projectName, repoName, revision, filePath },
     {
       refetchOnMountOrArgChange: true,
       skip: false,
