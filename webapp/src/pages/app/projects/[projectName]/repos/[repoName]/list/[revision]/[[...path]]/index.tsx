@@ -26,7 +26,7 @@ import { useAppDispatch } from 'dogma/store';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { CopySupport } from 'dogma/features/file/CopySupport';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
-import { BsFilePlus } from 'react-icons/bs';
+import { AiOutlinePlus } from 'react-icons/ai';
 import Link from 'next/link';
 
 const RepositoryDetailPage = () => {
@@ -143,7 +143,7 @@ cat ${project}/${repo}${path}`;
             <Flex>
               <Spacer />
               <Link href={`/app/projects/${projectName}/repos/${repoName}/new_file/head`}>
-                <Button size="sm" rightIcon={<BsFilePlus />} colorScheme="teal">
+                <Button size="sm" rightIcon={<AiOutlinePlus />} colorScheme="teal">
                   New File
                 </Button>
               </Link>

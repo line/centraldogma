@@ -10,7 +10,6 @@ import {
   Input,
   Radio,
   RadioGroup,
-  Select,
   Spacer,
   Stack,
   Textarea,
@@ -32,7 +31,6 @@ const FILE_PATH_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 
 type FormData = {
   name: string;
-  type: 'UPSERT_JSON' | 'UPSERT_TEXT';
   summary: string;
   detail: string;
 };
@@ -64,7 +62,7 @@ export const NewFile = ({
       changes: [
         {
           path: '/' + formData.name, // TODO: Allow the actual path in the input form i.e. allow slash /
-          type: formData.type,
+          type: formData.name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
           content: editorRef.current.getValue(),
         },
       ],
@@ -104,17 +102,6 @@ export const NewFile = ({
         <Heading size="lg">Create new file</Heading>
       </Flex>
       <Box p={4}>
-        <RadioGroup onChange={setMarkup} value={markup} mb={2}>
-          <Flex gap={2}>
-            <Spacer />
-            <Radio value="PLAINTEXT" colorScheme="teal">
-              plain text
-            </Radio>
-            <Radio value="MARKDOWN" colorScheme="teal">
-              markdown
-            </Radio>
-          </Flex>
-        </RadioGroup>
         <VStack>
           <FormControl isInvalid={errors.name ? true : false} isRequired>
             <FormLabel>Path</FormLabel>
@@ -125,17 +112,6 @@ export const NewFile = ({
               {...register('name', { pattern: FILE_PATH_PATTERN })}
             />
             {errors.name && <FormErrorMessage>Invalid file name</FormErrorMessage>}
-          </FormControl>
-          <FormControl>
-            <FormLabel>Type</FormLabel>
-            <Select {...register('type')} defaultValue="UPSERT_JSON" name="type">
-              <option key="UPSERT_JSON" value="UPSERT_JSON">
-                JSON
-              </option>
-              <option key="UPSERT_TEXT" value="UPSERT_TEXT">
-                TEXT
-              </option>
-            </Select>
           </FormControl>
           <FormControl>
             <FormLabel>Content</FormLabel>
@@ -156,7 +132,20 @@ export const NewFile = ({
         </VStack>
         <Divider />
         <VStack p={4} gap="2" mb={6} align="stretch">
-          <Heading size="md">Commit changes</Heading>
+          <Flex>
+            <Heading size="md">Commit changes</Heading>
+            <Spacer />
+            <RadioGroup onChange={setMarkup} value={markup} mb={2}>
+              <Flex gap={2}>
+                <Radio value="PLAINTEXT" colorScheme="teal">
+                  plain text
+                </Radio>
+                <Radio value="MARKDOWN" colorScheme="teal">
+                  markdown
+                </Radio>
+              </Flex>
+            </RadioGroup>
+          </Flex>
           <FormControl isRequired>
             <Input
               id="summary"
