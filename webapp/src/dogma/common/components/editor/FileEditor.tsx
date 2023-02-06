@@ -1,16 +1,11 @@
 import {
   Box,
   Button,
+  Divider,
   Flex,
+  FormControl,
   Heading,
   Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
   Spacer,
   Stack,
   Tab,
@@ -29,13 +24,32 @@ import React, { useState, useRef } from 'react';
 import { FcEditImage, FcCancel } from 'react-icons/fc';
 import { JsonPath } from 'dogma/common/components/editor/JsonPath';
 import { JsonPathLegend } from 'dogma/common/components/JsonPathLegend';
+import { useForm } from 'react-hook-form';
+import { SerializedError } from '@reduxjs/toolkit';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
+import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
+import { createMessage } from 'dogma/features/message/messageSlice';
+import ErrorHandler from 'dogma/features/services/ErrorHandler';
+import { useAppDispatch } from 'dogma/store';
+import { AiOutlineDelete } from 'react-icons/ai';
+import { DiscardChangesModal } from 'dogma/common/components/editor/DiscardChangesModal';
+import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
 
 export type FileEditorProps = {
+  projectName: string;
+  repoName: string;
   language: string;
   originalContent: string;
+  path: string;
+  name: string;
 };
 
-const FileEditor = ({ language, originalContent }: FileEditorProps) => {
+type FormData = {
+  summary: string;
+  detail: string;
+};
+
+const FileEditor = ({ projectName, repoName, language, originalContent, path, name }: FileEditorProps) => {
   const jsonContent = language === 'json' ? JSON.parse(originalContent) : '';
   const [tabIndex, setTabIndex] = useState(0);
   const handleTabChange = (index: number) => {
@@ -47,36 +61,88 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
     editorRef.current = editor;
     setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
   };
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isCancelModalOpen, onOpen: onCancelModalOpen, onClose: onCancelModalClose } = useDisclosure();
+  const { isOpen: isDeleteModalOpen, onOpen: onDeleteModalOpen, onClose: onDeleteModalClose } = useDisclosure();
   const [readOnly, setReadOnly] = useState(true);
   const switchMode = () => {
     if (readOnly) {
       setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
       setReadOnly(false);
     } else {
-      onOpen();
+      onCancelModalOpen();
     }
   };
   const resetViewEditor = () => {
     editorRef.current.setValue(fileContent);
     setReadOnly(true);
     setTabIndex(0);
-    onClose();
+    onCancelModalClose();
   };
   const { colorMode } = useColorMode();
   const [diffSideBySide, setDiffSideBySide] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
+  const [updateFile, { isLoading }] = usePushFileChangesMutation();
+  const { register, handleSubmit, reset } = useForm<FormData>();
+  const dispatch = useAppDispatch();
+  const onSubmit = async (formData: FormData) => {
+    const data = {
+      commitMessage: {
+        summary: formData.summary,
+        detail: formData.detail,
+      },
+      changes: [
+        {
+          path: path,
+          type: name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
+          content: editorRef.current.getValue(),
+        },
+      ],
+    };
+    try {
+      const response = await updateFile({ projectName, repoName, data }).unwrap();
+      if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
+        throw (response as { error: FetchBaseQueryError | SerializedError }).error;
+      }
+      dispatch(
+        createMessage({
+          title: 'File updated',
+          text: `Successfully updated ${path}`,
+          type: 'success',
+        }),
+      );
+      setReadOnly(true);
+      reset();
+    } catch (error) {
+      dispatch(
+        createMessage({
+          title: `Failed to update ${path}`,
+          text: ErrorHandler.handle(error),
+          type: 'error',
+        }),
+      );
+    }
+  };
   return (
     <Box>
-      <Flex>
+      <Flex gap={4}>
         <Spacer />
         <Button
           onClick={switchMode}
           leftIcon={readOnly ? <FcEditImage /> : <FcCancel />}
           colorScheme={readOnly ? 'teal' : 'blue'}
-          variant="ghost"
+          variant="outline"
+          size="sm"
         >
           {readOnly ? 'Edit' : 'Cancel changes'}
+        </Button>
+        <Button
+          onClick={onDeleteModalOpen}
+          leftIcon={<AiOutlineDelete />}
+          colorScheme="red"
+          display={readOnly ? 'visible' : 'none'}
+          size="sm"
+        >
+          Delete
         </Button>
       </Flex>
       <Tabs
@@ -161,33 +227,47 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
           </TabPanel>
         </TabPanels>
       </Tabs>
-      <VStack p={4} gap="2" mb={6} align="stretch" display={readOnly ? 'none' : 'visible'}>
-        <Heading size="md">Commit changes</Heading>
-        <Input name="summary" placeholder="Add a summary" />
-        <Textarea placeholder="Add an optional extended description..." />
-        <Stack direction="row" spacing={4} mt={2}>
-          <Button colorScheme="teal">Commit</Button>
-          <Button variant="outline" onClick={switchMode}>
-            Cancel
-          </Button>
-        </Stack>
-      </VStack>
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Are you sure?</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>Your changes will be discarded!</ModalBody>
-          <ModalFooter>
-            <Button colorScheme="red" mr={3} onClick={resetViewEditor}>
-              Discard changes
+      <Divider />
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <VStack p={4} gap="2" mb={6} align="stretch" display={readOnly ? 'none' : 'visible'}>
+          <Heading size="md">Commit changes</Heading>
+          <FormControl isRequired>
+            <Input
+              id="summary"
+              name="summary"
+              type="text"
+              placeholder="Add a summary"
+              {...register('summary', { required: true })}
+            />
+          </FormControl>
+          <Textarea
+            id="description"
+            name="description"
+            placeholder="Add an optional extended description..."
+            {...register('detail')}
+          />
+          <Stack direction="row" spacing={4} mt={2}>
+            <Button type="submit" colorScheme="teal" isLoading={isLoading} loadingText="Creating">
+              Commit
             </Button>
-            <Button variant="ghost" onClick={onClose}>
+            <Button variant="outline" onClick={switchMode}>
               Cancel
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </Stack>
+        </VStack>
+      </form>
+      <DiscardChangesModal
+        isOpen={isCancelModalOpen}
+        onClose={onCancelModalClose}
+        resetViewEditor={resetViewEditor}
+      />
+      <DeleteFileModal
+        isOpen={isDeleteModalOpen}
+        onClose={onDeleteModalClose}
+        path={path}
+        projectName={projectName}
+        repoName={repoName}
+      />
     </Box>
   );
 };

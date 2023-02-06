@@ -16,7 +16,7 @@ import {
   VStack,
   useColorMode,
 } from '@chakra-ui/react';
-import { useAddNewFileMutation } from 'dogma/features/api/apiSlice';
+import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import { useAppDispatch } from 'dogma/store';
 import Router from 'next/router';
@@ -44,7 +44,7 @@ export const NewFile = ({
   revision: string;
 }) => {
   const { colorMode } = useColorMode();
-  const [addNewFle, { isLoading }] = useAddNewFileMutation();
+  const [addNewFle, { isLoading }] = usePushFileChangesMutation();
   const {
     register,
     handleSubmit,

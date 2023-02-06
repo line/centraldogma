@@ -106,8 +106,9 @@ export const apiSlice = createApi({
     getFileContent: builder.query<FileContentDto, GetFileContent>({
       query: ({ projectName, repoName, filePath }) =>
         `/v1/projects/${projectName}/repos/${repoName}/contents/${filePath}`,
+      providesTags: ['File'],
     }),
-    addNewFile: builder.mutation({
+    pushFileChanges: builder.mutation({
       query: ({ projectName, repoName, data }) => ({
         url: `/v1/projects/${projectName}/repos/${repoName}/contents`,
         method: 'POST',
@@ -138,7 +139,7 @@ export const apiSlice = createApi({
 export const {
   useAddNewProjectMutation,
   useAddNewRepoMutation,
-  useAddNewFileMutation,
+  usePushFileChangesMutation,
   useGetProjectsQuery,
   useGetMetadataByProjectNameQuery,
   useGetReposByProjectNameQuery,

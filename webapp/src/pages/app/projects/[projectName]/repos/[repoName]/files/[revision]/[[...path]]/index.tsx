@@ -11,7 +11,10 @@ const FileContentPage = () => {
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const revision = router.query.revision ? (router.query.revision as string) : 'head';
   const filePath = router.query.path ? `${Array.from(router.query.path).join('/')}`.replace(/\/\//g, '/') : '';
-
+  const fileName = router.asPath
+    .split('/')
+    .filter((v) => v.length > 0)
+    .pop();
   const { data, isLoading, error } = useGetFileContentQuery(
     { projectName, repoName, filePath },
     {
@@ -29,17 +32,21 @@ const FileContentPage = () => {
     <Box p="2">
       <Breadcrumbs path={router.asPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/list/head' }} />
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">{`${router.asPath
-          .split('/')
-          .filter((v) => v.length > 0)
-          .pop()}`}</Heading>
+        <Heading size="lg">{fileName}</Heading>
         <Tooltip label="Go to History to view all revisions">
           <Tag borderRadius="full" colorScheme="blue">
             Revision {revision} <InfoIcon ml={2} />
           </Tag>
         </Tooltip>
       </Flex>
-      <FileEditor language={data.type.toLowerCase()} originalContent={data.content} />
+      <FileEditor
+        projectName={projectName}
+        repoName={repoName}
+        language={data.type.toLowerCase()}
+        originalContent={data.content}
+        path={data.path}
+        name={fileName}
+      />
     </Box>
   );
 };
