@@ -138,10 +138,10 @@ export const NewFile = ({
             <RadioGroup onChange={setMarkup} value={markup} mb={2}>
               <Flex gap={2}>
                 <Radio value="PLAINTEXT" colorScheme="teal">
-                  plain text
+                  Plain text
                 </Radio>
                 <Radio value="MARKDOWN" colorScheme="teal">
-                  markdown
+                  Markdown
                 </Radio>
               </Flex>
             </RadioGroup>
