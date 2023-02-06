@@ -47,7 +47,6 @@ export type GetFilesByProjectAndRepoName = {
 export type GetFileContent = {
   projectName: string;
   repoName: string;
-  revision: string;
   filePath: string;
 };
 
@@ -61,7 +60,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Project', 'Repo', 'Token'],
+  tagTypes: ['Project', 'Repo', 'File', 'Token'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], void>({
       query: () => '/v1/projects',
@@ -97,22 +96,37 @@ export const apiSlice = createApi({
     }),
     getFilesByProjectAndRepoName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/list`,
+      providesTags: ['File'],
     }),
     getFilesByProjectAndRepoAndRevisionName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
       query: ({ projectName, repoName, revision }) =>
         `/v1/projects/${projectName}/repos/${repoName}/list/?revision=${revision}`,
+      providesTags: ['File'],
     }),
     getFileContent: builder.query<FileContentDto, GetFileContent>({
-      query: ({ projectName, repoName, revision, filePath }) =>
-        `/v1/projects/${projectName}/repos/${repoName}/files/revisions/${revision}/${filePath}?queryType=IDENTITY`,
+      query: ({ projectName, repoName, filePath }) =>
+        `/v1/projects/${projectName}/repos/${repoName}/contents/${filePath}`,
+    }),
+    addNewFile: builder.mutation({
+      query: ({ projectName, repoName, data }) => ({
+        url: `/v1/projects/${projectName}/repos/${repoName}/contents`,
+        method: 'POST',
+        body: data,
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['File'],
     }),
     getHistory: builder.query<HistoryDto[], GetHistory>({
       query: ({ projectName, repoName, revision, to }) =>
         `/v1/projects/${projectName}/repos/${repoName}/commits/${revision}?to=${to}`,
+      providesTags: ['File'],
     }),
     getNormalisedRevision: builder.query<RevisionDto, GetNormalisedRevision>({
       query: ({ projectName, repoName, revision }) =>
         `/v1/projects/${projectName}/repos/${repoName}/revision/${revision}`,
+      providesTags: ['File'],
     }),
     getTokens: builder.query<TokenDto[], void>({
       query: () => '/v1/tokens',
@@ -124,6 +138,7 @@ export const apiSlice = createApi({
 export const {
   useAddNewProjectMutation,
   useAddNewRepoMutation,
+  useAddNewFileMutation,
   useGetProjectsQuery,
   useGetMetadataByProjectNameQuery,
   useGetReposByProjectNameQuery,

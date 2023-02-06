@@ -1,9 +1,7 @@
-import { AddIcon, InfoIcon } from '@chakra-ui/icons';
+import { InfoIcon } from '@chakra-ui/icons';
 import {
   Box,
   Button,
-  Drawer,
-  DrawerOverlay,
   Flex,
   Heading,
   Spacer,
@@ -14,7 +12,6 @@ import {
   Tabs,
   Tag,
   Tooltip,
-  useDisclosure,
 } from '@chakra-ui/react';
 import {
   useGetFilesByProjectAndRepoAndRevisionNameQuery,
@@ -22,7 +19,6 @@ import {
 } from 'dogma/features/api/apiSlice';
 import FileList from 'dogma/features/file/FileList';
 import { useRouter } from 'next/router';
-import { NewFileForm } from 'dogma/common/components/NewFileForm';
 import HistoryList from 'dogma/features/history/HistoryList';
 import { useState } from 'react';
 import { createMessage, resetState } from 'dogma/features/message/messageSlice';
@@ -30,6 +26,8 @@ import { useAppDispatch } from 'dogma/store';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { CopySupport } from 'dogma/features/file/CopySupport';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
+import { AiOutlinePlus } from 'react-icons/ai';
+import Link from 'next/link';
 
 const RepositoryDetailPage = () => {
   const router = useRouter();
@@ -38,7 +36,6 @@ const RepositoryDetailPage = () => {
   const revision = router.query.revision ? (router.query.revision as string) : 'head';
   const filePath = router.query.path ? `/${Array.from(router.query.path).join('/')}` : '';
   const directoryPath = router.asPath;
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const [tabIndex, setTabIndex] = useState(0);
   const dispatch = useAppDispatch();
 
@@ -131,14 +128,6 @@ cat ${project}/${repo}${path}`;
             Revision {revision} <InfoIcon ml={2} />
           </Tag>
         </Tooltip>
-        <Spacer />
-        <Button leftIcon={<AddIcon />} colorScheme="teal" onClick={onOpen} variant="ghost">
-          New File
-        </Button>
-        <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="xl">
-          <DrawerOverlay />
-          <NewFileForm />
-        </Drawer>
       </Flex>
       <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={handleTabChange}>
         <TabList>
@@ -151,6 +140,14 @@ cat ${project}/${repo}${path}`;
         </TabList>
         <TabPanels>
           <TabPanel>
+            <Flex>
+              <Spacer />
+              <Link href={`/app/projects/${projectName}/repos/${repoName}/new_file/head`}>
+                <Button size="sm" rightIcon={<AiOutlinePlus />} colorScheme="teal">
+                  New File
+                </Button>
+              </Link>
+            </Flex>
             <FileList
               data={fileData || []}
               projectName={projectName}
