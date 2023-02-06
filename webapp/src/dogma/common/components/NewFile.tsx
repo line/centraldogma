@@ -105,7 +105,6 @@ export const NewFile = ({
         <VStack>
           <FormControl isInvalid={errors.name ? true : false} isRequired>
             <FormLabel>Path</FormLabel>
-            {/* TODO: Allow slash / in the file path/name, i.e.exclude this input from the document hotkey */}
             <Input
               type="text"
               placeholder="my-file-name"
