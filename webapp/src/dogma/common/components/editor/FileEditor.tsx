@@ -3,18 +3,13 @@ import {
   Button,
   Divider,
   Flex,
-  FormControl,
   Heading,
-  Input,
   Spacer,
-  Stack,
   Tab,
   TabList,
   TabPanel,
   TabPanels,
   Tabs,
-  Textarea,
-  VStack,
   useColorMode,
   useDisclosure,
 } from '@chakra-ui/react';
@@ -24,16 +19,10 @@ import React, { useState, useRef } from 'react';
 import { FcEditImage, FcCancel } from 'react-icons/fc';
 import { JsonPath } from 'dogma/common/components/editor/JsonPath';
 import { JsonPathLegend } from 'dogma/common/components/JsonPathLegend';
-import { useForm } from 'react-hook-form';
-import { SerializedError } from '@reduxjs/toolkit';
-import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
-import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch } from 'dogma/store';
 import { AiOutlineDelete } from 'react-icons/ai';
 import { DiscardChangesModal } from 'dogma/common/components/editor/DiscardChangesModal';
 import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
+import { CommitForm } from 'dogma/common/components/CommitForm';
 
 export type FileEditorProps = {
   projectName: string;
@@ -42,11 +31,6 @@ export type FileEditorProps = {
   originalContent: string;
   path: string;
   name: string;
-};
-
-type FormData = {
-  summary: string;
-  detail: string;
 };
 
 const FileEditor = ({ projectName, repoName, language, originalContent, path, name }: FileEditorProps) => {
@@ -81,47 +65,6 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
   const { colorMode } = useColorMode();
   const [diffSideBySide, setDiffSideBySide] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
-  const [updateFile, { isLoading }] = usePushFileChangesMutation();
-  const { register, handleSubmit, reset } = useForm<FormData>();
-  const dispatch = useAppDispatch();
-  const onSubmit = async (formData: FormData) => {
-    const data = {
-      commitMessage: {
-        summary: formData.summary,
-        detail: formData.detail,
-      },
-      changes: [
-        {
-          path: path,
-          type: name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
-          content: editorRef.current.getValue(),
-        },
-      ],
-    };
-    try {
-      const response = await updateFile({ projectName, repoName, data }).unwrap();
-      if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
-        throw (response as { error: FetchBaseQueryError | SerializedError }).error;
-      }
-      dispatch(
-        createMessage({
-          title: 'File updated',
-          text: `Successfully updated ${path}`,
-          type: 'success',
-        }),
-      );
-      setReadOnly(true);
-      reset();
-    } catch (error) {
-      dispatch(
-        createMessage({
-          title: `Failed to update ${path}`,
-          text: ErrorHandler.handle(error),
-          type: 'error',
-        }),
-      );
-    }
-  };
   return (
     <Box>
       <Flex gap={4}>
@@ -228,34 +171,16 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
         </TabPanels>
       </Tabs>
       <Divider />
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <VStack p={4} gap="2" mb={6} align="stretch" display={readOnly ? 'none' : 'visible'}>
-          <Heading size="md">Commit changes</Heading>
-          <FormControl isRequired>
-            <Input
-              id="summary"
-              name="summary"
-              type="text"
-              placeholder="Add a summary"
-              {...register('summary', { required: true })}
-            />
-          </FormControl>
-          <Textarea
-            id="description"
-            name="description"
-            placeholder="Add an optional extended description..."
-            {...register('detail')}
-          />
-          <Stack direction="row" spacing={4} mt={2}>
-            <Button type="submit" colorScheme="teal" isLoading={isLoading} loadingText="Creating">
-              Commit
-            </Button>
-            <Button variant="outline" onClick={switchMode}>
-              Cancel
-            </Button>
-          </Stack>
-        </VStack>
-      </form>
+      <CommitForm
+        projectName={projectName}
+        repoName={repoName}
+        path={path}
+        name={name}
+        content={editorRef?.current?.getValue()}
+        readOnly={readOnly}
+        setReadOnly={setReadOnly}
+        switchMode={switchMode}
+      />
       <DiscardChangesModal
         isOpen={isCancelModalOpen}
         onClose={onCancelModalClose}
