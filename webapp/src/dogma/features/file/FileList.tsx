@@ -58,7 +58,13 @@ const FileList = <Data extends object>({
           <Wrap>
             <WrapItem>
               <Menu>
-                <MenuButton as={Button} size="sm" leftIcon={<CopyIcon />} rightIcon={<ChevronDownIcon />}>
+                <MenuButton
+                  as={Button}
+                  size="sm"
+                  leftIcon={<CopyIcon />}
+                  rightIcon={<ChevronDownIcon />}
+                  variant="ghost"
+                >
                   Copy
                 </MenuButton>
                 <MenuList>
