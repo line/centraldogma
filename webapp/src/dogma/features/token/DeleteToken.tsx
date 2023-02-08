@@ -64,7 +64,7 @@ export const DeleteToken = ({ appId, hidden }: { appId: string; hidden: boolean 
               <Button colorScheme="red" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button colorScheme="red" onClick={handleDelete} isLoading={isLoading} loadingText="Deactivating">
+              <Button colorScheme="red" onClick={handleDelete} isLoading={isLoading} loadingText="Deleting">
                 Delete
               </Button>
             </HStack>
