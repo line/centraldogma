@@ -109,8 +109,11 @@ export const Navbar = () => {
 
   const selectRef = useRef(null);
   useEffect(() => {
-    // TODO: Exclude hotkey from input elements
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = (e.target as HTMLElement).tagName.toLowerCase();
+      if (target == 'textarea' || target == 'input') {
+        return;
+      }
       if (e.key === '/') {
         e.preventDefault();
         selectRef.current.clearValue();

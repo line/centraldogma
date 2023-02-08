@@ -1,25 +1,15 @@
 import {
   Box,
   Button,
+  Divider,
   Flex,
   Heading,
-  Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
   Spacer,
-  Stack,
   Tab,
   TabList,
   TabPanel,
   TabPanels,
   Tabs,
-  Textarea,
-  VStack,
   useColorMode,
   useDisclosure,
 } from '@chakra-ui/react';
@@ -29,13 +19,21 @@ import React, { useState, useRef } from 'react';
 import { FcEditImage, FcCancel } from 'react-icons/fc';
 import { JsonPath } from 'dogma/common/components/editor/JsonPath';
 import { JsonPathLegend } from 'dogma/common/components/JsonPathLegend';
+import { AiOutlineDelete } from 'react-icons/ai';
+import { DiscardChangesModal } from 'dogma/common/components/editor/DiscardChangesModal';
+import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
+import { CommitForm } from 'dogma/common/components/CommitForm';
 
 export type FileEditorProps = {
+  projectName: string;
+  repoName: string;
   language: string;
   originalContent: string;
+  path: string;
+  name: string;
 };
 
-const FileEditor = ({ language, originalContent }: FileEditorProps) => {
+const FileEditor = ({ projectName, repoName, language, originalContent, path, name }: FileEditorProps) => {
   const jsonContent = language === 'json' ? JSON.parse(originalContent) : '';
   const [tabIndex, setTabIndex] = useState(0);
   const handleTabChange = (index: number) => {
@@ -47,36 +45,47 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
     editorRef.current = editor;
     setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
   };
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isCancelModalOpen, onOpen: onCancelModalOpen, onClose: onCancelModalClose } = useDisclosure();
+  const { isOpen: isDeleteModalOpen, onOpen: onDeleteModalOpen, onClose: onDeleteModalClose } = useDisclosure();
   const [readOnly, setReadOnly] = useState(true);
   const switchMode = () => {
     if (readOnly) {
       setFileContent(jsonContent ? JSON.stringify(jsonContent, null, 2) : originalContent);
       setReadOnly(false);
     } else {
-      onOpen();
+      onCancelModalOpen();
     }
   };
   const resetViewEditor = () => {
     editorRef.current.setValue(fileContent);
     setReadOnly(true);
     setTabIndex(0);
-    onClose();
+    onCancelModalClose();
   };
   const { colorMode } = useColorMode();
   const [diffSideBySide, setDiffSideBySide] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
   return (
     <Box>
-      <Flex>
+      <Flex gap={4}>
         <Spacer />
         <Button
           onClick={switchMode}
           leftIcon={readOnly ? <FcEditImage /> : <FcCancel />}
           colorScheme={readOnly ? 'teal' : 'blue'}
-          variant="ghost"
+          variant="outline"
+          size="sm"
         >
           {readOnly ? 'Edit' : 'Cancel changes'}
+        </Button>
+        <Button
+          onClick={onDeleteModalOpen}
+          leftIcon={<AiOutlineDelete />}
+          colorScheme="red"
+          display={readOnly ? 'visible' : 'none'}
+          size="sm"
+        >
+          Delete
         </Button>
       </Flex>
       <Tabs
@@ -161,33 +170,29 @@ const FileEditor = ({ language, originalContent }: FileEditorProps) => {
           </TabPanel>
         </TabPanels>
       </Tabs>
-      <VStack p={4} gap="2" mb={6} align="stretch" display={readOnly ? 'none' : 'visible'}>
-        <Heading size="md">Commit changes</Heading>
-        <Input name="summary" placeholder="Add a summary" />
-        <Textarea placeholder="Add an optional extended description..." />
-        <Stack direction="row" spacing={4} mt={2}>
-          <Button colorScheme="teal">Commit</Button>
-          <Button variant="outline" onClick={switchMode}>
-            Cancel
-          </Button>
-        </Stack>
-      </VStack>
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Are you sure?</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>Your changes will be discarded!</ModalBody>
-          <ModalFooter>
-            <Button colorScheme="red" mr={3} onClick={resetViewEditor}>
-              Discard changes
-            </Button>
-            <Button variant="ghost" onClick={onClose}>
-              Cancel
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <Divider />
+      <CommitForm
+        projectName={projectName}
+        repoName={repoName}
+        path={path}
+        name={name}
+        content={editorRef?.current?.getValue()}
+        readOnly={readOnly}
+        setReadOnly={setReadOnly}
+        switchMode={switchMode}
+      />
+      <DiscardChangesModal
+        isOpen={isCancelModalOpen}
+        onClose={onCancelModalClose}
+        resetViewEditor={resetViewEditor}
+      />
+      <DeleteFileModal
+        isOpen={isDeleteModalOpen}
+        onClose={onDeleteModalClose}
+        path={path}
+        projectName={projectName}
+        repoName={repoName}
+      />
     </Box>
   );
 };

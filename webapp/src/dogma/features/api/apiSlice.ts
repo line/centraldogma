@@ -42,6 +42,7 @@ export type GetFilesByProjectAndRepoName = {
   projectName: string;
   repoName: string;
   revision?: string;
+  filePath?: string;
 };
 
 export type GetFileContent = {
@@ -82,6 +83,7 @@ export const apiSlice = createApi({
     }),
     getReposByProjectName: builder.query<RepoDto[], string>({
       query: (projectName) => `/v1/projects/${projectName}/repos`,
+      providesTags: ['Repo'],
     }),
     addNewRepo: builder.mutation({
       query: ({ projectName, data }) => ({
@@ -94,20 +96,17 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Repo'],
     }),
-    getFilesByProjectAndRepoName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
-      query: ({ projectName, repoName }) => `/v1/projects/${projectName}/repos/${repoName}/list`,
-      providesTags: ['File'],
-    }),
-    getFilesByProjectAndRepoAndRevisionName: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
-      query: ({ projectName, repoName, revision }) =>
-        `/v1/projects/${projectName}/repos/${repoName}/list/?revision=${revision}`,
+    getFiles: builder.query<FileDto[], GetFilesByProjectAndRepoName>({
+      query: ({ projectName, repoName, revision, filePath }) =>
+        `/v1/projects/${projectName}/repos/${repoName}/list${filePath || ''}?revision=${revision || 'head'}`,
       providesTags: ['File'],
     }),
     getFileContent: builder.query<FileContentDto, GetFileContent>({
       query: ({ projectName, repoName, filePath }) =>
         `/v1/projects/${projectName}/repos/${repoName}/contents/${filePath}`,
+      providesTags: ['File'],
     }),
-    addNewFile: builder.mutation({
+    pushFileChanges: builder.mutation({
       query: ({ projectName, repoName, data }) => ({
         url: `/v1/projects/${projectName}/repos/${repoName}/contents`,
         method: 'POST',
@@ -138,12 +137,11 @@ export const apiSlice = createApi({
 export const {
   useAddNewProjectMutation,
   useAddNewRepoMutation,
-  useAddNewFileMutation,
+  usePushFileChangesMutation,
   useGetProjectsQuery,
   useGetMetadataByProjectNameQuery,
   useGetReposByProjectNameQuery,
-  useGetFilesByProjectAndRepoNameQuery,
-  useGetFilesByProjectAndRepoAndRevisionNameQuery,
+  useGetFilesQuery,
   useGetFileContentQuery,
   useGetHistoryQuery,
   useGetNormalisedRevisionQuery,
