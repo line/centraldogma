@@ -13,10 +13,7 @@ import {
   Tag,
   Tooltip,
 } from '@chakra-ui/react';
-import {
-  useGetFilesByProjectAndRepoAndRevisionNameQuery,
-  useGetNormalisedRevisionQuery,
-} from 'dogma/features/api/apiSlice';
+import { useGetFilesQuery, useGetNormalisedRevisionQuery } from 'dogma/features/api/apiSlice';
 import FileList from 'dogma/features/file/FileList';
 import { useRouter } from 'next/router';
 import HistoryList from 'dogma/features/history/HistoryList';
@@ -99,8 +96,8 @@ cat ${project}/${repo}${path}`;
     data: fileData,
     isLoading,
     error,
-  } = useGetFilesByProjectAndRepoAndRevisionNameQuery(
-    { projectName, repoName, revision },
+  } = useGetFilesQuery(
+    { projectName, repoName, revision, filePath },
     {
       refetchOnMountOrArgChange: true,
       skip: false,
@@ -142,7 +139,7 @@ cat ${project}/${repo}${path}`;
           <TabPanel>
             <Flex>
               <Spacer />
-              <Link href={`/app/projects/${projectName}/repos/${repoName}/new_file/head`}>
+              <Link href={`/app/projects/${projectName}/repos/${repoName}/new_file/head${filePath}`}>
                 <Button size="sm" rightIcon={<AiOutlinePlus />} colorScheme="teal">
                   New File
                 </Button>

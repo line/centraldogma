@@ -57,7 +57,7 @@ describe('FileList', () => {
     const { getByText } = render(<FileList {...expectedProps} />);
     let name;
     expectedProps.data.forEach((file: FileDto) => {
-      name = getByText(file.path);
+      name = getByText(file.path.slice(1));
       expect(name).toBeVisible();
     });
   });

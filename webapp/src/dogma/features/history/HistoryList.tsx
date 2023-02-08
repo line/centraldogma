@@ -1,6 +1,6 @@
 import { PaginationState, createColumnHelper } from '@tanstack/react-table';
 import { HistoryDto } from 'dogma/features/history/HistoryDto';
-import { Badge, Box, HStack } from '@chakra-ui/react';
+import { Badge, Box, HStack, Text } from '@chakra-ui/react';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { useMemo, useState } from 'react';
@@ -34,6 +34,10 @@ const HistoryList = ({ projectName, repoName, handleTabChange, totalRevision }: 
           </ChakraLink>
         ),
         header: 'Revision',
+      }),
+      columnHelper.accessor((row: HistoryDto) => row.commitMessage.detail, {
+        cell: (info) => <Text>{info.getValue()}</Text>,
+        header: 'Detail',
       }),
       columnHelper.accessor((row: HistoryDto) => row.author.name, {
         cell: (info) => info.getValue(),

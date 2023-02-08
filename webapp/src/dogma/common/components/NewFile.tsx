@@ -1,3 +1,4 @@
+/* eslint-disable react/no-children-prop */
 import {
   Box,
   Button,
@@ -8,6 +9,8 @@ import {
   FormLabel,
   Heading,
   Input,
+  InputGroup,
+  InputLeftAddon,
   Radio,
   RadioGroup,
   Spacer,
@@ -16,7 +19,7 @@ import {
   VStack,
   useColorMode,
 } from '@chakra-ui/react';
-import { useAddNewFileMutation } from 'dogma/features/api/apiSlice';
+import { usePushFileChangesMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import { useAppDispatch } from 'dogma/store';
 import Router from 'next/router';
@@ -25,7 +28,7 @@ import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import Editor, { OnMount } from '@monaco-editor/react';
-import { useRef, useState } from 'react';
+import { ChangeEvent, KeyboardEvent, useRef, useState } from 'react';
 
 const FILE_PATH_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 
@@ -38,13 +41,14 @@ type FormData = {
 export const NewFile = ({
   projectName,
   repoName,
+  initialPrefixes,
 }: {
   projectName: string;
   repoName: string;
-  revision: string;
+  initialPrefixes: string[];
 }) => {
   const { colorMode } = useColorMode();
-  const [addNewFle, { isLoading }] = useAddNewFileMutation();
+  const [addNewFle, { isLoading }] = usePushFileChangesMutation();
   const {
     register,
     handleSubmit,
@@ -52,7 +56,9 @@ export const NewFile = ({
     formState: { errors },
   } = useForm<FormData>();
   const dispatch = useAppDispatch();
+  const [prefixes] = useState(initialPrefixes);
   const onSubmit = async (formData: FormData) => {
+    const path = `${prefixes.join('/')}/${formData.name}`;
     const data = {
       commitMessage: {
         summary: formData.summary,
@@ -61,7 +67,7 @@ export const NewFile = ({
       },
       changes: [
         {
-          path: '/' + formData.name, // TODO: Allow the actual path in the input form i.e. allow slash /
+          path: path.startsWith('/') ? path : `/${path}`,
           type: formData.name.endsWith('.json') ? 'UPSERT_JSON' : 'UPSERT_TEXT',
           content: editorRef.current.getValue(),
         },
@@ -72,7 +78,7 @@ export const NewFile = ({
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      Router.push(`/app/projects/${projectName}/repos/${repoName}/list/head/`);
+      Router.push(`/app/projects/${projectName}/repos/${repoName}/list/head${`/${prefixes.join('/')}`}`);
       reset();
       dispatch(
         createMessage({
@@ -96,6 +102,22 @@ export const NewFile = ({
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
   };
+  const [fileName, setFileName] = useState('');
+  const handleFileNameInput = (e: ChangeEvent<HTMLInputElement>) => {
+    setFileName(e.target.value);
+  };
+  const handleShortcut = (e: KeyboardEvent) => {
+    if (e.key === '/') {
+      e.preventDefault();
+      if (fileName) {
+        prefixes.push(fileName);
+      }
+      setFileName('');
+    } else if (e.key === 'Backspace' && !fileName.length && prefixes.length) {
+      e.preventDefault();
+      setFileName(prefixes.pop());
+    }
+  };
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Flex minWidth="max-content" alignItems="center" mb={4}>
@@ -105,12 +127,17 @@ export const NewFile = ({
         <VStack>
           <FormControl isInvalid={errors.name ? true : false} isRequired>
             <FormLabel>Path</FormLabel>
-            {/* TODO: Allow slash / in the file path/name, i.e.exclude this input from the document hotkey */}
-            <Input
-              type="text"
-              placeholder="my-file-name"
-              {...register('name', { pattern: FILE_PATH_PATTERN })}
-            />
+            <InputGroup>
+              <InputLeftAddon children={`/${prefixes.join('/')}`} />
+              <Input
+                type="text"
+                value={fileName}
+                placeholder="Type 1) a file name 2) a directory name and '/' key or 3) 'backspace' key to go one directory up."
+                {...register('name', { pattern: FILE_PATH_PATTERN })}
+                onChange={handleFileNameInput}
+                onKeyDown={handleShortcut}
+              />
+            </InputGroup>
             {errors.name && <FormErrorMessage>Invalid file name</FormErrorMessage>}
           </FormControl>
           <FormControl>
