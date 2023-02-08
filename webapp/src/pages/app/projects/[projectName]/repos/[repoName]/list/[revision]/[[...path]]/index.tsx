@@ -139,7 +139,7 @@ cat ${project}/${repo}${path}`;
           <TabPanel>
             <Flex>
               <Spacer />
-              <Link href={`/app/projects/${projectName}/repos/${repoName}/new_file/head`}>
+              <Link href={`/app/projects/${projectName}/repos/${repoName}/new_file/head${filePath}`}>
                 <Button size="sm" rightIcon={<AiOutlinePlus />} colorScheme="teal">
                   New File
                 </Button>

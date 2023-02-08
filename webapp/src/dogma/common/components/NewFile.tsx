@@ -41,10 +41,11 @@ type FormData = {
 export const NewFile = ({
   projectName,
   repoName,
+  initialPrefixes,
 }: {
   projectName: string;
   repoName: string;
-  revision: string;
+  initialPrefixes: string[];
 }) => {
   const { colorMode } = useColorMode();
   const [addNewFle, { isLoading }] = usePushFileChangesMutation();
@@ -55,7 +56,7 @@ export const NewFile = ({
     formState: { errors },
   } = useForm<FormData>();
   const dispatch = useAppDispatch();
-  const [prefixes] = useState([]);
+  const [prefixes] = useState(initialPrefixes);
   const onSubmit = async (formData: FormData) => {
     const path = `${prefixes.join('/')}/${formData.name}`;
     const data = {
@@ -77,7 +78,7 @@ export const NewFile = ({
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
         throw (response as { error: FetchBaseQueryError | SerializedError }).error;
       }
-      Router.push(`/app/projects/${projectName}/repos/${repoName}/list/head/`);
+      Router.push(`/app/projects/${projectName}/repos/${repoName}/list/head${`/${prefixes.join('/')}`}`);
       reset();
       dispatch(
         createMessage({
