@@ -71,7 +71,7 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
                                if (ra instanceof InetSocketAddress) {
                                    login.append('@').append(((InetSocketAddress) ra).getHostString());
                                }
-                               ctx.logBuilder().authenticatedUser(appId);
+                               ctx.logBuilder().authenticatedUser("app/" + appId);
                                AuthUtil.setCurrentUser(
                                        ctx, new UserWithToken(login.toString(), appToken));
                                res.complete(true);
