@@ -16,7 +16,7 @@ spring-boot2 = "2.7.4"
 sshd = "2.9.2"
 
 [boms]
-armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.21.0" }
+armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.22.0" }
 jackson = { module = "com.fasterxml.jackson:jackson-bom", version = "2.14.1" }
 junit5 = { module = "org.junit:junit-bom", version = "5.9.1" }
 
