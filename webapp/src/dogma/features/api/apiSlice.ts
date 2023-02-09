@@ -133,10 +133,11 @@ export const apiSlice = createApi({
     }),
     addNewToken: builder.mutation({
       query: ({ data }) => ({
-        url: `/v1/tokens?${data}`,
+        url: `/v1/tokens`,
         method: 'POST',
+        body: data,
         headers: {
-          'Content-type': 'application/json; charset=UTF-8',
+          'Content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
         },
       }),
       invalidatesTags: ['Token'],
@@ -152,7 +153,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Token'],
     }),
-    ActivateToken: builder.mutation({
+    activateToken: builder.mutation({
       query: ({ appId }) => ({
         url: `/v1/tokens/${appId}`,
         method: 'PATCH',
@@ -163,7 +164,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Token'],
     }),
-    DeleteToken: builder.mutation({
+    deleteToken: builder.mutation({
       query: ({ appId }) => ({
         url: `/v1/tokens/${appId}`,
         method: 'DELETE',

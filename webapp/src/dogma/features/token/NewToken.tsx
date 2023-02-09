@@ -1,5 +1,7 @@
 import {
   Button,
+  Checkbox,
+  Flex,
   FormControl,
   FormErrorMessage,
   FormLabel,
@@ -30,6 +32,7 @@ const APP_ID_PATTERN = /^[0-9A-Za-z](?:[-+_0-9A-Za-z\.]*[0-9A-Za-z])?$/;
 
 type FormData = {
   appId: string;
+  isAdmin: boolean;
 };
 
 export const NewToken = () => {
@@ -54,7 +57,7 @@ export const NewToken = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const onSubmit = async (formData: FormData) => {
-    const data = `appId=${formData.appId}&isAdmin=${user.roles.includes('ADMIN_USER')}`;
+    const data = `appId=${formData.appId}&isAdmin=${formData.isAdmin}`;
     try {
       const response = await addNewToken({ data }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
@@ -96,7 +99,7 @@ export const NewToken = () => {
           <PopoverArrow />
           <PopoverCloseButton />
           <form onSubmit={handleSubmit(onSubmit)}>
-            <PopoverBody minWidth="max-content">
+            <PopoverBody minWidth="md">
               <FormControl isInvalid={errors.appId ? true : false} isRequired>
                 <FormLabel>Application ID</FormLabel>
                 <Input
@@ -108,6 +111,14 @@ export const NewToken = () => {
                   <FormErrorMessage>The first/last character must be alphanumeric</FormErrorMessage>
                 )}
               </FormControl>
+              {user.roles.includes('ADMIN_USER') && (
+                <Flex mt={4}>
+                  <Spacer />
+                  <Checkbox colorScheme="teal" {...register('isAdmin')}>
+                    Administrator-Level Token
+                  </Checkbox>
+                </Flex>
+              )}
             </PopoverBody>
             <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
               <Spacer />
