@@ -192,19 +192,19 @@ class PermissionTest {
     private static Stream<Arguments> arguments() {
         return Stream.of(
                 Arguments.of(
-                        APP_ID_1, SECRET_1,
+                        "app/" + APP_ID_1, SECRET_1,
                         "project1", ProjectRole.OWNER, "repo1", READ_WRITE,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
-                        APP_ID_2, SECRET_2,
+                        "app/" + APP_ID_2, SECRET_2,
                         "project1", ProjectRole.MEMBER, "repo1", READ_ONLY,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
-                        APP_ID_3, SECRET_3,
+                        "app/" + APP_ID_3, SECRET_3,
                         "project1", ProjectRole.GUEST, "repo1", NO_PERMISSION,
                         HttpStatus.FORBIDDEN),
                 Arguments.of(
-                        APP_ID_1, SECRET_1,
+                        "app/" + APP_ID_1, SECRET_1,
                         "project2", ProjectRole.GUEST, "repo1", NO_PERMISSION,
                         HttpStatus.NOT_FOUND),
                 Arguments.of(
