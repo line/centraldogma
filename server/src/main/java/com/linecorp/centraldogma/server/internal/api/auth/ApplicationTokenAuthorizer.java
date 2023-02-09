@@ -65,12 +65,13 @@ public class ApplicationTokenAuthorizer implements Authorizer<HttpRequest> {
         tokenLookupFunc.apply(token.accessToken())
                        .thenAccept(appToken -> {
                            if (appToken != null && appToken.isActive()) {
-                               final StringBuilder login = new StringBuilder(appToken.appId());
+                               final String appId = appToken.appId();
+                               final StringBuilder login = new StringBuilder(appId);
                                final SocketAddress ra = ctx.remoteAddress();
                                if (ra instanceof InetSocketAddress) {
                                    login.append('@').append(((InetSocketAddress) ra).getHostString());
                                }
-
+                               ctx.logBuilder().authenticatedUser(appId);
                                AuthUtil.setCurrentUser(
                                        ctx, new UserWithToken(login.toString(), appToken));
                                res.complete(true);

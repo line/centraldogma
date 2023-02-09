@@ -56,7 +56,6 @@ dependencies {
     // Logging
     optionalImplementation libs.logback
     optionalImplementation libs.slf4j.jul.to.slf4j
-    testImplementation libs.armeria.logback
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer

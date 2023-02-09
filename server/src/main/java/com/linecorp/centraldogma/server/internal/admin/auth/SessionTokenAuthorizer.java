@@ -62,6 +62,7 @@ public class SessionTokenAuthorizer implements Authorizer<HttpRequest> {
                                  final List<String> roles = administrators.contains(username) ? LEVEL_ADMIN
                                                                                               : LEVEL_USER;
                                  final User user = new User(username, roles);
+                                 ctx.logBuilder().authenticatedUser(username);
                                  AuthUtil.setCurrentUser(ctx, user);
                                  return true;
                              });
