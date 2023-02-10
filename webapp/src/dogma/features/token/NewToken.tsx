@@ -111,7 +111,7 @@ export const NewToken = () => {
                   <FormErrorMessage>The first/last character must be alphanumeric</FormErrorMessage>
                 )}
               </FormControl>
-              {user.roles.includes('ADMIN_USER') && (
+              {user.roles.includes('LEVEL_ADMIN') && (
                 <Flex mt={4}>
                   <Spacer />
                   <Checkbox colorScheme="teal" {...register('isAdmin')}>
