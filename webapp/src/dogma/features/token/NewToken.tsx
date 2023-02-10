@@ -57,7 +57,7 @@ export const NewToken = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const onSubmit = async (formData: FormData) => {
-    const data = `appId=${formData.appId}&isAdmin=${formData.isAdmin}`;
+    const data = `appId=${formData.appId}&isAdmin=${formData.isAdmin || false}`;
     try {
       const response = await addNewToken({ data }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
