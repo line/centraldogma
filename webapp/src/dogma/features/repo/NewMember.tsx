@@ -20,6 +20,7 @@ import {
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
+import { ConfirmAddMember } from './ConfirmAddMember';
 import { useState } from 'react';
 
 type FormData = {
@@ -80,7 +81,14 @@ export const NewMember = ({ projectName }: { projectName: string }) => {
           </PopoverBody>
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
-            TODO
+            <ConfirmAddMember
+              projectName={projectName}
+              id={id}
+              role={role}
+              isOpen={isConfirmAddOpen}
+              onClose={onConfirmAddClose}
+              resetForm={reset}
+            />
           </PopoverFooter>
         </form>
       </PopoverContent>
