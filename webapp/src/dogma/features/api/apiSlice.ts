@@ -131,6 +131,49 @@ export const apiSlice = createApi({
       query: () => '/v1/tokens',
       providesTags: ['Token'],
     }),
+    addNewToken: builder.mutation({
+      query: ({ data }) => ({
+        url: `/v1/tokens`,
+        method: 'POST',
+        body: data,
+        headers: {
+          'Content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Token'],
+    }),
+    deactivateToken: builder.mutation({
+      query: ({ appId }) => ({
+        url: `/v1/tokens/${appId}`,
+        method: 'PATCH',
+        body: [{ op: 'replace', path: '/status', value: 'inactive' }],
+        headers: {
+          'Content-type': 'application/json-patch+json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Token'],
+    }),
+    activateToken: builder.mutation({
+      query: ({ appId }) => ({
+        url: `/v1/tokens/${appId}`,
+        method: 'PATCH',
+        body: [{ op: 'replace', path: '/status', value: 'active' }],
+        headers: {
+          'Content-type': 'application/json-patch+json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Token'],
+    }),
+    deleteToken: builder.mutation({
+      query: ({ appId }) => ({
+        url: `/v1/tokens/${appId}`,
+        method: 'DELETE',
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Token'],
+    }),
   }),
 });
 
@@ -138,6 +181,10 @@ export const {
   useAddNewProjectMutation,
   useAddNewRepoMutation,
   usePushFileChangesMutation,
+  useAddNewTokenMutation,
+  useDeactivateTokenMutation,
+  useActivateTokenMutation,
+  useDeleteTokenMutation,
   useGetProjectsQuery,
   useGetMetadataByProjectNameQuery,
   useGetReposByProjectNameQuery,
