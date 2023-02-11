@@ -21,6 +21,7 @@ export type CommitFormProps = {
   readOnly: boolean;
   setReadOnly: (readOnly: boolean) => void;
   switchMode: () => void;
+  handleTabChange: (index: number) => void;
 };
 
 export const CommitForm = ({
@@ -32,6 +33,7 @@ export const CommitForm = ({
   readOnly,
   setReadOnly,
   switchMode,
+  handleTabChange,
 }: CommitFormProps) => {
   const [updateFile, { isLoading }] = usePushFileChangesMutation();
   const { register, handleSubmit, reset } = useForm<FormData>();
@@ -50,6 +52,20 @@ export const CommitForm = ({
         },
       ],
     };
+    if (name.endsWith('.json')) {
+      try {
+        JSON.parse(content);
+      } catch (error) {
+        dispatch(
+          createMessage({
+            title: `Failed to format json content.`,
+            text: ErrorHandler.handle(error),
+            type: 'error',
+          }),
+        );
+        return;
+      }
+    }
     try {
       const response = await updateFile({ projectName, repoName, data }).unwrap();
       if ((response as { error: FetchBaseQueryError | SerializedError }).error) {
@@ -64,6 +80,7 @@ export const CommitForm = ({
       );
       setReadOnly(true);
       reset();
+      handleTabChange(0);
     } catch (error) {
       dispatch(
         createMessage({
