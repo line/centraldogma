@@ -13,7 +13,7 @@ export type RepoListProps<Data extends object> = {
   projectName: string;
 };
 
-const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data>) => {
+const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<Data>) => {
   const columnHelper = createColumnHelper<RepoPermissionDetailDto>();
   const columns = useMemo(
     () => [
@@ -72,4 +72,4 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
   return <DataTableClientPagination columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
-export default RepoList;
+export default RepoMetaList;
