@@ -61,7 +61,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Project', 'Repo', 'File', 'Token'],
+  tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token'],
   endpoints: (builder) => ({
     getProjects: builder.query<ProjectDto[], void>({
       query: () => '/v1/projects',
@@ -78,10 +78,42 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Project'],
     }),
+    deleteProject: builder.mutation({
+      query: ({ projectName }) => ({
+        url: `/v1/projects/${projectName}`,
+        method: 'DELETE',
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Project'],
+    }),
     getMetadataByProjectName: builder.query<ProjectMetadataDto, string>({
       query: (projectName) => `/v1/projects/${projectName}`,
+      providesTags: ['Repo', 'Metadata'],
     }),
-    getReposByProjectName: builder.query<RepoDto[], string>({
+    addNewMember: builder.mutation({
+      query: ({ projectName, id, role }) => ({
+        url: `/v1/metadata/${projectName}/members`,
+        method: 'POST',
+        body: { id, role: role.toUpperCase() },
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    deleteMember: builder.mutation({
+      query: ({ projectName, id }) => ({
+        url: `/v1/metadata/${projectName}/members/${id}`,
+        method: 'DELETE',
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    getRepos: builder.query<RepoDto[], string>({
       query: (projectName) => `/v1/projects/${projectName}/repos`,
       providesTags: ['Repo'],
     }),
@@ -92,6 +124,27 @@ export const apiSlice = createApi({
         body: data,
         headers: {
           'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Repo'],
+    }),
+    deleteRepo: builder.mutation({
+      query: ({ projectName, repoName }) => ({
+        url: `/v1/projects/${projectName}/repos/${repoName}`,
+        method: 'DELETE',
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Repo'],
+    }),
+    restoreRepo: builder.mutation({
+      query: ({ projectName, repoName }) => ({
+        url: `/v1/projects/${projectName}/repos/${repoName}`,
+        method: 'PATCH',
+        body: [{ op: 'replace', path: '/status', value: 'active' }],
+        headers: {
+          'Content-type': 'application/json-patch+json; charset=UTF-8',
         },
       }),
       invalidatesTags: ['Repo'],
@@ -178,19 +231,30 @@ export const apiSlice = createApi({
 });
 
 export const {
+  // Project
+  useGetProjectsQuery,
   useAddNewProjectMutation,
+  useDeleteProjectMutation,
+  // Metadata
+  useGetMetadataByProjectNameQuery,
+  useAddNewMemberMutation,
+  useDeleteMemberMutation,
+  // Repo
+  useGetReposQuery,
   useAddNewRepoMutation,
-  usePushFileChangesMutation,
+  useDeleteRepoMutation,
+  useRestoreRepoMutation,
+  // Token
+  useGetTokensQuery,
   useAddNewTokenMutation,
   useDeactivateTokenMutation,
   useActivateTokenMutation,
   useDeleteTokenMutation,
-  useGetProjectsQuery,
-  useGetMetadataByProjectNameQuery,
-  useGetReposByProjectNameQuery,
+  // File
   useGetFilesQuery,
   useGetFileContentQuery,
+  usePushFileChangesMutation,
+  // History
   useGetHistoryQuery,
   useGetNormalisedRevisionQuery,
-  useGetTokensQuery,
 } = apiSlice;

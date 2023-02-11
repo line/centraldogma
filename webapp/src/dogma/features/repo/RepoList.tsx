@@ -1,12 +1,9 @@
-import { DeleteIcon } from '@chakra-ui/icons';
-import { Wrap, WrapItem, Button, Box, HStack } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
-import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
+import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { RepoDto } from 'dogma/features/repo/RepoDto';
 import { useMemo } from 'react';
-import { RiGitRepositoryFill } from 'react-icons/ri';
 
 export type RepoListProps<Data extends object> = {
   data: Data[];
@@ -23,12 +20,7 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
             fontWeight={'semibold'}
             href={`/app/projects/${projectName}/repos/${info.getValue()}/list/head`}
           >
-            <HStack>
-              <Box>
-                <RiGitRepositoryFill />
-              </Box>
-              <Box>{info.getValue()}</Box>
-            </HStack>
+            {info.getValue()}
           </ChakraLink>
         ),
         header: 'Name',
@@ -49,23 +41,10 @@ const RepoList = <Data extends object>({ data, projectName }: RepoListProps<Data
           isNumeric: true,
         },
       }),
-      columnHelper.accessor((row: RepoDto) => row.name, {
-        cell: () => (
-          <Wrap>
-            <WrapItem>
-              <Button leftIcon={<DeleteIcon />} colorScheme="red" size="sm">
-                Delete
-              </Button>
-            </WrapItem>
-          </Wrap>
-        ),
-        header: 'Actions',
-        enableSorting: false,
-      }),
     ],
     [columnHelper, projectName],
   );
-  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />;
+  return <DataTableClientPagination columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
 export default RepoList;

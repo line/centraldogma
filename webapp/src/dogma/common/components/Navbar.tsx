@@ -41,7 +41,7 @@ import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } from 'chakra-react-select';
 import { RxSlash } from 'react-icons/rx';
-import { NewProject } from 'dogma/common/components/NewProject';
+import { NewProject } from 'dogma/features/project/NewProject';
 
 interface TopMenu {
   name: string;

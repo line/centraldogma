@@ -31,7 +31,7 @@ type FormData = {
   name: string;
 };
 
-export const NewRepository = ({ projectName }: { projectName: string }) => {
+export const NewRepo = ({ projectName }: { projectName: string }) => {
   const [addNewRepo, { isLoading }] = useAddNewRepoMutation();
   const {
     register,
@@ -70,7 +70,7 @@ export const NewRepository = ({ projectName }: { projectName: string }) => {
   return (
     <Popover placement="bottom" isOpen={isOpen} onClose={onClose}>
       <PopoverTrigger>
-        <Button size="sm" onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
+        <Button colorScheme="teal" size="sm" onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
           New Repository
         </Button>
       </PopoverTrigger>
