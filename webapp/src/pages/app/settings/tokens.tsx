@@ -1,13 +1,16 @@
-import { Badge, Box, Button, Flex, Heading, Spacer, Text, Wrap } from '@chakra-ui/react';
+import { Badge, Box, Flex, Heading, Spacer, Text, Wrap } from '@chakra-ui/react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
-import { NewToken } from 'dogma/common/components/NewToken';
-import { SecretWrapper } from 'dogma/common/components/SecretWrapper';
+import { NewToken } from 'dogma/features/token/NewToken';
+import { SecretWrapper } from 'dogma/features/token/SecretWrapper';
 import { UserRole } from 'dogma/common/components/UserRole';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { useGetTokensQuery } from 'dogma/features/api/apiSlice';
 import { TokenDto } from 'dogma/features/token/TokenDto';
 import { useMemo } from 'react';
+import { DeactivateToken } from 'dogma/features/token/DeactivateToken';
+import { ActivateToken } from 'dogma/features/token/ActivateToken';
+import { DeleteToken } from 'dogma/features/token/DeleteToken';
 
 const TokenPage = () => {
   const columnHelper = createColumnHelper<TokenDto>();
@@ -45,15 +48,9 @@ const TokenPage = () => {
       columnHelper.accessor((row: TokenDto) => row.deactivation, {
         cell: (info) => (
           <Wrap>
-            <Button size="sm" colorScheme="blue" hidden={info.getValue() === undefined} variant="ghost">
-              Activate
-            </Button>
-            <Button size="sm" hidden={info.getValue() !== undefined} variant="ghost">
-              Deactivate
-            </Button>
-            <Button size="sm" colorScheme="red" variant="ghost">
-              Delete
-            </Button>
+            <ActivateToken appId={info.row.original.appId} hidden={info.getValue() === undefined} />
+            <DeactivateToken appId={info.row.original.appId} hidden={info.getValue() !== undefined} />
+            <DeleteToken appId={info.row.original.appId} hidden={info.getValue() === undefined} />
           </Wrap>
         ),
         header: 'Actions',
