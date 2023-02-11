@@ -1,17 +1,16 @@
-import { DeleteIcon } from '@chakra-ui/icons';
-import { Button } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { UserRole } from 'dogma/common/components/UserRole';
-import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
+import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { RepoMemberDetailDto } from 'dogma/features/repo/RepoMemberDto';
 import { useMemo } from 'react';
 
 export type RepoMemberListProps<Data extends object> = {
   data: Data[];
+  projectName: string;
 };
 
-const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>) => {
+const RepoMemberList = <Data extends object>({ data, projectName }: RepoMemberListProps<Data>) => {
   const columnHelper = createColumnHelper<RepoMemberDetailDto>();
   const columns = useMemo(
     () => [
@@ -31,19 +30,10 @@ const RepoMemberList = <Data extends object>({ data }: RepoMemberListProps<Data>
         cell: (info) => <DateWithTooltip date={info.getValue()} />,
         header: 'Added At',
       }),
-      columnHelper.accessor((row: RepoMemberDetailDto) => row.login, {
-        cell: () => (
-          <Button leftIcon={<DeleteIcon />} size="sm" colorScheme="red">
-            Delete
-          </Button>
-        ),
-        header: 'Actions',
-        enableSorting: false,
-      }),
     ],
     [columnHelper],
   );
-  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />;
+  return <DataTableClientPagination columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
 export default RepoMemberList;
