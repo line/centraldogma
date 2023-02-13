@@ -1,3 +1,4 @@
+import { Text, VStack } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { UserRole } from 'dogma/common/components/UserRole';
@@ -16,12 +17,15 @@ const RepoMemberList = <Data extends object>({ data, projectName }: RepoMemberLi
   const columns = useMemo(
     () => [
       columnHelper.accessor((row: RepoMemberDetailDto) => row.login, {
-        cell: (info) => info.getValue(),
+        cell: (info) => (
+          <VStack alignItems="left">
+            <Text>{info.getValue()}</Text>
+            <Text>
+              <UserRole role={info.row.original.role} />
+            </Text>
+          </VStack>
+        ),
         header: 'Login ID',
-      }),
-      columnHelper.accessor((row: RepoMemberDetailDto) => row.role, {
-        cell: (info) => <UserRole role={info.getValue()} />,
-        header: 'Role',
       }),
       columnHelper.accessor((row: RepoMemberDetailDto) => row.creation.user, {
         cell: (info) => info.getValue(),
