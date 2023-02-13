@@ -24,6 +24,7 @@ import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { TokenDto } from 'dogma/features/token/TokenDto';
+import { DeleteRepoMemberDto } from 'dogma/features/repo/DeleteRepoMemberDto';
 
 export type GetHistory = {
   projectName: string;
@@ -103,7 +104,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteMember: builder.mutation({
+    deleteMember: builder.mutation<void, DeleteRepoMemberDto>({
       query: ({ projectName, id }) => ({
         url: `/v1/metadata/${projectName}/members/${id}`,
         method: 'DELETE',

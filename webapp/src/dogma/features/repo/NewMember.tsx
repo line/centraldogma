@@ -42,7 +42,7 @@ export const NewMember = ({ projectName }: { projectName: string }) => {
     onClose: onConfirmAddClose,
   } = useDisclosure();
   const [id, setId] = useState('');
-  const [role, setRole] = useState('');
+  const [role, setRole] = useState('member');
   const onSubmit = async (data: FormData) => {
     setId(data.id);
     onConfirmAddToggle();
