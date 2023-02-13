@@ -37,9 +37,9 @@ const ProjectDetailPage = () => {
   }
   return (
     <Box p="2">
-      <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0]} suffixes={{ 4: '/list/head' }} />
+      <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0, 2]} suffixes={{ 4: '/list/head' }} />
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">Project {projectName}</Heading>
+        <Heading size="lg">Project {projectName} - Metadata</Heading>
       </Flex>
       <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={switchTab}>
         <TabList>

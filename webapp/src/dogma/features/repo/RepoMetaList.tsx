@@ -39,7 +39,6 @@ const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<
         cell: (info) => <DateWithTooltip date={info.getValue()} />,
         header: 'Created',
       }),
-      // TODO: Show the commit message of HEAD revision
       columnHelper.accessor((row: RepoPermissionDetailDto) => row.removal, {
         cell: (info) => (
           <Badge colorScheme={info.getValue() ? 'gray' : 'blue'}>

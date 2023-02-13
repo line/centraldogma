@@ -49,7 +49,7 @@ export const Projects = () => {
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
         cell: (info) => (
-          <ChakraLink href={`/app/projects/${info.getValue()}/metadata`}>
+          <ChakraLink href={`/app/projects/metadata/${info.getValue()}`}>
             <IconButton icon={<FcSettings />} variant="ghost" colorScheme="teal" aria-label="metadata" />
           </ChakraLink>
         ),
