@@ -45,7 +45,6 @@ export const NewMember = ({ projectName }: { projectName: string }) => {
   const [role, setRole] = useState('');
   const onSubmit = async (data: FormData) => {
     setId(data.id);
-    setRole(data.role);
     onConfirmAddToggle();
   };
   return (
@@ -68,12 +67,12 @@ export const NewMember = ({ projectName }: { projectName: string }) => {
               <Input type="text" placeholder="abc123" {...register('id', { required: true })} />
               {errors.id && <FormErrorMessage>ID is required</FormErrorMessage>}
             </FormControl>
-            <RadioGroup defaultValue="member" mt={3}>
+            <RadioGroup defaultValue="member" mt={3} onChange={setRole} value={role}>
               <Stack spacing={5} direction="row">
-                <Radio colorScheme="teal" key="member" value="member" {...register('role')}>
+                <Radio colorScheme="teal" key="member" value="member">
                   Member
                 </Radio>
-                <Radio colorScheme="teal" key="owner" value="owner" {...register('role')}>
+                <Radio colorScheme="teal" key="owner" value="owner">
                   Owner
                 </Radio>
               </Stack>
