@@ -1,4 +1,4 @@
-import { Wrap, Box, Text, Badge } from '@chakra-ui/react';
+import { Wrap, Box, Badge, VStack } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
@@ -18,17 +18,24 @@ const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<
   const columns = useMemo(
     () => [
       columnHelper.accessor((row: RepoPermissionDetailDto) => row.name, {
-        cell: (info) =>
-          info.row.original.removal ? (
-            <Text>{info.getValue()}</Text>
-          ) : (
-            <ChakraLink
-              fontWeight={'semibold'}
-              href={`/app/projects/${projectName}/repos/${info.getValue()}/list/head`}
-            >
-              <Box>{info.getValue()}</Box>
-            </ChakraLink>
-          ),
+        cell: (info) => (
+          <VStack alignItems="left">
+            {info.row.original.removal ? (
+              <Box>
+                <Box>{info.getValue()}</Box>
+                <Badge>Inactive</Badge>
+              </Box>
+            ) : (
+              <ChakraLink
+                fontWeight={'semibold'}
+                href={`/app/projects/${projectName}/repos/${info.getValue()}/list/head`}
+              >
+                <Box>{info.getValue()}</Box>
+                <Badge colorScheme="blue">Active</Badge>
+              </ChakraLink>
+            )}
+          </VStack>
+        ),
         header: 'Name',
       }),
       columnHelper.accessor((row: RepoPermissionDetailDto) => row.creation.user, {
@@ -38,14 +45,6 @@ const RepoMetaList = <Data extends object>({ data, projectName }: RepoListProps<
       columnHelper.accessor((row: RepoPermissionDetailDto) => row.creation.timestamp, {
         cell: (info) => <DateWithTooltip date={info.getValue()} />,
         header: 'Created',
-      }),
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.removal, {
-        cell: (info) => (
-          <Badge colorScheme={info.getValue() ? 'gray' : 'blue'}>
-            {info.getValue() ? 'Inactive' : 'Active'}
-          </Badge>
-        ),
-        header: 'Status',
       }),
       columnHelper.accessor((row: RepoPermissionDetailDto) => row.name, {
         cell: (info) => (
