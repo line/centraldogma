@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.linecorp.armeria.client.WebClient;
@@ -152,6 +153,30 @@ class ContentServiceV1Test {
         final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(res.contentUtf8()).contains(InvalidPushException.class.getName());
+    }
+
+    @Test
+    void pushInvalidJson() {
+        final WebClient client = dogma.httpClient();
+
+        // An invalid JSON containing a trailing comma.
+        final String body =
+                '{' +
+                "   \"path\" : \"/invalid.json\"," +
+                "   \"type\" : \"UPSERT_JSON\"," +
+                "   \"content\" : {\"trailing\": \"comma\", }," +
+                "   \"commitMessage\" : {" +
+                "       \"summary\" : \"Add invalid.json\"," +
+                "       \"detail\": \"An invalid JSON must be rejected.\"," +
+                "       \"markup\": \"PLAINTEXT\"" +
+                "   }" +
+                '}';
+        final RequestHeaders headers =
+                RequestHeaders.of(HttpMethod.POST, "/api/v1/projects/myPro/repos/myRepo/contents",
+                                  HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
+        final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
+        assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(res.contentUtf8()).contains(JsonParseException.class.getName());
     }
 
     @Nested

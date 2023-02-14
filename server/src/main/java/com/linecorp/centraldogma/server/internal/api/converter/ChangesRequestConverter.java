@@ -89,7 +89,9 @@ public final class ChangesRequestConverter implements RequestConverterFunction {
             return Change.ofTextUpsert(path, node.get("content").textValue());
         }
         if (changeType == ChangeType.UPSERT_JSON) {
-            return Change.ofJsonUpsert(path, node.get("content"));
+            // ofJsonUpsert() parses the text value of the context as JSON.
+            // An invalid JSON will be rejected with JsonParseException.
+            return Change.ofJsonUpsert(path, node.get("content").textValue());
         }
         if (changeType == ChangeType.REMOVE) {
             return Change.ofRemoval(path);
