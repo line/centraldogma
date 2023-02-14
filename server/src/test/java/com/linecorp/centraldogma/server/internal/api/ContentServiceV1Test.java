@@ -45,6 +45,7 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.common.ChangeConflictException;
+import com.linecorp.centraldogma.common.ChangeFormatException;
 import com.linecorp.centraldogma.common.InvalidPushException;
 import com.linecorp.centraldogma.common.RedundantChangeException;
 import com.linecorp.centraldogma.internal.Jackson;
@@ -164,7 +165,7 @@ class ContentServiceV1Test {
                 '{' +
                 "   \"path\" : \"/invalid.json\"," +
                 "   \"type\" : \"UPSERT_JSON\"," +
-                "   \"content\" : {\"trailing\": \"comma\", }," +
+                "   \"content\" : \"{\\\"trailing\\\": \\\"comma\\\", }\"," +
                 "   \"commitMessage\" : {" +
                 "       \"summary\" : \"Add invalid.json\"," +
                 "       \"detail\": \"An invalid JSON must be rejected.\"," +
@@ -176,7 +177,7 @@ class ContentServiceV1Test {
                                   HttpHeaderNames.CONTENT_TYPE, MediaType.JSON);
         final AggregatedHttpResponse res = client.execute(headers, body).aggregate().join();
         assertThat(res.status()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(res.contentUtf8()).contains(JsonParseException.class.getName());
+        assertThat(res.contentUtf8()).contains(ChangeFormatException.class.getName());
     }
 
     @Nested
