@@ -28,7 +28,7 @@ jobs:
 
       - name: Build with Gradle
         run: |
-          ./gradlew --no-daemon --stacktrace build
+          ./gradlew --no-daemon --stacktrace build -PflakyTests=false
 
       - name: Publish and close repository
         run: |

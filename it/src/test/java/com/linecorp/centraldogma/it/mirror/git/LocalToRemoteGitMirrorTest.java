@@ -20,8 +20,6 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.linecorp.centraldogma.it.mirror.git.GitMirrorTest.addToGitIndex;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_COMMIT_SECTION;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_GPGSIGN;
 import static org.eclipse.jgit.lib.Constants.R_HEADS;
 
 import java.io.File;
@@ -38,10 +36,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
-import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -67,7 +62,6 @@ import com.linecorp.centraldogma.server.MirroringService;
 import com.linecorp.centraldogma.server.internal.mirror.MirrorState;
 import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
-import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
 
@@ -100,7 +94,7 @@ class LocalToRemoteGitMirrorTest {
     }
 
     @RegisterExtension
-    final TemporaryFolderExtension gitRepoDir = new TemporaryFolderExtension() {
+    static final TemporaryGitRepoExtension gitExtension = new TemporaryGitRepoExtension() {
         @Override
         protected boolean runForEachTest() {
             return true;
@@ -114,28 +108,10 @@ class LocalToRemoteGitMirrorTest {
     private String projName;
 
     @BeforeEach
-    void initGitRepo(TestInfo testInfo) throws Exception {
-        final String repoName = TestUtil.normalizedDisplayName(testInfo);
-        gitWorkTree = new File(gitRepoDir.getRoot().toFile(), repoName).getAbsoluteFile();
-        final Repository gitRepo = new FileRepositoryBuilder().setWorkTree(gitWorkTree).build();
-        createGitRepo(gitRepo);
-
-        git = Git.wrap(gitRepo);
-        gitUri = "git+file://" +
-                 (gitWorkTree.getPath().startsWith(File.separator) ? "" : '/') +
-                 gitWorkTree.getPath().replace(File.separatorChar, '/') +
-                 "/.git";
-        // Start the master branch with an empty commit.
-        git.commit().setMessage("Initial commit").call();
-    }
-
-    private static void createGitRepo(Repository gitRepo) throws IOException {
-        gitRepo.create();
-
-        // Disable GPG signing.
-        final StoredConfig config = gitRepo.getConfig();
-        config.setBoolean(CONFIG_COMMIT_SECTION, null, CONFIG_KEY_GPGSIGN, false);
-        config.save();
+    void initGitRepo() throws Exception {
+        gitWorkTree = gitExtension.gitWorkTree();
+        git = gitExtension.git();
+        gitUri = gitExtension.fileUri();
     }
 
     @BeforeEach
@@ -247,27 +223,6 @@ class LocalToRemoteGitMirrorTest {
         // The arbitrarily changed file is overwritten.
         assertThat(Jackson.writeValueAsString(Jackson.readTree(
                 getFileContent(commitId7, remotePath + "/bar/foo.json")))).isEqualTo("{\"a\":\"c\"}");
-    }
-
-    @Nullable
-    private byte[] getFileContent(ObjectId commitId, String fileName) throws IOException {
-        try (ObjectReader reader = git.getRepository().newObjectReader();
-             TreeWalk treeWalk = new TreeWalk(reader);
-             RevWalk revWalk = new RevWalk(reader)) {
-            treeWalk.addTree(revWalk.parseTree(commitId).getId());
-
-            while (treeWalk.next()) {
-                if (treeWalk.getFileMode() == FileMode.TREE) {
-                    treeWalk.enterSubtree();
-                    continue;
-                }
-                if (fileName.equals('/' + treeWalk.getPathString())) {
-                    final ObjectId objectId = treeWalk.getObjectId(0);
-                    return reader.open(objectId).getBytes();
-                }
-            }
-        }
-        return null;
     }
 
     @ParameterizedTest
@@ -522,5 +477,9 @@ class LocalToRemoteGitMirrorTest {
                 Entry.ofJson(new Revision(3), "/foo.json", "{\"a\":\"foo\"}"));
 
         assertThat(entries.get("/mirror_state.json")).isNotNull();
+    }
+
+    byte[] getFileContent(ObjectId commitId, String fileName) throws IOException {
+        return GitTestUtil.getFileContent(git, commitId, fileName);
     }
 }

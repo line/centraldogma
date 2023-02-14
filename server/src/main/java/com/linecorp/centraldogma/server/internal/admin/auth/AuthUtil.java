@@ -33,11 +33,11 @@ import io.netty.util.AttributeKey;
 public final class AuthUtil {
 
     @VisibleForTesting
-    public static final AttributeKey<User> CURRENT_USER_KEY =
+    public static final AttributeKey<User> CURRENT_USER =
             AttributeKey.valueOf(AuthUtil.class, "CURRENT_USER");
 
     public static Author currentAuthor(ServiceRequestContext ctx) {
-        final User user = ctx.attr(CURRENT_USER_KEY);
+        final User user = ctx.attr(CURRENT_USER);
         assert user != null;
         return user == User.DEFAULT ? Author.DEFAULT
                                     : new Author(user.name(), user.email());
@@ -48,7 +48,7 @@ public final class AuthUtil {
     }
 
     public static User currentUser(ServiceRequestContext ctx) {
-        return ctx.attr(CURRENT_USER_KEY);
+        return ctx.attr(CURRENT_USER);
     }
 
     public static User currentUser() {
@@ -58,7 +58,7 @@ public final class AuthUtil {
     public static void setCurrentUser(ServiceRequestContext ctx, User currentUser) {
         requireNonNull(ctx, "ctx");
         requireNonNull(currentUser, "currentUser");
-        ctx.setAttr(CURRENT_USER_KEY, currentUser);
+        ctx.setAttr(CURRENT_USER, currentUser);
     }
 
     private AuthUtil() {}

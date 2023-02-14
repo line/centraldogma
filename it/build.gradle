@@ -5,6 +5,7 @@ dependencies {
     testImplementation libs.jsch
 
     testImplementation libs.curator.test
+    testImplementation libs.sshd
 
     testImplementation project(':testing-internal')
     testImplementation project(':server-auth:shiro')

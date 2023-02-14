@@ -421,6 +421,7 @@ public final class GitMirror extends AbstractMirror {
         final ObjectId commitId = fetchResult.getAdvertisedRef(headBranchRefName).getObjectId();
         final RefUpdate refUpdate = git.getRepository().updateRef(headBranchRefName);
         refUpdate.setNewObjectId(commitId);
+        refUpdate.setForceUpdate(true);
         refUpdate.update();
         return commitId;
     }

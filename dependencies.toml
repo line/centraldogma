@@ -6,22 +6,23 @@
 curator = "5.3.0"
 guava = "31.1-jre"
 jgit = "5.13.0.202109080827-r"
-json-unit = "2.35.0"
-jmh = "1.35"
-micrometer = "1.9.4"
-mockito = "4.8.0"
+json-unit = "2.36.0"
+jmh = "1.36"
+micrometer = "1.10.3"
+mockito = "4.11.0"
 slf4j = "1.7.36"
 spring-boot1 = "1.5.22.RELEASE"
-spring-boot2 = "2.7.4"
+spring-boot2 = "2.7.8"
+sshd = "2.9.2"
 
 [boms]
-armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.20.3" }
-jackson = { module = "com.fasterxml.jackson:jackson-bom", version = "2.13.4" }
-junit5 = { module = "org.junit:junit-bom", version = "5.9.1" }
+armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.22.0" }
+jackson = { module = "com.fasterxml.jackson:jackson-bom", version = "2.14.2" }
+junit5 = { module = "org.junit:junit-bom", version = "5.9.2" }
 
 [libraries.armeria]
 module = "com.linecorp.armeria:armeria"
-javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.19.0/"
+javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.22.0/"
 [libraries.armeria-junit5]
 module = "com.linecorp.armeria:armeria-junit5"
 [libraries.armeria-logback]
@@ -33,7 +34,7 @@ module = "com.linecorp.armeria:armeria-thrift0.9"
 
 [libraries.assertj]
 module = "org.assertj:assertj-core"
-version = "3.23.1"
+version = "3.24.2"
 
 [libraries.awaitility]
 module = "org.awaitility:awaitility"
@@ -65,6 +66,7 @@ exclusions = "org.apache.zookeeper:zookeeper"
 [libraries.curator-test]
 module = "org.apache.curator:curator-test"
 version.ref = "curator"
+exclusions = "org.apache.zookeeper:zookeeper"
 
 [libraries.diffutils]
 module = "com.googlecode.java-diff-utils:diffutils"
@@ -109,7 +111,7 @@ version = "2.2"
 # Need to wait for spring boot 3 before upgrading to 7.x.x
 [libraries.hibernate-validator]
 module = "org.hibernate.validator:hibernate-validator"
-version = "6.2.3.Final"
+version = "6.2.5.Final"
 
 [libraries.jackson-annotations]
 module = "com.fasterxml.jackson.core:jackson-annotations"
@@ -283,6 +285,9 @@ version.ref = "spring-boot2"
 module = "com.github.sbrannen:spring-test-junit5"
 version = "1.5.0"
 
+[libraries.sshd]
+module = "org.apache.sshd:sshd-git"
+version.ref = "sshd"
 
 [libraries.thrift09]
 module = "org.apache.thrift:libthrift"
@@ -302,10 +307,10 @@ exclusions = [
 
 [plugins]
 docker = { id = "com.bmuschko.docker-remote-api", version = "6.7.0" }
-download = { id = "de.undercouch.download", version = "5.2.1" }
+download = { id = "de.undercouch.download", version = "5.3.1" }
 jmh = { id = "me.champeau.jmh", version = "0.6.8" }
 jxr = { id = "net.davidecavestro.gradle.jxr", version = "0.2.1" }
 nexus-publish = { id = "io.github.gradle-nexus.publish-plugin", version = "1.1.0" }
-node-gradle = { id = "com.github.node-gradle.node", version = "3.4.0" }
-osdetector = { id = "com.google.osdetector", version = "1.7.1" }
+node-gradle = { id = "com.github.node-gradle.node", version = "3.5.1" }
+osdetector = { id = "com.google.osdetector", version = "1.7.2" }
 sphinx = { id = "kr.motd.sphinx", version = "2.10.1" }
