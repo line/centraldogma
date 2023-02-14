@@ -436,6 +436,7 @@ public final class ZooKeeperCommandExecutor
             copyZkProperty(zkProps, "syncEnabled", "true");
             copyZkProperty(zkProps, "autopurge.snapRetainCount", "3");
             copyZkProperty(zkProps, "autopurge.purgeInterval", "1");
+            copyZkProperty(zkProps, "quorumListenOnAllIPs", "false");
 
             // Set the properties that must be set in System properties.
             System.setProperty("zookeeper.fsync.warningthresholdms",
