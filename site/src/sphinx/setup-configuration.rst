@@ -348,8 +348,10 @@ example shows the configuration of the first replica in a 3-replica cluster:
 
 - ``additionalProperties`` (map of string key-value pairs)
 
-  - ZooKeeper configuration properties such as ``initLimit`` and ``syncLimit``. It is recommended to
-    leave this property empty because Central Dogma sets the sensible defaults.
+  - ZooKeeper `configuration properties <https://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_configuration>`_.
+    Currently, ``initLimit``, ``syncLimit``, ``tickTime``, ``syncEnabled``, ``autopurge.snapRetainCount``,
+    ``autopurge.purgeInterval``, and ``quorumListenOnAllIPs`` can be set.
+    It is recommended to leave this properties empty because Central Dogma sets the sensible defaults.
 
 - ``timeoutMillis`` (integer)
 
