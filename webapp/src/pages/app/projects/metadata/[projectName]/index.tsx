@@ -11,7 +11,6 @@ import { useEffect, useState } from 'react';
 import RepoMetaList from 'dogma/features/repo/RepoMetaList';
 import { DeleteProject } from 'dogma/features/project/DeleteProject';
 import { NewMember } from 'dogma/features/repo/NewMember';
-import { NewToken } from 'dogma/features/repo/NewToken';
 
 const tabs = ['repositories', 'permissions', 'members', 'tokens', 'mirror'];
 
@@ -82,10 +81,6 @@ const ProjectMetadataPage = () => {
             />
           </TabPanel>
           <TabPanel>
-            <Flex>
-              <Spacer />
-              <NewToken projectName={projectName} />
-            </Flex>
             <RepoTokenList
               data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
               projectName={projectName}
