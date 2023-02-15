@@ -83,9 +83,6 @@ export const apiSlice = createApi({
       query: ({ projectName }) => ({
         url: `/v1/projects/${projectName}`,
         method: 'DELETE',
-        headers: {
-          'Content-type': 'application/json; charset=UTF-8',
-        },
       }),
       invalidatesTags: ['Project'],
     }),
