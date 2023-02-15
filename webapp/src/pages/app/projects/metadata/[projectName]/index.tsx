@@ -81,10 +81,7 @@ const ProjectMetadataPage = () => {
             />
           </TabPanel>
           <TabPanel>
-            <RepoTokenList
-              data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
-              projectName={projectName}
-            />
+            <RepoTokenList data={metadata ? Array.from(Object.values(metadata.tokens)) : []} />
           </TabPanel>
           <TabPanel>Coming soon</TabPanel>
         </TabPanels>
