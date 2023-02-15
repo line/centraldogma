@@ -11,12 +11,13 @@ import { useEffect, useState } from 'react';
 import RepoMetaList from 'dogma/features/repo/RepoMetaList';
 import { DeleteProject } from 'dogma/features/project/DeleteProject';
 import { NewMember } from 'dogma/features/repo/NewMember';
+import { NewToken } from 'dogma/features/repo/NewToken';
 
 const tabs = ['repositories', 'permissions', 'members', 'tokens', 'mirror'];
 
-const ProjectDetailPage = () => {
+const ProjectMetadataPage = () => {
   const router = useRouter();
-  const projectName = router.query.projectName as string;
+  const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const { data: metadata, isLoading } = useGetMetadataByProjectNameQuery(projectName, {
     refetchOnFocus: true,
     skip: false,
@@ -54,15 +55,15 @@ const ProjectDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <Flex>
+            <Flex gap={3}>
               <Spacer />
+              <DeleteProject projectName={projectName} />
               <NewRepo projectName={projectName} />
             </Flex>
             <RepoMetaList
               data={metadata ? Array.from(Object.values(metadata.repos)) : []}
               projectName={projectName}
             />
-            <DeleteProject projectName={projectName} />
           </TabPanel>
           <TabPanel>
             <RepoPermissionList
@@ -81,13 +82,20 @@ const ProjectDetailPage = () => {
             />
           </TabPanel>
           <TabPanel>
-            <RepoTokenList data={metadata ? Array.from(Object.values(metadata.tokens)) : []} />
+            <Flex>
+              <Spacer />
+              <NewToken projectName={projectName} />
+            </Flex>
+            <RepoTokenList
+              data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
+              projectName={projectName}
+            />
           </TabPanel>
-          <TabPanel>TODO: Mirror</TabPanel>
+          <TabPanel>Coming soon</TabPanel>
         </TabPanels>
       </Tabs>
     </Box>
   );
 };
 
-export default ProjectDetailPage;
+export default ProjectMetadataPage;

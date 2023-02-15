@@ -15,7 +15,7 @@
  */
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { useColorMode, IconButton } from '@chakra-ui/react';
-import { FcSettings } from 'react-icons/fc';
+import { FcServices } from 'react-icons/fc';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import Error from 'next/error';
@@ -57,7 +57,7 @@ export const Projects = () => {
         cell: (info) =>
           info.row.original.createdAt ? (
             <ChakraLink href={`/app/projects/metadata/${info.getValue()}`}>
-              <IconButton icon={<FcSettings />} variant="ghost" colorScheme="teal" aria-label="metadata" />
+              <IconButton icon={<FcServices />} variant="ghost" colorScheme="teal" aria-label="metadata" />
             </ChakraLink>
           ) : (
             <RestoreProject projectName={info.getValue()} />

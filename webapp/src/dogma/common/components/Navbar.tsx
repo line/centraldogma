@@ -21,6 +21,7 @@ import {
   Flex,
   HStack,
   IconButton,
+  Kbd,
   Link,
   Menu,
   MenuButton,
@@ -40,7 +41,6 @@ import Router from 'next/router';
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
 import { components, DropdownIndicatorProps, GroupBase, OptionBase, Select } from 'chakra-react-select';
-import { RxSlash } from 'react-icons/rx';
 import { NewProject } from 'dogma/features/project/NewProject';
 
 interface TopMenu {
@@ -82,7 +82,7 @@ const DropdownIndicator = (
 ) => {
   return (
     <components.DropdownIndicator {...props}>
-      <RxSlash />
+      <Kbd>/</Kbd>
     </components.DropdownIndicator>
   );
 };
@@ -92,7 +92,7 @@ export const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
-  const { data: projects = [] } = useGetProjectsQuery();
+  const { data: projects = [] } = useGetProjectsQuery({ admin: user.roles.includes('LEVEL_ADMIN') });
   const projectOptions: ProjectOptionType[] = projects.map((project: ProjectDto) => ({
     value: project.name,
     label: project.name,

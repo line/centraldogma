@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  Flex,
   HStack,
   Modal,
   ModalBody,
@@ -10,8 +9,6 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Spacer,
-  Text,
   useDisclosure,
 } from '@chakra-ui/react';
 import { useDeleteProjectMutation } from 'dogma/features/api/apiSlice';
@@ -19,7 +16,6 @@ import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/store';
 import Router from 'next/router';
-import { FaSkullCrossbones } from 'react-icons/fa';
 
 export const DeleteProject = ({ projectName }: { projectName: string }) => {
   const { isOpen, onToggle, onClose } = useDisclosure();
@@ -49,14 +45,10 @@ export const DeleteProject = ({ projectName }: { projectName: string }) => {
   };
   return (
     <>
-      <Box borderWidth="1px" borderRadius="lg" overflow="hidden" p={4} mt={20}>
-        <Flex>
-          <Text>Once you delete a project, there is no going back. Please be certain.</Text>
-          <Spacer />
-          <Button leftIcon={<FaSkullCrossbones />} color="red" onClick={onToggle}>
-            Delete Project
-          </Button>
-        </Flex>
+      <Box>
+        <Button colorScheme="red" variant="outline" size="sm" onClick={onToggle}>
+          Delete Project
+        </Button>
       </Box>
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
