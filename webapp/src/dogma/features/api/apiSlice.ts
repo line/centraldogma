@@ -134,6 +134,27 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
+    addNewTokenMember: builder.mutation({
+      query: ({ projectName, id, role }) => ({
+        url: `/v1/metadata/${projectName}/tokens`,
+        method: 'POST',
+        body: { id, role: role.toUpperCase() },
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    deleteTokenMember: builder.mutation<void, DeleteRepoMemberDto>({
+      query: ({ projectName, id }) => ({
+        url: `/v1/metadata/${projectName}/tokens/${id}`,
+        method: 'DELETE',
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
     getRepos: builder.query<RepoDto[], string>({
       query: (projectName) => `/v1/projects/${projectName}/repos`,
       providesTags: ['Repo'],
@@ -258,6 +279,8 @@ export const {
   useGetMetadataByProjectNameQuery,
   useAddNewMemberMutation,
   useDeleteMemberMutation,
+  useAddNewTokenMemberMutation,
+  useDeleteTokenMemberMutation,
   // Repo
   useGetReposQuery,
   useAddNewRepoMutation,
