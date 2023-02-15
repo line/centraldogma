@@ -79,7 +79,7 @@ export const apiSlice = createApi({
             ],
           };
         }
-        return { data: projects.data as ProjectDto[] };
+        return { data: (projects.data || []) as ProjectDto[] };
       },
       providesTags: ['Project'],
     }),
