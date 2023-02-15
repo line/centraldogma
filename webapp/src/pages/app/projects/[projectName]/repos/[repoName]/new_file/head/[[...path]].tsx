@@ -1,7 +1,7 @@
 import { Box } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
-import { NewFile } from 'dogma/common/components/NewFile';
+import { NewFile } from 'dogma/features/file/NewFile';
 
 const NewFilePage = () => {
   const router = useRouter();

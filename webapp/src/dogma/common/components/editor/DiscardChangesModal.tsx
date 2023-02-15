@@ -1,5 +1,6 @@
 import {
   Button,
+  HStack,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -26,12 +27,14 @@ export const DiscardChangesModal = ({
         <ModalCloseButton />
         <ModalBody>Your changes will be discarded!</ModalBody>
         <ModalFooter>
-          <Button colorScheme="red" mr={3} onClick={resetViewEditor}>
-            Discard changes
-          </Button>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
+          <HStack spacing={3}>
+            <Button colorScheme="red" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="red" onClick={resetViewEditor}>
+              Discard changes
+            </Button>
+          </HStack>
         </ModalFooter>
       </ModalContent>
     </Modal>

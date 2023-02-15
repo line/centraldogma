@@ -15,7 +15,7 @@ const newProject = (id: number): ProjectDto => {
   };
 };
 
-const projects = [
+const projects: ProjectDto[] = [
   {
     name: 'abcd',
     creator: { name: 'System', email: 'system@localhost.localdomain' },
