@@ -18,11 +18,14 @@ import { EditModeToggle } from 'dogma/common/components/editor/EditModeToggle';
 import React, { useState, useRef } from 'react';
 import { FcEditImage, FcCancel } from 'react-icons/fc';
 import { JsonPath } from 'dogma/common/components/editor/JsonPath';
-import { JsonPathLegend } from 'dogma/common/components/JsonPathLegend';
+import { JsonPathLegend } from 'dogma/common/components/editor/JsonPathLegend';
 import { AiOutlineDelete } from 'react-icons/ai';
 import { DiscardChangesModal } from 'dogma/common/components/editor/DiscardChangesModal';
 import { DeleteFileModal } from 'dogma/common/components/editor/DeleteFileModal';
 import { CommitForm } from 'dogma/common/components/CommitForm';
+import { useAppDispatch } from 'dogma/store';
+import { createMessage } from 'dogma/features/message/messageSlice';
+import ErrorHandler from 'dogma/features/services/ErrorHandler';
 
 export type FileEditorProps = {
   projectName: string;
@@ -34,7 +37,23 @@ export type FileEditorProps = {
 };
 
 const FileEditor = ({ projectName, repoName, language, originalContent, path, name }: FileEditorProps) => {
-  const jsonContent = language === 'json' ? JSON.parse(originalContent) : '';
+  const dispatch = useAppDispatch();
+  let jsonContent = '';
+  if (language === 'json') {
+    try {
+      jsonContent = JSON.parse(
+        typeof originalContent === 'string' ? originalContent : JSON.stringify(originalContent),
+      );
+    } catch (error) {
+      dispatch(
+        createMessage({
+          title: `Failed to format json content.`,
+          text: ErrorHandler.handle(error),
+          type: 'error',
+        }),
+      );
+    }
+  }
   const [tabIndex, setTabIndex] = useState(0);
   const handleTabChange = (index: number) => {
     setTabIndex(index);
@@ -116,9 +135,9 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
                   />
                 </Flex>
                 <Spacer />
-                {readOnly && language === 'json' ? <JsonPathLegend /> : ''}
+                {readOnly && language === 'json' && jsonContent ? <JsonPathLegend /> : ''}
               </Flex>
-              {readOnly && language === 'json' ? (
+              {readOnly && language === 'json' && jsonContent ? (
                 <JsonPath setFileContent={setFileContent} jsonContent={jsonContent} />
               ) : (
                 ''
@@ -129,7 +148,7 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
                 }
                 language={language}
                 theme={colorMode === 'light' ? 'light' : 'vs-dark'}
-                value={fileContent}
+                value={typeof fileContent === 'string' ? fileContent : JSON.stringify(fileContent)}
                 options={{
                   autoIndent: 'full',
                   formatOnPaste: true,
@@ -155,7 +174,7 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
               height="50vh"
               language={language}
               theme={colorMode === 'light' ? 'light' : 'vs-dark'}
-              original={fileContent}
+              original={typeof fileContent === 'string' ? fileContent : JSON.stringify(fileContent)}
               modified={editorRef?.current?.getValue()}
               options={{
                 autoIndent: 'full',
@@ -180,6 +199,7 @@ const FileEditor = ({ projectName, repoName, language, originalContent, path, na
         readOnly={readOnly}
         setReadOnly={setReadOnly}
         switchMode={switchMode}
+        handleTabChange={handleTabChange}
       />
       <DiscardChangesModal
         isOpen={isCancelModalOpen}
