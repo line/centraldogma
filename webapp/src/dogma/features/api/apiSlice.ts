@@ -105,9 +105,6 @@ export const apiSlice = createApi({
       query: ({ projectName, id }) => ({
         url: `/v1/metadata/${projectName}/members/${id}`,
         method: 'DELETE',
-        headers: {
-          'Content-type': 'application/json; charset=UTF-8',
-        },
       }),
       invalidatesTags: ['Metadata'],
     }),
