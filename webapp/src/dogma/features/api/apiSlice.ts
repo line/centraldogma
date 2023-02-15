@@ -130,9 +130,6 @@ export const apiSlice = createApi({
       query: ({ projectName, repoName }) => ({
         url: `/v1/projects/${projectName}/repos/${repoName}`,
         method: 'DELETE',
-        headers: {
-          'Content-type': 'application/json; charset=UTF-8',
-        },
       }),
       invalidatesTags: ['Repo'],
     }),
