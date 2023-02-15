@@ -25,6 +25,7 @@ import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { TokenDto } from 'dogma/features/token/TokenDto';
 import { DeleteRepoMemberDto } from 'dogma/features/repo/DeleteRepoMemberDto';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
 
 export type GetHistory = {
   projectName: string;
@@ -64,8 +65,22 @@ export const apiSlice = createApi({
   }),
   tagTypes: ['Project', 'Metadata', 'Repo', 'File', 'Token'],
   endpoints: (builder) => ({
-    getProjects: builder.query<ProjectDto[], void>({
-      query: () => '/v1/projects',
+    getProjects: builder.query<ProjectDto[], { admin: boolean }>({
+      async queryFn(arg, _queryApi, _extraOptions, fetchWithBQ) {
+        const projects = await fetchWithBQ('/v1/projects');
+        if (projects.error) return { error: projects.error as FetchBaseQueryError };
+        if (arg.admin) {
+          const removedProjects = await fetchWithBQ('/v1/projects?status=removed');
+          if (removedProjects.error) return { error: removedProjects.error as FetchBaseQueryError };
+          return {
+            data: [
+              ...((projects.data || []) as ProjectDto[]),
+              ...((removedProjects.data || []) as ProjectDto[]),
+            ],
+          };
+        }
+        return { data: projects.data as ProjectDto[] };
+      },
       providesTags: ['Project'],
     }),
     addNewProject: builder.mutation({
@@ -83,6 +98,17 @@ export const apiSlice = createApi({
       query: ({ projectName }) => ({
         url: `/v1/projects/${projectName}`,
         method: 'DELETE',
+      }),
+      invalidatesTags: ['Project'],
+    }),
+    restoreProject: builder.mutation({
+      query: ({ projectName }) => ({
+        url: `/v1/projects/${projectName}`,
+        method: 'PATCH',
+        body: [{ op: 'replace', path: '/status', value: 'active' }],
+        headers: {
+          'Content-type': 'application/json-patch+json; charset=UTF-8',
+        },
       }),
       invalidatesTags: ['Project'],
     }),
@@ -225,6 +251,7 @@ export const apiSlice = createApi({
 export const {
   // Project
   useGetProjectsQuery,
+  useRestoreProjectMutation,
   useAddNewProjectMutation,
   useDeleteProjectMutation,
   // Metadata

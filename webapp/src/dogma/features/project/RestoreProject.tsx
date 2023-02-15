@@ -10,31 +10,23 @@ import {
   ModalOverlay,
   useDisclosure,
 } from '@chakra-ui/react';
-import { useRestoreRepoMutation } from 'dogma/features/api/apiSlice';
+import { useRestoreProjectMutation } from 'dogma/features/api/apiSlice';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/store';
 import { MdOutlineRestore } from 'react-icons/md';
 
-export const RestoreRepo = ({
-  projectName,
-  repoName,
-  hidden,
-}: {
-  projectName: string;
-  repoName: string;
-  hidden: boolean;
-}) => {
+export const RestoreProject = ({ projectName }: { projectName: string }) => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
-  const [restoreRepo, { isLoading }] = useRestoreRepoMutation();
+  const [restoreProject, { isLoading }] = useRestoreProjectMutation();
   const handleRestore = async () => {
     try {
-      await restoreRepo({ projectName, repoName }).unwrap();
+      await restoreProject({ projectName }).unwrap();
       dispatch(
         createMessage({
-          title: 'Repo restored.',
-          text: `Successfully restored ${repoName}`,
+          title: 'Project restored.',
+          text: `Successfully restored ${projectName}`,
           type: 'success',
         }),
       );
@@ -42,7 +34,7 @@ export const RestoreRepo = ({
     } catch (error) {
       dispatch(
         createMessage({
-          title: `Failed to restore ${repoName}`,
+          title: `Failed to restore ${projectName}`,
           text: ErrorHandler.handle(error),
           type: 'error',
         }),
@@ -51,14 +43,7 @@ export const RestoreRepo = ({
   };
   return (
     <>
-      <Button
-        colorScheme="blue"
-        leftIcon={<MdOutlineRestore />}
-        size="sm"
-        variant="ghost"
-        onClick={onToggle}
-        hidden={hidden}
-      >
+      <Button colorScheme="blue" leftIcon={<MdOutlineRestore />} size="sm" variant="ghost" onClick={onToggle}>
         Restore
       </Button>
       <Modal isOpen={isOpen} onClose={onClose}>
@@ -66,7 +51,7 @@ export const RestoreRepo = ({
         <ModalContent>
           <ModalHeader>Are you sure?</ModalHeader>
           <ModalCloseButton />
-          <ModalBody>Restore repository {`${repoName}`}</ModalBody>
+          <ModalBody>Restore Project {`${projectName}`}</ModalBody>
           <ModalFooter>
             <HStack spacing={3}>
               <Button colorScheme="teal" variant="outline" onClick={onClose}>

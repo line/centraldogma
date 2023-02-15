@@ -18,7 +18,7 @@ import { CreatorDto } from 'dogma/features/repo/RepoDto';
 
 export interface ProjectDto {
   name: string;
-  url: string;
-  creator: CreatorDto;
-  createdAt: string;
+  url?: string;
+  creator?: CreatorDto;
+  createdAt?: string;
 }

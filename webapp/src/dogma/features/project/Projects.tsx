@@ -22,16 +22,22 @@ import Error from 'next/error';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch } from 'dogma/store';
+import { useAppDispatch, useAppSelector } from 'dogma/store';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { useMemo } from 'react';
+import { RestoreProject } from 'dogma/features/project/RestoreProject';
 
 export const Projects = () => {
   const { colorMode } = useColorMode();
   const dispatch = useAppDispatch();
-  const { data: projects, error, isLoading } = useGetProjectsQuery();
+  const { user } = useAppSelector((state) => state.auth);
+  const {
+    data: projects,
+    error,
+    isLoading,
+  } = useGetProjectsQuery({ admin: user.roles.includes('LEVEL_ADMIN') });
   const columnHelper = createColumnHelper<ProjectDto>();
   const columns = useMemo(
     () => [
@@ -44,16 +50,19 @@ export const Projects = () => {
         header: 'Name',
       }),
       columnHelper.accessor((row: ProjectDto) => row.createdAt, {
-        cell: (info) => <DateWithTooltip date={info.getValue()} />,
+        cell: (info) => info.getValue() && <DateWithTooltip date={info.getValue()} />,
         header: 'Created',
       }),
       columnHelper.accessor((row: ProjectDto) => row.name, {
-        cell: (info) => (
-          <ChakraLink href={`/app/projects/metadata/${info.getValue()}`}>
-            <IconButton icon={<FcSettings />} variant="ghost" colorScheme="teal" aria-label="metadata" />
-          </ChakraLink>
-        ),
-        header: 'Metadata',
+        cell: (info) =>
+          info.row.original.createdAt ? (
+            <ChakraLink href={`/app/projects/metadata/${info.getValue()}`}>
+              <IconButton icon={<FcSettings />} variant="ghost" colorScheme="teal" aria-label="metadata" />
+            </ChakraLink>
+          ) : (
+            <RestoreProject projectName={info.getValue()} />
+          ),
+        header: 'Action',
         enableSorting: false,
       }),
     ],
