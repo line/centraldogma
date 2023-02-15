@@ -8,6 +8,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Text,
 } from '@chakra-ui/react';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
@@ -60,7 +61,7 @@ export const ConfirmAddMember = ({
   };
   return (
     <>
-      <Button type="submit" colorScheme="teal" variant="ghost" isLoading={isLoading} loadingText="Adding">
+      <Button type="submit" colorScheme="teal" variant="ghost">
         Add
       </Button>
       <Modal isOpen={isOpen} onClose={onClose}>
@@ -69,7 +70,9 @@ export const ConfirmAddMember = ({
           <ModalHeader>Are you sure?</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            Add {id} as the {role} of {projectName}?
+            <Text>
+              Add <Text as="b">{id}</Text> as {role === 'owner' ? 'an' : 'a'} {role} of {projectName}?
+            </Text>
           </ModalBody>
           <ModalFooter>
             <HStack spacing={3}>
