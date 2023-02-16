@@ -13,7 +13,7 @@ export type RepoTokenListProps<Data extends object> = {
   projectName: string;
 };
 
-const RepoTokenList = <Data extends object>({ data, projectName }: RepoTokenListProps<Data>) => {
+const AppTokenList = <Data extends object>({ data, projectName }: RepoTokenListProps<Data>) => {
   const [deleteMember, { isLoading }] = useDeleteTokenMemberMutation();
   const columnHelper = createColumnHelper<RepoTokenDetailDto>();
   const columns = useMemo(
@@ -55,4 +55,4 @@ const RepoTokenList = <Data extends object>({ data, projectName }: RepoTokenList
   return <DataTableClientPagination columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
-export default RepoTokenList;
+export default AppTokenList;
