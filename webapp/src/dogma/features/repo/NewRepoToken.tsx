@@ -34,7 +34,7 @@ type FormData = {
   role: string;
 };
 
-export const NewRepoToken = ({ projectName }: { projectName: string }) => {
+export const NewAppToken = ({ projectName }: { projectName: string }) => {
   const result = useGetTokensQuery();
   const tokenOptions: TokenOptionType[] = (result.data || [])
     .filter((token: TokenDto) => !token.deactivation)
