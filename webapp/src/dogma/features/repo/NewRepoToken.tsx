@@ -35,8 +35,8 @@ type FormData = {
 };
 
 export const NewRepoToken = ({ projectName }: { projectName: string }) => {
-  const { data = [] } = useGetTokensQuery();
-  const tokenOptions: TokenOptionType[] = data
+  const result = useGetTokensQuery();
+  const tokenOptions: TokenOptionType[] = (result.data || [])
     .filter((token: TokenDto) => !token.deactivation)
     .map((token: TokenDto) => ({
       value: token.appId,
