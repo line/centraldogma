@@ -61,7 +61,7 @@ export const apiSlice = createApi({
     baseUrl: `${process.env.NEXT_PUBLIC_HOST || ''}/api`,
     prepareHeaders: (headers, { getState }) => {
       const { auth } = getState() as { auth: AuthState };
-      headers.set('Authorization', `Bearer ${auth?.sessionId}`);
+      headers.set('Authorization', `Bearer ${auth?.sessionId || 'anonymous'}`);
       return headers;
     },
   }),

@@ -12,10 +12,15 @@ import RepoMetaList from 'dogma/features/metadata/RepoMetaList';
 import { DeleteProject } from 'dogma/features/project/DeleteProject';
 import { NewMember } from 'dogma/features/metadata/NewMember';
 import { NewAppToken } from 'dogma/features/metadata/NewAppToken';
+import { useAppSelector } from 'dogma/store';
 
-const tabs = ['repositories', 'permissions', 'members', 'tokens', 'mirror'];
+let tabs = ['repositories', 'permissions', 'members', 'tokens', 'mirror'];
 
 const ProjectMetadataPage = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  if (!user) {
+    tabs = ['repositories', 'mirror'];
+  }
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const { data: metadata, isLoading } = useGetMetadataByProjectNameQuery(projectName, {
@@ -65,33 +70,39 @@ const ProjectMetadataPage = () => {
               projectName={projectName}
             />
           </TabPanel>
-          <TabPanel>
-            <RepoPermissionList
-              data={metadata ? Array.from(Object.values(metadata.repos).filter((repo) => !repo.removal)) : []}
-              projectName={projectName}
-              members={metadata ? Array.from(Object.values(metadata.members)) : []}
-            />
-          </TabPanel>
-          <TabPanel>
-            <Flex>
-              <Spacer />
-              <NewMember projectName={projectName} />
-            </Flex>
-            <AppMemberList
-              data={metadata ? Array.from(Object.values(metadata.members)) : []}
-              projectName={projectName}
-            />
-          </TabPanel>
-          <TabPanel>
-            <Flex>
-              <Spacer />
-              <NewAppToken projectName={projectName} />
-            </Flex>
-            <AppTokenList
-              data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
-              projectName={projectName}
-            />
-          </TabPanel>
+          {user && (
+            <TabPanel>
+              <RepoPermissionList
+                data={metadata ? Array.from(Object.values(metadata.repos).filter((repo) => !repo.removal)) : []}
+                projectName={projectName}
+                members={metadata ? Array.from(Object.values(metadata.members)) : []}
+              />
+            </TabPanel>
+          )}
+          {user && (
+            <TabPanel>
+              <Flex>
+                <Spacer />
+                <NewMember projectName={projectName} />
+              </Flex>
+              <AppMemberList
+                data={metadata ? Array.from(Object.values(metadata.members)) : []}
+                projectName={projectName}
+              />
+            </TabPanel>
+          )}
+          {user && (
+            <TabPanel>
+              <Flex>
+                <Spacer />
+                <NewAppToken projectName={projectName} />
+              </Flex>
+              <AppTokenList
+                data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
+                projectName={projectName}
+              />
+            </TabPanel>
+          )}
           <TabPanel>Coming soon</TabPanel>
         </TabPanels>
       </Tabs>

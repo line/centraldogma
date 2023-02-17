@@ -83,7 +83,7 @@ export const checkSecurityEnabled = createAsyncThunk(
         localStorage.removeItem('sessionId');
       }
       const error: string = ErrorHandler.handle(err);
-      dispatch(createMessage({ title: '', text: error, type: 'error' }));
+      dispatch(createMessage({ title: '', text: 'Accessing Central Dogma in anonymous mode', type: 'info' }));
       return rejectWithValue(error);
     }
   },
