@@ -1,4 +1,6 @@
-export type RepoPermissionDto = Map<string, RepoPermissionDetailDto>;
+export interface RepoPermissionDto {
+  [key: string]: RepoPermissionDetailDto;
+}
 
 export interface RepoPermissionDetailDto {
   name: string;
@@ -20,5 +22,5 @@ export interface RepoRolePermissionDto {
   guest: Array<'READ' | 'WRITE'>;
 }
 
-type PerUserPermissionDto = Map<string, Array<'READ' | 'WRITE'>>;
-type PerTokenPermissonDto = Map<string, Array<'READ' | 'WRITE'>>;
+export type PerUserPermissionDto = Map<string, Array<'READ' | 'WRITE'>>;
+export type PerTokenPermissonDto = Map<string, Array<'READ' | 'WRITE'>>;

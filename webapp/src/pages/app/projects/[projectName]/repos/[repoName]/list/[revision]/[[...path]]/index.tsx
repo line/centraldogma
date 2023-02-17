@@ -12,6 +12,7 @@ import {
   Tabs,
   Tag,
   Tooltip,
+  useColorMode,
 } from '@chakra-ui/react';
 import { useGetFilesQuery, useGetNormalisedRevisionQuery } from 'dogma/features/api/apiSlice';
 import FileList from 'dogma/features/file/FileList';
@@ -25,8 +26,11 @@ import { CopySupport } from 'dogma/features/file/CopySupport';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { AiOutlinePlus } from 'react-icons/ai';
 import Link from 'next/link';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
+import Error from 'next/error';
 
 const RepositoryDetailPage = () => {
+  const { colorMode } = useColorMode();
   const router = useRouter();
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
@@ -112,7 +116,12 @@ cat ${project}/${repo}${path}`;
     return <>Loading...</>;
   }
   if (error || isError) {
-    return <>{JSON.stringify(error || isError)}</>;
+    return (
+      <Error
+        statusCode={((error || isError) as FetchBaseQueryError).status as number}
+        withDarkMode={colorMode === 'dark'}
+      />
+    );
   }
 
   return (

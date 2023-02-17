@@ -20,8 +20,8 @@ import {
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
-import { ConfirmAddMember } from './ConfirmAddMember';
 import { useState } from 'react';
+import { ConfirmAddMember } from 'dogma/features/repo/ConfirmAddMember';
 
 type FormData = {
   id: string;

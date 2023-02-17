@@ -26,6 +26,8 @@ import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { TokenDto } from 'dogma/features/token/TokenDto';
 import { DeleteRepoMemberDto } from 'dogma/features/repo/DeleteRepoMemberDto';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
+import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
+import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
 
 export type GetHistory = {
   projectName: string;
@@ -148,6 +150,53 @@ export const apiSlice = createApi({
     deleteTokenMember: builder.mutation<void, DeleteRepoMemberDto>({
       query: ({ projectName, id }) => ({
         url: `/v1/metadata/${projectName}/tokens/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    updateRolePermission: builder.mutation({
+      query: ({ projectName, repoName, data }) => ({
+        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/role`,
+        method: 'POST',
+        body: data,
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    addUserPermission: builder.mutation<void, AddUserPermissionDto>({
+      query: ({ projectName, repoName, data }) => ({
+        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/users`,
+        method: 'POST',
+        body: data,
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    deleteUserPermission: builder.mutation<void, DeleteUserPermissionDto>({
+      query: ({ projectName, repoName, id }) => ({
+        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/users/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    addTokenPermission: builder.mutation<void, AddUserPermissionDto>({
+      query: ({ projectName, repoName, data }) => ({
+        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/tokens`,
+        method: 'POST',
+        body: data,
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+        },
+      }),
+      invalidatesTags: ['Metadata'],
+    }),
+    deleteTokenPermission: builder.mutation<void, DeleteUserPermissionDto>({
+      query: ({ projectName, repoName, id }) => ({
+        url: `/v1/metadata/${projectName}/repos/${repoName}/perm/tokens/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Metadata'],
@@ -278,6 +327,11 @@ export const {
   useDeleteMemberMutation,
   useAddNewTokenMemberMutation,
   useDeleteTokenMemberMutation,
+  useUpdateRolePermissionMutation,
+  useAddUserPermissionMutation,
+  useDeleteUserPermissionMutation,
+  useAddTokenPermissionMutation,
+  useDeleteTokenPermissionMutation,
   // Repo
   useGetReposQuery,
   useAddNewRepoMutation,

@@ -69,6 +69,7 @@ const ProjectMetadataPage = () => {
             <RepoPermissionList
               data={metadata ? Array.from(Object.values(metadata.repos).filter((repo) => !repo.removal)) : []}
               projectName={projectName}
+              members={metadata ? Array.from(Object.values(metadata.members)) : []}
             />
           </TabPanel>
           <TabPanel>

@@ -20,35 +20,59 @@ import {
 import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
 import { createMessage } from 'dogma/features/message/messageSlice';
 import { DeleteRepoMemberDto } from 'dogma/features/repo/DeleteRepoMemberDto';
+import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/store';
 import { MdDelete } from 'react-icons/md';
 
 export const DeleteMember = ({
   projectName,
+  repoName,
   id,
   deleteMember,
   isLoading,
 }: {
   projectName: string;
+  repoName?: string;
   id: string;
-  deleteMember: MutationTrigger<
-    MutationDefinition<
-      DeleteRepoMemberDto,
-      BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError, Record<string, never>, FetchBaseQueryMeta>,
-      'Metadata',
-      void,
-      'api'
-    >
-  >;
+  deleteMember:
+    | MutationTrigger<
+        MutationDefinition<
+          DeleteRepoMemberDto,
+          BaseQueryFn<
+            string | FetchArgs,
+            unknown,
+            FetchBaseQueryError,
+            Record<string, never>,
+            FetchBaseQueryMeta
+          >,
+          'Metadata',
+          void,
+          'api'
+        >
+      >
+    | MutationTrigger<
+        MutationDefinition<
+          DeleteUserPermissionDto,
+          BaseQueryFn<
+            string | FetchArgs,
+            unknown,
+            FetchBaseQueryError,
+            Record<string, never>,
+            FetchBaseQueryMeta
+          >,
+          'Metadata',
+          void,
+          'api'
+        >
+      >;
   isLoading: boolean;
 }): JSX.Element => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
-
   const handleDelete = async () => {
     try {
-      await deleteMember({ projectName, id }).unwrap();
+      await deleteMember({ projectName, repoName, id }).unwrap();
       dispatch(
         createMessage({
           title: 'Member deleted.',
