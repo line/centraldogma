@@ -19,7 +19,7 @@ import {
 } from '@reduxjs/toolkit/dist/query';
 import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
 import { createMessage } from 'dogma/features/message/messageSlice';
-import { DeleteRepoMemberDto } from 'dogma/features/repo/DeleteRepoMemberDto';
+import { DeleteMemberDto } from 'dogma/features/metadata/DeleteMemberDto';
 import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/store';
@@ -38,7 +38,7 @@ export const DeleteMember = ({
   deleteMember:
     | MutationTrigger<
         MutationDefinition<
-          DeleteRepoMemberDto,
+          DeleteMemberDto,
           BaseQueryFn<
             string | FetchArgs,
             unknown,

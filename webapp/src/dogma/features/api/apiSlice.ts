@@ -24,7 +24,7 @@ import { ProjectMetadataDto } from 'dogma/features/project/ProjectMetadataDto';
 import { FileContentDto } from 'dogma/features/file/FileContentDto';
 import { RevisionDto } from 'dogma/features/history/RevisionDto';
 import { TokenDto } from 'dogma/features/token/TokenDto';
-import { DeleteRepoMemberDto } from 'dogma/features/repo/DeleteRepoMemberDto';
+import { DeleteMemberDto } from 'dogma/features/metadata/DeleteMemberDto';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
 import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
@@ -129,7 +129,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteMember: builder.mutation<void, DeleteRepoMemberDto>({
+    deleteMember: builder.mutation<void, DeleteMemberDto>({
       query: ({ projectName, id }) => ({
         url: `/v1/metadata/${projectName}/members/${id}`,
         method: 'DELETE',
@@ -147,7 +147,7 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Metadata'],
     }),
-    deleteTokenMember: builder.mutation<void, DeleteRepoMemberDto>({
+    deleteTokenMember: builder.mutation<void, DeleteMemberDto>({
       query: ({ projectName, id }) => ({
         url: `/v1/metadata/${projectName}/tokens/${id}`,
         method: 'DELETE',

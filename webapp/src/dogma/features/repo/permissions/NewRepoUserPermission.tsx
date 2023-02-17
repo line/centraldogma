@@ -20,7 +20,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
 import { OptionBase, Select } from 'chakra-react-select';
-import { RepoMemberDetailDto } from 'dogma/features/repo/RepoMemberDto';
+import { AppMemberDetailDto } from 'dogma/features/metadata/AppMemberDto';
 import { ConfirmAddUserPermission } from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
 import {
   MutationDefinition,
@@ -51,7 +51,7 @@ export const NewRepoUserPermission = ({
 }: {
   projectName: string;
   repoName: string;
-  members: RepoMemberDetailDto[];
+  members: AppMemberDetailDto[];
   addUserPermission: MutationTrigger<
     MutationDefinition<
       AddUserPermissionDto,
@@ -69,7 +69,7 @@ export const NewRepoUserPermission = ({
   >;
   isLoading: boolean;
 }) => {
-  const memberOptions: MemberOptionType[] = members.map((member: RepoMemberDetailDto) => ({
+  const memberOptions: MemberOptionType[] = members.map((member: AppMemberDetailDto) => ({
     value: member.login,
     label: member.login,
   }));

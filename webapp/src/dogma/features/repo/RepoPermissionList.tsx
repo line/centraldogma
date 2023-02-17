@@ -3,13 +3,13 @@ import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { RepoPermissionDetailDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
-import { RepoMemberDetailDto } from 'dogma/features/repo/RepoMemberDto';
+import { AppMemberDetailDto } from 'dogma/features/metadata/AppMemberDto';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 
 export type RepoPermissionListProps<Data extends object> = {
   data: Data[];
   projectName: string;
-  members: RepoMemberDetailDto[];
+  members: AppMemberDetailDto[];
 };
 
 const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPermissionListProps<Data>) => {

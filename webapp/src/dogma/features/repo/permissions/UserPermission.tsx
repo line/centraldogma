@@ -9,7 +9,7 @@ import {
 import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
-import { DeleteMember } from 'dogma/features/repo/DeleteMember';
+import { DeleteMember } from 'dogma/features/metadata/DeleteMember';
 import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';

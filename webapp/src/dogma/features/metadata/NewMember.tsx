@@ -2,6 +2,8 @@ import {
   Button,
   FormControl,
   FormErrorMessage,
+  FormLabel,
+  Input,
   Popover,
   PopoverArrow,
   PopoverBody,
@@ -16,34 +18,19 @@ import {
   Stack,
   useDisclosure,
 } from '@chakra-ui/react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
-import { useGetTokensQuery } from 'dogma/features/api/apiSlice';
-import { TokenDto } from 'dogma/features/token/TokenDto';
-import { OptionBase, Select } from 'chakra-react-select';
-import { ConfirmAddToken } from 'dogma/features/repo/ConfirmAddToken';
-
-interface TokenOptionType extends OptionBase {
-  value: string;
-  label: string;
-}
+import { ConfirmAddMember } from 'dogma/features/metadata/ConfirmAddMember';
 
 type FormData = {
-  appId: string;
+  id: string;
   role: string;
 };
 
-export const NewAppToken = ({ projectName }: { projectName: string }) => {
-  const result = useGetTokensQuery();
-  const tokenOptions: TokenOptionType[] = (result.data || [])
-    .filter((token: TokenDto) => !token.deactivation)
-    .map((token: TokenDto) => ({
-      value: token.appId,
-      label: token.appId,
-    }));
+export const NewMember = ({ projectName }: { projectName: string }) => {
   const {
-    control,
+    register,
     handleSubmit,
     reset,
     formState: { errors },
@@ -54,20 +41,20 @@ export const NewAppToken = ({ projectName }: { projectName: string }) => {
     onToggle: onConfirmAddToggle,
     onClose: onConfirmAddClose,
   } = useDisclosure();
-  const [appId, setAppId] = useState('');
+  const [id, setId] = useState('');
   const [role, setRole] = useState('member');
   const onSubmit = async (data: FormData) => {
-    setAppId(data.appId);
+    setId(data.id);
     onConfirmAddToggle();
   };
   return (
     <Popover placement="bottom" isOpen={isOpen} onClose={onClose}>
       <PopoverTrigger>
         <Button colorScheme="teal" size="sm" onClick={onToggle} rightIcon={<IoMdArrowDropdown />}>
-          New Token
+          New Member
         </Button>
       </PopoverTrigger>
-      <PopoverContent minWidth="md">
+      <PopoverContent minWidth="max-content">
         <PopoverHeader pt={4} fontWeight="bold" border={0} mb={3}>
           Project {projectName}
         </PopoverHeader>
@@ -75,29 +62,10 @@ export const NewAppToken = ({ projectName }: { projectName: string }) => {
         <PopoverCloseButton />
         <form onSubmit={handleSubmit(onSubmit)}>
           <PopoverBody minWidth="max-content">
-            <FormControl isInvalid={errors.appId ? true : false} isRequired>
-              <Controller
-                control={control}
-                name="appId"
-                rules={{ required: true }}
-                render={({ field: { onChange, value, name, ref } }) => (
-                  <Select
-                    ref={ref}
-                    id="appId"
-                    name={name}
-                    options={tokenOptions}
-                    // The default value of React Select must be null (and not undefined)
-                    value={tokenOptions.find((option) => option.value === value) || null}
-                    onChange={(option) => option && onChange(option.value)}
-                    placeholder="Enter App ID ..."
-                    closeMenuOnSelect={true}
-                    openMenuOnFocus={true}
-                    isSearchable={true}
-                    isClearable={true}
-                  />
-                )}
-              />
-              {errors.appId && <FormErrorMessage>App ID is required</FormErrorMessage>}
+            <FormControl isInvalid={errors.id ? true : false} isRequired>
+              <FormLabel>Login ID</FormLabel>
+              <Input type="text" placeholder="abc123" {...register('id', { required: true })} />
+              {errors.id && <FormErrorMessage>ID is required</FormErrorMessage>}
             </FormControl>
             <RadioGroup defaultValue="member" mt={3} onChange={setRole} value={role}>
               <Stack spacing={5} direction="row">
@@ -112,9 +80,9 @@ export const NewAppToken = ({ projectName }: { projectName: string }) => {
           </PopoverBody>
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
-            <ConfirmAddToken
+            <ConfirmAddMember
               projectName={projectName}
-              id={appId}
+              id={id}
               role={role}
               isOpen={isConfirmAddOpen}
               onClose={onConfirmAddClose}

@@ -21,7 +21,7 @@ import { IoMdArrowDropdown } from 'react-icons/io';
 import { useState } from 'react';
 import { OptionBase, Select } from 'chakra-react-select';
 import { ConfirmAddUserPermission } from 'dogma/features/repo/permissions/ConfirmAddUserPermission';
-import { RepoTokenDetailDto } from '../RepoTokenDto';
+import { AppTokenDetailDto } from '../../metadata/AppTokenDto';
 import { AddUserPermissionDto } from 'dogma/features/repo/permissions/AddUserPermissionDto';
 import {
   MutationDefinition,
@@ -51,7 +51,7 @@ export const NewRepoTokenPermission = ({
 }: {
   projectName: string;
   repoName: string;
-  tokens: RepoTokenDetailDto[];
+  tokens: AppTokenDetailDto[];
   addTokenPermission: MutationTrigger<
     MutationDefinition<
       AddUserPermissionDto,
@@ -69,7 +69,7 @@ export const NewRepoTokenPermission = ({
   >;
   isLoading: boolean;
 }) => {
-  const tokenOptions: TokenOptionType[] = tokens.map((token: RepoTokenDetailDto) => ({
+  const tokenOptions: TokenOptionType[] = tokens.map((token: AppTokenDetailDto) => ({
     value: token.appId,
     label: token.appId,
   }));
