@@ -4,13 +4,14 @@ import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { useGetMetadataByProjectNameQuery } from 'dogma/features/api/apiSlice';
 import RepoMemberList from 'dogma/features/repo/RepoMemberList';
 import RepoPermissionList from 'dogma/features/repo/RepoPermissionList';
-import RepoTokenList from 'dogma/features/repo/RepoTokenList';
+import AppTokenList from 'dogma/features/repo/AppTokenList';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import RepoMetaList from 'dogma/features/repo/RepoMetaList';
 import { DeleteProject } from 'dogma/features/project/DeleteProject';
 import { NewMember } from 'dogma/features/repo/NewMember';
+import { NewAppToken } from 'dogma/features/repo/NewAppToken';
 
 const tabs = ['repositories', 'permissions', 'members', 'tokens', 'mirror'];
 
@@ -81,7 +82,14 @@ const ProjectMetadataPage = () => {
             />
           </TabPanel>
           <TabPanel>
-            <RepoTokenList data={metadata ? Array.from(Object.values(metadata.tokens)) : []} />
+            <Flex>
+              <Spacer />
+              <NewAppToken projectName={projectName} />
+            </Flex>
+            <AppTokenList
+              data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
+              projectName={projectName}
+            />
           </TabPanel>
           <TabPanel>Coming soon</TabPanel>
         </TabPanels>

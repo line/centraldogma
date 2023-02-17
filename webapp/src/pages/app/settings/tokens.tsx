@@ -59,7 +59,7 @@ const TokenPage = () => {
     ],
     [columnHelper],
   );
-  const { data = [], error, isLoading } = useGetTokensQuery();
+  const { data, error, isLoading } = useGetTokensQuery();
   if (isLoading) {
     return <>Loading...</>;
   }
@@ -75,7 +75,7 @@ const TokenPage = () => {
         <Spacer />
         <NewToken />
       </Flex>
-      <DataTableClientPagination columns={columns} data={data} />
+      <DataTableClientPagination columns={columns} data={data || []} />
     </Box>
   );
 };

@@ -61,11 +61,7 @@ const HistoryList = ({ projectName, repoName, handleTabChange, totalRevision }: 
     }),
     [pageIndex, pageSize],
   );
-  const {
-    data = [],
-    isLoading,
-    error,
-  } = useGetHistoryQuery({
+  const { data, isLoading, error } = useGetHistoryQuery({
     projectName,
     repoName,
     //  revision starts from -1, for example for pageSize=20
@@ -82,7 +78,7 @@ const HistoryList = ({ projectName, repoName, handleTabChange, totalRevision }: 
   }
   return (
     <DynamicDataTable
-      data={data}
+      data={data || []}
       columns={columns}
       setPagination={setPagination}
       pagination={pagination}

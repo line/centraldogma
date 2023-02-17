@@ -8,7 +8,7 @@ import { useRouter } from 'next/router';
 const ProjectDetailPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
-  const { data: repoData = [], isLoading } = useGetReposQuery(projectName, {
+  const { data: repoData, isLoading } = useGetReposQuery(projectName, {
     refetchOnMountOrArgChange: true,
     skip: false,
   });
@@ -33,7 +33,7 @@ const ProjectDetailPage = () => {
               <Spacer />
               <NewRepo projectName={projectName} />
             </Flex>
-            <RepoList data={repoData} projectName={projectName} />
+            <RepoList data={repoData || []} projectName={projectName} />
           </TabPanel>
         </TabPanels>
       </Tabs>
