@@ -19,6 +19,9 @@ import static com.linecorp.centraldogma.common.DefaultPathPattern.ALL;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.allPattern;
 import static java.util.Objects.requireNonNull;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 
@@ -37,6 +40,13 @@ import com.google.common.collect.Streams;
 public interface PathPattern {
 
     /**
+     *Returns a newly created {@link PathPatternBuilder}.
+     */
+    static PathPatternBuilder builder() {
+        return new PathPatternBuilder();
+    }
+
+    /**
      * Returns the path pattern that represents all files.
      */
     static PathPattern all() {
@@ -51,6 +61,16 @@ public interface PathPattern {
     }
 
     /**
+     * Creates a path pattern with the {@code pathPatterns}.
+     */
+    static PathPattern of(PathPattern... pathPatterns) {
+        requireNonNull(pathPatterns, "pathPatterns");
+        return of(ImmutableSet.copyOf(Arrays.stream(pathPatterns)
+                                            .map(PathPattern::patternString)
+                                            .collect(Collectors.toList())));
+    }
+
+    /**
      * Creates a path pattern with the {@code patterns}.
      */
     static PathPattern of(Iterable<String> patterns) {
@@ -60,6 +80,30 @@ public interface PathPattern {
         }
 
         return new DefaultPathPattern(ImmutableSet.copyOf(patterns));
+    }
+
+    /**
+     * Returns the path pattern for matching file(s) ending in {@code pattern}.
+     */
+    static PathPattern endsWith(String pattern) {
+        requireNonNull(pattern, "pattern");
+        final int extSeparatorPos = pattern.lastIndexOf('.');
+        if (extSeparatorPos > 0) { // filename + extension
+            return new DefaultPathPattern(ImmutableSet.of(pattern));
+        } else if (extSeparatorPos == 0) { //  extension with separator
+            return new DefaultPathPattern(ImmutableSet.of("/**/*" + pattern));
+        } else { // extension without separator
+            return new DefaultPathPattern(ImmutableSet.of("/**/*." + pattern));
+        }
+    }
+
+    /**
+     * Returns the path pattern for file(s) under {@code dirPattern}.
+     */
+    static PathPattern under(String dirPattern) {
+        requireNonNull(dirPattern, "dirPattern");
+        return dirPattern.endsWith("/") ? new DefaultPathPattern(ImmutableSet.of(dirPattern + "**"))
+                                        : new DefaultPathPattern(ImmutableSet.of(dirPattern + "/**"));
     }
 
     /**
