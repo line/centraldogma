@@ -1,27 +1,33 @@
-import { DeleteIcon } from '@chakra-ui/icons';
-import { Button } from '@chakra-ui/react';
+import { Text, VStack } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { UserRole } from 'dogma/common/components/UserRole';
-import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
+import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { RepoTokenDetailDto } from 'dogma/features/repo/RepoTokenDto';
 import { useMemo } from 'react';
+import { useDeleteTokenMemberMutation } from 'dogma/features/api/apiSlice';
+import { DeleteMember } from 'dogma/features/repo/DeleteMember';
 
 export type RepoTokenListProps<Data extends object> = {
   data: Data[];
+  projectName: string;
 };
 
-const RepoTokenList = <Data extends object>({ data }: RepoTokenListProps<Data>) => {
+const AppTokenList = <Data extends object>({ data, projectName }: RepoTokenListProps<Data>) => {
+  const [deleteMember, { isLoading }] = useDeleteTokenMemberMutation();
   const columnHelper = createColumnHelper<RepoTokenDetailDto>();
   const columns = useMemo(
     () => [
       columnHelper.accessor((row: RepoTokenDetailDto) => row.appId, {
-        cell: (info) => info.getValue(),
+        cell: (info) => (
+          <VStack alignItems="left">
+            <Text>{info.getValue()}</Text>
+            <Text>
+              <UserRole role={info.row.original.role} />
+            </Text>
+          </VStack>
+        ),
         header: 'App ID',
-      }),
-      columnHelper.accessor((row: RepoTokenDetailDto) => row.role, {
-        cell: (info) => <UserRole role={info.getValue()} />,
-        header: 'Role',
       }),
       columnHelper.accessor((row: RepoTokenDetailDto) => row.creation.user, {
         cell: (info) => info.getValue(),
@@ -32,18 +38,21 @@ const RepoTokenList = <Data extends object>({ data }: RepoTokenListProps<Data>) 
         header: 'Added At',
       }),
       columnHelper.accessor((row: RepoTokenDetailDto) => row.appId, {
-        cell: () => (
-          <Button leftIcon={<DeleteIcon />} size="sm" colorScheme="red">
-            Delete
-          </Button>
+        cell: (info) => (
+          <DeleteMember
+            projectName={projectName}
+            id={info.getValue()}
+            deleteMember={deleteMember}
+            isLoading={isLoading}
+          />
         ),
         header: 'Actions',
         enableSorting: false,
       }),
     ],
-    [columnHelper],
+    [columnHelper, deleteMember, isLoading, projectName],
   );
-  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />;
+  return <DataTableClientPagination columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
-export default RepoTokenList;
+export default AppTokenList;

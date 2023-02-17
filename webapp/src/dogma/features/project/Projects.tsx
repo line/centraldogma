@@ -37,7 +37,7 @@ export const Projects = () => {
     data: projects,
     error,
     isLoading,
-  } = useGetProjectsQuery({ admin: user.roles.includes('LEVEL_ADMIN') });
+  } = useGetProjectsQuery({ admin: user?.roles?.includes('LEVEL_ADMIN') || false });
   const columnHelper = createColumnHelper<ProjectDto>();
   const columns = useMemo(
     () => [
