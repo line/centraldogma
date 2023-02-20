@@ -35,37 +35,7 @@ export const DeleteMember = ({
   projectName: string;
   repoName?: string;
   id: string;
-  deleteMember:
-    | MutationTrigger<
-        MutationDefinition<
-          DeleteMemberDto,
-          BaseQueryFn<
-            string | FetchArgs,
-            unknown,
-            FetchBaseQueryError,
-            Record<string, never>,
-            FetchBaseQueryMeta
-          >,
-          'Metadata',
-          void,
-          'api'
-        >
-      >
-    | MutationTrigger<
-        MutationDefinition<
-          DeleteUserPermissionDto,
-          BaseQueryFn<
-            string | FetchArgs,
-            unknown,
-            FetchBaseQueryError,
-            Record<string, never>,
-            FetchBaseQueryMeta
-          >,
-          'Metadata',
-          void,
-          'api'
-        >
-      >;
+  deleteMember: (projectName: string, repoName: string, id: string) => Promise<void>;
   isLoading: boolean;
 }): JSX.Element => {
   const { isOpen, onToggle, onClose } = useDisclosure();
