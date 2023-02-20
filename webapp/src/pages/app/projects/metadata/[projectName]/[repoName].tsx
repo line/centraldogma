@@ -33,7 +33,7 @@ const RepoMetadata = () => {
     <Box p="2">
       <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0, 2]} suffixes={{}} />
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">Repository {repoName} - Metadata</Heading>
+        <Heading size="lg">Repository {repoName} - Permissions</Heading>
       </Flex>
       <Tabs variant="enclosed-colored" size="lg">
         <TabList>
@@ -70,6 +70,9 @@ const RepoMetadata = () => {
                 members={metadata ? Array.from(Object.values(metadata.members)) : []}
                 addUserPermission={addUserPermission}
                 isLoading={isAddUserLoading}
+                perUserPermissions={
+                  metadata ? metadata.repos[repoName].perUserPermissions : ({} as PerUserPermissionDto)
+                }
               />
             </Flex>
             <UserPermission
@@ -91,6 +94,9 @@ const RepoMetadata = () => {
                 tokens={metadata ? Array.from(Object.values(metadata.tokens)) : []}
                 addTokenPermission={addTokenPermission}
                 isLoading={isAddTokenLoading}
+                perUserPermissions={
+                  metadata ? metadata.repos[repoName].perTokenPermissions : ({} as PerUserPermissionDto)
+                }
               />
             </Flex>
             <UserPermission

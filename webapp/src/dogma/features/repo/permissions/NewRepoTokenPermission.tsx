@@ -33,6 +33,7 @@ import {
 } from '@reduxjs/toolkit/dist/query';
 import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 
 interface TokenOptionType extends OptionBase {
   value: string;
@@ -50,6 +51,7 @@ export const NewRepoTokenPermission = ({
   tokens,
   addTokenPermission,
   isLoading,
+  perUserPermissions,
 }: {
   projectName: string;
   repoName: string;
@@ -70,11 +72,14 @@ export const NewRepoTokenPermission = ({
     >
   >;
   isLoading: boolean;
+  perUserPermissions: PerUserPermissionDto;
 }) => {
-  const tokenOptions: TokenOptionType[] = tokens.map((token: AppTokenDetailDto) => ({
-    value: token.appId,
-    label: token.appId,
-  }));
+  const tokenOptions: TokenOptionType[] = tokens
+    .filter((token) => !(token.appId in perUserPermissions))
+    .map((token) => ({
+      value: token.appId,
+      label: token.appId,
+    }));
   const {
     control,
     handleSubmit,
@@ -132,7 +137,7 @@ export const NewRepoTokenPermission = ({
                   )}
                 />
               ) : (
-                <FormHelperText>No token available</FormHelperText>
+                <FormHelperText>No tokens available</FormHelperText>
               )}
               {errors.appId && <FormErrorMessage>App ID is required</FormErrorMessage>}
             </FormControl>
@@ -169,7 +174,7 @@ export const NewRepoTokenPermission = ({
               />
             ) : (
               <ChakraLink href={`/app/projects/metadata/${projectName}/#tokens`} color="teal">
-                Visit project {projectName}&apos;s token page
+                Go to project {projectName}&apos;s token page
               </ChakraLink>
             )}
           </PopoverFooter>

@@ -22,5 +22,10 @@ export interface RepoRolePermissionDto {
   guest: Array<'READ' | 'WRITE'>;
 }
 
-export type PerUserPermissionDto = Map<string, Array<'READ' | 'WRITE'>>;
-export type PerTokenPermissonDto = Map<string, Array<'READ' | 'WRITE'>>;
+export interface PerUserPermissionDto {
+  [key: string]: Array<'READ' | 'WRITE'>;
+}
+
+export interface PerTokenPermissonDto {
+  [key: string]: Array<'READ' | 'WRITE'>;
+}
