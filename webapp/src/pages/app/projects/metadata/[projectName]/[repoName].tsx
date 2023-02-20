@@ -11,7 +11,7 @@ import { NewRepoUserPermission } from 'dogma/features/repo/permissions/NewRepoUs
 import { RolePermissionForm } from 'dogma/features/repo/permissions/RolePermissionForm';
 import { UserPermission } from 'dogma/features/repo/permissions/UserPermission';
 import { useRouter } from 'next/router';
-import { PerUserPermissionDto, RepoRolePermissionDto } from 'dogma/features/repo/RepoPermissionDto';
+import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { NewRepoTokenPermission } from 'dogma/features/repo/permissions/NewRepoTokenPermission';
 
 const RepoMetadata = () => {
@@ -52,13 +52,13 @@ const RepoMetadata = () => {
         <TabPanels>
           {repoName !== 'meta' && (
             <TabPanel>
-              <RolePermissionForm
-                projectName={projectName}
-                repoName={repoName}
-                perRolePermissions={
-                  metadata ? metadata.repos[repoName].perRolePermissions : ({} as RepoRolePermissionDto)
-                }
-              />
+              {metadata?.repos[repoName]?.perRolePermissions && (
+                <RolePermissionForm
+                  projectName={projectName}
+                  repoName={repoName}
+                  perRolePermissions={metadata?.repos[repoName]?.perRolePermissions}
+                />
+              )}
             </TabPanel>
           )}
           <TabPanel>
@@ -71,16 +71,14 @@ const RepoMetadata = () => {
                 addUserPermission={addUserPermission}
                 isLoading={isAddUserLoading}
                 perUserPermissions={
-                  metadata ? metadata.repos[repoName].perUserPermissions : ({} as PerUserPermissionDto)
+                  metadata?.repos[repoName]?.perUserPermissions ?? ({} as PerUserPermissionDto)
                 }
               />
             </Flex>
             <UserPermission
               projectName={projectName}
               repoName={repoName}
-              perUserPermissions={
-                metadata ? metadata.repos[repoName].perUserPermissions : ({} as PerUserPermissionDto)
-              }
+              perUserPermissions={metadata?.repos[repoName]?.perUserPermissions ?? ({} as PerUserPermissionDto)}
               deleteMember={deleteUserPermission}
               isLoading={isDeleteUserLoading}
             />
@@ -95,7 +93,7 @@ const RepoMetadata = () => {
                 addTokenPermission={addTokenPermission}
                 isLoading={isAddTokenLoading}
                 perUserPermissions={
-                  metadata ? metadata.repos[repoName].perTokenPermissions : ({} as PerUserPermissionDto)
+                  metadata?.repos[repoName]?.perTokenPermissions ?? ({} as PerUserPermissionDto)
                 }
               />
             </Flex>
@@ -103,7 +101,7 @@ const RepoMetadata = () => {
               projectName={projectName}
               repoName={repoName}
               perUserPermissions={
-                metadata ? metadata.repos[repoName].perTokenPermissions : ({} as PerUserPermissionDto)
+                metadata?.repos[repoName]?.perTokenPermissions ?? ({} as PerUserPermissionDto)
               }
               deleteMember={deleteTokenPermission}
               isLoading={isDeleteTokenLoading}
