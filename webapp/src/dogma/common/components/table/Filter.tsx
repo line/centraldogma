@@ -13,6 +13,7 @@ export const Filter = <Data extends object>({ column }: FilterProps<Data>) => {
     () => Array.from(facetedUniqueValues.keys()).sort(),
     [facetedUniqueValues],
   );
+  const handleChange = useCallback((value: string | number) => column.setFilterValue(value), [column]);
 
   return (
     <>
@@ -24,7 +25,7 @@ export const Filter = <Data extends object>({ column }: FilterProps<Data>) => {
       <DebouncedInput
         type="text"
         value={(columnFilterValue ?? '') as string}
-        onChange={useCallback((value) => column.setFilterValue(value), [column])}
+        onChange={handleChange}
         placeholder={`Search...`}
         list={column.id + 'list'}
       />
