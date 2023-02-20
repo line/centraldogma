@@ -14,6 +14,8 @@ import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteU
 import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
 
+type UserAndPermission = [string, string[]];
+
 export const UserPermission = ({
   projectName,
   repoName,
