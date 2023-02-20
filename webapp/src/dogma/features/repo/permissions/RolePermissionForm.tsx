@@ -45,6 +45,7 @@ export const RolePermissionForm = ({
               <HStack spacing={20}>
                 <Radio value="read">Read Only</Radio>
                 <Radio value="write">Read Write</Radio>
+                <Radio value="none">Forbidden</Radio>
               </HStack>
             </RadioGroup>
           </Box>
@@ -56,6 +57,7 @@ export const RolePermissionForm = ({
               <HStack spacing={20}>
                 <Radio value="read">Read Only</Radio>
                 <Radio value="write">Read Write</Radio>
+                <Radio value="none">Forbidden</Radio>
               </HStack>
             </RadioGroup>
           </Box>
