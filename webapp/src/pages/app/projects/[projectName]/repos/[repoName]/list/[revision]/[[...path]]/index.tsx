@@ -28,6 +28,7 @@ import { AiOutlinePlus } from 'react-icons/ai';
 import Link from 'next/link';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
 import Error from 'next/error';
+import { MetadataButton } from 'dogma/common/components/MetadataButton';
 
 const RepositoryDetailPage = () => {
   const { colorMode } = useColorMode();
@@ -146,8 +147,12 @@ cat ${project}/${repo}${path}`;
         </TabList>
         <TabPanels>
           <TabPanel>
-            <Flex>
+            <Flex gap={2}>
               <Spacer />
+              <MetadataButton
+                href={`/app/projects/metadata/${projectName}/${repoName}`}
+                props={{ size: 'sm' }}
+              />
               <Link href={`/app/projects/${projectName}/repos/${repoName}/new_file/head${filePath}`}>
                 <Button size="sm" rightIcon={<AiOutlinePlus />} colorScheme="teal">
                   New File

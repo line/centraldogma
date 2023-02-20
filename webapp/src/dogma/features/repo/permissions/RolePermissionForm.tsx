@@ -1,19 +1,8 @@
-import {
-  Box,
-  Button,
-  Flex,
-  FormControl,
-  FormLabel,
-  HStack,
-  Radio,
-  RadioGroup,
-  Spacer,
-  VStack,
-} from '@chakra-ui/react';
+import { Box, Flex, FormControl, FormLabel, HStack, Radio, RadioGroup, Spacer, VStack } from '@chakra-ui/react';
 import { ConfirmUpdateRolePermission } from 'dogma/features/repo/permissions/ConfirmUpdateRolePermission';
 import { RepoRolePermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useState } from 'react';
-import Router from 'next/router';
+import { MetadataButton } from 'dogma/common/components/MetadataButton';
 
 const getPermission = (permissions: Array<'READ' | 'WRITE'>) => {
   return permissions.find((permission) => permission === 'WRITE')
@@ -74,9 +63,7 @@ export const RolePermissionForm = ({
       </VStack>
       <Flex gap={4} mt={10}>
         <Spacer />
-        <Button variant="outline" colorScheme="teal" onClick={() => Router.back()}>
-          Back to repository metadata
-        </Button>
+        <MetadataButton href={`/app/projects/metadata/${projectName}`} text="Project Metadata" />
         <ConfirmUpdateRolePermission
           projectName={projectName}
           repoName={repoName}

@@ -1,5 +1,6 @@
 import { Box, Flex, Heading, Spacer, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
+import { MetadataButton } from 'dogma/common/components/MetadataButton';
 import { useGetReposQuery } from 'dogma/features/api/apiSlice';
 import { NewRepo } from 'dogma/features/repo/NewRepo';
 import RepoList from 'dogma/features/repo/RepoList';
@@ -29,8 +30,9 @@ const ProjectDetailPage = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <Flex>
+            <Flex gap={2}>
               <Spacer />
+              <MetadataButton href={`/app/projects/metadata/${projectName}`} props={{ size: 'sm' }} />
               <NewRepo projectName={projectName} />
             </Flex>
             <RepoList data={repoData || []} projectName={projectName} />
