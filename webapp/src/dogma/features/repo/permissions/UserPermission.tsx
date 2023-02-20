@@ -35,10 +35,10 @@ export const UserPermission = ({
   >;
   isLoading: boolean;
 }) => {
-  const columnHelper = createColumnHelper<[string, string[]]>();
+  const columnHelper = createColumnHelper<UserAndPermission>();
   const columns = useMemo(
     () => [
-      columnHelper.accessor((row) => row[0], {
+      columnHelper.accessor((row: UserAndPermission) => row[0], {
         cell: (info) => info.getValue(),
         header: 'Login ID',
       }),
