@@ -44,7 +44,7 @@ export const UserPermission = ({
         cell: (info) => info.getValue(),
         header: 'Login ID',
       }),
-      columnHelper.accessor((row) => row[1], {
+      columnHelper.accessor((row: UserAndPermission) => row[1], {
         cell: (info) => (
           <Wrap>
             {info.getValue().map((permission) => (
@@ -59,7 +59,7 @@ export const UserPermission = ({
         header: 'Permissions',
         enableSorting: false,
       }),
-      columnHelper.accessor((row) => row[0], {
+      columnHelper.accessor((row: UserAndPermission) => row[0], {
         cell: (info) => (
           <DeleteMember
             projectName={projectName}
