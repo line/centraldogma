@@ -7,14 +7,14 @@ import {
   FetchBaseQueryMeta,
 } from '@reduxjs/toolkit/dist/query';
 import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
-import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
+import { createColumnHelper } from '@tanstack/react-table';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
 import { DeleteMember } from 'dogma/features/metadata/DeleteMember';
 import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
 
-export const UserPermission = <Data extends object>({
+export const UserPermission = ({
   projectName,
   repoName,
   perUserPermissions,
@@ -35,7 +35,7 @@ export const UserPermission = <Data extends object>({
   >;
   isLoading: boolean;
 }) => {
-  const columnHelper = createColumnHelper<[string, string[]][]>();
+  const columnHelper = createColumnHelper<[string, string[]]>();
   const columns = useMemo(
     () => [
       columnHelper.accessor((row) => row[0], {
@@ -73,10 +73,5 @@ export const UserPermission = <Data extends object>({
     ],
     [columnHelper, deleteMember, isLoading, projectName, repoName],
   );
-  return (
-    <DynamicDataTable
-      columns={columns as ColumnDef<[string, Data]>[]}
-      data={Object.entries(perUserPermissions)}
-    />
-  );
+  return <DynamicDataTable columns={columns} data={Object.entries(perUserPermissions)} />;
 };
