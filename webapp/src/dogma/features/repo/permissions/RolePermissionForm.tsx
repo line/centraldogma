@@ -54,7 +54,6 @@ export const RolePermissionForm = ({
             <FormLabel as="legend">Member</FormLabel>
             <RadioGroup colorScheme="teal" value={member} onChange={setMember}>
               <HStack spacing={20}>
-                <Radio value="none">No Access</Radio>
                 <Radio value="read">Read Only</Radio>
                 <Radio value="write">Read Write</Radio>
               </HStack>
@@ -66,7 +65,6 @@ export const RolePermissionForm = ({
             <FormLabel as="legend">Guest</FormLabel>
             <RadioGroup colorScheme="teal" value={guest} onChange={setGuest}>
               <HStack spacing={20}>
-                <Radio value="none">No Access</Radio>
                 <Radio value="read">Read Only</Radio>
                 <Radio value="write">Read Write</Radio>
               </HStack>
@@ -77,7 +75,7 @@ export const RolePermissionForm = ({
       <Flex gap={4} mt={10}>
         <Spacer />
         <Button variant="outline" colorScheme="teal" onClick={() => Router.back()}>
-          Cancel
+          Back to repository metadata
         </Button>
         <ConfirmUpdateRolePermission
           projectName={projectName}

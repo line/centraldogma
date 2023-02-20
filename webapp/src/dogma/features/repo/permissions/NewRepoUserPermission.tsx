@@ -138,7 +138,6 @@ export const NewRepoUserPermission = ({
               value={permission}
             >
               <Stack spacing={5} direction="row">
-                <Radio value="none">No Access</Radio>
                 <Radio value="read">Read Only</Radio>
                 <Radio value="write">Read Write</Radio>
               </Stack>

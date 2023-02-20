@@ -2,6 +2,7 @@ import {
   Button,
   FormControl,
   FormErrorMessage,
+  FormHelperText,
   Popover,
   PopoverArrow,
   PopoverBody,
@@ -31,6 +32,7 @@ import {
   FetchBaseQueryMeta,
 } from '@reduxjs/toolkit/dist/query';
 import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
 
 interface TokenOptionType extends OptionBase {
   value: string;
@@ -107,27 +109,31 @@ export const NewRepoTokenPermission = ({
         <form onSubmit={handleSubmit(onSubmit)}>
           <PopoverBody minWidth="max-content">
             <FormControl isInvalid={errors.appId ? true : false} isRequired>
-              <Controller
-                control={control}
-                name="appId"
-                rules={{ required: true }}
-                render={({ field: { onChange, value, name, ref } }) => (
-                  <Select
-                    ref={ref}
-                    id="appId"
-                    name={name}
-                    options={tokenOptions}
-                    // The default value of React Select must be null (and not undefined)
-                    value={tokenOptions.find((option) => option.value === value) || null}
-                    onChange={(option) => option && onChange(option.value)}
-                    placeholder="Enter App ID ..."
-                    closeMenuOnSelect={true}
-                    openMenuOnFocus={true}
-                    isSearchable={true}
-                    isClearable={true}
-                  />
-                )}
-              />
+              {tokenOptions.length ? (
+                <Controller
+                  control={control}
+                  name="appId"
+                  rules={{ required: true }}
+                  render={({ field: { onChange, value, name, ref } }) => (
+                    <Select
+                      ref={ref}
+                      id="appId"
+                      name={name}
+                      options={tokenOptions}
+                      // The default value of React Select must be null (and not undefined)
+                      value={tokenOptions.find((option) => option.value === value) || null}
+                      onChange={(option) => option && onChange(option.value)}
+                      placeholder="Enter App ID ..."
+                      closeMenuOnSelect={true}
+                      openMenuOnFocus={true}
+                      isSearchable={true}
+                      isClearable={true}
+                    />
+                  )}
+                />
+              ) : (
+                <FormHelperText>No token available</FormHelperText>
+              )}
               {errors.appId && <FormErrorMessage>App ID is required</FormErrorMessage>}
             </FormControl>
             <RadioGroup
@@ -137,26 +143,35 @@ export const NewRepoTokenPermission = ({
               onChange={setPermission}
               value={permission}
             >
-              <Stack spacing={5} direction="row">
-                <Radio value="none">No Access</Radio>
-                <Radio value="read">Read Only</Radio>
-                <Radio value="write">Read Write</Radio>
-              </Stack>
+              {tokenOptions.length ? (
+                <Stack spacing={5} direction="row">
+                  <Radio value="read">Read Only</Radio>
+                  <Radio value="write">Read Write</Radio>
+                </Stack>
+              ) : (
+                ''
+              )}
             </RadioGroup>
           </PopoverBody>
           <PopoverFooter border="0" display="flex" alignItems="center" justifyContent="space-between" pb={4}>
             <Spacer />
-            <ConfirmAddUserPermission
-              projectName={projectName}
-              repoName={repoName}
-              loginId={appId}
-              permission={permission}
-              isOpen={isConfirmAddOpen}
-              onClose={onConfirmAddClose}
-              resetForm={reset}
-              addUserPermission={addTokenPermission}
-              isLoading={isLoading}
-            />
+            {tokenOptions.length ? (
+              <ConfirmAddUserPermission
+                projectName={projectName}
+                repoName={repoName}
+                loginId={appId}
+                permission={permission}
+                isOpen={isConfirmAddOpen}
+                onClose={onConfirmAddClose}
+                resetForm={reset}
+                addUserPermission={addTokenPermission}
+                isLoading={isLoading}
+              />
+            ) : (
+              <ChakraLink href={`/app/projects/metadata/${projectName}/#tokens`} color="teal">
+                Visit project {projectName}&apos;s token page
+              </ChakraLink>
+            )}
           </PopoverFooter>
         </form>
       </PopoverContent>
