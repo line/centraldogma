@@ -1,6 +1,6 @@
 import { Column } from '@tanstack/react-table';
 import { DebouncedInput } from 'dogma/common/components/table/DebouncedInput';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 export type FilterProps<Data> = {
   column: Column<Data, unknown>;
@@ -8,7 +8,11 @@ export type FilterProps<Data> = {
 
 export const Filter = <Data extends object>({ column }: FilterProps<Data>) => {
   const columnFilterValue = column.getFilterValue();
-  const sortedUniqueValues = useMemo(() => Array.from(column.getFacetedUniqueValues().keys()).sort(), [column]);
+  const facetedUniqueValues = column.getFacetedUniqueValues();
+  const sortedUniqueValues = useMemo(
+    () => Array.from(facetedUniqueValues.keys()).sort(),
+    [facetedUniqueValues],
+  );
 
   return (
     <>
@@ -20,7 +24,7 @@ export const Filter = <Data extends object>({ column }: FilterProps<Data>) => {
       <DebouncedInput
         type="text"
         value={(columnFilterValue ?? '') as string}
-        onChange={(value) => column.setFilterValue(value)}
+        onChange={useCallback((value) => column.setFilterValue(value), [column])}
         placeholder={`Search...`}
         list={column.id + 'list'}
       />
