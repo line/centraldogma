@@ -65,7 +65,7 @@ export const UserPermission = ({
             projectName={projectName}
             repoName={repoName}
             id={info.getValue() as unknown as string}
-            deleteMember={deleteMember}
+            deleteMember={(projectName, id, repoName) => deleteMember({ projectName, id, repoName }).unwrap()}
             isLoading={isLoading}
           />
         ),

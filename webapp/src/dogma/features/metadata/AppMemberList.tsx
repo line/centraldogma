@@ -42,7 +42,7 @@ const AppMemberList = <Data extends object>({ data, projectName }: AppMemberList
           <DeleteMember
             projectName={projectName}
             id={info.getValue()}
-            deleteMember={deleteMember}
+            deleteMember={(projectName, id) => deleteMember({ projectName, id }).unwrap()}
             isLoading={isLoading}
           />
         ),

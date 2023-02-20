@@ -10,17 +10,7 @@ import {
   ModalOverlay,
   useDisclosure,
 } from '@chakra-ui/react';
-import {
-  MutationDefinition,
-  BaseQueryFn,
-  FetchArgs,
-  FetchBaseQueryError,
-  FetchBaseQueryMeta,
-} from '@reduxjs/toolkit/dist/query';
-import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
 import { createMessage } from 'dogma/features/message/messageSlice';
-import { DeleteMemberDto } from 'dogma/features/metadata/DeleteMemberDto';
-import { DeleteUserPermissionDto } from 'dogma/features/repo/permissions/DeleteUserPermissionDto';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/store';
 import { MdDelete } from 'react-icons/md';
@@ -35,14 +25,14 @@ export const DeleteMember = ({
   projectName: string;
   repoName?: string;
   id: string;
-  deleteMember: (projectName: string, repoName: string, id: string) => Promise<void>;
+  deleteMember: (projectName: string, id: string, repoName?: string) => Promise<void>;
   isLoading: boolean;
 }): JSX.Element => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
   const handleDelete = async () => {
     try {
-      await deleteMember({ projectName, repoName, id }).unwrap();
+      await deleteMember(projectName, id, repoName);
       dispatch(
         createMessage({
           title: 'Member deleted.',

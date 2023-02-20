@@ -42,7 +42,7 @@ const AppTokenList = <Data extends object>({ data, projectName }: AppTokenListPr
           <DeleteMember
             projectName={projectName}
             id={info.getValue()}
-            deleteMember={deleteMember}
+            deleteMember={(projectName, id) => deleteMember({ projectName, id }).unwrap()}
             isLoading={isLoading}
           />
         ),
