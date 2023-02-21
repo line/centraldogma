@@ -153,11 +153,15 @@ cat ${project}/${repo}${path}`;
                 href={`/app/projects/metadata/${projectName}/${repoName}`}
                 props={{ size: 'sm' }}
               />
-              <Link href={`/app/projects/${projectName}/repos/${repoName}/new_file/head${filePath}`}>
-                <Button size="sm" rightIcon={<AiOutlinePlus />} colorScheme="teal">
-                  New File
-                </Button>
-              </Link>
+              <Button
+                as={Link}
+                href={`/app/projects/${projectName}/repos/${repoName}/new_file/head${filePath}`}
+                size="sm"
+                rightIcon={<AiOutlinePlus />}
+                colorScheme="teal"
+              >
+                New File
+              </Button>
             </Flex>
             <FileList
               data={fileData || []}

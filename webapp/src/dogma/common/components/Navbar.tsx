@@ -184,8 +184,8 @@ export const Navbar = () => {
                 <Avatar name={user.login} size="sm" />
               </MenuButton>
               <MenuList>
-                <MenuItem>
-                  <RouteLink href="/app/settings/tokens">Application tokens</RouteLink>
+                <MenuItem as={RouteLink} href="/app/settings/tokens">
+                  Application tokens
                 </MenuItem>
                 <MenuDivider />
                 <MenuItem
