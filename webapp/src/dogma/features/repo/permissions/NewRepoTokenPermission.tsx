@@ -93,7 +93,7 @@ export const NewRepoTokenPermission = ({
     onClose: onConfirmAddClose,
   } = useDisclosure();
   const [appId, setAppId] = useState('');
-  const [permission, setPermission] = useState('none');
+  const [permission, setPermission] = useState('read');
   const onSubmit = async (data: FormData) => {
     setAppId(data.appId);
     onConfirmAddToggle();
