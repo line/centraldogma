@@ -1,7 +1,7 @@
 import { RepoCreatorDto } from 'dogma/features/repo/RepoPermissionDto';
 
-export type RepoTokenDto = Map<string, RepoTokenDetailDto>;
-export interface RepoTokenDetailDto {
+export type AppTokenDto = Map<string, AppTokenDetailDto>;
+export interface AppTokenDetailDto {
   appId: string;
   role: 'MEMBER' | 'OWNER';
   creation: RepoCreatorDto;

@@ -1,15 +1,15 @@
-import { EditIcon } from '@chakra-ui/icons';
-import { HStack, Box, Button, Tag, WrapItem, Wrap, TagLabel } from '@chakra-ui/react';
+import { Tag, WrapItem, Wrap, TagLabel } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
-import { ChakraLink } from 'dogma/common/components/ChakraLink';
-import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
+import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { RepoPermissionDetailDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
-import { RiGitRepositoryPrivateFill } from 'react-icons/ri';
+import { AppMemberDetailDto } from 'dogma/features/metadata/AppMemberDto';
+import { ChakraLink } from 'dogma/common/components/ChakraLink';
 
 export type RepoPermissionListProps<Data extends object> = {
   data: Data[];
   projectName: string;
+  members: AppMemberDetailDto[];
 };
 
 const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPermissionListProps<Data>) => {
@@ -18,16 +18,8 @@ const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPerm
     () => [
       columnHelper.accessor((row: RepoPermissionDetailDto) => row.name, {
         cell: (info) => (
-          <ChakraLink
-            fontWeight={'semibold'}
-            href={`/app/projects/${projectName}/repos/${info.getValue()}/edit`}
-          >
-            <HStack>
-              <Box>
-                <RiGitRepositoryPrivateFill />
-              </Box>
-              <Box>{info.getValue()}</Box>
-            </HStack>
+          <ChakraLink fontWeight={'semibold'} href={`/app/projects/metadata/${projectName}/${info.getValue()}`}>
+            {info.getValue()}
           </ChakraLink>
         ),
         header: 'Name',
@@ -77,19 +69,10 @@ const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPerm
         header: 'Guest',
         enableSorting: false,
       }),
-      columnHelper.accessor((row: RepoPermissionDetailDto) => row.name, {
-        cell: () => (
-          <Button leftIcon={<EditIcon />} size="sm">
-            Edit
-          </Button>
-        ),
-        header: 'Actions',
-        enableSorting: false,
-      }),
     ],
     [columnHelper, projectName],
   );
-  return <DynamicDataTable columns={columns as ColumnDef<Data>[]} data={data} />;
+  return <DataTableClientPagination columns={columns as ColumnDef<Data>[]} data={data} />;
 };
 
 export default RepoPermissionList;
