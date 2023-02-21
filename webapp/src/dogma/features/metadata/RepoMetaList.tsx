@@ -2,11 +2,11 @@ import { Wrap, Box, Badge, VStack } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
+import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { DeleteRepo } from 'dogma/features/repo/DeleteRepo';
 import { RepoPermissionDetailDto } from 'dogma/features/repo/RepoPermissionDto';
 import { RestoreRepo } from 'dogma/features/repo/RestoreRepo';
 import { useMemo } from 'react';
-import { DataTableClientPagination } from '../../common/components/table/DataTableClientPagination';
 
 export type RepoListProps<Data extends object> = {
   data: Data[];

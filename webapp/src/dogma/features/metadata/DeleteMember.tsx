@@ -10,45 +10,29 @@ import {
   ModalOverlay,
   useDisclosure,
 } from '@chakra-ui/react';
-import {
-  MutationDefinition,
-  BaseQueryFn,
-  FetchArgs,
-  FetchBaseQueryError,
-  FetchBaseQueryMeta,
-} from '@reduxjs/toolkit/dist/query';
-import { MutationTrigger } from '@reduxjs/toolkit/dist/query/react/buildHooks';
 import { createMessage } from 'dogma/features/message/messageSlice';
-import { DeleteRepoMemberDto } from 'dogma/features/repo/DeleteRepoMemberDto';
 import ErrorHandler from 'dogma/features/services/ErrorHandler';
 import { useAppDispatch } from 'dogma/store';
 import { MdDelete } from 'react-icons/md';
 
 export const DeleteMember = ({
   projectName,
+  repoName,
   id,
   deleteMember,
   isLoading,
 }: {
   projectName: string;
+  repoName?: string;
   id: string;
-  deleteMember: MutationTrigger<
-    MutationDefinition<
-      DeleteRepoMemberDto,
-      BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError, Record<string, never>, FetchBaseQueryMeta>,
-      'Metadata',
-      void,
-      'api'
-    >
-  >;
+  deleteMember: (projectName: string, id: string, repoName?: string) => Promise<void>;
   isLoading: boolean;
 }): JSX.Element => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const dispatch = useAppDispatch();
-
   const handleDelete = async () => {
     try {
-      await deleteMember({ projectName, id }).unwrap();
+      await deleteMember(projectName, id, repoName);
       dispatch(
         createMessage({
           title: 'Member deleted.',

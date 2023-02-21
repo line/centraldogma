@@ -28,5 +28,7 @@ npm run develop
 
 # Use nextjs server and the API routes under pages/api
 # An alias for `NEXT_PUBLIC_HOST='' next dev`
+# Note: the nextjs server is not an actual Central Dogma server.
+# It is only used as a mock to help with UI/UX development without having to run the Java server.
 npm run mock
 ```
