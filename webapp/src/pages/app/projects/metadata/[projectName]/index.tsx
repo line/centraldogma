@@ -28,16 +28,13 @@ const ProjectMetadataPage = () => {
     skip: false,
   });
   const [tabIndex, setTabIndex] = useState(0);
-  const switchTab = (index: number) => {
-    setTabIndex(index);
-    window.location.hash = tabs[index];
-  };
+  const tab = router.query.tab ? (router.query.tab as string) : '';
   useEffect(() => {
-    const index = tabs.findIndex((tab) => tab === window.location.hash?.slice(1));
-    if (index !== -1) {
+    const index = tabs.findIndex((tabName) => tabName === tab);
+    if (index !== -1 && index !== tabIndex) {
       setTabIndex(index);
     }
-  }, []);
+  }, [tab, tabIndex]);
   if (isLoading) {
     return <>Loading...</>;
   }
@@ -47,13 +44,18 @@ const ProjectMetadataPage = () => {
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
         <Heading size="lg">Project {projectName} - Metadata</Heading>
       </Flex>
-      <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={switchTab}>
+      <Tabs variant="enclosed-colored" size="lg" index={tabIndex}>
         <TabList>
-          {tabs.map((tab) => (
-            <Tab as={Link} key={tab} href={`#${tab}`} shallow={true}>
+          {tabs.map((tabName) => (
+            <Tab
+              as={Link}
+              key={tabName}
+              replace
+              href={{ pathname: `/app/projects/metadata/${projectName}`, query: { tab: tabName } }}
+            >
               <Heading size="sm">
-                {tab.charAt(0).toUpperCase()}
-                {tab.slice(1)}
+                {tabName.charAt(0).toUpperCase()}
+                {tabName.slice(1)}
               </Heading>
             </Tab>
           ))}

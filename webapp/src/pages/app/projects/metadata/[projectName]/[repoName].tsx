@@ -13,11 +13,18 @@ import { UserPermission } from 'dogma/features/repo/permissions/UserPermission';
 import { useRouter } from 'next/router';
 import { PerUserPermissionDto } from 'dogma/features/repo/RepoPermissionDto';
 import { NewRepoTokenPermission } from 'dogma/features/repo/permissions/NewRepoTokenPermission';
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
+
+let tabs = ['role', 'user', 'token'];
 
 const RepoMetadata = () => {
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
+  if (repoName === 'meta') {
+    tabs = ['user', 'token'];
+  }
   const { data: metadata, isLoading } = useGetMetadataByProjectNameQuery(projectName, {
     refetchOnFocus: true,
     skip: false,
@@ -26,6 +33,14 @@ const RepoMetadata = () => {
   const [deleteUserPermission, { isLoading: isDeleteUserLoading }] = useDeleteUserPermissionMutation();
   const [addTokenPermission, { isLoading: isAddTokenLoading }] = useAddTokenPermissionMutation();
   const [deleteTokenPermission, { isLoading: isDeleteTokenLoading }] = useDeleteTokenPermissionMutation();
+  const [tabIndex, setTabIndex] = useState(0);
+  const tab = router.query.tab ? (router.query.tab as string) : '';
+  useEffect(() => {
+    const index = tabs.findIndex((tabName) => tabName === tab);
+    if (index !== -1 && index !== tabIndex) {
+      setTabIndex(index);
+    }
+  }, [tab, tabIndex]);
   if (isLoading) {
     return <>Loading...</>;
   }
@@ -35,19 +50,21 @@ const RepoMetadata = () => {
       <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
         <Heading size="lg">Repository {repoName} - Permissions</Heading>
       </Flex>
-      <Tabs variant="enclosed-colored" size="lg">
+      <Tabs variant="enclosed-colored" size="lg" index={tabIndex}>
         <TabList>
-          {repoName !== 'meta' && (
-            <Tab key="role">
-              <Heading size="sm">Role</Heading>
+          {tabs.map((tabName) => (
+            <Tab
+              as={Link}
+              key={tabName}
+              replace
+              href={{ pathname: `/app/projects/metadata/${projectName}/${repoName}`, query: { tab: tabName } }}
+            >
+              <Heading size="sm">
+                {tabName.charAt(0).toUpperCase()}
+                {tabName.slice(1)}
+              </Heading>
             </Tab>
-          )}
-          <Tab key="user">
-            <Heading size="sm">User</Heading>
-          </Tab>
-          <Tab key="token">
-            <Heading size="sm">Token</Heading>
-          </Tab>
+          ))}
         </TabList>
         <TabPanels>
           {repoName !== 'meta' && (
