@@ -14,6 +14,7 @@ slf4j = "1.7.36"
 spring-boot1 = "1.5.22.RELEASE"
 spring-boot2 = "2.7.8"
 sshd = "2.9.2"
+jgit6 = "6.4.0.202211300538-r"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.22.1" }
@@ -156,6 +157,13 @@ version.ref = "jgit"
 [libraries.jgit-ssh-jsch]
 module = "org.eclipse.jgit:org.eclipse.jgit.ssh.jsch"
 version.ref = "jgit"
+
+[libraries.jgit6]
+module = "org.eclipse.jgit:org.eclipse.jgit"
+version.ref = "jgit6"
+[libraries.jgit-ssh-jsch6]
+module = "org.eclipse.jgit:org.eclipse.jgit.ssh.jsch"
+version.ref = "jgit6"
 
 [libraries.jmh-core]
 module = "org.openjdk.jmh:jmh-core"
