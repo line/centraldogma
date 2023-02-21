@@ -93,7 +93,7 @@ export const NewRepoUserPermission = ({
     onClose: onConfirmAddClose,
   } = useDisclosure();
   const [loginId, setLoginId] = useState('');
-  const [permission, setPermission] = useState('none');
+  const [permission, setPermission] = useState('read');
   const onSubmit = async (data: FormData) => {
     setLoginId(data.loginId);
     onConfirmAddToggle();
