@@ -83,27 +83,32 @@ public interface PathPattern {
     }
 
     /**
-     * Returns the path pattern for matching file(s) ending in {@code pattern}.
+     * Returns the path pattern for matching file(s) ending in {@code filename}.
      */
-    static PathPattern endsWith(String pattern) {
-        requireNonNull(pattern, "pattern");
-        final int extSeparatorPos = pattern.lastIndexOf('.');
-        if (extSeparatorPos > 0) { // filename + extension
-            return new DefaultPathPattern(ImmutableSet.of(pattern));
-        } else if (extSeparatorPos == 0) { //  extension with separator
-            return new DefaultPathPattern(ImmutableSet.of("/**/*" + pattern));
-        } else { // extension without separator
-            return new DefaultPathPattern(ImmutableSet.of("/**/*." + pattern));
-        }
+    static PathPattern endsWith(String filename) {
+        return builder().endsWith(filename).build();
     }
 
     /**
-     * Returns the path pattern for file(s) under {@code dirPattern}.
+     * Returns the path pattern for file(s) that start with {@code dirPath}.
      */
-    static PathPattern under(String dirPattern) {
-        requireNonNull(dirPattern, "dirPattern");
-        return dirPattern.endsWith("/") ? new DefaultPathPattern(ImmutableSet.of(dirPattern + "**"))
-                                        : new DefaultPathPattern(ImmutableSet.of(dirPattern + "/**"));
+    static PathPattern startsWith(String dirPath) {
+        return builder().startsWith(dirPath).build();
+    }
+
+
+    /**
+     * Returns the path pattern for file(s) that contains {@code dirPath}.
+     */
+    static PathPattern contains(String dirPath) {
+        return builder().contains(dirPath).build();
+    }
+
+    /**
+     * Returns the path pattern for file(s) with {@code extension}.
+     */
+    static PathPattern extension(String extension) {
+        return builder().extension(extension).build();
     }
 
     /**
