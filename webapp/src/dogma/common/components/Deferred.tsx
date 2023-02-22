@@ -13,6 +13,9 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+import { Spinner, Text, VStack, useColorMode } from '@chakra-ui/react';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
+import Error from 'next/error';
 import { ReactNode } from 'react';
 
 interface LoadingProps {
@@ -21,15 +24,22 @@ interface LoadingProps {
   children: () => ReactNode;
 }
 export const Deferred = (props: LoadingProps) => {
+  const { colorMode } = useColorMode();
   if (props.isLoading) {
-    // TODO(ikhoon): Add a loading indicator/spinner.
-    return <div>Loading...</div>;
+    return (
+      <VStack mt="25%">
+        <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="teal" size="xl" />
+        <Text>Loading...</Text>
+      </VStack>
+    );
   }
-
   if (props.error) {
-    // TODO(ikhoon): Link to an error page.
-    return <div>Link to an error page</div>;
+    return (
+      <Error
+        statusCode={(props.error as FetchBaseQueryError).status as number}
+        withDarkMode={colorMode === 'dark'}
+      />
+    );
   }
-
-  return <div>{props.children()}</div>;
+  return <>{props.children()}</>;
 };

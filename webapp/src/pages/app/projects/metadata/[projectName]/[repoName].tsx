@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 let tabs = ['role', 'user', 'token'];
+import { Deferred } from 'dogma/common/components/Deferred';
 
 const RepoMetadata = () => {
   const router = useRouter();
@@ -25,7 +26,11 @@ const RepoMetadata = () => {
   if (repoName === 'meta') {
     tabs = ['user', 'token'];
   }
-  const { data: metadata, isLoading } = useGetMetadataByProjectNameQuery(projectName, {
+  const {
+    data: metadata,
+    isLoading,
+    error,
+  } = useGetMetadataByProjectNameQuery(projectName, {
     refetchOnFocus: true,
     skip: false,
   });
@@ -45,88 +50,97 @@ const RepoMetadata = () => {
     return <>Loading...</>;
   }
   return (
-    <Box p="2">
-      <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0, 2]} suffixes={{}} />
-      <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">Repository {repoName} - Permissions</Heading>
-      </Flex>
-      <Tabs variant="enclosed-colored" size="lg" index={tabIndex}>
-        <TabList>
-          {tabs.map((tabName) => (
-            <Tab
-              as={Link}
-              key={tabName}
-              replace
-              href={{ pathname: `/app/projects/metadata/${projectName}/${repoName}`, query: { tab: tabName } }}
-            >
-              <Heading size="sm">
-                {tabName.charAt(0).toUpperCase()}
-                {tabName.slice(1)}
-              </Heading>
-            </Tab>
-          ))}
-        </TabList>
-        <TabPanels>
-          {repoName !== 'meta' && (
-            <TabPanel>
-              {metadata?.repos[repoName]?.perRolePermissions && (
-                <RolePermissionForm
+    <Deferred isLoading={isLoading} error={error}>
+      {() => (
+        <Box p="2">
+          <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0, 2]} suffixes={{}} />
+          <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
+            <Heading size="lg">Repository {repoName} - Permissions</Heading>
+          </Flex>
+          <Tabs variant="enclosed-colored" size="lg" index={tabIndex}>
+            <TabList>
+              {tabs.map((tabName) => (
+                <Tab
+                  as={Link}
+                  key={tabName}
+                  replace
+                  href={{
+                    pathname: `/app/projects/metadata/${projectName}/${repoName}`,
+                    query: { tab: tabName },
+                  }}
+                >
+                  <Heading size="sm">
+                    {tabName.charAt(0).toUpperCase()}
+                    {tabName.slice(1)}
+                  </Heading>
+                </Tab>
+              ))}
+            </TabList>
+            <TabPanels>
+              {repoName !== 'meta' && (
+                <TabPanel>
+                  {metadata?.repos[repoName]?.perRolePermissions && (
+                    <RolePermissionForm
+                      projectName={projectName}
+                      repoName={repoName}
+                      perRolePermissions={metadata?.repos[repoName]?.perRolePermissions}
+                    />
+                  )}
+                </TabPanel>
+              )}
+              <TabPanel>
+                <Flex>
+                  <Spacer />
+                  <NewRepoUserPermission
+                    projectName={projectName}
+                    repoName={repoName}
+                    members={metadata ? Array.from(Object.values(metadata.members)) : []}
+                    addUserPermission={addUserPermission}
+                    isLoading={isAddUserLoading}
+                    perUserPermissions={
+                      metadata?.repos[repoName]?.perUserPermissions ?? ({} as PerUserPermissionDto)
+                    }
+                  />
+                </Flex>
+                <UserPermission
                   projectName={projectName}
                   repoName={repoName}
-                  perRolePermissions={metadata?.repos[repoName]?.perRolePermissions}
+                  perUserPermissions={
+                    metadata?.repos[repoName]?.perUserPermissions ?? ({} as PerUserPermissionDto)
+                  }
+                  deleteMember={deleteUserPermission}
+                  isLoading={isDeleteUserLoading}
                 />
-              )}
-            </TabPanel>
-          )}
-          <TabPanel>
-            <Flex>
-              <Spacer />
-              <NewRepoUserPermission
-                projectName={projectName}
-                repoName={repoName}
-                members={metadata ? Array.from(Object.values(metadata.members)) : []}
-                addUserPermission={addUserPermission}
-                isLoading={isAddUserLoading}
-                perUserPermissions={
-                  metadata?.repos[repoName]?.perUserPermissions ?? ({} as PerUserPermissionDto)
-                }
-              />
-            </Flex>
-            <UserPermission
-              projectName={projectName}
-              repoName={repoName}
-              perUserPermissions={metadata?.repos[repoName]?.perUserPermissions ?? ({} as PerUserPermissionDto)}
-              deleteMember={deleteUserPermission}
-              isLoading={isDeleteUserLoading}
-            />
-          </TabPanel>
-          <TabPanel>
-            <Flex>
-              <Spacer />
-              <NewRepoTokenPermission
-                projectName={projectName}
-                repoName={repoName}
-                tokens={metadata ? Array.from(Object.values(metadata.tokens)) : []}
-                addTokenPermission={addTokenPermission}
-                isLoading={isAddTokenLoading}
-                perUserPermissions={
-                  metadata?.repos[repoName]?.perTokenPermissions ?? ({} as PerUserPermissionDto)
-                }
-              />
-            </Flex>
-            <UserPermission
-              projectName={projectName}
-              repoName={repoName}
-              perUserPermissions={
-                metadata?.repos[repoName]?.perTokenPermissions ?? ({} as PerUserPermissionDto)
-              }
-              deleteMember={deleteTokenPermission}
-              isLoading={isDeleteTokenLoading}
-            />
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
-    </Box>
+              </TabPanel>
+              <TabPanel>
+                <Flex>
+                  <Spacer />
+                  <NewRepoTokenPermission
+                    projectName={projectName}
+                    repoName={repoName}
+                    tokens={metadata ? Array.from(Object.values(metadata.tokens)) : []}
+                    addTokenPermission={addTokenPermission}
+                    isLoading={isAddTokenLoading}
+                    perUserPermissions={
+                      metadata?.repos[repoName]?.perTokenPermissions ?? ({} as PerUserPermissionDto)
+                    }
+                  />
+                </Flex>
+                <UserPermission
+                  projectName={projectName}
+                  repoName={repoName}
+                  perUserPermissions={
+                    metadata?.repos[repoName]?.perTokenPermissions ?? ({} as PerUserPermissionDto)
+                  }
+                  deleteMember={deleteTokenPermission}
+                  isLoading={isDeleteTokenLoading}
+                />
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
+        </Box>
+      )}
+    </Deferred>
   );
 };
 
