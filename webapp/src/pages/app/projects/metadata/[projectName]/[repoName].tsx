@@ -46,9 +46,6 @@ const RepoMetadata = () => {
       setTabIndex(index);
     }
   }, [tab, tabIndex]);
-  if (isLoading) {
-    return <>Loading...</>;
-  }
   return (
     <Deferred isLoading={isLoading} error={error}>
       {() => (
