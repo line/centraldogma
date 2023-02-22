@@ -96,7 +96,6 @@ public interface PathPattern {
         return builder().startsWith(dirPath).build();
     }
 
-
     /**
      * Returns the path pattern for file(s) that contains {@code dirPath}.
      */
