@@ -112,14 +112,14 @@ export interface AuthState {
   isInAnonymousMode: boolean;
   sessionId: string;
   user: UserDto;
-  ready: boolean;
+  isLoading: boolean;
 }
 
 const initialState: AuthState = {
   isInAnonymousMode: false,
   sessionId,
   user: null,
-  ready: false,
+  isLoading: true,
 };
 
 export const authSlice = createSlice({
@@ -131,7 +131,7 @@ export const authSlice = createSlice({
       .addCase(checkSecurityEnabled.rejected, (state) => {
         state.isInAnonymousMode = true;
         state.sessionId = '';
-        state.ready = true;
+        state.isLoading = false;
       })
       .addCase(login.fulfilled, (state, { payload }) => {
         state.sessionId = payload.access_token;
@@ -145,12 +145,12 @@ export const authSlice = createSlice({
       })
       .addCase(getUser.fulfilled, (state, { payload }) => {
         state.user = payload;
-        state.ready = true;
+        state.isLoading = false;
       })
       .addCase(getUser.rejected, (state) => {
         state.user = null;
         state.sessionId = '';
-        state.ready = true;
+        state.isLoading = false;
       });
   },
 });

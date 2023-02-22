@@ -24,7 +24,7 @@ const WEB_AUTH_LOGIN = '/web/auth/login';
 
 export const Authorized = (props: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
-  const { ready, isInAnonymousMode, user } = useAppSelector((state) => state.auth);
+  const { isLoading, isInAnonymousMode, user } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     const validateSession = async () => {
@@ -37,7 +37,7 @@ export const Authorized = (props: { children: ReactNode }) => {
   }, [dispatch]);
 
   const router = useRouter();
-  if (!ready) {
+  if (isLoading) {
     return <p>Loading...</p>;
   }
   if (isInAnonymousMode || router.pathname === WEB_AUTH_LOGIN || user) {
