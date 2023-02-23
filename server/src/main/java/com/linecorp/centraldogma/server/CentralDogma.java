@@ -70,6 +70,7 @@ import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
+import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -91,6 +92,7 @@ import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
+import com.linecorp.armeria.server.cors.CorsService;
 import com.linecorp.armeria.server.docs.DocService;
 import com.linecorp.armeria.server.encoding.EncodingService;
 import com.linecorp.armeria.server.file.FileService;
@@ -681,6 +683,13 @@ public class CentralDogma implements AutoCloseable {
         // Enable content compression for API responses.
         decorator = decorator.andThen(contentEncodingDecorator());
 
+        // Config cors policy
+        final Function<? super HttpService, CorsService> corsDecorator =
+                configCorsDecorator(config().corsAllowedOrigins());
+        if (corsDecorator != null) {
+            decorator = decorator.andThen(corsDecorator);
+        }
+
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new AdministrativeService(safePm, executor), decorator,
                             v1RequestConverter, v1ResponseConverter);
@@ -760,6 +769,20 @@ public class CentralDogma implements AutoCloseable {
                                        .cacheControl(ServerCacheControl.REVALIDATED)
                                        .build());
         }
+    }
+
+    @Nullable
+    private static Function<? super HttpService, CorsService> configCorsDecorator(List<String> allowedOrigins) {
+        if (allowedOrigins == null || allowedOrigins.isEmpty()) {
+            return null;
+        }
+
+        return CorsService.builder(allowedOrigins)
+                       .allowRequestMethods(HttpMethod.knownMethods())
+                       .allowAllRequestHeaders(true)
+                       .allowCredentials()
+                       .maxAge(1800)
+                       .newDecorator();
     }
 
     private static Function<? super HttpService, EncodingService> contentEncodingDecorator() {

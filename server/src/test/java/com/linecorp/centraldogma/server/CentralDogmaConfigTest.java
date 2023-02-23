@@ -240,4 +240,31 @@ class CentralDogmaConfigTest {
                                   CentralDogmaConfig.class)
         ).hasCauseInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void corsAllowedOrigins() throws Exception {
+        final CentralDogmaConfig cfg =
+                Jackson.readValue("{\n" +
+                                  "  \"dataDir\": \"./data\",\n" +
+                                  "  \"ports\": [\n" +
+                                  "    {\n" +
+                                  "      \"localAddress\": {\n" +
+                                  "        \"host\": \"*\",\n" +
+                                  "        \"port\": 36462\n" +
+                                  "      },\n" +
+                                  "      \"protocols\": [\n" +
+                                  "        \"https\",\n" +
+                                  "        \"http\",\n" +
+                                  "        \"proxy\"\n" +
+                                  "      ]\n" +
+                                  "    }\n" +
+                                  "  ],\n" +
+                                  "  \"corsAllowedOrigins\": [" +
+                                  "      \"sample.com\"\n" +
+                                  "    ]" +
+                                  '}',
+                                  CentralDogmaConfig.class);
+        assertThat(cfg.corsAllowedOrigins() != null ? cfg.corsAllowedOrigins().get(0)
+                                                    : null).isEqualTo("sample.com");
+    }
 }

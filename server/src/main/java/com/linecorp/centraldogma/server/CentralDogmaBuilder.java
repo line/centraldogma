@@ -27,6 +27,7 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -125,6 +126,10 @@ public final class CentralDogmaBuilder {
     private int writeQuota;
     private int timeWindowSeconds;
     private MeterRegistry meterRegistry = Flags.meterRegistry();
+
+    // Cors config
+    @Nullable
+    private List<String> corsAllowedOrigins;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -533,6 +538,14 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets the list of allowed origins for CORS policy.
+     */
+    public CentralDogmaBuilder corsAllowedOrigins(String... corsAllowedOrigins) {
+        this.corsAllowedOrigins = Arrays.asList(corsAllowedOrigins.clone());
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -565,6 +578,7 @@ public final class CentralDogmaBuilder {
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      null, accessLogFormat, authCfg, quotaConfig);
+                                      null, accessLogFormat, authCfg, quotaConfig,
+                                      corsAllowedOrigins);
     }
 }

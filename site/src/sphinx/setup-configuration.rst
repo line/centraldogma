@@ -52,7 +52,11 @@ defaults:
         "timeWindowSeconds": 1
       },
       "accessLogFormat": "common",
-      "authentication": null
+      "authentication": null,
+      "corsAllowedOrigins": [
+         "http://example1.com",
+         "http://example2.com"
+      ]
     }
 
 Core properties
@@ -228,6 +232,11 @@ Core properties
 
   - the authentication configuration. If ``null``, the authentication is disabled.
     See :ref:`auth` to learn how to configure the authentication layer.
+
+- ``corsAllowedOrigins``
+
+  - configs the list of allowed origins for CORS policy, if there is an ``*`` origin, then all origins are allowed,
+    if ``null``, CORS is disabled.
 
 .. _replication:
 
