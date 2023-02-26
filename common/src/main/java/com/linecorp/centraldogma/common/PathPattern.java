@@ -20,7 +20,6 @@ import static com.linecorp.centraldogma.common.DefaultPathPattern.allPattern;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
-import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
@@ -65,9 +64,7 @@ public interface PathPattern {
      */
     static PathPattern of(PathPattern... pathPatterns) {
         requireNonNull(pathPatterns, "pathPatterns");
-        return of(ImmutableSet.copyOf(Arrays.stream(pathPatterns)
-                                            .map(PathPattern::patternString)
-                                            .collect(Collectors.toList())));
+        return new DefaultPathPattern(Arrays.asList(pathPatterns));
     }
 
     /**

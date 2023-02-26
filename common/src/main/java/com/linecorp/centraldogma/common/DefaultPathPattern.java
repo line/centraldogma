@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -50,6 +51,12 @@ final class DefaultPathPattern implements PathPattern {
                                     }
                                     return pattern;
                                 }).collect(Collectors.joining(","));
+    }
+
+    DefaultPathPattern(List<PathPattern> verifiedPatterns) {
+        patterns = verifiedPatterns.stream()
+                                   .map(PathPattern::patternString)
+                                   .collect(Collectors.joining(","));
     }
 
     private DefaultPathPattern(String patterns, String encoded) {
