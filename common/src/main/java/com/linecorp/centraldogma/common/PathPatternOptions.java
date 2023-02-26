@@ -27,7 +27,7 @@ import com.linecorp.centraldogma.internal.Util;
 /**
  * A set of {@link PathPatternOption}s.
  */
-public final class PathPatternOptions {
+final class PathPatternOptions {
 
     private static final Pattern FILE_EXTENSION_PATTERN = Pattern.compile("^.{0,1}[0-9a-z]+$");
 
