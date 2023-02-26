@@ -146,6 +146,20 @@ public class TokenService extends AbstractService {
     }
 
     /**
+     * DELETE /tokens/{appId}/removed
+     *
+     * <p>Purges a token of the specified ID that was deleted before.
+     */
+    @Delete("/tokens/{appId}/deleted")
+    public CompletableFuture<Token> purgeToken(ServiceRequestContext ctx,
+                                               @Param String appId,
+                                               Author author, User loginUser) {
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                token -> mds.purgeToken(author, appId)
+                            .thenApply(unused -> token.withoutSecret()));
+    }
+
+    /**
      * PATCH /tokens/{appId}
      *
      * <p>Activates or deactivates the token of the specified {@code appId}.

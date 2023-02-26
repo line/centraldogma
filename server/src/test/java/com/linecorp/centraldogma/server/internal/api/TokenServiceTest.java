@@ -71,7 +71,8 @@ class TokenServiceTest {
                                              .join())
                 .hasCauseInstanceOf(HttpResponseException.class);
 
-        assertThat(tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).join()).satisfies(t -> {
+        assertThat(tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).thenCompose(
+                unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join()).satisfies(t -> {
             assertThat(t.appId()).isEqualTo(token.appId());
             assertThat(t.isAdmin()).isEqualTo(token.isAdmin());
             assertThat(t.creation()).isEqualTo(token.creation());
@@ -92,13 +93,15 @@ class TokenServiceTest {
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
 
-        assertThat(tokenService.deleteToken(ctx, "forUser1", adminAuthor, admin).join()).satisfies(t -> {
+        assertThat(tokenService.deleteToken(ctx, "forUser1", adminAuthor, admin).thenCompose(
+                unused -> tokenService.purgeToken(ctx, "forUser1", adminAuthor, admin)).join()).satisfies(t -> {
             assertThat(t.appId()).isEqualTo(userToken1.appId());
             assertThat(t.isAdmin()).isEqualTo(userToken1.isAdmin());
             assertThat(t.creation()).isEqualTo(userToken1.creation());
             assertThat(t.deactivation()).isEqualTo(userToken1.deactivation());
         });
-        assertThat(tokenService.deleteToken(ctx, "forUser2", guestAuthor, guest).join()).satisfies(t -> {
+        assertThat(tokenService.deleteToken(ctx, "forUser2", guestAuthor, guest).thenCompose(
+                unused -> tokenService.purgeToken(ctx, "forUser2", guestAuthor, guest)).join()).satisfies(t -> {
             assertThat(t.appId()).isEqualTo(userToken2.appId());
             assertThat(t.isAdmin()).isEqualTo(userToken2.isAdmin());
             assertThat(t.creation()).isEqualTo(userToken2.creation());
@@ -120,6 +123,7 @@ class TokenServiceTest {
                                                           guest)
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
-        tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).join();
+        tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).thenCompose(
+                unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join();
     }
 }
