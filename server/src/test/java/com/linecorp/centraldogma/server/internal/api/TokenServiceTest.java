@@ -72,12 +72,13 @@ class TokenServiceTest {
                 .hasCauseInstanceOf(HttpResponseException.class);
 
         assertThat(tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).thenCompose(
-                unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join()).satisfies(t -> {
-            assertThat(t.appId()).isEqualTo(token.appId());
-            assertThat(t.isAdmin()).isEqualTo(token.isAdmin());
-            assertThat(t.creation()).isEqualTo(token.creation());
-            assertThat(t.deactivation()).isEqualTo(token.deactivation());
-        });
+                unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join()).satisfies(
+                t -> {
+                    assertThat(t.appId()).isEqualTo(token.appId());
+                    assertThat(t.isAdmin()).isEqualTo(token.isAdmin());
+                    assertThat(t.creation()).isEqualTo(token.creation());
+                    assertThat(t.deactivation()).isEqualTo(token.deactivation());
+                });
     }
 
     @Test

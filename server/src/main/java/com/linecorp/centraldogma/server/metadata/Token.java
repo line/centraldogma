@@ -167,7 +167,9 @@ public final class Token implements Identifiable {
      * Returns whether this token is deleted.
      */
     @JsonIgnore
-    public boolean isDeleted() {return deletion != null;}
+    public boolean isDeleted() {
+        return deletion != null;
+    }
 
     @Override
     public String toString() {

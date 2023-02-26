@@ -888,6 +888,9 @@ public class MetadataService {
                                       }));
     }
 
+    /**
+     * Purges the {@link Token} of the specified {@code appId} that was removed before.
+     */
     public CompletableFuture<Revision> purgeToken(Author author, String appId) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
