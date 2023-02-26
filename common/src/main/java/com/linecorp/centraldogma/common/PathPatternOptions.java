@@ -48,7 +48,7 @@ final class PathPatternOptions {
      * Appends "&#47;**" to {@code dirPath}.
      * Returns the path pattern for matching all file(s) under {@code dirPath}.
      */
-    public static final PathPatternOptionFactory STARTS_WITH_OPTION = pattern ->
+    public static final PathPatternOptionFactory STARTS_WITH = pattern ->
             new PathPatternOption(1,
                                   "startsWith",
                                   pattern,
@@ -62,7 +62,7 @@ final class PathPatternOptions {
      * Prepends and appends "&#47;**" to target {@code dirPath}.
      * Returns the path pattern for matching all file(s) containing {@code dirPath}.
      */
-    public static final PathPatternOptionFactory CONTAINS_OPTION = pattern ->
+    public static final PathPatternOptionFactory CONTAINS = pattern ->
             new PathPatternOption(2,
                                   "contains",
                                   pattern,
@@ -78,7 +78,7 @@ final class PathPatternOptions {
      * Prepends "&#47;**&#47;" to {@code filename}.
      * Returns the path pattern for matching file(s) ending in {@code filename}.
      */
-    public static final PathPatternOptionFactory ENDS_WITH_OPTION = pattern ->
+    public static final PathPatternOptionFactory ENDS_WITH = pattern ->
             new PathPatternOption(3,
                                   "endsWith",
                                   pattern,
@@ -91,7 +91,7 @@ final class PathPatternOptions {
      * Prepends "&#47;**&#47;*" to {@code extension}.
      * Returns the path pattern for matching file(s) ending in {@code extension}.
      */
-    public static final PathPatternOptionFactory EXTENSION_OPTION = pattern ->
+    public static final PathPatternOptionFactory EXTENSION = pattern ->
             new PathPatternOption(3,
                                   "extension",
                                   pattern,

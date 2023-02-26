@@ -46,7 +46,7 @@ public class PathPatternOption {
     /**
      * Returns the option name.
      */
-    String name() {
+    public String name() {
         return name;
     }
 

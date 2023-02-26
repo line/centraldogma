@@ -16,6 +16,7 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
 
 import java.util.Comparator;
 import java.util.Iterator;
@@ -47,34 +48,34 @@ public final class PathPatternBuilder {
     private final Map<String, PathPatternOption> options = new LinkedHashMap<>();
 
     /**
-     * Adds {@link PathPatternOptions#ENDS_WITH_OPTION}.
+     * Adds {@link PathPatternOptions#ENDS_WITH}.
      */
     public PathPatternBuilder endsWith(String filename) {
-        put(PathPatternOptions.ENDS_WITH_OPTION, filename);
+        put(PathPatternOptions.ENDS_WITH, filename);
         return this;
     }
 
     /**
-     * Adds {@link PathPatternOptions#EXTENSION_OPTION}.
+     * Adds {@link PathPatternOptions#EXTENSION}.
      */
     public PathPatternBuilder extension(String extension) {
-        put(PathPatternOptions.EXTENSION_OPTION, extension);
+        put(PathPatternOptions.EXTENSION, extension);
         return this;
     }
 
     /**
-     * Adds {@link PathPatternOptions#STARTS_WITH_OPTION}.
+     * Adds {@link PathPatternOptions#STARTS_WITH}.
      */
     public PathPatternBuilder startsWith(String dirPath) {
-        put(PathPatternOptions.STARTS_WITH_OPTION, dirPath);
+        put(PathPatternOptions.STARTS_WITH, dirPath);
         return this;
     }
 
     /**
-     * Adds {@link PathPatternOptions#CONTAINS_OPTION}.
+     * Adds {@link PathPatternOptions#CONTAINS}.
      */
     public PathPatternBuilder contains(String dirPath) {
-        put(PathPatternOptions.CONTAINS_OPTION, dirPath);
+        put(PathPatternOptions.CONTAINS, dirPath);
         return this;
     }
 
@@ -129,9 +130,10 @@ public final class PathPatternBuilder {
      * Adds the specified {@link PathPatternOption}.
      */
     private void put(PathPatternOptionFactory optionHelper, String pattern) {
+        requireNonNull(pattern, "patterns");
         final PathPatternOption pathPatternOption = optionHelper.create(pattern);
-        checkArgument(!options.containsKey(pathPatternOption.getName()), " %s option exists",
-                      pathPatternOption.getName());
-        options.put(pathPatternOption.getName(), pathPatternOption);
+        checkArgument(!options.containsKey(pathPatternOption.name()), " %s option exists",
+                      pathPatternOption.name());
+        options.put(pathPatternOption.name(), pathPatternOption);
     }
 }
