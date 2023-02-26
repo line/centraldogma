@@ -16,19 +16,15 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.requireNonNull;
 
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.ImmutableSet;
+import javax.annotation.Nullable;
 
-import com.linecorp.centraldogma.common.PathPatternOptions.PathPatternOptionFactory;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Builds a new {@link PathPattern}.
@@ -44,14 +40,17 @@ import com.linecorp.centraldogma.common.PathPatternOptions.PathPatternOptionFact
  * }</pre>
  */
 public final class PathPatternBuilder {
-
-    private final Map<String, PathPatternOption> options = new LinkedHashMap<>();
+    @Nullable
+    private PathPatternOption startPattern;
+    private final List<PathPatternOption> innerPatterns = new ArrayList<>();
+    @Nullable
+    private PathPatternOption endPattern;
 
     /**
      * Adds {@link PathPatternOptions#ENDS_WITH}.
      */
     public PathPatternBuilder endsWith(String filename) {
-        put(PathPatternOptions.ENDS_WITH, filename);
+        endPattern = PathPatternOptions.ENDS_WITH.apply(filename);
         return this;
     }
 
@@ -59,7 +58,7 @@ public final class PathPatternBuilder {
      * Adds {@link PathPatternOptions#EXTENSION}.
      */
     public PathPatternBuilder extension(String extension) {
-        put(PathPatternOptions.EXTENSION, extension);
+        endPattern = PathPatternOptions.EXTENSION.apply(extension);
         return this;
     }
 
@@ -67,7 +66,7 @@ public final class PathPatternBuilder {
      * Adds {@link PathPatternOptions#STARTS_WITH}.
      */
     public PathPatternBuilder startsWith(String dirPath) {
-        put(PathPatternOptions.STARTS_WITH, dirPath);
+        startPattern = PathPatternOptions.STARTS_WITH.apply(dirPath);
         return this;
     }
 
@@ -75,7 +74,7 @@ public final class PathPatternBuilder {
      * Adds {@link PathPatternOptions#CONTAINS}.
      */
     public PathPatternBuilder contains(String dirPath) {
-        put(PathPatternOptions.CONTAINS, dirPath);
+        innerPatterns.add(PathPatternOptions.CONTAINS.apply(dirPath));
         return this;
     }
 
@@ -104,36 +103,24 @@ public final class PathPatternBuilder {
      * Returns a newly-created {@link PathPattern} based on the options of this builder.
      */
     public PathPattern build() {
+        final List<PathPatternOption> options = new ArrayList<>();
+        if (startPattern != null) {
+            options.add(startPattern);
+        }
+        options.addAll(innerPatterns);
+        if (endPattern != null) {
+            options.add(endPattern);
+        }
+
         checkArgument(!options.isEmpty(), "Requires at least one pattern to build in PathPatternBuilder");
 
         if (options.size() == 1) {
-            return options.entrySet().iterator().next().getValue().getPathPattern();
+            return options.get(0).pathPattern();
         }
-        // given the same precedence, option added after overrides previous one
-        final Map<Integer, PathPatternOption> optionByPrecedence = options.values()
-                                                                    .stream()
-                                                                    .collect(Collectors.toMap(
-                                                                            PathPatternOption::getPrecedence,
-                                                                            Function.identity(),
-                                                                            (a, b) -> b));
-        final List<PathPattern> patterns = optionByPrecedence.values()
-                                                       .stream()
-                                                       .sorted(Comparator.comparing(
-                                                               PathPatternOption::getPrecedence))
-                                                       .map(PathPatternOption::getPathPattern)
-                                                       .collect(Collectors.toList());
 
+        final List<PathPattern> patterns = options.stream()
+                                                  .map(PathPatternOption::pathPattern)
+                                                  .collect(Collectors.toList());
         return new DefaultPathPattern(ImmutableSet.of(combine(patterns)));
-    }
-
-    /**
-     * Adds the specified {@link PathPatternOption}.
-     */
-    private void put(PathPatternOptionFactory optionHelper, String pattern) {
-        requireNonNull(pattern, "patterns");
-        final PathPatternOption pathPatternOption = optionHelper.create(pattern);
-        checkArgument(!options.containsKey(pathPatternOption.name()), " %s option exists",
-                      pathPatternOption.name());
-        options.put(pathPatternOption.name(), pathPatternOption);
     }
 }

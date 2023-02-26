@@ -60,15 +60,17 @@ public class PathPatternBuilderTest {
                               .endsWith("qux.json")
                               .build()
                               .patternString()).isEqualTo("/foo/**/qux.json");
-    }
 
-    @Test
-    void testInvalidPathPatternBuilder() {
-        assertThatThrownBy(() -> PathPattern.builder()
-                                            .startsWith("/foo/bar")
-                                            .startsWith("/override")
-                                            .extension("json")
-                                            .build()
-        ).isInstanceOf(IllegalArgumentException.class);
+        assertThat(PathPattern.builder()
+                              .contains("/foo")
+                              .contains("/bar")
+                              .build()
+                              .patternString()).isEqualTo("/**/foo/**/bar/**");
+        assertThat(PathPattern.builder()
+                              .startsWith("/foo/bar")
+                              .startsWith("/override")
+                              .extension("json")
+                              .build()
+                              .patternString()).isEqualTo("/override/**/*.json");
     }
 }

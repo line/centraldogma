@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableSet;
@@ -34,24 +35,11 @@ final class PathPatternOptions {
     private PathPatternOptions() {}
 
     /**
-     * A factory to create an {@link PathPatternOption} instance.
-     */
-    @FunctionalInterface
-    public interface PathPatternOptionFactory {
-        /**
-         * Creates a new {@link PathPatternOption} for {@code pattern}.
-         */
-        PathPatternOption create(String pattern);
-    }
-
-    /**
      * Appends "&#47;**" to {@code dirPath}.
      * Returns the path pattern for matching all file(s) under {@code dirPath}.
      */
-    public static final PathPatternOptionFactory STARTS_WITH = pattern ->
-            new PathPatternOption(1,
-                                  "startsWith",
-                                  pattern,
+    public static final Function<String, PathPatternOption> STARTS_WITH = pattern ->
+            new PathPatternOption(pattern,
                                   dirPath -> {
                                       checkArgument(Util.isValidDirPath(dirPath), "dir");
                                       return new DefaultPathPattern(ImmutableSet.of(
@@ -62,10 +50,8 @@ final class PathPatternOptions {
      * Prepends and appends "&#47;**" to target {@code dirPath}.
      * Returns the path pattern for matching all file(s) containing {@code dirPath}.
      */
-    public static final PathPatternOptionFactory CONTAINS = pattern ->
-            new PathPatternOption(2,
-                                  "contains",
-                                  pattern,
+    public static final Function<String, PathPatternOption> CONTAINS = pattern ->
+            new PathPatternOption(pattern,
                                   dirPath -> {
                                       checkArgument(Util.isValidDirPath(dirPath), "dirPath");
                                       return dirPath.endsWith("/") ? new DefaultPathPattern(
@@ -78,10 +64,8 @@ final class PathPatternOptions {
      * Prepends "&#47;**&#47;" to {@code filename}.
      * Returns the path pattern for matching file(s) ending in {@code filename}.
      */
-    public static final PathPatternOptionFactory ENDS_WITH = pattern ->
-            new PathPatternOption(3,
-                                  "endsWith",
-                                  pattern,
+    public static final Function<String, PathPatternOption> ENDS_WITH = pattern ->
+            new PathPatternOption(pattern,
                                   filename -> {
                                       checkArgument(Util.isValidFileName(filename), "filename");
                                       return new DefaultPathPattern(ImmutableSet.of(filename));
@@ -91,10 +75,8 @@ final class PathPatternOptions {
      * Prepends "&#47;**&#47;*" to {@code extension}.
      * Returns the path pattern for matching file(s) ending in {@code extension}.
      */
-    public static final PathPatternOptionFactory EXTENSION = pattern ->
-            new PathPatternOption(3,
-                                  "extension",
-                                  pattern,
+    public static final Function<String, PathPatternOption> EXTENSION = pattern ->
+            new PathPatternOption(pattern,
                                   extension -> {
                                       checkArgument(isValidFileExtension(extension), "extension");
                                       if (extension.startsWith(".")) {

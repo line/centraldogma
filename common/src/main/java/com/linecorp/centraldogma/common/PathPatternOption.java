@@ -21,46 +21,22 @@ import java.util.function.Function;
  * A {@link PathPatternBuilder} option.
  */
 public class PathPatternOption {
-    private final String name;
-    /**
-     * Precedence is the priority  of an option relative to others.
-     * Precedence level 1 is the highest precedence level, followed by level 2 v.v...
-     * In other words, n has a higher precedence than n+ 1.
-     */
-    private final Integer precedence;
-
     private final String pattern;
     /**
      * Create {@link PathPattern} from {@code pattern}.
      */
     private final Function<String, PathPattern> pathPatternCreator;
 
-    PathPatternOption(int precedence, String name, String pattern,
+    PathPatternOption(String pattern,
                       Function<String, PathPattern> pathPatternCreator) {
-        this.precedence = precedence;
-        this.name = name;
         this.pattern = pattern;
         this.pathPatternCreator = pathPatternCreator;
     }
 
     /**
-     * Returns the option name.
-     */
-    public String name() {
-        return name;
-    }
-
-    /**
-     * Returns the precedence level of the option.
-     */
-    public int getPrecedence() {
-        return precedence;
-    }
-
-    /**
      * Returns the {@link PathPattern} of the option.
      */
-    public PathPattern getPathPattern() {
+    public PathPattern pathPattern() {
         return pathPatternCreator.apply(pattern);
     }
 }
