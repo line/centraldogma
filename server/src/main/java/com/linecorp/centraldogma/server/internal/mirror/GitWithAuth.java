@@ -58,6 +58,7 @@ import com.jcraft.jsch.Session;
 import com.jcraft.jsch.UserInfo;
 
 import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.server.internal.mirror.credential.AccessTokenMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -155,6 +156,8 @@ final class GitWithAuth extends Git {
             case SCHEME_GIT_HTTPS:
                 if (c instanceof PasswordMirrorCredential) {
                     configureHttp(command, (PasswordMirrorCredential) c);
+                } else if (c instanceof AccessTokenMirrorCredential) {
+                    configureHttp(command, (AccessTokenMirrorCredential) c);
                 }
                 break;
             case SCHEME_GIT_SSH:
@@ -171,6 +174,10 @@ final class GitWithAuth extends Git {
 
     private static <T extends TransportCommand<?, ?>> void configureHttp(T cmd, PasswordMirrorCredential cred) {
         cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider(cred.username(), cred.password()));
+    }
+
+    private static <T extends TransportCommand<?, ?>> void configureHttp(T cmd, AccessTokenMirrorCredential cred) {
+        cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider("token", cred.accessToken()));
     }
 
     private <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {

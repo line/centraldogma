@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import com.linecorp.centraldogma.server.internal.mirror.credential.AccessTokenMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.NoneMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
@@ -37,7 +38,8 @@ import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirr
 @JsonSubTypes({
         @Type(value = NoneMirrorCredential.class, name = "none"),
         @Type(value = PasswordMirrorCredential.class, name = "password"),
-        @Type(value = PublicKeyMirrorCredential.class, name = "public_key")
+        @Type(value = PublicKeyMirrorCredential.class, name = "public_key"),
+        @Type(value = AccessTokenMirrorCredential.class, name = "access_token")
 })
 public interface MirrorCredential {
 
