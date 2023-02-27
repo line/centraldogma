@@ -176,7 +176,8 @@ final class GitWithAuth extends Git {
         cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider(cred.username(), cred.password()));
     }
 
-    private static <T extends TransportCommand<?, ?>> void configureHttp(T cmd, AccessTokenMirrorCredential cred) {
+    private static <T extends TransportCommand<?, ?>> void configureHttp(
+            T cmd, AccessTokenMirrorCredential cred) {
         cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider("token", cred.accessToken()));
     }
 
