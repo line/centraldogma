@@ -744,11 +744,15 @@ public class CentralDogma implements AutoCloseable {
                 sb.service(LOGOUT_PATH, authProvider.webLogoutService());
             }
 
+            final HttpService fallbackFile = HttpFile.of(CentralDogma.class.getClassLoader(),
+                                                         "com/linecorp/centraldogma/webapp/index.html")
+                                                     .asService();
             sb.serviceUnder("/",
                             FileService.builder(CentralDogma.class.getClassLoader(),
                                                 "com/linecorp/centraldogma/webapp")
                                        .cacheControl(ServerCacheControl.REVALIDATED)
-                                       .build());
+                                       .build()
+                                       .orElse(fallbackFile));
 
             sb.serviceUnder("/legacy-web",
                             FileService.builder(CentralDogma.class.getClassLoader(), "webapp")

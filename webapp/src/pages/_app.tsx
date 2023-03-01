@@ -4,8 +4,8 @@ import { Provider } from 'react-redux';
 import { ChakraProvider, theme } from '@chakra-ui/react';
 import { Authorized } from 'dogma/features/auth/Authorized';
 import { NextPage } from 'next';
-import { ReactElement, ReactNode } from 'react';
-import { useRouter } from 'next/router';
+import {ReactElement, ReactNode, useEffect} from 'react';
+import Router, { useRouter } from 'next/router';
 import { Layout } from 'dogma/common/components/Layout';
 import { ErrorWrapper } from 'dogma/common/components/ErrorWrapper';
 import dynamic from 'next/dynamic';
@@ -20,8 +20,18 @@ type AppPropsWithLayout = AppProps & {
   Component: NextPageWithLayout;
 };
 
-const DogmaApp = ({ Component, pageProps }: AppPropsWithLayout) => {
+const DogmaApp = ({Component, pageProps}: AppPropsWithLayout) => {
   const router = useRouter();
+  useEffect(() => {
+    // Path patterns are used folder structures in Next.js such as '/app/projects/[projectNames]'.
+    // If '/app/projects/myProj' is requested to Central Dogma server, the server fails to find
+    // 'app/projects/myProj/index.html' file and returns 'index.html' as a fallback and the landing page is
+    // rendered instead. As a workaround, this triggers Next.js router to route to the desired page when a page
+    // is loaded for the first time.
+    if (router.asPath !== "/") {
+      Router.push(router.asPath);
+    }
+  }, []);
   const getLayout =
     router.pathname === WEB_AUTH_LOGIN
       ? (page: ReactElement) => page
