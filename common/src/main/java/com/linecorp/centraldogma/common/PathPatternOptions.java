@@ -68,6 +68,7 @@ final class PathPatternOptions {
             new PathPatternOption(pattern,
                                   filename -> {
                                       checkArgument(Util.isValidFileName(filename), "filename");
+                                      // `/**` is added by the constructor of `DefaultPathPattern`
                                       return new DefaultPathPattern(ImmutableSet.of(filename));
                                   });
 
