@@ -90,7 +90,7 @@ public final class PathPatternBuilder {
     /**
      * Compose one pathPattern from a list of {@code patterns}.
      */
-    private static String combine(Iterable<PathPattern> patterns) {
+    private static String combine(List<PathPattern> patterns) {
         final Iterator<PathPattern> iter = patterns.iterator();
         String combinedPattern = iter.next().patternString();
         while (iter.hasNext()) {
