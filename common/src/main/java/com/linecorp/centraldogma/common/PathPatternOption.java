@@ -36,7 +36,7 @@ final class PathPatternOption {
     /**
      * Returns the {@link PathPattern} of the option.
      */
-    public PathPattern pathPattern() {
+    PathPattern pathPattern() {
         return pathPatternCreator.apply(pattern);
     }
 }
