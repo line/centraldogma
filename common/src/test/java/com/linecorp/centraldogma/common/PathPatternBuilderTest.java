@@ -25,8 +25,8 @@ class PathPatternBuilderTest {
     void testSingleOption() {
         assertThat(PathPattern.builder().startsWith("/foo/bar").build()
                               .patternString()).isEqualTo("/foo/bar/**");
-        assertThat(PathPattern.builder().endsWith("json").build()
-                              .patternString()).isEqualTo("/**/json");
+        assertThat(PathPattern.builder().endsWith("foo.json").build()
+                              .patternString()).isEqualTo("/**/foo.json");
         assertThat(PathPattern.builder().contains("/bar").build()
                               .patternString()).isEqualTo("/**/bar/**");
         assertThat(PathPattern.builder().extension("json").build()
