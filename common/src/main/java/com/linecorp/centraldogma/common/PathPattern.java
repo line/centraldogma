@@ -19,8 +19,7 @@ import static com.linecorp.centraldogma.common.DefaultPathPattern.ALL;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.allPattern;
 import static java.util.Objects.requireNonNull;
 
-import java.util.Arrays;
-
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 

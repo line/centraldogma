@@ -24,6 +24,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -105,14 +106,15 @@ public final class PathPatternBuilder {
      * Returns a newly-created {@link PathPattern} based on the options of this builder.
      */
     public PathPattern build() {
-        final List<PathPatternOption> options = new ArrayList<>();
+        final ImmutableList.Builder<PathPatternOption> optionsBuilder = ImmutableList.builder();
         if (startPattern != null) {
-            options.add(startPattern);
+            optionsBuilder.add(startPattern);
         }
-        options.addAll(innerPatterns);
+        optionsBuilder.addAll(innerPatterns);
         if (endPattern != null) {
-            options.add(endPattern);
+            optionsBuilder.add(endPattern);
         }
+        final ImmutableList<PathPatternOption> options = optionsBuilder.build();
 
         checkArgument(!options.isEmpty(), "Requires at least one pattern to build in PathPatternBuilder");
 
