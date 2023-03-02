@@ -64,7 +64,7 @@ public interface PathPattern {
      */
     static PathPattern of(PathPattern... pathPatterns) {
         requireNonNull(pathPatterns, "pathPatterns");
-        return new DefaultPathPattern(Arrays.asList(pathPatterns));
+        return new DefaultPathPattern(ImmutableList.copyOf(pathPatterns));
     }
 
     /**
