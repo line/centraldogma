@@ -20,7 +20,7 @@ import java.util.function.Function;
 /**
  * A {@link PathPatternBuilder} option.
  */
-public class PathPatternOption {
+final class PathPatternOption {
     private final String pattern;
     /**
      * Create {@link PathPattern} from {@code pattern}.
