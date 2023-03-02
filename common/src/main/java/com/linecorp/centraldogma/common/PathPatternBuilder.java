@@ -120,7 +120,7 @@ public final class PathPatternBuilder {
 
         final List<PathPattern> patterns = options.stream()
                                                   .map(PathPatternOption::pathPattern)
-                                                  .collect(Collectors.toList());
+                                                  .collect(toImmutableList());
         return new DefaultPathPattern(ImmutableSet.of(combine(patterns)));
     }
 }
