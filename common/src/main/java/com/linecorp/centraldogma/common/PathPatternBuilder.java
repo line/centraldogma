@@ -45,7 +45,7 @@ public final class PathPatternBuilder {
     private final List<PathPatternOption> innerPatterns = new ArrayList<>();
     @Nullable
     private PathPatternOption endPattern;
-
+    PathPatternBuilder() {}
     /**
      * Adds {@link PathPatternOptions#ENDS_WITH}.
      */
