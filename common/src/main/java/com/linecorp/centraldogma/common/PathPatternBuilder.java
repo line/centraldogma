@@ -16,11 +16,11 @@
 package com.linecorp.centraldogma.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -45,7 +45,9 @@ public final class PathPatternBuilder {
     private final List<PathPatternOption> innerPatterns = new ArrayList<>();
     @Nullable
     private PathPatternOption endPattern;
+
     PathPatternBuilder() {}
+
     /**
      * Adds {@link PathPatternOptions#ENDS_WITH}.
      */
