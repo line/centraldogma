@@ -119,6 +119,7 @@ import com.linecorp.centraldogma.internal.Util;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 import com.linecorp.centraldogma.server.command.CommitResult;
+import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -144,6 +145,8 @@ class GitRepository implements Repository {
     private static final Field revWalkObjectsField;
 
     static {
+        IsolatedSystemReader.install();
+
         Field field = null;
         try {
             field = RevWalk.class.getDeclaredField("objects");

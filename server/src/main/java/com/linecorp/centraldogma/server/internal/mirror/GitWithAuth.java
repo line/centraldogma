@@ -58,6 +58,7 @@ import com.jcraft.jsch.Session;
 import com.jcraft.jsch.UserInfo;
 
 import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -77,6 +78,8 @@ final class GitWithAuth extends Git {
     private static final Lock[] locks = new Lock[1024];
 
     static {
+        IsolatedSystemReader.install();
+
         for (int i = 0; i < locks.length; i++) {
             locks[i] = new ReentrantLock();
         }
