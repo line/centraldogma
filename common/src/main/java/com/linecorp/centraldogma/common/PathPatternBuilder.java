@@ -31,7 +31,7 @@ import com.google.common.collect.ImmutableSet;
  *
  * <h2>Example</h2>
  * <pre>{@code
- * final PathPattern factory =
+ * final PathPattern pathPattern =
  *         PathPattern.builder()
  *                    .startsWith("/foo/bar")
  *                    .contains("/ext")
