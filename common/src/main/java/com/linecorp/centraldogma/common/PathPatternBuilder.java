@@ -82,24 +82,20 @@ public final class PathPatternBuilder {
     }
 
     /**
-     * Combine 2 patterns into one.
-     */
-    private static String combine(String left, String right) {
-        checkArgument(left.endsWith("/**"), "left should end with \"/**\"");
-        checkArgument(right.startsWith("/**/"), "right should start with \"/**/\"");
-        return left + right.substring(3);
-    }
-
-    /**
      * Compose one pathPattern from a list of {@code patterns}.
      */
     private static String combine(List<PathPattern> patterns) {
-        final Iterator<PathPattern> iter = patterns.iterator();
-        String combinedPattern = iter.next().patternString();
-        while (iter.hasNext()) {
-            combinedPattern = combine(combinedPattern, iter.next().patternString());
+        final StringBuilder sb = new StringBuilder();
+        for (final Iterator<PathPattern> i = patterns.iterator(); i.hasNext();) {
+            if (sb.length() == 0) {
+                // left should end with "/**"
+                sb.append(i.next().patternString());
+            } else {
+                // right should start with "/**/"
+                sb.append(i.next().patternString().substring(3));
+            }
         }
-        return combinedPattern;
+        return sb.toString();
     }
 
     /**
