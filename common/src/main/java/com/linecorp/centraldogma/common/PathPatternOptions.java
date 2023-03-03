@@ -36,7 +36,7 @@ final class PathPatternOptions {
      * Appends "&#47;**" to {@code dirPath}.
      * Returns the path pattern for matching all file(s) under {@code dirPath}.
      */
-    public static final Function<String, PathPatternOption> STARTS_WITH = pattern ->
+    static final Function<String, PathPatternOption> STARTS_WITH = pattern ->
             new PathPatternOption(pattern,
                                   dirPath -> {
                                       checkArgument(Util.isValidDirPath(dirPath), "dir");
