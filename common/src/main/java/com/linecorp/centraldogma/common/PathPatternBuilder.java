@@ -15,8 +15,9 @@
  */
 package com.linecorp.centraldogma.common;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -52,6 +53,7 @@ public final class PathPatternBuilder {
      * Adds {@link PathPatternOptions#ENDS_WITH}.
      */
     public PathPatternBuilder endsWith(String filename) {
+        requireNonNull(filename, "filename");
         endPattern = PathPatternOptions.ENDS_WITH.apply(filename);
         return this;
     }
@@ -69,6 +71,7 @@ public final class PathPatternBuilder {
      * Adds {@link PathPatternOptions#STARTS_WITH}.
      */
     public PathPatternBuilder startsWith(String dirPath) {
+        requireNonNull(dirPath, "dirPath");
         startPattern = PathPatternOptions.STARTS_WITH.apply(dirPath);
         return this;
     }
@@ -77,6 +80,7 @@ public final class PathPatternBuilder {
      * Adds {@link PathPatternOptions#CONTAINS}.
      */
     public PathPatternBuilder contains(String dirPath) {
+        requireNonNull(dirPath, "dirPath");
         innerPatterns.add(PathPatternOptions.CONTAINS.apply(dirPath));
         return this;
     }
@@ -112,7 +116,7 @@ public final class PathPatternBuilder {
         }
         final ImmutableList<PathPatternOption> options = optionsBuilder.build();
 
-        checkArgument(!options.isEmpty(), "Requires at least one pattern to build in PathPatternBuilder");
+        checkState(!options.isEmpty(), "Requires at least one pattern to build in PathPatternBuilder");
 
         if (options.size() == 1) {
             return options.get(0).pathPattern();
