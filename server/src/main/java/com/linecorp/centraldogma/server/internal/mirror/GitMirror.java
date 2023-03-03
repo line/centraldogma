@@ -431,7 +431,6 @@ public final class GitMirror extends AbstractMirror {
             GitWithAuth git, String headBranchRefName) throws GitAPIException, IOException {
         final FetchCommand fetch = git.fetch(1);
         final FetchResult fetchResult = fetch.setRefSpecs(new RefSpec(headBranchRefName))
-                                             .setCheckFetchedObjects(true)
                                              .setRemoveDeletedRefs(true)
                                              .setTagOpt(TagOpt.NO_TAGS)
                                              .setTimeout(GIT_TIMEOUT_SECS)
