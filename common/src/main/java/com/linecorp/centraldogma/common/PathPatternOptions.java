@@ -63,7 +63,7 @@ final class PathPatternOptions {
      * Prepends "&#47;**&#47;" to {@code filename}.
      * Returns the path pattern for matching file(s) ending in {@code filename}.
      */
-    public static final Function<String, PathPatternOption> ENDS_WITH = pattern ->
+    static final Function<String, PathPatternOption> ENDS_WITH = pattern ->
             new PathPatternOption(pattern,
                                   filename -> {
                                       checkArgument(Util.isValidFileName(filename), "filename");
