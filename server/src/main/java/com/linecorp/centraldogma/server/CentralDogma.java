@@ -755,7 +755,7 @@ public class CentralDogma implements AutoCloseable {
                                                .cacheControl(ServerCacheControl.REVALIDATED)
                                                .build().orElse(fallbackFileService));
 
-            // Service all web resources except for '/app'
+            // Serve all web resources except for '/app'.
             sb.route()
               .pathPrefix("/")
               .exclude("/app")
