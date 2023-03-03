@@ -116,7 +116,7 @@ public final class GitMirror extends AbstractMirror {
                                    ".internal.mirror.Git6WithAuth")
                                    .getDeclaredConstructor(GitMirror.class, File.class);
         } catch (Exception e) {
-            logger.warn("Falling back to JGit 5:", e);
+            logger.info("Falling back to JGit 5:", e);
         }
         GIT_WITH_AUTH_CONSTRUCTOR = constr;
     }
@@ -431,6 +431,7 @@ public final class GitMirror extends AbstractMirror {
             GitWithAuth git, String headBranchRefName) throws GitAPIException, IOException {
         final FetchCommand fetch = git.fetch(1);
         final FetchResult fetchResult = fetch.setRefSpecs(new RefSpec(headBranchRefName))
+                                             .setCheckFetchedObjects(true)
                                              .setRemoveDeletedRefs(true)
                                              .setTagOpt(TagOpt.NO_TAGS)
                                              .setTimeout(GIT_TIMEOUT_SECS)

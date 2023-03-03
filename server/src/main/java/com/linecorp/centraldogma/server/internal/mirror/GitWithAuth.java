@@ -147,7 +147,7 @@ abstract class GitWithAuth extends Git {
         return super.gc().setProgressMonitor(progressMonitor("gc"));
     }
 
-    protected final <T extends TransportCommand<?, ?>> T configure(T command) {
+    private <T extends TransportCommand<?, ?>> T configure(T command) {
         final MirrorCredential c = mirror.credential();
         switch (mirror.remoteRepoUri().getScheme()) {
             case SCHEME_GIT_HTTP:

@@ -38,7 +38,7 @@ final class Git5WithAuth extends GitWithAuth {
 
     @Override
     FetchCommand fetch(int depth) {
-        return configure(super.fetch()).setProgressMonitor(progressMonitor("fetch"));
+        return fetch();
     }
 
     @Override
