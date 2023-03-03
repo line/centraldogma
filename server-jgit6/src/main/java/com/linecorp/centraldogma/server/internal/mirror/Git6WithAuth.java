@@ -38,7 +38,7 @@ final class Git6WithAuth extends GitWithAuth {
 
     @Override
     FetchCommand fetch(int depth) {
-        return configure(super.fetch().setDepth(depth)).setProgressMonitor(progressMonitor("fetch"));
+        return fetch().setDepth(1);
     }
 
     @Override

@@ -114,7 +114,7 @@ abstract class GitWithAuth extends Git {
     }
 
     @Override
-    public void close() {
+    public final void close() {
         try {
             super.close();
         } finally {
@@ -126,28 +126,28 @@ abstract class GitWithAuth extends Git {
         }
     }
 
-    protected ProgressMonitor progressMonitor(String name) {
+    protected final ProgressMonitor progressMonitor(String name) {
         return progressMonitors.computeIfAbsent(name, MirrorProgressMonitor::new);
     }
 
     @Override
-    public FetchCommand fetch() {
+    public final FetchCommand fetch() {
         return configure(super.fetch()).setProgressMonitor(progressMonitor("fetch"));
     }
 
     abstract FetchCommand fetch(int depth);
 
     @Override
-    public PushCommand push() {
+    public final PushCommand push() {
         return configure(super.push()).setProgressMonitor(progressMonitor("push"));
     }
 
     @Override
-    public GarbageCollectCommand gc() {
+    public final GarbageCollectCommand gc() {
         return super.gc().setProgressMonitor(progressMonitor("gc"));
     }
 
-    protected <T extends TransportCommand<?, ?>> T configure(T command) {
+    protected final <T extends TransportCommand<?, ?>> T configure(T command) {
         final MirrorCredential c = mirror.credential();
         switch (mirror.remoteRepoUri().getScheme()) {
             case SCHEME_GIT_HTTP:
@@ -170,7 +170,7 @@ abstract class GitWithAuth extends Git {
         return command;
     }
 
-    abstract  <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred);
+    abstract <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred);
 
     abstract <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred);
 
