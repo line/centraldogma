@@ -75,7 +75,7 @@ final class PathPatternOptions {
      * Prepends "&#47;**&#47;*" to {@code extension}.
      * Returns the path pattern for matching file(s) ending in {@code extension}.
      */
-    public static final Function<String, PathPatternOption> EXTENSION = pattern ->
+    static final Function<String, PathPatternOption> EXTENSION = pattern ->
             new PathPatternOption(pattern,
                                   extension -> {
                                       checkArgument(isValidFileExtension(extension), "extension");
