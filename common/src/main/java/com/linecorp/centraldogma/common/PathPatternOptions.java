@@ -48,7 +48,7 @@ final class PathPatternOptions {
      * Prepends and appends "&#47;**" to target {@code dirPath}.
      * Returns the path pattern for matching all file(s) containing {@code dirPath}.
      */
-    public static final Function<String, PathPatternOption> CONTAINS = pattern ->
+    static final Function<String, PathPatternOption> CONTAINS = pattern ->
             new PathPatternOption(pattern,
                                   dirPath -> {
                                       checkArgument(Util.isValidDirPath(dirPath), "dirPath");
