@@ -60,6 +60,7 @@ public final class PathPatternBuilder {
      * Adds {@link PathPatternOptions#EXTENSION}.
      */
     public PathPatternBuilder extension(String extension) {
+        requireNonNull(extension, "extension");
         endPattern = PathPatternOptions.EXTENSION.apply(extension);
         return this;
     }
