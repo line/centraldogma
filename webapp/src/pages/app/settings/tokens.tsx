@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import { DeactivateToken } from 'dogma/features/token/DeactivateToken';
 import { ActivateToken } from 'dogma/features/token/ActivateToken';
 import { DeleteToken } from 'dogma/features/token/DeleteToken';
+import { Deferred } from 'dogma/common/components/Deferred';
 
 const TokenPage = () => {
   const columnHelper = createColumnHelper<TokenDto>();
@@ -60,23 +61,21 @@ const TokenPage = () => {
     [columnHelper],
   );
   const { data, error, isLoading } = useGetTokensQuery();
-  if (isLoading) {
-    return <>Loading...</>;
-  }
-  if (error) {
-    return <>{JSON.stringify(error)}</>;
-  }
   return (
-    <Box p="2">
-      <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">Application Tokens</Heading>
-      </Flex>
-      <Flex>
-        <Spacer />
-        <NewToken />
-      </Flex>
-      <DataTableClientPagination columns={columns} data={data || []} />
-    </Box>
+    <Deferred isLoading={isLoading} error={error}>
+      {() => (
+        <Box p="2">
+          <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
+            <Heading size="lg">Application Tokens</Heading>
+          </Flex>
+          <Flex>
+            <Spacer />
+            <NewToken />
+          </Flex>
+          <DataTableClientPagination columns={columns} data={data || []} />
+        </Box>
+      )}
+    </Deferred>
   );
 };
 

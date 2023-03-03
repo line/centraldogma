@@ -14,24 +14,19 @@
  * under the License.
  */
 import { useGetProjectsQuery } from 'dogma/features/api/apiSlice';
-import { useColorMode, IconButton } from '@chakra-ui/react';
+import { IconButton } from '@chakra-ui/react';
 import { FcServices } from 'react-icons/fc';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
 import { ProjectDto } from 'dogma/features/project/ProjectDto';
-import Error from 'next/error';
-import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
-import { createMessage } from 'dogma/features/message/messageSlice';
-import ErrorHandler from 'dogma/features/services/ErrorHandler';
-import { useAppDispatch, useAppSelector } from 'dogma/store';
+import { useAppSelector } from 'dogma/store';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { createColumnHelper } from '@tanstack/react-table';
 import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { useMemo } from 'react';
 import { RestoreProject } from 'dogma/features/project/RestoreProject';
+import { Deferred } from 'dogma/common/components/Deferred';
 
 export const Projects = () => {
-  const { colorMode } = useColorMode();
-  const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const {
     data: projects,
@@ -68,20 +63,9 @@ export const Projects = () => {
     ],
     [columnHelper],
   );
-  if (isLoading) {
-    return <>Loading...</>;
-  }
-  if (error) {
-    dispatch(
-      createMessage({
-        title: 'Failed to create a retrieve projects',
-        text: ErrorHandler.handle(error),
-        type: 'error',
-      }),
-    );
-    return (
-      <Error statusCode={(error as FetchBaseQueryError).status as number} withDarkMode={colorMode === 'dark'} />
-    );
-  }
-  return <DataTableClientPagination columns={columns} data={projects} />;
+  return (
+    <Deferred isLoading={isLoading} error={error}>
+      {() => <DataTableClientPagination columns={columns} data={projects} />}
+    </Deferred>
+  );
 };

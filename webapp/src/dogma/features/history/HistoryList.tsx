@@ -6,6 +6,7 @@ import { DateWithTooltip } from 'dogma/common/components/DateWithTooltip';
 import { useMemo, useState } from 'react';
 import { useGetHistoryQuery } from 'dogma/features/api/apiSlice';
 import { DynamicDataTable } from 'dogma/common/components/table/DynamicDataTable';
+import { Deferred } from 'dogma/common/components/Deferred';
 
 export type HistoryListProps = {
   projectName: string;
@@ -70,20 +71,18 @@ const HistoryList = ({ projectName, repoName, handleTabChange, totalRevision }: 
     revision: -pageIndex * pageSize - 1,
     to: Math.max(-totalRevision, -(pageIndex + 1) * pageSize),
   });
-  if (isLoading) {
-    return <>Loading...</>;
-  }
-  if (error) {
-    return <>{JSON.stringify(error)}</>;
-  }
   return (
-    <DynamicDataTable
-      data={data || []}
-      columns={columns}
-      setPagination={setPagination}
-      pagination={pagination}
-      pageCount={Math.ceil(totalRevision / pageSize)}
-    />
+    <Deferred isLoading={isLoading} error={error}>
+      {() => (
+        <DynamicDataTable
+          data={data || []}
+          columns={columns}
+          setPagination={setPagination}
+          pagination={pagination}
+          pageCount={Math.ceil(totalRevision / pageSize)}
+        />
+      )}
+    </Deferred>
   );
 };
 

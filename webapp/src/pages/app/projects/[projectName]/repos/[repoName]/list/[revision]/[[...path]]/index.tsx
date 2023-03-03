@@ -12,7 +12,6 @@ import {
   Tabs,
   Tag,
   Tooltip,
-  useColorMode,
 } from '@chakra-ui/react';
 import { useGetFilesQuery, useGetNormalisedRevisionQuery } from 'dogma/features/api/apiSlice';
 import FileList from 'dogma/features/file/FileList';
@@ -26,12 +25,10 @@ import { CopySupport } from 'dogma/features/file/CopySupport';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
 import { AiOutlinePlus } from 'react-icons/ai';
 import Link from 'next/link';
-import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
-import Error from 'next/error';
 import { MetadataButton } from 'dogma/common/components/MetadataButton';
+import { Deferred } from 'dogma/common/components/Deferred';
 
 const RepositoryDetailPage = () => {
-  const { colorMode } = useColorMode();
   const router = useRouter();
   const repoName = router.query.repoName ? (router.query.repoName as string) : '';
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
@@ -99,8 +96,8 @@ cat ${project}/${repo}${path}`;
 
   const {
     data: fileData,
-    isLoading,
-    error,
+    isLoading: isGetFilesLoading,
+    error: isGetFilesError,
   } = useGetFilesQuery(
     { projectName, repoName, revision, filePath },
     {
@@ -111,75 +108,75 @@ cat ${project}/${repo}${path}`;
   const {
     data: revisionData,
     isLoading: isNormalRevisionLoading,
-    error: isError,
+    error: isNormalRevisionError,
   } = useGetNormalisedRevisionQuery({ projectName, repoName, revision: -1 });
-  if (isLoading || isNormalRevisionLoading) {
-    return <>Loading...</>;
-  }
-  if (error || isError) {
-    return (
-      <Error
-        statusCode={((error || isError) as FetchBaseQueryError).status as number}
-        withDarkMode={colorMode === 'dark'}
-      />
-    );
-  }
 
   return (
-    <Box p="2">
-      <Breadcrumbs path={directoryPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/list/head' }} />
-      <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">{filePath || repoName} </Heading>
-        <Tooltip label="Go to History to view all revisions">
-          <Tag borderRadius="full" colorScheme="blue">
-            Revision {revision} <InfoIcon ml={2} />
-          </Tag>
-        </Tooltip>
-      </Flex>
-      <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={handleTabChange}>
-        <TabList>
-          <Tab>
-            <Heading size="sm">Files</Heading>
-          </Tab>
-          <Tab>
-            <Heading size="sm">History</Heading>
-          </Tab>
-        </TabList>
-        <TabPanels>
-          <TabPanel>
-            <Flex gap={2}>
-              <Spacer />
-              <MetadataButton
-                href={`/app/projects/metadata/${projectName}/${repoName}`}
-                props={{ size: 'sm' }}
-              />
-              <Link href={`/app/projects/${projectName}/repos/${repoName}/new_file/head${filePath}`}>
-                <Button size="sm" rightIcon={<AiOutlinePlus />} colorScheme="teal">
-                  New File
-                </Button>
-              </Link>
-            </Flex>
-            <FileList
-              data={fileData || []}
-              projectName={projectName}
-              repoName={repoName}
-              path={filePath}
-              directoryPath={directoryPath}
-              revision={revision}
-              copySupport={clipboardCopySupport as CopySupport}
-            />
-          </TabPanel>
-          <TabPanel>
-            <HistoryList
-              projectName={projectName}
-              repoName={repoName}
-              handleTabChange={handleTabChange}
-              totalRevision={revisionData?.revision || 0}
-            />
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
-    </Box>
+    <Deferred
+      isLoading={isGetFilesLoading || isNormalRevisionLoading}
+      error={isGetFilesError || isNormalRevisionError}
+    >
+      {() => (
+        <Box p="2">
+          <Breadcrumbs path={directoryPath} omitIndexList={[0, 3, 5, 6]} suffixes={{ 4: '/list/head' }} />
+          <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
+            <Heading size="lg">{filePath || repoName} </Heading>
+            <Tooltip label="Go to History to view all revisions">
+              <Tag borderRadius="full" colorScheme="blue">
+                Revision {revision} <InfoIcon ml={2} />
+              </Tag>
+            </Tooltip>
+          </Flex>
+          <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={handleTabChange}>
+            <TabList>
+              <Tab>
+                <Heading size="sm">Files</Heading>
+              </Tab>
+              <Tab>
+                <Heading size="sm">History</Heading>
+              </Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel>
+                <Flex gap={2}>
+                  <Spacer />
+                  <MetadataButton
+                    href={`/app/projects/metadata/${projectName}/${repoName}`}
+                    props={{ size: 'sm' }}
+                  />
+                  <Button
+                    as={Link}
+                    href={`/app/projects/${projectName}/repos/${repoName}/new_file/head${filePath}`}
+                    size="sm"
+                    rightIcon={<AiOutlinePlus />}
+                    colorScheme="teal"
+                  >
+                    New File
+                  </Button>
+                </Flex>
+                <FileList
+                  data={fileData || []}
+                  projectName={projectName}
+                  repoName={repoName}
+                  path={filePath}
+                  directoryPath={directoryPath}
+                  revision={revision}
+                  copySupport={clipboardCopySupport as CopySupport}
+                />
+              </TabPanel>
+              <TabPanel>
+                <HistoryList
+                  projectName={projectName}
+                  repoName={repoName}
+                  handleTabChange={handleTabChange}
+                  totalRevision={revisionData?.revision || 0}
+                />
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
+        </Box>
+      )}
+    </Deferred>
   );
 };
 

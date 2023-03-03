@@ -13,6 +13,7 @@ import { DeleteProject } from 'dogma/features/project/DeleteProject';
 import { NewMember } from 'dogma/features/metadata/NewMember';
 import { NewAppToken } from 'dogma/features/metadata/NewAppToken';
 import { useAppSelector } from 'dogma/store';
+import { Deferred } from 'dogma/common/components/Deferred';
 
 let tabs = ['repositories', 'permissions', 'members', 'tokens', 'mirror'];
 
@@ -23,90 +24,103 @@ const ProjectMetadataPage = () => {
   }
   const router = useRouter();
   const projectName = router.query.projectName ? (router.query.projectName as string) : '';
-  const { data: metadata, isLoading } = useGetMetadataByProjectNameQuery(projectName, {
+  const {
+    data: metadata,
+    isLoading,
+    error,
+  } = useGetMetadataByProjectNameQuery(projectName, {
     refetchOnFocus: true,
     skip: false,
   });
   const [tabIndex, setTabIndex] = useState(0);
-  const switchTab = (index: number) => {
-    setTabIndex(index);
-    window.location.hash = tabs[index];
-  };
+  const tab = router.query.tab ? (router.query.tab as string) : '';
   useEffect(() => {
-    const index = tabs.findIndex((tab) => tab === window.location.hash?.slice(1));
-    if (index !== -1) {
+    const index = tabs.findIndex((tabName) => tabName === tab);
+    if (index !== -1 && index !== tabIndex) {
       setTabIndex(index);
     }
-  }, []);
-  if (isLoading) {
-    return <>Loading...</>;
-  }
+  }, [tab, tabIndex]);
   return (
-    <Box p="2">
-      <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0, 2]} suffixes={{ 4: '/list/head' }} />
-      <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
-        <Heading size="lg">Project {projectName} - Metadata</Heading>
-      </Flex>
-      <Tabs variant="enclosed-colored" size="lg" index={tabIndex} onChange={switchTab}>
-        <TabList>
-          {tabs.map((tab) => (
-            <Tab as={Link} key={tab} href={`#${tab}`} shallow={true}>
-              <Heading size="sm">
-                {tab.charAt(0).toUpperCase()}
-                {tab.slice(1)}
-              </Heading>
-            </Tab>
-          ))}
-        </TabList>
-        <TabPanels>
-          <TabPanel>
-            <Flex gap={3}>
-              <Spacer />
-              <DeleteProject projectName={projectName} />
-              <NewRepo projectName={projectName} />
-            </Flex>
-            <RepoMetaList
-              data={metadata ? Array.from(Object.values(metadata.repos)) : []}
-              projectName={projectName}
-            />
-          </TabPanel>
-          {user && (
-            <TabPanel>
-              <RepoPermissionList
-                data={metadata ? Array.from(Object.values(metadata.repos).filter((repo) => !repo.removal)) : []}
-                projectName={projectName}
-                members={metadata ? Array.from(Object.values(metadata.members)) : []}
-              />
-            </TabPanel>
-          )}
-          {user && (
-            <TabPanel>
-              <Flex>
-                <Spacer />
-                <NewMember projectName={projectName} />
-              </Flex>
-              <AppMemberList
-                data={metadata ? Array.from(Object.values(metadata.members)) : []}
-                projectName={projectName}
-              />
-            </TabPanel>
-          )}
-          {user && (
-            <TabPanel>
-              <Flex>
-                <Spacer />
-                <NewAppToken projectName={projectName} />
-              </Flex>
-              <AppTokenList
-                data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
-                projectName={projectName}
-              />
-            </TabPanel>
-          )}
-          <TabPanel>Coming soon</TabPanel>
-        </TabPanels>
-      </Tabs>
-    </Box>
+    <Deferred isLoading={isLoading} error={error}>
+      {() => (
+        <Box p="2">
+          <Breadcrumbs
+            path={router.asPath.split('?')[0]}
+            omitIndexList={[0, 2]}
+            suffixes={{ 4: '/list/head' }}
+          />
+          <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
+            <Heading size="lg">Project {projectName} - Metadata</Heading>
+          </Flex>
+          <Tabs variant="enclosed-colored" size="lg" index={tabIndex}>
+            <TabList>
+              {tabs.map((tabName) => (
+                <Tab
+                  as={Link}
+                  key={tabName}
+                  replace
+                  href={{ pathname: `/app/projects/metadata/${projectName}`, query: { tab: tabName } }}
+                >
+                  <Heading size="sm">
+                    {tabName.charAt(0).toUpperCase()}
+                    {tabName.slice(1)}
+                  </Heading>
+                </Tab>
+              ))}
+            </TabList>
+            <TabPanels>
+              <TabPanel>
+                <Flex gap={3}>
+                  <Spacer />
+                  <DeleteProject projectName={projectName} />
+                  <NewRepo projectName={projectName} />
+                </Flex>
+                <RepoMetaList
+                  data={metadata ? Array.from(Object.values(metadata.repos)) : []}
+                  projectName={projectName}
+                />
+              </TabPanel>
+              {user && (
+                <TabPanel>
+                  <RepoPermissionList
+                    data={
+                      metadata ? Array.from(Object.values(metadata.repos).filter((repo) => !repo.removal)) : []
+                    }
+                    projectName={projectName}
+                    members={metadata ? Array.from(Object.values(metadata.members)) : []}
+                  />
+                </TabPanel>
+              )}
+              {user && (
+                <TabPanel>
+                  <Flex>
+                    <Spacer />
+                    <NewMember projectName={projectName} />
+                  </Flex>
+                  <AppMemberList
+                    data={metadata ? Array.from(Object.values(metadata.members)) : []}
+                    projectName={projectName}
+                  />
+                </TabPanel>
+              )}
+              {user && (
+                <TabPanel>
+                  <Flex>
+                    <Spacer />
+                    <NewAppToken projectName={projectName} />
+                  </Flex>
+                  <AppTokenList
+                    data={metadata ? Array.from(Object.values(metadata.tokens)) : []}
+                    projectName={projectName}
+                  />
+                </TabPanel>
+              )}
+              <TabPanel>Coming soon</TabPanel>
+            </TabPanels>
+          </Tabs>
+        </Box>
+      )}
+    </Deferred>
   );
 };
 

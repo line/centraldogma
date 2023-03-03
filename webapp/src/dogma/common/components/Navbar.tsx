@@ -92,7 +92,7 @@ export const Navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
-  const result = useGetProjectsQuery({ admin: user?.roles?.includes('LEVEL_ADMIN') || false });
+  const result = useGetProjectsQuery({ admin: false });
   const projects = result.data || [];
   const projectOptions: ProjectOptionType[] = projects.map((project: ProjectDto) => ({
     value: project.name,
@@ -184,8 +184,8 @@ export const Navbar = () => {
                 <Avatar name={user.login} size="sm" />
               </MenuButton>
               <MenuList>
-                <MenuItem>
-                  <RouteLink href="/app/settings/tokens">Application tokens</RouteLink>
+                <MenuItem as={RouteLink} href="/app/settings/tokens">
+                  Application tokens
                 </MenuItem>
                 <MenuDivider />
                 <MenuItem
