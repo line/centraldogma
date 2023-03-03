@@ -216,7 +216,8 @@ repositories defined in ``/mirrors.json``:
 
 - ``accessToken`` (string)
 
-  - the access token which is used for access token-based authentication such as GitHub Personal Access Token.
+  - the access token which is used for access token-based authentication such as
+    `GitHub Personal Access Token <https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token>`_.
 
 If everything was configured correctly, the repository you specified in ``localRepo`` will have a file named
 ``mirror_state.json`` on a successful run, which contains the commit ID of the Git repository:
