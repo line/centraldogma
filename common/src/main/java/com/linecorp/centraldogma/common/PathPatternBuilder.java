@@ -25,7 +25,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 
 /**
  * Builds a new {@link PathPattern}.
@@ -121,6 +120,6 @@ public final class PathPatternBuilder {
         final List<PathPattern> patterns = options.stream()
                                                   .map(PathPatternOption::pathPattern)
                                                   .collect(toImmutableList());
-        return new DefaultPathPattern(ImmutableSet.of(combine(patterns)));
+        return new DefaultPathPattern(combine(patterns));
     }
 }

@@ -21,8 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import com.google.common.collect.ImmutableSet;
-
 import com.linecorp.centraldogma.internal.Util;
 
 /**
@@ -42,8 +40,8 @@ final class PathPatternOptions {
             new PathPatternOption(pattern,
                                   dirPath -> {
                                       checkArgument(Util.isValidDirPath(dirPath), "dir");
-                                      return new DefaultPathPattern(ImmutableSet.of(
-                                              dirPath + (dirPath.endsWith("/") ? "" : "/") + "**"));
+                                      return new DefaultPathPattern(
+                                              dirPath + (dirPath.endsWith("/") ? "" : "/") + "**");
                                   });
 
     /**
@@ -54,10 +52,11 @@ final class PathPatternOptions {
             new PathPatternOption(pattern,
                                   dirPath -> {
                                       checkArgument(Util.isValidDirPath(dirPath), "dirPath");
-                                      return dirPath.endsWith("/") ? new DefaultPathPattern(
-                                              ImmutableSet.of("/**" + dirPath + "**"))
-                                                                   : new DefaultPathPattern(
-                                              ImmutableSet.of("/**" + dirPath + "/**"));
+                                      if (dirPath.endsWith("/")) {
+                                          return new DefaultPathPattern("/**" + dirPath + "**");
+                                      } else { // add ending slash to dirPath
+                                          return new DefaultPathPattern("/**" + dirPath + "/**");
+                                      }
                                   });
 
     /**
@@ -69,7 +68,7 @@ final class PathPatternOptions {
                                   filename -> {
                                       checkArgument(Util.isValidFileName(filename), "filename");
                                       // `/**` is added by the constructor of `DefaultPathPattern`
-                                      return new DefaultPathPattern(ImmutableSet.of(filename));
+                                      return new DefaultPathPattern(filename);
                                   });
 
     /**
@@ -81,11 +80,9 @@ final class PathPatternOptions {
                                   extension -> {
                                       checkArgument(isValidFileExtension(extension), "extension");
                                       if (extension.startsWith(".")) {
-                                          return new DefaultPathPattern(
-                                                  ImmutableSet.of("/**/*" + extension));
-                                      } else { // need to add extension separator
-                                          return new DefaultPathPattern(
-                                                  ImmutableSet.of("/**/*." + extension));
+                                          return new DefaultPathPattern("/**/*" + extension);
+                                      } else { // add extension separator
+                                          return new DefaultPathPattern("/**/*." + extension);
                                       }
                                   });
 
