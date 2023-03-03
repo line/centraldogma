@@ -38,7 +38,7 @@ import com.google.common.collect.Streams;
 public interface PathPattern {
 
     /**
-     *Returns a newly created {@link PathPatternBuilder}.
+     * Returns a newly created {@link PathPatternBuilder}.
      */
     static PathPatternBuilder builder() {
         return new PathPatternBuilder();
