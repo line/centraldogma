@@ -15,6 +15,7 @@
  */
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.ALL;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.allPattern;
 import static java.util.Objects.requireNonNull;
@@ -62,7 +63,10 @@ public interface PathPattern {
      * Creates a path pattern with the {@code pathPatterns}.
      */
     static PathPattern of(PathPattern... pathPatterns) {
-        requireNonNull(pathPatterns, "pathPatterns");
+        checkArgument(pathPatterns.length > 0, "pathPatterns");
+        if (pathPatterns.length == 1) {
+            return pathPatterns[0];
+        }
         return new DefaultPathPattern(ImmutableList.copyOf(pathPatterns));
     }
 
