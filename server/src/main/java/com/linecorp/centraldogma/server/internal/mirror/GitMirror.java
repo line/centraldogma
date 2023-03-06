@@ -23,6 +23,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -35,7 +36,6 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 import org.eclipse.jgit.api.FetchCommand;
-import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -107,6 +107,20 @@ public final class GitMirror extends AbstractMirror {
     private static final int GIT_TIMEOUT_SECS = 60;
 
     @Nullable
+    private static Constructor<?> GIT_WITH_AUTH_CONSTRUCTOR;
+
+    static {
+        Constructor<?> constr = null;
+        try {
+            constr = Class.forName("com.linecorp.centraldogma.server" +
+                                   ".internal.mirror.Git6WithAuth")
+                                   .getDeclaredConstructor(GitMirror.class, File.class);
+        } catch (Exception e) {
+            logger.info("Falling back to JGit 5:", e);
+        }
+        GIT_WITH_AUTH_CONSTRUCTOR = constr;
+    }
+    @Nullable
     private IgnoreNode ignoreNode;
 
     public GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
@@ -128,7 +142,7 @@ public final class GitMirror extends AbstractMirror {
 
     @Override
     protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
-        try (Git git = openGit(workDir)) {
+        try (GitWithAuth git = openGit(workDir)) {
             final String headBranchRefName = Constants.R_HEADS + remoteBranch();
             final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
 
@@ -193,7 +207,7 @@ public final class GitMirror extends AbstractMirror {
         final Map<String, Change<?>> changes = new HashMap<>();
         final String summary;
 
-        try (Git git = openGit(workDir)) {
+        try (GitWithAuth git = openGit(workDir)) {
             final String headBranchRefName = Constants.R_HEADS + remoteBranch();
             final ObjectId id = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
             final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
@@ -311,7 +325,7 @@ public final class GitMirror extends AbstractMirror {
         }
     }
 
-    private Git openGit(File workDir) throws Exception {
+    private GitWithAuth openGit(File workDir) throws Exception {
         // Convert the remoteRepoUri into the URI accepted by jGit by removing the 'git+' prefix.
         final String scheme = remoteRepoUri().getScheme();
         final String jGitUri;
@@ -346,8 +360,12 @@ public final class GitMirror extends AbstractMirror {
                 workDir,
                 CONSECUTIVE_UNDERSCORES.matcher(DISALLOWED_CHARS.matcher(
                         remoteRepoUri().toASCIIString()).replaceAll("_")).replaceAll("_"));
-
-        final GitWithAuth git = new GitWithAuth(this, repoDir);
+        final GitWithAuth git;
+        if (GIT_WITH_AUTH_CONSTRUCTOR != null) {
+            git = (GitWithAuth) GIT_WITH_AUTH_CONSTRUCTOR.newInstance(this, repoDir);
+        } else {
+            git = new Git5WithAuth(this, repoDir);
+        }
         boolean success = false;
         try {
             // Set the remote URLs.
@@ -410,10 +428,9 @@ public final class GitMirror extends AbstractMirror {
     }
 
     private static ObjectId fetchRemoteHeadAndGetCommitId(
-            Git git, String headBranchRefName) throws GitAPIException, IOException {
-        final FetchCommand fetch = git.fetch();
+            GitWithAuth git, String headBranchRefName) throws GitAPIException, IOException {
+        final FetchCommand fetch = git.fetch(1);
         final FetchResult fetchResult = fetch.setRefSpecs(new RefSpec(headBranchRefName))
-                                             .setCheckFetchedObjects(true)
                                              .setRemoveDeletedRefs(true)
                                              .setTagOpt(TagOpt.NO_TAGS)
                                              .setTimeout(GIT_TIMEOUT_SECS)

@@ -5,8 +5,8 @@ Installation
 
 Prerequisites
 -------------
-Central Dogma server is a Java application that requires Java 8 or above. If your system has no Java installed,
-you need to `download and install Java <https://adoptopenjdk.net/>`_ first.
+Central Dogma server is a Java application that requires Java 11 or above. If your system has no Java installed,
+you need to `download and install Java <https://adoptium.net/>`_ first.
 Once installed, make sure the ``java`` binary is in your ``PATH`` or the ``JAVA_HOME`` environment variable is
 set correctly.
 
