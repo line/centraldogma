@@ -47,6 +47,7 @@ import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresAdministrator;
 import com.linecorp.centraldogma.server.internal.api.converter.CreateApiResponseConverter;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Token;
@@ -150,13 +151,14 @@ public class TokenService extends AbstractService {
      *
      * <p>Purges a token of the specified ID that was deleted before.
      */
-    @Delete("/tokens/{appId}/deleted")
+    @Delete("/tokens/{appId}/removed")
+    @RequiresAdministrator
     public CompletableFuture<Token> purgeToken(ServiceRequestContext ctx,
                                                @Param String appId,
                                                Author author, User loginUser) {
-        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenComposeAsync(
                 token -> mds.purgeToken(author, appId)
-                            .thenApply(unused -> token.withoutSecret()));
+                            .thenApply(unused -> token.withoutSecret()), ctx.blockingTaskExecutor());
     }
 
     /**
