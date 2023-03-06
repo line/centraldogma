@@ -138,10 +138,8 @@ public final class CentralDogmaConfig {
     @Nullable
     private final QuotaConfig writeQuotaPerRepository;
 
-    // List of allowed origin, if there is an '*' origin, then all origins are allowed,
-    // if null, cors is disabled
     @Nullable
-    private final List<String> corsAllowedOrigins;
+    private final CorsConfig corsConfig;
 
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
@@ -171,11 +169,11 @@ public final class CentralDogmaConfig {
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
             @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
-            @JsonProperty("corsAllowedOrigins") @Nullable List<String> corsAllowedOrigins) {
+            @JsonProperty("cors") @Nullable CorsConfig corsConfig) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
-        this.corsAllowedOrigins = corsAllowedOrigins;
+        this.corsConfig = corsConfig;
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
         this.tls = tls;
         this.trustedProxyAddresses = trustedProxyAddresses;
@@ -464,12 +462,12 @@ public final class CentralDogmaConfig {
     }
 
     /**
-     * Returns list of cors policy allowed origins.
+     * Returns the {@link CorsConfig}.
      */
     @Nullable
-    @JsonProperty("corsAllowedOrigins")
-    public List<String> corsAllowedOrigins() {
-        return corsAllowedOrigins;
+    @JsonProperty("cors")
+    public CorsConfig corsConfig() {
+        return corsConfig;
     }
 
     @Override

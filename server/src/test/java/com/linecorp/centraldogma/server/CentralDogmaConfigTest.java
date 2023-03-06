@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.server;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_REMOVED_REPOSITORY_AGE_MILLIS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 import java.net.InetAddress;
 import java.util.List;
@@ -242,7 +243,7 @@ class CentralDogmaConfigTest {
     }
 
     @Test
-    void corsAllowedOrigins() throws Exception {
+    void corsConfig_withSingleAllowOriginA_withDefaultMaxAge() throws Exception {
         final CentralDogmaConfig cfg =
                 Jackson.readValue("{\n" +
                                   "  \"dataDir\": \"./data\",\n" +
@@ -259,12 +260,105 @@ class CentralDogmaConfigTest {
                                   "      ]\n" +
                                   "    }\n" +
                                   "  ],\n" +
-                                  "  \"corsAllowedOrigins\": [" +
-                                  "      \"sample.com\"\n" +
-                                  "    ]" +
+                                  "  \"cors\": {\n" +
+                                  "    \"allowedOrigins\": \"foo.com\"\n" +
+                                  "  }\n" +
                                   '}',
                                   CentralDogmaConfig.class);
-        assertThat(cfg.corsAllowedOrigins() != null ? cfg.corsAllowedOrigins().get(0)
-                                                    : null).isEqualTo("sample.com");
+        if (cfg.corsConfig() != null) {
+            final List<String> allowedOrigins = cfg.corsConfig().allowedOrigins();
+            assertThat(allowedOrigins).isNotNull();
+            assertThat(allowedOrigins.get(0)).isEqualTo("foo.com");
+            assertThat(cfg.corsConfig().maxAge()).isEqualTo(7200);
+        } else {
+            fail("corsConfig is null");
+        }
+    }
+
+    @Test
+    void corsConfig_withListAllowOrigins_withSpecifiedMaxAge() throws Exception {
+        final CentralDogmaConfig cfg =
+                Jackson.readValue("{\n" +
+                                  "  \"dataDir\": \"./data\",\n" +
+                                  "  \"ports\": [\n" +
+                                  "    {\n" +
+                                  "      \"localAddress\": {\n" +
+                                  "        \"host\": \"*\",\n" +
+                                  "        \"port\": 36462\n" +
+                                  "      },\n" +
+                                  "      \"protocols\": [\n" +
+                                  "        \"https\",\n" +
+                                  "        \"http\",\n" +
+                                  "        \"proxy\"\n" +
+                                  "      ]\n" +
+                                  "    }\n" +
+                                  "  ],\n" +
+                                  "  \"cors\": {\n" +
+                                  "    \"allowedOrigins\": [\"foo.com\", \"bar.com\"],\n" +
+                                  "    \"maxAge\": 1200\n" +
+                                  "  }\n" +
+                                  '}',
+                                  CentralDogmaConfig.class);
+        if (cfg.corsConfig() != null) {
+            final List<String> allowedOrigins = cfg.corsConfig().allowedOrigins();
+            assertThat(allowedOrigins).isNotNull();
+            assertThat(allowedOrigins.get(0)).isEqualTo("foo.com");
+            assertThat(allowedOrigins.get(1)).isEqualTo("bar.com");
+            assertThat(cfg.corsConfig().maxAge()).isEqualTo(1200);
+        } else {
+            fail("corsConfig is null");
+        }
+    }
+
+    @Test
+    void corsConfig_withNullAllowOrigins() throws Exception {
+        assertThatThrownBy(() ->
+                                   Jackson.readValue("{\n" +
+                                                     "  \"dataDir\": \"./data\",\n" +
+                                                     "  \"ports\": [\n" +
+                                                     "    {\n" +
+                                                     "      \"localAddress\": {\n" +
+                                                     "        \"host\": \"*\",\n" +
+                                                     "        \"port\": 36462\n" +
+                                                     "      },\n" +
+                                                     "      \"protocols\": [\n" +
+                                                     "        \"https\",\n" +
+                                                     "        \"http\",\n" +
+                                                     "        \"proxy\"\n" +
+                                                     "      ]\n" +
+                                                     "    }\n" +
+                                                     "  ],\n" +
+                                                     "  \"cors\": {\n" +
+                                                     "    \"allowedOrigins\": null" +
+                                                     "  }\n" +
+                                                     '}',
+                                                     CentralDogmaConfig.class)
+        ).hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void corsConfig_withEmptyAllowOrigins() throws Exception {
+        assertThatThrownBy(() ->
+                                   Jackson.readValue("{\n" +
+                                                     "  \"dataDir\": \"./data\",\n" +
+                                                     "  \"ports\": [\n" +
+                                                     "    {\n" +
+                                                     "      \"localAddress\": {\n" +
+                                                     "        \"host\": \"*\",\n" +
+                                                     "        \"port\": 36462\n" +
+                                                     "      },\n" +
+                                                     "      \"protocols\": [\n" +
+                                                     "        \"https\",\n" +
+                                                     "        \"http\",\n" +
+                                                     "        \"proxy\"\n" +
+                                                     "      ]\n" +
+                                                     "    }\n" +
+                                                     "  ],\n" +
+                                                     "  \"cors\": {\n" +
+                                                     "    \"allowedOrigins\": []" +
+                                                     "  }\n" +
+                                                     '}',
+                                                     CentralDogmaConfig.class)
+        ).hasCauseInstanceOf(IllegalArgumentException.class);
     }
 }

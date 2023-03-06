@@ -512,6 +512,13 @@ public class CentralDogma implements AutoCloseable {
         sb.clientAddressSources(cfg.clientAddressSourceList());
         sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
 
+        // Config cors policy
+        final Function<? super HttpService, CorsService> corsDecorator =
+                configCorsDecorator(config().corsConfig());
+        if (corsDecorator != null) {
+            sb.decorator(corsDecorator);
+        }
+
         cfg.numWorkers().ifPresent(
                 numWorkers -> sb.workerGroup(EventLoopGroups.newEventLoopGroup(numWorkers), true));
         cfg.maxNumConnections().ifPresent(sb::maxNumConnections);
@@ -683,13 +690,6 @@ public class CentralDogma implements AutoCloseable {
         // Enable content compression for API responses.
         decorator = decorator.andThen(contentEncodingDecorator());
 
-        // Config cors policy
-        final Function<? super HttpService, CorsService> corsDecorator =
-                configCorsDecorator(config().corsAllowedOrigins());
-        if (corsDecorator != null) {
-            decorator = decorator.andThen(corsDecorator);
-        }
-
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new AdministrativeService(safePm, executor), decorator,
                             v1RequestConverter, v1ResponseConverter);
@@ -772,16 +772,17 @@ public class CentralDogma implements AutoCloseable {
     }
 
     @Nullable
-    private static Function<? super HttpService, CorsService> configCorsDecorator(List<String> allowedOrigins) {
-        if (allowedOrigins == null || allowedOrigins.isEmpty()) {
+    private static Function<? super HttpService, CorsService> configCorsDecorator(CorsConfig corsConfig) {
+        if (corsConfig == null || corsConfig.allowedOrigins() == null ||
+            corsConfig.allowedOrigins().isEmpty()) {
             return null;
         }
 
-        return CorsService.builder(allowedOrigins)
+        return CorsService.builder(corsConfig.allowedOrigins())
                        .allowRequestMethods(HttpMethod.knownMethods())
                        .allowAllRequestHeaders(true)
                        .allowCredentials()
-                       .maxAge(1800)
+                       .maxAge(corsConfig.maxAge())
                        .newDecorator();
     }
 

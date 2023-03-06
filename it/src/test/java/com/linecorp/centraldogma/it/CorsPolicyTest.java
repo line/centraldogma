@@ -16,7 +16,11 @@
 
 package com.linecorp.centraldogma.it;
 
-import org.junit.jupiter.api.Assertions;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
+
+import java.util.Arrays;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -25,7 +29,10 @@ import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.CorsConfig;
 import com.linecorp.centraldogma.testing.junit.CentralDogmaExtension;
+
+import io.netty.util.AsciiString;
 
 class CorsPolicyTest {
 
@@ -33,7 +40,7 @@ class CorsPolicyTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.corsAllowedOrigins("SomeOrigin","SomeOtherOrigin");
+            builder.cors(new CorsConfig(Arrays.asList("SomeOrigin", "AnotherOrigin"), 1800));
         }
     };
 
@@ -41,29 +48,35 @@ class CorsPolicyTest {
     void testCorsHeadersAvailable() throws Exception {
         final WebClient client = dogma.httpClient();
 
-        final AggregatedHttpResponse res = client.blocking().prepare()
-                           .header(HttpHeaderNames.ORIGIN.toString(), "SomeOrigin")
-                           .header(HttpHeaderNames.ACCESS_CONTROL_REQUEST_METHOD.toString(), "GET")
-                                                 .options("/api/v1/projects").execute();
+        final AggregatedHttpResponse res =
+                client.blocking()
+                      .prepare()
+                      .header(HttpHeaderNames.ORIGIN.toString(), "SomeOrigin")
+                      .header(HttpHeaderNames.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                      .options("/api/v1/projects")
+                      .execute();
         final ResponseHeaders headers = res.headers();
-        Assertions.assertTrue(headers.contains("access-control-allow-origin", "SomeOrigin"));
-        Assertions.assertTrue(headers.contains("access-control-allow-credentials", "true"));
-        Assertions.assertTrue(headers.contains("access-control-max-age", "1800"));
+
+        assertThat(headers).contains(entry(AsciiString.of("access-control-allow-origin"), "SomeOrigin"));
+        assertThat(headers).contains(entry(AsciiString.of("access-control-allow-credentials"), "true"));
+        assertThat(headers).contains(entry(AsciiString.of("access-control-max-age"), "1800"));
     }
 
     @Test
     void testCorsHeadersUnAvailable() throws Exception {
         final WebClient client = dogma.httpClient();
 
-        final AggregatedHttpResponse res = client.blocking().prepare()
-                                                 .header(HttpHeaderNames.ORIGIN.toString(),
-                                                         "SomeOriginNotIncluded")
-                                                 .header(HttpHeaderNames.ACCESS_CONTROL_REQUEST_METHOD
-                                                                 .toString(), "GET")
-                                                 .options("/api/v1/projects").execute();
+        final AggregatedHttpResponse res =
+                client.blocking()
+                      .prepare()
+                      .header(HttpHeaderNames.ORIGIN.toString(), "SomeOriginNotIncluded")
+                      .header(HttpHeaderNames.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                      .options("/api/v1/projects")
+                      .execute();
         final ResponseHeaders headers = res.headers();
-        Assertions.assertFalse(headers.contains("access-control-allow-origin", "SomeOrigin"));
-        Assertions.assertFalse(headers.contains("access-control-allow-credentials", "true"));
-        Assertions.assertFalse(headers.contains("access-control-max-age", "1800"));
+
+        assertThat(headers.get("access-control-allow-origin")).isNull();
+        assertThat(headers.get("access-control-allow-credentials")).isNull();
+        assertThat(headers.get("access-control-max-age")).isNull();
     }
 }
