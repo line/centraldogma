@@ -160,7 +160,7 @@ public final class Token implements Identifiable {
      */
     @JsonIgnore
     public boolean isActive() {
-        return deactivation == null;
+        return deactivation == null && deletion == null;
     }
 
     /**
