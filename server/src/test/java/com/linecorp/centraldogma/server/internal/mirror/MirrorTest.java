@@ -16,19 +16,23 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.linecorp.centraldogma.server.internal.mirror.MirroringTestUtils.EVERY_MINUTE;
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringTestUtils.newMirror;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.net.URI;
 import java.time.ZonedDateTime;
 
 import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
+import com.cronutils.model.Cron;
+
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
@@ -159,5 +163,26 @@ class MirrorTest {
         assertThat(m.remotePath()).isEqualTo(expectedRemotePath);
         assertThat(m.remoteBranch()).isEqualTo(expectedRemoteBranch);
         return m;
+    }
+
+    private static <T extends Mirror> T newMirror(String remoteUri, Class<T> mirrorType) {
+        return newMirror(remoteUri, EVERY_MINUTE, mock(Repository.class), mirrorType);
+    }
+
+    private static <T extends Mirror> T newMirror(String remoteUri, Cron schedule,
+                                                  Repository repository, Class<T> mirrorType) {
+        final MirrorCredential credential = mock(MirrorCredential.class);
+        final Mirror mirror = Mirror.of("my-mirror-0", schedule, MirrorDirection.LOCAL_TO_REMOTE,
+                                        credential, repository, "/", URI.create(remoteUri), null, true);
+
+        assertThat(mirror).isInstanceOf(mirrorType);
+        assertThat(mirror.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);
+        assertThat(mirror.credential()).isSameAs(credential);
+        assertThat(mirror.localRepo()).isSameAs(repository);
+        assertThat(mirror.localPath()).isEqualTo("/");
+
+        @SuppressWarnings("unchecked")
+        final T castMirror = (T) mirror;
+        return castMirror;
     }
 }

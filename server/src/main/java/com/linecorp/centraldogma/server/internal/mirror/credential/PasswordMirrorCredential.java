@@ -39,17 +39,20 @@ public final class PasswordMirrorCredential extends AbstractMirrorCredential {
                                     @JsonDeserialize(contentAs = Pattern.class)
                                     Iterable<Pattern> hostnamePatterns,
                                     @JsonProperty("username") String username,
-                                    @JsonProperty("password") String password) {
-        super(id, hostnamePatterns);
+                                    @JsonProperty("password") String password,
+                                    @JsonProperty("enabled") @Nullable Boolean enabled) {
+        super(id, "password", hostnamePatterns, enabled);
 
         this.username = requireNonEmpty(username, "username");
         this.password = requireNonNull(password, "password");
     }
 
+    @JsonProperty("username")
     public String username() {
         return username;
     }
 
+    @JsonProperty("password")
     public String password() {
         return password;
     }

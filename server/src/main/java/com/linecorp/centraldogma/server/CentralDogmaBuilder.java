@@ -536,7 +536,16 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets CORS related configurations.
+     * Enables CORS with the specified allowed origins.
+     */
+    public CentralDogmaBuilder cors(String... allowedOrigins) {
+        requireNonNull(allowedOrigins, "allowedOrigins");
+        corsConfig = new CorsConfig(ImmutableList.copyOf(allowedOrigins), null);
+        return this;
+    }
+
+    /**
+     * Enables CORS with the specified {@link CorsConfig}.
      */
     public CentralDogmaBuilder cors(CorsConfig corsConfig) {
         this.corsConfig = requireNonNull(corsConfig, "corsConfig");

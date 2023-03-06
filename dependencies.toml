@@ -128,6 +128,8 @@ module = "com.fasterxml.jackson.core:jackson-databind"
 javadocs = "https://fasterxml.github.io/jackson-databind/javadoc/2.13/"
 [libraries.jackson-datatype-jsr310]
 module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+[libraries.jackson-datatype-jdk8]
+module = "com.fasterxml.jackson.datatype:jackson-datatype-jdk8"
 
 [libraries.javassist]
 module = "org.javassist:javassist"

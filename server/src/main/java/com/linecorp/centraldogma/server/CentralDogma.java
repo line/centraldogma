@@ -127,7 +127,9 @@ import com.linecorp.centraldogma.server.internal.admin.service.UserService;
 import com.linecorp.centraldogma.server.internal.admin.util.RestfulJsonResponseConverter;
 import com.linecorp.centraldogma.server.internal.api.AdministrativeService;
 import com.linecorp.centraldogma.server.internal.api.ContentServiceV1;
+import com.linecorp.centraldogma.server.internal.api.CredentialServiceV1;
 import com.linecorp.centraldogma.server.internal.api.MetadataApiService;
+import com.linecorp.centraldogma.server.internal.api.MirroringServiceV1;
 import com.linecorp.centraldogma.server.internal.api.ProjectServiceV1;
 import com.linecorp.centraldogma.server.internal.api.RepositoryServiceV1;
 import com.linecorp.centraldogma.server.internal.api.TokenService;
@@ -694,6 +696,12 @@ public class CentralDogma implements AutoCloseable {
         sb.annotatedService(API_V1_PATH_PREFIX,
                             new RepositoryServiceV1(safePm, executor, mds), decorator,
                             v1RequestConverter, v1ResponseConverter);
+        sb.annotatedService(API_V1_PATH_PREFIX,
+                            new MirroringServiceV1(safePm, executor, mds), decorator,
+                            v1RequestConverter, v1RequestConverter);
+        sb.annotatedService(API_V1_PATH_PREFIX,
+                            new CredentialServiceV1(safePm, executor, mds), decorator,
+                            v1RequestConverter, v1RequestConverter);
         sb.annotatedService()
           .pathPrefix(API_V1_PATH_PREFIX)
           .defaultServiceNaming(new ServiceNaming() {

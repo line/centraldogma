@@ -128,6 +128,15 @@ public final class DefaultMirroringService implements MirroringService {
                     }
                 }));
 
+        // Migrate the old mirrors.json to the new format if exists.
+        try {
+            new MirroringMigrationService(projectManager).migrate();
+        } catch (Throwable e) {
+            logger.error("Git mirroring stopped due to an unexpected exception while migrating mirrors.json:",
+                         e);
+            return;
+        }
+
         final ListenableScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(
                 this::schedulePendingMirrors,
                 TICK.getSeconds(), TICK.getSeconds(), TimeUnit.SECONDS);
@@ -192,7 +201,7 @@ public final class DefaultMirroringService implements MirroringService {
                       .map(Project::metaRepo)
                       .flatMap(r -> {
                           try {
-                              return r.mirrors().stream();
+                              return r.mirrors().join().stream();
                           } catch (Exception e) {
                               logger.warn("Failed to load the mirror list from: {}", r.parent().name(), e);
                               return Stream.empty();
@@ -221,7 +230,7 @@ public final class DefaultMirroringService implements MirroringService {
 
         return CompletableFuture.runAsync(
                 () -> projectManager.list().values()
-                                    .forEach(p -> p.metaRepo().mirrors()
+                                    .forEach(p -> p.metaRepo().mirrors().join()
                                                    .forEach(m -> run(m, false))),
                 worker);
     }

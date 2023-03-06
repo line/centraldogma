@@ -105,15 +105,15 @@ class DefaultMetaRepositoryTest {
     @Test
     void testEmptyMirrors() {
         // should return an empty result when both /credentials.json and /mirrors.json are non-existent.
-        assertThat(metaRepo.mirrors()).isEmpty();
+        assertThat(metaRepo.mirrors().join()).isEmpty();
 
         // should return an empty result when /credentials.json exists and /mirrors.json does not.
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", Change.ofJsonUpsert("/credentials.json", "[]"));
-        assertThat(metaRepo.mirrors()).isEmpty();
+        assertThat(metaRepo.mirrors().join()).isEmpty();
 
         // should return an empty result when both /credentials.json and /mirrors.json exist.
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "", Change.ofJsonUpsert("/mirrors.json", "[]"));
-        assertThat(metaRepo.mirrors()).isEmpty();
+        assertThat(metaRepo.mirrors().join()).isEmpty();
     }
 
     /**
@@ -171,7 +171,7 @@ class DefaultMetaRepositoryTest {
                                 "}]"), UPSERT_CREDENTIALS).join();
 
         // When the mentioned repositories (foo and bar) do not exist,
-        assertThat(metaRepo.mirrors()).isEmpty();
+        assertThat(metaRepo.mirrors().join()).isEmpty();
 
         project.repos().create("foo", Author.SYSTEM);
         project.repos().create("bar", Author.SYSTEM);
@@ -291,7 +291,7 @@ class DefaultMetaRepositoryTest {
                                 "}]"), UPSERT_CREDENTIALS).join();
 
         // When no matching repositories exist.
-        assertThat(metaRepo.mirrors()).isEmpty();
+        assertThat(metaRepo.mirrors().join()).isEmpty();
 
         project.repos().create("foo.com", Author.SYSTEM);
         project.repos().create("bar.org", Author.SYSTEM);
@@ -366,7 +366,7 @@ class DefaultMetaRepositoryTest {
                                 "}]"), UPSERT_CREDENTIALS).join();
 
         // When no matching repositories exist.
-        assertThat(metaRepo.mirrors()).isEmpty();
+        assertThat(metaRepo.mirrors().join()).isEmpty();
 
         project.repos().create("foo", Author.SYSTEM);
         project.repos().create("bar", Author.SYSTEM);
@@ -388,7 +388,7 @@ class DefaultMetaRepositoryTest {
 
     private List<Mirror> findMirrors() {
         // Get the mirror list and sort it by localRepo name alphabetically for easier testing.
-        return metaRepo.mirrors().stream()
+        return metaRepo.mirrors().join().stream()
                        .sorted(Comparator.comparing(m -> m.localRepo().name()))
                        .collect(Collectors.toList());
     }
