@@ -81,11 +81,10 @@ class TokenServiceTest {
                                              .join())
                 .hasCauseInstanceOf(HttpResponseException.class);
 
-        when(ctx.blockingTaskExecutor()).thenReturn(ContextAwareScheduledExecutorService.of(
-                ServiceRequestContext.builder(HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"))
-                                     .build(), Executors.newSingleThreadScheduledExecutor()));
+        final ServiceRequestContext ctx = ServiceRequestContext.of(
+                HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"));
 
-        assertThat(tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).thenCompose(
+        assertThat(tokenService.deleteToken(this.ctx, "forAdmin1", adminAuthor, admin).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join()).satisfies(
                 t -> {
                     assertThat(t.appId()).isEqualTo(token.appId());
@@ -108,18 +107,17 @@ class TokenServiceTest {
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
 
-        when(ctx.blockingTaskExecutor()).thenReturn(ContextAwareScheduledExecutorService.of(
-                ServiceRequestContext.builder(HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"))
-                                     .build(), Executors.newSingleThreadScheduledExecutor()));
+        final ServiceRequestContext ctx = ServiceRequestContext.of(
+                HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"));
 
-        assertThat(tokenService.deleteToken(ctx, "forUser1", adminAuthor, admin).thenCompose(
+        assertThat(tokenService.deleteToken(this.ctx, "forUser1", adminAuthor, admin).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forUser1", adminAuthor, admin)).join()).satisfies(t -> {
             assertThat(t.appId()).isEqualTo(userToken1.appId());
             assertThat(t.isAdmin()).isEqualTo(userToken1.isAdmin());
             assertThat(t.creation()).isEqualTo(userToken1.creation());
             assertThat(t.deactivation()).isEqualTo(userToken1.deactivation());
         });
-        assertThat(tokenService.deleteToken(ctx, "forUser2", guestAuthor, guest).thenCompose(
+        assertThat(tokenService.deleteToken(this.ctx, "forUser2", guestAuthor, guest).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forUser2", guestAuthor, guest)).join()).satisfies(t -> {
             assertThat(t.appId()).isEqualTo(userToken2.appId());
             assertThat(t.isAdmin()).isEqualTo(userToken2.isAdmin());
@@ -143,11 +141,10 @@ class TokenServiceTest {
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
 
-        when(ctx.blockingTaskExecutor()).thenReturn(ContextAwareScheduledExecutorService.of(
-                ServiceRequestContext.builder(HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"))
-                                     .build(), Executors.newSingleThreadScheduledExecutor()));
+        final ServiceRequestContext ctx = ServiceRequestContext.of(
+                HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"));
 
-        tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).thenCompose(
+        tokenService.deleteToken(this.ctx, "forAdmin1", adminAuthor, admin).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join();
     }
 }
