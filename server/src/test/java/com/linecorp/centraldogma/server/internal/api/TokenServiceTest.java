@@ -18,13 +18,19 @@ package com.linecorp.centraldogma.server.internal.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.Collection;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.linecorp.armeria.common.ContextAwareScheduledExecutorService;
+import com.linecorp.armeria.common.HttpMethod;
+import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
@@ -49,6 +55,10 @@ class TokenServiceTest {
 
     private final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
 
+    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private final ContextAwareScheduledExecutorService blockingExecutor =
+            ContextAwareScheduledExecutorService.of(ctx, executor);
+
     @BeforeAll
     static void setUp() {
         tokenService = new TokenService(manager.projectManager(), manager.executor(),
@@ -70,6 +80,10 @@ class TokenServiceTest {
         assertThatThrownBy(() -> tokenService.deleteToken(ctx, "forAdmin1", guestAuthor, guest)
                                              .join())
                 .hasCauseInstanceOf(HttpResponseException.class);
+
+        when(ctx.blockingTaskExecutor()).thenReturn(ContextAwareScheduledExecutorService.of(
+                ServiceRequestContext.builder(HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"))
+                                     .build(), Executors.newSingleThreadScheduledExecutor()));
 
         assertThat(tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join()).satisfies(
@@ -93,6 +107,10 @@ class TokenServiceTest {
         final Collection<Token> tokens = tokenService.listTokens(guest).join();
         assertThat(tokens.stream().filter(token -> !StringUtil.isNullOrEmpty(token.secret())).count())
                 .isEqualTo(0);
+
+        when(ctx.blockingTaskExecutor()).thenReturn(ContextAwareScheduledExecutorService.of(
+                ServiceRequestContext.builder(HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"))
+                                     .build(), Executors.newSingleThreadScheduledExecutor()));
 
         assertThat(tokenService.deleteToken(ctx, "forUser1", adminAuthor, admin).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forUser1", adminAuthor, admin)).join()).satisfies(t -> {
@@ -124,6 +142,11 @@ class TokenServiceTest {
                                                           guest)
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
+
+        when(ctx.blockingTaskExecutor()).thenReturn(ContextAwareScheduledExecutorService.of(
+                ServiceRequestContext.builder(HttpRequest.of(HttpMethod.DELETE, "/tokens/{appId}/removed"))
+                                     .build(), Executors.newSingleThreadScheduledExecutor()));
+
         tokenService.deleteToken(ctx, "forAdmin1", adminAuthor, admin).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join();
     }
