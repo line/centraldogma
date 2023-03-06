@@ -56,7 +56,7 @@ public final class PathPatternBuilder {
      *
      * <p>This option can only be specified once; multiple declarations will override one another.
      *
-     * <p>Note: that this option and {@link PathPatternBuilder#hasExtension(String)} are mutually exclusive.
+     * <p>Note: this option and {@link PathPatternBuilder#hasExtension(String)} are mutually exclusive.
      * When both are specified, the latter-most option will override the former.
      */
     public PathPatternBuilder endsWith(String filename) {
@@ -72,7 +72,7 @@ public final class PathPatternBuilder {
      *
      * <p>This option can only be specified once; multiple declarations will override one another.
      *
-     * <p>Note: that this option and {@link PathPatternBuilder#endsWith(String)} are mutually exclusive.
+     * <p>Note: this option and {@link PathPatternBuilder#endsWith(String)} are mutually exclusive.
      *  When both are specified, the latter-most option will override the former.
      */
     public PathPatternBuilder hasExtension(String extension) {
@@ -99,7 +99,8 @@ public final class PathPatternBuilder {
      * For example, `contains("/bar")` will match `/nix/bar/test.zip`, `/nix/quix/bar/twee/test.zip`
      * but not `/bar/foo/test.zip` or `/ren/bar.json`.
      *
-     * <p>This option can be specified multiple times. For example, chaining `contains("/bar").contains("foo")`
+     * <p>This option can be specified multiple times; multiple declarations will be chained.
+     * For example, `contains("/bar").contains("foo")`
      * creates the glob-like pattern string `&#47;**&#47;bar&#47;**&#47;foo&#47;**".
      */
     public PathPatternBuilder contains(String dirPath) {
