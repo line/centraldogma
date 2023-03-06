@@ -873,7 +873,6 @@ public class MetadataService {
                               () -> tokenRepo
                                       .fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                                       .thenApply(tokens -> {
-                                          final Token token = tokens.object().get(appId);
                                           final JsonPointer deletionPath =
                                                   JsonPointer.compile("/appIds" + encodeSegment(appId) +
                                                                       "/deletion");
@@ -897,9 +896,17 @@ public class MetadataService {
 
         final Collection<Project> projects = new SafeProjectManager(projectManager).list().values();
 
-        // Remove the token from every project.
+        // Remove the token from projects that only have the token.
         for (Project project : projects) {
-            removeToken(project.name(), author, appId, true).join();
+            final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join().object();
+            final boolean containsTargetTokenInTheProject =
+                    projectMetadata.repos().values()
+                                   .stream()
+                                   .anyMatch(repo -> repo.perTokenPermissions().containsKey(appId));
+
+            if (containsTargetTokenInTheProject) {
+                removeToken(project.name(), author, appId, true).join();
+            }
         }
 
         return tokenRepo.push(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, author, "Remove the token: " + appId,
