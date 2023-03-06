@@ -141,7 +141,7 @@ cat ${project}/${repo}${path}`;
                 <Flex gap={2}>
                   <Spacer />
                   <MetadataButton
-                    href={`/app/projects/metadata/${projectName}/${repoName}`}
+                    href={`/app/projects/${projectName}/permissions/repos/${repoName}`}
                     props={{ size: 'sm' }}
                   />
                   <Button

@@ -22,7 +22,7 @@ import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_H
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTPS;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.DOGMA_PATH_PATTERN;
-import static com.linecorp.centraldogma.server.mirror.MirrorUtil.split;
+import static com.linecorp.centraldogma.server.mirror.MirrorUtil.splitRemoteUri;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
@@ -58,9 +58,9 @@ public interface Mirror {
      * @param gitignore the file pattern for the files in {@code remoteUri} which will not be mirrored.
      *                  It follows the same format to <a href="https://git-scm.com/docs/gitignore">gitignore</a>
      */
-    static Mirror of(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                     Repository localRepo, String localPath, URI remoteUri,
-                     @Nullable String gitignore) {
+    static Mirror of(int index, @Nullable String id, Cron schedule, MirrorDirection direction,
+                     MirrorCredential credential, Repository localRepo, String localPath, URI remoteUri,
+                     @Nullable String gitignore, boolean enabled) {
         requireNonNull(schedule, "schedule");
         requireNonNull(direction, "direction");
         requireNonNull(credential, "credential");
@@ -75,7 +75,7 @@ public interface Mirror {
 
         switch (scheme) {
             case SCHEME_DOGMA: {
-                final String[] components = split(remoteUri, "dogma");
+                final String[] components = splitRemoteUri(remoteUri, "dogma", null);
                 final URI remoteRepoUri = URI.create(components[0]);
                 final Matcher matcher = DOGMA_PATH_PATTERN.matcher(remoteRepoUri.getPath());
                 if (!matcher.find()) {
@@ -87,24 +87,35 @@ public interface Mirror {
                 final String remoteProject = matcher.group(1);
                 final String remoteRepo = matcher.group(2);
 
-                return new CentralDogmaMirror(schedule, direction, credential, localRepo, localPath,
+                return new CentralDogmaMirror(index, id, schedule, direction, credential, localRepo, localPath,
                                               remoteRepoUri, remoteProject, remoteRepo, components[1],
-                                              gitignore);
+                                              gitignore, enabled);
             }
             case SCHEME_GIT:
             case SCHEME_GIT_SSH:
             case SCHEME_GIT_HTTP:
             case SCHEME_GIT_HTTPS:
             case SCHEME_GIT_FILE: {
-                final String[] components = split(remoteUri, "git");
-                return new GitMirror(schedule, direction, credential, localRepo, localPath,
+                final String[] components = splitRemoteUri(remoteUri, "git", "master");
+                return new GitMirror(index, id, schedule, direction, credential, localRepo, localPath,
                                      URI.create(components[0]), components[1], components[2],
-                                     gitignore);
+                                     gitignore, enabled);
             }
         }
 
         throw new IllegalArgumentException("unsupported scheme in remoteUri: " + remoteUri);
     }
+
+    /**
+     * Returns the index of the mirroring task.
+     */
+    int index();
+
+    /**
+     * Returns the ID of the mirroring task.
+     */
+    @Nullable
+    String id();
 
     /**
      * Returns the schedule for the mirroring task.
@@ -160,6 +171,11 @@ public interface Mirror {
      */
     @Nullable
     String gitignore();
+
+    /**
+     * Returns whether this {@link Mirror} is enabled.
+     */
+    boolean enabled();
 
     /**
      * Performs the mirroring task.

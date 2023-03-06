@@ -1,0 +1,138 @@
+/*
+ * Copyright 2023 LINE Corporation
+ *
+ * LINE Corporation licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+package com.linecorp.centraldogma.server.internal.api;
+
+import static com.google.common.base.Preconditions.checkArgument;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import com.linecorp.armeria.server.annotation.ConsumesJson;
+import com.linecorp.armeria.server.annotation.ExceptionHandler;
+import com.linecorp.armeria.server.annotation.Get;
+import com.linecorp.armeria.server.annotation.MatchesParam;
+import com.linecorp.armeria.server.annotation.Param;
+import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.ProducesJson;
+import com.linecorp.armeria.server.annotation.Put;
+import com.linecorp.armeria.server.annotation.StatusCode;
+import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.common.EntryNotFoundException;
+import com.linecorp.centraldogma.common.Revision;
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+import com.linecorp.centraldogma.server.internal.api.auth.RequiresRole;
+import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.ProjectRole;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.storage.project.ProjectManager;
+
+/**
+ * Annotated service object for managing credential service.
+ */
+@ProducesJson
+@RequiresRole(roles = ProjectRole.OWNER)
+@ExceptionHandler(HttpApiExceptionHandler.class)
+public class CredentialServiceV1 extends AbstractService {
+
+    private final MetadataService mds;
+
+    public CredentialServiceV1(ProjectManager pm, CommandExecutor executor, MetadataService mds) {
+        super(pm, executor);
+        this.mds = mds;
+    }
+
+    /**
+     * GET /projects/{projectName}/credentials
+     *
+     * <p>Returns the list of the credentials in the project.
+     */
+    @Get("/projects/{projectName}/credentials")
+    public CompletableFuture<List<MirrorCredential>> listCredentials(@Param String projectName) {
+        return projectManager()
+                .get(projectName)
+                .metaRepo()
+                .credentials();
+    }
+
+    /**
+     * GET /projects/{projectName}/credentials?id={id}
+     *
+     * <p>Returns the credential for the ID in the project.
+     */
+    // TODO(ikhoon): Automatically inject the non-optional query parameters to Route.matchesParam().
+    @MatchesParam("id")
+    @Get("/projects/{projectName}/credentials")
+    public CompletableFuture<MirrorCredential> getCredentialById(@Param String projectName, @Param String id) {
+        return projectManager().get(projectName).metaRepo().credentials().thenApply(credentials -> {
+            for (MirrorCredential credential : credentials) {
+                final Optional<String> credentialId = credential.id();
+                if (!credentialId.isPresent()) {
+                    continue;
+                }
+                if (credentialId.get().equals(id)) {
+                    return credential;
+                }
+            }
+            throw new EntryNotFoundException("Credential not found. ID: " + id);
+        });
+    }
+
+    /**
+     * POST /projects/{projectName}/credentials
+     *
+     * <p>Creates a new credential.
+     */
+    @Post("/projects/{projectName}/credentials")
+    @ConsumesJson
+    @StatusCode(201)
+    public CompletableFuture<Revision> createCredential(@Param String projectName,
+                                                        MirrorCredential credential, Author author) {
+        return mds.createCredential(projectName, credential, author);
+    }
+
+    /**
+     * GET /projects/{projectName}/credentials/{index}
+     *
+     * <p>Returns the credential at the specified index in the project credential list.
+     */
+    @Get("/projects/{projectName}/credentials/{index}")
+    public CompletableFuture<MirrorCredential> getCredential(@Param String projectName, @Param int index) {
+        checkArgument(index >= 0, "index: %s (expected: >= 0)", index);
+
+        return projectManager().get(projectName).metaRepo().credentials().thenApply(credentials -> {
+            if (index >= credentials.size()) {
+                throw new EntryNotFoundException(
+                        "No such credential at the index " + index + " in " + projectName);
+            }
+            return credentials.get(index);
+        });
+    }
+
+    /**
+     * PUT /projects/{projectName}/credentials/{index}
+     *
+     * <p>Update the existing credential.
+     */
+    @Put("/projects/{projectName}/credentials/{index}")
+    @ConsumesJson
+    public CompletableFuture<Revision> updateCredential(@Param String projectName, @Param int index,
+                                                        MirrorCredential credential, Author author) {
+        return mds.updateCredential(projectName, index, credential, author);
+    }
+}

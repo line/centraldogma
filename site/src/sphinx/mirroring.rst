@@ -164,7 +164,7 @@ repositories defined in ``/mirrors.json``:
 
 - ``hostnamePatterns`` (array of strings, optional)
 
-  - the regular repressions that matches a host name. The credential whose hostname pattern matches first will
+  - the regular expression that matches a host name. The credential whose hostname pattern matches first will
     be used when accessing a host. You may want to omit this field if you do not want the credential to be
     selected automatically, i.e. a mirror has to specify the ``credentialId`` field.
 

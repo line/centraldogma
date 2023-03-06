@@ -55,8 +55,8 @@ final class MirroringTestUtils {
     static <T extends Mirror> T newMirror(String remoteUri, Cron schedule,
                                           Repository repository, Class<T> mirrorType) {
         final MirrorCredential credential = mock(MirrorCredential.class);
-        final Mirror mirror = Mirror.of(schedule, MirrorDirection.LOCAL_TO_REMOTE,
-                                        credential, repository, "/", URI.create(remoteUri), null);
+        final Mirror mirror = Mirror.of(0, "my-mirror-0", schedule, MirrorDirection.LOCAL_TO_REMOTE,
+                                        credential, repository, "/", URI.create(remoteUri), null, true);
 
         assertThat(mirror).isInstanceOf(mirrorType);
         assertThat(mirror.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);

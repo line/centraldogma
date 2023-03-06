@@ -28,7 +28,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 public final class AccessTokenMirrorCredential extends AbstractMirrorCredential {
-
     private final String accessToken;
 
     @JsonCreator
@@ -36,12 +35,14 @@ public final class AccessTokenMirrorCredential extends AbstractMirrorCredential 
                                        @JsonProperty("hostnamePatterns") @Nullable
                                        @JsonDeserialize(contentAs = Pattern.class)
                                        Iterable<Pattern> hostnamePatterns,
-                                       @JsonProperty("accessToken") String accessToken) {
-        super(id, hostnamePatterns);
+                                       @JsonProperty("accessToken") String accessToken,
+                                       @JsonProperty("enabled") @Nullable Boolean enabled) {
+        super(id, "access_token", hostnamePatterns, enabled);
 
         this.accessToken = requireNonEmpty(accessToken, "accessToken");
     }
 
+    @JsonProperty("accessToken")
     public String accessToken() {
         return accessToken;
     }

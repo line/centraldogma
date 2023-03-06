@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
@@ -31,8 +32,8 @@ import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.mirror.Mirror;
@@ -66,9 +67,10 @@ class DefaultMirroringServiceTest {
         when(r.parent()).thenReturn(p);
         when(r.name()).thenReturn("bar");
 
-        final Mirror mirror = new AbstractMirror(EVERY_SECOND, MirrorDirection.REMOTE_TO_LOCAL,
+        final Mirror mirror = new AbstractMirror(0, "my-mirror-1", EVERY_SECOND,
+                                                 MirrorDirection.REMOTE_TO_LOCAL,
                                                  MirrorCredential.FALLBACK, r, "/",
-                                                 URI.create("unused://uri"), "/", null, null) {
+                                                 URI.create("unused://uri"), "/", null, null, true) {
             @Override
             protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) {}
 
@@ -81,7 +83,7 @@ class DefaultMirroringServiceTest {
             }
         };
 
-        when(mr.mirrors()).thenReturn(ImmutableSet.of(mirror));
+        when(mr.mirrors()).thenReturn(CompletableFuture.completedFuture(ImmutableList.of(mirror)));
 
         final DefaultMirroringService service = new DefaultMirroringService(
                 temporaryFolder, pm, new SimpleMeterRegistry(), 1, 1, 1);

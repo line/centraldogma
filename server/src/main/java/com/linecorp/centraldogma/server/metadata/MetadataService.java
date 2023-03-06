@@ -20,11 +20,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation.asJsonArray;
 import static com.linecorp.centraldogma.internal.jsonpatch.JsonPatchUtil.encodeSegment;
 import static com.linecorp.centraldogma.server.internal.storage.project.ProjectInitializer.INTERNAL_PROJECT_DOGMA;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.PATH_CREDENTIALS;
+import static com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository.PATH_MIRRORS;
 import static com.linecorp.centraldogma.server.metadata.RepositorySupport.convertWithJackson;
 import static com.linecorp.centraldogma.server.metadata.Tokens.SECRET_PREFIX;
 import static com.linecorp.centraldogma.server.metadata.Tokens.validateSecret;
 import static java.util.Objects.requireNonNull;
 
+import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -37,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.spotify.futures.CompletableFutures;
 
@@ -47,6 +51,7 @@ import com.linecorp.centraldogma.common.ChangeConflictException;
 import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.internal.api.v1.MirrorDto;
 import com.linecorp.centraldogma.internal.jsonpatch.AddOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.JsonPatchOperation;
 import com.linecorp.centraldogma.internal.jsonpatch.RemoveIfExistsOperation;
@@ -56,6 +61,11 @@ import com.linecorp.centraldogma.internal.jsonpatch.TestAbsenceOperation;
 import com.linecorp.centraldogma.server.QuotaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
+import com.linecorp.centraldogma.server.internal.storage.repository.MirrorConfig;
+import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
+import com.linecorp.centraldogma.server.mirror.MirrorUtil;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
@@ -974,6 +984,95 @@ public class MetadataService {
         validateSecret(secret);
         return tokenRepo.fetch(INTERNAL_PROJECT_DOGMA, Project.REPO_DOGMA, TOKEN_JSON)
                         .thenApply(tokens -> tokens.object().findBySecret(secret));
+    }
+
+    /**
+     * Creates a new {@link Mirror} for the {@code projectName}.
+     */
+    public CompletableFuture<Revision> createMirror(String projectName, MirrorDto mirrorDto, Author author) {
+        final String summary;
+        if (MirrorDirection.valueOf(mirrorDto.direction()) == MirrorDirection.REMOTE_TO_LOCAL) {
+            summary = "Create a new mirror from " + mirrorDto.remoteUrl() + mirrorDto.remotePath() + '#' +
+                      mirrorDto.remoteBranch() + " into " + mirrorDto.localRepo() + mirrorDto.localPath();
+        } else {
+            summary = "Create a new mirror from " + mirrorDto.localRepo() + mirrorDto.localPath() + " into " +
+                      mirrorDto.remoteUrl() + mirrorDto.remotePath() + '#' + mirrorDto.remoteBranch();
+        }
+        final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorDto);
+        final JsonNode jsonNode = convertToJsonNodeAndRemoveIndex(mirrorConfig);
+        final Change<JsonNode> change = Change.ofJsonPatch(
+                PATH_MIRRORS, asJsonArray(new AddOperation(JsonPointer.compile("/-"), jsonNode)));
+        return metadataRepo.push(projectName, Project.REPO_META, author, summary, change);
+    }
+
+    /**
+     * Update the {@link Mirror} for the {@code projectName}.
+     */
+    public CompletableFuture<Revision> updateMirror(String projectName, int index,
+                                                    MirrorDto mirrorDto, Author author) {
+
+        final String summary = "Update the mirror '" + mirrorDto.id() + '\'';
+        final MirrorConfig mirrorConfig = converterToMirrorConfig(mirrorDto);
+        final JsonNode jsonNode = convertToJsonNodeAndRemoveIndex(mirrorConfig);
+        final Change<JsonNode> change = Change.ofJsonPatch(
+                PATH_MIRRORS, asJsonArray(new ReplaceOperation(JsonPointer.compile("/" + index), jsonNode)));
+
+        return metadataRepo.push(projectName, Project.REPO_META, author, summary, change);
+    }
+
+    private static MirrorConfig converterToMirrorConfig(MirrorDto mirrorDto) {
+        final String remoteUri =
+                mirrorDto.remoteScheme() + "://" + mirrorDto.remoteUrl() +
+                MirrorUtil.normalizePath(mirrorDto.remotePath()) + '#' + mirrorDto.remoteBranch();
+
+        return new MirrorConfig(
+                mirrorDto.id(),
+                mirrorDto.enabled(),
+                mirrorDto.schedule(),
+                MirrorDirection.valueOf(mirrorDto.direction()),
+                mirrorDto.localRepo(),
+                mirrorDto.localPath(),
+                URI.create(remoteUri),
+                mirrorDto.gitignore(),
+                mirrorDto.credentialId());
+    }
+
+    /**
+     * Creates a new {@link MirrorCredential} for the {@code projectName}.
+     */
+    public CompletableFuture<Revision> createCredential(String projectName, MirrorCredential credential,
+                                                        Author author) {
+        checkArgument(credential.id().isPresent(), "Credential ID should not be null");
+
+        final String summary = "Create a new mirror credential for " + credential.id().get();
+        final JsonNode jsonNode = convertToJsonNodeAndRemoveIndex(credential);
+        final Change<JsonNode> change = Change.ofJsonPatch(
+                PATH_CREDENTIALS, asJsonArray(new AddOperation(JsonPointer.compile("/-"), jsonNode)));
+
+        return metadataRepo.push(projectName, Project.REPO_META, author, summary, change);
+    }
+
+    /**
+     * Updates the {@link MirrorCredential} for the {@code projectName}.
+     */
+    public CompletableFuture<Revision> updateCredential(String projectName, int index,
+                                                        MirrorCredential credential, Author author) {
+        checkArgument(credential.id().isPresent(), "Credential ID should not be null");
+
+        final String summary = "Update the mirror credential '" + credential.id().get() + '\'';
+        final JsonNode jsonNode = convertToJsonNodeAndRemoveIndex(credential);
+        final Change<JsonNode> change = Change.ofJsonPatch(
+                PATH_CREDENTIALS, asJsonArray(new ReplaceOperation(JsonPointer.compile("/" + index),
+                                                                   jsonNode)));
+
+        return metadataRepo.push(projectName, Project.REPO_META, author, summary, change);
+    }
+
+    private static <T> JsonNode convertToJsonNodeAndRemoveIndex(T credential) {
+        final ObjectNode jsonNode = Jackson.valueToTree(credential);
+        // Remove the 'index' field because it is computed from the offset of the value in the array.
+        jsonNode.remove("index");
+        return jsonNode;
     }
 
     /**

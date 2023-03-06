@@ -46,6 +46,9 @@ public abstract class AbstractMirror implements Mirror {
 
     protected static final Author MIRROR_AUTHOR = new Author("Mirror", "mirror@localhost.localdomain");
 
+    private final int index;
+    @Nullable
+    private final String id;
     private final Cron schedule;
     private final MirrorDirection direction;
     private final MirrorCredential credential;
@@ -59,12 +62,15 @@ public abstract class AbstractMirror implements Mirror {
     private final String gitignore;
     private final ExecutionTime executionTime;
     private final long jitterMillis;
+    private final boolean enabled;
 
-    protected AbstractMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                             Repository localRepo, String localPath,
+    protected AbstractMirror(int index, @Nullable String id, Cron schedule, MirrorDirection direction,
+                             MirrorCredential credential, Repository localRepo, String localPath,
                              URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
-                             @Nullable String gitignore) {
+                             @Nullable String gitignore, boolean enabled) {
 
+        this.index = index;
+        this.id = id;
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
@@ -74,6 +80,7 @@ public abstract class AbstractMirror implements Mirror {
         this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
         this.remoteBranch = remoteBranch;
         this.gitignore = gitignore;
+        this.enabled = enabled;
 
         executionTime = ExecutionTime.forCron(this.schedule);
 
@@ -83,6 +90,16 @@ public abstract class AbstractMirror implements Mirror {
                                              this.localRepo.parent().name(), this.localRepo.name(),
                                              this.remoteRepoUri, this.remotePath, this.remoteBranch) /
                                 (Integer.MAX_VALUE / 60000));
+    }
+
+    @Override
+    public int index() {
+        return index;
+    }
+
+    @Override
+    public String id() {
+        return id;
     }
 
     @Override
@@ -141,6 +158,11 @@ public abstract class AbstractMirror implements Mirror {
     @Override
     public final String gitignore() {
         return gitignore;
+    }
+
+    @Override
+    public final boolean enabled() {
+        return enabled;
     }
 
     @Override

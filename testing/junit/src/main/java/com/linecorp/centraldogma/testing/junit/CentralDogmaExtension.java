@@ -25,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import com.spotify.futures.CompletableFutures;
 
+import com.linecorp.armeria.client.BlockingWebClient;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -206,6 +207,15 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
      */
     public final WebClient httpClient() {
         return delegate.httpClient();
+    }
+
+    /**
+     * Returns the blocking HTTP client.
+     *
+     * @throws IllegalStateException if Central Dogma did not start yet
+     */
+    public final BlockingWebClient blockingHttpClient() {
+        return delegate.blockingHttpClient();
     }
 
     /**

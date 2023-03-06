@@ -63,7 +63,7 @@ class MirrorCredentialTest {
 
     private static final class MirrorCredentialImpl extends AbstractMirrorCredential {
         MirrorCredentialImpl(@Nullable String id, @Nullable Iterable<Pattern> hostnamePatterns) {
-            super(id, hostnamePatterns);
+            super(id, "custom", hostnamePatterns, true);
         }
 
         @Override
