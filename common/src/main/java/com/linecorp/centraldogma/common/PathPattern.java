@@ -103,7 +103,7 @@ public interface PathPattern {
      * Returns the path pattern for file(s) with {@code extension}.
      */
     static PathPattern extension(String extension) {
-        return builder().extension(extension).build();
+        return builder().hasExtension(extension).build();
     }
 
     /**

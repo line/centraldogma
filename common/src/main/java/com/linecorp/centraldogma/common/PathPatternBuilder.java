@@ -36,7 +36,7 @@ import com.google.common.collect.ImmutableList;
  *         PathPattern.builder()
  *                    .startsWith("/foo/bar")
  *                    .contains("/ext")
- *                    .extension("json")
+ *                    .hasExtension("json")
  *                    .build();
  * }</pre>
  */
@@ -50,7 +50,14 @@ public final class PathPatternBuilder {
     PathPatternBuilder() {}
 
     /**
-     * Adds {@link PathPatternOptions#ENDS_WITH}.
+     * Ensures the file name component matches the specified {@code filename}.
+     * For example, `endWith("foo.txt")` will match `/foo.txt`, `/alice/foo.txt` and
+     * `/alice/bob/foo.txt`, but not `/barfoo.txt`.
+     *
+     * <p>This option can only be specified once; multiple declarations will override one another.
+     *
+     * <p>Note: that this option and {@link PathPatternBuilder#hasExtension(String)} are mutually exclusive.
+     * When both are specified, the latter-most option will override the former.
      */
     public PathPatternBuilder endsWith(String filename) {
         requireNonNull(filename, "filename");
@@ -59,16 +66,27 @@ public final class PathPatternBuilder {
     }
 
     /**
-     * Adds {@link PathPatternOptions#EXTENSION}.
+     * Ensures the file extension component matches the specified {@code extension}.
+     * For example, `hasExtension("json")` will match `mux.json`, `/bar/mux.json` and
+     * `/alice/bar/mux.json` but not `/json.txt`.
+     *
+     * <p>This option can only be specified once; multiple declarations will override one another.
+     *
+     * <p>Note: that this option and {@link PathPatternBuilder#endsWith(String)} are mutually exclusive.
+     *  When both are specified, the latter-most option will override the former.
      */
-    public PathPatternBuilder extension(String extension) {
+    public PathPatternBuilder hasExtension(String extension) {
         requireNonNull(extension, "extension");
         endPattern = PathPatternOptions.EXTENSION.apply(extension);
         return this;
     }
 
     /**
-     * Adds {@link PathPatternOptions#STARTS_WITH}.
+     * Ensures the directory path starts with the specified {@code dirPath}.
+     * For example, `startsWith("/foo")` will match `/foo/test.zip`, `/foo/bar/test.zip`
+     * but not `/nix/foo/test.zip`.
+     *
+     * <p>This option can only be specified once; multiple declarations will override one another.
      */
     public PathPatternBuilder startsWith(String dirPath) {
         requireNonNull(dirPath, "dirPath");
@@ -77,7 +95,12 @@ public final class PathPatternBuilder {
     }
 
     /**
-     * Adds {@link PathPatternOptions#CONTAINS}.
+     * Ensures the directory path contains the specified {@code dirPath}.
+     * For example, `contains("/bar")` will match `/nix/bar/test.zip`, `/nix/quix/bar/twee/test.zip`
+     * but not `/bar/foo/test.zip` or `/ren/bar.json`.
+     *
+     * <p>This option can be specified multiple times. For example, chaining `contains("/bar").contains("foo")`
+     * creates the glob-like pattern string `&#47;**&#47;bar&#47;**&#47;foo&#47;**".
      */
     public PathPatternBuilder contains(String dirPath) {
         requireNonNull(dirPath, "dirPath");

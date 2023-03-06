@@ -29,7 +29,7 @@ class PathPatternBuilderTest {
                               .patternString()).isEqualTo("/**/foo.json");
         assertThat(PathPattern.builder().contains("/bar").build()
                               .patternString()).isEqualTo("/**/bar/**");
-        assertThat(PathPattern.builder().extension("json").build()
+        assertThat(PathPattern.builder().hasExtension("json").build()
                               .patternString()).isEqualTo("/**/*.json");
     }
 
@@ -43,19 +43,19 @@ class PathPatternBuilderTest {
         assertThat(PathPattern.builder()
                               .startsWith("/foo")
                               .contains("/bar/")
-                              .extension("json")
+                              .hasExtension("json")
                               .build()
                               .patternString()).isEqualTo("/foo/**/bar/**/*.json");
 
         assertThat(PathPattern.builder()
                               .startsWith("/foo")
                               .endsWith("qux.json")
-                              .extension("json")
+                              .hasExtension("json")
                               .build()
                               .patternString()).isEqualTo("/foo/**/*.json");
         assertThat(PathPattern.builder()
                               .startsWith("/foo")
-                              .extension("json")
+                              .hasExtension("json")
                               .endsWith("qux.json")
                               .build()
                               .patternString()).isEqualTo("/foo/**/qux.json");
@@ -68,7 +68,7 @@ class PathPatternBuilderTest {
         assertThat(PathPattern.builder()
                               .startsWith("/foo/bar")
                               .startsWith("/override")
-                              .extension("json")
+                              .hasExtension("json")
                               .build()
                               .patternString()).isEqualTo("/override/**/*.json");
     }
