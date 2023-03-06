@@ -16,10 +16,22 @@
 package com.linecorp.centraldogma.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatNoException;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
 class PathPatternBuilderTest {
+    @Test
+    void testExtensionPattern() {
+        assertThatNoException().isThrownBy(() -> PathPatternOptions.EXTENSION.apply(".JPG").pathPattern());
+        assertThatNoException().isThrownBy(() -> PathPatternOptions.EXTENSION.apply(".7z").pathPattern());
+
+        assertThatThrownBy(() -> PathPatternOptions.EXTENSION.apply("가txt").pathPattern())
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> PathPatternOptions.EXTENSION.apply("..tx.t").pathPattern())
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 
     @Test
     void testSingleOption() {
