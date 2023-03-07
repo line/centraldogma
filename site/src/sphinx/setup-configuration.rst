@@ -53,10 +53,7 @@ defaults:
       },
       "accessLogFormat": "common",
       "authentication": null,
-      "cors": {
-         "allowedOrigins": ["http://example1.com", "http://example2.com"],
-         "maxAge": 1800
-      }
+      "cors": null
     }
 
 Core properties
@@ -235,10 +232,11 @@ Core properties
 
 - ``cors``
 
+  - specify ``null`` to disable CORS entirely.
   - ``allowedOrigins`` (string or string array)
 
     - the list of origins which are allowed a lenient CORS policy. If the literal value ``*`` is specified then
-      all origins are allowed. Specify ``null`` to disable CORS entirely.
+      all origins are allowed.
 
   - ``maxAge`` (integer)
 

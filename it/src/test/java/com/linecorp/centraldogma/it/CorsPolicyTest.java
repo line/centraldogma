@@ -19,10 +19,10 @@ package com.linecorp.centraldogma.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
-import java.util.Arrays;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
@@ -40,7 +40,7 @@ class CorsPolicyTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.cors(new CorsConfig(Arrays.asList("SomeOrigin", "AnotherOrigin"), 1800));
+            builder.cors(new CorsConfig(ImmutableList.of("SomeOrigin", "AnotherOrigin"), 1800));
         }
     };
 
@@ -51,7 +51,7 @@ class CorsPolicyTest {
         final AggregatedHttpResponse res =
                 client.blocking()
                       .prepare()
-                      .header(HttpHeaderNames.ORIGIN.toString(), "SomeOrigin")
+                      .header(HttpHeaderNames.ORIGIN, "SomeOrigin")
                       .header(HttpHeaderNames.ACCESS_CONTROL_REQUEST_METHOD, "GET")
                       .options("/api/v1/projects")
                       .execute();
@@ -69,7 +69,7 @@ class CorsPolicyTest {
         final AggregatedHttpResponse res =
                 client.blocking()
                       .prepare()
-                      .header(HttpHeaderNames.ORIGIN.toString(), "SomeOriginNotIncluded")
+                      .header(HttpHeaderNames.ORIGIN, "SomeOriginNotIncluded")
                       .header(HttpHeaderNames.ACCESS_CONTROL_REQUEST_METHOD, "GET")
                       .options("/api/v1/projects")
                       .execute();

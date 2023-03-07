@@ -312,8 +312,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void corsConfig_withNullAllowOrigins() throws Exception {
-        assertThatThrownBy(() ->
-                                   Jackson.readValue("{\n" +
+        assertThatThrownBy(() -> Jackson.readValue("{\n" +
                                                      "  \"dataDir\": \"./data\",\n" +
                                                      "  \"ports\": [\n" +
                                                      "    {\n" +
@@ -338,8 +337,7 @@ class CentralDogmaConfigTest {
 
     @Test
     void corsConfig_withEmptyAllowOrigins() throws Exception {
-        assertThatThrownBy(() ->
-                                   Jackson.readValue("{\n" +
+        assertThatThrownBy(() -> Jackson.readValue("{\n" +
                                                      "  \"dataDir\": \"./data\",\n" +
                                                      "  \"ports\": [\n" +
                                                      "    {\n" +
@@ -356,6 +354,32 @@ class CentralDogmaConfigTest {
                                                      "  ],\n" +
                                                      "  \"cors\": {\n" +
                                                      "    \"allowedOrigins\": []" +
+                                                     "  }\n" +
+                                                     '}',
+                                                     CentralDogmaConfig.class)
+        ).hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void corsConfig_withNegatieMaxAge() throws Exception {
+        assertThatThrownBy(() -> Jackson.readValue("{\n" +
+                                                     "  \"dataDir\": \"./data\",\n" +
+                                                     "  \"ports\": [\n" +
+                                                     "    {\n" +
+                                                     "      \"localAddress\": {\n" +
+                                                     "        \"host\": \"*\",\n" +
+                                                     "        \"port\": 36462\n" +
+                                                     "      },\n" +
+                                                     "      \"protocols\": [\n" +
+                                                     "        \"https\",\n" +
+                                                     "        \"http\",\n" +
+                                                     "        \"proxy\"\n" +
+                                                     "      ]\n" +
+                                                     "    }\n" +
+                                                     "  ],\n" +
+                                                     "  \"cors\": {\n" +
+                                                     "    \"allowedOrigins\": \"foo.com\",\n" +
+                                                     "    \"maxAge\": -10\n" +
                                                      "  }\n" +
                                                      '}',
                                                      CentralDogmaConfig.class)

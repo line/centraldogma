@@ -540,7 +540,7 @@ public final class CentralDogmaBuilder {
      * Sets config for CORS policy.
      */
     public CentralDogmaBuilder cors(CorsConfig corsConfig) {
-        this.corsConfig = corsConfig;
+        this.corsConfig = requireNonNull(corsConfig, "corsConfig");
         return this;
     }
 

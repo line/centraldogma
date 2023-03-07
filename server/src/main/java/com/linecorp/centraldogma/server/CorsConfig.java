@@ -15,7 +15,6 @@
  */
 package com.linecorp.centraldogma.server;
 
-import java.util.Collections;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -23,7 +22,7 @@ import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
 /**
@@ -45,10 +44,10 @@ public final class CorsConfig {
                       @JsonProperty("maxAge") @Nullable Integer maxAge) {
         if (allowedOrigins instanceof Iterable &&
             Streams.stream((Iterable<?>) allowedOrigins).allMatch(String.class::isInstance)) {
-            this.allowedOrigins = Lists.newArrayList((Iterable<String>) allowedOrigins);
+            this.allowedOrigins = ImmutableList.copyOf((Iterable<String>) allowedOrigins);
         } else if (allowedOrigins instanceof String) {
             final String origin = (String) allowedOrigins;
-            this.allowedOrigins = Collections.singletonList(origin);
+            this.allowedOrigins = ImmutableList.of(origin);
         } else {
             throw new IllegalArgumentException(
                     "allowedOrigins: " + allowedOrigins +
@@ -60,7 +59,16 @@ public final class CorsConfig {
                     " (expected: the list of origins must not be empty)");
         }
 
-        this.maxAge = maxAge == null || maxAge <= 0 ? DEFAULT_MAX_AGE : maxAge;
+        if (maxAge == null) {
+            this.maxAge = DEFAULT_MAX_AGE;
+            return;
+        }
+        if (maxAge <= 0) {
+            throw new IllegalArgumentException(
+                    "maxAge: " + maxAge +
+                    " (expected: maxAge must be positive)");
+        }
+        this.maxAge = maxAge;
     }
 
     /**
