@@ -60,8 +60,7 @@ public final class CorsConfig {
         }
 
         if (maxAge == null) {
-            this.maxAge = DEFAULT_MAX_AGE;
-            return;
+            maxAge = DEFAULT_MAX_AGE;
         }
         if (maxAge <= 0) {
             throw new IllegalArgumentException(
