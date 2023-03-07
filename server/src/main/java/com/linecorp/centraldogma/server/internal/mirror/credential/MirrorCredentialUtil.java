@@ -19,19 +19,16 @@ package com.linecorp.centraldogma.server.internal.mirror.credential;
 import static java.util.Objects.requireNonNull;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 import javax.annotation.Nullable;
-
-import com.google.common.io.BaseEncoding;
 
 final class MirrorCredentialUtil {
     private static final String BASE64_PREFIX = "base64:";
 
-    private static final BaseEncoding base64 = BaseEncoding.base64();
-
     static byte[] decodeBase64(String value, String name) {
         requireNonNull(value, name);
-        return base64.decode(value);
+        return Base64.getDecoder().decode(value);
     }
 
     @Nullable
