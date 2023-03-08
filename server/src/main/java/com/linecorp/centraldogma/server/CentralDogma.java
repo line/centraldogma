@@ -512,7 +512,6 @@ public class CentralDogma implements AutoCloseable {
         sb.clientAddressSources(cfg.clientAddressSourceList());
         sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
 
-        // Config cors policy
         configCors(sb, config().corsConfig());
 
         cfg.numWorkers().ifPresent(
