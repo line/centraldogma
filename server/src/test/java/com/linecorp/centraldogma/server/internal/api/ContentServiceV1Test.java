@@ -161,7 +161,6 @@ class ContentServiceV1Test {
     void pushEmbeddedJsonString() throws JsonParseException {
         final WebClient client = dogma.httpClient();
 
-        // An invalid JSON containing a trailing comma.
         final String body =
                 '{' +
                 "   \"path\" : \"/embedded-string.json\"," +
