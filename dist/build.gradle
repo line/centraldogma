@@ -19,6 +19,7 @@ plugins {
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
+evaluationDependsOn(':server-jgit6')
 
 ext {
     distDir = "${project.buildDir}/dist"
@@ -62,6 +63,8 @@ task copyLib(group: 'Build',
     from project(':server-auth:saml').tasks.jar
     from project(':server-auth:shiro').configurations.runtimeClasspath
     from project(':server-auth:shiro').tasks.jar
+    from project(':server-jgit6').configurations.runtimeClasspath
+    from project(':server-jgit6').tasks.jar
     into "${project.ext.distDir}/lib"
 
     doLast {

@@ -145,6 +145,11 @@ repositories defined in ``/mirrors.json``:
         "publicKey": "ssh-rsa ... user@host",
         "privateKey": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n",
         "passphrase": null
+      },
+      {
+        "id": "my_access_token",
+        "type": "access_token",
+        "accessToken": "github_pat_..."
       }
     ]
 
@@ -155,7 +160,7 @@ repositories defined in ``/mirrors.json``:
 
 - ``type`` (string)
 
-  - the type of authentication mechanism: ``none``, ``password`` or ``public_key``.
+  - the type of authentication mechanism: ``none``, ``password``, ``public_key`` or ``access_token``.
 
 - ``hostnamePatterns`` (array of strings, optional)
 
@@ -165,7 +170,8 @@ repositories defined in ``/mirrors.json``:
 
 - ``username`` (string)
 
-  - the user name
+  - the user name. You must specify this field if you use a credential whose type is ``password`` or
+    ``public_key``.
 
 - ``password`` (string)
 
@@ -207,6 +213,11 @@ repositories defined in ``/mirrors.json``:
 
   - the passphrase of ``privateKey`` if the private key is encrypted.
     If unspecified or ``null``, the private key should not be encrypted.
+
+- ``accessToken`` (string)
+
+  - the access token which is used for access token-based authentication such as
+    `GitHub Personal Access Token <https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token>`_.
 
 If everything was configured correctly, the repository you specified in ``localRepo`` will have a file named
 ``mirror_state.json`` on a successful run, which contains the commit ID of the Git repository:

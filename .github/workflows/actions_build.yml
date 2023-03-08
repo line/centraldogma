@@ -16,6 +16,7 @@ concurrency:
 
 env:
   LC_ALL: "en_US.UTF-8"
+  BUILD_JDK_VERSION: "17"
 
 jobs:
   build:
@@ -39,7 +40,16 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Set up JDK ${{ matrix.java }}
+    - id: setup-build-jdk
+      name: Set up build JDK ${{ env.BUILD_JDK_VERSION }}
+      uses: actions/setup-java@v2
+      with:
+        distribution: 'temurin'
+        java-version: ${{ env.BUILD_JDK_VERSION }}
+
+    - id: setup-test-jdk
+      if: ${{ matrix.java != env.BUILD_JDK_VERSION }}
+      name: Set up test JDK ${{ matrix.java }}
       uses: actions/setup-java@v2
       with:
         distribution: 'temurin'
@@ -53,8 +63,9 @@ jobs:
         ./gradlew --no-daemon --stacktrace -Pleak -PnoLint build \
         ${{ matrix.coverage && '-Pcoverage' || '' }} \
         -PflakyTests=false \
-        -PbuildJdkVersion=${{ matrix.java }} \
+        -PbuildJdkVersion=${{ env.BUILD_JDK_VERSION }} \
         -PtestJavaVersion=${{ matrix.java }} \
+        -Porg.gradle.java.installations.paths=${{ steps.setup-build-jdk.outputs.path }},${{ steps.setup-test-jdk.outputs.path }}
       shell: bash
 
     - name: Upload coverage to Codecov
@@ -88,21 +99,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - id: setup-jdk-17
-        name: Set up JDK 17
+      - id: setup-jdk
+        name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
         uses: actions/setup-java@v2
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: ${{ env.BUILD_JDK_VERSION }}
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
 
       - name: Build with Gradle
         run: |
-          ./gradlew --no-daemon --stacktrace lint \
-          -PbuildJdkVersion=17 \
-          -PtestJavaVersion=17
+          ./gradlew --no-daemon --stacktrace lint
         shell: bash
 
   flaky-tests:
@@ -114,12 +123,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - id: setup-jdk-17
-        name: Set up JDK 17
+      - id: setup-jdk
+        name: Set up JDK ${{ env.BUILD_JDK_VERSION }}
         uses: actions/setup-java@v2
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: ${{ env.BUILD_JDK_VERSION }}
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
