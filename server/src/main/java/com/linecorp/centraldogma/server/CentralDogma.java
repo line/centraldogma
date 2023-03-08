@@ -392,13 +392,13 @@ public class CentralDogma implements AutoCloseable {
                 logger.info("Starting plugins on the leader replica ..");
                 pluginsForLeaderOnly
                         .start(cfg, pm, exec, meterRegistry, purgeWorker).handle((unused, cause) -> {
-                    if (cause == null) {
-                        logger.info("Started plugins on the leader replica.");
-                    } else {
-                        logger.error("Failed to start plugins on the leader replica..", cause);
-                    }
-                    return null;
-                });
+                            if (cause == null) {
+                                logger.info("Started plugins on the leader replica.");
+                            } else {
+                                logger.error("Failed to start plugins on the leader replica..", cause);
+                            }
+                            return null;
+                        });
             }
         };
 
@@ -754,11 +754,25 @@ public class CentralDogma implements AutoCloseable {
                 sb.service(LOGOUT_PATH, authProvider.webLogoutService());
             }
 
-            sb.serviceUnder("/",
-                            FileService.builder(CentralDogma.class.getClassLoader(),
-                                                "com/linecorp/centraldogma/webapp")
-                                       .cacheControl(ServerCacheControl.REVALIDATED)
-                                       .build());
+            // Folder names contain path patterns such as `[projectName]` which FileService can't infer from
+            // the request path. Return `index.html` as a fallback so that Next.js client router handles the
+            // path patterns.
+            final HttpService fallbackFileService = HttpFile.of(CentralDogma.class.getClassLoader(),
+                                                                "com/linecorp/centraldogma/webapp/index.html")
+                                                            .asService();
+            sb.serviceUnder("/app", FileService.builder(CentralDogma.class.getClassLoader(),
+                                                        "com/linecorp/centraldogma/webapp/app")
+                                               .cacheControl(ServerCacheControl.REVALIDATED)
+                                               .build().orElse(fallbackFileService));
+
+            // Serve all web resources except for '/app'.
+            sb.route()
+              .pathPrefix("/")
+              .exclude("/app")
+              .build(FileService.builder(CentralDogma.class.getClassLoader(),
+                                         "com/linecorp/centraldogma/webapp")
+                                .cacheControl(ServerCacheControl.REVALIDATED)
+                                .build());
 
             sb.serviceUnder("/legacy-web",
                             FileService.builder(CentralDogma.class.getClassLoader(), "webapp")
