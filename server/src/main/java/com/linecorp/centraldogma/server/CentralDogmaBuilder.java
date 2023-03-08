@@ -126,7 +126,6 @@ public final class CentralDogmaBuilder {
     private int timeWindowSeconds;
     private MeterRegistry meterRegistry = Flags.meterRegistry();
 
-    // Cors config
     @Nullable
     private CorsConfig corsConfig;
 
@@ -537,7 +536,7 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets config for CORS policy.
+     * Sets CORS related configurations.
      */
     public CentralDogmaBuilder cors(CorsConfig corsConfig) {
         this.corsConfig = requireNonNull(corsConfig, "corsConfig");
