@@ -238,9 +238,9 @@ Core properties
     - the list of origins which are allowed a lenient CORS policy. If the literal value ``*`` is specified then
       all origins are allowed.
 
-  - ``maxAge`` (integer)
+  - ``maxAgeSeconds`` (integer)
 
-    - how long in seconds the results of a preflight request can be cached, if not specified then the default
+    - how long in seconds the results of a preflight request can be cached. If not specified then the default
       value ``7200`` is applied.
 
 .. _replication:

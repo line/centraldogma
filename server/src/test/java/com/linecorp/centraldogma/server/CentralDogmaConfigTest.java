@@ -269,7 +269,7 @@ class CentralDogmaConfigTest {
             final List<String> allowedOrigins = cfg.corsConfig().allowedOrigins();
             assertThat(allowedOrigins).isNotNull();
             assertThat(allowedOrigins.get(0)).isEqualTo("foo.com");
-            assertThat(cfg.corsConfig().maxAge()).isEqualTo(7200);
+            assertThat(cfg.corsConfig().maxAgeSeconds()).isEqualTo(7200);
         } else {
             fail("corsConfig is null");
         }
@@ -295,7 +295,7 @@ class CentralDogmaConfigTest {
                                   "  ],\n" +
                                   "  \"cors\": {\n" +
                                   "    \"allowedOrigins\": [\"foo.com\", \"bar.com\"],\n" +
-                                  "    \"maxAge\": 1200\n" +
+                                  "    \"maxAgeSeconds\": 1200\n" +
                                   "  }\n" +
                                   '}',
                                   CentralDogmaConfig.class);
@@ -304,7 +304,7 @@ class CentralDogmaConfigTest {
             assertThat(allowedOrigins).isNotNull();
             assertThat(allowedOrigins.get(0)).isEqualTo("foo.com");
             assertThat(allowedOrigins.get(1)).isEqualTo("bar.com");
-            assertThat(cfg.corsConfig().maxAge()).isEqualTo(1200);
+            assertThat(cfg.corsConfig().maxAgeSeconds()).isEqualTo(1200);
         } else {
             fail("corsConfig is null");
         }
@@ -379,7 +379,7 @@ class CentralDogmaConfigTest {
                                                      "  ],\n" +
                                                      "  \"cors\": {\n" +
                                                      "    \"allowedOrigins\": \"foo.com\",\n" +
-                                                     "    \"maxAge\": -10\n" +
+                                                     "    \"maxAgeSeconds\": -10\n" +
                                                      "  }\n" +
                                                      '}',
                                                      CentralDogmaConfig.class)

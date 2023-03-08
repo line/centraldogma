@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2023 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -33,15 +33,15 @@ public final class CorsConfig {
     private static final int DEFAULT_MAX_AGE = 7200;
 
     private final List<String> allowedOrigins;
-    private final int maxAge;
+    private final int maxAgeSeconds;
 
     /**
      * Creates an instance with the specified {@code allowedOrigins} and
-     * {@code maxAge}.
+     * {@code maxAgeSeconds}.
      */
     @JsonCreator
     public CorsConfig(@JsonProperty("allowedOrigins") Object allowedOrigins,
-                      @JsonProperty("maxAge") @Nullable Integer maxAge) {
+                      @JsonProperty("maxAgeSeconds") @Nullable Integer maxAgeSeconds) {
         if (allowedOrigins instanceof Iterable &&
             Streams.stream((Iterable<?>) allowedOrigins).allMatch(String.class::isInstance)) {
             this.allowedOrigins = ImmutableList.copyOf((Iterable<String>) allowedOrigins);
@@ -59,15 +59,15 @@ public final class CorsConfig {
                     " (expected: the list of origins must not be empty)");
         }
 
-        if (maxAge == null) {
-            maxAge = DEFAULT_MAX_AGE;
+        if (maxAgeSeconds == null) {
+            maxAgeSeconds = DEFAULT_MAX_AGE;
         }
-        if (maxAge <= 0) {
+        if (maxAgeSeconds <= 0) {
             throw new IllegalArgumentException(
-                    "maxAge: " + maxAge +
-                    " (expected: maxAge must be positive)");
+                    "maxAgeSeconds: " + maxAgeSeconds +
+                    " (expected: maxAgeSeconds must be positive)");
         }
-        this.maxAge = maxAge;
+        this.maxAgeSeconds = maxAgeSeconds;
     }
 
     /**
@@ -80,18 +80,18 @@ public final class CorsConfig {
 
     /**
      * Returns how long in seconds the results of a preflight request can be cached.
-     * If unspecified, the default of {@value #DEFAULT_MAX_AGE} is returned.
+     * If unspecified, the default of {@code 7200} seconds is returned.
      */
     @JsonProperty
-    public int maxAge() {
-        return maxAge;
+    public int maxAgeSeconds() {
+        return maxAgeSeconds;
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
                           .add("allowedOrigins", allowedOrigins)
-                          .add("maxAge", maxAge)
+                          .add("maxAgeSeconds", maxAgeSeconds)
                           .toString();
     }
 }

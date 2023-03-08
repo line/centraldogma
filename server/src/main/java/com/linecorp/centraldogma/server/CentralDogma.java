@@ -513,11 +513,7 @@ public class CentralDogma implements AutoCloseable {
         sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
 
         // Config cors policy
-        final Function<? super HttpService, CorsService> corsDecorator =
-                configCorsDecorator(config().corsConfig());
-        if (corsDecorator != null) {
-            sb.decorator(corsDecorator);
-        }
+        configCors(sb, config().corsConfig());
 
         cfg.numWorkers().ifPresent(
                 numWorkers -> sb.workerGroup(EventLoopGroups.newEventLoopGroup(numWorkers), true));
@@ -771,19 +767,17 @@ public class CentralDogma implements AutoCloseable {
         }
     }
 
-    @Nullable
-    private static Function<? super HttpService, CorsService> configCorsDecorator(CorsConfig corsConfig) {
-        if (corsConfig == null || corsConfig.allowedOrigins() == null ||
-            corsConfig.allowedOrigins().isEmpty()) {
-            return null;
+    private static void configCors(ServerBuilder sb, @Nullable CorsConfig corsConfig) {
+        if (corsConfig == null) {
+            return;
         }
 
-        return CorsService.builder(corsConfig.allowedOrigins())
-                       .allowRequestMethods(HttpMethod.knownMethods())
-                       .allowAllRequestHeaders(true)
-                       .allowCredentials()
-                       .maxAge(corsConfig.maxAge())
-                       .newDecorator();
+        sb.decorator(CorsService.builder(corsConfig.allowedOrigins())
+                                .allowRequestMethods(HttpMethod.knownMethods())
+                                .allowAllRequestHeaders(true)
+                                .allowCredentials()
+                                .maxAge(corsConfig.maxAgeSeconds())
+                                .newDecorator());
     }
 
     private static Function<? super HttpService, EncodingService> contentEncodingDecorator() {
