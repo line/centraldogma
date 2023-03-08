@@ -98,6 +98,7 @@ public final class IsolatedSystemReader extends SystemReader {
 
         @Override
         public void load() {
+            // Do nothing because we don't want to load anything from external sources.
         }
 
         @Override
