@@ -179,8 +179,8 @@ class ContentServiceV1Test {
         assertThat(res.status()).isEqualTo(HttpStatus.OK);
 
         final Entry<?> entry = dogma.client().forRepo("myPro", "myRepo")
-                                   .file("/embedded-string.json")
-                                   .get().join();
+                                    .file("/embedded-string.json")
+                                    .get().join();
         assertThat(entry.contentAsText()).isEqualTo("\"json string\"");
         final JsonNode content = entry.contentAsJson();
         assertThat(content.isTextual()).isTrue();
