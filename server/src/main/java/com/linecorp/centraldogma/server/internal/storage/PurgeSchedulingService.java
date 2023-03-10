@@ -24,7 +24,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -43,6 +42,7 @@ import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
 
 /**
@@ -146,17 +146,14 @@ public class PurgeSchedulingService {
                 });
     }
 
-    private void purgeToken(MetadataService metadataService) {
-        metadataService.getTokens()
-                       .thenApply(tokens -> tokens.appIds().values().stream()
-                                                  .filter(token -> token.isDeleted())
-                                                  .map(Token::appId)
-                                                  .collect(Collectors.toList()))
-                       .thenAccept(appIds -> appIds.stream()
-                                                   .forEach(appId ->
-                                                                    metadataService.purgeToken(Author.SYSTEM,
-                                                                                               appId).join()
-                                                   ));
+    private static void purgeToken(MetadataService metadataService) {
+        final Tokens tokens = metadataService.getTokens().join();
+
+        tokens.appIds().values()
+              .stream()
+              .filter(token -> token.isDeleted())
+              .map(Token::appId)
+              .forEach(appId -> metadataService.purgeToken(Author.SYSTEM, appId));
     }
 
     private boolean isDisabled() {

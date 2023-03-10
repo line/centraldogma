@@ -889,8 +889,10 @@ public class MetadataService {
 
     /**
      * Purges the {@link Token} of the specified {@code appId} that was removed before.
+     *
+     * <p>Note that this is a blocking method that should not be invoked in an event loop.
      */
-    public CompletableFuture<Revision> purgeToken(Author author, String appId) {
+    public Revision purgeToken(Author author, String appId) {
         requireNonNull(author, "author");
         requireNonNull(appId, "appId");
 
@@ -900,9 +902,9 @@ public class MetadataService {
         for (Project project : projects) {
             final ProjectMetadata projectMetadata = fetchMetadata(project.name()).join().object();
             final boolean containsTargetTokenInTheProject =
-                    projectMetadata.repos().values()
+                    projectMetadata.tokens().values()
                                    .stream()
-                                   .anyMatch(repo -> repo.perTokenPermissions().containsKey(appId));
+                                   .anyMatch(token -> token.appId().equals(appId));
 
             if (containsTargetTokenInTheProject) {
                 removeToken(project.name(), author, appId, true).join();
@@ -925,7 +927,7 @@ public class MetadataService {
                                                          asJsonArray(new RemoveOperation(appIdPath),
                                                                      new RemoveIfExistsOperation(secretPath)));
                                                  return HolderWithRevision.of(change, tokens.revision());
-                                             }));
+                                             })).join();
     }
 
     /**

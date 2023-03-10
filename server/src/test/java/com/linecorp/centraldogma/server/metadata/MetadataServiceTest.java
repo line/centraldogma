@@ -355,9 +355,8 @@ class MetadataServiceTest {
                 .containsExactly(Permission.READ);
 
         // Remove 'app1' from the system completely.
-        mds.destroyToken(author, app1)
-           .thenCompose(unused -> mds.purgeToken(author, app1))
-           .join();
+        mds.destroyToken(author, app1).join();
+        mds.purgeToken(author, app1);
 
         // Remove per-token permission of 'app1', too.
         assertThat(mds.findPermissions(project1, repo1, app1).join())
