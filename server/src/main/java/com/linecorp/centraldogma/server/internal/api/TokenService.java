@@ -123,13 +123,13 @@ public class TokenService extends AbstractService {
             tokenFuture = mds.createToken(author, appId, isAdmin);
         }
         return tokenFuture
-                  .thenCompose(unused -> mds.findTokenByAppId(appId))
-                  .thenApply(token -> {
-                      final ResponseHeaders headers = ResponseHeaders.of(HttpStatus.CREATED,
-                                                                         HttpHeaderNames.LOCATION,
-                                                                         "/tokens/" + appId);
-                      return HttpResult.of(headers, token);
-                  });
+                .thenCompose(unused -> mds.findTokenByAppId(appId))
+                .thenApply(token -> {
+                    final ResponseHeaders headers = ResponseHeaders.of(HttpStatus.CREATED,
+                                                                       HttpHeaderNames.LOCATION,
+                                                                       "/tokens/" + appId);
+                    return HttpResult.of(headers, token);
+                });
     }
 
     /**
@@ -160,7 +160,7 @@ public class TokenService extends AbstractService {
                 token -> {
                     mds.purgeToken(author, appId);
                     return CompletableFuture.supplyAsync(token::withoutSecret);
-                },ctx.blockingTaskExecutor());
+                }, ctx.blockingTaskExecutor());
     }
 
     /**
@@ -173,18 +173,25 @@ public class TokenService extends AbstractService {
     public CompletableFuture<Token> updateToken(ServiceRequestContext ctx,
                                                 @Param String appId,
                                                 JsonNode node, Author author, User loginUser) {
-        if (node.equals(activation)) {
-            return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
-                    token -> mds.activateToken(author, appId)
-                                .thenApply(unused -> token.withoutSecret()));
-        }
-        if (node.equals(deactivation)) {
-            return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
-                    token -> mds.deactivateToken(author, appId)
-                                .thenApply(unused -> token.withoutSecret()));
-        }
-        throw new IllegalArgumentException("Unsupported JSON patch: " + node +
-                                           " (expected: " + activation + " or " + deactivation + ')');
+        return getTokenOrRespondForbidden(ctx, appId, loginUser).thenCompose(
+                token -> {
+                    if (token.isDeleted()) {
+                        throw new IllegalArgumentException(
+                                "The token is deleting. You can not update the token's status");
+                    }
+                    if (node.equals(activation)) {
+                        return mds.activateToken(author, appId)
+                                  .thenApply(unused -> token.withoutSecret());
+                    }
+                    if (node.equals(deactivation)) {
+                        return mds.deactivateToken(author, appId)
+                                  .thenApply(unused -> token.withoutSecret());
+                    }
+                    throw new IllegalArgumentException("Unsupported JSON patch: " + node +
+                                                       " (expected: " + activation + " or " + deactivation +
+                                                       ')');
+                }
+        );
     }
 
     private CompletableFuture<Token> getTokenOrRespondForbidden(ServiceRequestContext ctx,
