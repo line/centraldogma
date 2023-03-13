@@ -57,7 +57,8 @@ class GitMirrorAuthTest {
     // must be set:
     //
     // - GITHUB_CD_AUTHTEST_USERNAME (optional; defaults to your system username)
-    // - GITHUB_CD_AUTHTEST_PASSWORD (required)
+    // - GITHUB_CD_AUTHTEST_PASSWORD (required when you want to test with password)
+    // - GITHUB_CD_AUTHTEST_ACCESS_TOKEN (required when you want to test with GitHub PAT)
     //
     // AND:
     //
@@ -79,6 +80,13 @@ class GitMirrorAuthTest {
     @Nullable
     private static final String GITHUB_PASSWORD =
             System.getenv("GITHUB_CD_AUTHTEST_PASSWORD");
+
+    /**
+     * Your GitHub Personal Access Token. Please specify generated at https://github.com/settings/tokens
+     */
+    @Nullable
+    private static final String GITHUB_ACCESS_TOKEN =
+            System.getenv("GITHUB_CD_AUTHTEST_ACCESS_TOKEN");
 
     private static CentralDogma client;
     private static MirroringService mirroringService;
@@ -128,6 +136,18 @@ class GitMirrorAuthTest {
                             "  \"hostnamePatterns\": [ \"^.*$\" ]," +
                             "  \"username\": \"" + GITHUB_USERNAME + "\"," +
                             "  \"password\": \"" + Jackson.escapeText(GITHUB_PASSWORD) + '"' +
+                            '}')));
+        }
+
+        if (GITHUB_ACCESS_TOKEN != null) {
+            builder.add(Arguments.of(
+                    "https",
+                    "git+https://github.com/line/centraldogma-authtest.git",
+                    Jackson.readTree(
+                            '{' +
+                            "  \"type\": \"access_token\"," +
+                            "  \"hostnamePatterns\": [ \"^.*$\" ]," +
+                            "  \"accessToken\": \"" + Jackson.escapeText(GITHUB_ACCESS_TOKEN) + '"' +
                             '}')));
         }
 
