@@ -17,8 +17,10 @@
 package com.linecorp.centraldogma.server.internal.mirror;
 
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
+import static com.linecorp.centraldogma.server.mirror.MirrorUtil.normalizePath;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -33,6 +35,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.eclipse.jgit.api.FetchCommand;
@@ -125,9 +128,16 @@ public final class GitMirror extends AbstractMirror {
 
     public GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath,
-                     URI remoteRepoUri, String remotePath, String remoteBranch,
+                     URI remoteRepoUri, String remoteSubpath, String remoteBranch,
                      @Nullable String gitignore) {
-        super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
+        super(schedule,
+              direction,
+              credential,
+              localRepo,
+              normalizePath(requireNonNull(localPath, "localPath")),
+              remoteRepoUri,
+              normalizePath(requireNonNull(remoteSubpath, "remoteSubpath")),
+              remoteBranch,
               gitignore);
 
         if (gitignore != null) {
@@ -138,6 +148,14 @@ public final class GitMirror extends AbstractMirror {
                 throw new IllegalArgumentException("Failed to read gitignore: " + gitignore, e);
             }
         }
+    }
+
+    @Nonnull
+    @Override
+    public String remoteSubpath() {
+        final String remoteSubpath = super.remoteSubpath();
+        assert remoteSubpath != null;
+        return remoteSubpath;
     }
 
     @Override
@@ -155,7 +173,7 @@ public final class GitMirror extends AbstractMirror {
                 final ObjectId headTreeId = revWalk.parseTree(headCommitId).getId();
                 treeWalk.reset(headTreeId);
 
-                final String mirrorStatePath = remotePath() + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME;
+                final String mirrorStatePath = remoteSubpath() + LOCAL_TO_REMOTE_MIRROR_STATE_FILE_NAME;
                 final Revision localHead = localRepo().normalizeNow(Revision.HEAD);
                 final Revision remoteCurrentRevision = remoteCurrentRevision(reader, treeWalk, mirrorStatePath);
                 if (localHead.equals(remoteCurrentRevision)) {
@@ -253,14 +271,14 @@ public final class GitMirror extends AbstractMirror {
                     final String path = '/' + treeWalk.getPathString();
 
                     if (ignoreNode != null &&
-                        path.startsWith(remotePath()) &&
-                        ignoreNode.isIgnored('/' + path.substring(remotePath().length()),
+                        path.startsWith(remoteSubpath()) &&
+                        ignoreNode.isIgnored('/' + path.substring(remoteSubpath().length()),
                                              fileMode == FileMode.TREE) == MatchResult.IGNORED) {
                         continue;
                     }
 
                     if (fileMode == FileMode.TREE) {
-                        maybeEnterSubtree(treeWalk, remotePath(), path);
+                        maybeEnterSubtree(treeWalk, remoteSubpath(), path);
                         continue;
                     }
 
@@ -270,11 +288,11 @@ public final class GitMirror extends AbstractMirror {
                     }
 
                     // Skip the entries that are not under the remote path.
-                    if (!path.startsWith(remotePath())) {
+                    if (!path.startsWith(remoteSubpath())) {
                         continue;
                     }
 
-                    final String localPath = localPath() + path.substring(remotePath().length());
+                    final String localPath = localPath() + path.substring(remoteSubpath().length());
 
                     // Skip the entry whose path does not conform to CD's path rule.
                     if (!Util.isValidFilePath(localPath)) {
@@ -405,7 +423,7 @@ public final class GitMirror extends AbstractMirror {
 
                 // Recurse into a directory if necessary.
                 if (fileMode == FileMode.TREE) {
-                    if (remotePath().startsWith(path + '/')) {
+                    if (remoteSubpath().startsWith(path + '/')) {
                         treeWalk.enterSubtree();
                     }
                     continue;
@@ -496,7 +514,7 @@ public final class GitMirror extends AbstractMirror {
 
             // Recurse into a directory if necessary.
             if (fileMode == FileMode.TREE) {
-                maybeEnterSubtree(treeWalk, remotePath(), remoteFilePath);
+                maybeEnterSubtree(treeWalk, remoteSubpath(), remoteFilePath);
                 continue;
             }
 
@@ -506,11 +524,11 @@ public final class GitMirror extends AbstractMirror {
             }
 
             // Skip the entries that are not under the remote path.
-            if (!remoteFilePath.startsWith(remotePath())) {
+            if (!remoteFilePath.startsWith(remoteSubpath())) {
                 continue;
             }
 
-            final String localFilePath = localPath() + remoteFilePath.substring(remotePath().length());
+            final String localFilePath = localPath() + remoteFilePath.substring(remoteSubpath().length());
 
             // Skip the entry whose path does not conform to CD's path rule.
             if (!Util.isValidFilePath(localFilePath)) {
@@ -553,7 +571,7 @@ public final class GitMirror extends AbstractMirror {
                 return;
             }
 
-            final String convertedPath = remotePath().substring(1) + // Strip the leading '/'
+            final String convertedPath = remoteSubpath().substring(1) + // Strip the leading '/'
                                          entry.getKey().substring(localPath().length());
             final long contentLength = applyPathEdit(dirCache, inserter, convertedPath, value, null);
             numBytes += contentLength;
@@ -605,12 +623,12 @@ public final class GitMirror extends AbstractMirror {
     }
 
     private static void maybeEnterSubtree(
-            TreeWalk treeWalk, String remotePath, String path) throws IOException {
+            TreeWalk treeWalk, String remoteSubpath, String path) throws IOException {
         // Enter if the directory is under the remote path.
         // e.g.
         // path == /foo/bar
-        // remotePath == /foo/
-        if (path.startsWith(remotePath)) {
+        // remoteSubpath == /foo/
+        if (path.startsWith(remoteSubpath)) {
             treeWalk.enterSubtree();
             return;
         }
@@ -618,9 +636,9 @@ public final class GitMirror extends AbstractMirror {
         // Enter if the directory is equal to the remote path.
         // e.g.
         // path == /foo
-        // remotePath == /foo/
+        // remoteSubpath == /foo/
         final int pathLen = path.length() + 1; // Include the trailing '/'.
-        if (pathLen == remotePath.length() && remotePath.startsWith(path)) {
+        if (pathLen == remoteSubpath.length() && remoteSubpath.startsWith(path)) {
             treeWalk.enterSubtree();
             return;
         }
@@ -628,8 +646,8 @@ public final class GitMirror extends AbstractMirror {
         // Enter if the directory is the parent of the remote path.
         // e.g.
         // path == /foo
-        // remotePath == /foo/bar/
-        if (pathLen < remotePath.length() && remotePath.startsWith(path + '/')) {
+        // remoteSubpath == /foo/bar/
+        if (pathLen < remoteSubpath.length() && remoteSubpath.startsWith(path + '/')) {
             treeWalk.enterSubtree();
         }
     }

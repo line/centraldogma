@@ -35,7 +35,7 @@ final class MirroringTask {
         return ImmutableList.of(
                 Tag.of("direction", mirror.direction().name()),
                 Tag.of("remoteBranch", firstNonNull(mirror.remoteBranch(), "")),
-                Tag.of("remotePath", mirror.remotePath()),
+                Tag.of("remoteSubpath", firstNonNull(mirror.remoteSubpath(), "")),
                 Tag.of("localRepo", mirror.localRepo().name()),
                 Tag.of("localPath", mirror.localPath()));
     }

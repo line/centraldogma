@@ -52,7 +52,8 @@ public abstract class AbstractMirror implements Mirror {
     private final Repository localRepo;
     private final String localPath;
     private final URI remoteRepoUri;
-    private final String remotePath;
+    @Nullable
+    private final String remoteSubpath;
     @Nullable
     private final String remoteBranch;
     @Nullable
@@ -62,16 +63,16 @@ public abstract class AbstractMirror implements Mirror {
 
     protected AbstractMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                              Repository localRepo, String localPath,
-                             URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
+                             URI remoteRepoUri, @Nullable String remoteSubpath, @Nullable String remoteBranch,
                              @Nullable String gitignore) {
 
         this.schedule = requireNonNull(schedule, "schedule");
         this.direction = requireNonNull(direction, "direction");
         this.credential = requireNonNull(credential, "credential");
         this.localRepo = requireNonNull(localRepo, "localRepo");
-        this.localPath = normalizePath(requireNonNull(localPath, "localPath"));
+        this.localPath = requireNonNull(localPath, "localPath");
         this.remoteRepoUri = requireNonNull(remoteRepoUri, "remoteRepoUri");
-        this.remotePath = normalizePath(requireNonNull(remotePath, "remotePath"));
+        this.remoteSubpath = remoteSubpath;
         this.remoteBranch = remoteBranch;
         this.gitignore = gitignore;
 
@@ -81,7 +82,7 @@ public abstract class AbstractMirror implements Mirror {
         // Use the properties' hash code so that the same properties result in the same jitter.
         jitterMillis = Math.abs(Objects.hash(this.schedule.asString(), this.direction,
                                              this.localRepo.parent().name(), this.localRepo.name(),
-                                             this.remoteRepoUri, this.remotePath, this.remoteBranch) /
+                                             this.remoteRepoUri, this.remoteSubpath, this.remoteBranch) /
                                 (Integer.MAX_VALUE / 60000));
     }
 
@@ -129,8 +130,8 @@ public abstract class AbstractMirror implements Mirror {
     }
 
     @Override
-    public final String remotePath() {
-        return remotePath;
+    public String remoteSubpath() {
+        return remoteSubpath;
     }
 
     @Override
@@ -180,7 +181,7 @@ public abstract class AbstractMirror implements Mirror {
                                                  .add("localRepo", localRepo.name())
                                                  .add("localPath", localPath)
                                                  .add("remoteRepo", remoteRepoUri)
-                                                 .add("remotePath", remotePath)
+                                                 .add("remoteSubpath", remoteSubpath)
                                                  .add("remoteBranch", remoteBranch)
                                                  .add("gitignore", gitignore)
                                                  .add("credential", credential);
