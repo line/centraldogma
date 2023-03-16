@@ -40,7 +40,7 @@ class CorsPolicyTest {
     static final CentralDogmaExtension dogma = new CentralDogmaExtension() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.cors(new CorsConfig(ImmutableList.of("SomeOrigin", "AnotherOrigin"), 1800));
+            builder.cors(new CorsConfig(ImmutableList.of("SomeOrigin"), 1800));
         }
     };
 
