@@ -70,6 +70,7 @@ import com.linecorp.armeria.common.Flags;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
+import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
@@ -91,6 +92,7 @@ import com.linecorp.armeria.server.ServiceNaming;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.auth.AuthService;
 import com.linecorp.armeria.server.auth.Authorizer;
+import com.linecorp.armeria.server.cors.CorsService;
 import com.linecorp.armeria.server.docs.DocService;
 import com.linecorp.armeria.server.encoding.EncodingService;
 import com.linecorp.armeria.server.file.FileService;
@@ -510,6 +512,8 @@ public class CentralDogma implements AutoCloseable {
         sb.clientAddressSources(cfg.clientAddressSourceList());
         sb.clientAddressTrustedProxyFilter(cfg.trustedProxyAddressPredicate());
 
+        configCors(sb, config().corsConfig());
+
         cfg.numWorkers().ifPresent(
                 numWorkers -> sb.workerGroup(EventLoopGroups.newEventLoopGroup(numWorkers), true));
         cfg.maxNumConnections().ifPresent(sb::maxNumConnections);
@@ -760,6 +764,19 @@ public class CentralDogma implements AutoCloseable {
                                        .cacheControl(ServerCacheControl.REVALIDATED)
                                        .build());
         }
+    }
+
+    private static void configCors(ServerBuilder sb, @Nullable CorsConfig corsConfig) {
+        if (corsConfig == null) {
+            return;
+        }
+
+        sb.decorator(CorsService.builder(corsConfig.allowedOrigins())
+                                .allowRequestMethods(HttpMethod.knownMethods())
+                                .allowAllRequestHeaders(true)
+                                .allowCredentials()
+                                .maxAge(corsConfig.maxAgeSeconds())
+                                .newDecorator());
     }
 
     private static Function<? super HttpService, EncodingService> contentEncodingDecorator() {

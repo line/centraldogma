@@ -126,6 +126,9 @@ public final class CentralDogmaBuilder {
     private int timeWindowSeconds;
     private MeterRegistry meterRegistry = Flags.meterRegistry();
 
+    @Nullable
+    private CorsConfig corsConfig;
+
     /**
      * Creates a new builder with the specified data directory.
      */
@@ -533,6 +536,14 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets CORS related configurations.
+     */
+    public CentralDogmaBuilder cors(CorsConfig corsConfig) {
+        this.corsConfig = requireNonNull(corsConfig, "corsConfig");
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
@@ -565,6 +576,7 @@ public final class CentralDogmaBuilder {
                                       maxRemovedRepositoryAgeMillis, gracefulShutdownTimeout,
                                       webAppEnabled, webAppTitle, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      null, accessLogFormat, authCfg, quotaConfig);
+                                      null, accessLogFormat, authCfg, quotaConfig,
+                                      corsConfig);
     }
 }

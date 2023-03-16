@@ -48,11 +48,12 @@ defaults:
       "maxNumFilesPerMirror": null,
       "maxNumBytesPerMirror": null,
       "writeQuotaPerRepository": {
-        "requestQuota" : 5,
+        "requestQuota": 5,
         "timeWindowSeconds": 1
       },
       "accessLogFormat": "common",
-      "authentication": null
+      "authentication": null,
+      "cors": null
     }
 
 Core properties
@@ -228,6 +229,19 @@ Core properties
 
   - the authentication configuration. If ``null``, the authentication is disabled.
     See :ref:`auth` to learn how to configure the authentication layer.
+
+- ``cors``
+
+  - specify ``null`` to disable CORS entirely.
+  - ``allowedOrigins`` (string or string array)
+
+    - the list of origins which are allowed a lenient CORS policy. If the literal value ``*`` is specified then
+      all origins are allowed.
+
+  - ``maxAgeSeconds`` (integer)
+
+    - how long in seconds the results of a preflight request can be cached. If not specified then the default
+      value ``7200`` is applied.
 
 .. _replication:
 
