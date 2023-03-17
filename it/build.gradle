@@ -1,4 +1,5 @@
 dependencies {
+    testImplementation libs.armeria.junit5
     // jGit
     testImplementation libs.jgit
     // JSch

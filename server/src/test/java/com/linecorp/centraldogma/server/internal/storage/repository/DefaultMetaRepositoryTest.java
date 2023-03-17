@@ -202,9 +202,9 @@ class DefaultMetaRepositoryTest {
         assertThat(bar.remoteRepoUri().toString()).isEqualTo("git+ssh://bar.com/bar.git");
         assertThat(qux.remoteRepoUri().toString()).isEqualTo("git+ssh://qux.net/qux.git");
 
-        assertThat(foo.remotePath()).isEqualTo("/");
-        assertThat(bar.remotePath()).isEqualTo("/some-path/");
-        assertThat(qux.remotePath()).isEqualTo("/");
+        assertThat(foo.remoteSubpath()).isEqualTo("/");
+        assertThat(bar.remoteSubpath()).isEqualTo("/some-path/");
+        assertThat(qux.remoteSubpath()).isEqualTo("/");
 
         assertThat(foo.remoteBranch()).isEqualTo("master");
         assertThat(bar.remoteBranch()).isEqualTo("master");
@@ -327,9 +327,9 @@ class DefaultMetaRepositoryTest {
         assertThat(qux.remoteRepoUri().toASCIIString()).isEqualTo("dogma://qux.net/origin/qux.dogma");
 
         // Ensure the remotePaths are generated correctly.
-        assertThat(foo.remotePath()).isEqualTo("/");
-        assertThat(bar.remotePath()).isEqualTo("/");
-        assertThat(qux.remotePath()).isEqualTo("/some-path/");
+        assertThat(foo.remoteSubpath()).isEqualTo("/");
+        assertThat(bar.remoteSubpath()).isEqualTo("/");
+        assertThat(qux.remoteSubpath()).isEqualTo("/some-path/");
 
         // Ensure the remoteBranches are generated correctly.
         assertThat(foo.remoteBranch()).isEqualTo("develop-foo");

@@ -146,7 +146,7 @@ class MirrorTest {
 
     private static <T extends Mirror> T assertMirror(String remoteUri, Class<T> mirrorType,
                                                      String expectedRemoteRepoUri,
-                                                     String expectedRemotePath,
+                                                     String expectedRemoteSubpath,
                                                      @Nullable String expectedRemoteBranch) {
         final Repository repository = mock(Repository.class);
         final Project project = mock(Project.class);
@@ -156,7 +156,7 @@ class MirrorTest {
 
         final T m = newMirror(remoteUri, EVERY_MINUTE, repository, mirrorType);
         assertThat(m.remoteRepoUri().toString()).isEqualTo(expectedRemoteRepoUri);
-        assertThat(m.remotePath()).isEqualTo(expectedRemotePath);
+        assertThat(m.remoteSubpath()).isEqualTo(expectedRemoteSubpath);
         assertThat(m.remoteBranch()).isEqualTo(expectedRemoteBranch);
         return m;
     }

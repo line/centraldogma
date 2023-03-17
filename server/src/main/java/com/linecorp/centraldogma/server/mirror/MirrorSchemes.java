@@ -50,5 +50,15 @@ public final class MirrorSchemes {
      */
     public static final String SCHEME_GIT_FILE = "git+file";
 
+    /**
+     * {@code "http"}.
+     */
+    public static final String SCHEME_HTTP = "http";
+
+    /**
+     * {@code "http"}.
+     */
+    public static final String SCHEME_HTTPS = "https";
+
     private MirrorSchemes() {}
 }

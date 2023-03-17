@@ -16,11 +16,13 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.server.mirror.MirrorUtil.normalizePath;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.net.URI;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.cronutils.model.Cron;
@@ -37,14 +39,29 @@ public final class CentralDogmaMirror extends AbstractMirror {
 
     public CentralDogmaMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                               Repository localRepo, String localPath,
-                              URI remoteRepoUri, String remoteProject, String remoteRepo, String remotePath,
+                              URI remoteRepoUri, String remoteProject, String remoteRepo, String remoteSubpath,
                               @Nullable String gitignore) {
         // Central Dogma has no notion of 'branch', so we just pass null as a placeholder.
-        super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, null,
+        super(schedule,
+              direction,
+              credential,
+              localRepo,
+              normalizePath(requireNonNull(localPath, "localPath")),
+              remoteRepoUri,
+              normalizePath(requireNonNull(remoteSubpath, "remoteSubpath")),
+              null,
               gitignore);
 
         this.remoteProject = requireNonNull(remoteProject, "remoteProject");
         this.remoteRepo = requireNonNull(remoteRepo, "remoteRepo");
+    }
+
+    @Nonnull
+    @Override
+    public String remoteSubpath() {
+        final String remoteSubpath = super.remoteSubpath();
+        assert remoteSubpath != null;
+        return remoteSubpath;
     }
 
     String remoteProject() {

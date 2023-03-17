@@ -21,6 +21,8 @@ import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_F
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTP;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTPS;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
+import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_HTTP;
+import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_HTTPS;
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.DOGMA_PATH_PATTERN;
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.split;
 import static java.util.Objects.requireNonNull;
@@ -38,6 +40,7 @@ import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.internal.mirror.CentralDogmaMirror;
 import com.linecorp.centraldogma.server.internal.mirror.GitMirror;
+import com.linecorp.centraldogma.server.internal.mirror.HttpMirror;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
@@ -101,6 +104,10 @@ public interface Mirror {
                                      URI.create(components[0]), components[1], components[2],
                                      gitignore);
             }
+            case SCHEME_HTTP:
+            case SCHEME_HTTPS: {
+                return new HttpMirror(schedule, direction, credential, localRepo, localPath, remoteUri);
+            }
         }
 
         throw new IllegalArgumentException("unsupported scheme in remoteUri: " + remoteUri);
@@ -139,17 +146,21 @@ public interface Mirror {
     String localPath();
 
     /**
-     * Returns the URI of the Git repository which will be mirrored from.
+     * Returns the URI of the remote repository which will be mirrored from.
      */
     URI remoteRepoUri();
 
     /**
-     * Returns the path of the Git repository where is supposed to be mirrored.
+     * Returns the sub-path inside the remote repository whose content will be mirrored.
+     * The entire remote repository will be mirrored if this property is {@code null}.
+     * A subtree of the remote repository will be mirrored otherwise.
      */
-    String remotePath();
+    @Nullable
+    String remoteSubpath();
 
     /**
-     * Returns the name of the branch in the Git repository where is supposed to be mirrored.
+     * Returns the name of the branch in the remote repository whose content will be mirrored.
+     * The default branch will be selected if this property is {@code null}.
      */
     @Nullable
     String remoteBranch();
