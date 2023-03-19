@@ -24,12 +24,12 @@ import org.junit.jupiter.api.Test;
 class PathPatternBuilderTest {
     @Test
     void testExtensionPattern() {
-        assertThatNoException().isThrownBy(() -> PathPatternOptions.EXTENSION.apply(".JPG").pathPattern());
-        assertThatNoException().isThrownBy(() -> PathPatternOptions.EXTENSION.apply(".7z").pathPattern());
+        assertThatNoException().isThrownBy(() -> PathPattern.builder().hasExtension(".JPG"));
+        assertThatNoException().isThrownBy(() -> PathPattern.builder().hasExtension(".7z"));
 
-        assertThatThrownBy(() -> PathPatternOptions.EXTENSION.apply("가txt").pathPattern())
+        assertThatThrownBy(() -> PathPattern.builder().hasExtension("가txt"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> PathPatternOptions.EXTENSION.apply("..tx.t").pathPattern())
+        assertThatThrownBy(() -> PathPattern.builder().hasExtension("..tx.t"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

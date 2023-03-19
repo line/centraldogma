@@ -15,17 +15,20 @@
  */
 package com.linecorp.centraldogma.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
 import com.google.common.collect.ImmutableList;
+
+import com.linecorp.centraldogma.internal.Util;
 
 /**
  * Builds a new {@link PathPattern}.
@@ -41,11 +44,14 @@ import com.google.common.collect.ImmutableList;
  * }</pre>
  */
 public final class PathPatternBuilder {
+
+    private static final Pattern FILE_EXTENSION_PATTERN = Pattern.compile("^\\.{0,1}[0-9a-zA-Z]+$");
+
     @Nullable
-    private PathPatternOption startPattern;
-    private final List<PathPatternOption> innerPatterns = new ArrayList<>();
+    private PathPattern startPattern;
+    private final List<PathPattern> innerPatterns = new ArrayList<>();
     @Nullable
-    private PathPatternOption endPattern;
+    private PathPattern endPattern;
 
     PathPatternBuilder() {}
 
@@ -60,8 +66,9 @@ public final class PathPatternBuilder {
      * When both are specified, the latter-most option will override the former.
      */
     public PathPatternBuilder endsWith(String filename) {
-        requireNonNull(filename, "filename");
-        endPattern = PathPatternOptions.ENDS_WITH.apply(filename);
+        checkArgument(Util.isValidFileName(filename), "filename");
+        // "/**" is added by the constructor of `DefaultPathPattern`
+        endPattern = new DefaultPathPattern(filename);
         return this;
     }
 
@@ -76,8 +83,12 @@ public final class PathPatternBuilder {
      *  When both are specified, the latter-most option will override the former.
      */
     public PathPatternBuilder hasExtension(String extension) {
-        requireNonNull(extension, "extension");
-        endPattern = PathPatternOptions.EXTENSION.apply(extension);
+        checkArgument(isValidFileExtension(extension), "invalid extension.");
+        if (extension.startsWith(".")) {
+            endPattern = new DefaultPathPattern("/**/*" + extension);
+        } else { // add extension separator
+            endPattern = new DefaultPathPattern("/**/*." + extension);
+        }
         return this;
     }
 
@@ -89,8 +100,9 @@ public final class PathPatternBuilder {
      * <p>This option can only be specified once; multiple declarations will override one another.
      */
     public PathPatternBuilder startsWith(String dirPath) {
-        requireNonNull(dirPath, "dirPath");
-        startPattern = PathPatternOptions.STARTS_WITH.apply(dirPath);
+        checkArgument(Util.isValidDirPath(dirPath), "dir");
+        // appends "/**"
+        startPattern = new DefaultPathPattern(dirPath + (dirPath.endsWith("/") ? "" : "/") + "**");
         return this;
     }
 
@@ -104,8 +116,11 @@ public final class PathPatternBuilder {
      * creates the glob-like pattern string `&#47;**&#47;bar&#47;**&#47;foo&#47;**".
      */
     public PathPatternBuilder contains(String dirPath) {
-        requireNonNull(dirPath, "dirPath");
-        innerPatterns.add(PathPatternOptions.CONTAINS.apply(dirPath));
+        checkArgument(Util.isValidDirPath(dirPath), "dirPath");
+        // Prepends and appends "/**"
+        final PathPattern contain = new DefaultPathPattern("/**" + dirPath +
+                                                           (dirPath.endsWith("/") ? "" : "/") + "**");
+        innerPatterns.add(contain);
         return this;
     }
 
@@ -130,7 +145,7 @@ public final class PathPatternBuilder {
      * Returns a newly-created {@link PathPattern} based on the options of this builder.
      */
     public PathPattern build() {
-        final ImmutableList.Builder<PathPatternOption> optionsBuilder = ImmutableList.builder();
+        final ImmutableList.Builder<PathPattern> optionsBuilder = ImmutableList.builder();
         if (startPattern != null) {
             optionsBuilder.add(startPattern);
         }
@@ -138,17 +153,19 @@ public final class PathPatternBuilder {
         if (endPattern != null) {
             optionsBuilder.add(endPattern);
         }
-        final ImmutableList<PathPatternOption> options = optionsBuilder.build();
+        final ImmutableList<PathPattern> options = optionsBuilder.build();
 
         checkState(!options.isEmpty(), "Requires at least one pattern to build in PathPatternBuilder");
 
         if (options.size() == 1) {
-            return options.get(0).pathPattern();
+            return options.get(0);
         }
+        return new DefaultPathPattern(combine(options));
+    }
 
-        final List<PathPattern> patterns = options.stream()
-                                                  .map(PathPatternOption::pathPattern)
-                                                  .collect(toImmutableList());
-        return new DefaultPathPattern(combine(patterns));
+    private static boolean isValidFileExtension(String extension) {
+        requireNonNull(extension, "extension");
+        checkArgument(!extension.isEmpty(), "extension is empty.");
+        return FILE_EXTENSION_PATTERN.matcher(extension).matches();
     }
 }
