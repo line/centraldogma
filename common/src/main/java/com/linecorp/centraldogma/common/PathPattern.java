@@ -20,7 +20,6 @@ import static com.linecorp.centraldogma.common.DefaultPathPattern.ALL;
 import static com.linecorp.centraldogma.common.DefaultPathPattern.allPattern;
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 
@@ -68,7 +67,7 @@ public interface PathPattern {
         if (pathPatterns.length == 1) {
             return pathPatterns[0];
         }
-        return new DefaultPathPattern(ImmutableList.copyOf(pathPatterns));
+        return new DefaultPathPattern(pathPatterns);
     }
 
     /**
