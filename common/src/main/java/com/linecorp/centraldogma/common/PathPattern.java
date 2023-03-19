@@ -63,7 +63,8 @@ public interface PathPattern {
      * Creates a path pattern with the {@code pathPatterns}.
      */
     static PathPattern of(PathPattern... pathPatterns) {
-        checkArgument(pathPatterns.length > 0, "pathPatterns");
+        requireNonNull(pathPatterns, "pathPatterns");
+        checkArgument(pathPatterns.length > 0, "pathPatterns is empty.");
         if (pathPatterns.length == 1) {
             return pathPatterns[0];
         }
