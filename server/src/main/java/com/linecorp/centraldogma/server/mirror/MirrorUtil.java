@@ -69,7 +69,7 @@ public final class MirrorUtil {
      * - remotePath:    / (default)
      * - remoteBranch:  {@code defaultBranch}
      */
-    static String[] split(URI remoteUri, String suffix, @Nullable String defaultBranch) {
+    static String[] split(URI remoteUri, String suffix) {
         final String host = remoteUri.getHost();
         if (host == null && !remoteUri.getScheme().endsWith("+file")) {
             throw new IllegalArgumentException("no host in remoteUri: " + remoteUri);
@@ -108,8 +108,7 @@ public final class MirrorUtil {
             throw new Error(e);
         }
 
-        final String fragment = remoteUri.getFragment();
-        final String remoteBranch = fragment != null ? fragment : defaultBranch;
+        final String remoteBranch = remoteUri.getFragment();
 
         return new String[] { newRemoteUri, remotePath, remoteBranch };
     }
