@@ -23,8 +23,6 @@ import java.net.URLDecoder;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nullable;
-
 /**
  * A utility class for creating a mirroring task.
  */
