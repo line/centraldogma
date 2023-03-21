@@ -206,8 +206,8 @@ class DefaultMetaRepositoryTest {
         assertThat(bar.remotePath()).isEqualTo("/some-path/");
         assertThat(qux.remotePath()).isEqualTo("/");
 
-        assertThat(foo.remoteBranch()).isEqualTo("master");
-        assertThat(bar.remoteBranch()).isEqualTo("master");
+        assertThat(foo.remoteBranch()).isNull();
+        assertThat(bar.remoteBranch()).isNull();
         assertThat(qux.remoteBranch()).isEqualTo("develop");
 
         // Ensure the credentials are loaded correctly.
