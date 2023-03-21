@@ -20,16 +20,6 @@ import java.io.File;
 import java.io.IOException;
 
 import org.eclipse.jgit.api.FetchCommand;
-import org.eclipse.jgit.api.TransportCommand;
-import org.eclipse.jgit.transport.JschConfigSessionFactory;
-import org.eclipse.jgit.transport.OpenSshConfig.Host;
-import org.eclipse.jgit.transport.SshTransport;
-
-import com.jcraft.jsch.Session;
-
-import com.linecorp.centraldogma.server.MirrorException;
-import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
-import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
 
 final class Git5WithAuth extends GitWithAuth {
     Git5WithAuth(GitMirror mirror, File repoDir) throws IOException {
@@ -41,46 +31,4 @@ final class Git5WithAuth extends GitWithAuth {
         return fetch();
     }
 
-    @Override
-    public <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
-        cmd.setTransportConfigCallback(transport -> {
-            final SshTransport sshTransport = (SshTransport) transport;
-            sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
-                @Override
-                protected void configure(Host host, Session session) {
-                    try {
-                        session.setHostKeyRepository(
-                                new MirrorHostKeyRepository(getMirror().localRepo().parent().metaRepo()));
-                        session.setIdentityRepository(new MirrorIdentityRepository(
-                                cred.username() + '@' + host.getHostName(), cred));
-                    } catch (MirrorException e) {
-                        throw e;
-                    } catch (Exception e) {
-                        throw new MirrorException(e);
-                    }
-                }
-            });
-        });
-    }
-
-    @Override
-    public  <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
-        cmd.setTransportConfigCallback(transport -> {
-            final SshTransport sshTransport = (SshTransport) transport;
-            sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
-                @Override
-                protected void configure(Host host, Session session) {
-                    try {
-                        session.setHostKeyRepository(
-                                new MirrorHostKeyRepository(getMirror().localRepo().parent().metaRepo()));
-                        session.setPassword(cred.password());
-                    } catch (MirrorException e) {
-                        throw e;
-                    } catch (Exception e) {
-                        throw new MirrorException(e);
-                    }
-                }
-            });
-        });
-    }
 }

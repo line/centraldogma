@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.server.mirror.MirrorDirection.LOCAL_TO_REMOTE;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
 import static com.linecorp.centraldogma.server.storage.repository.FindOptions.FIND_ALL_WITHOUT_CONTENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -343,8 +344,14 @@ public final class GitMirror extends AbstractMirror {
 
                 assert !remoteRepoUri().getRawAuthority().contains("@") : remoteRepoUri().getRawAuthority();
                 if (username != null) {
-                    jGitUri = "ssh://" + username + '@' + remoteRepoUri().getRawAuthority() +
-                              remoteRepoUri().getRawPath();
+                    if (direction() == LOCAL_TO_REMOTE) {
+                        jGitUri = "ssh://" + username + '@' + remoteRepoUri().getRawAuthority() +
+                                  remoteRepoUri().getRawPath();
+                    } else {
+                        final String[] paths = remoteRepoUri().getRawPath().split("/");
+                        jGitUri = "git@" + remoteRepoUri().getRawAuthority() + ':' + username +
+                                  '/' + paths[paths.length - 1];
+                    }
                 } else {
                     jGitUri = "ssh://" + remoteRepoUri().getRawAuthority() + remoteRepoUri().getRawPath();
                 }

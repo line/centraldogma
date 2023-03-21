@@ -14,7 +14,6 @@ mockito = "4.11.0"
 slf4j = "1.7.36"
 spring-boot1 = "1.5.22.RELEASE"
 spring-boot2 = "2.7.8"
-sshd = "2.9.2"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.22.1" }
@@ -154,15 +153,17 @@ version = "2.0.10"
 [libraries.jgit]
 module = "org.eclipse.jgit:org.eclipse.jgit"
 version.ref = "jgit"
-[libraries.jgit-ssh-jsch]
-module = "org.eclipse.jgit:org.eclipse.jgit.ssh.jsch"
+
+[libraries.jgit-apache]
+module = "org.eclipse.jgit:org.eclipse.jgit.ssh.apache"
 version.ref = "jgit"
 
 [libraries.jgit6]
 module = "org.eclipse.jgit:org.eclipse.jgit"
 version.ref = "jgit6"
-[libraries.jgit-ssh-jsch6]
-module = "org.eclipse.jgit:org.eclipse.jgit.ssh.jsch"
+
+[libraries.jgit6-apache]
+module = "org.eclipse.jgit:org.eclipse.jgit.ssh.apache"
 version.ref = "jgit6"
 
 [libraries.jmh-core]
@@ -292,10 +293,6 @@ version.ref = "spring-boot2"
 [libraries.spring-test-junit5]
 module = "com.github.sbrannen:spring-test-junit5"
 version = "1.5.0"
-
-[libraries.sshd]
-module = "org.apache.sshd:sshd-git"
-version.ref = "sshd"
 
 [libraries.thrift09]
 module = "org.apache.thrift:libthrift"

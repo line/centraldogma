@@ -162,20 +162,12 @@ abstract class GitWithAuth extends Git {
                 }
                 break;
             case SCHEME_GIT_SSH:
-                if (c instanceof PasswordMirrorCredential) {
-                    configureSsh(command, (PasswordMirrorCredential) c);
-                } else if (c instanceof PublicKeyMirrorCredential) {
-                    configureSsh(command, (PublicKeyMirrorCredential) c);
-                }
+            default:
                 break;
         }
 
         return command;
     }
-
-    abstract <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred);
-
-    abstract <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred);
 
     private static <T extends TransportCommand<?, ?>> void configureHttp(T cmd, PasswordMirrorCredential cred) {
         cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider(cred.username(), cred.password()));
