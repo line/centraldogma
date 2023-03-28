@@ -75,7 +75,7 @@ public interface Mirror {
 
         switch (scheme) {
             case SCHEME_DOGMA: {
-                final String[] components = split(remoteUri, "dogma", null);
+                final String[] components = split(remoteUri, "dogma");
                 final URI remoteRepoUri = URI.create(components[0]);
                 final Matcher matcher = DOGMA_PATH_PATTERN.matcher(remoteRepoUri.getPath());
                 if (!matcher.find()) {
@@ -96,7 +96,7 @@ public interface Mirror {
             case SCHEME_GIT_HTTP:
             case SCHEME_GIT_HTTPS:
             case SCHEME_GIT_FILE: {
-                final String[] components = split(remoteUri, "git", "master");
+                final String[] components = split(remoteUri, "git");
                 return new GitMirror(schedule, direction, credential, localRepo, localPath,
                                      URI.create(components[0]), components[1], components[2],
                                      gitignore);

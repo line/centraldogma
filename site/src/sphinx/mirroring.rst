@@ -100,7 +100,7 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
     the Git repository ``/foo.git`` If you want to mirror the whole content of the repository, you can simply
     end the URI with ``.git``. e.g. ``git+ssh://git.example.com/foo.git``
   - Fragment represents a branch name. e.g. ``#release`` will mirror the branch ``release``. If unspecified,
-    the branch ``master`` is mirrored.
+    the repository's default branch is mirrored.
 
 - ``credentialId`` (string, optional)
 

@@ -111,4 +111,4 @@ Read more
     Source cross-reference <xref/index.html#://>
     Questions and answers <https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered>
     Fork me on GitHub <https://github.com/line/centraldogma>
-    Contributing <https://github.com/line/centraldogma/blob/master/CONTRIBUTING.md>
+    Contributing <https://github.com/line/centraldogma/blob/main/CONTRIBUTING.md>

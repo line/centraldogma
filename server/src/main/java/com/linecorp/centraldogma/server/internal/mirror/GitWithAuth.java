@@ -33,6 +33,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.GarbageCollectCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.LsRemoteCommand;
 import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.lib.EmptyProgressMonitor;
@@ -148,6 +149,11 @@ abstract class GitWithAuth extends Git {
     @Override
     public final GarbageCollectCommand gc() {
         return super.gc().setProgressMonitor(progressMonitor("gc"));
+    }
+
+    @Override
+    public final LsRemoteCommand lsRemote() {
+        return configure(super.lsRemote());
     }
 
     private <T extends TransportCommand<?, ?>> T configure(T command) {

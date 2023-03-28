@@ -38,15 +38,15 @@ class MirrorTest {
     void testGitMirror() {
         // Simplest possible form
         assertMirror("git://a.com/b.git", GitMirror.class,
-                     "git://a.com/b.git", "/", "master");
+                     "git://a.com/b.git", "/", null);
 
         // Non-default port number
         assertMirror("git+ssh://a.com:8022/b.git", GitMirror.class,
-                     "git+ssh://a.com:8022/b.git", "/", "master");
+                     "git+ssh://a.com:8022/b.git", "/", null);
 
         // Non-default remotePath
         assertMirror("git+http://a.com/b.git/c", GitMirror.class,
-                     "git+http://a.com/b.git", "/c/", "master");
+                     "git+http://a.com/b.git", "/c/", null);
 
         // Non-default remoteBranch
         assertMirror("git+https://a.com/b.git#develop", GitMirror.class,
@@ -121,7 +121,7 @@ class MirrorTest {
     @Test
     void jitter() {
         final AbstractMirror mirror = assertMirror("git://a.com/b.git", AbstractMirror.class,
-                                                   "git://a.com/b.git", "/", "master");
+                                                   "git://a.com/b.git", "/", null);
 
         assertThat(mirror.schedule()).isSameAs(EVERY_MINUTE);
 
