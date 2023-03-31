@@ -27,7 +27,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: Build Docker image
-        run: ./gradlew :dist:docker
+        run: ./gradlew :dist:docker --stacktrace
         shell: bash
 
       - name: Extract release version
@@ -45,14 +45,11 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags:
-            - ${{ env.IMAGE_NAME }}:${{ steps.release-version.outputs.result }}
-            - ${{ env.IMAGE_NAME }}:latest
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.release-version.outputs.result }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        shell: bash
