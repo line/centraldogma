@@ -22,7 +22,7 @@ import com.linecorp.armeria.internal.shaded.bouncycastle.util.Strings;
 class SSHBuffer {
 
     // Forked from https://github.com/bcgit/bc-java/blob/master/core/src/main/java/org/bouncycastle/crypto/util/SSHBuffer.java
-    
+
     private final byte[] buffer;
     private int pos;
 
