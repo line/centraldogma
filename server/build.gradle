@@ -26,6 +26,11 @@ dependencies {
     // JSch
     implementation libs.jsch
 
+    implementation libs.mina.sshd.core
+    implementation libs.mina.sshd.git
+    implementation libs.eddsa
+    implementation libs.bouncycastle
+
     // Caffeine
     implementation libs.caffeine
 

@@ -179,17 +179,18 @@ repositories defined in ``/mirrors.json``:
 
 - ``publicKey`` (string)
 
-  - the OpenSSH RSA public key which is used for SSH public key authentication.
+  - the OpenSSH RSA, ECDSA or EdDSA public key which is used for SSH public key authentication.
 
 - ``privateKey`` (string)
 
-  - the OpenSSH RSA private key in PEM format which is used for SSH public key authentication.
+  - the OpenSSH RSA, ECDSA or EdDSA private key which is used for SSH public key authentication.
 
     .. note::
 
-        Note that the private key must be an RSA key formatted in PEM format, which starts with
-        ``-----BEGIN RSA PRIVATE KEY-----``. If your private key starts with
-        ``-----BEGIN OPENSSH PRIVATE KEY-----``, you must convert it into PEM format first:
+        Currently, an encrypted key is not supported. If you want to use an encrypted key,
+        the private key must be an RSA key formatted in PEM format, which starts with
+        ``-----BEGIN RSA PRIVATE KEY-----``. If you want to use the encrypted key and your private key
+        starts with ``-----BEGIN OPENSSH PRIVATE KEY-----``, you must convert it into PEM format first:
 
         .. code-block:: shell
 

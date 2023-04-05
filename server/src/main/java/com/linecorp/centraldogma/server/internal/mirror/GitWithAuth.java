@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.server.internal.mirror.OpenSSHPrivateKeyUtil.BEGIN_OPENSSH;
+import static com.linecorp.centraldogma.server.internal.mirror.OpenSSHPrivateKeyUtil.END_OPENSSH;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTP;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTPS;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
@@ -30,17 +32,32 @@ import java.util.Vector;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.sshd.client.ClientBuilder;
+import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.file.nonefs.NoneFileSystemFactory;
+import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
+import org.apache.sshd.git.transport.GitSshdSession;
+import org.apache.sshd.git.transport.GitSshdSessionFactory;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.GarbageCollectCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.LsRemoteCommand;
 import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.TransportCommand;
+import org.eclipse.jgit.errors.TransportException;
+import org.eclipse.jgit.errors.UnsupportedCredentialItem;
 import org.eclipse.jgit.lib.EmptyProgressMonitor;
 import org.eclipse.jgit.lib.ProgressMonitor;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.RepositoryBuilder;
+import org.eclipse.jgit.transport.CredentialItem;
+import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.transport.RemoteSession;
+import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.eclipse.jgit.util.FS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,12 +188,86 @@ abstract class GitWithAuth extends Git {
                 if (c instanceof PasswordMirrorCredential) {
                     configureSsh(command, (PasswordMirrorCredential) c);
                 } else if (c instanceof PublicKeyMirrorCredential) {
-                    configureSsh(command, (PublicKeyMirrorCredential) c);
+                    if (isOpenSshKey((PublicKeyMirrorCredential) c)) {
+                        final byte[] passphrase = ((PublicKeyMirrorCredential) c).passphrase();
+                        if (passphrase != null && !new String(passphrase).trim().isEmpty()) {
+                            throw new IllegalArgumentException(
+                                    "encrypted OpenSSH private key is not supported. credential: " + c);
+                        }
+                        configureOpenSsh(command, (PublicKeyMirrorCredential) c);
+                    } else {
+                        // TODO(minwoox): Use Apache Mina SSHD to support other private key formats.
+                        configureSsh(command, (PublicKeyMirrorCredential) c);
+                    }
                 }
                 break;
         }
 
         return command;
+    }
+
+    private static boolean isOpenSshKey(PublicKeyMirrorCredential c) {
+        final byte[] privateKey = c.privateKey();
+        if (privateKey.length < BEGIN_OPENSSH.length) {
+            return false;
+        }
+        for (int i = 0; i < BEGIN_OPENSSH.length; i++) {
+            if (privateKey[i] != BEGIN_OPENSSH[i]) {
+                return false;
+            }
+        }
+
+        for (int i = 0; i < END_OPENSSH.length; i++) {
+            if (privateKey[privateKey.length - END_OPENSSH.length + i] != END_OPENSSH[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private <T extends TransportCommand<?, ?>> void configureOpenSsh(T cmd, PublicKeyMirrorCredential cred) {
+        cmd.setTransportConfigCallback(transport -> {
+            final SshTransport sshTransport = (SshTransport) transport;
+            final java.security.KeyPair keyPair = OpenSSHPrivateKeyUtil.parsePrivateKeyBlob(cred.privateKey());
+            sshTransport.setSshSessionFactory(new GitSshdSessionFactory() {
+                @Override
+                public RemoteSession getSession(URIish uri, CredentialsProvider credentialsProvider, FS fs,
+                                                int tms) throws TransportException {
+                    try {
+                        return new GitSshdSession(uri, NoopCredentialsProvider.INSTANCE, fs, tms) {
+                            @Override
+                            protected SshClient createClient() {
+                                // Not an Armeria but an SSHD client.
+                                final ClientBuilder builder = ClientBuilder.builder();
+                                builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
+                                // Do not verify the server key.
+                                builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
+                                final SshClient client = builder.build();
+                                // DefaultClientIdentitiesWatcher, which uses local keys in .ssh, is set
+                                // if no identity provider is set.
+                                client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPair));
+                                return client;
+                            }
+
+                            @Override
+                            protected ClientSession createClientSession(
+                                    SshClient clientInstance, String host, String username, int port,
+                                    String... passwords)
+                                    throws IOException, InterruptedException {
+                                if (port <= 0) {
+                                    port = 22; // Use the SSH default port it unspecified.
+                                }
+                                return super.createClientSession(clientInstance, host, username,
+                                                                 port, passwords);
+                            }
+                        };
+                    } catch (Exception e) {
+                        throw new TransportException("Unable to connect to the " + uri +
+                                                     ". CredentialsProvider: " + credentialsProvider, e);
+                    }
+                }
+            });
+        });
     }
 
     abstract <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred);
@@ -337,6 +428,26 @@ abstract class GitWithAuth extends Git {
         @Override
         public void removeAll() {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class NoopCredentialsProvider extends CredentialsProvider {
+
+        static final CredentialsProvider INSTANCE = new NoopCredentialsProvider();
+
+        @Override
+        public boolean isInteractive() {
+            return true; // Hacky way in order not to use username and password.
+        }
+
+        @Override
+        public boolean supports(CredentialItem... items) {
+            return false;
+        }
+
+        @Override
+        public boolean get(URIish uri, CredentialItem... items) throws UnsupportedCredentialItem {
+            return false;
         }
     }
 }

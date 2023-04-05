@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 
@@ -33,6 +34,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.io.Resources;
 
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -120,6 +122,7 @@ class GitMirrorAuthTest {
 
         // Try to perform mirroring to see if authentication works as expected.
         mirroringService.mirror().join();
+        System.err.println(client.forRepo(projName, "main").file("/README.md").get().join().content());
 
         client.removeProject(projName).join();
     }
@@ -160,13 +163,27 @@ class GitMirrorAuthTest {
         //   accessing an empty read-only private repository dedicated to test if SSH authentication works.
         //   We are very sure that it has access to no other repositories.
         //
-        final byte[] privateKeyBytes = Resources.toByteArray(GitMirrorAuthTest.class.getResource("test.pem"));
-        final byte[] publicKeyBytes = Resources.toByteArray(GitMirrorAuthTest.class.getResource("test.pub"));
-        final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8);
-        final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8);
+        sshAuth(builder, "ecdsa_521_pem.pem", "ecdsa_521_pem.pub", "secret");
+        sshAuth(builder, "ecdsa_256_openssh", "ecdsa_256_openssh.pub", "");
+        sshAuth(builder, "ecdsa_384_openssh", "ecdsa_384_openssh.pub", "");
+        sshAuth(builder, "ecdsa_521_openssh", "ecdsa_521_openssh.pub", "");
+        sshAuth(builder, "ed25519_openssh", "ed25519_openssh.pub", "");
+        sshAuth(builder, "rsa_openssh", "rsa_openssh.pub", "");
+        return builder.build();
+    }
+
+    private static void sshAuth(Builder<Arguments> builder, String privateKeyFile, String publicKeyFile,
+                                String passphrase)
+            throws IOException {
+        final byte[] privateKeyBytes =
+                Resources.toByteArray(GitMirrorAuthTest.class.getResource(privateKeyFile));
+        final byte[] publicKeyBytes =
+                Resources.toByteArray(GitMirrorAuthTest.class.getResource(publicKeyFile));
+        final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8).trim();
+        final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8).trim();
 
         builder.add(Arguments.of(
-                "ssh",
+                privateKeyFile, // Use privateKeyFil as the project name.
                 "git+ssh://github.com/line/centraldogma-authtest.git",
                 Jackson.readTree(
                         '{' +
@@ -175,9 +192,7 @@ class GitMirrorAuthTest {
                         "  \"username\": \"git\"," +
                         "  \"publicKey\": \"" + Jackson.escapeText(publicKey) + "\"," +
                         "  \"privateKey\": \"" + Jackson.escapeText(privateKey) + "\"," +
-                        "  \"passphrase\": \"secret\"" +
+                        "  \"passphrase\": \"" + passphrase + '"' +
                         '}')));
-
-        return builder.build();
     }
 }

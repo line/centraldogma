@@ -53,25 +53,10 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
         super(id, hostnamePatterns);
 
         this.username = requireNonEmpty(username, "username");
-
-        requireNonEmpty(publicKey, "publicKey");
-        requireNonEmpty(privateKey, "privateKey");
-        this.publicKey = requireNonEmpty(publicKey, "publicKey").getBytes(StandardCharsets.UTF_8);
-        this.privateKey = requireNonEmpty(privateKey, "privateKey").getBytes(StandardCharsets.UTF_8);
+        this.publicKey = requireNonEmpty(publicKey, "publicKey").trim().getBytes(StandardCharsets.UTF_8);
+        this.privateKey = requireNonEmpty(privateKey, "privateKey").trim().getBytes(StandardCharsets.UTF_8);
 
         this.passphrase = decodeBase64OrUtf8(passphrase, "passphrase");
-    }
-
-    public PublicKeyMirrorCredential(@Nullable String id,
-                                     @Nullable Iterable<Pattern> hostnamePatterns,
-                                     String username, byte[] publicKey, byte[] privateKey,
-                                     @Nullable byte[] passphrase) {
-        super(id, hostnamePatterns);
-
-        this.username = requireNonEmpty(username, "username");
-        this.publicKey = requireNonEmpty(publicKey, "publicKey");
-        this.privateKey = requireNonEmpty(privateKey, "privateKey");
-        this.passphrase = passphrase;
     }
 
     public String username() {
