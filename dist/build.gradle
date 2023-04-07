@@ -73,7 +73,7 @@ task copyLib(group: 'Build',
     }
 }
 
-def cliVersion = "0.0.1"
+def cliVersion = "0.1.0"
 
 task downloadClientBinaries(group: 'Build',
         description: "Downloads client binaries into ${project.ext.cliDownloadDir}") {
@@ -81,7 +81,7 @@ task downloadClientBinaries(group: 'Build',
     outputs.dir("${project.ext.cliDownloadDir}/$cliVersion")
 
     doLast {
-        ["darwin-amd64", "linux-amd64", "windows-amd64.exe"].each { platform ->
+        ["darwin-amd64", "darwin-arm64", "linux-amd64", "windows-amd64.exe"].each { platform ->
             download.run {
                 src "https://github.com/line/centraldogma-go/releases/download/$cliVersion/dogma.$platform"
                 dest "${project.ext.cliDownloadDir}/$cliVersion/dogma.$platform"
