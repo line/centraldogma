@@ -23,11 +23,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.URI;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -35,7 +38,6 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 import org.eclipse.jgit.api.FetchCommand;
-import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand.UriType;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -54,8 +56,10 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
+import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.FetchResult;
 import org.eclipse.jgit.transport.RefSpec;
@@ -106,12 +110,29 @@ public final class GitMirror extends AbstractMirror {
 
     private static final int GIT_TIMEOUT_SECS = 60;
 
+    private static final String HEAD_REF_MASTER = Constants.R_HEADS + Constants.MASTER;
+
+    @Nullable
+    private static final Constructor<?> GIT_WITH_AUTH_CONSTRUCTOR;
+
+    static {
+        Constructor<?> constr = null;
+        try {
+            constr = Class.forName("com.linecorp.centraldogma.server" +
+                                   ".internal.mirror.Git6WithAuth")
+                          .getDeclaredConstructor(GitMirror.class, File.class);
+        } catch (Exception e) {
+            logger.info("Falling back to JGit 5:", e);
+        }
+        GIT_WITH_AUTH_CONSTRUCTOR = constr;
+    }
+
     @Nullable
     private IgnoreNode ignoreNode;
 
     public GitMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                      Repository localRepo, String localPath,
-                     URI remoteRepoUri, String remotePath, String remoteBranch,
+                     URI remoteRepoUri, String remotePath, @Nullable String remoteBranch,
                      @Nullable String gitignore) {
         super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, remoteBranch,
               gitignore);
@@ -128,8 +149,8 @@ public final class GitMirror extends AbstractMirror {
 
     @Override
     protected void mirrorLocalToRemote(File workDir, int maxNumFiles, long maxNumBytes) throws Exception {
-        try (Git git = openGit(workDir)) {
-            final String headBranchRefName = Constants.R_HEADS + remoteBranch();
+        try (GitWithAuth git = openGit(workDir)) {
+            final String headBranchRefName = getHeadBranchRefName(git);
             final ObjectId headCommitId = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
 
             final org.eclipse.jgit.lib.Repository gitRepository = git.getRepository();
@@ -192,9 +213,10 @@ public final class GitMirror extends AbstractMirror {
 
         final Map<String, Change<?>> changes = new HashMap<>();
         final String summary;
+        final String detail;
 
-        try (Git git = openGit(workDir)) {
-            final String headBranchRefName = Constants.R_HEADS + remoteBranch();
+        try (GitWithAuth git = openGit(workDir)) {
+            final String headBranchRefName = getHeadBranchRefName(git);
             final ObjectId id = fetchRemoteHeadAndGetCommitId(git, headBranchRefName);
             final Revision localRev = localRepo().normalizeNow(Revision.HEAD);
 
@@ -226,12 +248,12 @@ public final class GitMirror extends AbstractMirror {
                 // Add mirror_state.json.
                 changes.put(mirrorStatePath, Change.ofJsonUpsert(
                         mirrorStatePath, "{ \"sourceRevision\": \"" + id.name() + "\" }"));
-
                 // Construct the log message and log.
                 summary = "Mirror " + abbrId + ", " + remoteRepoUri() + '#' + remoteBranch() +
                           " to the repository '" + localRepo().name() + '\'';
+                final RevCommit headCommit = revWalk.parseCommit(id);
+                detail = generateCommitDetail(headCommit);
                 logger.info(summary);
-
                 long numFiles = 0;
                 long numBytes = 0;
                 while (treeWalk.next()) {
@@ -307,11 +329,11 @@ public final class GitMirror extends AbstractMirror {
 
             executor.execute(Command.push(
                     MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
-                    Revision.HEAD, summary, "", Markup.PLAINTEXT, changes.values())).join();
+                    Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
         }
     }
 
-    private Git openGit(File workDir) throws Exception {
+    private GitWithAuth openGit(File workDir) throws Exception {
         // Convert the remoteRepoUri into the URI accepted by jGit by removing the 'git+' prefix.
         final String scheme = remoteRepoUri().getScheme();
         final String jGitUri;
@@ -346,8 +368,12 @@ public final class GitMirror extends AbstractMirror {
                 workDir,
                 CONSECUTIVE_UNDERSCORES.matcher(DISALLOWED_CHARS.matcher(
                         remoteRepoUri().toASCIIString()).replaceAll("_")).replaceAll("_"));
-
-        final GitWithAuth git = new GitWithAuth(this, repoDir);
+        final GitWithAuth git;
+        if (GIT_WITH_AUTH_CONSTRUCTOR != null) {
+            git = (GitWithAuth) GIT_WITH_AUTH_CONSTRUCTOR.newInstance(this, repoDir);
+        } else {
+            git = new Git5WithAuth(this, repoDir);
+        }
         boolean success = false;
         try {
             // Set the remote URLs.
@@ -375,6 +401,45 @@ public final class GitMirror extends AbstractMirror {
                 git.close();
             }
         }
+    }
+
+    private String getHeadBranchRefName(GitWithAuth git) throws GitAPIException {
+        // Use the given branch if available.
+        if (remoteBranch() != null) {
+            return Constants.R_HEADS + remoteBranch();
+        }
+
+        // Otherwise, we need to figure out which branch we should fetch.
+        // Fetch the remote reference list to determine the default branch.
+        final Collection<Ref> refs = git.lsRemote()
+                                        .setTags(false)
+                                        .setTimeout(GIT_TIMEOUT_SECS)
+                                        .call();
+
+        // Find and resolve 'HEAD' reference, which leads us to the default branch.
+        final Optional<String> headRefName = refs.stream()
+                                                 .filter(ref -> Constants.HEAD.equals(ref.getName()))
+                                                 .map(ref -> ref.getTarget().getName())
+                                                 .findFirst();
+
+        // Use the default branch if found.
+        if (headRefName.isPresent()) {
+            return headRefName.get();
+        }
+
+        // We should not reach here, but if we do, fall back to 'refs/heads/master'.
+        return HEAD_REF_MASTER;
+    }
+
+    private static String generateCommitDetail(RevCommit headCommit) {
+        final PersonIdent authorIdent = headCommit.getAuthorIdent();
+        return "Remote commit:\n" +
+               "- SHA: " + headCommit.name() + '\n' +
+               "- Subject: " + headCommit.getShortMessage() + '\n' +
+               "- Author: " + authorIdent.getName() + " <" +
+               authorIdent.getEmailAddress() + "> \n" +
+               "- Date: " + authorIdent.getWhen() + "\n\n" +
+               headCommit.getFullMessage();
     }
 
     @Nullable
@@ -410,10 +475,9 @@ public final class GitMirror extends AbstractMirror {
     }
 
     private static ObjectId fetchRemoteHeadAndGetCommitId(
-            Git git, String headBranchRefName) throws GitAPIException, IOException {
-        final FetchCommand fetch = git.fetch();
+            GitWithAuth git, String headBranchRefName) throws GitAPIException, IOException {
+        final FetchCommand fetch = git.fetch(1);
         final FetchResult fetchResult = fetch.setRefSpecs(new RefSpec(headBranchRefName))
-                                             .setCheckFetchedObjects(true)
                                              .setRemoveDeletedRefs(true)
                                              .setTagOpt(TagOpt.NO_TAGS)
                                              .setTimeout(GIT_TIMEOUT_SECS)
@@ -440,7 +504,7 @@ public final class GitMirror extends AbstractMirror {
 
         final Map<String, Entry<?>> sortedMap =
                 entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
-                                                        (v1, v2) -> v1, LinkedHashMap::new));
+                                                     (v1, v2) -> v1, LinkedHashMap::new));
         // Use HashMap to manipulate it.
         final HashMap<String, Entry<?>> result = new HashMap<>(sortedMap.size());
         String lastIgnoredDirectory = null;

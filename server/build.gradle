@@ -56,6 +56,10 @@ dependencies {
     // Logging
     optionalImplementation libs.logback
     optionalImplementation libs.slf4j.jul.to.slf4j
+
+    if (rootProject.ext.testJavaVersion >= 11) {
+        testImplementation project(path: ':server-jgit6')
+    }
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer

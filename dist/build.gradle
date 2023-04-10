@@ -19,6 +19,7 @@ plugins {
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
+evaluationDependsOn(':server-jgit6')
 
 ext {
     distDir = "${project.buildDir}/dist"
@@ -62,6 +63,8 @@ task copyLib(group: 'Build',
     from project(':server-auth:saml').tasks.jar
     from project(':server-auth:shiro').configurations.runtimeClasspath
     from project(':server-auth:shiro').tasks.jar
+    from project(':server-jgit6').configurations.runtimeClasspath
+    from project(':server-jgit6').tasks.jar
     into "${project.ext.distDir}/lib"
 
     doLast {
@@ -70,7 +73,7 @@ task copyLib(group: 'Build',
     }
 }
 
-def cliVersion = "0.0.1"
+def cliVersion = "0.1.0"
 
 task downloadClientBinaries(group: 'Build',
         description: "Downloads client binaries into ${project.ext.cliDownloadDir}") {
@@ -78,7 +81,7 @@ task downloadClientBinaries(group: 'Build',
     outputs.dir("${project.ext.cliDownloadDir}/$cliVersion")
 
     doLast {
-        ["darwin-amd64", "linux-amd64", "windows-amd64.exe"].each { platform ->
+        ["darwin-amd64", "darwin-arm64", "linux-amd64", "windows-amd64.exe"].each { platform ->
             download.run {
                 src "https://github.com/line/centraldogma-go/releases/download/$cliVersion/dogma.$platform"
                 dest "${project.ext.cliDownloadDir}/$cliVersion/dogma.$platform"
@@ -150,7 +153,7 @@ task docker(group: 'Build',
             dependsOn: tasks.distDir,
             type: DockerBuildImage) {
     inputDir = file('.')
-    def name = 'line/centraldogma:'
+    def name = 'ghcr.io/line/centraldogma:'
     images = [name + "${project.version}"]
     if (!(project.version =~ /-SNAPSHOT$/)) {
         images.add(name + "latest")

@@ -33,15 +33,13 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.GarbageCollectCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.LsRemoteCommand;
 import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.lib.EmptyProgressMonitor;
 import org.eclipse.jgit.lib.ProgressMonitor;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.RepositoryBuilder;
-import org.eclipse.jgit.transport.JschConfigSessionFactory;
-import org.eclipse.jgit.transport.OpenSshConfig.Host;
-import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,16 +52,17 @@ import com.jcraft.jsch.IdentityRepository;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.KeyPair;
-import com.jcraft.jsch.Session;
 import com.jcraft.jsch.UserInfo;
 
 import com.linecorp.centraldogma.server.MirrorException;
+import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
+import com.linecorp.centraldogma.server.internal.mirror.credential.AccessTokenMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 
-final class GitWithAuth extends Git {
+abstract class GitWithAuth extends Git {
 
     private static final Logger logger = LoggerFactory.getLogger(GitWithAuth.class);
 
@@ -77,6 +76,8 @@ final class GitWithAuth extends Git {
     private static final Lock[] locks = new Lock[1024];
 
     static {
+        IsolatedSystemReader.install();
+
         for (int i = 0; i < locks.length; i++) {
             locks[i] = new ReentrantLock();
         }
@@ -117,7 +118,7 @@ final class GitWithAuth extends Git {
     }
 
     @Override
-    public void close() {
+    public final void close() {
         try {
             super.close();
         } finally {
@@ -129,23 +130,30 @@ final class GitWithAuth extends Git {
         }
     }
 
-    private ProgressMonitor progressMonitor(String name) {
+    protected final ProgressMonitor progressMonitor(String name) {
         return progressMonitors.computeIfAbsent(name, MirrorProgressMonitor::new);
     }
 
     @Override
-    public FetchCommand fetch() {
+    public final FetchCommand fetch() {
         return configure(super.fetch()).setProgressMonitor(progressMonitor("fetch"));
     }
 
+    abstract FetchCommand fetch(int depth);
+
     @Override
-    public PushCommand push() {
+    public final PushCommand push() {
         return configure(super.push()).setProgressMonitor(progressMonitor("push"));
     }
 
     @Override
-    public GarbageCollectCommand gc() {
+    public final GarbageCollectCommand gc() {
         return super.gc().setProgressMonitor(progressMonitor("gc"));
+    }
+
+    @Override
+    public final LsRemoteCommand lsRemote() {
+        return configure(super.lsRemote());
     }
 
     private <T extends TransportCommand<?, ?>> T configure(T command) {
@@ -155,6 +163,8 @@ final class GitWithAuth extends Git {
             case SCHEME_GIT_HTTPS:
                 if (c instanceof PasswordMirrorCredential) {
                     configureHttp(command, (PasswordMirrorCredential) c);
+                } else if (c instanceof AccessTokenMirrorCredential) {
+                    configureHttp(command, (AccessTokenMirrorCredential) c);
                 }
                 break;
             case SCHEME_GIT_SSH:
@@ -169,49 +179,21 @@ final class GitWithAuth extends Git {
         return command;
     }
 
+    abstract <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred);
+
+    abstract <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred);
+
     private static <T extends TransportCommand<?, ?>> void configureHttp(T cmd, PasswordMirrorCredential cred) {
         cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider(cred.username(), cred.password()));
     }
 
-    private <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
-        cmd.setTransportConfigCallback(transport -> {
-            final SshTransport sshTransport = (SshTransport) transport;
-            sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
-                @Override
-                protected void configure(Host host, Session session) {
-                    try {
-                        session.setHostKeyRepository(
-                                new MirrorHostKeyRepository(mirror.localRepo().parent().metaRepo()));
-                        session.setIdentityRepository(new MirrorIdentityRepository(
-                                cred.username() + '@' + host.getHostName(), cred));
-                    } catch (MirrorException e) {
-                        throw e;
-                    } catch (Exception e) {
-                        throw new MirrorException(e);
-                    }
-                }
-            });
-        });
+    private static <T extends TransportCommand<?, ?>> void configureHttp(
+            T cmd, AccessTokenMirrorCredential cred) {
+        cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider("token", cred.accessToken()));
     }
 
-    private <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
-        cmd.setTransportConfigCallback(transport -> {
-            final SshTransport sshTransport = (SshTransport) transport;
-            sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
-                @Override
-                protected void configure(Host host, Session session) {
-                    try {
-                        session.setHostKeyRepository(
-                                new MirrorHostKeyRepository(mirror.localRepo().parent().metaRepo()));
-                        session.setPassword(cred.password());
-                    } catch (MirrorException e) {
-                        throw e;
-                    } catch (Exception e) {
-                        throw new MirrorException(e);
-                    }
-                }
-            });
-        });
+    protected final GitMirror getMirror() {
+        return mirror;
     }
 
     private final class MirrorProgressMonitor extends EmptyProgressMonitor {
@@ -230,7 +212,7 @@ final class GitWithAuth extends Git {
         }
     }
 
-    private static final class MirrorHostKeyRepository implements HostKeyRepository {
+    protected static final class MirrorHostKeyRepository implements HostKeyRepository {
 
         private static final HostKey[] EMPTY_HOST_KEYS = new HostKey[0];
 
@@ -270,7 +252,7 @@ final class GitWithAuth extends Git {
         }
     }
 
-    private static final class MirrorIdentityRepository implements IdentityRepository {
+    protected static final class MirrorIdentityRepository implements IdentityRepository {
         private final Identity identity;
 
         MirrorIdentityRepository(String name, PublicKeyMirrorCredential cred) throws JSchException {

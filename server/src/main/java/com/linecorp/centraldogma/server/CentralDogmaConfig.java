@@ -138,6 +138,9 @@ public final class CentralDogmaConfig {
     @Nullable
     private final QuotaConfig writeQuotaPerRepository;
 
+    @Nullable
+    private final CorsConfig corsConfig;
+
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
             @JsonProperty(value = "ports", required = true)
@@ -165,10 +168,12 @@ public final class CentralDogmaConfig {
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("authentication") @Nullable AuthConfig authConfig,
-            @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository) {
+            @JsonProperty("writeQuotaPerRepository") @Nullable QuotaConfig writeQuotaPerRepository,
+            @JsonProperty("cors") @Nullable CorsConfig corsConfig) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
+        this.corsConfig = corsConfig;
         checkArgument(!ports.isEmpty(), "ports must have at least one port.");
         this.tls = tls;
         this.trustedProxyAddresses = trustedProxyAddresses;
@@ -454,6 +459,15 @@ public final class CentralDogmaConfig {
     @JsonProperty("writeQuotaPerRepository")
     public QuotaConfig writeQuotaPerRepository() {
         return writeQuotaPerRepository;
+    }
+
+    /**
+     * Returns the {@link CorsConfig}.
+     */
+    @Nullable
+    @JsonProperty("cors")
+    public CorsConfig corsConfig() {
+        return corsConfig;
     }
 
     @Override
