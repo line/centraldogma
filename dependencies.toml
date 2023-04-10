@@ -14,6 +14,7 @@ mockito = "4.11.0"
 slf4j = "1.7.36"
 spring-boot1 = "1.5.22.RELEASE"
 spring-boot2 = "2.7.10"
+spring-boot3 = "3.0.5"
 sshd = "2.9.2"
 
 [boms]
@@ -239,8 +240,8 @@ module = "org.quartz-scheduler:quartz"
 version = "2.3.2"
 
 [libraries.shadow-gradle-plugin]
-module = "com.github.jengelman.gradle.plugins:shadow"
-version = "6.1.0"
+module = "gradle.plugin.com.github.johnrengelman:shadow"
+version = "7.1.2"
 
 # Don't update `shiro` version
 [libraries.shiro-core]
@@ -288,6 +289,20 @@ version.ref = "spring-boot2"
 [libraries.spring-boot2-configuration-processor]
 module = "org.springframework.boot:spring-boot-configuration-processor"
 version.ref = "spring-boot2"
+
+[libraries.spring-boot3-autoconfigure]
+module = "org.springframework.boot:spring-boot-autoconfigure"
+version.ref = "spring-boot3"
+[libraries.spring-boot3-starter]
+module = "org.springframework.boot:spring-boot-starter"
+version.ref = "spring-boot3"
+javadocs = "https://docs.spring.io/spring/docs/current/javadoc-api/"
+[libraries.spring-boot3-starter-test]
+module = "org.springframework.boot:spring-boot-starter-test"
+version.ref = "spring-boot3"
+[libraries.spring-boot3-configuration-processor]
+module = "org.springframework.boot:spring-boot-configuration-processor"
+version.ref = "spring-boot3"
 
 [libraries.spring-test-junit5]
 module = "com.github.sbrannen:spring-test-junit5"
