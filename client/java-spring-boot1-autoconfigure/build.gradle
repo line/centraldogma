@@ -11,7 +11,7 @@ dependencies {
     testImplementation libs.spring.boot1.starter
     testImplementation libs.spring.boot1.starter.test
     testImplementation libs.spring.test.junit5
-    testRuntimeOnly libs.hibernate.validator
+    testRuntimeOnly libs.hibernate.validator6
 }
 
 // Use the sources from 'client-spring-boot-autoconfigure'.

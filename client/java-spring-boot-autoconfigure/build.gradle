@@ -5,5 +5,5 @@ dependencies {
     annotationProcessor libs.spring.boot2.configuration.processor
 
     testImplementation libs.spring.boot2.starter.test
-    testRuntimeOnly libs.hibernate.validator
+    testRuntimeOnly libs.hibernate.validator6
 }
