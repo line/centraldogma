@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -56,6 +57,7 @@ import com.google.common.io.Files;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.CentralDogmaException;
 import com.linecorp.centraldogma.common.Change;
+import com.linecorp.centraldogma.common.Commit;
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.PathPattern;
 import com.linecorp.centraldogma.common.Revision;
@@ -177,9 +179,20 @@ class GitMirrorTest {
         addToGitIndex(".gitkeep", "");
         addToGitIndex("first/light.txt", "26-Aug-2014");
         addToGitIndex("second/son.json", "{\"release_date\": \"21-Mar-2014\"}");
-        git.commit().setMessage("Add the release dates of the 'Infamous' series").call();
+        git.commit().setMessage("Add the release dates of the 'Infamous' series")
+           .setAuthor("Mirror", "mirror@localhost.localdomain")
+           .call();
 
         mirroringService.mirror().join();
+        final List<Commit> commits = client.getHistory(projName, REPO_FOO, Revision.HEAD, Revision.INIT,
+                                                       PathPattern.all(), 1)
+                                           .join();
+        assertThat(commits).isNotEmpty();
+        final String detail = commits.get(0).detail();
+        assertThat(detail).isNotEmpty()
+                          .contains("Author", "Date")
+                          .contains("Mirror", "mirror@localhost.localdomain")
+                          .contains("Add the release dates of the 'Infamous' series");
 
         //// Make sure a new commit is added.
         final Revision rev3 = client.normalizeRevision(projName, REPO_FOO, Revision.HEAD).join();

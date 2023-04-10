@@ -59,6 +59,7 @@ import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
+import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.FetchResult;
 import org.eclipse.jgit.transport.RefSpec;
@@ -212,6 +213,7 @@ public final class GitMirror extends AbstractMirror {
 
         final Map<String, Change<?>> changes = new HashMap<>();
         final String summary;
+        final String detail;
 
         try (GitWithAuth git = openGit(workDir)) {
             final String headBranchRefName = getHeadBranchRefName(git);
@@ -246,12 +248,12 @@ public final class GitMirror extends AbstractMirror {
                 // Add mirror_state.json.
                 changes.put(mirrorStatePath, Change.ofJsonUpsert(
                         mirrorStatePath, "{ \"sourceRevision\": \"" + id.name() + "\" }"));
-
                 // Construct the log message and log.
                 summary = "Mirror " + abbrId + ", " + remoteRepoUri() + '#' + remoteBranch() +
                           " to the repository '" + localRepo().name() + '\'';
+                final RevCommit headCommit = revWalk.parseCommit(id);
+                detail = generateCommitDetail(headCommit);
                 logger.info(summary);
-
                 long numFiles = 0;
                 long numBytes = 0;
                 while (treeWalk.next()) {
@@ -327,7 +329,7 @@ public final class GitMirror extends AbstractMirror {
 
             executor.execute(Command.push(
                     MIRROR_AUTHOR, localRepo().parent().name(), localRepo().name(),
-                    Revision.HEAD, summary, "", Markup.PLAINTEXT, changes.values())).join();
+                    Revision.HEAD, summary, detail, Markup.PLAINTEXT, changes.values())).join();
         }
     }
 
@@ -427,6 +429,17 @@ public final class GitMirror extends AbstractMirror {
 
         // We should not reach here, but if we do, fall back to 'refs/heads/master'.
         return HEAD_REF_MASTER;
+    }
+
+    private static String generateCommitDetail(RevCommit headCommit) {
+        final PersonIdent authorIdent = headCommit.getAuthorIdent();
+        return "Remote commit:\n" +
+               "- SHA: " + headCommit.name() + '\n' +
+               "- Subject: " + headCommit.getShortMessage() + '\n' +
+               "- Author: " + authorIdent.getName() + " <" +
+               authorIdent.getEmailAddress() + "> \n" +
+               "- Date: " + authorIdent.getWhen() + "\n\n" +
+               headCommit.getFullMessage();
     }
 
     @Nullable
