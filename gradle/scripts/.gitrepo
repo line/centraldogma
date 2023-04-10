@@ -8,5 +8,5 @@
 	branch = main
 	commit = 4f7bdf828890e77e40a21075978fe54192c3e215
 	parent = 156443a1a924824bbf609a85aabbbdae0bfcae24
-	cmdver = 0.4.3
+	cmdver = 0.4.5
 	method = merge
