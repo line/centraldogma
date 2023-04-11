@@ -12,8 +12,8 @@ jmh = "1.36"
 micrometer = "1.10.5"
 mockito = "4.11.0"
 slf4j = "1.7.36"
-spring-boot1 = "1.5.22.RELEASE"
 spring-boot2 = "2.7.10"
+spring-boot3 = "3.0.5"
 sshd = "2.9.2"
 
 [boms]
@@ -110,9 +110,12 @@ module = "org.hamcrest:hamcrest-library"
 version = "2.2"
 
 # Need to wait for spring boot 3 before upgrading to 7.x.x
-[libraries.hibernate-validator]
+[libraries.hibernate-validator6]
 module = "org.hibernate.validator:hibernate-validator"
 version = "6.2.5.Final"
+[libraries.hibernate-validator8]
+module = "org.hibernate.validator:hibernate-validator"
+version = "8.0.0.Final"
 
 [libraries.jackson-annotations]
 module = "com.fasterxml.jackson.core:jackson-annotations"
@@ -239,8 +242,8 @@ module = "org.quartz-scheduler:quartz"
 version = "2.3.2"
 
 [libraries.shadow-gradle-plugin]
-module = "com.github.jengelman.gradle.plugins:shadow"
-version = "6.1.0"
+module = "gradle.plugin.com.github.johnrengelman:shadow"
+version = "7.1.2"
 
 # Don't update `shiro` version
 [libraries.shiro-core]
@@ -262,19 +265,6 @@ version.ref = "slf4j"
 module = "org.slf4j:log4j-over-slf4j"
 version.ref = "slf4j"
 
-[libraries.spring-boot1-autoconfigure]
-module = "org.springframework.boot:spring-boot-autoconfigure"
-version.ref = "spring-boot1"
-[libraries.spring-boot1-configuration-processor]
-module = "org.springframework.boot:spring-boot-configuration-processor"
-version.ref = "spring-boot1"
-[libraries.spring-boot1-starter]
-module = "org.springframework.boot:spring-boot-starter"
-version.ref = "spring-boot1"
-[libraries.spring-boot1-starter-test]
-module = "org.springframework.boot:spring-boot-starter-test"
-version.ref = "spring-boot1"
-
 [libraries.spring-boot2-autoconfigure]
 module = "org.springframework.boot:spring-boot-autoconfigure"
 version.ref = "spring-boot2"
@@ -288,6 +278,20 @@ version.ref = "spring-boot2"
 [libraries.spring-boot2-configuration-processor]
 module = "org.springframework.boot:spring-boot-configuration-processor"
 version.ref = "spring-boot2"
+
+[libraries.spring-boot3-autoconfigure]
+module = "org.springframework.boot:spring-boot-autoconfigure"
+version.ref = "spring-boot3"
+[libraries.spring-boot3-starter]
+module = "org.springframework.boot:spring-boot-starter"
+version.ref = "spring-boot3"
+javadocs = "https://docs.spring.io/spring/docs/current/javadoc-api/"
+[libraries.spring-boot3-starter-test]
+module = "org.springframework.boot:spring-boot-starter-test"
+version.ref = "spring-boot3"
+[libraries.spring-boot3-configuration-processor]
+module = "org.springframework.boot:spring-boot-configuration-processor"
+version.ref = "spring-boot3"
 
 [libraries.spring-test-junit5]
 module = "com.github.sbrannen:spring-test-junit5"

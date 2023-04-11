@@ -1,26 +1,19 @@
-repositories {
-    mavenCentral()
-    maven { url 'https://jitpack.io' }
-}
-
 dependencies {
     api project(':client:java-armeria')
-    api libs.javax.validation
-    api libs.spring.boot1.autoconfigure
+    compileOnly libs.javax.validation
+    api libs.spring.boot2.autoconfigure
+    annotationProcessor libs.spring.boot2.configuration.processor
 
-    testImplementation libs.spring.boot1.starter
-    testImplementation libs.spring.boot1.starter.test
-    testImplementation libs.spring.test.junit5
-    testRuntimeOnly libs.hibernate.validator
+    testImplementation libs.spring.boot2.starter.test
+    testRuntimeOnly libs.hibernate.validator6
 }
 
-// Use the sources from 'client-spring-boot-autoconfigure'.
+// Use the sources from 'client-spring-boot3-autoconfigure'.
 // NB: We should not add these in the 'sourceSets' directive because that will make the directories mentioned
 //     below are added to two projects and having a source directory with two output directories will confuse
 //     the IDE.
-def autoconfigureProjectDir = "${rootProject.projectDir}/client/java-spring-boot-autoconfigure"
+def autoconfigureProjectDir = "${rootProject.projectDir}/client/java-spring-boot3-autoconfigure"
 tasks.compileJava.source "${autoconfigureProjectDir}/src/main/java"
-tasks.processResources.from "${autoconfigureProjectDir}/src/main/resources"
 tasks.compileTestJava.source "${autoconfigureProjectDir}/src/test/java", "${autoconfigureProjectDir}/gen-src/test/java"
 tasks.processTestResources.from "${autoconfigureProjectDir}/src/test/resources"
 tasks.sourcesJar.from "${autoconfigureProjectDir}/src/main/java"

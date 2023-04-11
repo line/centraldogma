@@ -16,10 +16,10 @@ ext {
         ':client:java': "${rootProject.name}-client",
         ':client:java-armeria': "${rootProject.name}-client-armeria",
         ':client:java-armeria-legacy': "${rootProject.name}-client-armeria-legacy",
-        ':client:java-spring-boot-autoconfigure': "${rootProject.name}-client-spring-boot-autoconfigure",
-        ':client:java-spring-boot-starter': "${rootProject.name}-client-spring-boot-starter",
-        ':client:java-spring-boot1-autoconfigure': "${rootProject.name}-client-spring-boot1-autoconfigure",
-        ':client:java-spring-boot1-starter': "${rootProject.name}-client-spring-boot1-starter",
+        ':client:java-spring-boot2-autoconfigure': "${rootProject.name}-client-spring-boot2-autoconfigure",
+        ':client:java-spring-boot2-starter': "${rootProject.name}-client-spring-boot2-starter",
+        ':client:java-spring-boot3-autoconfigure': "${rootProject.name}-client-spring-boot3-autoconfigure",
+        ':client:java-spring-boot3-starter': "${rootProject.name}-client-spring-boot3-starter",
         // Set the correct artifactId of 'testing-common'.
         ':testing:testing-common': "${rootProject.name}-testing-common"
     ]
@@ -90,10 +90,12 @@ configure(projectsWithFlags('java')) {
         testRuntimeOnly libs.junit5.vintage.engine
     }
 
-    // Target Java 8.
-    tasks.withType(JavaCompile) {
-        if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
-            options.release = 8
+    // Target Java 8 except for spring-boot3
+    if (!project.name.startsWith("java-spring-boot3")) {
+        tasks.withType(JavaCompile) {
+            if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
+                options.release = 8
+            }
         }
     }
 

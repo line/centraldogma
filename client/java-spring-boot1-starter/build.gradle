@@ -1,4 +1,0 @@
-dependencies {
-    api project(':client:java-spring-boot1-autoconfigure')
-    api libs.spring.boot1.starter
-}

@@ -1,0 +1,4 @@
+dependencies {
+    api project(':client:java-spring-boot3-autoconfigure')
+    api libs.spring.boot3.starter
+}
