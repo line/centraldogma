@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 LINE Corporation
+ * Copyright 2023 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -32,8 +32,8 @@ import com.linecorp.centraldogma.client.spring.CentralDogmaClientAutoConfigurati
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestConfiguration.class)
-@ActiveProfiles({ "local", "otherProps", "confTest" })
-class CentralDogmaClientAutoConfigurationOtherPropsTest {
+@ActiveProfiles({ "local", "useProfile", "confTest" })
+class CentralDogmaClientAutoConfigurationProfileTest {
     @Configuration
     @Import(CentralDogmaClientAutoConfiguration.class)
     static class TestConfiguration {}
@@ -52,11 +52,10 @@ class CentralDogmaClientAutoConfigurationOtherPropsTest {
     @Test
     void settings() {
         assertThat(settings.getHosts()).isNull();
-        assertThat(settings.getProfile()).isNull();
-        assertThat(settings.getUseTls()).isTrue();
-        assertThat(settings.getHealthCheckIntervalMillis()).isEqualTo(60000L);
-        assertThat(settings.getAccessToken()).isEqualTo("my-dogma-access-token");
-        assertThat(settings.getMaxNumRetriesOnReplicationLag()).isEqualTo(42);
-        assertThat(settings.getRetryIntervalOnReplicationLagMillis()).isEqualTo(10000L);
+        assertThat(settings.getProfile()).isEqualTo("myprofile");
+        assertThat(settings.getUseTls()).isNull();
+        assertThat(settings.getHealthCheckIntervalMillis()).isNull();
+        assertThat(settings.getMaxNumRetriesOnReplicationLag()).isNull();
+        assertThat(settings.getRetryIntervalOnReplicationLagMillis()).isNull();
     }
 }

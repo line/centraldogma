@@ -12,7 +12,6 @@ jmh = "1.36"
 micrometer = "1.10.5"
 mockito = "4.11.0"
 slf4j = "1.7.36"
-spring-boot1 = "1.5.22.RELEASE"
 spring-boot2 = "2.7.10"
 spring-boot3 = "3.0.5"
 sshd = "2.9.2"
@@ -265,19 +264,6 @@ version.ref = "slf4j"
 [libraries.slf4j-log4j-over-slf4j]
 module = "org.slf4j:log4j-over-slf4j"
 version.ref = "slf4j"
-
-[libraries.spring-boot1-autoconfigure]
-module = "org.springframework.boot:spring-boot-autoconfigure"
-version.ref = "spring-boot1"
-[libraries.spring-boot1-configuration-processor]
-module = "org.springframework.boot:spring-boot-configuration-processor"
-version.ref = "spring-boot1"
-[libraries.spring-boot1-starter]
-module = "org.springframework.boot:spring-boot-starter"
-version.ref = "spring-boot1"
-[libraries.spring-boot1-starter-test]
-module = "org.springframework.boot:spring-boot-starter-test"
-version.ref = "spring-boot1"
 
 [libraries.spring-boot2-autoconfigure]
 module = "org.springframework.boot:spring-boot-autoconfigure"
