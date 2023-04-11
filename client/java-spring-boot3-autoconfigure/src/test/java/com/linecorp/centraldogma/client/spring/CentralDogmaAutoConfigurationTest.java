@@ -23,9 +23,10 @@ import javax.inject.Inject;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
@@ -36,7 +37,8 @@ import com.linecorp.centraldogma.client.spring.CentralDogmaAutoConfigurationTest
 @SpringBootTest(classes = TestConfiguration.class)
 @ActiveProfiles({ "local", "confTest" })
 class CentralDogmaAutoConfigurationTest {
-    @SpringBootApplication
+    @Configuration
+    @EnableAutoConfiguration
     static class TestConfiguration {
         static CentralDogmaClientFactoryConfigurator factoryConfigurator = builder -> {};
 
