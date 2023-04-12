@@ -567,6 +567,11 @@ Spring Boot integration
 If you are using `Spring Framework <https://spring.io/>`_, you can inject :api:`com.linecorp.centraldogma.client.CentralDogma`
 client very easily. First, add ``centraldogma-client-spring-boot3-starter`` into your dependencies.
 
+.. tip::
+
+    Use the ``centraldogma-client-spring-boot2-starter`` dependency if you are using Spring Boot 2 or running your application with
+    a Java version lower than 17.
+
 Gradle:
 
 .. parsed-literal::
