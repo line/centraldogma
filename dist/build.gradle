@@ -56,12 +56,18 @@ task copyLib(group: 'Build',
              dependsOn: project(':server').tasks.jar,
              type: Copy) {
 
-    from project(':server').configurations.runtimeClasspath
+    from project(':server').configurations.runtimeClasspath {
+        exclude group: 'org.eclipse.jgit'
+    }
     from project(':server').tasks.jar
     from project.configurations.runtimeClasspath
-    from project(':server-auth:saml').configurations.runtimeClasspath
+    from project(':server-auth:saml').configurations.runtimeClasspath  {
+        exclude group: 'org.eclipse.jgit'
+    }
     from project(':server-auth:saml').tasks.jar
-    from project(':server-auth:shiro').configurations.runtimeClasspath
+    from project(':server-auth:shiro').configurations.runtimeClasspath  {
+        exclude group: 'org.eclipse.jgit'
+    }
     from project(':server-auth:shiro').tasks.jar
     from project(':server-jgit6').configurations.runtimeClasspath
     from project(':server-jgit6').tasks.jar
