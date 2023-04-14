@@ -4,7 +4,7 @@ dependencies {
         api project(':server')
     } else {
         // exclude jgit6 and use jgit5
-        api project(':server') {
+        api(project(':server')) {
             exclude group: 'org.eclipse.jgit', module: 'org.eclipse.jgit'
         }
         implementation libs.jgit5

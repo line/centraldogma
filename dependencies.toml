@@ -157,9 +157,6 @@ version = "2.0.10"
 [libraries.jgit5]
 module = "org.eclipse.jgit:org.eclipse.jgit"
 version.ref = "jgit5"
-[libraries.jgit-ssh-jsch5]
-module = "org.eclipse.jgit:org.eclipse.jgit.ssh.jsch"
-version.ref = "jgit5"
 
 [libraries.jgit6]
 module = "org.eclipse.jgit:org.eclipse.jgit"
