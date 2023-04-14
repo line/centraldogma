@@ -1,12 +1,4 @@
 dependencies {
     api project(':client:java-armeria-legacy')
-    if (rootProject.ext.testJavaVersion >= 11) {
-        api project(':server')
-    } else {
-        // exclude jgit6 and use jgit5
-        api(project(':server')) {
-            exclude group: 'org.eclipse.jgit', module: 'org.eclipse.jgit'
-        }
-        implementation libs.jgit5
-    }
+    api project(':server')
 }
