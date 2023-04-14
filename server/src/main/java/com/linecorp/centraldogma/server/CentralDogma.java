@@ -135,7 +135,6 @@ import com.linecorp.centraldogma.server.internal.api.WatchService;
 import com.linecorp.centraldogma.server.internal.api.auth.ApplicationTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiRequestConverter;
 import com.linecorp.centraldogma.server.internal.api.converter.HttpApiResponseConverter;
-import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.replication.ZooKeeperCommandExecutor;
 import com.linecorp.centraldogma.server.internal.storage.project.DefaultProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.project.SafeProjectManager;
@@ -145,6 +144,7 @@ import com.linecorp.centraldogma.server.internal.thrift.CentralDogmaTimeoutSched
 import com.linecorp.centraldogma.server.internal.thrift.TokenlessClientLogger;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.MetadataServiceInjector;
+import com.linecorp.centraldogma.server.mirror.MirroringServicePlugin;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 import com.linecorp.centraldogma.server.storage.project.ProjectManager;
@@ -270,8 +270,8 @@ public class CentralDogma implements AutoCloseable {
         if (pluginsForLeaderOnly == null) {
             return Optional.empty();
         }
-        return pluginsForLeaderOnly.findFirstPlugin(DefaultMirroringServicePlugin.class)
-                                   .map(DefaultMirroringServicePlugin::mirroringService);
+        return pluginsForLeaderOnly.findFirstPlugin(MirroringServicePlugin.class)
+                                   .map(MirroringServicePlugin::mirroringService);
     }
 
     /**

@@ -15,20 +15,9 @@
  */
 package com.linecorp.centraldogma.server.mirror;
 
-import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA;
-import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT;
-import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_FILE;
-import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTP;
-import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTPS;
-import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
-import static com.linecorp.centraldogma.server.mirror.MirrorUtil.DOGMA_PATH_PATTERN;
-import static com.linecorp.centraldogma.server.mirror.MirrorUtil.split;
-import static java.util.Objects.requireNonNull;
-
 import java.io.File;
 import java.net.URI;
 import java.time.ZonedDateTime;
-import java.util.regex.Matcher;
 
 import javax.annotation.Nullable;
 
@@ -36,75 +25,12 @@ import com.cronutils.model.Cron;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
-import com.linecorp.centraldogma.server.internal.mirror.CentralDogmaMirror;
-import com.linecorp.centraldogma.server.internal.mirror.GitMirror;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
 /**
  * Contains the properties for a mirroring task and performs the task.
  */
 public interface Mirror {
-
-    /**
-     * Creates a new instance.
-     *
-     * @param schedule a cron expression that describes when the mirroring task is supposed to be triggered.
-     *                 If unspecified, {@code 0 * * * * ?} (every minute) is used.
-     * @param direction the direction of mirror
-     * @param credential the authentication credentials which are required when accessing the Git repositories
-     * @param localRepo the Central Dogma repository name
-     * @param localPath the directory path in the {@code localRepo}
-     * @param remoteUri the URI of the Git repository which will be mirrored from
-     * @param gitignore the file pattern for the files in {@code remoteUri} which will not be mirrored.
-     *                  It follows the same format to <a href="https://git-scm.com/docs/gitignore">gitignore</a>
-     */
-    static Mirror of(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                     Repository localRepo, String localPath, URI remoteUri,
-                     @Nullable String gitignore) {
-        requireNonNull(schedule, "schedule");
-        requireNonNull(direction, "direction");
-        requireNonNull(credential, "credential");
-        requireNonNull(localRepo, "localRepo");
-        requireNonNull(localPath, "localPath");
-        requireNonNull(remoteUri, "remoteUri");
-
-        final String scheme = remoteUri.getScheme();
-        if (scheme == null) {
-            throw new IllegalArgumentException("no scheme in remoteUri: " + remoteUri);
-        }
-
-        switch (scheme) {
-            case SCHEME_DOGMA: {
-                final String[] components = split(remoteUri, "dogma");
-                final URI remoteRepoUri = URI.create(components[0]);
-                final Matcher matcher = DOGMA_PATH_PATTERN.matcher(remoteRepoUri.getPath());
-                if (!matcher.find()) {
-                    throw new IllegalArgumentException(
-                            "cannot determine project name and repository name: " + remoteUri +
-                            " (expected: dogma://<host>[:<port>]/<project>/<repository>.dogma[<remotePath>])");
-                }
-
-                final String remoteProject = matcher.group(1);
-                final String remoteRepo = matcher.group(2);
-
-                return new CentralDogmaMirror(schedule, direction, credential, localRepo, localPath,
-                                              remoteRepoUri, remoteProject, remoteRepo, components[1],
-                                              gitignore);
-            }
-            case SCHEME_GIT:
-            case SCHEME_GIT_SSH:
-            case SCHEME_GIT_HTTP:
-            case SCHEME_GIT_HTTPS:
-            case SCHEME_GIT_FILE: {
-                final String[] components = split(remoteUri, "git");
-                return new GitMirror(schedule, direction, credential, localRepo, localPath,
-                                     URI.create(components[0]), components[1], components[2],
-                                     gitignore);
-            }
-        }
-
-        throw new IllegalArgumentException("unsupported scheme in remoteUri: " + remoteUri);
-    }
 
     /**
      * Returns the schedule for the mirroring task.

@@ -28,8 +28,6 @@ import java.util.regex.Pattern;
  */
 public final class MirrorUtil {
 
-    static final Pattern DOGMA_PATH_PATTERN = Pattern.compile("^/([^/]+)/([^/]+)\\.dogma$");
-
     /**
      * Normalizes the specified {@code path}. A path which starts and ends with {@code /} would be returned.
      * Also, it would not have consecutive {@code /}.
@@ -67,7 +65,7 @@ public final class MirrorUtil {
      * - remotePath:    / (default)
      * - remoteBranch:  {@code defaultBranch}
      */
-    static String[] split(URI remoteUri, String suffix) {
+    public static String[] split(URI remoteUri, String suffix) {
         final String host = remoteUri.getHost();
         if (host == null && !remoteUri.getScheme().endsWith("+file")) {
             throw new IllegalArgumentException("no host in remoteUri: " + remoteUri);

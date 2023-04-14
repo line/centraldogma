@@ -49,7 +49,8 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 /**
  * Provides asynchronous start-stop life cycle support for the {@link Plugin}s.
  */
-final class PluginGroup {
+// TODO(minwoox): move to internal
+public final class PluginGroup {
 
     private static final Logger logger = LoggerFactory.getLogger(PluginGroup.class);
 
@@ -61,7 +62,7 @@ final class PluginGroup {
      * @param target the {@link PluginTarget} which would be loaded
      */
     @Nullable
-    static PluginGroup loadPlugins(PluginTarget target, CentralDogmaConfig config) {
+    public static PluginGroup loadPlugins(PluginTarget target, CentralDogmaConfig config) {
         return loadPlugins(PluginGroup.class.getClassLoader(), target, config);
     }
 
@@ -74,7 +75,8 @@ final class PluginGroup {
      * @param target the {@link PluginTarget} which would be loaded
      */
     @Nullable
-    static PluginGroup loadPlugins(ClassLoader classLoader, PluginTarget target, CentralDogmaConfig config) {
+    public static PluginGroup loadPlugins(ClassLoader classLoader, PluginTarget target,
+                                          CentralDogmaConfig config) {
         requireNonNull(classLoader, "classLoader");
         requireNonNull(target, "target");
         requireNonNull(config, "config");
@@ -114,7 +116,7 @@ final class PluginGroup {
     /**
      * Returns the first {@link Plugin} of the specified {@code clazz} as wrapped by an {@link Optional}.
      */
-    <T extends Plugin> Optional<T> findFirstPlugin(Class<T> clazz) {
+    public <T extends Plugin> Optional<T> findFirstPlugin(Class<T> clazz) {
         requireNonNull(clazz, "clazz");
         return plugins.stream().filter(clazz::isInstance).map(clazz::cast).findFirst();
     }

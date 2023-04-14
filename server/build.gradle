@@ -41,8 +41,8 @@ dependencies {
     optionalImplementation libs.jcommander
 
     // jGit
-    implementation libs.jgit
-    implementation libs.jgit.ssh.jsch
+    implementation libs.jgit6
+    implementation libs.jgit.ssh.jsch6
 
     // Micrometer
     implementation libs.micrometer.core
@@ -56,10 +56,6 @@ dependencies {
     // Logging
     optionalImplementation libs.logback
     optionalImplementation libs.slf4j.jul.to.slf4j
-
-    if (rootProject.ext.testJavaVersion >= 11) {
-        testImplementation project(path: ':server-jgit6')
-    }
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer

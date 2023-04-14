@@ -18,11 +18,19 @@ package com.linecorp.centraldogma.server;
 
 import java.util.concurrent.CompletableFuture;
 
+import com.linecorp.centraldogma.server.command.CommandExecutor;
+
 /**
  * Performs mirroring of an external repository into a Central Dogma repository.
  */
-@SuppressWarnings("InterfaceMayBeAnnotatedFunctional")
 public interface MirroringService {
+
+    boolean isStarted();
+
+    void start(CommandExecutor commandExecutor);
+
+    void stop();
+
     /**
      * Schedules an immediate mirroring.
      *

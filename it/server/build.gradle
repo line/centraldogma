@@ -1,0 +1,7 @@
+dependencies {
+    testImplementation libs.curator.test
+    testImplementation libs.sshd
+
+    testImplementation project(':server')
+    testImplementation project(':server-auth:shiro')
+}
