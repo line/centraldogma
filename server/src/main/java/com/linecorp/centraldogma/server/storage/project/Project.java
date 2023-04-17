@@ -20,13 +20,11 @@ import static com.linecorp.centraldogma.server.storage.project.ProjectUtil.inter
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
-import java.util.function.Function;
 
 import com.google.common.base.Ascii;
 
 import com.linecorp.centraldogma.common.Author;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
-import com.linecorp.centraldogma.server.storage.repository.Repository;
 import com.linecorp.centraldogma.server.storage.repository.RepositoryManager;
 
 /**
@@ -65,10 +63,9 @@ public interface Project {
     }
 
     /**
-     * Returns the {@link MetaRepository} of this project. It there's no {@link MetaRepository} yet,
-     * the {@link MetaRepository} will be created using the specified {@code metaRepositoryFunction}.
+     * Returns the {@link MetaRepository} of this project.
      */
-    MetaRepository metaRepo(Function<Repository, MetaRepository> metaRepositoryFunction);
+    MetaRepository metaRepo();
 
     /**
      * Returns the {@link RepositoryManager} of this project.

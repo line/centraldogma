@@ -18,29 +18,12 @@ package com.linecorp.centraldogma.server.storage.repository;
 
 import java.util.Set;
 
-import com.google.common.collect.ImmutableSet;
-
 import com.linecorp.centraldogma.server.mirror.Mirror;
 
 /**
  * A Revision-controlled filesystem-like repository which is named {@code "meta"}.
  */
 public interface MetaRepository extends Repository {
-
-    /**
-     * The file path for credentials.
-     */
-    String PATH_CREDENTIALS = "/credentials.json";
-
-    /**
-     * The file path for mirrors.
-     */
-    String PATH_MIRRORS = "/mirrors.json";
-
-    /**
-     * The fil paths for credentials and mirrors.
-     */
-    Set<String> metaRepoFiles = ImmutableSet.of(PATH_CREDENTIALS, PATH_MIRRORS);
 
     /**
      * Returns a set of mirroring tasks.

@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
-import com.linecorp.centraldogma.server.internal.PluginGroup;
+import com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin;
 import com.linecorp.centraldogma.server.internal.storage.PurgeSchedulingServicePlugin;
 import com.linecorp.centraldogma.server.plugin.AbstractNoopPlugin;
 import com.linecorp.centraldogma.server.plugin.NoopPluginForAllReplicas;
@@ -47,6 +47,24 @@ class PluginGroupTest {
         final PluginGroup group = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
         assertThat(group).isNotNull();
         confirmPluginStartStop(group.findFirstPlugin(NoopPluginForLeader.class).orElse(null));
+    }
+
+    /**
+     * The {@link DefaultMirroringServicePlugin} must be loaded only if the
+     * {@link CentralDogmaConfig#isMirroringEnabled()} property is {@code true}.
+     */
+    @Test
+    void confirmDefaultMirroringServiceLoadedDependingOnConfig() {
+        final CentralDogmaConfig cfg = mock(CentralDogmaConfig.class);
+        when(cfg.isMirroringEnabled()).thenReturn(true);
+        final PluginGroup group1 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
+        assertThat(group1).isNotNull();
+        assertThat(group1.findFirstPlugin(DefaultMirroringServicePlugin.class)).isPresent();
+
+        when(cfg.isMirroringEnabled()).thenReturn(false);
+        final PluginGroup group2 = PluginGroup.loadPlugins(PluginTarget.LEADER_ONLY, cfg);
+        assertThat(group2).isNotNull();
+        assertThat(group2.findFirstPlugin(DefaultMirroringServicePlugin.class)).isNotPresent();
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LINE Corporation
+ * Copyright 2023 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,20 +14,16 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server;
-
-import java.util.concurrent.CompletableFuture;
+package com.linecorp.centraldogma.server.mirror;
 
 /**
- * Performs mirroring of an external repository into a Central Dogma repository.
+ * Creates a new {@link Mirror} dynamically via Java SPI (Service Provider Interface).
  */
 @FunctionalInterface
-public interface MirroringService {
+public interface MirrorProvider {
 
     /**
-     * Schedules an immediate mirroring.
-     *
-     * @return the future that is complete when mirroring is finished
+     * Creates a new {@link Mirror}.
      */
-    CompletableFuture<Void> mirror();
+    Mirror newMirror(MirrorContext context);
 }

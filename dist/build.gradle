@@ -16,7 +16,7 @@ plugins {
     alias libs.plugins.download
 }
 
-evaluationDependsOn(':mirror')
+evaluationDependsOn(':server-mirror-git')
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
@@ -56,8 +56,6 @@ task copyLib(group: 'Build',
              dependsOn: project(':server').tasks.jar,
              type: Copy) {
 
-    from project(':mirror').configurations.runtimeClasspath
-    from project(':mirror').tasks.jar
     from project(':server').configurations.runtimeClasspath
     from project(':server').tasks.jar
     from project.configurations.runtimeClasspath
@@ -65,6 +63,8 @@ task copyLib(group: 'Build',
     from project(':server-auth:saml').tasks.jar
     from project(':server-auth:shiro').configurations.runtimeClasspath
     from project(':server-auth:shiro').tasks.jar
+    from project(':server-mirror-git').configurations.runtimeClasspath
+    from project(':server-mirror-git').tasks.jar
     into "${project.ext.distDir}/lib"
 
     doLast {

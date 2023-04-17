@@ -1,1 +1,2 @@
+com.linecorp.centraldogma.server.internal.mirror.DefaultMirroringServicePlugin
 com.linecorp.centraldogma.server.internal.storage.PurgeSchedulingServicePlugin

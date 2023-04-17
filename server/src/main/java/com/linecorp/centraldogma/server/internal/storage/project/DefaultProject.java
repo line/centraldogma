@@ -23,7 +23,6 @@ import static java.util.Objects.requireNonNull;
 import java.io.File;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
@@ -42,6 +41,7 @@ import com.linecorp.centraldogma.common.RepositoryExistsException;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.Util;
+import com.linecorp.centraldogma.server.internal.storage.repository.DefaultMetaRepository;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.internal.storage.repository.cache.CachingRepositoryManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.git.GitRepositoryManager;
@@ -175,13 +175,13 @@ public class DefaultProject implements Project {
     }
 
     @Override
-    public MetaRepository metaRepo(Function<Repository, MetaRepository> metaRepositoryFunction) {
+    public MetaRepository metaRepo() {
         MetaRepository metaRepo = this.metaRepo.get();
         if (metaRepo != null) {
             return metaRepo;
         }
 
-        metaRepo = metaRepositoryFunction.apply(repos.get(REPO_META));
+        metaRepo = new DefaultMetaRepository(repos.get(REPO_META));
         if (this.metaRepo.compareAndSet(null, metaRepo)) {
             return metaRepo;
         } else {
