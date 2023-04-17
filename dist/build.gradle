@@ -16,10 +16,10 @@ plugins {
     alias libs.plugins.download
 }
 
-evaluationDependsOn(':server-mirror-git')
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
+evaluationDependsOn(':server-mirror-git')
 
 ext {
     distDir = "${project.buildDir}/dist"

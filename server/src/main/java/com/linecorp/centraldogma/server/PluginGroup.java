@@ -74,8 +74,7 @@ final class PluginGroup {
      * @param target the {@link PluginTarget} which would be loaded
      */
     @Nullable
-    static PluginGroup loadPlugins(ClassLoader classLoader, PluginTarget target,
-                                   CentralDogmaConfig config) {
+    static PluginGroup loadPlugins(ClassLoader classLoader, PluginTarget target, CentralDogmaConfig config) {
         requireNonNull(classLoader, "classLoader");
         requireNonNull(target, "target");
         requireNonNull(config, "config");
