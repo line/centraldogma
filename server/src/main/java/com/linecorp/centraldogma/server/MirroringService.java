@@ -25,10 +25,19 @@ import com.linecorp.centraldogma.server.command.CommandExecutor;
  */
 public interface MirroringService {
 
+    /**
+     * Returns whether this service is started.
+     */
     boolean isStarted();
 
+    /**
+     * Starts this service.
+     */
     void start(CommandExecutor commandExecutor);
 
+    /**
+     * Stops this service.
+     */
     void stop();
 
     /**

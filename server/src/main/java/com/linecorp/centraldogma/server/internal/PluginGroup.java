@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server;
+package com.linecorp.centraldogma.server.internal;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
@@ -37,6 +37,7 @@ import com.google.common.collect.ImmutableList.Builder;
 import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.common.util.StartStopSupport;
+import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.plugin.Plugin;
 import com.linecorp.centraldogma.server.plugin.PluginContext;
@@ -49,7 +50,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 /**
  * Provides asynchronous start-stop life cycle support for the {@link Plugin}s.
  */
-// TODO(minwoox): move to internal
 public final class PluginGroup {
 
     private static final Logger logger = LoggerFactory.getLogger(PluginGroup.class);
@@ -109,7 +109,7 @@ public final class PluginGroup {
     /**
      * Returns the {@link Plugin}s managed by this {@link PluginGroup}.
      */
-    List<Plugin> plugins() {
+    public List<Plugin> plugins() {
         return plugins;
     }
 
@@ -124,9 +124,9 @@ public final class PluginGroup {
     /**
      * Starts the {@link Plugin}s managed by this {@link PluginGroup}.
      */
-    CompletableFuture<Void> start(CentralDogmaConfig config, ProjectManager projectManager,
-                                  CommandExecutor commandExecutor, MeterRegistry meterRegistry,
-                                  ScheduledExecutorService purgeWorker) {
+    public CompletableFuture<Void> start(CentralDogmaConfig config, ProjectManager projectManager,
+                                         CommandExecutor commandExecutor, MeterRegistry meterRegistry,
+                                         ScheduledExecutorService purgeWorker) {
         final PluginContext context = new PluginContext(config, projectManager, commandExecutor, meterRegistry,
                                                         purgeWorker);
         return startStop.start(context, context, true);
@@ -135,9 +135,9 @@ public final class PluginGroup {
     /**
      * Stops the {@link Plugin}s managed by this {@link PluginGroup}.
      */
-    CompletableFuture<Void> stop(CentralDogmaConfig config, ProjectManager projectManager,
-                                 CommandExecutor commandExecutor, MeterRegistry meterRegistry,
-                                 ScheduledExecutorService purgeWorker) {
+    public CompletableFuture<Void> stop(CentralDogmaConfig config, ProjectManager projectManager,
+                                        CommandExecutor commandExecutor, MeterRegistry meterRegistry,
+                                        ScheduledExecutorService purgeWorker) {
         return startStop.stop(
                 new PluginContext(config, projectManager, commandExecutor, meterRegistry, purgeWorker));
     }

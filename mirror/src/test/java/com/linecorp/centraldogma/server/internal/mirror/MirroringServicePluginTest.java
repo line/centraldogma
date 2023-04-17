@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 import org.junit.jupiter.api.Test;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
-import com.linecorp.centraldogma.server.PluginGroup;
+import com.linecorp.centraldogma.server.internal.PluginGroup;
 import com.linecorp.centraldogma.server.plugin.PluginTarget;
 
 class MirroringServicePluginTest {

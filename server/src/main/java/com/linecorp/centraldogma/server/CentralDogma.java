@@ -115,6 +115,7 @@ import com.linecorp.centraldogma.server.auth.SessionManager;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.CommandExecutor;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
+import com.linecorp.centraldogma.server.internal.PluginGroup;
 import com.linecorp.centraldogma.server.internal.admin.auth.CachedSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.auth.CsrfTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.auth.ExpiredSessionDeletingSessionManager;

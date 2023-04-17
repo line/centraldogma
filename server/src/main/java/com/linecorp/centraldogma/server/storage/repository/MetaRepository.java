@@ -27,12 +27,21 @@ import com.linecorp.centraldogma.server.mirror.Mirror;
  */
 public interface MetaRepository extends Repository {
 
-    // TODO(minwoox): javadoc
+    /**
+     * The file path for credentials.
+     */
     String PATH_CREDENTIALS = "/credentials.json";
 
+    /**
+     * The file path for mirrors.
+     */
     String PATH_MIRRORS = "/mirrors.json";
 
+    /**
+     * The fil paths for credentials and mirrors.
+     */
     Set<String> metaRepoFiles = ImmutableSet.of(PATH_CREDENTIALS, PATH_MIRRORS);
+
     /**
      * Returns a set of mirroring tasks.
      */

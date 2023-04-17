@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
+import com.linecorp.centraldogma.server.internal.PluginGroup;
 import com.linecorp.centraldogma.server.internal.storage.PurgeSchedulingServicePlugin;
 import com.linecorp.centraldogma.server.plugin.AbstractNoopPlugin;
 import com.linecorp.centraldogma.server.plugin.NoopPluginForAllReplicas;
