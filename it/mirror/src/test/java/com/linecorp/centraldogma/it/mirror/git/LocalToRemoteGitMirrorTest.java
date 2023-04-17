@@ -316,7 +316,7 @@ class LocalToRemoteGitMirrorTest {
         long remainder = MAX_NUM_BYTES + 1;
         final int defaultFileSize = (int) (MAX_NUM_BYTES / MAX_NUM_FILES * 2);
         final ArrayList<Change<String>> changes = new ArrayList<>();
-        for (int i = 0; ; i++) {
+        for (int i = 0;; i++) {
             final int fileSize;
             if (remainder > defaultFileSize) {
                 remainder -= defaultFileSize;
