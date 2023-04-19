@@ -38,7 +38,6 @@ import java.io.IOException;
 import java.util.Objects;
 
 import org.eclipse.jgit.lib.Config;
-import org.eclipse.jgit.lib.ConfigConstants;
 import org.eclipse.jgit.lib.StoredConfig;
 
 public final class JGitUtil {

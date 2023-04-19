@@ -1068,8 +1068,8 @@ class GitRepositoryTest {
                                                  "}]");
 
         final Entry<JsonNode> res3 = repo.get(HEAD, Query.ofJsonPath(
-                                                 "/instances.json", "$[?(@.groups[?(@.type == 'phase' && @.name == 'alpha')] empty false)]"))
-                                         .join();
+                "/instances.json",
+                "$[?(@.groups[?(@.type == 'phase' && @.name == 'alpha')] empty false)]")).join();
 
         assertThatJson(res3.content()).isEqualTo("[{" +
                                                  "  \"name\": \"a\"," +
@@ -1178,11 +1178,11 @@ class GitRepositoryTest {
                 .isInstanceOf(TimeoutException.class);
 
         // Here comes the interesting change; make sure notification is triggered.
-        final Revision rev3 = repo.commit(
-                                          HEAD, 0L, Author.UNKNOWN, SUMMARY,
-                                          Change.ofJsonUpsert(jsonPaths[0], "{ \"hello\": \"jupiter\", \"goodbye\": \"mars\" }"))
-                                  .join()
-                                  .revision();
+        final Revision rev3 =
+                repo.commit(HEAD, 0L, Author.UNKNOWN, SUMMARY,
+                            Change.ofJsonUpsert(jsonPaths[0],
+                                                "{ \"hello\": \"jupiter\", \"goodbye\": \"mars\" }"))
+                    .join().revision();
 
         final Entry<JsonNode> res = f.get(3, TimeUnit.SECONDS);
         assertThat(res.revision()).isEqualTo(rev3);
