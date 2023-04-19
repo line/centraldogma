@@ -431,7 +431,7 @@ class GitMirrorTest {
 
     @Test
     void remoteToLocal_cloneDefaultSettings() throws Exception {
-        // Perform a mirroring task so that the remote Git repository is fetched into `data/_mirrors/`.
+        // Perform a mirroring task so that the remote Git repository is fetched into `<dataDir>/_mirrors/`.
         pushMirrorSettings(null, null, null);
         mirroringService.mirror().join();
 

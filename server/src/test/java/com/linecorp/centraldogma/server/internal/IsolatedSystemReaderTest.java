@@ -17,39 +17,20 @@ package com.linecorp.centraldogma.server.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.util.SystemReader;
 import org.junit.jupiter.api.Test;
 
 class IsolatedSystemReaderTest {
-    static {
-        IsolatedSystemReader.install();
-    }
-
     @Test
     void defaultSettings() throws Exception {
+        IsolatedSystemReader.install();
         final SystemReader reader = SystemReader.getInstance();
         assertThat(reader).isInstanceOf(IsolatedSystemReader.class);
 
         // Make sure all the necessary properties are set.
-        final StoredConfig config = reader.getUserConfig();
-        final String configText = config.toText();
-        assertThat(configText).isEqualTo("[core]\n" +
-                "\trepositoryformatversion = 1\n" +
-                "\thidedotfiles = false\n" +
-                "\tsymlinks = false\n" +
-                "\tfilemode = false\n" +
-                "[commit]\n" +
-                "\tgpgSign = false\n" +
-                "[diff]\n" +
-                "\talgorithm = histogram\n" +
-                "\trenames = false\n" +
-                "[gc]\n" +
-                "\tautopacklimit = 0\n" +
-                "\tauto = 0\n");
-
-        // Make sure user, system and jGit configs are all same with each other.
-        assertThat(reader.getSystemConfig().toText()).isEqualTo(configText);
-        assertThat(reader.getJGitConfig().toText()).isEqualTo(configText);
+        assertThat(reader.getUserConfig()).isSameAs(IsolatedSystemReader.EMPTY_CONFIG);
+        assertThat(reader.getSystemConfig()).isSameAs(IsolatedSystemReader.EMPTY_CONFIG);
+        assertThat(reader.getJGitConfig()).isSameAs(IsolatedSystemReader.EMPTY_CONFIG);
+        assertThat(reader.getUserConfig()).isSameAs(IsolatedSystemReader.EMPTY_CONFIG);
     }
 }

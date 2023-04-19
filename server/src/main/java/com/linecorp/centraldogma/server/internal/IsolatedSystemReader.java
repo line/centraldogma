@@ -33,6 +33,8 @@ import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.SystemReader;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import com.linecorp.armeria.common.util.SystemInfo;
 
 /**
@@ -44,8 +46,9 @@ public final class IsolatedSystemReader extends SystemReader {
     private static final Pattern allowedSystemPropertyNamePattern = Pattern.compile(
             "^(?:java|os|file|path|line|user|native|jdk)\\.");
 
+    @VisibleForTesting
+    static final FileBasedConfig EMPTY_CONFIG = new EmptyConfig();
     private static final SystemReader INSTANCE = new IsolatedSystemReader();
-    private static final FileBasedConfig EMPTY_CONFIG = new EmptyConfig();
     private static final String[] EMPTY_STRING_ARRAY = {};
 
     public static void install() {
