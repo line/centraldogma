@@ -17,6 +17,7 @@ package com.linecorp.centraldogma.testing.junit;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -27,6 +28,7 @@ import com.spotify.futures.CompletableFutures;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.WebClientBuilder;
+import com.linecorp.armeria.common.annotation.UnstableApi;
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.client.armeria.ArmeriaCentralDogmaBuilder;
 import com.linecorp.centraldogma.client.armeria.legacy.LegacyCentralDogmaBuilder;
@@ -112,6 +114,16 @@ public class CentralDogmaExtension extends AbstractAllOrEachExtension {
                 throw new CompletionException(e);
             }
         });
+    }
+
+    /**
+     * Returns the {@link Path} to the server's data directory.
+     *
+     * @throws IllegalStateException if the data directory is not created yet
+     */
+    @UnstableApi
+    public final Path dataDir() {
+        return dataDir.getRoot();
     }
 
     /**
