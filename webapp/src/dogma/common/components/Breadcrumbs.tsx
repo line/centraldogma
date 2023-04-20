@@ -30,7 +30,6 @@ export const Breadcrumbs = ({
       {asPathNestedRoutes.map((page, i) => {
         prefixes.push(page);
         const item = replaces[i] || page;
-        console.log('item', item, prefixes);
         if (!omitIndexList.includes(i)) {
           return (
             <BreadcrumbItem key={i}>

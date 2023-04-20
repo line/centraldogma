@@ -28,7 +28,7 @@ import {
   Tbody,
   Td,
   Tr,
-  VStack
+  VStack,
 } from '@chakra-ui/react';
 import { GoKey, GoLock } from 'react-icons/go';
 import { EditIcon } from '@chakra-ui/icons';
@@ -57,7 +57,7 @@ const SecretViewer = ({ dispatch, secretProvider }: SecretViewerProps) => {
   const [showSecret, setShowSecret] = useState(false);
   return (
     <Flex wrap="wrap">
-      <Code width="80%" p={5} whiteSpace="pre-wrap">
+      <Code width="700px" p={10} whiteSpace="pre-wrap">
         {showSecret ? secretProvider() : '********'}
         {}
       </Code>
@@ -65,6 +65,7 @@ const SecretViewer = ({ dispatch, secretProvider }: SecretViewerProps) => {
         aria-label="show public key"
         size="xs"
         color="teal.500"
+        marginTop={1}
         bottom={-2}
         right={28}
         onClick={() => setShowSecret(!showSecret)}
@@ -75,6 +76,7 @@ const SecretViewer = ({ dispatch, secretProvider }: SecretViewerProps) => {
         aria-label="Copy public key"
         size="xs"
         color="purple"
+        marginTop={1}
         bottom={-2}
         right={28}
         onClick={async () => {
@@ -100,120 +102,120 @@ const CredentialView = ({ projectName, credential }: CredentialViewProps) => {
 
   return (
     <Center>
-      <VStack width="80%" align='left'>
-      <Heading color='teal.500' size='lg' alignSelf="center" mb={4}>
-        Credential - {credential.id || credential.index }
-      </Heading>
-      <TableContainer mt="7">
-        <Table fontSize={'lg'} variant="unstyled">
-          <Tbody>
-            <Tr>
-              <HeadRow>
-                <AlignedIcon as={HiOutlineIdentification} /> Credential ID
-              </HeadRow>
-              <Td fontWeight="bold">{credential.id}</Td>
-            </Tr>
-            <Tr>
-              <HeadRow>
-                <AlignedIcon as={GoLock} /> Authentication Type
-              </HeadRow>
-              <Td>
-                <Badge colorScheme="purple">{credential.type}</Badge>
-              </Td>
-            </Tr>
-            <Tr>
-              <HeadRow>
-                <AlignedIcon as={VscRegex} /> Hostname patterns
-              </HeadRow>
-              <Td>
-                {credential.hostnamePatterns.length === 0 ? (
-                  '-'
-                ) : (
-                  <Code p={2} variant="outline">
-                    {credential.hostnamePatterns.join(', ')}
-                  </Code>
-                )}
-              </Td>
-            </Tr>
-            {credential.type === 'public_key' && (
-              <>
-                <Tr>
-                  <HeadRow>
-                    <AlignedIcon as={HiOutlineUser} /> Username
-                  </HeadRow>
-                  <Td>{credential.username}</Td>
-                </Tr>
-                <Tr>
-                  <HeadRow>
-                    <AlignedIcon as={MdPublic} /> Public key
-                  </HeadRow>
-                  <Td>
-                    <SecretViewer dispatch={dispatch} secretProvider={() => credential.publicKey} />
-                  </Td>
-                </Tr>
-                <Tr>
-                  <HeadRow>
-                    <AlignedIcon as={RiGitRepositoryPrivateLine} /> Private key
-                  </HeadRow>
-                  <Td>
-                    <SecretViewer dispatch={dispatch} secretProvider={() => credential.privateKey} />
-                  </Td>
-                </Tr>
-                <Tr>
-                  <HeadRow>
-                    <AlignedIcon as={GoKey} /> Passphrase
-                  </HeadRow>
-                  <Td>
-                    {credential.passphrase ? (
-                      <SecretViewer dispatch={dispatch} secretProvider={() => credential.passphrase} />
-                    ) : (
-                      ''
-                    )}
-                  </Td>
-                </Tr>
-              </>
-            )}
-            {credential.type === 'password' && (
-              <>
-                <Tr>
-                  <HeadRow>
-                    <AlignedIcon as={HiOutlineUser} /> Username
-                  </HeadRow>
-                  <Td>{credential.username}</Td>
-                </Tr>
-                <Tr>
-                  <HeadRow>
-                    <AlignedIcon as={GoKey} /> Password
-                  </HeadRow>
-                  <Td>
-                    <SecretViewer dispatch={dispatch} secretProvider={() => credential.password} />
-                  </Td>
-                </Tr>
-              </>
-            )}
-
-            {credential.type === 'access_token' && (
+      <VStack width="100%" align="left">
+        <Heading color="teal.500" size="lg" alignSelf="center" mb={4}>
+          Credential - {credential.id || credential.index}
+        </Heading>
+        <TableContainer mt="7">
+          <Table fontSize={'lg'} variant="unstyled">
+            <Tbody>
               <Tr>
                 <HeadRow>
-                  <AlignedIcon as={GoKey} /> Access Token
+                  <AlignedIcon as={HiOutlineIdentification} /> Credential ID
+                </HeadRow>
+                <Td fontWeight="bold">{credential.id}</Td>
+              </Tr>
+              <Tr>
+                <HeadRow>
+                  <AlignedIcon as={GoLock} /> Authentication Type
                 </HeadRow>
                 <Td>
-                  <SecretViewer dispatch={dispatch} secretProvider={() => credential.accessToken} />
+                  <Badge colorScheme="purple">{credential.type}</Badge>
                 </Td>
               </Tr>
-            )}
-          </Tbody>
-        </Table>
-      </TableContainer>
+              <Tr>
+                <HeadRow>
+                  <AlignedIcon as={VscRegex} /> Hostname patterns
+                </HeadRow>
+                <Td>
+                  {credential.hostnamePatterns.length === 0 ? (
+                    '-'
+                  ) : (
+                    <Code p={2} variant="outline">
+                      {credential.hostnamePatterns.join(', ')}
+                    </Code>
+                  )}
+                </Td>
+              </Tr>
+              {credential.type === 'public_key' && (
+                <>
+                  <Tr>
+                    <HeadRow>
+                      <AlignedIcon as={HiOutlineUser} /> Username
+                    </HeadRow>
+                    <Td>{credential.username}</Td>
+                  </Tr>
+                  <Tr>
+                    <HeadRow>
+                      <AlignedIcon as={MdPublic} /> Public key
+                    </HeadRow>
+                    <Td>
+                      <SecretViewer dispatch={dispatch} secretProvider={() => credential.publicKey} />
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <HeadRow>
+                      <AlignedIcon as={RiGitRepositoryPrivateLine} /> Private key
+                    </HeadRow>
+                    <Td>
+                      <SecretViewer dispatch={dispatch} secretProvider={() => credential.privateKey} />
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <HeadRow>
+                      <AlignedIcon as={GoKey} /> Passphrase
+                    </HeadRow>
+                    <Td>
+                      {credential.passphrase ? (
+                        <SecretViewer dispatch={dispatch} secretProvider={() => credential.passphrase} />
+                      ) : (
+                        ''
+                      )}
+                    </Td>
+                  </Tr>
+                </>
+              )}
+              {credential.type === 'password' && (
+                <>
+                  <Tr>
+                    <HeadRow>
+                      <AlignedIcon as={HiOutlineUser} /> Username
+                    </HeadRow>
+                    <Td>{credential.username}</Td>
+                  </Tr>
+                  <Tr>
+                    <HeadRow>
+                      <AlignedIcon as={GoKey} /> Password
+                    </HeadRow>
+                    <Td>
+                      <SecretViewer dispatch={dispatch} secretProvider={() => credential.password} />
+                    </Td>
+                  </Tr>
+                </>
+              )}
 
-      <Center mt={10}>
-        <Link href={`/app/projects/${projectName}/credentials/${credential.index}/edit`}>
-          <Button colorScheme="teal">
-            <EditIcon mr={2} />
-            Edit credential
-          </Button>
-        </Link>
-      </Center>
+              {credential.type === 'access_token' && (
+                <Tr>
+                  <HeadRow>
+                    <AlignedIcon as={GoKey} /> Access Token
+                  </HeadRow>
+                  <Td>
+                    <SecretViewer dispatch={dispatch} secretProvider={() => credential.accessToken} />
+                  </Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        </TableContainer>
+
+        <Center mt={10}>
+          <Link href={`/app/projects/${projectName}/credentials/${credential.index}/edit`}>
+            <Button colorScheme="teal">
+              <EditIcon mr={2} />
+              Edit credential
+            </Button>
+          </Link>
+        </Center>
       </VStack>
     </Center>
   );

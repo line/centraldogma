@@ -28,6 +28,7 @@ export const getUser = createAsyncThunk('/auth/user', async (_, { getState, disp
     if (!auth.sessionId) {
       return rejectWithValue('Login required');
     }
+    // TODO(ikhoon): Replace axios with fetch
     const { data } = await axios.get(`/api/v0/users/me`, {
       headers: {
         Authorization: `Bearer ${auth.sessionId}`,
