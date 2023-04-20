@@ -39,6 +39,7 @@ final class SimpleCentralDogmaTestServer {
         final CentralDogma server = new CentralDogmaBuilder(rooDir.toFile())
                 // Enable the legacy webapp
                 // .webAppEnabled(true)
+                .cors("*")
                 .port(PORT, SessionProtocol.HTTP)
                 .build();
         server.start().join();

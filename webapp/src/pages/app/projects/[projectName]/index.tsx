@@ -22,7 +22,7 @@ const ProjectDetailPage = () => {
     <Deferred isLoading={isLoading} error={error}>
       {() => (
         <Box p="2">
-          <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0]} suffixes={{ 4: '/list/head' }} />
+          <Breadcrumbs path={router.asPath.split('?')[0]} omitIndexList={[0]} />
           <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
             <Heading size="lg">Project {projectName}</Heading>
           </Flex>
@@ -36,7 +36,7 @@ const ProjectDetailPage = () => {
               <TabPanel>
                 <Flex gap={2}>
                   <Spacer />
-                  <MetadataButton href={`/app/projects/metadata/${projectName}`} props={{ size: 'sm' }} />
+                  <MetadataButton href={`/app/projects/${projectName}/metadata`} props={{ size: 'sm' }} />
                   <NewRepo projectName={projectName} />
                 </Flex>
                 <RepoList data={repoData || []} projectName={projectName} />

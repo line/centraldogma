@@ -15,7 +15,6 @@
  */
 import { ReactNode } from 'react';
 import { Box, Container } from '@chakra-ui/react';
-// TODO(ikhoon): ESLINT
 import { Navbar } from 'dogma/common/components/Navbar';
 
 export const Layout = ({ children }: { children: ReactNode }) => (

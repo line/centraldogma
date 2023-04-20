@@ -1,10 +1,11 @@
-import { Tag, WrapItem, Wrap, TagLabel } from '@chakra-ui/react';
+import { Icon, Tag, TagLabel, Wrap, WrapItem } from '@chakra-ui/react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DataTableClientPagination } from 'dogma/common/components/table/DataTableClientPagination';
 import { RepoPermissionDetailDto } from 'dogma/features/repo/RepoPermissionDto';
 import { useMemo } from 'react';
 import { AppMemberDetailDto } from 'dogma/features/metadata/AppMemberDto';
 import { ChakraLink } from 'dogma/common/components/ChakraLink';
+import { RiGitRepositoryPrivateLine } from 'react-icons/ri';
 
 export type RepoPermissionListProps<Data extends object> = {
   data: Data[];
@@ -18,8 +19,11 @@ const RepoPermissionList = <Data extends object>({ data, projectName }: RepoPerm
     () => [
       columnHelper.accessor((row: RepoPermissionDetailDto) => row.name, {
         cell: (info) => (
-          <ChakraLink fontWeight={'semibold'} href={`/app/projects/metadata/${projectName}/${info.getValue()}`}>
-            {info.getValue()}
+          <ChakraLink
+            fontWeight={'semibold'}
+            href={`/app/projects/${projectName}/permissions/repos/${info.getValue()}`}
+          >
+            <Icon as={RiGitRepositoryPrivateLine} marginBottom={-0.5} /> {info.getValue()}
           </ChakraLink>
         ),
         header: 'Name',

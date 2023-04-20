@@ -16,16 +16,31 @@
 
 package com.linecorp.centraldogma.server.storage.repository;
 
-import java.util.Set;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
 
 /**
  * A Revision-controlled filesystem-like repository which is named {@code "meta"}.
  */
 public interface MetaRepository extends Repository {
     /**
-     * Returns a set of mirroring tasks.
+     * Returns active mirroring tasks.
      */
-    Set<Mirror> mirrors();
+    default CompletableFuture<List<Mirror>> mirrors() {
+        return mirrors(false);
+    }
+
+    /**
+     * Returns a set of mirroring tasks. If {@code includeDisabled} is @{code true}, disabled mirroring tasks
+     * are also included in the returned {@link Mirror}s.
+     */
+    CompletableFuture<List<Mirror>> mirrors(boolean includeDisabled);
+
+    /**
+     * Returns a list of mirroring credentials.
+     */
+    CompletableFuture<List<MirrorCredential>> credentials();
 }

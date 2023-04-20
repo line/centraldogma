@@ -173,7 +173,7 @@ export const NewRepoTokenPermission = ({
                 isLoading={isLoading}
               />
             ) : (
-              <ChakraLink href={`/app/projects/metadata/${projectName}/#tokens`} color="teal">
+              <ChakraLink href={`/app/projects/${projectName}/metadata/#tokens`} color="teal">
                 Go to project {projectName}&apos;s token page
               </ChakraLink>
             )}

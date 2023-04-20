@@ -23,6 +23,8 @@ import java.net.URLDecoder;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 /**
  * A utility class for creating a mirroring task.
  */
@@ -59,7 +61,7 @@ public final class MirrorUtil {
      *
      * <p>e.g. git+ssh://foo.com/bar.git/some-path#master is split into:
      * - remoteRepoUri: git+ssh://foo.com/bar.git
-     * - remotePath:    /some-path/
+     * - remotePath:    /some-path
      * - remoteBranch:  master
      *
      * <p>e.g. dogma://foo.com/bar/qux.dogma is split into:
@@ -67,7 +69,7 @@ public final class MirrorUtil {
      * - remotePath:    / (default)
      * - remoteBranch:  {@code defaultBranch}
      */
-    static String[] split(URI remoteUri, String suffix) {
+    public static String[] splitRemoteUri(URI remoteUri, String suffix, @Nullable String defaultBranch) {
         final String host = remoteUri.getHost();
         if (host == null && !remoteUri.getScheme().endsWith("+file")) {
             throw new IllegalArgumentException("no host in remoteUri: " + remoteUri);
@@ -106,7 +108,8 @@ public final class MirrorUtil {
             throw new Error(e);
         }
 
-        final String remoteBranch = remoteUri.getFragment();
+        final String fragment = remoteUri.getFragment();
+        final String remoteBranch = fragment != null ? fragment : defaultBranch;
 
         return new String[] { newRemoteUri, remotePath, remoteBranch };
     }

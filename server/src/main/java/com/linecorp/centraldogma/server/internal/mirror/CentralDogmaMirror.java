@@ -35,13 +35,13 @@ public final class CentralDogmaMirror extends AbstractMirror {
     private final String remoteProject;
     private final String remoteRepo;
 
-    public CentralDogmaMirror(Cron schedule, MirrorDirection direction, MirrorCredential credential,
-                              Repository localRepo, String localPath,
+    public CentralDogmaMirror(int index, @Nullable String id, Cron schedule, MirrorDirection direction,
+                              MirrorCredential credential, Repository localRepo, String localPath,
                               URI remoteRepoUri, String remoteProject, String remoteRepo, String remotePath,
-                              @Nullable String gitignore) {
+                              @Nullable String gitignore, boolean enabled) {
         // Central Dogma has no notion of 'branch', so we just pass null as a placeholder.
-        super(schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, null,
-              gitignore);
+        super(index, id, schedule, direction, credential, localRepo, localPath, remoteRepoUri, remotePath, null,
+              gitignore, enabled);
 
         this.remoteProject = requireNonNull(remoteProject, "remoteProject");
         this.remoteRepo = requireNonNull(remoteRepo, "remoteRepo");

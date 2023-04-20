@@ -71,7 +71,7 @@ if (!rootProject.hasProperty('noLint')) {
 
     Task lintTask = project.ext.getLintTask()
     lintTask.dependsOn(tasks.eslint)
-    tasks.buildWeb.dependsOn(lintTask)
+    tasks.buildWeb.dependsOn(tasks.eslint)
 }
 
 task testWeb(type: NpmTask) {

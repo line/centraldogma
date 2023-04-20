@@ -78,7 +78,7 @@ describe('RepoPermissionList', () => {
     const firstRepoName = 'meta';
     expect(firstCell).toHaveAttribute(
       'href',
-      `/app/projects/metadata/${expectedProps.projectName}/${firstRepoName}`,
+      `/app/projects/${expectedProps.projectName}/permissions/repos/${firstRepoName}`,
     );
   });
 });

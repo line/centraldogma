@@ -173,7 +173,7 @@ export const NewRepoUserPermission = ({
                 isLoading={isLoading}
               />
             ) : (
-              <ChakraLink href={`/app/projects/metadata/${projectName}/#members`} color="teal">
+              <ChakraLink href={`/app/projects/${projectName}/metadata/#members`} color="teal">
                 Go to project {projectName}&apos;s member page
               </ChakraLink>
             )}

@@ -36,9 +36,13 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
 
     private final String username;
     private final byte[] publicKey;
+    private final String publicKeyString;
     private final byte[] privateKey;
+    private final String privateKeyString;
     @Nullable
     private final byte[] passphrase;
+    @Nullable
+    private final String passphraseString;
 
     @JsonCreator
     public PublicKeyMirrorCredential(@JsonProperty("id") @Nullable String id,
@@ -48,32 +52,24 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
                                      @JsonProperty("username") String username,
                                      @JsonProperty("publicKey") String publicKey,
                                      @JsonProperty("privateKey") String privateKey,
-                                     @JsonProperty("passphrase") @Nullable String passphrase) {
+                                     @JsonProperty("passphrase") @Nullable String passphrase,
+                                     @JsonProperty("enabled") @Nullable Boolean enabled) {
 
-        super(id, hostnamePatterns);
+        super(id, "public_key", hostnamePatterns, enabled);
 
         this.username = requireNonEmpty(username, "username");
 
         requireNonEmpty(publicKey, "publicKey");
         requireNonEmpty(privateKey, "privateKey");
         this.publicKey = requireNonEmpty(publicKey, "publicKey").getBytes(StandardCharsets.UTF_8);
+        this.publicKeyString = publicKey;
         this.privateKey = requireNonEmpty(privateKey, "privateKey").getBytes(StandardCharsets.UTF_8);
-
+        this.privateKeyString = privateKey;
         this.passphrase = decodeBase64OrUtf8(passphrase, "passphrase");
+        this.passphraseString = passphrase;
     }
 
-    public PublicKeyMirrorCredential(@Nullable String id,
-                                     @Nullable Iterable<Pattern> hostnamePatterns,
-                                     String username, byte[] publicKey, byte[] privateKey,
-                                     @Nullable byte[] passphrase) {
-        super(id, hostnamePatterns);
-
-        this.username = requireNonEmpty(username, "username");
-        this.publicKey = requireNonEmpty(publicKey, "publicKey");
-        this.privateKey = requireNonEmpty(privateKey, "privateKey");
-        this.passphrase = passphrase;
-    }
-
+    @JsonProperty("username")
     public String username() {
         return username;
     }
@@ -82,8 +78,18 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
         return publicKey.clone();
     }
 
+    @JsonProperty("publicKey")
+    public String publicKeyString() {
+        return publicKeyString;
+    }
+
     public byte[] privateKey() {
         return privateKey.clone();
+    }
+
+    @JsonProperty("privateKey")
+    public String privateKeyString() {
+        return privateKeyString;
     }
 
     @Nullable
@@ -93,6 +99,12 @@ public final class PublicKeyMirrorCredential extends AbstractMirrorCredential {
         } else {
             return passphrase.clone();
         }
+    }
+
+    @JsonProperty("passphrase")
+    @Nullable
+    public String passphraseString() {
+        return passphraseString;
     }
 
     @Override

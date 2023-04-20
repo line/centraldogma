@@ -36,14 +36,17 @@ class NoneMirrorCredentialTest {
                                      "  \"type\": \"none\"," +
                                      "  \"hostnamePatterns\": [" +
                                      "    \"^foo\\\\.com$\"" +
-                                     "  ]" +
+                                     "  ]," +
+                                     "  \"enabled\": true" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new NoneMirrorCredential(null, ImmutableSet.of(Pattern.compile("^foo\\.com$"))));
+                .isEqualTo(new NoneMirrorCredential(null,
+                                                    ImmutableSet.of(Pattern.compile("^foo\\.com$")),
+                                                    true));
         // With ID
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"none\"," +
                                      "  \"id\": \"foo\"" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new NoneMirrorCredential("foo", null));
+                .isEqualTo(new NoneMirrorCredential("foo", null, true));
     }
 }

@@ -30,15 +30,15 @@ class AccessTokenMirrorCredentialTest {
     @Test
     void testConstruction() throws Exception {
         // null checks
-        assertThatThrownBy(() -> new AccessTokenMirrorCredential(null, null, null))
+        assertThatThrownBy(() -> new AccessTokenMirrorCredential(null, null, null, true))
                 .isInstanceOf(NullPointerException.class);
 
         // emptiness checks
-        assertThatThrownBy(() -> new AccessTokenMirrorCredential(null, null, ""))
+        assertThatThrownBy(() -> new AccessTokenMirrorCredential(null, null, "", true))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // successful construction
-        final AccessTokenMirrorCredential c = new AccessTokenMirrorCredential(null, null, "sesame");
+        final AccessTokenMirrorCredential c = new AccessTokenMirrorCredential(null, null, "sesame", true);
         assertThat(c.accessToken()).isEqualTo("sesame");
     }
 
@@ -53,13 +53,13 @@ class AccessTokenMirrorCredentialTest {
                                      "  \"accessToken\": \"sesame\"" +
                                      '}', MirrorCredential.class))
                 .isEqualTo(new AccessTokenMirrorCredential(null, HOSTNAME_PATTERNS,
-                                                           "sesame"));
+                                                           "sesame", true));
         // With ID
         assertThat(Jackson.readValue('{' +
                                      "  \"type\": \"access_token\"," +
                                      "  \"id\": \"foo\"," +
                                      "  \"accessToken\": \"sesame\"" +
                                      '}', MirrorCredential.class))
-                .isEqualTo(new AccessTokenMirrorCredential("foo", null, "sesame"));
+                .isEqualTo(new AccessTokenMirrorCredential("foo", null, "sesame", true));
     }
 }
