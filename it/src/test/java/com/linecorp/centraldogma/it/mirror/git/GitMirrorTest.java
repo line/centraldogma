@@ -25,6 +25,8 @@ import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_GPGSIGN;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
@@ -40,7 +42,9 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.storage.file.FileBasedConfig;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.util.FS;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +56,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
-import com.google.common.io.Files;
+import com.google.common.collect.ImmutableList;
 
 import com.linecorp.centraldogma.client.CentralDogma;
 import com.linecorp.centraldogma.common.CentralDogmaException;
@@ -64,6 +68,7 @@ import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.MirroringService;
+import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.testing.internal.TemporaryFolderExtension;
 import com.linecorp.centraldogma.testing.internal.TestUtil;
@@ -353,9 +358,9 @@ class GitMirrorTest {
         createGitRepo(gitSubmoduleRepo);
         final Git gitSubmodule = Git.wrap(gitSubmoduleRepo);
         final String gitSubmoduleUri = "file://" +
-                 (gitSubmoduleWorkTree.getPath().startsWith(File.separator) ? "" : "/") +
-                 gitSubmoduleWorkTree.getPath().replace(File.separatorChar, '/') +
-                 "/.git";
+                                       (gitSubmoduleWorkTree.getPath().startsWith(File.separator) ? "" : "/") +
+                                       gitSubmoduleWorkTree.getPath().replace(File.separatorChar, '/') +
+                                       "/.git";
 
         // Prepare the master branch of the submodule repository.
         addToGitIndex(gitSubmodule, gitSubmoduleWorkTree,
@@ -424,6 +429,39 @@ class GitMirrorTest {
                 .hasMessageContaining("byte");
     }
 
+    @Test
+    void remoteToLocal_cloneDefaultSettings() throws Exception {
+        // Perform a mirroring task so that the remote Git repository is fetched into `<dataDir>/_mirrors/`.
+        pushMirrorSettings(null, null, null);
+        mirroringService.mirror().join();
+
+        // Find the Git config files.
+        final List<File> configFiles = Files.list(dogma.dataDir().resolve("_mirrors"))
+                                            .map(p -> p.resolve("config"))
+                                            .filter(Files::isRegularFile)
+                                            .map(Path::toFile)
+                                            .collect(ImmutableList.toImmutableList());
+
+        // We should find at least one.
+        assertThat(configFiles).isNotEmpty();
+
+        for (File configFile : configFiles) {
+            // Load the Git config file.
+            final FileBasedConfig config = new FileBasedConfig(configFile, FS.DETECTED);
+            config.load();
+            final String configText = config.toText();
+
+            // All properties set by JGitUtil must be set already,
+            // leading `applyDefaults()` to return `false` (means 'not modified').
+            assertThat(JGitUtil.applyDefaults(config))
+                    .withFailMessage("A mirror repository has unexpected config value(s): %s\n" +
+                                     "actual:\n%s\n\n\n" +
+                                     "expected:\n%s\n\n\n",
+                                     configFile, configText, config.toText())
+                    .isFalse();
+        }
+    }
+
     @CsvSource({ "meta", "dogma" })
     @ParameterizedTest
     void cannotMirrorToInternalRepositories(String localRepo) {
@@ -473,7 +511,7 @@ class GitMirrorTest {
                               String path, String content) throws IOException, GitAPIException {
         final File file = Paths.get(gitWorkTree.getAbsolutePath(), path.split("/")).toFile();
         file.getParentFile().mkdirs();
-        Files.asCharSink(file, StandardCharsets.UTF_8).write(content);
+        Files.write(file.toPath(), content.getBytes(StandardCharsets.UTF_8));
         git.add().addFilepattern(path).call();
     }
 

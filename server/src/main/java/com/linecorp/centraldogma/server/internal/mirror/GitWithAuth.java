@@ -56,6 +56,7 @@ import com.jcraft.jsch.UserInfo;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
+import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.mirror.credential.AccessTokenMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
@@ -108,6 +109,8 @@ abstract class GitWithAuth extends Git {
             if (!repo.getObjectDatabase().exists()) {
                 repo.create(true);
             }
+
+            JGitUtil.applyDefaultsAndSave(repo.getConfig());
             success = true;
             return repo;
         } finally {

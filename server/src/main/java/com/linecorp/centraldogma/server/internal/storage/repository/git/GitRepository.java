@@ -22,16 +22,8 @@ import static com.linecorp.centraldogma.server.internal.storage.repository.git.F
 import static com.linecorp.centraldogma.server.internal.storage.repository.git.FailFastUtil.failFastIfTimedOut;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_COMMIT_SECTION;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_CORE_SECTION;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_DIFF_SECTION;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_ALGORITHM;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_FILEMODE;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_GPGSIGN;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_HIDEDOTFILES;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_RENAMES;
 import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_REPO_FORMAT_VERSION;
-import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_SYMLINKS;
 
 import java.io.File;
 import java.io.IOException;
@@ -68,7 +60,6 @@ import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.dircache.DirCacheIterator;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.CoreConfig.HideDotFiles;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectIdOwnerMap;
@@ -79,7 +70,6 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.lib.RepositoryBuilder;
-import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -120,6 +110,7 @@ import com.linecorp.centraldogma.internal.jsonpatch.JsonPatch;
 import com.linecorp.centraldogma.internal.jsonpatch.ReplaceMode;
 import com.linecorp.centraldogma.server.command.CommitResult;
 import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
+import com.linecorp.centraldogma.server.internal.JGitUtil;
 import com.linecorp.centraldogma.server.internal.storage.repository.RepositoryCache;
 import com.linecorp.centraldogma.server.storage.StorageException;
 import com.linecorp.centraldogma.server.storage.project.Project;
@@ -232,25 +223,8 @@ class GitRepository implements Repository {
                 }
                 initRepo.create(true);
 
-                final StoredConfig config = initRepo.getConfig();
-                // Update the repository settings to upgrade to format version 1 and reftree.
-                config.setInt(CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 1);
-
-                // Disable hidden files, symlinks and file modes we do not use.
-                config.setEnum(CONFIG_CORE_SECTION, null, CONFIG_KEY_HIDEDOTFILES, HideDotFiles.FALSE);
-                config.setBoolean(CONFIG_CORE_SECTION, null, CONFIG_KEY_SYMLINKS, false);
-                config.setBoolean(CONFIG_CORE_SECTION, null, CONFIG_KEY_FILEMODE, false);
-
-                // Disable GPG signing.
-                config.setBoolean(CONFIG_COMMIT_SECTION, null, CONFIG_KEY_GPGSIGN, false);
-
-                // Set the diff algorithm.
-                config.setString(CONFIG_DIFF_SECTION, null, CONFIG_KEY_ALGORITHM, "histogram");
-
-                // Disable rename detection which we do not use.
-                config.setBoolean(CONFIG_DIFF_SECTION, null, CONFIG_KEY_RENAMES, false);
-
-                config.save();
+                // Save the initial default settings.
+                JGitUtil.applyDefaultsAndSave(initRepo.getConfig());
             }
 
             // Re-open the repository with the updated settings.
@@ -303,12 +277,16 @@ class GitRepository implements Repository {
                 throw new RepositoryNotFoundException(repoDir.toString());
             }
 
-            // Retrieve the tag format.
+            // Retrieve the repository format.
             final int formatVersion = jGitRepository.getConfig().getInt(
                     CONFIG_CORE_SECTION, null, CONFIG_KEY_REPO_FORMAT_VERSION, 0);
-            if (formatVersion != 1) {
-                throw new StorageException("unsupported repository format version: " + formatVersion);
+            if (formatVersion != JGitUtil.REPO_FORMAT_VERSION) {
+                throw new StorageException("unsupported repository format version: " + formatVersion +
+                                           " (expected: " + JGitUtil.REPO_FORMAT_VERSION + ')');
             }
+
+            // Update the default settings if necessary.
+            JGitUtil.applyDefaultsAndSave(jGitRepository.getConfig());
         } catch (IOException e) {
             throw new StorageException("failed to open a repository at: " + repoDir, e);
         }
