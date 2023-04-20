@@ -75,7 +75,9 @@ const ProjectMetadataView = ({ projectName, currentTab, children }: ProjectMetad
 
   let accessRole = 'GUEST';
   if (metadata && user) {
-    const appUser = Array.from(Object.values(metadata.members)).find((m: AppMemberDetailDto) => m.login === user.email);
+    const appUser = Array.from(Object.values(metadata.members)).find(
+      (m: AppMemberDetailDto) => m.login === user.email,
+    );
     if (appUser != null) {
       accessRole = appUser.role;
     }
@@ -85,7 +87,6 @@ const ProjectMetadataView = ({ projectName, currentTab, children }: ProjectMetad
       {() => (
         <Box p="2">
           <Breadcrumbs path={router.asPath} omitIndexList={[0]} />
-          {/*<Breadcrumbs />*/}
           <Flex minWidth="max-content" alignItems="center" gap="2" mb={6}>
             <Heading size="lg">Project {projectName} - Metadata</Heading>
           </Flex>

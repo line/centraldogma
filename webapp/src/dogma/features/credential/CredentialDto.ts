@@ -27,13 +27,13 @@ export interface CredentialDto {
   password?: string;
 
   // Public key-based credential.
-  // - username is included in this credential.
-  // - passphrase is optional and other fields are required.
+  // - `username` is also included in this credential.
+  // - `passphrase` is optional and other fields are required.
   publicKey?: string;
   privateKey?: string;
   passphrase?: string;
 
   // Access token-based credential
-  // - access token is required.
+  // - `accessToken` is required.
   accessToken?: string;
 }

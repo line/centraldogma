@@ -15,34 +15,41 @@
  */
 
 import { useRouter } from 'next/router';
-import { Spacer, } from '@chakra-ui/react';
+import { Spacer } from '@chakra-ui/react';
 import { useGetCredentialsQuery, useGetMirrorQuery } from 'dogma/features/api/apiSlice';
 import { Deferred } from 'dogma/common/components/Deferred';
 import React from 'react';
 import { Breadcrumbs } from 'dogma/common/components/Breadcrumbs';
-import MirrorView from "dogma/features/mirror/MirrorView";
+import MirrorView from 'dogma/features/mirror/MirrorView';
 import { CredentialDto } from 'dogma/features/credential/CredentialDto';
 
 const MirrorViewPage = () => {
   const router = useRouter();
   const projectName = router.query.projectName as string;
   const index = parseInt(router.query.index as string, 10);
-  const { data: mirror, isLoading: isMirrorLoading, error: mirrorError} = useGetMirrorQuery({ projectName, index });
-  const { data: credentials , isLoading: isCredentialLoading, error: credentialError} = useGetCredentialsQuery(projectName);
+  const {
+    data: mirror,
+    isLoading: isMirrorLoading,
+    error: mirrorError,
+  } = useGetMirrorQuery({ projectName, index });
+  const {
+    data: credentials,
+    isLoading: isCredentialLoading,
+    error: credentialError,
+  } = useGetCredentialsQuery(projectName);
   const credential = (credentials || []).find((credential: CredentialDto) => {
     return credential.id === mirror?.credentialId;
   });
 
   return (
-    <Deferred isLoading={isMirrorLoading || isCredentialLoading} error={mirrorError|| credentialError}>
+    <Deferred isLoading={isMirrorLoading || isCredentialLoading} error={mirrorError || credentialError}>
       {() => {
-        const breadcrumbPath = router.asPath.replace(`/mirrors/${index}`, `/mirrors/${mirror.id}`);
         return (
           <>
-            <Breadcrumbs path={breadcrumbPath} omitIndexList={[0]} />
+            <Breadcrumbs path={router.asPath} omitIndexList={[0]} replaces={{ 4: mirror.id }} />
             <Spacer />
             <MirrorView projectName={projectName} mirror={mirror} credential={credential} />
-            </>
+          </>
         );
       }}
     </Deferred>
