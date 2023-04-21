@@ -22,7 +22,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import com.linecorp.armeria.common.annotation.Nullable;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.transport.JschConfigSessionFactory;
@@ -32,6 +31,7 @@ import org.eclipse.jgit.transport.SshTransport;
 
 import com.jcraft.jsch.Session;
 
+import com.linecorp.armeria.common.annotation.Nullable;
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirrorCredential;
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
@@ -46,7 +46,8 @@ final class Git5WithAuth extends GitWithAuth {
     static {
         Method setConfigMethod = null;
         try {
-            setConfigMethod = JschConfigSessionFactory.class.getDeclaredMethod("setConfig", OpenSshConfig.class);
+            setConfigMethod =
+                    JschConfigSessionFactory.class.getDeclaredMethod("setConfig", OpenSshConfig.class);
             setConfigMethod.setAccessible(true);
         } catch (NoSuchMethodException ignored) {
         }
@@ -87,7 +88,7 @@ final class Git5WithAuth extends GitWithAuth {
     }
 
     @Override
-    public  <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
+    public <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
             final SshTransport sshTransport = (SshTransport) transport;
             final JschConfigSessionFactory sessionFactory = new JschConfigSessionFactory() {
@@ -125,9 +126,12 @@ final class Git5WithAuth extends GitWithAuth {
     /**
      * Returns an empty {@link OpenSshConfig}.
      *
-     * <p>The default {@link OpenSshConfig} reads the SSH config in `~/.ssh/config` and converts the identity files into
-     * {@code com.jcraft.jsch.KeyPair}. Since JSch does not support Ed25519, `KeyPair.load()` raise an exception if
-     * Ed25519 is used locally. Plus, Central Dogma uses {@link PublicKeyMirrorCredential}, we need to provide an empty
+     * <p>The default {@link OpenSshConfig} reads the SSH config in `~/.ssh/config` and converts the identity
+     * files into
+     * {@code com.jcraft.jsch.KeyPair}. Since JSch does not support Ed25519, `KeyPair.load()` raise an
+     * exception if
+     * Ed25519 is used locally. Plus, Central Dogma uses {@link PublicKeyMirrorCredential}, we need to
+     * provide an empty
      * config for isolated environment.
      */
     private static OpenSshConfig emptySshConfig() {
@@ -140,7 +144,8 @@ final class Git5WithAuth extends GitWithAuth {
         }
 
         try {
-            final Constructor<OpenSshConfig> ctor = OpenSshConfig.class.getDeclaredConstructor(File.class, File.class);
+            final Constructor<OpenSshConfig> ctor =
+                    OpenSshConfig.class.getDeclaredConstructor(File.class, File.class);
             ctor.setAccessible(true);
             return ctor.newInstance(emptyConfigFile.getParentFile(), emptyConfigFile);
         } catch (ReflectiveOperationException e) {

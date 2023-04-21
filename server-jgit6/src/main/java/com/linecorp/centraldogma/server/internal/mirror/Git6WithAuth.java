@@ -72,7 +72,7 @@ final class Git6WithAuth extends GitWithAuth {
     }
 
     @Override
-    public  <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
+    public <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
             final SshTransport sshTransport = (SshTransport) transport;
             final JschConfigSessionFactory sessionFactory = new JschConfigSessionFactory() {
@@ -98,10 +98,10 @@ final class Git6WithAuth extends GitWithAuth {
     /**
      * Returns an empty {@link OpenSshConfig}.
      *
-     * <p>The default {@link OpenSshConfig} reads the SSH config in `~/.ssh/config` and converts the identity files into
-     * {@code com.jcraft.jsch.KeyPair}. Since JSch does not support Ed25519, `KeyPair.load()` raise an exception if
-     * Ed25519 is used locally. Plus, Central Dogma uses {@link PublicKeyMirrorCredential}, we need to provide an empty
-     * config for isolated environment.
+     * <p>The default {@link OpenSshConfig} reads the SSH config in `~/.ssh/config` and converts the identity
+     * files into {@code com.jcraft.jsch.KeyPair}. Since JSch does not support Ed25519, `KeyPair.load()`
+     * raise an exception if Ed25519 is used locally. Plus, Central Dogma uses
+     * {@link PublicKeyMirrorCredential}, we need to provide an empty config for an isolated environment.
      */
     private static OpenSshConfig emptySshConfig() {
         final File emptyConfigFile;

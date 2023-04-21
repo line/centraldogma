@@ -30,7 +30,6 @@ import java.util.Vector;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import com.jcraft.jsch.*;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.GarbageCollectCommand;
 import org.eclipse.jgit.api.Git;
@@ -44,6 +43,16 @@ import org.eclipse.jgit.lib.RepositoryBuilder;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.jcraft.jsch.Buffer;
+import com.jcraft.jsch.HostKey;
+import com.jcraft.jsch.HostKeyRepository;
+import com.jcraft.jsch.Identity;
+import com.jcraft.jsch.IdentityRepository;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.KeyPair;
+import com.jcraft.jsch.UserInfo;
 
 import com.linecorp.centraldogma.server.MirrorException;
 import com.linecorp.centraldogma.server.internal.IsolatedSystemReader;
