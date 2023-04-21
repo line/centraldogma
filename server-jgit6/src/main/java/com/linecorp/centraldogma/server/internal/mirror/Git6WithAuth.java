@@ -23,6 +23,7 @@ import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
+import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
 import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig.Host;
 
 import com.jcraft.jsch.Session;
@@ -32,6 +33,9 @@ import com.linecorp.centraldogma.server.internal.mirror.credential.PasswordMirro
 import com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential;
 
 final class Git6WithAuth extends GitWithAuth {
+
+    private static final OpenSshConfig EMPTY_CONFIG = emptySshConfig();
+
     Git6WithAuth(GitMirror mirror, File repoDir) throws IOException {
         super(mirror, repoDir);
     }
@@ -45,7 +49,7 @@ final class Git6WithAuth extends GitWithAuth {
     public <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
             final SshTransport sshTransport = (SshTransport) transport;
-            sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
+            final JschConfigSessionFactory sessionFactory = new JschConfigSessionFactory() {
                 @Override
                 protected void configure(Host host, Session session) {
                     try {
@@ -59,7 +63,11 @@ final class Git6WithAuth extends GitWithAuth {
                         throw new MirrorException(e);
                     }
                 }
-            });
+            };
+
+            // Disable the default SSH config file lookup.
+            sessionFactory.setConfig(EMPTY_CONFIG);
+            sshTransport.setSshSessionFactory(sessionFactory);
         });
     }
 
@@ -67,7 +75,7 @@ final class Git6WithAuth extends GitWithAuth {
     public  <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
             final SshTransport sshTransport = (SshTransport) transport;
-            sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
+            final JschConfigSessionFactory sessionFactory = new JschConfigSessionFactory() {
                 @Override
                 protected void configure(Host host, Session session) {
                     try {
@@ -80,7 +88,30 @@ final class Git6WithAuth extends GitWithAuth {
                         throw new MirrorException(e);
                     }
                 }
-            });
+            };
+            // Disable the default SSH config file lookup.
+            sessionFactory.setConfig(EMPTY_CONFIG);
+            sshTransport.setSshSessionFactory(sessionFactory);
         });
+    }
+
+    /**
+     * Returns an empty {@link OpenSshConfig}.
+     *
+     * <p>The default {@link OpenSshConfig} reads the SSH config in `~/.ssh/config` and converts the identity files into
+     * {@code com.jcraft.jsch.KeyPair}. Since JSch does not support Ed25519, `KeyPair.load()` raise an exception if
+     * Ed25519 is used locally. Plus, Central Dogma uses {@link PublicKeyMirrorCredential}, we need to provide an empty
+     * config for isolated environment.
+     */
+    private static OpenSshConfig emptySshConfig() {
+        final File emptyConfigFile;
+        try {
+            emptyConfigFile = File.createTempFile("dogma", "empty-ssh-config");
+            emptyConfigFile.deleteOnExit();
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+
+        return new OpenSshConfig(emptyConfigFile.getParentFile(), emptyConfigFile);
     }
 }
