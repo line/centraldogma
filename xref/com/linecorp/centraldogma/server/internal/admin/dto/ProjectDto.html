@@ -41,7 +41,7 @@
 <a class="jxr_linenumber" name="L33" href="#L33">33</a>  
 <a class="jxr_linenumber" name="L34" href="#L34">34</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/ProjectDto.html">ProjectDto</a>() {}
 <a class="jxr_linenumber" name="L35" href="#L35">35</a>  
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/ProjectDto.html">ProjectDto</a>(<a href="../../../../../../../com/linecorp/centraldogma/internal/thrift/Project.html">Project</a> project) {
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/ProjectDto.html">ProjectDto</a>(Project project) {
 <a class="jxr_linenumber" name="L37" href="#L37">37</a>          name = project.getName();
 <a class="jxr_linenumber" name="L38" href="#L38">38</a>          <strong class="jxr_keyword">if</strong> (project.getSchema() != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L39" href="#L39">39</a>              schema = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/SchemaDto.html">SchemaDto</a>(project.getSchema());
@@ -59,7 +59,7 @@
 <a class="jxr_linenumber" name="L51" href="#L51">51</a>          <strong class="jxr_keyword">this</strong>.name = name;
 <a class="jxr_linenumber" name="L52" href="#L52">52</a>      }
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>  
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/SchemaDto.html">SchemaDto</a> <a href="../../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getSchema</a>() {
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/SchemaDto.html">SchemaDto</a> getSchema() {
 <a class="jxr_linenumber" name="L55" href="#L55">55</a>          <strong class="jxr_keyword">return</strong> schema;
 <a class="jxr_linenumber" name="L56" href="#L56">56</a>      }
 <a class="jxr_linenumber" name="L57" href="#L57">57</a>  

@@ -113,42 +113,42 @@
 <a class="jxr_linenumber" name="L105" href="#L105">105</a>     }
 <a class="jxr_linenumber" name="L106" href="#L106">106</a> 
 <a class="jxr_linenumber" name="L107" href="#L107">107</a>     @Override
-<a class="jxr_linenumber" name="L108" href="#L108">108</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">createProject</a>(String projectName) {
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; createProject(String projectName) {
 <a class="jxr_linenumber" name="L109" href="#L109">109</a>         validateProjectName(projectName);
 <a class="jxr_linenumber" name="L110" href="#L110">110</a>         <strong class="jxr_keyword">return</strong> run(callback -&gt; client.createProject(projectName, callback));
 <a class="jxr_linenumber" name="L111" href="#L111">111</a>     }
 <a class="jxr_linenumber" name="L112" href="#L112">112</a> 
 <a class="jxr_linenumber" name="L113" href="#L113">113</a>     @Override
-<a class="jxr_linenumber" name="L114" href="#L114">114</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">removeProject</a>(String projectName) {
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; removeProject(String projectName) {
 <a class="jxr_linenumber" name="L115" href="#L115">115</a>         validateProjectName(projectName);
 <a class="jxr_linenumber" name="L116" href="#L116">116</a>         <strong class="jxr_keyword">return</strong> run(callback -&gt; client.removeProject(projectName, callback));
 <a class="jxr_linenumber" name="L117" href="#L117">117</a>     }
 <a class="jxr_linenumber" name="L118" href="#L118">118</a> 
 <a class="jxr_linenumber" name="L119" href="#L119">119</a>     @Override
-<a class="jxr_linenumber" name="L120" href="#L120">120</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">purgeProject</a>(String projectName) {
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; purgeProject(String projectName) {
 <a class="jxr_linenumber" name="L121" href="#L121">121</a>         validateProjectName(projectName);
 <a class="jxr_linenumber" name="L122" href="#L122">122</a>         <strong class="jxr_keyword">return</strong> run(callback -&gt; client.purgeProject(projectName, callback));
 <a class="jxr_linenumber" name="L123" href="#L123">123</a>     }
 <a class="jxr_linenumber" name="L124" href="#L124">124</a> 
 <a class="jxr_linenumber" name="L125" href="#L125">125</a>     @Override
-<a class="jxr_linenumber" name="L126" href="#L126">126</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">unremoveProject</a>(String projectName) {
+<a class="jxr_linenumber" name="L126" href="#L126">126</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; unremoveProject(String projectName) {
 <a class="jxr_linenumber" name="L127" href="#L127">127</a>         validateProjectName(projectName);
 <a class="jxr_linenumber" name="L128" href="#L128">128</a>         <strong class="jxr_keyword">return</strong> run(callback -&gt; client.unremoveProject(projectName, callback));
 <a class="jxr_linenumber" name="L129" href="#L129">129</a>     }
 <a class="jxr_linenumber" name="L130" href="#L130">130</a> 
 <a class="jxr_linenumber" name="L131" href="#L131">131</a>     @Override
-<a class="jxr_linenumber" name="L132" href="#L132">132</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Set&lt;String&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listProjects</a>() {
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Set&lt;String&gt;&gt; listProjects() {
 <a class="jxr_linenumber" name="L133" href="#L133">133</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;Project&gt;&gt; future = run(client::listProjects);
 <a class="jxr_linenumber" name="L134" href="#L134">134</a>         <strong class="jxr_keyword">return</strong> future.thenApply(list -&gt; convertToSet(list, Project::getName));
 <a class="jxr_linenumber" name="L135" href="#L135">135</a>     }
 <a class="jxr_linenumber" name="L136" href="#L136">136</a> 
 <a class="jxr_linenumber" name="L137" href="#L137">137</a>     @Override
-<a class="jxr_linenumber" name="L138" href="#L138">138</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Set&lt;String&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listRemovedProjects</a>() {
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Set&lt;String&gt;&gt; listRemovedProjects() {
 <a class="jxr_linenumber" name="L139" href="#L139">139</a>         <strong class="jxr_keyword">return</strong> run(client::listRemovedProjects);
 <a class="jxr_linenumber" name="L140" href="#L140">140</a>     }
 <a class="jxr_linenumber" name="L141" href="#L141">141</a> 
 <a class="jxr_linenumber" name="L142" href="#L142">142</a>     @Override
-<a class="jxr_linenumber" name="L143" href="#L143">143</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;CentralDogmaRepository&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">createRepository</a>(String projectName,
+<a class="jxr_linenumber" name="L143" href="#L143">143</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;CentralDogmaRepository&gt; createRepository(String projectName,
 <a class="jxr_linenumber" name="L144" href="#L144">144</a>                                                                       String repositoryName) {
 <a class="jxr_linenumber" name="L145" href="#L145">145</a>         validateProjectAndRepositoryName(projectName, repositoryName);
 <a class="jxr_linenumber" name="L146" href="#L146">146</a>         <strong class="jxr_keyword">return</strong> run(callback -&gt; client.createRepository(projectName, repositoryName, callback))
@@ -156,19 +156,19 @@
 <a class="jxr_linenumber" name="L148" href="#L148">148</a>     }
 <a class="jxr_linenumber" name="L149" href="#L149">149</a> 
 <a class="jxr_linenumber" name="L150" href="#L150">150</a>     @Override
-<a class="jxr_linenumber" name="L151" href="#L151">151</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">removeRepository</a>(String projectName, String repositoryName) {
+<a class="jxr_linenumber" name="L151" href="#L151">151</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; removeRepository(String projectName, String repositoryName) {
 <a class="jxr_linenumber" name="L152" href="#L152">152</a>         validateProjectAndRepositoryName(projectName, repositoryName);
 <a class="jxr_linenumber" name="L153" href="#L153">153</a>         <strong class="jxr_keyword">return</strong> run(callback -&gt; client.removeRepository(projectName, repositoryName, callback));
 <a class="jxr_linenumber" name="L154" href="#L154">154</a>     }
 <a class="jxr_linenumber" name="L155" href="#L155">155</a> 
 <a class="jxr_linenumber" name="L156" href="#L156">156</a>     @Override
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">purgeRepository</a>(String projectName, String repositoryName) {
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Void&gt; purgeRepository(String projectName, String repositoryName) {
 <a class="jxr_linenumber" name="L158" href="#L158">158</a>         validateProjectAndRepositoryName(projectName, repositoryName);
 <a class="jxr_linenumber" name="L159" href="#L159">159</a>         <strong class="jxr_keyword">return</strong> run(callback -&gt; client.purgeRepository(projectName, repositoryName, callback));
 <a class="jxr_linenumber" name="L160" href="#L160">160</a>     }
 <a class="jxr_linenumber" name="L161" href="#L161">161</a> 
 <a class="jxr_linenumber" name="L162" href="#L162">162</a>     @Override
-<a class="jxr_linenumber" name="L163" href="#L163">163</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;CentralDogmaRepository&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">unremoveRepository</a>(String projectName,
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;CentralDogmaRepository&gt; unremoveRepository(String projectName,
 <a class="jxr_linenumber" name="L164" href="#L164">164</a>                                                                         String repositoryName) {
 <a class="jxr_linenumber" name="L165" href="#L165">165</a>         validateProjectAndRepositoryName(projectName, repositoryName);
 <a class="jxr_linenumber" name="L166" href="#L166">166</a>         <strong class="jxr_keyword">return</strong> run(callback -&gt; client.unremoveRepository(projectName, repositoryName, callback))
@@ -176,7 +176,7 @@
 <a class="jxr_linenumber" name="L168" href="#L168">168</a>     }
 <a class="jxr_linenumber" name="L169" href="#L169">169</a> 
 <a class="jxr_linenumber" name="L170" href="#L170">170</a>     @Override
-<a class="jxr_linenumber" name="L171" href="#L171">171</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Map&lt;String, RepositoryInfo&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listRepositories</a>(String projectName) {
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Map&lt;String, RepositoryInfo&gt;&gt; listRepositories(String projectName) {
 <a class="jxr_linenumber" name="L172" href="#L172">172</a>         validateProjectName(projectName);
 <a class="jxr_linenumber" name="L173" href="#L173">173</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;List&lt;Repository&gt;&gt; future = run(callback -&gt; {
 <a class="jxr_linenumber" name="L174" href="#L174">174</a>             client.listRepositories(projectName, callback);
@@ -190,7 +190,7 @@
 <a class="jxr_linenumber" name="L182" href="#L182">182</a>     }
 <a class="jxr_linenumber" name="L183" href="#L183">183</a> 
 <a class="jxr_linenumber" name="L184" href="#L184">184</a>     @Override
-<a class="jxr_linenumber" name="L185" href="#L185">185</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Set&lt;String&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listRemovedRepositories</a>(String projectName) {
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Set&lt;String&gt;&gt; listRemovedRepositories(String projectName) {
 <a class="jxr_linenumber" name="L186" href="#L186">186</a>         validateProjectName(projectName);
 <a class="jxr_linenumber" name="L187" href="#L187">187</a>         <strong class="jxr_keyword">return</strong> run(callback -&gt; {
 <a class="jxr_linenumber" name="L188" href="#L188">188</a>             client.listRemovedRepositories(projectName, callback);
@@ -198,7 +198,7 @@
 <a class="jxr_linenumber" name="L190" href="#L190">190</a>     }
 <a class="jxr_linenumber" name="L191" href="#L191">191</a> 
 <a class="jxr_linenumber" name="L192" href="#L192">192</a>     @Override
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">normalizeRevision</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; normalizeRevision(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L194" href="#L194">194</a>                                                          <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision) {
 <a class="jxr_linenumber" name="L195" href="#L195">195</a>         validateProjectAndRepositoryName(projectName, repositoryName);
 <a class="jxr_linenumber" name="L196" href="#L196">196</a>         requireNonNull(revision, <span class="jxr_string">"revision"</span>);
@@ -210,7 +210,7 @@
 <a class="jxr_linenumber" name="L202" href="#L202">202</a>     }
 <a class="jxr_linenumber" name="L203" href="#L203">203</a> 
 <a class="jxr_linenumber" name="L204" href="#L204">204</a>     @Override
-<a class="jxr_linenumber" name="L205" href="#L205">205</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Map&lt;String, EntryType&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listFiles</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Map&lt;String, EntryType&gt;&gt; listFiles(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L206" href="#L206">206</a>                                                                <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern) {
 <a class="jxr_linenumber" name="L207" href="#L207">207</a>         validateProjectAndRepositoryName(projectName, repositoryName);
 <a class="jxr_linenumber" name="L208" href="#L208">208</a>         requireNonNull(revision, <span class="jxr_string">"revision"</span>);
@@ -227,7 +227,7 @@
 <a class="jxr_linenumber" name="L219" href="#L219">219</a>     }
 <a class="jxr_linenumber" name="L220" href="#L220">220</a> 
 <a class="jxr_linenumber" name="L221" href="#L221">221</a>     @Override
-<a class="jxr_linenumber" name="L222" href="#L222">222</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getFile</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L222" href="#L222">222</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; getFile(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L223" href="#L223">223</a>                                                    <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, Query&lt;T&gt; query) {
 <a class="jxr_linenumber" name="L224" href="#L224">224</a>         requireNonNull(query, <span class="jxr_string">"query"</span>);
 <a class="jxr_linenumber" name="L225" href="#L225">225</a>         <strong class="jxr_keyword">return</strong> maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -&gt; {
@@ -284,7 +284,7 @@
 <a class="jxr_linenumber" name="L276" href="#L276">276</a>     }
 <a class="jxr_linenumber" name="L277" href="#L277">277</a> 
 <a class="jxr_linenumber" name="L278" href="#L278">278</a>     @Override
-<a class="jxr_linenumber" name="L279" href="#L279">279</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Map&lt;String, Entry&lt;?&gt;&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getFiles</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L279" href="#L279">279</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Map&lt;String, Entry&lt;?&gt;&gt;&gt; getFiles(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L280" href="#L280">280</a>                                                              <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern) {
 <a class="jxr_linenumber" name="L281" href="#L281">281</a>         requireNonNull(pathPattern, <span class="jxr_string">"pathPattern"</span>);
 <a class="jxr_linenumber" name="L282" href="#L282">282</a>         <strong class="jxr_keyword">return</strong> maybeNormalizeRevision(projectName, repositoryName, revision).thenCompose(normRev -&gt; {
@@ -300,7 +300,7 @@
 <a class="jxr_linenumber" name="L292" href="#L292">292</a>     }
 <a class="jxr_linenumber" name="L293" href="#L293">293</a> 
 <a class="jxr_linenumber" name="L294" href="#L294">294</a>     @Override
-<a class="jxr_linenumber" name="L295" href="#L295">295</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;MergedEntry&lt;T&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">mergeFiles</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;MergedEntry&lt;T&gt;&gt; mergeFiles(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L296" href="#L296">296</a>                                                             <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> revision, MergeQuery&lt;T&gt; mergeQuery) {
 <a class="jxr_linenumber" name="L297" href="#L297">297</a>         validateProjectAndRepositoryName(projectName, repositoryName);
 <a class="jxr_linenumber" name="L298" href="#L298">298</a>         requireNonNull(revision, <span class="jxr_string">"revision"</span>);
@@ -334,7 +334,7 @@
 <a class="jxr_linenumber" name="L326" href="#L326">326</a>     }
 <a class="jxr_linenumber" name="L327" href="#L327">327</a> 
 <a class="jxr_linenumber" name="L328" href="#L328">328</a>     @Override
-<a class="jxr_linenumber" name="L329" href="#L329">329</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Commit&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getHistory</a>(String projectName,
+<a class="jxr_linenumber" name="L329" href="#L329">329</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Commit&gt;&gt; getHistory(String projectName,
 <a class="jxr_linenumber" name="L330" href="#L330">330</a>                                                       String repositoryName,
 <a class="jxr_linenumber" name="L331" href="#L331">331</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> from,
 <a class="jxr_linenumber" name="L332" href="#L332">332</a>                                                       <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> to,
@@ -417,7 +417,7 @@
 <a class="jxr_linenumber" name="L409" href="#L409">409</a>     }
 <a class="jxr_linenumber" name="L410" href="#L410">410</a> 
 <a class="jxr_linenumber" name="L411" href="#L411">411</a>     @Override
-<a class="jxr_linenumber" name="L412" href="#L412">412</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Change&lt;?&gt;&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getPreviewDiffs</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L412" href="#L412">412</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;List&lt;Change&lt;?&gt;&gt;&gt; getPreviewDiffs(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L413" href="#L413">413</a>                                                               <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
 <a class="jxr_linenumber" name="L414" href="#L414">414</a>                                                               Iterable&lt;? <strong class="jxr_keyword">extends</strong> Change&lt;?&gt;&gt; changes) {
 <a class="jxr_linenumber" name="L415" href="#L415">415</a>         validateProjectAndRepositoryName(projectName, repositoryName);
@@ -432,15 +432,15 @@
 <a class="jxr_linenumber" name="L424" href="#L424">424</a>     }
 <a class="jxr_linenumber" name="L425" href="#L425">425</a> 
 <a class="jxr_linenumber" name="L426" href="#L426">426</a>     @Override
-<a class="jxr_linenumber" name="L427" href="#L427">427</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResult&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">push</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
+<a class="jxr_linenumber" name="L427" href="#L427">427</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResult&gt; push(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
 <a class="jxr_linenumber" name="L428" href="#L428">428</a>                                               String summary, String detail, <a href="../../../../../../com/linecorp/centraldogma/common/Markup.html">Markup</a> markup,
 <a class="jxr_linenumber" name="L429" href="#L429">429</a>                                               Iterable&lt;? <strong class="jxr_keyword">extends</strong> Change&lt;?&gt;&gt; changes) {
-<a class="jxr_linenumber" name="L430" href="#L430">430</a>         <strong class="jxr_keyword">return</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">push</a>(projectName, repositoryName, baseRevision,
+<a class="jxr_linenumber" name="L430" href="#L430">430</a>         <strong class="jxr_keyword">return</strong> push(projectName, repositoryName, baseRevision,
 <a class="jxr_linenumber" name="L431" href="#L431">431</a>                     Author.UNKNOWN, summary, detail, markup, changes);
 <a class="jxr_linenumber" name="L432" href="#L432">432</a>     }
 <a class="jxr_linenumber" name="L433" href="#L433">433</a> 
 <a class="jxr_linenumber" name="L434" href="#L434">434</a>     @Override
-<a class="jxr_linenumber" name="L435" href="#L435">435</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResult&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">push</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
+<a class="jxr_linenumber" name="L435" href="#L435">435</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;PushResult&gt; push(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> baseRevision,
 <a class="jxr_linenumber" name="L436" href="#L436">436</a>                                               <a href="../../../../../../com/linecorp/centraldogma/common/Author.html">Author</a> author, String summary, String detail, <a href="../../../../../../com/linecorp/centraldogma/common/Markup.html">Markup</a> markup,
 <a class="jxr_linenumber" name="L437" href="#L437">437</a>                                               Iterable&lt;? <strong class="jxr_keyword">extends</strong> Change&lt;?&gt;&gt; changes) {
 <a class="jxr_linenumber" name="L438" href="#L438">438</a>         validateProjectAndRepositoryName(projectName, repositoryName);
@@ -455,7 +455,7 @@
 <a class="jxr_linenumber" name="L447" href="#L447">447</a>             client.push(projectName, repositoryName,
 <a class="jxr_linenumber" name="L448" href="#L448">448</a>                         RevisionConverter.TO_DATA.convert(baseRevision),
 <a class="jxr_linenumber" name="L449" href="#L449">449</a>                         AuthorConverter.TO_DATA.convert(author), summary,
-<a class="jxr_linenumber" name="L450" href="#L450">450</a>                         <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Comment.html">Comment</a>(detail).setMarkup(MarkupConverter.TO_DATA.convert(markup)),
+<a class="jxr_linenumber" name="L450" href="#L450">450</a>                         <strong class="jxr_keyword">new</strong> Comment(detail).setMarkup(MarkupConverter.TO_DATA.convert(markup)),
 <a class="jxr_linenumber" name="L451" href="#L451">451</a>                         convertToList(changes, ChangeConverter.TO_DATA::convert),
 <a class="jxr_linenumber" name="L452" href="#L452">452</a>                         callback);
 <a class="jxr_linenumber" name="L453" href="#L453">453</a>         });
@@ -463,7 +463,7 @@
 <a class="jxr_linenumber" name="L455" href="#L455">455</a>     }
 <a class="jxr_linenumber" name="L456" href="#L456">456</a> 
 <a class="jxr_linenumber" name="L457" href="#L457">457</a>     @Override
-<a class="jxr_linenumber" name="L458" href="#L458">458</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">watchRepository</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L458" href="#L458">458</a>     <strong class="jxr_keyword">public</strong> CompletableFuture&lt;Revision&gt; watchRepository(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L459" href="#L459">459</a>                                                        <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision,
 <a class="jxr_linenumber" name="L460" href="#L460">460</a>                                                        <a href="../../../../../../com/linecorp/centraldogma/common/PathPattern.html">PathPattern</a> pathPattern,
 <a class="jxr_linenumber" name="L461" href="#L461">461</a>                                                        <strong class="jxr_keyword">long</strong> timeoutMillis,
@@ -488,7 +488,7 @@
 <a class="jxr_linenumber" name="L480" href="#L480">480</a>     }
 <a class="jxr_linenumber" name="L481" href="#L481">481</a> 
 <a class="jxr_linenumber" name="L482" href="#L482">482</a>     @Override
-<a class="jxr_linenumber" name="L483" href="#L483">483</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">watchFile</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L483" href="#L483">483</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; CompletableFuture&lt;Entry&lt;T&gt;&gt; watchFile(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L484" href="#L484">484</a>                                                      <a href="../../../../../../com/linecorp/centraldogma/common/Revision.html">Revision</a> lastKnownRevision, Query&lt;T&gt; query,
 <a class="jxr_linenumber" name="L485" href="#L485">485</a>                                                      <strong class="jxr_keyword">long</strong> timeoutMillis, <strong class="jxr_keyword">boolean</strong> errorOnEntryNotFound) {
 <a class="jxr_linenumber" name="L486" href="#L486">486</a>         checkArgument(!errorOnEntryNotFound, <span class="jxr_string">"errorOnEntryNotFound is not supported in LegacyCentralDogma."</span>);

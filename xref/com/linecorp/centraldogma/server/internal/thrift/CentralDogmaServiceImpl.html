@@ -125,13 +125,13 @@
 <a class="jxr_linenumber" name="L117" href="#L117">117</a>     }
 <a class="jxr_linenumber" name="L118" href="#L118">118</a> 
 <a class="jxr_linenumber" name="L119" href="#L119">119</a>     @Override
-<a class="jxr_linenumber" name="L120" href="#L120">120</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">createProject</a>(String name, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> createProject(String name, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L121" href="#L121">121</a>         <em class="jxr_comment">// ProjectInitializingCommandExecutor initializes a metadata for the specified project.</em>
 <a class="jxr_linenumber" name="L122" href="#L122">122</a>         handle(executor.execute(Command.createProject(SYSTEM, name)), resultHandler);
 <a class="jxr_linenumber" name="L123" href="#L123">123</a>     }
 <a class="jxr_linenumber" name="L124" href="#L124">124</a> 
 <a class="jxr_linenumber" name="L125" href="#L125">125</a>     @Override
-<a class="jxr_linenumber" name="L126" href="#L126">126</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">removeProject</a>(String name, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L126" href="#L126">126</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> removeProject(String name, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L127" href="#L127">127</a>         <em class="jxr_comment">// Metadata must be updated first because it cannot be updated if the project is removed.</em>
 <a class="jxr_linenumber" name="L128" href="#L128">128</a>         handle(mds.removeProject(SYSTEM, name)
 <a class="jxr_linenumber" name="L129" href="#L129">129</a>                   .thenCompose(unused -&gt; executor.execute(Command.removeProject(SYSTEM, name))),
@@ -139,12 +139,12 @@
 <a class="jxr_linenumber" name="L131" href="#L131">131</a>     }
 <a class="jxr_linenumber" name="L132" href="#L132">132</a> 
 <a class="jxr_linenumber" name="L133" href="#L133">133</a>     @Override
-<a class="jxr_linenumber" name="L134" href="#L134">134</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">purgeProject</a>(String name, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> purgeProject(String name, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L135" href="#L135">135</a>         handleAsVoidResult(executor.execute(Command.purgeProject(SYSTEM, name)), resultHandler);
 <a class="jxr_linenumber" name="L136" href="#L136">136</a>     }
 <a class="jxr_linenumber" name="L137" href="#L137">137</a> 
 <a class="jxr_linenumber" name="L138" href="#L138">138</a>     @Override
-<a class="jxr_linenumber" name="L139" href="#L139">139</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">unremoveProject</a>(String name, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> unremoveProject(String name, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L140" href="#L140">140</a>         <em class="jxr_comment">// Restore the project first then update its metadata as 'active'.</em>
 <a class="jxr_linenumber" name="L141" href="#L141">141</a>         handleAsVoidResult(executor.execute(Command.unremoveProject(SYSTEM, name))
 <a class="jxr_linenumber" name="L142" href="#L142">142</a>                                    .thenCompose(unused -&gt; mds.restoreProject(SYSTEM, name)),
@@ -152,7 +152,7 @@
 <a class="jxr_linenumber" name="L144" href="#L144">144</a>     }
 <a class="jxr_linenumber" name="L145" href="#L145">145</a> 
 <a class="jxr_linenumber" name="L146" href="#L146">146</a>     @Override
-<a class="jxr_linenumber" name="L147" href="#L147">147</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listProjects</a>(AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> listProjects(AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L148" href="#L148">148</a>         handle(() -&gt; {
 <a class="jxr_linenumber" name="L149" href="#L149">149</a>             <strong class="jxr_keyword">final</strong> Map&lt;String, com.linecorp.centraldogma.server.storage.project.Project&gt; projects =
 <a class="jxr_linenumber" name="L150" href="#L150">150</a>                     projectManager.list();
@@ -163,12 +163,12 @@
 <a class="jxr_linenumber" name="L155" href="#L155">155</a>     }
 <a class="jxr_linenumber" name="L156" href="#L156">156</a> 
 <a class="jxr_linenumber" name="L157" href="#L157">157</a>     @Override
-<a class="jxr_linenumber" name="L158" href="#L158">158</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listRemovedProjects</a>(AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L158" href="#L158">158</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> listRemovedProjects(AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L159" href="#L159">159</a>         handle(() -&gt; projectManager.listRemoved().keySet(), resultHandler);
 <a class="jxr_linenumber" name="L160" href="#L160">160</a>     }
 <a class="jxr_linenumber" name="L161" href="#L161">161</a> 
 <a class="jxr_linenumber" name="L162" href="#L162">162</a>     @Override
-<a class="jxr_linenumber" name="L163" href="#L163">163</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">createRepository</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> createRepository(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L164" href="#L164">164</a>                                  AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L165" href="#L165">165</a>         <em class="jxr_comment">// HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.</em>
 <a class="jxr_linenumber" name="L166" href="#L166">166</a>         <strong class="jxr_keyword">if</strong> (isReservedRepoName(repositoryName)) {
@@ -181,7 +181,7 @@
 <a class="jxr_linenumber" name="L173" href="#L173">173</a>     }
 <a class="jxr_linenumber" name="L174" href="#L174">174</a> 
 <a class="jxr_linenumber" name="L175" href="#L175">175</a>     @Override
-<a class="jxr_linenumber" name="L176" href="#L176">176</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">removeRepository</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> removeRepository(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L177" href="#L177">177</a>                                  AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L178" href="#L178">178</a>         <em class="jxr_comment">// HTTP v1 API will return '403 forbidden' in this case, but we deal it as '400 bad request' here.</em>
 <a class="jxr_linenumber" name="L179" href="#L179">179</a>         <strong class="jxr_keyword">if</strong> (isReservedRepoName(repositoryName)) {
@@ -194,14 +194,14 @@
 <a class="jxr_linenumber" name="L186" href="#L186">186</a>     }
 <a class="jxr_linenumber" name="L187" href="#L187">187</a> 
 <a class="jxr_linenumber" name="L188" href="#L188">188</a>     @Override
-<a class="jxr_linenumber" name="L189" href="#L189">189</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">purgeRepository</a>(String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L189" href="#L189">189</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> purgeRepository(String projectName, String repositoryName, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L190" href="#L190">190</a>         handleAsVoidResult(executor.execute(Command.purgeRepository(SYSTEM, projectName, repositoryName))
 <a class="jxr_linenumber" name="L191" href="#L191">191</a>                                    .thenCompose(unused -&gt; mds.purgeRepo(SYSTEM, projectName, repositoryName)),
 <a class="jxr_linenumber" name="L192" href="#L192">192</a>                            resultHandler);
 <a class="jxr_linenumber" name="L193" href="#L193">193</a>     }
 <a class="jxr_linenumber" name="L194" href="#L194">194</a> 
 <a class="jxr_linenumber" name="L195" href="#L195">195</a>     @Override
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">unremoveRepository</a>(String projectName, String repositoryName,
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> unremoveRepository(String projectName, String repositoryName,
 <a class="jxr_linenumber" name="L197" href="#L197">197</a>                                    AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L198" href="#L198">198</a>         handleAsVoidResult(executor.execute(Command.unremoveRepository(SYSTEM, projectName, repositoryName))
 <a class="jxr_linenumber" name="L199" href="#L199">199</a>                                    .thenCompose(unused -&gt; mds.restoreRepo(SYSTEM, projectName, repositoryName)),
@@ -209,7 +209,7 @@
 <a class="jxr_linenumber" name="L201" href="#L201">201</a>     }
 <a class="jxr_linenumber" name="L202" href="#L202">202</a> 
 <a class="jxr_linenumber" name="L203" href="#L203">203</a>     @Override
-<a class="jxr_linenumber" name="L204" href="#L204">204</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listRepositories</a>(String projectName, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L204" href="#L204">204</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> listRepositories(String projectName, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L205" href="#L205">205</a>         handle(allAsList(projectManager.get(projectName).repos().list().entrySet().stream()
 <a class="jxr_linenumber" name="L206" href="#L206">206</a>                                        .map(e -&gt; convert(e.getKey(), e.getValue()))
 <a class="jxr_linenumber" name="L207" href="#L207">207</a>                                        .collect(toList())),
@@ -217,12 +217,12 @@
 <a class="jxr_linenumber" name="L209" href="#L209">209</a>     }
 <a class="jxr_linenumber" name="L210" href="#L210">210</a> 
 <a class="jxr_linenumber" name="L211" href="#L211">211</a>     @Override
-<a class="jxr_linenumber" name="L212" href="#L212">212</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listRemovedRepositories</a>(String projectName, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L212" href="#L212">212</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> listRemovedRepositories(String projectName, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L213" href="#L213">213</a>         handle(() -&gt; projectManager.get(projectName).repos().listRemoved().keySet(), resultHandler);
 <a class="jxr_linenumber" name="L214" href="#L214">214</a>     }
 <a class="jxr_linenumber" name="L215" href="#L215">215</a> 
 <a class="jxr_linenumber" name="L216" href="#L216">216</a>     @Override
-<a class="jxr_linenumber" name="L217" href="#L217">217</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">normalizeRevision</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> revision,
+<a class="jxr_linenumber" name="L217" href="#L217">217</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> normalizeRevision(String projectName, String repositoryName, Revision revision,
 <a class="jxr_linenumber" name="L218" href="#L218">218</a>                                   AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L219" href="#L219">219</a> 
 <a class="jxr_linenumber" name="L220" href="#L220">220</a>         <strong class="jxr_keyword">final</strong> com.linecorp.centraldogma.common.Revision normalized =
@@ -232,7 +232,7 @@
 <a class="jxr_linenumber" name="L224" href="#L224">224</a>     }
 <a class="jxr_linenumber" name="L225" href="#L225">225</a> 
 <a class="jxr_linenumber" name="L226" href="#L226">226</a>     @Override
-<a class="jxr_linenumber" name="L227" href="#L227">227</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listFiles</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> revision, String pathPattern,
+<a class="jxr_linenumber" name="L227" href="#L227">227</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> listFiles(String projectName, String repositoryName, Revision revision, String pathPattern,
 <a class="jxr_linenumber" name="L228" href="#L228">228</a>                           AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L229" href="#L229">229</a> 
 <a class="jxr_linenumber" name="L230" href="#L230">230</a>         handle(projectManager.get(projectName).repos().get(repositoryName)
@@ -240,14 +240,14 @@
 <a class="jxr_linenumber" name="L232" href="#L232">232</a>                              .thenApply(entries -&gt; {
 <a class="jxr_linenumber" name="L233" href="#L233">233</a>                                  <strong class="jxr_keyword">final</strong> List&lt;Entry&gt; ret = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;(entries.size());
 <a class="jxr_linenumber" name="L234" href="#L234">234</a>                                  entries.forEach((path, entry) -&gt; ret.add(
-<a class="jxr_linenumber" name="L235" href="#L235">235</a>                                          <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Entry.html">Entry</a>(path, convert(entry.type()))));
+<a class="jxr_linenumber" name="L235" href="#L235">235</a>                                          <strong class="jxr_keyword">new</strong> Entry(path, convert(entry.type()))));
 <a class="jxr_linenumber" name="L236" href="#L236">236</a>                                  <strong class="jxr_keyword">return</strong> ret;
 <a class="jxr_linenumber" name="L237" href="#L237">237</a>                              }),
 <a class="jxr_linenumber" name="L238" href="#L238">238</a>                resultHandler);
 <a class="jxr_linenumber" name="L239" href="#L239">239</a>     }
 <a class="jxr_linenumber" name="L240" href="#L240">240</a> 
 <a class="jxr_linenumber" name="L241" href="#L241">241</a>     @Override
-<a class="jxr_linenumber" name="L242" href="#L242">242</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getFiles</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> revision, String pathPattern,
+<a class="jxr_linenumber" name="L242" href="#L242">242</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> getFiles(String projectName, String repositoryName, Revision revision, String pathPattern,
 <a class="jxr_linenumber" name="L243" href="#L243">243</a>                          AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L244" href="#L244">244</a> 
 <a class="jxr_linenumber" name="L245" href="#L245">245</a>         handle(projectManager.get(projectName).repos().get(repositoryName)
@@ -263,7 +263,7 @@
 <a class="jxr_linenumber" name="L255" href="#L255">255</a>     }
 <a class="jxr_linenumber" name="L256" href="#L256">256</a> 
 <a class="jxr_linenumber" name="L257" href="#L257">257</a>     @Override
-<a class="jxr_linenumber" name="L258" href="#L258">258</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getHistory</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> from, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> to,
+<a class="jxr_linenumber" name="L258" href="#L258">258</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> getHistory(String projectName, String repositoryName, Revision from, Revision to,
 <a class="jxr_linenumber" name="L259" href="#L259">259</a>                            String pathPattern, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L260" href="#L260">260</a> 
 <a class="jxr_linenumber" name="L261" href="#L261">261</a>         handle(projectManager.get(projectName).repos().get(repositoryName)
@@ -275,7 +275,7 @@
 <a class="jxr_linenumber" name="L267" href="#L267">267</a>     }
 <a class="jxr_linenumber" name="L268" href="#L268">268</a> 
 <a class="jxr_linenumber" name="L269" href="#L269">269</a>     @Override
-<a class="jxr_linenumber" name="L270" href="#L270">270</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getDiffs</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> from, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> to,
+<a class="jxr_linenumber" name="L270" href="#L270">270</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> getDiffs(String projectName, String repositoryName, Revision from, Revision to,
 <a class="jxr_linenumber" name="L271" href="#L271">271</a>                          String pathPattern, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L272" href="#L272">272</a> 
 <a class="jxr_linenumber" name="L273" href="#L273">273</a>         handle(projectManager.get(projectName).repos().get(repositoryName)
@@ -285,7 +285,7 @@
 <a class="jxr_linenumber" name="L277" href="#L277">277</a>     }
 <a class="jxr_linenumber" name="L278" href="#L278">278</a> 
 <a class="jxr_linenumber" name="L279" href="#L279">279</a>     @Override
-<a class="jxr_linenumber" name="L280" href="#L280">280</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getPreviewDiffs</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> baseRevision,
+<a class="jxr_linenumber" name="L280" href="#L280">280</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> getPreviewDiffs(String projectName, String repositoryName, Revision baseRevision,
 <a class="jxr_linenumber" name="L281" href="#L281">281</a>                                 List&lt;Change&gt; changes, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L282" href="#L282">282</a> 
 <a class="jxr_linenumber" name="L283" href="#L283">283</a>         handle(projectManager.get(projectName).repos().get(repositoryName)
@@ -295,8 +295,8 @@
 <a class="jxr_linenumber" name="L287" href="#L287">287</a>     }
 <a class="jxr_linenumber" name="L288" href="#L288">288</a> 
 <a class="jxr_linenumber" name="L289" href="#L289">289</a>     @Override
-<a class="jxr_linenumber" name="L290" href="#L290">290</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">push</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> baseRevision, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Author.html">Author</a> author,
-<a class="jxr_linenumber" name="L291" href="#L291">291</a>                      String summary, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Comment.html">Comment</a> detail, List&lt;Change&gt; changes, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L290" href="#L290">290</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> push(String projectName, String repositoryName, Revision baseRevision, Author author,
+<a class="jxr_linenumber" name="L291" href="#L291">291</a>                      String summary, Comment detail, List&lt;Change&gt; changes, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L292" href="#L292">292</a>         <strong class="jxr_keyword">final</strong> List&lt;com.linecorp.centraldogma.common.Change&lt;?&gt;&gt; convertedChanges =
 <a class="jxr_linenumber" name="L293" href="#L293">293</a>                 convert(changes, Converter::convert);
 <a class="jxr_linenumber" name="L294" href="#L294">294</a>         <strong class="jxr_keyword">try</strong> {
@@ -319,33 +319,33 @@
 <a class="jxr_linenumber" name="L311" href="#L311">311</a>     }
 <a class="jxr_linenumber" name="L312" href="#L312">312</a> 
 <a class="jxr_linenumber" name="L313" href="#L313">313</a>     @Override
-<a class="jxr_linenumber" name="L314" href="#L314">314</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getFile</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> revision, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Query.html">Query</a> query,
+<a class="jxr_linenumber" name="L314" href="#L314">314</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> getFile(String projectName, String repositoryName, Revision revision, Query query,
 <a class="jxr_linenumber" name="L315" href="#L315">315</a>                         AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L316" href="#L316">316</a> 
 <a class="jxr_linenumber" name="L317" href="#L317">317</a>         handle(projectManager.get(projectName).repos().get(repositoryName)
 <a class="jxr_linenumber" name="L318" href="#L318">318</a>                              .get(convert(revision), convert(query))
-<a class="jxr_linenumber" name="L319" href="#L319">319</a>                              .thenApply(res -&gt; <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/GetFileResult.html">GetFileResult</a>(convert(res.type()), res.contentAsText())),
+<a class="jxr_linenumber" name="L319" href="#L319">319</a>                              .thenApply(res -&gt; <strong class="jxr_keyword">new</strong> GetFileResult(convert(res.type()), res.contentAsText())),
 <a class="jxr_linenumber" name="L320" href="#L320">320</a>                resultHandler);
 <a class="jxr_linenumber" name="L321" href="#L321">321</a>     }
 <a class="jxr_linenumber" name="L322" href="#L322">322</a> 
 <a class="jxr_linenumber" name="L323" href="#L323">323</a>     @Override
-<a class="jxr_linenumber" name="L324" href="#L324">324</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">diffFile</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> from, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> to, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Query.html">Query</a> query,
+<a class="jxr_linenumber" name="L324" href="#L324">324</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> diffFile(String projectName, String repositoryName, Revision from, Revision to, Query query,
 <a class="jxr_linenumber" name="L325" href="#L325">325</a>                          AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L326" href="#L326">326</a> 
 <a class="jxr_linenumber" name="L327" href="#L327">327</a>         <em class="jxr_comment">// FIXME(trustin): Remove the firstNonNull() on the change content once we make it optional.</em>
 <a class="jxr_linenumber" name="L328" href="#L328">328</a>         handle(projectManager.get(projectName).repos().get(repositoryName)
 <a class="jxr_linenumber" name="L329" href="#L329">329</a>                              .diff(convert(from), convert(to), convert(query))
-<a class="jxr_linenumber" name="L330" href="#L330">330</a>                              .thenApply(change -&gt; <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/DiffFileResult.html">DiffFileResult</a>(convert(change.type()),
+<a class="jxr_linenumber" name="L330" href="#L330">330</a>                              .thenApply(change -&gt; <strong class="jxr_keyword">new</strong> DiffFileResult(convert(change.type()),
 <a class="jxr_linenumber" name="L331" href="#L331">331</a>                                                                      firstNonNull(change.contentAsText(), <span class="jxr_string">""</span>))),
 <a class="jxr_linenumber" name="L332" href="#L332">332</a>                resultHandler);
 <a class="jxr_linenumber" name="L333" href="#L333">333</a>     }
 <a class="jxr_linenumber" name="L334" href="#L334">334</a> 
 <a class="jxr_linenumber" name="L335" href="#L335">335</a>     @Override
-<a class="jxr_linenumber" name="L336" href="#L336">336</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">mergeFiles</a>(String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> revision,
-<a class="jxr_linenumber" name="L337" href="#L337">337</a>                            <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/MergeQuery.html">MergeQuery</a> mergeQuery, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L336" href="#L336">336</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> mergeFiles(String projectName, String repositoryName, Revision revision,
+<a class="jxr_linenumber" name="L337" href="#L337">337</a>                            MergeQuery mergeQuery, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L338" href="#L338">338</a>         handle(projectManager.get(projectName).repos().get(repositoryName)
 <a class="jxr_linenumber" name="L339" href="#L339">339</a>                              .mergeFiles(convert(revision), convert(mergeQuery))
-<a class="jxr_linenumber" name="L340" href="#L340">340</a>                              .thenApply(merged -&gt; <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/MergedEntry.html">MergedEntry</a>(convert(merged.revision()),
+<a class="jxr_linenumber" name="L340" href="#L340">340</a>                              .thenApply(merged -&gt; <strong class="jxr_keyword">new</strong> MergedEntry(convert(merged.revision()),
 <a class="jxr_linenumber" name="L341" href="#L341">341</a>                                                                   convert(merged.type()),
 <a class="jxr_linenumber" name="L342" href="#L342">342</a>                                                                   merged.contentAsText(),
 <a class="jxr_linenumber" name="L343" href="#L343">343</a>                                                                   merged.paths())),
@@ -353,8 +353,8 @@
 <a class="jxr_linenumber" name="L345" href="#L345">345</a>     }
 <a class="jxr_linenumber" name="L346" href="#L346">346</a> 
 <a class="jxr_linenumber" name="L347" href="#L347">347</a>     @Override
-<a class="jxr_linenumber" name="L348" href="#L348">348</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">watchRepository</a>(
-<a class="jxr_linenumber" name="L349" href="#L349">349</a>             String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> lastKnownRevision,
+<a class="jxr_linenumber" name="L348" href="#L348">348</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> watchRepository(
+<a class="jxr_linenumber" name="L349" href="#L349">349</a>             String projectName, String repositoryName, Revision lastKnownRevision,
 <a class="jxr_linenumber" name="L350" href="#L350">350</a>             String pathPattern, <strong class="jxr_keyword">long</strong> timeoutMillis, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L351" href="#L351">351</a> 
 <a class="jxr_linenumber" name="L352" href="#L352">352</a>         <strong class="jxr_keyword">if</strong> (timeoutMillis &lt;= 0) {
@@ -362,7 +362,7 @@
 <a class="jxr_linenumber" name="L354" href="#L354">354</a>             <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="L355" href="#L355">355</a>         }
 <a class="jxr_linenumber" name="L356" href="#L356">356</a> 
-<a class="jxr_linenumber" name="L357" href="#L357">357</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Repository.html">Repository</a> repo = projectManager.get(projectName).repos().get(repositoryName);
+<a class="jxr_linenumber" name="L357" href="#L357">357</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repo = projectManager.get(projectName).repos().get(repositoryName);
 <a class="jxr_linenumber" name="L358" href="#L358">358</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;com.linecorp.centraldogma.common.Revision&gt; future =
 <a class="jxr_linenumber" name="L359" href="#L359">359</a>                 watchService.watchRepository(repo, convert(lastKnownRevision), pathPattern, timeoutMillis,
 <a class="jxr_linenumber" name="L360" href="#L360">360</a>                                              false);
@@ -374,7 +374,7 @@
 <a class="jxr_linenumber" name="L366" href="#L366">366</a>             AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L367" href="#L367">367</a>         future.handle((res, cause) -&gt; {
 <a class="jxr_linenumber" name="L368" href="#L368">368</a>             <strong class="jxr_keyword">if</strong> (cause == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L369" href="#L369">369</a>                 <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/WatchRepositoryResult.html">WatchRepositoryResult</a> wrr = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/WatchRepositoryResult.html">WatchRepositoryResult</a>();
+<a class="jxr_linenumber" name="L369" href="#L369">369</a>                 <strong class="jxr_keyword">final</strong> WatchRepositoryResult wrr = <strong class="jxr_keyword">new</strong> WatchRepositoryResult();
 <a class="jxr_linenumber" name="L370" href="#L370">370</a>                 wrr.setRevision(convert(res));
 <a class="jxr_linenumber" name="L371" href="#L371">371</a>                 resultHandler.onComplete(wrr);
 <a class="jxr_linenumber" name="L372" href="#L372">372</a>             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (cause instanceof CancellationException) {
@@ -389,16 +389,16 @@
 <a class="jxr_linenumber" name="L381" href="#L381">381</a>     }
 <a class="jxr_linenumber" name="L382" href="#L382">382</a> 
 <a class="jxr_linenumber" name="L383" href="#L383">383</a>     @Override
-<a class="jxr_linenumber" name="L384" href="#L384">384</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">watchFile</a>(
-<a class="jxr_linenumber" name="L385" href="#L385">385</a>             String projectName, String repositoryName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> lastKnownRevision,
-<a class="jxr_linenumber" name="L386" href="#L386">386</a>             <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Query.html">Query</a> query, <strong class="jxr_keyword">long</strong> timeoutMillis, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L384" href="#L384">384</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> watchFile(
+<a class="jxr_linenumber" name="L385" href="#L385">385</a>             String projectName, String repositoryName, Revision lastKnownRevision,
+<a class="jxr_linenumber" name="L386" href="#L386">386</a>             Query query, <strong class="jxr_keyword">long</strong> timeoutMillis, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L387" href="#L387">387</a> 
 <a class="jxr_linenumber" name="L388" href="#L388">388</a>         <strong class="jxr_keyword">if</strong> (timeoutMillis &lt;= 0) {
 <a class="jxr_linenumber" name="L389" href="#L389">389</a>             rejectInvalidWatchTimeout(<span class="jxr_string">"watchFile"</span>, resultHandler);
 <a class="jxr_linenumber" name="L390" href="#L390">390</a>             <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="L391" href="#L391">391</a>         }
 <a class="jxr_linenumber" name="L392" href="#L392">392</a> 
-<a class="jxr_linenumber" name="L393" href="#L393">393</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Repository.html">Repository</a> repo = projectManager.get(projectName).repos().get(repositoryName);
+<a class="jxr_linenumber" name="L393" href="#L393">393</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/server/storage/repository/Repository.html">Repository</a> repo = projectManager.get(projectName).repos().get(repositoryName);
 <a class="jxr_linenumber" name="L394" href="#L394">394</a>         <strong class="jxr_keyword">final</strong> CompletableFuture&lt;com.linecorp.centraldogma.common.Entry&lt;Object&gt;&gt; future =
 <a class="jxr_linenumber" name="L395" href="#L395">395</a>                 watchService.watchFile(repo, convert(lastKnownRevision), convert(query), timeoutMillis,
 <a class="jxr_linenumber" name="L396" href="#L396">396</a>                                        false);
@@ -407,7 +407,7 @@
 <a class="jxr_linenumber" name="L399" href="#L399">399</a>     }
 <a class="jxr_linenumber" name="L400" href="#L400">400</a> 
 <a class="jxr_linenumber" name="L401" href="#L401">401</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> rejectInvalidWatchTimeout(String operationName, AsyncMethodCallback resultHandler) {
-<a class="jxr_linenumber" name="L402" href="#L402">402</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaException.html">CentralDogmaException</a> cde = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaException.html">CentralDogmaException</a>(ErrorCode.BAD_REQUEST);
+<a class="jxr_linenumber" name="L402" href="#L402">402</a>         <strong class="jxr_keyword">final</strong> CentralDogmaException cde = <strong class="jxr_keyword">new</strong> CentralDogmaException(ErrorCode.BAD_REQUEST);
 <a class="jxr_linenumber" name="L403" href="#L403">403</a>         CentralDogmaExceptions.log(operationName, cde);
 <a class="jxr_linenumber" name="L404" href="#L404">404</a>         resultHandler.onError(cde);
 <a class="jxr_linenumber" name="L405" href="#L405">405</a>     }
@@ -417,7 +417,7 @@
 <a class="jxr_linenumber" name="L409" href="#L409">409</a>             AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L410" href="#L410">410</a>         future.handle((res, cause) -&gt; {
 <a class="jxr_linenumber" name="L411" href="#L411">411</a>             <strong class="jxr_keyword">if</strong> (cause == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L412" href="#L412">412</a>                 <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/WatchFileResult.html">WatchFileResult</a> wfr = <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/WatchFileResult.html">WatchFileResult</a>();
+<a class="jxr_linenumber" name="L412" href="#L412">412</a>                 <strong class="jxr_keyword">final</strong> WatchFileResult wfr = <strong class="jxr_keyword">new</strong> WatchFileResult();
 <a class="jxr_linenumber" name="L413" href="#L413">413</a>                 wfr.setRevision(convert(res.revision()));
 <a class="jxr_linenumber" name="L414" href="#L414">414</a>                 wfr.setType(convert(res.type()));
 <a class="jxr_linenumber" name="L415" href="#L415">415</a>                 wfr.setContent(res.contentAsText());
@@ -435,7 +435,7 @@
 <a class="jxr_linenumber" name="L427" href="#L427">427</a> 
 <a class="jxr_linenumber" name="L428" href="#L428">428</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> logAndInvokeOnError(
 <a class="jxr_linenumber" name="L429" href="#L429">429</a>             String operationName, AsyncMethodCallback resultHandler, Throwable cause) {
-<a class="jxr_linenumber" name="L430" href="#L430">430</a>         <strong class="jxr_keyword">final</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaException.html">CentralDogmaException</a> cde = convert(cause);
+<a class="jxr_linenumber" name="L430" href="#L430">430</a>         <strong class="jxr_keyword">final</strong> CentralDogmaException cde = convert(cause);
 <a class="jxr_linenumber" name="L431" href="#L431">431</a>         CentralDogmaExceptions.log(operationName, cde);
 <a class="jxr_linenumber" name="L432" href="#L432">432</a>         resultHandler.onError(cde);
 <a class="jxr_linenumber" name="L433" href="#L433">433</a>     }
@@ -443,80 +443,80 @@
 <a class="jxr_linenumber" name="L435" href="#L435">435</a>     <em class="jxr_comment">// Unimplemented methods</em>
 <a class="jxr_linenumber" name="L436" href="#L436">436</a> 
 <a class="jxr_linenumber" name="L437" href="#L437">437</a>     @Override
-<a class="jxr_linenumber" name="L438" href="#L438">438</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getSchema</a>(String projectName, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L438" href="#L438">438</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> getSchema(String projectName, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L439" href="#L439">439</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L440" href="#L440">440</a>     }
 <a class="jxr_linenumber" name="L441" href="#L441">441</a> 
 <a class="jxr_linenumber" name="L442" href="#L442">442</a>     @Override
-<a class="jxr_linenumber" name="L443" href="#L443">443</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">saveSchema</a>(String projectName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Schema.html">Schema</a> schema, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L443" href="#L443">443</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> saveSchema(String projectName, Schema schema, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L444" href="#L444">444</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L445" href="#L445">445</a>     }
 <a class="jxr_linenumber" name="L446" href="#L446">446</a> 
 <a class="jxr_linenumber" name="L447" href="#L447">447</a>     @Override
-<a class="jxr_linenumber" name="L448" href="#L448">448</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getNamedQuery</a>(String projectName, String name, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L448" href="#L448">448</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> getNamedQuery(String projectName, String name, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L449" href="#L449">449</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L450" href="#L450">450</a>     }
 <a class="jxr_linenumber" name="L451" href="#L451">451</a> 
 <a class="jxr_linenumber" name="L452" href="#L452">452</a>     @Override
-<a class="jxr_linenumber" name="L453" href="#L453">453</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">saveNamedQuery</a>(String projectName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/NamedQuery.html">NamedQuery</a> namedQuery, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L453" href="#L453">453</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> saveNamedQuery(String projectName, NamedQuery namedQuery, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L454" href="#L454">454</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L455" href="#L455">455</a>     }
 <a class="jxr_linenumber" name="L456" href="#L456">456</a> 
 <a class="jxr_linenumber" name="L457" href="#L457">457</a>     @Override
-<a class="jxr_linenumber" name="L458" href="#L458">458</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">removeNamedQuery</a>(String projectName, String name, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L458" href="#L458">458</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> removeNamedQuery(String projectName, String name, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L459" href="#L459">459</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L460" href="#L460">460</a>     }
 <a class="jxr_linenumber" name="L461" href="#L461">461</a> 
 <a class="jxr_linenumber" name="L462" href="#L462">462</a>     @Override
-<a class="jxr_linenumber" name="L463" href="#L463">463</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listNamedQueries</a>(String projectName, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L463" href="#L463">463</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> listNamedQueries(String projectName, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L464" href="#L464">464</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L465" href="#L465">465</a>     }
 <a class="jxr_linenumber" name="L466" href="#L466">466</a> 
 <a class="jxr_linenumber" name="L467" href="#L467">467</a>     @Override
-<a class="jxr_linenumber" name="L468" href="#L468">468</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">getPlugin</a>(String projectName, String pluginName, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L468" href="#L468">468</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> getPlugin(String projectName, String pluginName, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L469" href="#L469">469</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L470" href="#L470">470</a>     }
 <a class="jxr_linenumber" name="L471" href="#L471">471</a> 
 <a class="jxr_linenumber" name="L472" href="#L472">472</a>     @Override
-<a class="jxr_linenumber" name="L473" href="#L473">473</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">savePlugin</a>(String projectName, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Plugin.html">Plugin</a> plugin, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L473" href="#L473">473</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> savePlugin(String projectName, Plugin plugin, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L474" href="#L474">474</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L475" href="#L475">475</a>     }
 <a class="jxr_linenumber" name="L476" href="#L476">476</a> 
 <a class="jxr_linenumber" name="L477" href="#L477">477</a>     @Override
-<a class="jxr_linenumber" name="L478" href="#L478">478</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">removePlugin</a>(String projectName, String pluginName, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L478" href="#L478">478</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> removePlugin(String projectName, String pluginName, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L479" href="#L479">479</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L480" href="#L480">480</a>     }
 <a class="jxr_linenumber" name="L481" href="#L481">481</a> 
 <a class="jxr_linenumber" name="L482" href="#L482">482</a>     @Override
-<a class="jxr_linenumber" name="L483" href="#L483">483</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listPlugins</a>(String projectName, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L483" href="#L483">483</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> listPlugins(String projectName, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L484" href="#L484">484</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L485" href="#L485">485</a>     }
 <a class="jxr_linenumber" name="L486" href="#L486">486</a> 
 <a class="jxr_linenumber" name="L487" href="#L487">487</a>     @Override
-<a class="jxr_linenumber" name="L488" href="#L488">488</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listPluginOperations</a>(String projectName, AsyncMethodCallback resultHandler) {
+<a class="jxr_linenumber" name="L488" href="#L488">488</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> listPluginOperations(String projectName, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L489" href="#L489">489</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L490" href="#L490">490</a>     }
 <a class="jxr_linenumber" name="L491" href="#L491">491</a> 
 <a class="jxr_linenumber" name="L492" href="#L492">492</a>     @Override
-<a class="jxr_linenumber" name="L493" href="#L493">493</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">performPluginOperation</a>(String projectName, String pluginName, String operationName,
+<a class="jxr_linenumber" name="L493" href="#L493">493</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> performPluginOperation(String projectName, String pluginName, String operationName,
 <a class="jxr_linenumber" name="L494" href="#L494">494</a>                                        String params, AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L495" href="#L495">495</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L496" href="#L496">496</a>     }
 <a class="jxr_linenumber" name="L497" href="#L497">497</a> 
 <a class="jxr_linenumber" name="L498" href="#L498">498</a>     @Override
-<a class="jxr_linenumber" name="L499" href="#L499">499</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">queryByNamedQuery</a>(String projectName, String namedQuery, <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Revision.html">Revision</a> revision,
+<a class="jxr_linenumber" name="L499" href="#L499">499</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> queryByNamedQuery(String projectName, String namedQuery, Revision revision,
 <a class="jxr_linenumber" name="L500" href="#L500">500</a>                                   AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L501" href="#L501">501</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L502" href="#L502">502</a>     }
 <a class="jxr_linenumber" name="L503" href="#L503">503</a> 
 <a class="jxr_linenumber" name="L504" href="#L504">504</a>     @Override
-<a class="jxr_linenumber" name="L505" href="#L505">505</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaService.html">listSubscribers</a>(String projectName, String repositoryName, String path,
+<a class="jxr_linenumber" name="L505" href="#L505">505</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> listSubscribers(String projectName, String repositoryName, String path,
 <a class="jxr_linenumber" name="L506" href="#L506">506</a>                                 AsyncMethodCallback resultHandler) {
 <a class="jxr_linenumber" name="L507" href="#L507">507</a>         unimplemented(resultHandler);
 <a class="jxr_linenumber" name="L508" href="#L508">508</a>     }
 <a class="jxr_linenumber" name="L509" href="#L509">509</a> 
 <a class="jxr_linenumber" name="L510" href="#L510">510</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> unimplemented(AsyncMethodCallback resultHandler) {
-<a class="jxr_linenumber" name="L511" href="#L511">511</a>         resultHandler.onError(<strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/CentralDogmaException.html">CentralDogmaException</a>(ErrorCode.UNIMPLEMENTED));
+<a class="jxr_linenumber" name="L511" href="#L511">511</a>         resultHandler.onError(<strong class="jxr_keyword">new</strong> CentralDogmaException(ErrorCode.UNIMPLEMENTED));
 <a class="jxr_linenumber" name="L512" href="#L512">512</a>     }
 <a class="jxr_linenumber" name="L513" href="#L513">513</a> }
 </pre>

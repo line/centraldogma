@@ -33,7 +33,7 @@
 <a class="jxr_linenumber" name="L25" href="#L25">25</a>  
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/RepositoryDto.html">RepositoryDto</a>() {}
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/RepositoryDto.html">RepositoryDto</a>(<a href="../../../../../../../com/linecorp/centraldogma/internal/thrift/Repository.html">Repository</a> repository) {
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/RepositoryDto.html">RepositoryDto</a>(Repository repository) {
 <a class="jxr_linenumber" name="L29" href="#L29">29</a>          name = repository.getName();
 <a class="jxr_linenumber" name="L30" href="#L30">30</a>          <strong class="jxr_keyword">if</strong> (repository.getHead() != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L31" href="#L31">31</a>              head = <strong class="jxr_keyword">new</strong> <a href="../../../../../../../com/linecorp/centraldogma/server/internal/admin/dto/CommitDto.html">CommitDto</a>(repository.getHead());

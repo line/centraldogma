@@ -165,9 +165,9 @@
 <a class="jxr_linenumber" name="L157" href="#L157">157</a>     }
 <a class="jxr_linenumber" name="L158" href="#L158">158</a> 
 <a class="jxr_linenumber" name="L159" href="#L159">159</a>     <em class="jxr_comment">// The parameter 'project' is not used at the moment, but will be used once schema and plugin support lands.</em>
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>     <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Project.html">Project</a> convert(
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>     <strong class="jxr_keyword">static</strong> Project convert(
 <a class="jxr_linenumber" name="L161" href="#L161">161</a>             String name, com.linecorp.centraldogma.server.storage.project.Project project) {
-<a class="jxr_linenumber" name="L162" href="#L162">162</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Project.html">Project</a>(name);
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> Project(name);
 <a class="jxr_linenumber" name="L163" href="#L163">163</a>     }
 <a class="jxr_linenumber" name="L164" href="#L164">164</a> 
 <a class="jxr_linenumber" name="L165" href="#L165">165</a>     <strong class="jxr_keyword">static</strong> CompletableFuture&lt;Repository&gt; convert(
@@ -177,7 +177,7 @@
 <a class="jxr_linenumber" name="L169" href="#L169">169</a>                 com.linecorp.centraldogma.common.Revision.HEAD,
 <a class="jxr_linenumber" name="L170" href="#L170">170</a>                 com.linecorp.centraldogma.common.Revision.HEAD,
 <a class="jxr_linenumber" name="L171" href="#L171">171</a>                 com.linecorp.centraldogma.server.storage.repository.Repository.ALL_PATH, 1).thenApply(
-<a class="jxr_linenumber" name="L172" href="#L172">172</a>                         history -&gt; <strong class="jxr_keyword">new</strong> <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/Repository.html">Repository</a>(name).setHead(convert(history.get(0))));
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>                         history -&gt; <strong class="jxr_keyword">new</strong> Repository(name).setHead(convert(history.get(0))));
 <a class="jxr_linenumber" name="L173" href="#L173">173</a>     }
 <a class="jxr_linenumber" name="L174" href="#L174">174</a> 
 <a class="jxr_linenumber" name="L175" href="#L175">175</a>     <strong class="jxr_keyword">static</strong> <a href="../../../../../../com/linecorp/centraldogma/common/Commit.html">Commit</a> convert(com.linecorp.centraldogma.common.Commit commit) {
@@ -196,7 +196,7 @@
 <a class="jxr_linenumber" name="L188" href="#L188">188</a>             <strong class="jxr_keyword">return</strong> (CentralDogmaException) t;
 <a class="jxr_linenumber" name="L189" href="#L189">189</a>         }
 <a class="jxr_linenumber" name="L190" href="#L190">190</a> 
-<a class="jxr_linenumber" name="L191" href="#L191">191</a>         <a href="../../../../../../com/linecorp/centraldogma/internal/thrift/ErrorCode.html">ErrorCode</a> code = ErrorCode.INTERNAL_SERVER_ERROR;
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>         ErrorCode code = ErrorCode.INTERNAL_SERVER_ERROR;
 <a class="jxr_linenumber" name="L192" href="#L192">192</a>         <strong class="jxr_keyword">if</strong> (t instanceof IllegalArgumentException || t instanceof InvalidPushException) {
 <a class="jxr_linenumber" name="L193" href="#L193">193</a>             code = ErrorCode.BAD_REQUEST;
 <a class="jxr_linenumber" name="L194" href="#L194">194</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (t instanceof EntryNotFoundException) {
