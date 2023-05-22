@@ -1,8 +1,9 @@
 name: Publish Docker image
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - centraldogma-*
 
 env:
   LC_ALL: 'en_US.UTF-8'
