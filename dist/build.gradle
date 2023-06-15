@@ -142,13 +142,13 @@ task tarball(group: 'Build',
              dependsOn: tasks.distDir,
              type: Tar) {
 
-    baseName = rootProject.name
-    destinationDir = project.file("${project.buildDir}")
+    archiveBaseName = rootProject.name
+    destinationDirectory = project.file("${project.buildDir}")
     compression = Compression.GZIP
     includeEmptyDirs = true
 
     from "${project.ext.distDir}"
-    into baseName + '-' + project.version
+    into archiveBaseName.get() + '-' + project.version
 }
 
 tasks.assemble.dependsOn(tasks.tarball)

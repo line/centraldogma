@@ -9,7 +9,7 @@ dependencies {
 
     testImplementation project(':testing-internal')
     testImplementation project(':server-auth:shiro')
-    if (rootProject.ext.testJavaVersion >= 11) {
+    if (project.ext.targetJavaVersion >= 11) {
         testImplementation project(path: ':server-jgit6')
     }
 }

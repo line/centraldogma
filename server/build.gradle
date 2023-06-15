@@ -57,13 +57,13 @@ dependencies {
     optionalImplementation libs.logback
     optionalImplementation libs.slf4j.jul.to.slf4j
 
-    if (rootProject.ext.testJavaVersion >= 11) {
+    if (project.ext.targetJavaVersion >= 11) {
         testImplementation project(path: ':server-jgit6')
     }
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer
-if (rootProject.ext.testJavaVersion >= 16) {
+if (project.ext.testJavaVersion >= 16) {
     tasks.withType(Test) {
         jvmArgs '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED'
     }
