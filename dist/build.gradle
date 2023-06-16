@@ -1,6 +1,3 @@
-import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
-import com.google.common.base.CaseFormat
-
 buildscript {
     repositories {
         mavenCentral()
@@ -12,9 +9,19 @@ buildscript {
 }
 
 plugins {
-    alias libs.plugins.docker
+    alias libs.plugins.docker apply false
     alias libs.plugins.download
 }
+
+if (JavaVersion.current() < JavaVersion.VERSION_11 || project.ext.testJavaVersion < 11) {
+    // Gradle Docker plugin requires Java >= 11
+    return
+}
+
+apply plugin: 'com.bmuschko.docker-remote-api'
+
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.google.common.base.CaseFormat
 
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
