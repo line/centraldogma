@@ -146,6 +146,7 @@ task tarball(group: 'Build',
     destinationDirectory = project.file("${project.buildDir}")
     compression = Compression.GZIP
     includeEmptyDirs = true
+    dependsOn(tasks.copyAlpnAgent)
 
     from "${project.ext.distDir}"
     into archiveBaseName.get() + '-' + project.version
