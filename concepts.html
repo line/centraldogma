@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Concepts &mdash; Central Dogma 0.61.1 documentation</title>
+  <title>Concepts &mdash; Central Dogma 0.61.2 documentation</title>
   
 
   
@@ -182,6 +182,18 @@
             
   <div class="section" id="concepts">
 <span id="id1"></span><h1>Concepts<a class="headerlink" href="#concepts" title="Permalink to this headline">¶</a></h1>
+<p class="plantuml">
+<img src="_images/plantuml-13fd48a3fb710cfee923d92d2484478bc3cf9f44.png" alt="&#64;startuml
+object Central_Dogma
+object Project
+object Meta_repo
+object User_repos
+
+Central_Dogma *-right- &quot;*&quot; Project
+Project *-- &quot;1&quot; Meta_repo
+Project *-- &quot;*&quot; User_repos
+&#64;enduml"/>
+</p>
 <ul>
 <li><p>Project</p>
 <ul>
