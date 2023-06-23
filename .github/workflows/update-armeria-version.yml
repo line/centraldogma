@@ -1,0 +1,42 @@
+name: Update Armeria version
+
+on:
+  workflow_dispatch:
+    inputs:
+      armeria_version:
+        description: 'New Armeria version'
+        required: true
+        type: string
+
+jobs:
+  update-armeria-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Update Armeria version to the latest one
+        run: |
+          sed -i "s/armeria = \".*\"/armeria = \"${{ inputs.armeria_version }}\"/" dependencies.toml
+
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v3
+        with:
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSWORD }}
+          git-user-signingkey: true
+          git-commit-gpgsign: true
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          title: Update Armeria version to ${{ inputs.armeria_version }}
+          body : ''
+          commit-message: Update Armeria version to ${{ inputs.armeria_version }}
+          author: Meri Kim <dl_armeria@linecorp.com>
+          branch: update-armeria-version
+          committer: Meri Kim <dl_armeria@linecorp.com>
+          delete-branch: true
+          label: dependencies
+          add-paths: |
+            dependencies.toml
