@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Update Armeria version to the latest one
+      - name: Update Armeria version to ${{ inputs.armeria_version }}
         run: |
           sed -i "s/armeria = \".*\"/armeria = \"${{ inputs.armeria_version }}\"/" dependencies.toml
 
