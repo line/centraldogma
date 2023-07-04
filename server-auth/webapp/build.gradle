@@ -49,4 +49,11 @@ node {
     version = '16.1.0'
     yarnVersion = '1.22.10'
     download = true
+    npmInstallCommand = "ci"
+
+    // Change the cache location under Gradle user home directory so that it's cached by CI.
+    if (System.getenv('CI') != null) {
+        workDir = file("${gradle.gradleUserHomeDir}/caches/nodejs/${project.name}")
+        npmWorkDir = file("${gradle.gradleUserHomeDir}/caches/npm/${project.name}")
+    }
 }
