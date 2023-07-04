@@ -12,10 +12,9 @@ declare module 'webpack' {
   }
 }
 
-const armeriaPort = process.env.ARMERIA_PORT || '8080';
+const serverPort = process.env.SERVER_PORT || '8080';
 
 const isDev = !!process.env.WEBPACK_DEV;
-const isWindows = process.platform === 'win32';
 
 const config: Configuration = {
   mode: isDev ? 'development' : 'production',
@@ -90,13 +89,12 @@ const config: Configuration = {
   devServer: {
     historyApiFallback: true,
     hot: true,
-    // open: 'docs/',
     port: 3000,
     proxy: [
       {
         path: '/',
         context: (pathname, req) => true,
-        target: `http://127.0.0.1:${armeriaPort}`,
+        target: `http://127.0.0.1:${serverPort}`,
         changeOrigin: true,
       },
     ],
@@ -115,12 +113,6 @@ plugins.push(new HtmlWebpackPlugin({
   template: './public/index.html',
   hash: true,
 }));
-
-const enableAnalyzer = !!process.env.WEBPACK_ANALYZER;
-if (enableAnalyzer) {
-  const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
-  plugins.push(new BundleAnalyzerPlugin())
-}
 
 plugins.push(new optimize.LimitChunkCountPlugin({
   maxChunks: 1,
@@ -141,11 +133,4 @@ if (!isDev) {
   }) as any);
 }
 
-plugins.push(new FaviconsWebpackPlugin({
-  logo: './src/central_dogma.png',
-  // We don't need the many different icon versions of webapp mode and use light mode
-  // to keep JAR size down.
-  mode: 'light',
-  devMode: 'light',
-}));
 export default config;
