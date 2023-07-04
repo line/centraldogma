@@ -1,3 +1,6 @@
+import static org.gradle.internal.os.OperatingSystem.WINDOWS
+import static org.gradle.internal.os.OperatingSystem.current
+
 plugins {
     alias libs.plugins.node.gradle
 }
@@ -125,6 +128,11 @@ task copyWebApp(type: Copy) {
 
     doFirst {
         delete(dst)
+    }
+
+    // gradle holds a lock even after the buildWebapp task is completed
+    if (current() == WINDOWS) {
+        exclude("**/*.lock")
     }
 }
 tasks.sourcesJar.dependsOn(tasks.copyWebApp)

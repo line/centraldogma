@@ -755,6 +755,8 @@ public class CentralDogma implements AutoCloseable {
 
                 sb.serviceUnder(BUILTIN_WEB_BASE_PATH, new OrElseDefaultHttpFileService(
                         FileService.builder(CentralDogma.class.getClassLoader(), "auth-webapp")
+                                   .autoDecompress(true)
+                                   .serveCompressedFiles(true)
                                    .cacheControl(ServerCacheControl.REVALIDATED)
                                    .build(),
                         "/index.html"));
