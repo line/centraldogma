@@ -68,6 +68,7 @@ jobs:
         -Porg.gradle.java.installations.paths=${{ steps.setup-build-jdk.outputs.path }},${{ steps.setup-test-jdk.outputs.path }}
       shell: bash
 
+
     - name: Upload coverage to Codecov
       if: ${{ matrix.coverage }}
       uses: codecov/codecov-action@v1
