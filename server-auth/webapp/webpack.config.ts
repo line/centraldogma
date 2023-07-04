@@ -1,6 +1,5 @@
 import path from 'path';
 
-import FaviconsWebpackPlugin from 'favicons-webpack-plugin';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import CompressionWebpackPlugin from 'compression-webpack-plugin';
 import { Configuration, DefinePlugin, optimize } from 'webpack';
