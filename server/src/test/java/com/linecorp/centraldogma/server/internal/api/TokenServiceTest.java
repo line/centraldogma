@@ -20,14 +20,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import java.util.Collection;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.linecorp.armeria.common.ContextAwareScheduledExecutorService;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.HttpResponseException;
@@ -53,10 +50,6 @@ class TokenServiceTest {
     private static TokenService tokenService;
 
     private final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
-
-    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    private final ContextAwareScheduledExecutorService blockingExecutor =
-            ContextAwareScheduledExecutorService.of(ctx, executor);
 
     @BeforeAll
     static void setUp() {
