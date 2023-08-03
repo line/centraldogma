@@ -2,6 +2,9 @@ Visit [the official web site](https://line.github.io/centraldogma/) for more inf
 
 # Central Dogma
 
+[![CI](https://github.com/line/centraldogma/actions/workflows/actions_build.yml/badge.svg?branch=main&event=push)](https://github.com/line/centraldogma/actions/workflows/actions_build.yml)
+[![codecov.io](https://codecov.io/github/line/centraldogma/coverage.svg?branch=main)](https://codecov.io/github/line/centraldogma?branch=main)
+
 _Central Dogma_ is an open-source, highly-available and version-controlled service configuration repository based on Git, ZooKeeper and HTTP/2.
 
 It is open-sourced and licensed under [Apache License 2.0](https://tldrlegal.com/license/apache-license-2.0-(apache-2.0)) by [LINE Corporation](http://linecorp.com/en/), who uses it in production.
