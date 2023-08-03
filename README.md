@@ -4,6 +4,8 @@ Visit [the official web site](https://line.github.io/centraldogma/) for more inf
 
 [![CI](https://github.com/line/centraldogma/actions/workflows/actions_build.yml/badge.svg?branch=main&event=push)](https://github.com/line/centraldogma/actions/workflows/actions_build.yml)
 [![codecov.io](https://codecov.io/github/line/centraldogma/coverage.svg?branch=main)](https://codecov.io/github/line/centraldogma?branch=main)
+[![Latest Release Version](https://img.shields.io/github/v/release/line/centraldogma)](https://github.com/line/centraldogma/releases/latest)
+[![Slack workspace](https://img.shields.io/badge/join-slack-orange?logo=slack)](https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ)
 
 _Central Dogma_ is an open-source, highly-available and version-controlled service configuration repository based on Git, ZooKeeper and HTTP/2.
 
