@@ -20,16 +20,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import java.util.Collection;
+import java.util.concurrent.CompletionException;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.command.Command;
 import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
@@ -49,6 +55,16 @@ class TokenServiceTest {
     private static final Author guestAuthor = new Author("guest@localhost.com");
     private static final User admin = new User("admin@localhost.com", User.LEVEL_ADMIN);
     private static final User guest = new User("guest@localhost.com");
+    private static final JsonNode activation = Jackson.valueToTree(
+            ImmutableList.of(
+                    ImmutableMap.of("op", "replace",
+                                    "path", "/status",
+                                    "value", "active")));
+    private static final JsonNode deactivation = Jackson.valueToTree(
+            ImmutableList.of(
+                    ImmutableMap.of("op", "replace",
+                                    "path", "/status",
+                                    "value", "inactive")));
 
     private static TokenService tokenService;
     private static MetadataService metadataService;
@@ -151,5 +167,34 @@ class TokenServiceTest {
 
         tokenService.deleteToken(this.ctx, "forAdmin1", adminAuthor, admin).thenCompose(
                 unused -> tokenService.purgeToken(ctx, "forAdmin1", adminAuthor, admin)).join();
+    }
+
+    @Test
+    public void updateToken() {
+        final Token token = tokenService.createToken("forUpdate", true, null, adminAuthor, admin).join()
+                                        .content();
+        assertThat(token.isActive()).isTrue();
+
+        tokenService.updateToken(ctx, "forUpdate", deactivation, adminAuthor, admin).join();
+        final Token deactivatedToken = metadataService.findTokenByAppId("forUpdate").join();
+        assertThat(deactivatedToken.isActive()).isFalse();
+
+        tokenService.updateToken(ctx, "forUpdate", activation, adminAuthor, admin).join();
+        final Token activatedToken = metadataService.findTokenByAppId("forUpdate").join();
+        assertThat(activatedToken.isActive()).isTrue();
+
+        assertThatThrownBy(
+                () -> tokenService.updateToken(ctx, "forUpdate", Jackson.valueToTree(
+                        ImmutableList.of(ImmutableMap.of())), adminAuthor, admin).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
+        tokenService.deleteToken(ctx, "forUpdate", adminAuthor, admin).join();
+        final Token deletedToken = metadataService.findTokenByAppId("forUpdate").join();
+        assertThat(deletedToken.isDeleted()).isTrue();
+        assertThatThrownBy(
+                () -> tokenService.updateToken(ctx, "forUpdate", activation, adminAuthor, admin).join())
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -177,7 +177,7 @@ public class TokenService extends AbstractService {
                 token -> {
                     if (token.isDeleted()) {
                         throw new IllegalArgumentException(
-                                "The token is deleting. You can not update the token's status");
+                                "You can't update the status of the token scheduled for deletion.");
                     }
                     if (node.equals(activation)) {
                         return mds.activateToken(author, appId)
