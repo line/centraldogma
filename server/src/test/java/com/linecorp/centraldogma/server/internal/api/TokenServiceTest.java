@@ -22,6 +22,7 @@ import static org.mockito.Mockito.mock;
 import java.util.Collection;
 import java.util.concurrent.CompletionException;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -41,6 +42,7 @@ import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
 import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.Token;
+import com.linecorp.centraldogma.server.metadata.Tokens;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
 
@@ -77,6 +79,17 @@ class TokenServiceTest {
                                               manager.executor());
         tokenService = new TokenService(manager.projectManager(), manager.executor(),
                                         metadataService);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        final Tokens tokens = metadataService.getTokens().join();
+        tokens.appIds().forEach((appId, token) -> {
+            if (!token.isDeleted()) {
+                metadataService.destroyToken(adminAuthor, appId);
+            }
+            metadataService.purgeToken(adminAuthor, appId);
+        });
     }
 
     @Test
