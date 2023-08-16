@@ -30,7 +30,10 @@ import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.HttpResponseException;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.command.Command;
+import com.linecorp.centraldogma.server.command.StandaloneCommandExecutor;
 import com.linecorp.centraldogma.server.metadata.MetadataService;
+import com.linecorp.centraldogma.server.metadata.ProjectRole;
 import com.linecorp.centraldogma.server.metadata.Token;
 import com.linecorp.centraldogma.server.metadata.User;
 import com.linecorp.centraldogma.testing.internal.ProjectManagerExtension;
@@ -48,13 +51,16 @@ class TokenServiceTest {
     private static final User guest = new User("guest@localhost.com");
 
     private static TokenService tokenService;
+    private static MetadataService metadataService;
 
     private final ServiceRequestContext ctx = mock(ServiceRequestContext.class);
 
     @BeforeAll
     static void setUp() {
+        metadataService = new MetadataService(manager.projectManager(),
+                                              manager.executor());
         tokenService = new TokenService(manager.projectManager(), manager.executor(),
-                                        new MetadataService(manager.projectManager(), manager.executor()));
+                                        metadataService);
     }
 
     @Test
@@ -65,6 +71,11 @@ class TokenServiceTest {
         assertThatThrownBy(() -> tokenService.createToken("forAdmin2", true, null, guestAuthor, guest)
                                              .join())
                 .isInstanceOf(IllegalArgumentException.class);
+
+        final StandaloneCommandExecutor executor = (StandaloneCommandExecutor) manager.executor();
+        executor.execute(Command.createProject(Author.SYSTEM, "myPro")).join();
+        metadataService.addToken(Author.SYSTEM, "myPro", "forAdmin1", ProjectRole.OWNER).join();
+        assertThat(metadataService.getProject("myPro").join().tokens().containsKey("forAdmin1")).isTrue();
 
         final Collection<Token> tokens = tokenService.listTokens(admin).join();
         assertThat(tokens.stream().filter(t -> !StringUtil.isNullOrEmpty(t.secret()))).hasSize(1);
@@ -84,6 +95,8 @@ class TokenServiceTest {
                     assertThat(t.creation()).isEqualTo(token.creation());
                     assertThat(t.deactivation()).isEqualTo(token.deactivation());
                 });
+        assertThat(tokenService.listTokens(admin).join().size()).isEqualTo(0);
+        assertThat(metadataService.getProject("myPro").join().tokens().size()).isEqualTo(0);
     }
 
     @Test
