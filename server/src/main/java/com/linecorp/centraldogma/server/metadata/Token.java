@@ -147,7 +147,7 @@ public final class Token implements Identifiable {
     }
 
     /**
-     * Returns who delete this token when.
+     * Returns who deleted this token when.
      */
     @Nullable
     @JsonProperty
