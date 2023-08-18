@@ -15,53 +15,34 @@
  */
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringTestUtils.EVERY_MINUTE;
-import static com.linecorp.centraldogma.server.internal.mirror.MirroringTestUtils.newMirror;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.time.ZonedDateTime;
+import java.net.URI;
 
 import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
+import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinitionBuilder;
+import com.cronutils.parser.CronParser;
+
+import com.linecorp.centraldogma.server.internal.storage.repository.CentralDogmaMirrorProvider;
 import com.linecorp.centraldogma.server.mirror.Mirror;
+import com.linecorp.centraldogma.server.mirror.MirrorContext;
+import com.linecorp.centraldogma.server.mirror.MirrorCredential;
+import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-class MirrorTest {
+class CentralDogmaMirrorTest {
 
-    @Test
-    void testGitMirror() {
-        // Simplest possible form
-        assertMirror("git://a.com/b.git", GitMirror.class,
-                     "git://a.com/b.git", "/", null);
-
-        // Non-default port number
-        assertMirror("git+ssh://a.com:8022/b.git", GitMirror.class,
-                     "git+ssh://a.com:8022/b.git", "/", null);
-
-        // Non-default remotePath
-        assertMirror("git+http://a.com/b.git/c", GitMirror.class,
-                     "git+http://a.com/b.git", "/c/", null);
-
-        // Non-default remoteBranch
-        assertMirror("git+https://a.com/b.git#develop", GitMirror.class,
-                     "git+https://a.com/b.git", "/", "develop");
-
-        // Non-default remotePath and remoteBranch
-        assertMirror("git+ssh://a.com/b.git/c#develop", GitMirror.class,
-                     "git+ssh://a.com/b.git", "/c/", "develop");
-
-        // remoteUri must contain the '.git' suffix.
-        assertThatThrownBy(() -> newMirror("git://a.com/b", GitMirror.class))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> newMirror("git://a.com/b.dogma", GitMirror.class))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
+    static final Cron EVERY_MINUTE = new CronParser(
+            CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ)).parse("0 * * * * ?");
 
     @Test
     void testCentralDogmaMirror() {
@@ -112,36 +93,8 @@ class MirrorTest {
 
     @Test
     void testUnknownScheme() {
-        assertThatThrownBy(() -> newMirror("magma://a.com/b.magma", Mirror.class))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> newMirror("git+foo://a.com/b.git", Mirror.class))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void jitter() {
-        final AbstractMirror mirror = assertMirror("git://a.com/b.git", AbstractMirror.class,
-                                                   "git://a.com/b.git", "/", null);
-
-        assertThat(mirror.schedule()).isSameAs(EVERY_MINUTE);
-
-        // When jitter is less then the configured interval.
-        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:00+00:00"), 1000))
-                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:20:01+00:00"));
-        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:01+00:00"), 1000))
-                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:21:01+00:00"));
-
-        // When jitter is equal to the configured interval.
-        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:00+00:00"), 60000))
-                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:21:00+00:00"));
-        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:21:30+00:00"), 60000))
-                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:22:00+00:00"));
-
-        // When jitter is more than the configured interval.
-        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:00+00:00"), 90000))
-                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:20:30+00:00"));
-        assertThat(mirror.nextExecutionTime(ZonedDateTime.parse("2018-05-15T19:20:30+00:00"), 90000))
-                .isEqualTo(ZonedDateTime.parse("2018-05-15T19:21:30+00:00"));
+        assertMirrorNull("magma://a.com/b.magma");
+        assertMirrorNull("git+foo://a.com/b.git");
     }
 
     private static <T extends Mirror> T assertMirror(String remoteUri, Class<T> mirrorType,
@@ -159,5 +112,36 @@ class MirrorTest {
         assertThat(m.remotePath()).isEqualTo(expectedRemotePath);
         assertThat(m.remoteBranch()).isEqualTo(expectedRemoteBranch);
         return m;
+    }
+
+    static <T extends Mirror> T newMirror(String remoteUri, Class<T> mirrorType) {
+        return newMirror(remoteUri, EVERY_MINUTE, mock(Repository.class), mirrorType);
+    }
+
+    static <T extends Mirror> T newMirror(String remoteUri, Cron schedule,
+                                          Repository repository, Class<T> mirrorType) {
+        final MirrorCredential credential = mock(MirrorCredential.class);
+        final Mirror mirror =
+                new CentralDogmaMirrorProvider().newMirror(
+                        new MirrorContext(schedule, MirrorDirection.LOCAL_TO_REMOTE,
+                                          credential, repository, "/", URI.create(remoteUri), null));
+
+        assertThat(mirror).isInstanceOf(mirrorType);
+        assertThat(mirror.direction()).isEqualTo(MirrorDirection.LOCAL_TO_REMOTE);
+        assertThat(mirror.credential()).isSameAs(credential);
+        assertThat(mirror.localRepo()).isSameAs(repository);
+        assertThat(mirror.localPath()).isEqualTo("/");
+
+        @SuppressWarnings("unchecked")
+        final T castMirror = (T) mirror;
+        return castMirror;
+    }
+
+    static void assertMirrorNull(String remoteUri) {
+        final MirrorCredential credential = mock(MirrorCredential.class);
+        final Mirror mirror = new CentralDogmaMirrorProvider().newMirror(
+                new MirrorContext(EVERY_MINUTE, MirrorDirection.LOCAL_TO_REMOTE,
+                                  credential, mock(Repository.class), "/", URI.create(remoteUri), null));
+        assertThat(mirror).isNull();
     }
 }

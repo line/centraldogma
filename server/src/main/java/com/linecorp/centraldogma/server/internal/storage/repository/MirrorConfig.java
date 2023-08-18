@@ -42,7 +42,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
-import com.linecorp.armeria.common.JacksonObjectMapperProvider;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -62,25 +61,11 @@ public final class MirrorConfig {
     private static final CronParser CRON_PARSER = new CronParser(
             CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
 
-    private static final MirrorProvider MIRROR_PROVIDER;
+    private static final List<MirrorProvider> MIRROR_PROVIDERS;
 
     static {
-        final List<MirrorProvider> providers =
-                ImmutableList.copyOf(ServiceLoader.load(MirrorProvider.class));
-        if (!providers.isEmpty()) {
-            MIRROR_PROVIDER = providers.get(0);
-            // Consider allowing multiple providers depending on the scheme.
-            if (providers.size() > 1) {
-                logger.warn("Found {} {}s. The first provider found will be used among {}",
-                            providers.size(), MirrorProvider.class.getSimpleName(), providers);
-            } else {
-                logger.info("Using {} as a {}",
-                            MIRROR_PROVIDER.getClass().getSimpleName(),
-                            JacksonObjectMapperProvider.class.getSimpleName());
-            }
-        } else {
-            MIRROR_PROVIDER = LogNoMirrorProviderWarningOnce.INSTANCE;
-        }
+        MIRROR_PROVIDERS = ImmutableList.copyOf(ServiceLoader.load(MirrorProvider.class));
+        logger.debug("Available {}s: {}", MirrorProvider.class.getSimpleName(), MIRROR_PROVIDERS);
     }
 
     private static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
@@ -157,7 +142,14 @@ public final class MirrorConfig {
         final MirrorContext mirrorContext = new MirrorContext(
                 schedule, direction, findCredential(credentials, remoteUri, credentialId),
                 parent.repos().get(localRepo), localPath, remoteUri, gitignore);
-        return MIRROR_PROVIDER.newMirror(mirrorContext);
+        for (MirrorProvider mirrorProvider : MIRROR_PROVIDERS) {
+            final Mirror mirror = mirrorProvider.newMirror(mirrorContext);
+            if (mirror != null) {
+                return mirror;
+            }
+        }
+
+        throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
     }
 
     @JsonProperty("enabled")
@@ -201,25 +193,5 @@ public final class MirrorConfig {
     @JsonProperty("schedule")
     public String schedule() {
         return schedule.asString();
-    }
-
-    private enum LogNoMirrorProviderWarningOnce implements MirrorProvider {
-
-        INSTANCE;
-
-        @Override
-        public Mirror newMirror(MirrorContext context) {
-            ClassLoaderHack.loadMe();
-            throw new UnsupportedOperationException();
-        }
-
-        private static final class ClassLoaderHack {
-            static void loadMe() {}
-
-            static {
-                logger.warn("{} is not provided. Did you forget to add server-mirror-git module?",
-                            MirrorProvider.class.getName());
-            }
-        }
     }
 }

@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.internal.mirror;
+package com.linecorp.centraldogma.server.internal.storage.repository;
 
 import static com.linecorp.centraldogma.server.mirror.MirrorUtil.normalizePath;
 
@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 /**
  * A utility class for creating a mirroring task.
  */
-final class MirrorUtil {
+public final class MirrorUtil {
 
     /**
      * Splits the specified 'remoteUri' into:
@@ -44,7 +44,7 @@ final class MirrorUtil {
      * - remotePath:    / (default)
      * - remoteBranch:  {@code defaultBranch}
      */
-    static String[] split(URI remoteUri, String suffix) {
+    public static String[] split(URI remoteUri, String suffix) {
         final String host = remoteUri.getHost();
         if (host == null && !remoteUri.getScheme().endsWith("+file")) {
             throw new IllegalArgumentException("no host in remoteUri: " + remoteUri);

@@ -81,7 +81,7 @@ abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
     }
 
     /**
-     * Returns the {@link Markup} of the {@link #detail()}.
+     * Returns the {@link Markup} of the {@code detail()}.
      */
     @JsonProperty
     public Markup markup() {

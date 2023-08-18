@@ -16,8 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.mirror.MirrorUtil.split;
-import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_DOGMA;
+import static com.linecorp.centraldogma.server.internal.storage.repository.MirrorUtil.split;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_FILE;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTP;
@@ -26,16 +25,12 @@ import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_S
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorContext;
 import com.linecorp.centraldogma.server.mirror.MirrorProvider;
 
-public final class DefaultMirrorProvider implements MirrorProvider {
-
-    private static final Pattern DOGMA_PATH_PATTERN = Pattern.compile("^/([^/]+)/([^/]+)\\.dogma$");
+public final class GitMirrorProvider implements MirrorProvider {
 
     @Override
     public Mirror newMirror(MirrorContext context) {
@@ -44,29 +39,10 @@ public final class DefaultMirrorProvider implements MirrorProvider {
         final URI remoteUri = context.remoteUri();
         final String scheme = remoteUri.getScheme();
         if (scheme == null) {
-            throw new IllegalArgumentException("no scheme in remoteUri: " + remoteUri);
+            return null;
         }
 
-        //noinspection EnhancedSwitchMigration
         switch (scheme) {
-            case SCHEME_DOGMA: {
-                final String[] components = split(remoteUri, "dogma");
-                final URI remoteRepoUri = URI.create(components[0]);
-                final Matcher matcher = DOGMA_PATH_PATTERN.matcher(remoteRepoUri.getPath());
-                if (!matcher.find()) {
-                    throw new IllegalArgumentException(
-                            "cannot determine project name and repository name: " + remoteUri +
-                            " (expected: dogma://<host>[:<port>]/<project>/<repository>.dogma[<remotePath>])");
-                }
-
-                final String remoteProject = matcher.group(1);
-                final String remoteRepo = matcher.group(2);
-
-                return new CentralDogmaMirror(context.schedule(), context.direction(), context.credential(),
-                                              context.localRepo(), context.localPath(),
-                                              remoteRepoUri, remoteProject, remoteRepo, components[1],
-                                              context.gitignore());
-            }
             case SCHEME_GIT:
             case SCHEME_GIT_SSH:
             case SCHEME_GIT_HTTP:
@@ -80,7 +56,6 @@ public final class DefaultMirrorProvider implements MirrorProvider {
             }
         }
 
-        throw new IllegalArgumentException("unsupported scheme in remoteUri: " + remoteUri +
-                                           ". mirror context: " + context);
+        return null;
     }
 }

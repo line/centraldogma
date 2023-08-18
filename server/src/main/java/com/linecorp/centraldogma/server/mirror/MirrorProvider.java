@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.mirror;
 
+import com.linecorp.armeria.common.annotation.Nullable;
+
 /**
  * Creates a new {@link Mirror} dynamically via Java SPI (Service Provider Interface).
  */
@@ -23,7 +25,9 @@ package com.linecorp.centraldogma.server.mirror;
 public interface MirrorProvider {
 
     /**
-     * Creates a new {@link Mirror}.
+     * Returns a new {@link Mirror} if this {@link MirrorProvider} can create a {@link Mirror} using
+     * the specified {@link MirrorContext}. Otherwise, {@code null} will be returned.
      */
+    @Nullable
     Mirror newMirror(MirrorContext context);
 }

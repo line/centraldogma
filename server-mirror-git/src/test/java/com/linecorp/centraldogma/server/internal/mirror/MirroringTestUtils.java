@@ -57,7 +57,7 @@ final class MirroringTestUtils {
                                           Repository repository, Class<T> mirrorType) {
         final MirrorCredential credential = mock(MirrorCredential.class);
         final Mirror mirror =
-                new DefaultMirrorProvider().newMirror(
+                new GitMirrorProvider().newMirror(
                         new MirrorContext(schedule, MirrorDirection.LOCAL_TO_REMOTE,
                                           credential, repository, "/", URI.create(remoteUri), null));
 
@@ -70,6 +70,14 @@ final class MirroringTestUtils {
         @SuppressWarnings("unchecked")
         final T castMirror = (T) mirror;
         return castMirror;
+    }
+
+    static void assertMirrorNull(String remoteUri) {
+        final MirrorCredential credential = mock(MirrorCredential.class);
+        final Mirror mirror = new GitMirrorProvider().newMirror(
+                new MirrorContext(EVERY_MINUTE, MirrorDirection.LOCAL_TO_REMOTE,
+                                  credential, mock(Repository.class), "/", URI.create(remoteUri), null));
+        assertThat(mirror).isNull();
     }
 
     private MirroringTestUtils() {}
