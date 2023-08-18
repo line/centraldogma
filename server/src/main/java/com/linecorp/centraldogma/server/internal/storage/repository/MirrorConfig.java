@@ -39,6 +39,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 
@@ -66,28 +67,6 @@ public final class MirrorConfig {
     static {
         MIRROR_PROVIDERS = ImmutableList.copyOf(ServiceLoader.load(MirrorProvider.class));
         logger.debug("Available {}s: {}", MirrorProvider.class.getSimpleName(), MIRROR_PROVIDERS);
-    }
-
-    private static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
-                                                   @Nullable String credentialId) {
-        if (credentialId != null) {
-            // Find by credential ID.
-            for (MirrorCredential c : credentials) {
-                final Optional<String> id = c.id();
-                if (id.isPresent() && credentialId.equals(id.get())) {
-                    return c;
-                }
-            }
-        } else {
-            // Find by host name.
-            for (MirrorCredential c : credentials) {
-                if (c.matches(remoteUri)) {
-                    return c;
-                }
-            }
-        }
-
-        return MirrorCredential.FALLBACK;
     }
 
     private final boolean enabled;
@@ -152,6 +131,28 @@ public final class MirrorConfig {
         throw new IllegalArgumentException("could not find a mirror provider for " + mirrorContext);
     }
 
+    private static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
+                                                   @Nullable String credentialId) {
+        if (credentialId != null) {
+            // Find by credential ID.
+            for (MirrorCredential c : credentials) {
+                final Optional<String> id = c.id();
+                if (id.isPresent() && credentialId.equals(id.get())) {
+                    return c;
+                }
+            }
+        } else {
+            // Find by host name.
+            for (MirrorCredential c : credentials) {
+                if (c.matches(remoteUri)) {
+                    return c;
+                }
+            }
+        }
+
+        return MirrorCredential.FALLBACK;
+    }
+
     @JsonProperty("enabled")
     public boolean enabled() {
         return enabled;
@@ -193,5 +194,19 @@ public final class MirrorConfig {
     @JsonProperty("schedule")
     public String schedule() {
         return schedule.asString();
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this).omitNullValues()
+                          .add("enabled", enabled)
+                          .add("direction", direction)
+                          .add("localRepo", localRepo)
+                          .add("localPath", localPath)
+                          .add("remoteUri", remoteUri)
+                          .add("gitignore", gitignore)
+                          .add("credentialId", credentialId)
+                          .add("schedule", schedule)
+                          .toString();
     }
 }

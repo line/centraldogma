@@ -16,6 +16,8 @@
 
 package com.linecorp.centraldogma.server.mirror;
 
+import static java.util.Objects.requireNonNull;
+
 import java.net.URI;
 
 import javax.annotation.Nullable;
@@ -44,12 +46,12 @@ public final class MirrorContext {
      */
     public MirrorContext(Cron schedule, MirrorDirection direction, MirrorCredential credential,
                          Repository localRepo, String localPath, URI remoteUri, @Nullable String gitignore) {
-        this.schedule = schedule;
-        this.direction = direction;
-        this.credential = credential;
-        this.localRepo = localRepo;
-        this.localPath = localPath;
-        this.remoteUri = remoteUri;
+        this.schedule = requireNonNull(schedule, "schedule");
+        this.direction = requireNonNull(direction, "direction");
+        this.credential = requireNonNull(credential, "credential");
+        this.localRepo = requireNonNull(localRepo, "localRepo");
+        this.localPath = requireNonNull(localPath, "localPath");
+        this.remoteUri = requireNonNull(remoteUri, "remoteUri");
         this.gitignore = gitignore;
     }
 
