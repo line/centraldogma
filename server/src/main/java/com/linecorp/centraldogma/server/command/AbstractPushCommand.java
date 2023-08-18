@@ -34,7 +34,7 @@ import com.linecorp.centraldogma.common.Revision;
 /**
  * A {@link Command} which is used for pushing changes to the repository.
  */
-abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
+public abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
 
     private final Revision baseRevision;
     private final String summary;
@@ -81,7 +81,7 @@ abstract class AbstractPushCommand<T> extends RepositoryCommand<T> {
     }
 
     /**
-     * Returns the {@link Markup} of the {@code detail()}.
+     * Returns the {@link Markup} of the {@link #detail()}.
      */
     @JsonProperty
     public Markup markup() {

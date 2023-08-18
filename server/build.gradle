@@ -40,7 +40,6 @@ dependencies {
     // jCommander
     optionalImplementation libs.jcommander
 
-    // jGit
     // Hacky way to use different jGit versions depending on the test Java version.
     // We will use jgit6 after we drop the support for Java 8 client.
     if (project.ext.testJavaVersion >= 11) {
