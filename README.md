@@ -5,7 +5,7 @@ Visit [the official web site](https://line.github.io/centraldogma/) for more inf
 [![CI](https://github.com/line/centraldogma/actions/workflows/actions_build.yml/badge.svg?branch=main&event=push)](https://github.com/line/centraldogma/actions/workflows/actions_build.yml)
 [![codecov.io](https://codecov.io/github/line/centraldogma/coverage.svg?branch=main)](https://codecov.io/github/line/centraldogma?branch=main)
 [![Latest Release Version](https://img.shields.io/github/v/release/line/centraldogma)](https://github.com/line/centraldogma/releases/latest)
-[![Slack workspace](https://img.shields.io/badge/join-slack-orange?logo=slack)](https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ)
+[![Discord Server](https://img.shields.io/badge/join-discord-5865F2?logo=discord&logoColor=white)](https://armeria.dev/s/discord)
 
 _Central Dogma_ is an open-source, highly-available and version-controlled service configuration repository based on Git, ZooKeeper and HTTP/2.
 
@@ -23,7 +23,7 @@ $ ./gradlew build
 
 Just [create a new issue](https://github.com/line/centraldogma/issues/new) to ask a question, and browse [the list of previously answered questions](https://github.com/line/centraldogma/issues?q=label%3Aquestion-answered).
 
-We also have [a Slack workspace](https://join.slack.com/t/central-dogma/shared_invite/enQtNjA5NDk5MTExODQzLWFhOWU2NGZhNDk3MjBmNzczZDYyZjRmMTI1MzdiNGI3OTcwNWZlOTkyY2U3Nzk4YTM2NzQ2NGJhMjQ1NzJlNzQ).
+We also have [a Discord Server](https://armeria.dev/s/discord).
 
 ## How to contribute
 
