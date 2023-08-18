@@ -43,6 +43,7 @@ import org.eclipse.jgit.lib.RepositoryBuilder;
 import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
+import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
 import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig.Host;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +71,7 @@ final class GitWithAuth extends Git {
 
     private static final Logger logger = LoggerFactory.getLogger(GitWithAuth.class);
 
+    private static final OpenSshConfig EMPTY_CONFIG = emptySshConfig();
     /**
      * One of the Locks in this array is locked while a Git repository is accessed so that other GitMirrors
      * that access the same repository cannot access it at the same time. The lock is chosen based on the
@@ -186,7 +188,7 @@ final class GitWithAuth extends Git {
     private static <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
             final SshTransport sshTransport = (SshTransport) transport;
-            sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
+            final JschConfigSessionFactory sessionFactory = new JschConfigSessionFactory() {
                 @Override
                 protected void configure(Host host, Session session) {
                     try {
@@ -199,14 +201,18 @@ final class GitWithAuth extends Git {
                         throw new MirrorException(e);
                     }
                 }
-            });
+            };
+
+            // Disable the default SSH config file lookup.
+            sessionFactory.setConfig(EMPTY_CONFIG);
+            sshTransport.setSshSessionFactory(sessionFactory);
         });
     }
 
     private static <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
             final SshTransport sshTransport = (SshTransport) transport;
-            sshTransport.setSshSessionFactory(new JschConfigSessionFactory() {
+            final JschConfigSessionFactory sessionFactory = new JschConfigSessionFactory() {
                 @Override
                 protected void configure(Host host, Session session) {
                     try {
@@ -218,7 +224,11 @@ final class GitWithAuth extends Git {
                         throw new MirrorException(e);
                     }
                 }
-            });
+            };
+
+            // Disable the default SSH config file lookup.
+            sessionFactory.setConfig(EMPTY_CONFIG);
+            sshTransport.setSshSessionFactory(sessionFactory);
         });
     }
 
@@ -372,5 +382,25 @@ final class GitWithAuth extends Git {
         public void removeAll() {
             throw new UnsupportedOperationException();
         }
+    }
+
+    /**
+     * Returns an empty {@link OpenSshConfig}.
+     *
+     * <p>The default {@link OpenSshConfig} reads the SSH config in `~/.ssh/config` and converts the identity
+     * files into {@code com.jcraft.jsch.KeyPair}. Since JSch does not support Ed25519, `KeyPair.load()`
+     * raise an exception if Ed25519 is used locally. Plus, Central Dogma uses
+     * {@link PublicKeyMirrorCredential}, we need to provide an empty config for an isolated environment.
+     */
+    private static OpenSshConfig emptySshConfig() {
+        final File emptyConfigFile;
+        try {
+            emptyConfigFile = File.createTempFile("dogma", "empty-ssh-config");
+            emptyConfigFile.deleteOnExit();
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+
+        return new OpenSshConfig(emptyConfigFile.getParentFile(), emptyConfigFile);
     }
 }

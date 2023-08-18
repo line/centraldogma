@@ -67,7 +67,7 @@ junit5 = { module = "org.junit:junit-bom", version.ref = "junit5" }
 
 [libraries.armeria]
 module = "com.linecorp.armeria:armeria"
-javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.24.0/"
+javadocs = "https://www.javadoc.io/doc/com.linecorp.armeria/armeria-javadoc/1.24.3/"
 [libraries.armeria-junit5]
 module = "com.linecorp.armeria:armeria-junit5"
 [libraries.armeria-logback]
@@ -264,11 +264,11 @@ javadocs = "https://www.javadoc.io/doc/ch.qos.logback/logback-classic/1.2.12/"
 [libraries.micrometer-core]
 module = "io.micrometer:micrometer-core"
 version.ref = "micrometer"
-javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.10.5/"
+javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.11.1/"
 [libraries.micrometer-prometheus]
 module = "io.micrometer:micrometer-registry-prometheus"
 version.ref = "micrometer"
-javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-registry-prometheus/1.10.5/"
+javadocs = "https://www.javadoc.io/doc/io.micrometer/micrometer-registry-prometheus/1.11.1/"
 
 [libraries.mockito-core]
 module = "org.mockito:mockito-core"
