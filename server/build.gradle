@@ -43,10 +43,10 @@ dependencies {
     // jGit
     // Hacky way to use different jGit versions depending on the test Java version.
     // We will use jgit6 after we drop the support for Java 8 client.
-    if (rootProject.ext.testJavaVersion >= 11) {
+    if (project.ext.testJavaVersion >= 11) {
         implementation libs.jgit6
     } else {
-        implementation libs.jgit5
+        implementation libs.jgit
     }
 
     // Micrometer
@@ -56,6 +56,9 @@ dependencies {
     // Quartz
     implementation libs.quartz
 
+    // Snappy
+    implementation libs.snappy
+
     // Mockito for mocking a Project
     jmh libs.mockito.core
     // Logging
@@ -64,7 +67,7 @@ dependencies {
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer
-if (rootProject.ext.testJavaVersion >= 16) {
+if (project.ext.testJavaVersion >= 16) {
     tasks.withType(Test) {
         jvmArgs '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED'
     }

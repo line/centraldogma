@@ -41,4 +41,4 @@ includeWithFlags ':server-auth:webapp'
 includeWithFlags ':site'
 
 // Distribution
-includeWithFlags ':dist', 'java'
+includeWithFlags ':dist', 'java11'
