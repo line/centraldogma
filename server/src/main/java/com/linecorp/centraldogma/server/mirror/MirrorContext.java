@@ -105,7 +105,7 @@ public final class MirrorContext {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this).omitNullValues()
                           .add("schedule", schedule)
                           .add("direction", direction)
                           .add("credential", credential)

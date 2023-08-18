@@ -138,32 +138,28 @@ class DefaultMetaRepositoryWithMirrorTest {
     }
 
     @Test
-    void testSingleTypeMirror() {
+    void testMirror() {
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
                                 PATH_MIRRORS,
                                 "[{" +
                                 "  \"enabled\": true," +
-                                "  \"type\": \"single\"," +
                                 "  \"direction\": \"LOCAL_TO_REMOTE\"," +
                                 "  \"localRepo\": \"foo\"," +
                                 "  \"localPath\": \"/mirrors/foo\"," +
                                 "  \"remoteUri\": \"git+ssh://foo.com/foo.git\"" +
                                 "},{" +
                                 "  \"enabled\": true," +
-                                "  \"type\": \"single\"," +
                                 "  \"schedule\": \"*/10 * * * * ?\"," +
                                 "  \"direction\": \"REMOTE_TO_LOCAL\"," +
                                 "  \"localRepo\": \"bar\"," +
                                 "  \"remoteUri\": \"git+ssh://bar.com/bar.git/some-path\"" +
                                 "}, {" +
-                                "  \"type\": \"single\"," + // Enabled implicitly
                                 "  \"direction\": \"LOCAL_TO_REMOTE\"," +
                                 "  \"localRepo\": \"qux\"," +
                                 "  \"remoteUri\": \"git+ssh://qux.net/qux.git#develop\"" +
                                 "}, {" +
                                 "  \"enabled\": false," + // Disabled
-                                "  \"type\": \"single\"," +
                                 "  \"direction\": \"LOCAL_TO_REMOTE\"," +
                                 "  \"localRepo\": \"foo\"," +
                                 "  \"localPath\": \"/mirrors/bar\"," +
@@ -229,11 +225,13 @@ class DefaultMetaRepositoryWithMirrorTest {
     }
 
     @Test
-    void testSingleTypeMirrorWithCredentialId() {
+    void testMirrorWithCredentialId() {
         metaRepo.commit(Revision.HEAD, 0, Author.SYSTEM, "",
                         Change.ofJsonUpsert(
                                 PATH_MIRRORS,
                                 "[{" +
+                                // type isn't used from https://github.com/line/centraldogma/pull/836 but
+                                // left for backward compatibility check.
                                 "  \"type\": \"single\"," +
                                 "  \"direction\": \"LOCAL_TO_REMOTE\"," +
                                 "  \"localRepo\": \"qux\"," +

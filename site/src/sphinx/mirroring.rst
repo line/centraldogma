@@ -43,7 +43,6 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
 
     [
       {
-        "type": "single",
         "enabled": true,
         "schedule": "0 * * * * ?",
         "direction": "REMOTE_TO_LOCAL",
@@ -57,10 +56,6 @@ You need to put two files into the ``meta`` repository of your Central Dogma pro
         ]
       }
     ]
-
-- ``type`` (string)
-
-  - the type of the mirroring task. Use ``single``.
 
 - ``enabled`` (boolean, optional)
 
