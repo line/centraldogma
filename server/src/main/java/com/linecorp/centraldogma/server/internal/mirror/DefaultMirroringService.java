@@ -198,7 +198,14 @@ public final class DefaultMirroringService implements MirroringService {
                               return Stream.empty();
                           }
                       })
-                      .filter(m -> m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0)
+                      .filter(m -> {
+                          try {
+                              return m.nextExecutionTime(currentLastExecutionTime).compareTo(now) < 0;
+                          } catch (Exception e) {
+                              logger.warn("Failed to calculate the next execution time of: {}", m, e);
+                              return false;
+                          }
+                      })
                       .forEach(m -> {
                           final ListenableFuture<?> future = worker.submit(() -> run(m, true));
                           Futures.addCallback(future, new FutureCallback<Object>() {
