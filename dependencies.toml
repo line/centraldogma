@@ -95,7 +95,6 @@ javadocs = "https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.
 module = "com.puppycrawl.tools:checkstyle"
 version.ref = "checkstyle"
 
-# Don't update `cron-utils` version
 [libraries.cron-utils]
 module = "com.cronutils:cron-utils"
 version.ref = "cron-utils"
