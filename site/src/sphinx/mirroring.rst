@@ -137,7 +137,7 @@ repositories defined in ``/mirrors.json``:
           "^.*\.secure\.com$"
         ],
         "username": "git",
-        "publicKey": "ssh-rsa ... user@host",
+        "publicKey": "ssh-ed25519 ... user@host",
         "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n",
         "passphrase": null
       },
