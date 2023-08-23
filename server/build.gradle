@@ -40,8 +40,9 @@ dependencies {
     // jCommander
     optionalImplementation libs.jcommander
 
-    // Hacky way to use different jGit versions depending on the test Java version.
-    // We will use jgit6 after we drop the support for Java 8 client.
+    // Because the default targetJavaVersion is 8, jgit5 is chosen and published with the server artifact.
+    // It's inevitable because users who use JDK8 cannot use jgit6 when implementing IT tests.
+    // We will switch to jgit6 completely when we drop JDK8 support.
     if (project.ext.targetJavaVersion >= 11) {
         implementation libs.jgit6
     } else {
