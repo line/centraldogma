@@ -156,10 +156,18 @@ allprojects {
         }
     }
 
-    tasks.withType(Delete) {
+    tasks.withType(Copy) {
         // gradle holds a lock even after the buildWebapp task is completed
         if (current() == WINDOWS) {
             exclude("**/*.lock")
+        }
+    }
+    tasks.withType(Delete) {
+        // gradle holds a lock even after the buildWebapp task is completed
+        if (current() == WINDOWS) {
+            delete(fileTree(buildDir) {
+                exclude("**/*.lock")
+            })
         }
     }
 }
