@@ -130,10 +130,6 @@ relocations = { from = "com.spotify.futures", to = "com.linecorp.centraldogma.in
 [libraries.guava]
 module = "com.google.guava:guava"
 version.ref = "guava"
-exclusions = [
-    "com.google.errorprone:error_prone_annotations",
-    "com.google.j2objc:j2objc-annotations",
-    "org.codehaus.mojo:animal-sniffer-annotations"]
 relocations = [
     { from = "com.google.common", to = "com.linecorp.centraldogma.internal.shaded.guava" },
     { from = "com.google.thirdparty.publicsuffix", to = "com.linecorp.centraldogma.internal.shaded.publicsuffix" }]
