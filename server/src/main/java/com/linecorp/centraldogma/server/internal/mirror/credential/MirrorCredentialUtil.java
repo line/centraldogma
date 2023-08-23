@@ -43,17 +43,6 @@ final class MirrorCredentialUtil {
         return value;
     }
 
-    @Nullable
-    static byte[] decodeBase64OrUtf8(@Nullable String value, String name) {
-        if (value == null) {
-            return null;
-        } else if (value.startsWith(BASE64_PREFIX)) {
-            return decodeBase64(value.substring(BASE64_PREFIX.length()), name);
-        } else {
-            return value.getBytes(StandardCharsets.UTF_8);
-        }
-    }
-
     static String requireNonEmpty(String value, String name) {
         requireNonNull(value, name);
         value = value.trim();

@@ -209,7 +209,7 @@ final class GitWithAuth extends Git {
         return command;
     }
 
-    private <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
+    private static <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
             final Collection<KeyPair> keyPairs;
             try {
