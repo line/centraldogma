@@ -29,7 +29,9 @@ dependencies {
     implementation libs.mina.sshd.core
     implementation libs.mina.sshd.git
     implementation libs.eddsa
-    implementation libs.bouncycastle
+    implementation libs.bouncycastle.bcpg
+    implementation libs.bouncycastle.bcpkix
+    implementation libs.bouncycastle.bcprov
 
     // Caffeine
     implementation libs.caffeine

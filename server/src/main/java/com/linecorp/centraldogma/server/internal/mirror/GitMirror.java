@@ -107,7 +107,7 @@ public final class GitMirror extends AbstractMirror {
     private static final Pattern DISALLOWED_CHARS = Pattern.compile("[^-_a-zA-Z]");
     private static final Pattern CONSECUTIVE_UNDERSCORES = Pattern.compile("_+");
 
-    private static final int GIT_TIMEOUT_SECS = 60;
+    private static final int GIT_TIMEOUT_SECS = 10;
 
     private static final String HEAD_REF_MASTER = Constants.R_HEADS + Constants.MASTER;
 

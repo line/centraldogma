@@ -119,7 +119,7 @@ class ForceRefUpdateTest {
                 @Override
                 public GitPackCommand createGitCommand(String command) {
                     if (command.contains("git-receive-pack") && throttleGitPush.get()) {
-                        throw new RuntimeException();
+                        return super.createGitCommand("git-unknown-command-that-raises-exception");
                     }
                     return super.createGitCommand(command);
                 }

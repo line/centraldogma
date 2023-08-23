@@ -3,19 +3,19 @@
 #     If its classes are exposed in Javadoc, update offline links as well.
 #
 [versions]
+bouncycastle = "1.76"
 curator = "5.3.0"
 guava = "31.1-jre"
 jgit = "5.13.0.202109080827-r"
-jgit6 = "6.4.0.202211300538-r"
+jgit6 = "6.6.0.202305301015-r"
 json-unit = "2.36.0"
 jmh = "1.36"
 micrometer = "1.10.3"
-mina-sshd = "2.9.2"
+mina-sshd = "2.10.0"
 mockito = "4.11.0"
 slf4j = "1.7.36"
 spring-boot1 = "1.5.22.RELEASE"
 spring-boot2 = "2.7.8"
-sshd = "2.9.2"
 
 [boms]
 armeria = { module = "com.linecorp.armeria:armeria-bom", version = "1.22.1" }
@@ -42,9 +42,15 @@ version = "3.24.2"
 module = "org.awaitility:awaitility"
 version = "4.2.0"
 
-[libraries.bouncycastle]
-module = "org.bouncycastle:bcprov-jdk15on"
-version = "1.70"
+[libraries.bouncycastle-bcpg]
+module = "org.bouncycastle:bcpg-jdk18on"
+version.ref = "bouncycastle"
+[libraries.bouncycastle-bcpkix]
+module = "org.bouncycastle:bcpkix-jdk18on"
+version.ref = "bouncycastle"
+[libraries.bouncycastle-bcprov]
+module = "org.bouncycastle:bcprov-jdk18on"
+version.ref = "bouncycastle"
 
 # Don"t upgrade Caffeine to 3.x that requires Java 11.
 [libraries.caffeine]
@@ -308,10 +314,6 @@ version.ref = "spring-boot2"
 [libraries.spring-test-junit5]
 module = "com.github.sbrannen:spring-test-junit5"
 version = "1.5.0"
-
-[libraries.sshd]
-module = "org.apache.sshd:sshd-git"
-version.ref = "sshd"
 
 [libraries.thrift09]
 module = "org.apache.thrift:libthrift"

@@ -122,8 +122,6 @@ class GitMirrorAuthTest {
 
         // Try to perform mirroring to see if authentication works as expected.
         mirroringService.mirror().join();
-        System.err.println(client.forRepo(projName, "main").file("/README.md").get().join().content());
-
         client.removeProject(projName).join();
     }
 
@@ -163,12 +161,30 @@ class GitMirrorAuthTest {
         //   accessing an empty read-only private repository dedicated to test if SSH authentication works.
         //   We are very sure that it has access to no other repositories.
         //
-        sshAuth(builder, "ecdsa_521_pem.pem", "ecdsa_521_pem.pub", "secret");
-        sshAuth(builder, "ecdsa_256_openssh", "ecdsa_256_openssh.pub", "");
-        sshAuth(builder, "ecdsa_384_openssh", "ecdsa_384_openssh.pub", "");
-        sshAuth(builder, "ecdsa_521_openssh", "ecdsa_521_openssh.pub", "");
-        sshAuth(builder, "ed25519_openssh", "ed25519_openssh.pub", "");
-        sshAuth(builder, "rsa_openssh", "rsa_openssh.pub", "");
+        sshAuth(builder, "ecdsa_256.openssh", "ecdsa_256.openssh.pub", "");
+        sshAuth(builder, "ecdsa_256.openssh.password", "ecdsa_256.openssh.pub", "secret");
+        sshAuth(builder, "ecdsa_256.pem", "ecdsa_256.openssh.pub", "");
+        sshAuth(builder, "ecdsa_256.pem.password", "ecdsa_256.openssh.pub", "secret");
+
+        sshAuth(builder, "ecdsa_384.openssh", "ecdsa_384.openssh.pub", "");
+        sshAuth(builder, "ecdsa_384.openssh.password", "ecdsa_384.openssh.pub", "secret");
+        sshAuth(builder, "ecdsa_384.pem", "ecdsa_384.openssh.pub", "");
+        sshAuth(builder, "ecdsa_384.pem.password", "ecdsa_384.openssh.pub", "secret");
+
+        sshAuth(builder, "ecdsa_521.openssh", "ecdsa_521.openssh.pub", "");
+        sshAuth(builder, "ecdsa_521.openssh.password", "ecdsa_521.openssh.pub", "secret");
+        sshAuth(builder, "ecdsa_521.pem", "ecdsa_521.openssh.pub", "");
+        sshAuth(builder, "ecdsa_521.pem.password", "ecdsa_521.openssh.pub", "secret");
+
+        sshAuth(builder, "ed25519.openssh", "ed25519.openssh.pub", "");
+        sshAuth(builder, "ed25519.openssh.password", "ed25519.openssh.pub", "secret");
+        // Cannot convert ed25519 into PEM format.
+
+        sshAuth(builder, "rsa.openssh", "rsa.openssh.pub", "");
+        sshAuth(builder, "rsa.openssh.password", "rsa.openssh.pub", "secret");
+        sshAuth(builder, "rsa.pem", "rsa.openssh.pub", "");
+        sshAuth(builder, "rsa.pem.password", "rsa.openssh.pub", "secret");
+
         return builder.build();
     }
 

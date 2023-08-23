@@ -32,6 +32,18 @@ final class MirrorCredentialUtil {
     }
 
     @Nullable
+    static String maybeDecodeBase64(@Nullable String value, String name) {
+        if (value == null) {
+            return null;
+        }
+        if (value.startsWith(BASE64_PREFIX)) {
+            return new String(decodeBase64(value.substring(BASE64_PREFIX.length()), name),
+                              StandardCharsets.UTF_8);
+        }
+        return value;
+    }
+
+    @Nullable
     static byte[] decodeBase64OrUtf8(@Nullable String value, String name) {
         if (value == null) {
             return null;
@@ -44,6 +56,7 @@ final class MirrorCredentialUtil {
 
     static String requireNonEmpty(String value, String name) {
         requireNonNull(value, name);
+        value = value.trim();
         if (value.isEmpty()) {
             throw new IllegalArgumentException(name + " is empty.");
         }

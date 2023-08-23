@@ -16,8 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
-import static com.linecorp.centraldogma.server.internal.mirror.OpenSSHPrivateKeyUtil.BEGIN_OPENSSH;
-import static com.linecorp.centraldogma.server.internal.mirror.OpenSSHPrivateKeyUtil.END_OPENSSH;
+import static com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential.publicKeyPreview;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTP;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTPS;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
@@ -25,18 +24,25 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Vector;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.sshd.client.ClientBuilder;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.NamedResource;
+import org.apache.sshd.common.config.keys.FilePasswordProvider;
+import org.apache.sshd.common.config.keys.loader.KeyPairResourceParser;
+import org.apache.sshd.common.config.keys.loader.openssh.OpenSSHKeyPairResourceParser;
+import org.apache.sshd.common.config.keys.loader.pem.PKCS8PEMResourceKeyPairParser;
 import org.apache.sshd.common.file.nonefs.NoneFileSystemFactory;
 import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
+import org.apache.sshd.common.util.security.SecurityUtils;
 import org.apache.sshd.git.transport.GitSshdSession;
 import org.apache.sshd.git.transport.GitSshdSessionFactory;
 import org.eclipse.jgit.api.FetchCommand;
@@ -61,14 +67,8 @@ import org.eclipse.jgit.util.FS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jcraft.jsch.Buffer;
 import com.jcraft.jsch.HostKey;
 import com.jcraft.jsch.HostKeyRepository;
-import com.jcraft.jsch.Identity;
-import com.jcraft.jsch.IdentityRepository;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.KeyPair;
 import com.jcraft.jsch.UserInfo;
 
 import com.linecorp.centraldogma.server.MirrorException;
@@ -82,6 +82,12 @@ import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 abstract class GitWithAuth extends Git {
 
     private static final Logger logger = LoggerFactory.getLogger(GitWithAuth.class);
+
+    private static final KeyPairResourceParser keyPairResourceParser = KeyPairResourceParser.aggregate(
+                // Use BouncyCastle resource parser to support non-standard formats as well.
+                SecurityUtils.getBouncycastleKeyPairResourceParser(),
+                PKCS8PEMResourceKeyPairParser.INSTANCE,
+                OpenSSHKeyPairResourceParser.INSTANCE);
 
     /**
      * One of the Locks in this array is locked while a Git repository is accessed so that other GitMirrors
@@ -188,17 +194,7 @@ abstract class GitWithAuth extends Git {
                 if (c instanceof PasswordMirrorCredential) {
                     configureSsh(command, (PasswordMirrorCredential) c);
                 } else if (c instanceof PublicKeyMirrorCredential) {
-                    if (isOpenSshKey((PublicKeyMirrorCredential) c)) {
-                        final byte[] passphrase = ((PublicKeyMirrorCredential) c).passphrase();
-                        if (passphrase != null && !new String(passphrase).trim().isEmpty()) {
-                            throw new IllegalArgumentException(
-                                    "encrypted OpenSSH private key is not supported. credential: " + c);
-                        }
-                        configureOpenSsh(command, (PublicKeyMirrorCredential) c);
-                    } else {
-                        // TODO(minwoox): Use Apache Mina SSHD to support other private key formats.
-                        configureSsh(command, (PublicKeyMirrorCredential) c);
-                    }
+                    configureSsh(command, (PublicKeyMirrorCredential) c);
                 }
                 break;
         }
@@ -206,29 +202,19 @@ abstract class GitWithAuth extends Git {
         return command;
     }
 
-    private static boolean isOpenSshKey(PublicKeyMirrorCredential c) {
-        final byte[] privateKey = c.privateKey();
-        if (privateKey.length < BEGIN_OPENSSH.length) {
-            return false;
-        }
-        for (int i = 0; i < BEGIN_OPENSSH.length; i++) {
-            if (privateKey[i] != BEGIN_OPENSSH[i]) {
-                return false;
-            }
-        }
-
-        for (int i = 0; i < END_OPENSSH.length; i++) {
-            if (privateKey[privateKey.length - END_OPENSSH.length + i] != END_OPENSSH[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private <T extends TransportCommand<?, ?>> void configureOpenSsh(T cmd, PublicKeyMirrorCredential cred) {
+    private <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
+            final Collection<KeyPair> keyPairs;
+            try {
+                keyPairs = keyPairResourceParser.loadKeyPairs(null, NamedResource.ofName(cred.username()),
+                                                              passwordProvider(cred), cred.privateKey());
+            } catch (IOException | GeneralSecurityException e) {
+                throw new MirrorException("Unexpected exception while loading private key. username: " +
+                                          cred.username() + ", publicKey: " +
+                                          publicKeyPreview(cred.publicKey()), e);
+            }
+
             final SshTransport sshTransport = (SshTransport) transport;
-            final java.security.KeyPair keyPair = OpenSSHPrivateKeyUtil.parsePrivateKeyBlob(cred.privateKey());
             sshTransport.setSshSessionFactory(new GitSshdSessionFactory() {
                 @Override
                 public RemoteSession getSession(URIish uri, CredentialsProvider credentialsProvider, FS fs,
@@ -243,9 +229,7 @@ abstract class GitWithAuth extends Git {
                                 // Do not verify the server key.
                                 builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
                                 final SshClient client = builder.build();
-                                // DefaultClientIdentitiesWatcher, which uses local keys in .ssh, is set
-                                // if no identity provider is set.
-                                client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPair));
+                                client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
                                 return client;
                             }
 
@@ -270,9 +254,16 @@ abstract class GitWithAuth extends Git {
         });
     }
 
-    abstract <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred);
-
     abstract <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred);
+
+    private static FilePasswordProvider passwordProvider(PublicKeyMirrorCredential cred) {
+        final String passphrase = cred.passphrase();
+        if (passphrase == null) {
+            return FilePasswordProvider.EMPTY;
+        }
+
+        return FilePasswordProvider.of(passphrase);
+    }
 
     private static <T extends TransportCommand<?, ?>> void configureHttp(T cmd, PasswordMirrorCredential cred) {
         cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider(cred.username(), cred.password()));
@@ -340,94 +331,6 @@ abstract class GitWithAuth extends Git {
         public HostKey[] getHostKey(String host, String type) {
             // TODO(trustin): Store the hostkeys in the meta repository.
             return EMPTY_HOST_KEYS;
-        }
-    }
-
-    protected static final class MirrorIdentityRepository implements IdentityRepository {
-        private final Identity identity;
-
-        MirrorIdentityRepository(String name, PublicKeyMirrorCredential cred) throws JSchException {
-            final KeyPair keyPair = KeyPair.load(new JSch(), cred.privateKey(), cred.publicKey());
-            final Buffer buf = new Buffer(keyPair.getPublicKeyBlob());
-            final String algName = new String(buf.getString(), StandardCharsets.US_ASCII);
-            if (!keyPair.decrypt(cred.passphrase())) {
-                throw new MirrorException("cannot decrypt the private key with the given passphrase");
-            }
-
-            identity = new Identity() {
-                @Override
-                public String getName() {
-                    return name;
-                }
-
-                @Override
-                public String getAlgName() {
-                    return algName;
-                }
-
-                @Override
-                public byte[] getPublicKeyBlob() {
-                    return keyPair.getPublicKeyBlob();
-                }
-
-                @Override
-                public byte[] getSignature(byte[] data) {
-                    return keyPair.getSignature(data);
-                }
-
-                @Override
-                public boolean setPassphrase(byte[] passphrase) {
-                    return keyPair.decrypt(passphrase);
-                }
-
-                @Override
-                public boolean isEncrypted() {
-                    return keyPair.isEncrypted();
-                }
-
-                @Override
-                @Deprecated
-                public boolean decrypt() {
-                    throw new UnsupportedOperationException();
-                }
-
-                @Override
-                public void clear() {
-                    keyPair.dispose();
-                }
-            };
-        }
-
-        @Override
-        public String getName() {
-            return getClass().getSimpleName();
-        }
-
-        @Override
-        public int getStatus() {
-            return RUNNING;
-        }
-
-        @Override
-        public Vector<Identity> getIdentities() {
-            final Vector<Identity> identities = new Vector<>();
-            identities.add(identity);
-            return identities;
-        }
-
-        @Override
-        public boolean add(byte[] identity) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean remove(byte[] blob) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void removeAll() {
-            throw new UnsupportedOperationException();
         }
     }
 
