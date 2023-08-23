@@ -1,6 +1,4 @@
 dependencies {
     implementation project(':server')
     implementation libs.armeria.saml
-
-    testImplementation project(':testing-internal')
 }

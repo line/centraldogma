@@ -45,6 +45,7 @@ task xref(group: 'Documentation',
     inputs.files sourceDirs
     outputs.dir outputDir
 
+
     doLast {
         JXR jxr = new JXR()
         jxr.dest = outputDir
@@ -135,7 +136,13 @@ tasks.check {
     dependsOn tasks.test
 }
 
+tasks.test.dependsOn tasks.sphinx
 tasks.sphinx.dependsOn tasks.javadoc
 
 tasks.build.dependsOn tasks.assemble
 tasks.build.dependsOn tasks.check
+
+def siteProject = project
+rootProject.subprojects { prj ->
+    siteProject.tasks.xref.dependsOn(prj.ext.getGenerateSourcesTask())
+}
