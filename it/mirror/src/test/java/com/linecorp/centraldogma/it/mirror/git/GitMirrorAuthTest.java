@@ -199,7 +199,7 @@ class GitMirrorAuthTest {
         final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8).trim();
 
         builder.add(Arguments.of(
-                privateKeyFile, // Use privateKeyFil as the project name.
+                privateKeyFile, // Use privateKeyFile as the project name.
                 "git+ssh://github.com/line/centraldogma-authtest.git",
                 Jackson.readTree(
                         '{' +

@@ -210,17 +210,16 @@ final class GitWithAuth extends Git {
     }
 
     private static <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
+        final Collection<KeyPair> keyPairs;
+        try {
+            keyPairs = keyPairResourceParser.loadKeyPairs(null, NamedResource.ofName(cred.username()),
+                                                          passwordProvider(cred), cred.privateKey());
+        } catch (IOException | GeneralSecurityException e) {
+            throw new MirrorException("Unexpected exception while loading private key. username: " +
+                                      cred.username() + ", publicKey: " +
+                                      publicKeyPreview(cred.publicKey()), e);
+        }
         cmd.setTransportConfigCallback(transport -> {
-            final Collection<KeyPair> keyPairs;
-            try {
-                keyPairs = keyPairResourceParser.loadKeyPairs(null, NamedResource.ofName(cred.username()),
-                                                              passwordProvider(cred), cred.privateKey());
-            } catch (IOException | GeneralSecurityException e) {
-                throw new MirrorException("Unexpected exception while loading private key. username: " +
-                                          cred.username() + ", publicKey: " +
-                                          publicKeyPreview(cred.publicKey()), e);
-            }
-
             final GitSshdSessionFactory factory = new GitSshdSessionFactory() {
                 @Override
                 public RemoteSession getSession(URIish uri, CredentialsProvider credentialsProvider,
