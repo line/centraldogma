@@ -1,3 +1,6 @@
+import static org.gradle.internal.os.OperatingSystem.WINDOWS
+import static org.gradle.internal.os.OperatingSystem.current
+
 plugins {
     alias libs.plugins.nexus.publish
     alias libs.plugins.osdetector apply false
@@ -150,6 +153,13 @@ allprojects {
             // Exclude the machine-generated or internal-only classes
             exclude '**/internal/**'
             exclude '**/thrift/**'
+        }
+    }
+
+    tasks.withType(Delete) {
+        // gradle holds a lock even after the buildWebapp task is completed
+        if (current() == WINDOWS) {
+            exclude("**/*.lock")
         }
     }
 }
