@@ -234,6 +234,7 @@ final class GitWithAuth extends Git {
                                 // Do not use local file system.
                                 builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
                                 builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
+                                // Do not verify the server key.
                                 builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
                                 final SshClient client = builder.build();
                                 client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
