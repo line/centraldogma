@@ -54,6 +54,9 @@ dependencies {
     // Quartz
     implementation libs.quartz
 
+    // Snappy
+    implementation libs.snappy
+
     // Mockito for mocking a Project
     jmh libs.mockito.core
     // Logging
