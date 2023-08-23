@@ -80,7 +80,11 @@ jobs:
 
     - name: Collecting the test reports ..
       if: failure()
-      run: find . '(' -name 'hs_err_*.log' -or -path '*/build/reports/tests' ')' -exec tar rf "reports-JVM-${{ matrix.java }}.tar" {} ';'
+      run: |
+        find . '(' \
+        -name 'hs_err_*.log' -or \
+        -path '*/build/reports/tests' ')' \
+        -exec tar rf "reports-JVM-${{ matrix.on }}-${{ matrix.java }}${{ matrix.min-java && format('-{0}', matrix.min-java) || '' }}.tar" {} ';'
       shell: bash
 
     - name: Upload Artifact
