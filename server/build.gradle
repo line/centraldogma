@@ -135,7 +135,7 @@ task copyWebApp(type: Copy) {
 
     // gradle holds a lock even after the buildWebapp task is completed
     if (current() == WINDOWS) {
-        exclude("**/*.lock")
+        exclude("**/tmp/.cache/expanded/expanded.lock")
     }
 }
 tasks.sourcesJar.dependsOn(tasks.copyWebApp)
