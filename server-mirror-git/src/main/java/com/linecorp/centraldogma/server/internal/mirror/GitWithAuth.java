@@ -234,20 +234,16 @@ final class GitWithAuth extends Git {
                                 // Do not use local file system.
                                 builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
                                 builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
-                                // Do not verify the server key.
-                                builder.serverKeyVerifier(
-                                        (clientSession, remoteAddress, serverKey) -> true);
+                                builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
                                 final SshClient client = builder.build();
-                                client.setKeyIdentityProvider(
-                                        KeyIdentityProvider.wrapKeyPairs(keyPairs));
+                                client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
                                 return client;
                             }
 
                             @Override
                             protected ClientSession createClientSession(
                                     SshClient clientInstance, String host, String username, int port,
-                                    String... passwords)
-                                    throws IOException, InterruptedException {
+                                    String... passwords) throws IOException, InterruptedException {
                                 if (port <= 0) {
                                     port = 22; // Use the SSH default port it unspecified.
                                 }
@@ -256,9 +252,8 @@ final class GitWithAuth extends Git {
                             }
                         };
                     } catch (Exception e) {
-                        throw new TransportException("Unable to connect to the " + uri +
-                                                     ". CredentialsProvider: " + credentialsProvider,
-                                                     e);
+                        throw new TransportException("Unable to connect to: " + uri +
+                                                     " CredentialsProvider: " + credentialsProvider, e);
                     }
                 }
             };
