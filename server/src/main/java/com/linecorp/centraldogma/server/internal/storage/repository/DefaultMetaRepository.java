@@ -16,49 +16,29 @@
 
 package com.linecorp.centraldogma.server.internal.storage.repository;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.linecorp.centraldogma.internal.Util.requireNonNullElements;
-import static java.util.Objects.requireNonNull;
-
-import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
-import com.cronutils.model.Cron;
-import com.cronutils.model.CronType;
-import com.cronutils.model.definition.CronDefinitionBuilder;
-import com.cronutils.parser.CronParser;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Streams;
 
 import com.linecorp.centraldogma.common.Entry;
 import com.linecorp.centraldogma.common.Revision;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.mirror.Mirror;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
-import com.linecorp.centraldogma.server.mirror.MirrorDirection;
 import com.linecorp.centraldogma.server.storage.project.Project;
 import com.linecorp.centraldogma.server.storage.repository.MetaRepository;
 import com.linecorp.centraldogma.server.storage.repository.Repository;
 
-public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
+public final class DefaultMetaRepository extends RepositoryWrapper implements MetaRepository {
 
     public static final String PATH_CREDENTIALS = "/credentials.json";
 
@@ -80,6 +60,7 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
      */
     private Set<String> mirrorRepos = Collections.emptySet();
 
+    @Nullable
     private Set<Mirror> mirrors;
 
     public DefaultMetaRepository(Repository repo) {
@@ -132,7 +113,10 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
                 if (c == null) {
                     throw new RepositoryMetadataException(PATH_MIRRORS + " contains null.");
                 }
-                mirrors.addAll(c.toMirrors(parent(), credentials));
+                final Mirror mirror = c.toMirror(parent(), credentials);
+                if (mirror != null) {
+                    mirrors.add(mirror);
+                }
             }
 
             return mirrors.build();
@@ -169,206 +153,5 @@ public class DefaultMetaRepository extends RepositoryWrapper implements MetaRepo
         }
 
         return builder.build();
-    }
-
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-    @JsonSubTypes({
-            @Type(value = SingleMirrorConfig.class, name = "single"),
-            @Type(value = MultipleMirrorConfig.class, name = "multiple")
-    })
-    private abstract static class MirrorConfig {
-
-        static final String DEFAULT_SCHEDULE = "0 * * * * ?"; // Every minute
-
-        static final CronParser cronParser = new CronParser(
-                CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
-
-        abstract List<Mirror> toMirrors(Project parent, Iterable<MirrorCredential> credentials);
-
-        static MirrorCredential findCredential(Iterable<MirrorCredential> credentials, URI remoteUri,
-                                               @Nullable String credentialId) {
-            if (credentialId != null) {
-                // Find by credential ID.
-                for (MirrorCredential c : credentials) {
-                    final Optional<String> id = c.id();
-                    if (id.isPresent() && credentialId.equals(id.get())) {
-                        return c;
-                    }
-                }
-            } else {
-                // Find by host name.
-                for (MirrorCredential c : credentials) {
-                    if (c.matches(remoteUri)) {
-                        return c;
-                    }
-                }
-            }
-
-            return MirrorCredential.FALLBACK;
-        }
-
-        final boolean enabled;
-
-        MirrorConfig(boolean enabled) {
-            this.enabled = enabled;
-        }
-    }
-
-    private static final class SingleMirrorConfig extends MirrorConfig {
-
-        final MirrorDirection direction;
-        final String localRepo;
-        final String localPath;
-        final URI remoteUri;
-        @Nullable
-        final String gitignore;
-        @Nullable
-        final String credentialId;
-        final Cron schedule;
-
-        @JsonCreator
-        SingleMirrorConfig(@JsonProperty("enabled") @Nullable Boolean enabled,
-                           @JsonProperty("schedule") @Nullable String schedule,
-                           @JsonProperty(value = "direction", required = true) MirrorDirection direction,
-                           @JsonProperty(value = "localRepo", required = true) String localRepo,
-                           @JsonProperty("localPath") @Nullable String localPath,
-                           @JsonProperty(value = "remoteUri", required = true) URI remoteUri,
-                           @JsonProperty("gitignore") @Nullable Object gitignore,
-                           @JsonProperty("credentialId") @Nullable String credentialId) {
-
-            super(firstNonNull(enabled, true));
-            this.schedule = cronParser.parse(firstNonNull(schedule, DEFAULT_SCHEDULE));
-            this.direction = requireNonNull(direction, "direction");
-            this.localRepo = requireNonNull(localRepo, "localRepo");
-            this.localPath = firstNonNull(localPath, "/");
-            this.remoteUri = requireNonNull(remoteUri, "remoteUri");
-            if (gitignore != null) {
-                if (gitignore instanceof Iterable &&
-                    Streams.stream((Iterable<?>) gitignore).allMatch(String.class::isInstance)) {
-                    this.gitignore = String.join("\n", (Iterable<String>) gitignore);
-                } else if (gitignore instanceof String) {
-                    this.gitignore = (String) gitignore;
-                } else {
-                    throw new IllegalArgumentException(
-                            "gitignore: " + gitignore + " (expected: either a string or an array of strings)");
-                }
-            } else {
-                this.gitignore = null;
-            }
-            this.credentialId = credentialId;
-        }
-
-        @Override
-        List<Mirror> toMirrors(Project parent, Iterable<MirrorCredential> credentials) {
-            if (!enabled || localRepo == null || !parent.repos().exists(localRepo)) {
-                return Collections.emptyList();
-            }
-
-            return Collections.singletonList(Mirror.of(
-                    schedule, direction, findCredential(credentials, remoteUri, credentialId),
-                    parent.repos().get(localRepo), localPath, remoteUri, gitignore));
-        }
-    }
-
-    private static final class MultipleMirrorConfig extends MirrorConfig {
-
-        final MirrorDirection defaultDirection;
-        final String defaultLocalPath;
-        final Cron defaultSchedule;
-        @Nullable
-        final String defaultCredentialId;
-        final List<MirrorInclude> includes;
-        final List<Pattern> excludes;
-
-        @JsonCreator
-        MultipleMirrorConfig(
-                @JsonProperty("enabled") @Nullable Boolean enabled,
-                @JsonProperty("defaultSchedule") @Nullable String defaultSchedule,
-                @JsonProperty(value = "defaultDirection", required = true) MirrorDirection defaultDirection,
-                @JsonProperty("defaultLocalPath") @Nullable String defaultLocalPath,
-                @JsonProperty("defaultCredentialId") @Nullable String defaultCredentialId,
-                @JsonProperty(value = "includes", required = true)
-                @JsonDeserialize(contentAs = MirrorInclude.class)
-                        Iterable<MirrorInclude> includes,
-                @JsonProperty("excludes") @Nullable
-                @JsonDeserialize(contentAs = Pattern.class)
-                        Iterable<Pattern> excludes) {
-
-            super(firstNonNull(enabled, true));
-            this.defaultSchedule = cronParser.parse(firstNonNull(defaultSchedule, DEFAULT_SCHEDULE));
-            this.defaultDirection = requireNonNull(defaultDirection, "defaultDirection");
-            this.defaultLocalPath = firstNonNull(defaultLocalPath, "/");
-            this.defaultCredentialId = defaultCredentialId;
-            this.includes = ImmutableList.copyOf(requireNonNullElements(includes, "includes"));
-            if (excludes != null) {
-                this.excludes = ImmutableList.copyOf(requireNonNullElements(excludes, "excludes"));
-            } else {
-                this.excludes = Collections.emptyList();
-            }
-        }
-
-        @Override
-        List<Mirror> toMirrors(Project parent, Iterable<MirrorCredential> credentials) {
-            if (!enabled) {
-                return Collections.emptyList();
-            }
-
-            final ImmutableList.Builder<Mirror> builder = ImmutableList.builder();
-            parent.repos().list().forEach((repoName, repo) -> {
-                if (repoName == null || excludes.stream().anyMatch(p -> p.matcher(repoName).find())) {
-                    return;
-                }
-
-                for (MirrorInclude i : includes) {
-                    final Matcher m = i.pattern.matcher(repoName);
-                    if (!m.matches()) {
-                        continue;
-                    }
-
-                    final URI remoteUri = URI.create(m.replaceFirst(i.replacement));
-                    builder.add(Mirror.of(firstNonNull(i.schedule, defaultSchedule),
-                                          firstNonNull(i.direction, defaultDirection),
-                                          findCredential(credentials, remoteUri,
-                                                         i.credentialId != null ? i.credentialId
-                                                                                : defaultCredentialId),
-                                          repo,
-                                          firstNonNull(i.localPath, defaultLocalPath),
-                                          remoteUri,
-                                          null));
-                }
-            });
-
-            return builder.build();
-        }
-    }
-
-    private static final class MirrorInclude {
-
-        final Pattern pattern;
-        final String replacement;
-        @Nullable
-        final MirrorDirection direction;
-        @Nullable
-        final String localPath;
-        @Nullable
-        final String credentialId;
-        @Nullable
-        final Cron schedule;
-
-        @JsonCreator
-        MirrorInclude(@JsonProperty("schedule") @Nullable String schedule,
-                      @JsonProperty(value = "pattern", required = true) Pattern pattern,
-                      @JsonProperty(value = "replacement", required = true) String replacement,
-                      @JsonProperty("direction") @Nullable MirrorDirection direction,
-                      @JsonProperty("localPath") @Nullable String localPath,
-                      @JsonProperty("credentialId") @Nullable String credentialId) {
-
-            this.schedule = schedule != null ? MirrorConfig.cronParser.parse(schedule) : null;
-            this.pattern = requireNonNull(pattern, "pattern");
-            this.replacement = requireNonNull(replacement, "replacement");
-            this.direction = direction;
-            this.localPath = localPath;
-            this.credentialId = credentialId;
-        }
     }
 }

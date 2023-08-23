@@ -40,9 +40,13 @@ dependencies {
     // jCommander
     optionalImplementation libs.jcommander
 
-    // jGit
-    implementation libs.jgit
-    implementation libs.jgit.ssh.jsch
+    // Hacky way to use different jGit versions depending on the test Java version.
+    // We will use jgit6 after we drop the support for Java 8 client.
+    if (project.ext.testJavaVersion >= 11) {
+        implementation libs.jgit6
+    } else {
+        implementation libs.jgit
+    }
 
     // Micrometer
     implementation libs.micrometer.core
@@ -59,10 +63,6 @@ dependencies {
     // Logging
     optionalImplementation libs.logback
     optionalImplementation libs.slf4j.jul.to.slf4j
-
-    if (project.ext.targetJavaVersion >= 11) {
-        testImplementation project(path: ':server-jgit6')
-    }
 }
 
 // allows illegal access by ExecutorServiceMetrics of Micrometer

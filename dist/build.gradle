@@ -26,7 +26,7 @@ import com.google.common.base.CaseFormat
 evaluationDependsOn(':server')
 evaluationDependsOn(':server-auth:saml')
 evaluationDependsOn(':server-auth:shiro')
-evaluationDependsOn(':server-jgit6')
+evaluationDependsOn(':server-mirror-git')
 
 ext {
     distDir = "${project.buildDir}/dist"
@@ -76,13 +76,24 @@ task copyLib(group: 'Build',
         exclude group: 'org.eclipse.jgit'
     }
     from project(':server-auth:shiro').tasks.jar
-    from project(':server-jgit6').configurations.runtimeClasspath
-    from project(':server-jgit6').tasks.jar
-    into "${project.ext.distDir}/lib"
+    from project(':server-mirror-git').configurations.runtimeClasspath
+    from project(':server-mirror-git').tasks.jar
+
+    File libDir = new File("${project.ext.distDir}/lib")
+    into libDir
 
     doLast {
         // Create an empty directory for keeping external JARs such as authentication module.
-        project.mkdir("${project.ext.distDir}/lib/ext")
+        project.mkdir("${libDir}/ext")
+
+        // Check if only JGit 6.x JARs are included.
+        FileCollection jgits = layout.files { libDir.listFiles() }.filter { File file ->
+            file.name.contains("jgit")
+        }
+        // org.eclipse.jgit-6.x and org.eclipse.jgit.ssh.jsch-6.x are required.
+        if (jgits.size() != 2 || !jgits.any { File file -> file.name.startsWith("org.eclipse.jgit-6") }) {
+            throw new IllegalStateException("Unexpected JGit JARs: $jgits.files")
+        }
     }
 }
 
