@@ -1,0 +1,7 @@
+dependencies {
+    testImplementation libs.sshd
+    testImplementation libs.jsch
+
+    testImplementation project(':server-auth:shiro')
+    testImplementation project(':server-mirror-git')
+}

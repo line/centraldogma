@@ -77,8 +77,8 @@ public final class DefaultMirroringService implements MirroringService {
     private ZonedDateTime lastExecutionTime;
     private final MeterRegistry meterRegistry;
 
-    public DefaultMirroringService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
-                                   int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
+    DefaultMirroringService(File workDir, ProjectManager projectManager, MeterRegistry meterRegistry,
+                            int numThreads, int maxNumFilesPerMirror, long maxNumBytesPerMirror) {
 
         this.workDir = requireNonNull(workDir, "workDir");
         this.projectManager = requireNonNull(projectManager, "projectManager");

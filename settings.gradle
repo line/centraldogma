@@ -9,8 +9,8 @@ includeWithFlags ':bom', 'bom'
 includeWithFlags ':client:java',                            'java', 'publish', 'relocate'
 includeWithFlags ':client:java-armeria',                    'java', 'publish', 'relocate'
 includeWithFlags ':client:java-armeria-legacy',             'java', 'publish', 'relocate'
-includeWithFlags ':client:java-spring-boot2-autoconfigure',  'java', 'publish', 'relocate', 'no_aggregation'
-includeWithFlags ':client:java-spring-boot2-starter',        'java', 'publish', 'relocate', 'no_aggregation'
+includeWithFlags ':client:java-spring-boot2-autoconfigure', 'java', 'publish', 'relocate', 'no_aggregation'
+includeWithFlags ':client:java-spring-boot2-starter',       'java', 'publish', 'relocate', 'no_aggregation'
 includeWithFlags ':client:java-spring-boot3-autoconfigure', 'java17', 'publish', 'relocate'
 includeWithFlags ':client:java-spring-boot3-starter',       'java17', 'publish', 'relocate'
 includeWithFlags ':common',                                 'java', 'publish', 'shade', 'trim'
@@ -18,15 +18,20 @@ includeWithFlags ':common-legacy',                          'java', 'publish', '
 includeWithFlags ':server',                                 'java', 'publish', 'relocate'
 includeWithFlags ':server-auth:saml',                       'java', 'publish', 'relocate'
 includeWithFlags ':server-auth:shiro',                      'java', 'publish', 'relocate'
+includeWithFlags ':server-mirror-git',                      'java11', 'publish', 'relocate'
 includeWithFlags ':testing:testing-common',                 'java', 'publish', 'relocate'
 includeWithFlags ':testing:junit',                          'java', 'publish', 'relocate'
 includeWithFlags ':testing:junit4',                         'java', 'publish', 'relocate'
-includeWithFlags ':server-jgit6',                           'java11', 'publish', 'relocate'
 // Set correct directory names
 project(':testing:testing-common').projectDir = file('testing/common')
 
 // Unpublished Java projects
-includeWithFlags ':it',               'java', 'relocate'
+includeWithFlags ':it:it-mirror',     'java11', 'relocate'
+// Set correct directory names
+project(':it:it-mirror').projectDir = file('it/mirror')
+includeWithFlags ':it:it-server',     'java', 'relocate'
+// Set correct directory names
+project(':it:it-server').projectDir = file('it/server')
 includeWithFlags ':testing-internal', 'java', 'relocate'
 
 // Unpublished non-Java projects
