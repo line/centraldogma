@@ -138,7 +138,7 @@ repositories defined in ``/mirrors.json``:
         ],
         "username": "git",
         "publicKey": "ssh-rsa ... user@host",
-        "privateKey": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n",
+        "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n",
         "passphrase": null
       },
       {
@@ -179,23 +179,7 @@ repositories defined in ``/mirrors.json``:
 - ``privateKey`` (string)
 
   - the OpenSSH RSA, ECDSA or EdDSA private key which is used for SSH public key authentication.
-
-    .. note::
-
-        Currently, an encrypted key is not supported. If you want to use an encrypted key,
-        the private key must be an RSA key formatted in PEM format, which starts with
-        ``-----BEGIN RSA PRIVATE KEY-----``. If you want to use the encrypted key and your private key
-        starts with ``-----BEGIN OPENSSH PRIVATE KEY-----``, you must convert it into PEM format first:
-
-        .. code-block:: shell
-
-            $ ssh-keygen -p -m PEM -f ~/.ssh/id_rsa
-
-        Alternatively, you can regenerate the key pair with the ``-m PEM`` option:
-
-        .. code-block:: shell
-
-            $ ssh-keygen -m PEM -t rsa -b 4096 -C "your_email@example.com"
+    The PEM format is also supported.
 
     .. tip::
 

@@ -11,7 +11,6 @@
   </appender>
 
   <logger name="com.linecorp" level="DEBUG" />
-  <logger name="org.apache" level="DEBUG" />
   <logger name="io.netty" level="INFO" />
   <!-- Disable the 'Invalid config event received' log messages. -->
   <logger name="org.apache.curator.framework.imps.EnsembleTracker" level="OFF" />
