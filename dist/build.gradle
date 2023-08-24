@@ -90,8 +90,8 @@ task copyLib(group: 'Build',
         FileCollection jgits = layout.files { libDir.listFiles() }.filter { File file ->
             file.name.contains("jgit")
         }
-        // org.eclipse.jgit-6.x and org.eclipse.jgit.ssh.jsch-6.x are required.
-        if (jgits.size() != 2 || !jgits.any { File file -> file.name.startsWith("org.eclipse.jgit-6") }) {
+        // org.eclipse.jgit-6.x is required.
+        if (jgits.size() != 1 || !jgits[0].name.startsWith("org.eclipse.jgit-6")) {
             throw new IllegalStateException("Unexpected JGit JARs: $jgits.files")
         }
     }
