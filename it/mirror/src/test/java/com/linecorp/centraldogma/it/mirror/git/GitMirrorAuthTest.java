@@ -18,6 +18,7 @@ package com.linecorp.centraldogma.it.mirror.git;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 
@@ -33,6 +34,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.io.Resources;
 
 import com.linecorp.centraldogma.client.CentralDogma;
@@ -120,7 +122,6 @@ class GitMirrorAuthTest {
 
         // Try to perform mirroring to see if authentication works as expected.
         mirroringService.mirror().join();
-
         client.removeProject(projName).join();
     }
 
@@ -160,13 +161,45 @@ class GitMirrorAuthTest {
         //   accessing an empty read-only private repository dedicated to test if SSH authentication works.
         //   We are very sure that it has access to no other repositories.
         //
-        final byte[] privateKeyBytes = Resources.toByteArray(GitMirrorAuthTest.class.getResource("test.pem"));
-        final byte[] publicKeyBytes = Resources.toByteArray(GitMirrorAuthTest.class.getResource("test.pub"));
-        final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8);
-        final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8);
+        sshAuth(builder, "ecdsa_256.openssh", "ecdsa_256.openssh.pub", "");
+        sshAuth(builder, "ecdsa_256.openssh.password", "ecdsa_256.openssh.pub", "secret");
+        sshAuth(builder, "ecdsa_256.pem", "ecdsa_256.openssh.pub", "");
+        sshAuth(builder, "ecdsa_256.pem.password", "ecdsa_256.openssh.pub", "secret");
+
+        sshAuth(builder, "ecdsa_384.openssh", "ecdsa_384.openssh.pub", "");
+        sshAuth(builder, "ecdsa_384.openssh.password", "ecdsa_384.openssh.pub", "secret");
+        sshAuth(builder, "ecdsa_384.pem", "ecdsa_384.openssh.pub", "");
+        sshAuth(builder, "ecdsa_384.pem.password", "ecdsa_384.openssh.pub", "secret");
+
+        sshAuth(builder, "ecdsa_521.openssh", "ecdsa_521.openssh.pub", "");
+        sshAuth(builder, "ecdsa_521.openssh.password", "ecdsa_521.openssh.pub", "secret");
+        sshAuth(builder, "ecdsa_521.pem", "ecdsa_521.openssh.pub", "");
+        sshAuth(builder, "ecdsa_521.pem.password", "ecdsa_521.openssh.pub", "secret");
+
+        sshAuth(builder, "ed25519.openssh", "ed25519.openssh.pub", "");
+        sshAuth(builder, "ed25519.openssh.password", "ed25519.openssh.pub", "secret");
+        // Cannot convert ed25519 into PEM format.
+
+        sshAuth(builder, "rsa.openssh", "rsa.openssh.pub", "");
+        sshAuth(builder, "rsa.openssh.password", "rsa.openssh.pub", "secret");
+        sshAuth(builder, "rsa.pem", "rsa.openssh.pub", "");
+        sshAuth(builder, "rsa.pem.password", "rsa.openssh.pub", "secret");
+
+        return builder.build();
+    }
+
+    private static void sshAuth(Builder<Arguments> builder, String privateKeyFile, String publicKeyFile,
+                                String passphrase)
+            throws IOException {
+        final byte[] privateKeyBytes =
+                Resources.toByteArray(GitMirrorAuthTest.class.getResource(privateKeyFile));
+        final byte[] publicKeyBytes =
+                Resources.toByteArray(GitMirrorAuthTest.class.getResource(publicKeyFile));
+        final String privateKey = new String(privateKeyBytes, StandardCharsets.UTF_8).trim();
+        final String publicKey = new String(publicKeyBytes, StandardCharsets.UTF_8).trim();
 
         builder.add(Arguments.of(
-                "ssh",
+                privateKeyFile, // Use privateKeyFile as the project name.
                 "git+ssh://github.com/line/centraldogma-authtest.git",
                 Jackson.readTree(
                         '{' +
@@ -175,9 +208,7 @@ class GitMirrorAuthTest {
                         "  \"username\": \"git\"," +
                         "  \"publicKey\": \"" + Jackson.escapeText(publicKey) + "\"," +
                         "  \"privateKey\": \"" + Jackson.escapeText(privateKey) + "\"," +
-                        "  \"passphrase\": \"secret\"" +
+                        "  \"passphrase\": \"" + passphrase + '"' +
                         '}')));
-
-        return builder.build();
     }
 }

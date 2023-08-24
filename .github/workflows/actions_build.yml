@@ -37,6 +37,9 @@ jobs:
           - java: 17
             os: ubuntu-latest
             coverage: true
+          - java: 17
+            os: ubuntu-latest
+            min-java: 11
           - java: 19
             os: ubuntu-latest
     steps:
@@ -67,6 +70,7 @@ jobs:
         -PflakyTests=false \
         -PbuildJdkVersion=${{ env.BUILD_JDK_VERSION }} \
         -PtestJavaVersion=${{ matrix.java }} \
+        ${{ matrix.min-java && format('-PminimumJavaVersion={0}', matrix.min-java) || '' }} \
         -Porg.gradle.java.installations.paths=${{ steps.setup-build-jdk.outputs.path }},${{ steps.setup-test-jdk.outputs.path }}
       shell: bash
 
@@ -76,7 +80,11 @@ jobs:
 
     - name: Collecting the test reports ..
       if: failure()
-      run: find . '(' -name 'hs_err_*.log' -or -path '*/build/reports/tests' ')' -exec tar rf "reports-JVM-${{ matrix.java }}.tar" {} ';'
+      run: |
+        find . '(' \
+        -name 'hs_err_*.log' -or \
+        -path '*/build/reports/tests' ')' \
+        -exec tar rf "reports-JVM-${{ matrix.on }}-${{ matrix.java }}${{ matrix.min-java && format('-{0}', matrix.min-java) || '' }}.tar" {} ';'
       shell: bash
 
     - name: Upload Artifact

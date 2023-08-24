@@ -20,9 +20,9 @@ import static com.linecorp.centraldogma.server.internal.mirror.credential.Mirror
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.nio.charset.StandardCharsets;
-
 import org.junit.jupiter.api.Test;
+
+import com.google.common.base.Splitter;
 
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.server.mirror.MirrorCredential;
@@ -97,16 +97,19 @@ class PublicKeyMirrorCredentialTest {
                 null, null, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE);
 
         assertThat(c.username()).isEqualTo(USERNAME);
-        assertThat(c.publicKey()).isEqualTo(PUBLIC_KEY.getBytes(StandardCharsets.UTF_8));
-        assertThat(c.privateKey()).isEqualTo(PRIVATE_KEY.getBytes(StandardCharsets.UTF_8));
-        assertThat(c.passphrase()).isEqualTo(PASSPHRASE.getBytes(StandardCharsets.UTF_8));
+        assertThat(c.publicKey()).isEqualTo(PUBLIC_KEY);
+        assertThat(c.privateKey()).isEqualTo(Splitter.on('\n')
+                                                     .omitEmptyStrings()
+                                                     .trimResults()
+                                                     .splitToList(PRIVATE_KEY));
+        assertThat(c.passphrase()).isEqualTo(PASSPHRASE);
     }
 
     @Test
     void testBase64Passphrase() {
         final PublicKeyMirrorCredential c = new PublicKeyMirrorCredential(
                 null, null, USERNAME, PUBLIC_KEY, PRIVATE_KEY, PASSPHRASE_BASE64);
-        assertThat(c.passphrase()).isEqualTo(PASSPHRASE.getBytes(StandardCharsets.UTF_8));
+        assertThat(c.passphrase()).isEqualTo(PASSPHRASE);
     }
 
     @Test

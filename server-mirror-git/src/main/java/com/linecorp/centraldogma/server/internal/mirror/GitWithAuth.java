@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server.internal.mirror;
 
+import static com.linecorp.centraldogma.server.internal.mirror.credential.PublicKeyMirrorCredential.publicKeyPreview;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTP;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_HTTPS;
 import static com.linecorp.centraldogma.server.mirror.MirrorSchemes.SCHEME_GIT_SSH;
@@ -23,39 +24,55 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Vector;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.sshd.client.ClientBuilder;
+import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.config.hosts.HostConfigEntryResolver;
+import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.NamedResource;
+import org.apache.sshd.common.config.keys.FilePasswordProvider;
+import org.apache.sshd.common.config.keys.loader.KeyPairResourceParser;
+import org.apache.sshd.common.config.keys.loader.openssh.OpenSSHKeyPairResourceParser;
+import org.apache.sshd.common.config.keys.loader.pem.PKCS8PEMResourceKeyPairParser;
+import org.apache.sshd.common.file.nonefs.NoneFileSystemFactory;
+import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
+import org.apache.sshd.common.util.security.SecurityUtils;
+import org.apache.sshd.git.transport.GitSshdSession;
+import org.apache.sshd.git.transport.GitSshdSessionFactory;
 import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.GarbageCollectCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.LsRemoteCommand;
 import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.TransportCommand;
+import org.eclipse.jgit.errors.TransportException;
+import org.eclipse.jgit.errors.UnsupportedCredentialItem;
 import org.eclipse.jgit.lib.EmptyProgressMonitor;
 import org.eclipse.jgit.lib.ProgressMonitor;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.RepositoryBuilder;
+import org.eclipse.jgit.transport.CredentialItem;
+import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.transport.RemoteSession;
 import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
 import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
 import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig.Host;
+import org.eclipse.jgit.util.FS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jcraft.jsch.Buffer;
 import com.jcraft.jsch.HostKey;
 import com.jcraft.jsch.HostKeyRepository;
-import com.jcraft.jsch.Identity;
-import com.jcraft.jsch.IdentityRepository;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.KeyPair;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.UserInfo;
 
@@ -72,6 +89,13 @@ final class GitWithAuth extends Git {
     private static final Logger logger = LoggerFactory.getLogger(GitWithAuth.class);
 
     private static final OpenSshConfig EMPTY_CONFIG = emptySshConfig();
+
+    private static final KeyPairResourceParser keyPairResourceParser = KeyPairResourceParser.aggregate(
+            // Use BouncyCastle resource parser to support non-standard formats as well.
+            SecurityUtils.getBouncycastleKeyPairResourceParser(),
+            PKCS8PEMResourceKeyPairParser.INSTANCE,
+            OpenSSHKeyPairResourceParser.INSTANCE);
+
     /**
      * One of the Locks in this array is locked while a Git repository is accessed so that other GitMirrors
      * that access the same repository cannot access it at the same time. The lock is chosen based on the
@@ -186,29 +210,59 @@ final class GitWithAuth extends Git {
     }
 
     private static <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PublicKeyMirrorCredential cred) {
+        final Collection<KeyPair> keyPairs;
+        try {
+            keyPairs = keyPairResourceParser.loadKeyPairs(null, NamedResource.ofName(cred.username()),
+                                                          passwordProvider(cred), cred.privateKey());
+        } catch (IOException | GeneralSecurityException e) {
+            throw new MirrorException("Unexpected exception while loading private key. username: " +
+                                      cred.username() + ", publicKey: " +
+                                      publicKeyPreview(cred.publicKey()), e);
+        }
         cmd.setTransportConfigCallback(transport -> {
-            final SshTransport sshTransport = (SshTransport) transport;
-            final JschConfigSessionFactory sessionFactory = new JschConfigSessionFactory() {
+            final GitSshdSessionFactory factory = new GitSshdSessionFactory() {
                 @Override
-                protected void configure(Host host, Session session) {
+                public RemoteSession getSession(URIish uri, CredentialsProvider credentialsProvider,
+                                                FS fs, int tms) throws TransportException {
                     try {
-                        session.setHostKeyRepository(new MirrorHostKeyRepository());
-                        session.setIdentityRepository(new MirrorIdentityRepository(
-                                cred.username() + '@' + host.getHostName(), cred));
-                    } catch (MirrorException e) {
-                        throw e;
+                        return new GitSshdSession(uri, NoopCredentialsProvider.INSTANCE, fs, tms) {
+                            @Override
+                            protected SshClient createClient() {
+                                // Not an Armeria but an SSHD client.
+                                final ClientBuilder builder = ClientBuilder.builder();
+                                // Do not use local file system.
+                                builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
+                                builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
+                                // Do not verify the server key.
+                                builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
+                                final SshClient client = builder.build();
+                                client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
+                                return client;
+                            }
+
+                            @Override
+                            protected ClientSession createClientSession(
+                                    SshClient clientInstance, String host, String username, int port,
+                                    String... passwords) throws IOException, InterruptedException {
+                                if (port <= 0) {
+                                    port = 22; // Use the SSH default port it unspecified.
+                                }
+                                return super.createClientSession(clientInstance, host, username,
+                                                                 port, passwords);
+                            }
+                        };
                     } catch (Exception e) {
-                        throw new MirrorException(e);
+                        throw new TransportException("Unable to connect to: " + uri +
+                                                     " CredentialsProvider: " + credentialsProvider, e);
                     }
                 }
             };
-
-            // Disable the default SSH config file lookup.
-            sessionFactory.setConfig(EMPTY_CONFIG);
-            sshTransport.setSshSessionFactory(sessionFactory);
+            final SshTransport sshTransport = (SshTransport) transport;
+            sshTransport.setSshSessionFactory(factory);
         });
     }
 
+    // TODO remove jsch dependency completely.
     private static <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
             final SshTransport sshTransport = (SshTransport) transport;
@@ -230,6 +284,15 @@ final class GitWithAuth extends Git {
             sessionFactory.setConfig(EMPTY_CONFIG);
             sshTransport.setSshSessionFactory(sessionFactory);
         });
+    }
+
+    private static FilePasswordProvider passwordProvider(PublicKeyMirrorCredential cred) {
+        final String passphrase = cred.passphrase();
+        if (passphrase == null) {
+            return FilePasswordProvider.EMPTY;
+        }
+
+        return FilePasswordProvider.of(passphrase);
     }
 
     private static <T extends TransportCommand<?, ?>> void configureHttp(T cmd, PasswordMirrorCredential cred) {
@@ -296,91 +359,23 @@ final class GitWithAuth extends Git {
         }
     }
 
-    protected static final class MirrorIdentityRepository implements IdentityRepository {
-        private final Identity identity;
+    private static final class NoopCredentialsProvider extends CredentialsProvider {
 
-        MirrorIdentityRepository(String name, PublicKeyMirrorCredential cred) throws JSchException {
-            final KeyPair keyPair = KeyPair.load(new JSch(), cred.privateKey(), cred.publicKey());
-            final Buffer buf = new Buffer(keyPair.getPublicKeyBlob());
-            final String algName = new String(buf.getString(), StandardCharsets.US_ASCII);
-            if (!keyPair.decrypt(cred.passphrase())) {
-                throw new MirrorException("cannot decrypt the private key with the given passphrase");
-            }
+        static final CredentialsProvider INSTANCE = new NoopCredentialsProvider();
 
-            identity = new Identity() {
-                @Override
-                public String getName() {
-                    return name;
-                }
-
-                @Override
-                public String getAlgName() {
-                    return algName;
-                }
-
-                @Override
-                public byte[] getPublicKeyBlob() {
-                    return keyPair.getPublicKeyBlob();
-                }
-
-                @Override
-                public byte[] getSignature(byte[] data) {
-                    return keyPair.getSignature(data);
-                }
-
-                @Override
-                public boolean setPassphrase(byte[] passphrase) {
-                    return keyPair.decrypt(passphrase);
-                }
-
-                @Override
-                public boolean isEncrypted() {
-                    return keyPair.isEncrypted();
-                }
-
-                @Override
-                @Deprecated
-                public boolean decrypt() {
-                    throw new UnsupportedOperationException();
-                }
-
-                @Override
-                public void clear() {
-                    keyPair.dispose();
-                }
-            };
+        @Override
+        public boolean isInteractive() {
+            return true; // Hacky way in order not to use username and password.
         }
 
         @Override
-        public String getName() {
-            return getClass().getSimpleName();
+        public boolean supports(CredentialItem... items) {
+            return false;
         }
 
         @Override
-        public int getStatus() {
-            return RUNNING;
-        }
-
-        @Override
-        public Vector<Identity> getIdentities() {
-            final Vector<Identity> identities = new Vector<>();
-            identities.add(identity);
-            return identities;
-        }
-
-        @Override
-        public boolean add(byte[] identity) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean remove(byte[] blob) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void removeAll() {
-            throw new UnsupportedOperationException();
+        public boolean get(URIish uri, CredentialItem... items) throws UnsupportedCredentialItem {
+            return false;
         }
     }
 
