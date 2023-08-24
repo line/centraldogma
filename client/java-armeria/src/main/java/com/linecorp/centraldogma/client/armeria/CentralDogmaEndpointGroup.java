@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.client.armeria;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -146,9 +147,10 @@ public final class CentralDogmaEndpointGroup<T> extends DynamicEndpointGroup {
 
     @Override
     public String toString() {
-        return toStringHelper()
+        return toStringHelper(this)
                 .add("instanceListWatcher", instanceListWatcher)
                 .add("endpointListDecoder", endpointListDecoder)
+                .add("endpointGroup", super.toString())
                 .toString();
     }
 }
