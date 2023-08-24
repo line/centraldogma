@@ -91,7 +91,7 @@ task copyLib(group: 'Build',
             file.name.contains("jgit")
         }
         // org.eclipse.jgit-6.x is required.
-        if (jgits.size() != 1 || !jgits[0].name.startsWith("org.eclipse.jgit-6")) {
+        if (jgits.size() != 1 || !jgits.first().name.startsWith("org.eclipse.jgit-6")) {
             throw new IllegalStateException("Unexpected JGit JARs: $jgits.files")
         }
     }
