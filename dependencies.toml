@@ -10,7 +10,7 @@ bouncycastle = "1.76"
 caffeine = "2.9.3"
 checkstyle = "10.3.3"
 curator = "5.5.0"
-cron-utils = "5.0.5"
+cron-utils = "9.2.1"
 diffutils = "1.3.0"
 docker = "9.3.1"
 download = "5.4.0"
@@ -107,7 +107,6 @@ javadocs = "https://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine/2.
 module = "com.puppycrawl.tools:checkstyle"
 version.ref = "checkstyle"
 
-# Don't update `cron-utils` version
 [libraries.cron-utils]
 module = "com.cronutils:cron-utils"
 version.ref = "cron-utils"
