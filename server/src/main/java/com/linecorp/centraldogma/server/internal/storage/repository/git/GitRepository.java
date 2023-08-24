@@ -27,6 +27,7 @@ import static org.eclipse.jgit.lib.ConfigConstants.CONFIG_KEY_REPO_FORMAT_VERSIO
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -80,6 +82,7 @@ import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
+import org.eclipse.jgit.util.SystemReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,6 +139,18 @@ class GitRepository implements Repository {
     private static final Field revWalkObjectsField;
 
     static {
+        final String jgitPomProperties = "META-INF/maven/org.eclipse.jgit/org.eclipse.jgit/pom.properties";
+        try (InputStream is = SystemReader.class.getClassLoader().getResourceAsStream(jgitPomProperties)) {
+            final Properties props = new Properties();
+            props.load(is);
+            final Object jgitVersion = props.get("version");
+            if (jgitVersion != null) {
+                logger.info("Using JGit: {}", jgitVersion);
+            }
+        } catch (IOException e) {
+            logger.debug("Failed to read JGit version", e);
+        }
+
         IsolatedSystemReader.install();
 
         Field field = null;
