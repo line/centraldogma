@@ -213,41 +213,10 @@ final class GitWithAuth extends Git {
                                       publicKeyPreview(cred.publicKey()), e);
         }
         cmd.setTransportConfigCallback(transport -> {
-            final GitSshdSessionFactory factory = new GitSshdSessionFactory() {
+            final GitSshdSessionFactory factory = new DefaultGitSshdSessionFactory() {
                 @Override
-                public RemoteSession getSession(URIish uri, CredentialsProvider credentialsProvider,
-                                                FS fs, int tms) throws TransportException {
-                    try {
-                        return new GitSshdSession(uri, NoopCredentialsProvider.INSTANCE, fs, tms) {
-                            @Override
-                            protected SshClient createClient() {
-                                // Not an Armeria but an SSHD client.
-                                final ClientBuilder builder = ClientBuilder.builder();
-                                // Do not use local file system.
-                                builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
-                                builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
-                                // Do not verify the server key.
-                                builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
-                                final SshClient client = builder.build();
-                                client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
-                                return client;
-                            }
-
-                            @Override
-                            protected ClientSession createClientSession(
-                                    SshClient clientInstance, String host, String username, int port,
-                                    String... passwords) throws IOException, InterruptedException {
-                                if (port <= 0) {
-                                    port = 22; // Use the SSH default port it unspecified.
-                                }
-                                return super.createClientSession(clientInstance, host, username,
-                                                                 port, passwords);
-                            }
-                        };
-                    } catch (Exception e) {
-                        throw new TransportException("Unable to connect to: " + uri +
-                                                     " CredentialsProvider: " + credentialsProvider, e);
-                    }
+                void onClientCreated(SshClient client) {
+                    client.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
                 }
             };
             final SshTransport sshTransport = (SshTransport) transport;
@@ -257,40 +226,10 @@ final class GitWithAuth extends Git {
 
     private static <T extends TransportCommand<?, ?>> void configureSsh(T cmd, PasswordMirrorCredential cred) {
         cmd.setTransportConfigCallback(transport -> {
-            final GitSshdSessionFactory factory = new GitSshdSessionFactory() {
+            final GitSshdSessionFactory factory = new DefaultGitSshdSessionFactory() {
                 @Override
-                public RemoteSession getSession(URIish uri, CredentialsProvider credentialsProvider,
-                                                FS fs, int tms) throws TransportException {
-                    try {
-                        return new GitSshdSession(uri, NoopCredentialsProvider.INSTANCE, fs, tms) {
-                            @Override
-                            protected SshClient createClient() {
-                                // Not an Armeria but an SSHD client.
-                                final ClientBuilder builder = ClientBuilder.builder();
-                                // Do not use local file system.
-                                builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
-                                builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
-                                // Do not verify the server key.
-                                builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
-                                builder.filePasswordProvider(passwordProvider(cred.password()));
-                                return builder.build();
-                            }
-
-                            @Override
-                            protected ClientSession createClientSession(
-                                    SshClient clientInstance, String host, String username, int port,
-                                    String... passwords) throws IOException, InterruptedException {
-                                if (port <= 0) {
-                                    port = 22; // Use the SSH default port it unspecified.
-                                }
-                                return super.createClientSession(clientInstance, host, username,
-                                                                 port, passwords);
-                            }
-                        };
-                    } catch (Exception e) {
-                        throw new TransportException("Unable to connect to: " + uri +
-                                                     " CredentialsProvider: " + credentialsProvider, e);
-                    }
+                void onClientCreated(SshClient client) {
+                    client.setFilePasswordProvider(passwordProvider(cred.password()));
                 }
             };
             final SshTransport sshTransport = (SshTransport) transport;
@@ -329,6 +268,46 @@ final class GitWithAuth extends Git {
                 logger.info("[{}] {} ({}, total: {})", operationName, mirror.remoteRepoUri(), title, totalWork);
             }
         }
+    }
+
+    private static class DefaultGitSshdSessionFactory extends GitSshdSessionFactory {
+        @Override
+        public RemoteSession getSession(URIish uri, CredentialsProvider credentialsProvider,
+                                        FS fs, int tms) throws TransportException {
+            try {
+                return new GitSshdSession(uri, NoopCredentialsProvider.INSTANCE, fs, tms) {
+                    @Override
+                    protected SshClient createClient() {
+                        // Not an Armeria but an SSHD client.
+                        final ClientBuilder builder = ClientBuilder.builder();
+                        // Do not use local file system.
+                        builder.hostConfigEntryResolver(HostConfigEntryResolver.EMPTY);
+                        builder.fileSystemFactory(NoneFileSystemFactory.INSTANCE);
+                        // Do not verify the server key.
+                        builder.serverKeyVerifier((clientSession, remoteAddress, serverKey) -> true);
+                        final SshClient client = builder.build();
+                        onClientCreated(client);
+                        return client;
+                    }
+
+                    @Override
+                    protected ClientSession createClientSession(
+                            SshClient clientInstance, String host, String username, int port,
+                            String... passwords) throws IOException, InterruptedException {
+                        if (port <= 0) {
+                            port = 22; // Use the SSH default port it unspecified.
+                        }
+                        return super.createClientSession(clientInstance, host, username,
+                                                         port, passwords);
+                    }
+                };
+            } catch (Exception e) {
+                throw new TransportException("Unable to connect to: " + uri +
+                                             " CredentialsProvider: " + credentialsProvider, e);
+            }
+        }
+
+        void onClientCreated(SshClient client) {}
     }
 
     private static final class NoopCredentialsProvider extends CredentialsProvider {
